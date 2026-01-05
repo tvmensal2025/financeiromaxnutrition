@@ -14,6 +14,67 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointments: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string
+          duration_minutes: number | null
+          id: string
+          notes: string | null
+          scheduled_at: string
+          service_id: string | null
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          scheduled_at: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          duration_minutes?: number | null
+          id?: string
+          notes?: string | null
+          scheduled_at?: string
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           auto_reminders_enabled: boolean | null
@@ -100,6 +161,213 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          product_id: string | null
+          quantity: number
+          service_id: string | null
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          quantity?: number
+          service_id?: string | null
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          quantity?: number
+          service_id?: string | null
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string
+          discount: number
+          due_date: string
+          id: string
+          invoice_number: string
+          notes: string | null
+          opportunity_id: string | null
+          paid_at: string | null
+          status: Database["public"]["Enums"]["invoice_status"]
+          subscription_id: string | null
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id: string
+          discount?: number
+          due_date: string
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          opportunity_id?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subscription_id?: string | null
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          discount?: number
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          opportunity_id?: string | null
+          paid_at?: string | null
+          status?: Database["public"]["Enums"]["invoice_status"]
+          subscription_id?: string | null
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          business_id: string
+          company: string | null
+          converted_customer_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["lead_status"]
+          temperature: Database["public"]["Enums"]["lead_temperature"] | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          business_id: string
+          company?: string | null
+          converted_customer_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          temperature?: Database["public"]["Enums"]["lead_temperature"] | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          business_id?: string
+          company?: string | null
+          converted_customer_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["lead_status"]
+          temperature?: Database["public"]["Enums"]["lead_temperature"] | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_converted_customer_id_fkey"
+            columns: ["converted_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           business_id: string
@@ -158,6 +426,127 @@ export type Database = {
           },
         ]
       }
+      opportunities: {
+        Row: {
+          business_id: string
+          closed_at: string | null
+          created_at: string
+          customer_id: string | null
+          description: string | null
+          expected_close_date: string | null
+          id: string
+          lead_id: string | null
+          lost_reason: string | null
+          probability: number | null
+          stage: Database["public"]["Enums"]["opportunity_stage"]
+          title: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          business_id: string
+          closed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lead_id?: string | null
+          lost_reason?: string | null
+          probability?: number | null
+          stage?: Database["public"]["Enums"]["opportunity_stage"]
+          title: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          business_id?: string
+          closed_at?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          id?: string
+          lead_id?: string | null
+          lost_reason?: string | null
+          probability?: number | null
+          stage?: Database["public"]["Enums"]["opportunity_stage"]
+          title?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunities_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          business_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          notes: string | null
+          paid_at: string
+          payment_method: string | null
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string | null
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           billing_cycle: string
@@ -208,6 +597,56 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          business_id: string
+          cost: number
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          sku: string | null
+          stock: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+          sku?: string | null
+          stock?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          cost?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          sku?: string | null
+          stock?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -239,6 +678,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          business_id: string
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -321,7 +804,27 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      appointment_status:
+        | "scheduled"
+        | "confirmed"
+        | "completed"
+        | "cancelled"
+        | "no_show"
+      invoice_status: "draft" | "pending" | "paid" | "overdue" | "cancelled"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "unqualified"
+        | "converted"
+      lead_temperature: "cold" | "warm" | "hot"
+      opportunity_stage:
+        | "prospecting"
+        | "qualification"
+        | "proposal"
+        | "negotiation"
+        | "closed_won"
+        | "closed_lost"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -448,6 +951,31 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      appointment_status: [
+        "scheduled",
+        "confirmed",
+        "completed",
+        "cancelled",
+        "no_show",
+      ],
+      invoice_status: ["draft", "pending", "paid", "overdue", "cancelled"],
+      lead_status: [
+        "new",
+        "contacted",
+        "qualified",
+        "unqualified",
+        "converted",
+      ],
+      lead_temperature: ["cold", "warm", "hot"],
+      opportunity_stage: [
+        "prospecting",
+        "qualification",
+        "proposal",
+        "negotiation",
+        "closed_won",
+        "closed_lost",
+      ],
+    },
   },
 } as const
