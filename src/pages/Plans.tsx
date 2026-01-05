@@ -90,11 +90,11 @@ export default function Plans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
-      toast({ title: 'Plano criado com sucesso!' });
+      toast({ title: 'Produto criado com sucesso!' });
       resetForm();
     },
     onError: () => {
-      toast({ title: 'Erro ao criar plano', variant: 'destructive' });
+      toast({ title: 'Erro ao criar produto', variant: 'destructive' });
     },
   });
 
@@ -113,11 +113,11 @@ export default function Plans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
-      toast({ title: 'Plano atualizado!' });
+      toast({ title: 'Produto atualizado!' });
       resetForm();
     },
     onError: () => {
-      toast({ title: 'Erro ao atualizar plano', variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar produto', variant: 'destructive' });
     },
   });
 
@@ -128,10 +128,10 @@ export default function Plans() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
-      toast({ title: 'Plano removido!' });
+      toast({ title: 'Produto removido!' });
     },
     onError: () => {
-      toast({ title: 'Erro ao remover plano', variant: 'destructive' });
+      toast({ title: 'Erro ao remover produto', variant: 'destructive' });
     },
   });
 
@@ -188,32 +188,32 @@ export default function Plans() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Planos</h1>
+            <h1 className="text-3xl font-bold text-foreground">Produtos</h1>
             <p className="text-muted-foreground mt-1">
-              Configure seus planos de assinatura
+              Configure seus produtos e serviços
             </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => resetForm()}>
                 <Plus className="h-4 w-4 mr-2" />
-                Novo Plano
+                Novo Produto
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>
-                  {editingPlan ? 'Editar Plano' : 'Novo Plano'}
+                  {editingPlan ? 'Editar Produto' : 'Novo Produto'}
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Plano *</Label>
+                  <Label htmlFor="name">Nome do Produto *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Plano Premium"
+                    placeholder="Ex: Pacote Premium"
                     required
                   />
                 </div>
@@ -223,7 +223,7 @@ export default function Plans() {
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Descreva os benefícios do plano"
+                    placeholder="Descreva os benefícios do produto"
                     rows={2}
                   />
                 </div>
@@ -284,7 +284,7 @@ export default function Plans() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between py-2">
-                  <Label htmlFor="is_active">Plano ativo</Label>
+                  <Label htmlFor="is_active">Produto ativo</Label>
                   <Switch
                     id="is_active"
                     checked={formData.is_active}
@@ -315,9 +315,9 @@ export default function Plans() {
         ) : !plans?.length ? (
           <div className="flex flex-col items-center justify-center py-12 text-center bg-card rounded-xl border border-border">
             <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Nenhum plano cadastrado</p>
+            <p className="text-muted-foreground">Nenhum produto cadastrado</p>
             <p className="text-sm text-muted-foreground/60 mt-1">
-              Crie seu primeiro plano para começar
+              Crie seu primeiro produto para começar
             </p>
           </div>
         ) : (

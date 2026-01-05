@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Clientes', href: '/clientes', icon: Users },
-  { name: 'Planos', href: '/planos', icon: CreditCard },
+  { name: 'Produtos', href: '/planos', icon: CreditCard },
   { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
   { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare },
