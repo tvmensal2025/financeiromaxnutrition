@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, MessageSquare, Send, Loader2, ExternalLink, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, MessageSquare, Send, Loader2, ExternalLink, Clock, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -88,47 +88,51 @@ export default function Messages() {
     },
   });
 
+  const sendMessageFn = async (customerId: string, content: string) => {
+    const customer = customers?.find((c) => c.id === customerId);
+    const webhookUrl = business?.n8n_webhook_url;
+    
+    // Se tem webhook configurado, usar edge function
+    if (webhookUrl) {
+      const response = await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          customer_id: customerId,
+          content: content,
+          business_id: business?.id,
+          webhook_url: webhookUrl,
+        },
+      });
+
+      if (response.error) throw response.error;
+      return { viaWebhook: true, data: response.data };
+    }
+
+    // Caso contrário, registrar e abrir WhatsApp manualmente
+    const { error } = await supabase.from('messages').insert({
+      customer_id: customerId,
+      content: content,
+      message_type: 'whatsapp',
+      status: 'pending',
+      business_id: business?.id,
+    });
+    if (error) throw error;
+
+    // Open WhatsApp with the message
+    if (customer?.whatsapp) {
+      const phone = customer.whatsapp.replace(/\D/g, '');
+      const encodedMessage = encodeURIComponent(content);
+      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    }
+    return { viaWebhook: false };
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const customer = customers?.find((c) => c.id === data.customer_id);
-      const webhookUrl = business?.n8n_webhook_url;
-      
-      // Se tem webhook configurado, usar edge function
-      if (webhookUrl) {
-        const response = await supabase.functions.invoke('send-whatsapp', {
-          body: {
-            customer_id: data.customer_id,
-            content: data.content,
-            business_id: business?.id,
-            webhook_url: webhookUrl,
-          },
-        });
-
-        if (response.error) throw response.error;
-        return response.data;
-      }
-
-      // Caso contrário, registrar e abrir WhatsApp manualmente
-      const { error } = await supabase.from('messages').insert({
-        customer_id: data.customer_id,
-        content: data.content,
-        message_type: 'whatsapp',
-        status: 'pending',
-        business_id: business?.id,
-      });
-      if (error) throw error;
-
-      // Open WhatsApp with the message
-      if (customer?.whatsapp) {
-        const phone = customer.whatsapp.replace(/\D/g, '');
-        const encodedMessage = encodeURIComponent(data.content);
-        window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
-      }
+      return sendMessageFn(data.customer_id, data.content);
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
-      const webhookUrl = business?.n8n_webhook_url;
-      if (webhookUrl) {
+      if (result?.viaWebhook) {
         toast({ title: 'Mensagem enviada!', description: 'Enviada automaticamente via n8n.' });
       } else {
         toast({ title: 'Mensagem registrada!', description: 'WhatsApp aberto para envio.' });
@@ -137,6 +141,28 @@ export default function Messages() {
     },
     onError: () => {
       toast({ title: 'Erro ao enviar mensagem', variant: 'destructive' });
+    },
+  });
+
+  const resendMutation = useMutation({
+    mutationFn: async (message: Message) => {
+      const customer = customers?.find((c) => c.id === message.customer_id);
+      const webhookUrl = business?.n8n_webhook_url;
+      
+      // Open WhatsApp directly with the message content
+      if (customer?.whatsapp) {
+        const phone = customer.whatsapp.replace(/\D/g, '');
+        const encodedMessage = encodeURIComponent(message.content);
+        window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+      }
+      
+      return { viaWebhook: !!webhookUrl };
+    },
+    onSuccess: () => {
+      toast({ title: 'WhatsApp aberto!', description: 'Reenvie a mensagem pelo app.' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao reenviar mensagem', variant: 'destructive' });
     },
   });
 
@@ -365,6 +391,17 @@ export default function Messages() {
                             onClick={() => markAsSentMutation.mutate(message.id)}
                           >
                             Marcar Enviada
+                          </Button>
+                        )}
+                        {message.status === 'sent' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => resendMutation.mutate(message)}
+                            disabled={resendMutation.isPending}
+                          >
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Reenviar
                           </Button>
                         )}
                       </div>
