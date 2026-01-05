@@ -14,6 +14,12 @@ import Import from "./pages/Import";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Leads from "./pages/Leads";
+import Pipeline from "./pages/Pipeline";
+import Products from "./pages/Products";
+import Services from "./pages/Services";
+import Appointments from "./pages/Appointments";
+import Invoices from "./pages/Invoices";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -74,10 +80,50 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/leads"
+        element={
+          <ProtectedRoute>
+            <Leads />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pipeline"
+        element={
+          <ProtectedRoute>
+            <Pipeline />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/clientes"
         element={
           <ProtectedRoute>
             <Customers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/produtos"
+        element={
+          <ProtectedRoute>
+            <Products />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servicos"
+        element={
+          <ProtectedRoute>
+            <Services />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/agendamentos"
+        element={
+          <ProtectedRoute>
+            <Appointments />
           </ProtectedRoute>
         }
       />
@@ -94,6 +140,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Subscriptions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faturas"
+        element={
+          <ProtectedRoute>
+            <Invoices />
           </ProtectedRoute>
         }
       />

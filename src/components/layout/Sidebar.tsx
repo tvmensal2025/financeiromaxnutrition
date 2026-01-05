@@ -2,22 +2,32 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
-  CreditCard, 
   FileText, 
   MessageSquare, 
   Settings,
   LogOut,
   Building2,
-  Upload
+  Upload,
+  UserPlus,
+  TrendingUp,
+  Package,
+  Wrench,
+  Calendar,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Leads', href: '/leads', icon: UserPlus },
+  { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
   { name: 'Clientes', href: '/clientes', icon: Users },
-  { name: 'Produtos', href: '/planos', icon: CreditCard },
+  { name: 'Produtos', href: '/produtos', icon: Package },
+  { name: 'Serviços', href: '/servicos', icon: Wrench },
+  { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
   { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
+  { name: 'Faturas', href: '/faturas', icon: Receipt },
   { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
