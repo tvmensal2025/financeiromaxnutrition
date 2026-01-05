@@ -49,7 +49,7 @@ export default function Import() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, email');
+        .select('id, email, whatsapp');
       if (error) throw error;
       return data;
     },
