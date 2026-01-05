@@ -7,7 +7,8 @@ import {
   MessageSquare, 
   Settings,
   LogOut,
-  Building2
+  Building2,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Planos', href: '/planos', icon: CreditCard },
   { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
+  { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
