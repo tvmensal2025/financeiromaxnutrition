@@ -74,6 +74,7 @@ export default function Subscriptions() {
     customer_id: '',
     plan_id: '',
     credits_used: '0',
+    end_date: '',
   });
 
   const { data: subscriptions, isLoading } = useQuery({
@@ -233,6 +234,7 @@ export default function Subscriptions() {
       customer_id: '',
       plan_id: '',
       credits_used: '0',
+      end_date: '',
     });
     setEditingSubscription(null);
     setIsDialogOpen(false);
@@ -244,6 +246,7 @@ export default function Subscriptions() {
       customer_id: subscription.customer_id,
       plan_id: subscription.plan_id,
       credits_used: subscription.credits_used.toString(),
+      end_date: subscription.end_date,
     });
     setIsDialogOpen(true);
   };
@@ -255,6 +258,7 @@ export default function Subscriptions() {
         id: editingSubscription.id,
         data: {
           credits_used: parseInt(formData.credits_used) || 0,
+          end_date: formData.end_date,
         },
       });
     } else {
@@ -359,20 +363,31 @@ export default function Subscriptions() {
                   </>
                 )}
                 {editingSubscription && (
-                  <div className="space-y-2">
-                    <Label htmlFor="credits_used">Créditos Utilizados</Label>
-                    <Input
-                      id="credits_used"
-                      type="number"
-                      min="0"
-                      max={editingSubscription.credits_total}
-                      value={formData.credits_used}
-                      onChange={(e) => setFormData({ ...formData, credits_used: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Total disponível: {editingSubscription.credits_total}
-                    </p>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="end_date">Data de Vencimento</Label>
+                      <Input
+                        id="end_date"
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="credits_used">Créditos Utilizados</Label>
+                      <Input
+                        id="credits_used"
+                        type="number"
+                        min="0"
+                        max={editingSubscription.credits_total}
+                        value={formData.credits_used}
+                        onChange={(e) => setFormData({ ...formData, credits_used: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Total disponível: {editingSubscription.credits_total}
+                      </p>
+                    </div>
+                  </>
                 )}
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={resetForm}>
