@@ -17,6 +17,9 @@ interface Business {
   logo_url: string | null;
   primary_color: string | null;
   n8n_webhook_url?: string | null;
+  reminder_days_before?: number;
+  low_credits_threshold?: number;
+  auto_reminders_enabled?: boolean;
 }
 
 interface AuthContextType {
