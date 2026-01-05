@@ -23,9 +23,35 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    const { customer_id, content, business_id, webhook_url } = await req.json() as SendMessageRequest
+    const { customer_id, content, business_id, webhook_url: requestWebhookUrl } =
+      await req.json() as SendMessageRequest
 
-    console.log('Recebendo requisição de envio de mensagem:', { customer_id, content, business_id })
+    console.log('Recebendo requisição de envio de mensagem:', { customer_id, business_id })
+
+    // Preferir webhook configurado no negócio (evita URL desatualizada vinda do frontend)
+    const { data: business, error: businessError } = await supabase
+      .from('businesses')
+      .select('id, n8n_webhook_url')
+      .eq('id', business_id)
+      .single()
+
+    if (businessError) {
+      console.error('Erro ao buscar negócio:', businessError)
+    }
+
+    const configuredWebhookUrl = business?.n8n_webhook_url ?? null
+    const effectiveWebhookUrl = configuredWebhookUrl || requestWebhookUrl
+
+    if (configuredWebhookUrl && requestWebhookUrl && requestWebhookUrl !== configuredWebhookUrl) {
+      console.warn('Webhook enviado pelo frontend foi ignorado (usando o configurado no negócio).', {
+        requestWebhookUrl,
+        configuredWebhookUrl,
+      })
+    }
+
+    if (effectiveWebhookUrl?.includes('/webhook-test/')) {
+      console.warn('Webhook n8n parece ser de TESTE (/webhook-test/).', { effectiveWebhookUrl })
+    }
 
     // Buscar dados do cliente
     const { data: customer, error: customerError } = await supabase
@@ -70,12 +96,12 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Se tiver webhook_url do n8n configurado, enviar para lá
-    if (webhook_url) {
-      console.log('Enviando para webhook n8n:', webhook_url)
-      
+    // Se tiver webhook do n8n configurado (no negócio), enviar para lá
+    if (effectiveWebhookUrl) {
+      console.log('Enviando para webhook n8n:', effectiveWebhookUrl)
+
       try {
-        const webhookResponse = await fetch(webhook_url, {
+        const webhookResponse = await fetch(effectiveWebhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -98,17 +124,20 @@ Deno.serve(async (req) => {
             .eq('id', message.id)
 
           console.log('Mensagem enviada com sucesso via n8n')
-          
+
           return new Response(
-            JSON.stringify({ 
-              success: true, 
+            JSON.stringify({
+              success: true,
               message: 'Mensagem enviada via n8n',
-              message_id: message.id 
+              message_id: message.id,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         } else {
-          console.error('Erro ao enviar para n8n:', await webhookResponse.text())
+          console.error('Erro ao enviar para n8n:', {
+            status: webhookResponse.status,
+            body: await webhookResponse.text(),
+          })
         }
       } catch (webhookError) {
         console.error('Erro ao chamar webhook:', webhookError)
