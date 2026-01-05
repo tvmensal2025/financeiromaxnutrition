@@ -433,6 +433,7 @@ export default function Subscriptions() {
                   <th>Plano</th>
                   <th>Consumo</th>
                   <th>Período</th>
+                  <th>Dias p/ Vencer</th>
                   <th>Status</th>
                   <th className="text-right">Ações</th>
                 </tr>
@@ -441,6 +442,7 @@ export default function Subscriptions() {
                 {filteredSubscriptions.map((sub) => {
                   const statusInfo = getStatusInfo(sub.status, sub.end_date);
                   const consumePercent = Math.round((sub.credits_used / sub.credits_total) * 100);
+                  const daysUntilEnd = differenceInDays(new Date(sub.end_date), new Date());
 
                   return (
                     <tr key={sub.id} className="animate-fade-in">
@@ -485,6 +487,15 @@ export default function Subscriptions() {
                           {' - '}
                           {format(new Date(sub.end_date), "dd/MM/yy", { locale: ptBR })}
                         </div>
+                      </td>
+                      <td>
+                        <span className={cn(
+                          'font-medium',
+                          daysUntilEnd < 0 ? 'text-destructive' :
+                          daysUntilEnd <= 7 ? 'text-warning' : 'text-success'
+                        )}>
+                          {daysUntilEnd < 0 ? `${Math.abs(daysUntilEnd)}d atrasado` : `${daysUntilEnd}d`}
+                        </span>
                       </td>
                       <td>
                         <span className={cn('status-badge', statusInfo.className)}>
