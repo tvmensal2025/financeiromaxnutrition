@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Loader2, RotateCcw } from 'lucide-react';
 import { format, differenceInDays, addMonths, addDays, addWeeks, addYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -73,7 +73,6 @@ export default function Subscriptions() {
   const [formData, setFormData] = useState({
     customer_id: '',
     plan_id: '',
-    auto_renew: true,
     credits_used: '0',
   });
 
@@ -147,7 +146,7 @@ export default function Subscriptions() {
       const { error } = await supabase.from('subscriptions').insert({
         customer_id: data.customer_id,
         plan_id: data.plan_id,
-        auto_renew: data.auto_renew,
+        auto_renew: false,
         credits_used: parseInt(data.credits_used) || 0,
         credits_total: plan.credits,
         start_date: format(startDate, 'yyyy-MM-dd'),
@@ -184,6 +183,36 @@ export default function Subscriptions() {
     },
   });
 
+  const renewMutation = useMutation({
+    mutationFn: async (subscription: Subscription) => {
+      const plan = plans?.find((p) => p.id === subscription.plan_id);
+      if (!plan) throw new Error('Plano não encontrado');
+
+      const startDate = new Date();
+      const endDate = getEndDate(startDate, plan.billing_cycle);
+
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({
+          start_date: format(startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd'),
+          credits_used: 0,
+          status: 'active',
+        })
+        .eq('id', subscription.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast({ title: 'Assinatura renovada com sucesso!' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao renovar assinatura', variant: 'destructive' });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('subscriptions').delete().eq('id', id);
@@ -203,7 +232,6 @@ export default function Subscriptions() {
     setFormData({
       customer_id: '',
       plan_id: '',
-      auto_renew: true,
       credits_used: '0',
     });
     setEditingSubscription(null);
@@ -215,7 +243,6 @@ export default function Subscriptions() {
     setFormData({
       customer_id: subscription.customer_id,
       plan_id: subscription.plan_id,
-      auto_renew: subscription.auto_renew,
       credits_used: subscription.credits_used.toString(),
     });
     setIsDialogOpen(true);
@@ -227,7 +254,6 @@ export default function Subscriptions() {
       updateMutation.mutate({
         id: editingSubscription.id,
         data: {
-          auto_renew: formData.auto_renew,
           credits_used: parseInt(formData.credits_used) || 0,
         },
       });
@@ -348,19 +374,6 @@ export default function Subscriptions() {
                     </p>
                   </div>
                 )}
-                <div className="flex items-center justify-between py-2">
-                  <div>
-                    <Label htmlFor="auto_renew">Renovação Automática</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Renovar automaticamente ao vencer
-                    </p>
-                  </div>
-                  <Switch
-                    id="auto_renew"
-                    checked={formData.auto_renew}
-                    onCheckedChange={(checked) => setFormData({ ...formData, auto_renew: checked })}
-                  />
-                </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={resetForm}>
                     Cancelar
@@ -420,7 +433,6 @@ export default function Subscriptions() {
                   <th>Plano</th>
                   <th>Consumo</th>
                   <th>Período</th>
-                  <th>Renovação</th>
                   <th>Status</th>
                   <th className="text-right">Ações</th>
                 </tr>
@@ -475,24 +487,28 @@ export default function Subscriptions() {
                         </div>
                       </td>
                       <td>
-                        {sub.auto_renew ? (
-                          <Badge variant="outline" className="text-success border-success/20">
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            Auto
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-muted-foreground">
-                            Manual
-                          </Badge>
-                        )}
-                      </td>
-                      <td>
                         <span className={cn('status-badge', statusInfo.className)}>
                           {statusInfo.label}
                         </span>
                       </td>
                       <td>
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => renewMutation.mutate(sub)}
+                            disabled={renewMutation.isPending}
+                            className="text-success border-success/30 hover:bg-success/10"
+                          >
+                            {renewMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RotateCcw className="h-4 w-4 mr-1" />
+                                Renovar
+                              </>
+                            )}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
