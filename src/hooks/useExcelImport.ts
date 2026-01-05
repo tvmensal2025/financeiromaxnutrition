@@ -9,6 +9,7 @@ export interface ImportRow {
   customerWhatsapp: string | null;
   planName: string;
   planPrice: number;
+  dueDay: number;
   isDuplicate: boolean;
   existingCustomerId: string | null;
   action: 'import' | 'skip' | 'update';
@@ -97,12 +98,20 @@ export function useExcelImport() {
           ? planPriceRaw 
           : parseFloat(String(planPriceRaw).replace(/[^\d,.-]/g, '').replace(',', '.')) || 0;
 
+        const dueDayRaw = row['Vencimento'] || row['vencimento'] || row['Dia'] || row['dia'] || row['Due Day'] || row['due_day'] || '';
+        const dueDay = typeof dueDayRaw === 'number' 
+          ? dueDayRaw 
+          : parseInt(String(dueDayRaw).replace(/\D/g, ''), 10) || 0;
+
         // Validation
         if (!customerName) {
           errors.push('Nome do cliente é obrigatório');
         }
         if (!planName) {
           errors.push('Nome do plano é obrigatório');
+        }
+        if (dueDay < 1 || dueDay > 31) {
+          errors.push('Dia de vencimento deve ser entre 1 e 31');
         }
 
         // Check for duplicates
@@ -127,6 +136,7 @@ export function useExcelImport() {
           customerWhatsapp,
           planName,
           planPrice,
+          dueDay,
           isDuplicate,
           existingCustomerId,
           action: isDuplicate ? 'skip' : 'import',

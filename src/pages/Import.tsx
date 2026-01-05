@@ -91,18 +91,26 @@ export default function Import() {
     }
   };
 
-  const getEndDate = (startDate: Date, billingCycle: string) => {
+  const getEndDate = (dueDay: number, billingCycle: string) => {
+    const today = new Date();
+    let startDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+    
+    // If due day already passed this month, start from next month
+    if (startDate <= today) {
+      startDate = addMonths(startDate, 1);
+    }
+    
     switch (billingCycle) {
       case 'weekly':
-        return addWeeks(startDate, 1);
+        return { startDate, endDate: addWeeks(startDate, 1) };
       case 'monthly':
-        return addMonths(startDate, 1);
+        return { startDate, endDate: addMonths(startDate, 1) };
       case 'quarterly':
-        return addMonths(startDate, 3);
+        return { startDate, endDate: addMonths(startDate, 3) };
       case 'yearly':
-        return addYears(startDate, 1);
+        return { startDate, endDate: addYears(startDate, 1) };
       default:
-        return addMonths(startDate, 1);
+        return { startDate, endDate: addMonths(startDate, 1) };
     }
   };
 
@@ -140,9 +148,8 @@ export default function Import() {
 
             if (customerError) throw customerError;
 
-            // Create subscription
-            const startDate = new Date();
-            const endDate = getEndDate(startDate, plan.billing_cycle);
+            // Create subscription with due day based dates
+            const { startDate, endDate } = getEndDate(row.dueDay, plan.billing_cycle);
 
             const { error: subError } = await supabase
               .from('subscriptions')
@@ -173,9 +180,8 @@ export default function Import() {
 
             if (updateError) throw updateError;
 
-            // Create subscription for existing customer
-            const startDate = new Date();
-            const endDate = getEndDate(startDate, plan.billing_cycle);
+            // Create subscription for existing customer with due day
+            const { startDate, endDate } = getEndDate(row.dueDay, plan.billing_cycle);
 
             const { error: subError } = await supabase
               .from('subscriptions')
@@ -225,9 +231,9 @@ export default function Import() {
 
   const downloadTemplate = () => {
     const template = [
-      ['Nome', 'Email', 'Telefone', 'WhatsApp', 'Plano', 'Valor'],
-      ['João Silva', 'joao@email.com', '(11) 99999-9999', '(11) 99999-9999', 'Plano Básico', '99.90'],
-      ['Maria Santos', 'maria@email.com', '(11) 88888-8888', '(11) 88888-8888', 'Plano Premium', '199.90'],
+      ['Nome', 'Email', 'Telefone', 'WhatsApp', 'Plano', 'Valor', 'Vencimento'],
+      ['João Silva', 'joao@email.com', '(11) 99999-9999', '(11) 99999-9999', 'Plano Básico', '99.90', '5'],
+      ['Maria Santos', 'maria@email.com', '(11) 88888-8888', '(11) 88888-8888', 'Plano Premium', '199.90', '10'],
     ];
 
     const ws = import('xlsx').then((XLSX) => {
@@ -363,6 +369,7 @@ export default function Import() {
                     <th>Email</th>
                     <th>Plano</th>
                     <th>Valor</th>
+                    <th>Vencimento</th>
                     <th>Status</th>
                     <th>Ação</th>
                   </tr>
@@ -387,6 +394,9 @@ export default function Import() {
                       <td className="text-foreground">{row.planName || '-'}</td>
                       <td className="text-muted-foreground">
                         R$ {row.planPrice.toFixed(2)}
+                      </td>
+                      <td className="text-muted-foreground">
+                        Dia {row.dueDay}
                       </td>
                       <td>
                         {!row.isValid ? (
