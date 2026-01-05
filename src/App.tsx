@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Plans from "./pages/Plans";
 import Subscriptions from "./pages/Subscriptions";
+import Import from "./pages/Import";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -93,6 +94,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Subscriptions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/importar"
+        element={
+          <ProtectedRoute>
+            <Import />
           </ProtectedRoute>
         }
       />
