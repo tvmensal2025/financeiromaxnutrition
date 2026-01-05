@@ -29,6 +29,7 @@ export interface ImportSummary {
 interface ExistingCustomer {
   id: string;
   email: string | null;
+  whatsapp: string | null;
 }
 
 interface ExistingPlan {
@@ -63,6 +64,12 @@ export function useExcelImport() {
         existingCustomers
           .filter((c) => c.email)
           .map((c) => [c.email!.toLowerCase(), c.id])
+      );
+
+      const customerWhatsappMap = new Map(
+        existingCustomers
+          .filter((c) => c.whatsapp)
+          .map((c) => [c.whatsapp!.replace(/\D/g, ''), c.id])
       );
 
       const planNameMap = new Map(
@@ -114,14 +121,21 @@ export function useExcelImport() {
           errors.push('Dia de vencimento deve ser entre 1 e 31');
         }
 
-        // Check for duplicates
-        const isDuplicate = customerEmail 
+        // Check for duplicates by email OR whatsapp
+        const whatsappNormalized = customerWhatsapp?.replace(/\D/g, '') || '';
+        const isDuplicateByEmail = customerEmail 
           ? customerEmailMap.has(customerEmail.toLowerCase()) 
           : false;
+        const isDuplicateByWhatsapp = whatsappNormalized
+          ? customerWhatsappMap.has(whatsappNormalized)
+          : false;
+        const isDuplicate = isDuplicateByEmail || isDuplicateByWhatsapp;
         
         const existingCustomerId = customerEmail 
           ? customerEmailMap.get(customerEmail.toLowerCase()) || null 
-          : null;
+          : whatsappNormalized
+            ? customerWhatsappMap.get(whatsappNormalized) || null
+            : null;
 
         // Check if plan exists
         if (planName && !planNameMap.has(planName.toLowerCase())) {
