@@ -16,32 +16,41 @@ export type Database = {
     Tables: {
       businesses: {
         Row: {
+          auto_reminders_enabled: boolean | null
           created_at: string
           id: string
           logo_url: string | null
+          low_credits_threshold: number | null
           n8n_webhook_url: string | null
           name: string
           primary_color: string | null
+          reminder_days_before: number | null
           slug: string
           updated_at: string
         }
         Insert: {
+          auto_reminders_enabled?: boolean | null
           created_at?: string
           id?: string
           logo_url?: string | null
+          low_credits_threshold?: number | null
           n8n_webhook_url?: string | null
           name: string
           primary_color?: string | null
+          reminder_days_before?: number | null
           slug: string
           updated_at?: string
         }
         Update: {
+          auto_reminders_enabled?: boolean | null
           created_at?: string
           id?: string
           logo_url?: string | null
+          low_credits_threshold?: number | null
           n8n_webhook_url?: string | null
           name?: string
           primary_color?: string | null
+          reminder_days_before?: number | null
           slug?: string
           updated_at?: string
         }

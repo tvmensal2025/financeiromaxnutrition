@@ -6,18 +6,23 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, User, Palette, Save, Loader2, Webhook } from 'lucide-react';
+import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play } from 'lucide-react';
 
 export default function Settings() {
   const { business, profile, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isTestingReminders, setIsTestingReminders] = useState(false);
 
   const [businessData, setBusinessData] = useState({
     name: business?.name || '',
     primary_color: business?.primary_color || '#3B82F6',
     n8n_webhook_url: business?.n8n_webhook_url || '',
+    reminder_days_before: (business as any)?.reminder_days_before ?? 3,
+    low_credits_threshold: (business as any)?.low_credits_threshold ?? 20,
+    auto_reminders_enabled: (business as any)?.auto_reminders_enabled ?? false,
   });
 
   const [profileData, setProfileData] = useState({
@@ -57,6 +62,23 @@ export default function Settings() {
     },
     onError: () => {
       toast({ title: 'Erro ao atualizar perfil', variant: 'destructive' });
+    },
+  });
+
+  const testRemindersMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('auto-reminders');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: 'Verificação executada!',
+        description: `Lembretes: ${data.results?.renewalReminders || 0}, Créditos baixos: ${data.results?.lowCreditsAlerts || 0}, Expirados: ${data.results?.expirationAlerts || 0}`,
+      });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao executar verificação', description: String(error), variant: 'destructive' });
     },
   });
 
@@ -184,7 +206,110 @@ export default function Settings() {
           </Button>
         </div>
 
-        {/* Profile Settings */}
+        {/* Auto Reminders Settings */}
+        <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10">
+              <Bell className="h-5 w-5 text-warning" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Lembretes Automáticos</h2>
+              <p className="text-sm text-muted-foreground">
+                Notificações automáticas via WhatsApp
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div className="space-y-0.5">
+                <Label htmlFor="autoReminders">Habilitar Lembretes</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enviar notificações automáticas para clientes
+                </p>
+              </div>
+              <Switch
+                id="autoReminders"
+                checked={businessData.auto_reminders_enabled}
+                onCheckedChange={(checked) => 
+                  setBusinessData({ ...businessData, auto_reminders_enabled: checked })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reminderDays">Dias de Antecedência</Label>
+              <Input
+                id="reminderDays"
+                type="number"
+                min={1}
+                max={30}
+                value={businessData.reminder_days_before}
+                onChange={(e) => setBusinessData({ 
+                  ...businessData, 
+                  reminder_days_before: parseInt(e.target.value) || 3 
+                })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enviar lembrete X dias antes da assinatura vencer
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lowCredits">Alerta de Créditos Baixos (%)</Label>
+              <Input
+                id="lowCredits"
+                type="number"
+                min={5}
+                max={50}
+                value={businessData.low_credits_threshold}
+                onChange={(e) => setBusinessData({ 
+                  ...businessData, 
+                  low_credits_threshold: parseInt(e.target.value) || 20 
+                })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enviar alerta quando o cliente tiver menos de X% dos créditos
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+            <p className="text-sm font-medium text-foreground">Tipos de notificação:</p>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              <li>• <strong>Renovação:</strong> X dias antes da assinatura vencer</li>
+              <li>• <strong>Créditos baixos:</strong> Quando restarem menos de X%</li>
+              <li>• <strong>Expiração:</strong> Quando a assinatura expirar</li>
+            </ul>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              onClick={() => updateBusinessMutation.mutate(businessData)}
+              disabled={updateBusinessMutation.isPending}
+            >
+              {updateBusinessMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Salvar Configurações
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => testRemindersMutation.mutate()}
+              disabled={testRemindersMutation.isPending || !businessData.auto_reminders_enabled}
+            >
+              {testRemindersMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              Executar Agora
+            </Button>
+          </div>
+        </div>
         <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
