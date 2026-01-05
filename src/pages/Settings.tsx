@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, User, Palette, Save, Loader2 } from 'lucide-react';
+import { Building2, User, Palette, Save, Loader2, Webhook } from 'lucide-react';
 
 export default function Settings() {
   const { business, profile, user } = useAuth();
@@ -17,6 +17,7 @@ export default function Settings() {
   const [businessData, setBusinessData] = useState({
     name: business?.name || '',
     primary_color: business?.primary_color || '#3B82F6',
+    n8n_webhook_url: business?.n8n_webhook_url || '',
   });
 
   const [profileData, setProfileData] = useState({
@@ -117,7 +118,7 @@ export default function Settings() {
               </p>
             </div>
           </div>
-
+          
           <Button
             onClick={() => updateBusinessMutation.mutate(businessData)}
             disabled={updateBusinessMutation.isPending}
@@ -128,6 +129,58 @@ export default function Settings() {
               <Save className="mr-2 h-4 w-4" />
             )}
             Salvar Negócio
+          </Button>
+        </div>
+
+        {/* n8n Integration */}
+        <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
+              <Webhook className="h-5 w-5 text-success" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Integração n8n</h2>
+              <p className="text-sm text-muted-foreground">
+                Automação de envio de mensagens
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="n8nWebhook">URL do Webhook n8n</Label>
+              <Input
+                id="n8nWebhook"
+                value={businessData.n8n_webhook_url}
+                onChange={(e) => setBusinessData({ ...businessData, n8n_webhook_url: e.target.value })}
+                placeholder="https://seu-n8n.com/webhook/..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Configure um workflow no n8n com trigger Webhook e cole a URL aqui para envio automático de mensagens WhatsApp
+              </p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+            <p className="text-sm font-medium text-foreground">Como configurar:</p>
+            <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+              <li>Crie um workflow no n8n com trigger "Webhook"</li>
+              <li>Adicione nós para integrar com WhatsApp Business API ou Evolution API</li>
+              <li>Copie a URL do webhook e cole acima</li>
+              <li>As mensagens serão enviadas automaticamente pelo n8n</li>
+            </ol>
+          </div>
+
+          <Button
+            onClick={() => updateBusinessMutation.mutate(businessData)}
+            disabled={updateBusinessMutation.isPending}
+          >
+            {updateBusinessMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Salvar Integração
           </Button>
         </div>
 

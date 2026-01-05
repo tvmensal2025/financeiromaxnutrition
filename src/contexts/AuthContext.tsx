@@ -16,6 +16,7 @@ interface Business {
   slug: string;
   logo_url: string | null;
   primary_color: string | null;
+  n8n_webhook_url?: string | null;
 }
 
 interface AuthContextType {

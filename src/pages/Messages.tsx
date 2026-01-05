@@ -91,7 +91,24 @@ export default function Messages() {
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const customer = customers?.find((c) => c.id === data.customer_id);
+      const webhookUrl = business?.n8n_webhook_url;
       
+      // Se tem webhook configurado, usar edge function
+      if (webhookUrl) {
+        const response = await supabase.functions.invoke('send-whatsapp', {
+          body: {
+            customer_id: data.customer_id,
+            content: data.content,
+            business_id: business?.id,
+            webhook_url: webhookUrl,
+          },
+        });
+
+        if (response.error) throw response.error;
+        return response.data;
+      }
+
+      // Caso contrário, registrar e abrir WhatsApp manualmente
       const { error } = await supabase.from('messages').insert({
         customer_id: data.customer_id,
         content: data.content,
@@ -108,13 +125,18 @@ export default function Messages() {
         window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
-      toast({ title: 'Mensagem registrada!', description: 'WhatsApp aberto para envio.' });
+      const webhookUrl = business?.n8n_webhook_url;
+      if (webhookUrl) {
+        toast({ title: 'Mensagem enviada!', description: 'Enviada automaticamente via n8n.' });
+      } else {
+        toast({ title: 'Mensagem registrada!', description: 'WhatsApp aberto para envio.' });
+      }
       resetForm();
     },
     onError: () => {
-      toast({ title: 'Erro ao registrar mensagem', variant: 'destructive' });
+      toast({ title: 'Erro ao enviar mensagem', variant: 'destructive' });
     },
   });
 

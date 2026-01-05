@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           id: string
           logo_url: string | null
+          n8n_webhook_url: string | null
           name: string
           primary_color: string | null
           slug: string
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          n8n_webhook_url?: string | null
           name: string
           primary_color?: string | null
           slug: string
@@ -37,6 +39,7 @@ export type Database = {
           created_at?: string
           id?: string
           logo_url?: string | null
+          n8n_webhook_url?: string | null
           name?: string
           primary_color?: string | null
           slug?: string
