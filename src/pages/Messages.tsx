@@ -32,6 +32,7 @@ interface WhatsAppMessage {
   is_group?: boolean;
   group_name?: string | null;
   participant_phone?: string | null;
+  sender_avatar_url?: string | null;
 }
 
 interface Lead {
@@ -188,6 +189,7 @@ export default function Messages() {
           is_group: isGroup,
           group_name: msg.group_name,
           participant_count: 0, // Will be updated below
+          avatar_url: msg.sender_avatar_url,
         });
       }
     });

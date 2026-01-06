@@ -7,6 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Buscar foto de perfil do contato na Evolution API
+async function getProfilePicture(phone: string, instance: string): Promise<string | null> {
+  try {
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.log('Evolution API credentials not configured');
+      return null;
+    }
+
+    const response = await fetch(`${evolutionApiUrl}/chat/fetchProfilePictureUrl/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({ number: phone })
+    });
+    
+    if (!response.ok) {
+      console.log('Failed to fetch profile picture:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('Profile picture response:', data);
+    return data?.profilePictureUrl || data?.picture || null;
+  } catch (error) {
+    console.log('Error fetching profile picture:', error);
+    return null;
+  }
+}
+
 interface EvolutionWebhookPayload {
   event: string;
   instance: string;
@@ -219,13 +253,21 @@ serve(async (req) => {
 
     let leadId: string | null = null;
     let customerId: string | null = null;
+    let senderAvatarUrl: string | null = null;
+
+    // Fetch profile picture from Evolution API
+    const phoneForPicture = isGroup && participantPhone ? participantPhone : phone;
+    if (!isGroup || participantPhone) {
+      senderAvatarUrl = await getProfilePicture(phoneForPicture, payload.instance);
+      console.log('Fetched avatar URL:', senderAvatarUrl);
+    }
 
     // For individual chats, link to lead/customer
     if (!isGroup) {
       // Check customers first
       const { data: existingCustomer } = await supabase
         .from('customers')
-        .select('id')
+        .select('id, avatar_url')
         .eq('business_id', businessId)
         .or(`whatsapp.eq.${phone},phone.eq.${phone}`)
         .limit(1)
@@ -234,11 +276,20 @@ serve(async (req) => {
       if (existingCustomer) {
         customerId = existingCustomer.id;
         console.log('Found existing customer:', customerId);
+        
+        // Update avatar if not set
+        if (senderAvatarUrl && !existingCustomer.avatar_url) {
+          await supabase
+            .from('customers')
+            .update({ avatar_url: senderAvatarUrl })
+            .eq('id', customerId);
+          console.log('Updated customer avatar');
+        }
       } else {
         // Check leads
         const { data: existingLead } = await supabase
           .from('leads')
-          .select('id')
+          .select('id, avatar_url')
           .eq('business_id', businessId)
           .or(`whatsapp.eq.${phone},phone.eq.${phone}`)
           .limit(1)
@@ -247,8 +298,17 @@ serve(async (req) => {
         if (existingLead) {
           leadId = existingLead.id;
           console.log('Found existing lead:', leadId);
+          
+          // Update avatar if not set
+          if (senderAvatarUrl && !existingLead.avatar_url) {
+            await supabase
+              .from('leads')
+              .update({ avatar_url: senderAvatarUrl })
+              .eq('id', leadId);
+            console.log('Updated lead avatar');
+          }
         } else {
-          // Create new lead automatically
+          // Create new lead automatically with avatar
           const { data: newLead, error: leadError } = await supabase
             .from('leads')
             .insert({
@@ -259,7 +319,8 @@ serve(async (req) => {
               source: 'whatsapp',
               status: 'new',
               temperature: 'hot',
-              notes: `Lead captado automaticamente via WhatsApp em ${new Date().toLocaleString('pt-BR')}`
+              notes: `Lead captado automaticamente via WhatsApp em ${new Date().toLocaleString('pt-BR')}`,
+              avatar_url: senderAvatarUrl,
             })
             .select('id')
             .single();
@@ -268,7 +329,7 @@ serve(async (req) => {
             console.error('Error creating lead:', leadError);
           } else {
             leadId = newLead.id;
-            console.log('Created new lead:', leadId);
+            console.log('Created new lead:', leadId, 'with avatar:', !!senderAvatarUrl);
           }
         }
       }
@@ -292,6 +353,7 @@ serve(async (req) => {
         is_group: isGroup,
         group_name: groupName,
         participant_phone: participantPhone,
+        sender_avatar_url: senderAvatarUrl,
       })
       .select()
       .single();
