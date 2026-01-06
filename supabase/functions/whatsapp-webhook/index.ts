@@ -79,15 +79,18 @@ serve(async (req) => {
 
     // Extract phone identifier
     // Notes:
-    // - In some environments Evolution uses "lid" addressing.
-    // - When that happens, "participantAlt" usually contains the real WhatsApp JID (e.g. 5511...@s.whatsapp.net).
+    // - Evolution API uses "lid" addressing mode in some environments.
+    // - When that happens, "remoteJidAlt" contains the real WhatsApp JID (e.g. 5511...@s.whatsapp.net).
     const key = payload.data.key as any;
 
     let jidForContact = rawRemoteJid;
-    if (typeof key.participantAlt === 'string' && key.participantAlt.length > 0) {
+    
+    // Check for remoteJidAlt first (Evolution API sends real number here when using LID)
+    if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
       const addressingMode = String(key.addressingMode || '').toLowerCase();
       if (addressingMode === 'lid' || rawRemoteJid.includes('@lid')) {
-        jidForContact = key.participantAlt;
+        jidForContact = key.remoteJidAlt;
+        console.log('Using remoteJidAlt for real number:', jidForContact);
       }
     }
 
