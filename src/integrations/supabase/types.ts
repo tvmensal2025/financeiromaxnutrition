@@ -879,11 +879,14 @@ export type Database = {
           customer_id: string | null
           direction: Database["public"]["Enums"]["message_direction"]
           external_id: string | null
+          group_name: string | null
           id: string
+          is_group: boolean | null
           lead_id: string | null
           media_type: string | null
           media_url: string | null
           message: string
+          participant_phone: string | null
           phone: string
           sender_name: string | null
           status: Database["public"]["Enums"]["whatsapp_message_status"]
@@ -895,11 +898,14 @@ export type Database = {
           customer_id?: string | null
           direction?: Database["public"]["Enums"]["message_direction"]
           external_id?: string | null
+          group_name?: string | null
           id?: string
+          is_group?: boolean | null
           lead_id?: string | null
           media_type?: string | null
           media_url?: string | null
           message: string
+          participant_phone?: string | null
           phone: string
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
@@ -911,11 +917,14 @@ export type Database = {
           customer_id?: string | null
           direction?: Database["public"]["Enums"]["message_direction"]
           external_id?: string | null
+          group_name?: string | null
           id?: string
+          is_group?: boolean | null
           lead_id?: string | null
           media_type?: string | null
           media_url?: string | null
           message?: string
+          participant_phone?: string | null
           phone?: string
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]

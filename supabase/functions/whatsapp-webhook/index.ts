@@ -15,6 +15,7 @@ interface EvolutionWebhookPayload {
       remoteJid: string;
       fromMe: boolean;
       id: string;
+      participant?: string;
     };
     pushName?: string;
     message?: {
@@ -68,48 +69,57 @@ serve(async (req) => {
       });
     }
 
-    // Ignore group messages
     const rawRemoteJid: string = payload.data.key.remoteJid;
-    if (rawRemoteJid.endsWith('@g.us')) {
-      console.log('Ignoring group message:', rawRemoteJid);
-      return new Response(JSON.stringify({ success: true, message: 'Group message ignored' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Extract phone identifier
-    // Notes:
-    // - Evolution API uses "lid" addressing mode in some environments.
-    // - When that happens, "remoteJidAlt" contains the real WhatsApp JID (e.g. 5511...@s.whatsapp.net).
     const key = payload.data.key as any;
-
-    let jidForContact = rawRemoteJid;
-    
-    // Check for remoteJidAlt first (Evolution API sends real number here when using LID)
-    if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
-      const addressingMode = String(key.addressingMode || '').toLowerCase();
-      if (addressingMode === 'lid' || rawRemoteJid.includes('@lid')) {
-        jidForContact = key.remoteJidAlt;
-        console.log('Using remoteJidAlt for real number:', jidForContact);
-      }
-    }
-
-    // Always clean the phone number - remove ALL suffixes and keep only digits
-    const phone = jidForContact
-      .replace('@s.whatsapp.net', '')
-      .replace('@lid', '')
-      .replace(/\D/g, '');
-
-    // Validate phone has reasonable length
-    if (!phone || phone.length < 10 || phone.length > 15) {
-      console.log('Invalid phone number extracted:', phone, 'from:', jidForContact);
-      return new Response(JSON.stringify({ success: true, message: 'Invalid phone' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     const senderName = payload.data.pushName || 'Desconhecido';
     const externalId = payload.data.key.id;
+
+    // Detect if this is a group message
+    const isGroup = rawRemoteJid.endsWith('@g.us');
+    let phone: string;
+    let groupName: string | null = null;
+    let participantPhone: string | null = null;
+
+    if (isGroup) {
+      // For groups: save group ID as phone, extract participant
+      phone = 'group:' + rawRemoteJid.replace('@g.us', '');
+      groupName = senderName; // In groups, pushName is the sender's name, we'll use group subject if available
+      
+      // Get participant who sent the message
+      const participant = key.participant || key.participantAlt || '';
+      participantPhone = participant
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace(/\D/g, '');
+      
+      console.log('Group message detected:', { phone, participantPhone, senderName });
+    } else {
+      // For individual chats: extract real phone number
+      let jidForContact = rawRemoteJid;
+      
+      // Check for remoteJidAlt (Evolution API sends real number here when using LID)
+      if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
+        const addressingMode = String(key.addressingMode || '').toLowerCase();
+        if (addressingMode === 'lid' || rawRemoteJid.includes('@lid')) {
+          jidForContact = key.remoteJidAlt;
+          console.log('Using remoteJidAlt for real number:', jidForContact);
+        }
+      }
+
+      // Clean the phone number
+      phone = jidForContact
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace(/\D/g, '');
+
+      // Validate phone has reasonable length
+      if (!phone || phone.length < 10 || phone.length > 15) {
+        console.log('Invalid phone number extracted:', phone, 'from:', jidForContact);
+        return new Response(JSON.stringify({ success: true, message: 'Invalid phone' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Extract message content
     let messageContent = '';
@@ -146,7 +156,7 @@ serve(async (req) => {
       });
     }
 
-    // Get business by instance name or use first business (you can customize this logic)
+    // Get business
     const { data: businesses, error: bizError } = await supabase
       .from('businesses')
       .select('id')
@@ -162,57 +172,59 @@ serve(async (req) => {
 
     const businessId = businesses[0].id;
 
-    // Check if lead already exists by phone
     let leadId: string | null = null;
     let customerId: string | null = null;
 
-    // First check customers
-    const { data: existingCustomer } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('business_id', businessId)
-      .or(`whatsapp.eq.${phone},phone.eq.${phone}`)
-      .limit(1)
-      .single();
-
-    if (existingCustomer) {
-      customerId = existingCustomer.id;
-      console.log('Found existing customer:', customerId);
-    } else {
-      // Check leads
-      const { data: existingLead } = await supabase
-        .from('leads')
+    // For individual chats, link to lead/customer
+    if (!isGroup) {
+      // Check customers first
+      const { data: existingCustomer } = await supabase
+        .from('customers')
         .select('id')
         .eq('business_id', businessId)
         .or(`whatsapp.eq.${phone},phone.eq.${phone}`)
         .limit(1)
         .single();
 
-      if (existingLead) {
-        leadId = existingLead.id;
-        console.log('Found existing lead:', leadId);
+      if (existingCustomer) {
+        customerId = existingCustomer.id;
+        console.log('Found existing customer:', customerId);
       } else {
-        // Create new lead automatically
-        const { data: newLead, error: leadError } = await supabase
+        // Check leads
+        const { data: existingLead } = await supabase
           .from('leads')
-          .insert({
-            business_id: businessId,
-            name: senderName,
-            whatsapp: phone,
-            phone: phone,
-            source: 'whatsapp',
-            status: 'new',
-            temperature: 'hot',
-            notes: `Lead captado automaticamente via WhatsApp em ${new Date().toLocaleString('pt-BR')}`
-          })
           .select('id')
+          .eq('business_id', businessId)
+          .or(`whatsapp.eq.${phone},phone.eq.${phone}`)
+          .limit(1)
           .single();
 
-        if (leadError) {
-          console.error('Error creating lead:', leadError);
+        if (existingLead) {
+          leadId = existingLead.id;
+          console.log('Found existing lead:', leadId);
         } else {
-          leadId = newLead.id;
-          console.log('Created new lead:', leadId);
+          // Create new lead automatically
+          const { data: newLead, error: leadError } = await supabase
+            .from('leads')
+            .insert({
+              business_id: businessId,
+              name: senderName,
+              whatsapp: phone,
+              phone: phone,
+              source: 'whatsapp',
+              status: 'new',
+              temperature: 'hot',
+              notes: `Lead captado automaticamente via WhatsApp em ${new Date().toLocaleString('pt-BR')}`
+            })
+            .select('id')
+            .single();
+
+          if (leadError) {
+            console.error('Error creating lead:', leadError);
+          } else {
+            leadId = newLead.id;
+            console.log('Created new lead:', leadId);
+          }
         }
       }
     }
@@ -232,6 +244,9 @@ serve(async (req) => {
         media_type: mediaType,
         status: 'delivered',
         external_id: externalId,
+        is_group: isGroup,
+        group_name: groupName,
+        participant_phone: participantPhone,
       })
       .select()
       .single();
@@ -244,14 +259,14 @@ serve(async (req) => {
       });
     }
 
-    console.log('Message saved successfully:', savedMessage.id);
+    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)');
 
     return new Response(JSON.stringify({ 
       success: true, 
       message_id: savedMessage.id,
       lead_id: leadId,
       customer_id: customerId,
-      is_new_lead: leadId && !existingCustomer
+      is_group: isGroup,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

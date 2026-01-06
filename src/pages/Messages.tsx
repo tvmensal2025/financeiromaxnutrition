@@ -29,6 +29,9 @@ interface WhatsAppMessage {
   lead_id: string | null;
   customer_id: string | null;
   business_id: string;
+  is_group?: boolean;
+  group_name?: string | null;
+  participant_phone?: string | null;
 }
 
 interface Lead {

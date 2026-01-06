@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Smile, Paperclip } from 'lucide-react';
+import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -38,7 +38,7 @@ const templates = [
   },
 ];
 
-const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥'];
+const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉'];
 
 export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
   const [message, setMessage] = useState('');
@@ -76,53 +76,92 @@ export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t border-border bg-card p-3 space-y-2">
+    <div className="border-t border-border bg-card/80 backdrop-blur-sm p-4 space-y-3">
       {/* Quick actions row */}
-      <div className="flex items-center gap-1 px-1">
+      <div className="flex items-center gap-2 px-1">
         {/* Templates */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+            >
               <FileText className="h-4 w-4 mr-1.5" />
-              <span className="text-xs">Modelos</span>
+              <span className="text-xs font-medium">Modelos</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-72 p-2">
-            <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Modelos rápidos</p>
-            <div className="space-y-0.5">
+          <PopoverContent align="start" className="w-80 p-2 rounded-xl">
+            <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 uppercase tracking-wider">
+              Modelos rápidos
+            </p>
+            <div className="space-y-1">
               {templates.map((t) => (
                 <button
                   key={t.label}
                   onClick={() => handleTemplate(t.content)}
-                  className="w-full rounded-lg px-3 py-2 text-left hover:bg-muted transition-colors"
+                  className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-accent transition-colors group"
                 >
                   <p className="font-medium text-foreground text-sm flex items-center gap-2">
-                    <span>{t.emoji}</span>
+                    <span className="text-lg">{t.emoji}</span>
                     {t.label}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{t.content}</p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5 group-hover:text-foreground/70 transition-colors">
+                    {t.content}
+                  </p>
                 </button>
               ))}
             </div>
           </PopoverContent>
         </Popover>
 
-        {/* Quick emojis */}
-        <div className="flex items-center gap-0.5 ml-1">
-          {quickEmojis.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => insertEmoji(emoji)}
-              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted transition-colors text-base"
+        {/* Emoji picker */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
             >
-              {emoji}
-            </button>
-          ))}
-        </div>
+              <Smile className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-auto p-3 rounded-xl">
+            <div className="grid grid-cols-4 gap-1">
+              {quickEmojis.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => insertEmoji(emoji)}
+                  className="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-xl"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Attachment (visual only) */}
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+        >
+          <Paperclip className="h-4 w-4" />
+        </Button>
+
+        {/* Image (visual only) */}
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+        >
+          <Image className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Input area */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-3">
         <div className="flex-1 relative">
           <Textarea
             ref={textareaRef}
@@ -131,15 +170,36 @@ export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="Digite sua mensagem..."
             disabled={disabled || isSending}
-            className="min-h-[44px] max-h-[120px] resize-none pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+            className={cn(
+              'min-h-[48px] max-h-[120px] resize-none pr-4 rounded-2xl',
+              'bg-background/50 border-border/50',
+              'focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50',
+              'transition-all duration-200'
+            )}
             rows={1}
           />
         </div>
+
+        {/* Audio button (visual only) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-12 w-12 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
+        >
+          <Mic className="h-5 w-5" />
+        </Button>
+
+        {/* Send button */}
         <Button
           onClick={handleSend}
           disabled={!message.trim() || disabled || isSending}
           size="icon"
-          className="h-11 w-11 shrink-0 rounded-full shadow-lg shadow-primary/20"
+          className={cn(
+            'h-12 w-12 shrink-0 rounded-full transition-all duration-300',
+            message.trim() 
+              ? 'shadow-lg shadow-primary/30 scale-100' 
+              : 'scale-95 opacity-70'
+          )}
         >
           {isSending ? (
             <Loader2 className="h-5 w-5 animate-spin" />
