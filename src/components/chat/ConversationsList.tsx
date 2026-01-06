@@ -134,7 +134,7 @@ export function ConversationsList({
       <div className="border-b border-border p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-foreground">Conversas</h2>
+            <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
             <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
               {conversations.length}
             </span>
