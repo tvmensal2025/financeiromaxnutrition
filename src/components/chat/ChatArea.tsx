@@ -16,7 +16,7 @@ interface ChatAreaProps {
   messages: Message[];
   isLoading?: boolean;
   isSending?: boolean;
-  onSend: (message: string) => void;
+  onSend: (message: string, media?: { file: File; type: string }) => void;
   onConvertToCustomer?: () => void;
   onBack?: () => void;
   showBack?: boolean;
