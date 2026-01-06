@@ -265,8 +265,18 @@ export default function Messages() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business?.id] });
+    onSuccess: (data: any) => {
+      if (data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business?.id] });
+        return;
+      }
+
+      toast({
+        title: 'Erro ao enviar',
+        description:
+          data?.user_message || 'Não foi possível enviar a mensagem. Tente novamente.',
+        variant: 'destructive',
+      });
     },
     onError: (error) => {
       console.error('Send message error:', error);

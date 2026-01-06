@@ -48,9 +48,38 @@ serve(async (req) => {
       });
     }
 
-    // Clean phone number (keep only digits)
-    const cleanPhone = phone.replace(/\D/g, '');
-    
+    // Normalize phone number
+    // - Evolution expects a real WhatsApp number (E.164 digits)
+    // - "@lid" identifiers cannot be replied to reliably (Evolution will return exists:false)
+    const isLidContact = phone.includes('@lid');
+    const cleanPhone = phone
+      .replace('@s.whatsapp.net', '')
+      .replace('@lid', '')
+      .replace(/\D/g, '');
+
+    if (isLidContact) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'lid_contact',
+          user_message:
+            'Este contato veio como @lid no WhatsApp. Para responder, precisamos do número real (ex: 5511999999999).',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!cleanPhone || cleanPhone.length < 10 || cleanPhone.length > 15) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: 'invalid_phone',
+          user_message: 'Número de WhatsApp inválido. Verifique o DDI/DDD e tente novamente.',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Determine instance name - use configured evolution_instance or fallback to provided instance or 'default'
     let instanceName = instance;
     if (!instanceName) {
@@ -111,13 +140,35 @@ serve(async (req) => {
         .update({ status: 'failed' })
         .eq('id', savedMessage.id);
 
-      return new Response(JSON.stringify({ 
-        error: 'Failed to send message via Evolution API',
-        details: evolutionResult
-      }), {
-        status: evolutionResponse.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      const existsFalse =
+        evolutionResponse.status === 400 &&
+        Array.isArray((evolutionResult as any)?.response?.message) &&
+        (evolutionResult as any).response.message?.[0]?.exists === false;
+
+      // Treat "number does not exist on WhatsApp" as a handled business error (return 200 so the web app doesn't crash)
+      if (existsFalse) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            code: 'number_not_on_whatsapp',
+            user_message:
+              'Este número não está disponível no WhatsApp (ou foi recebido de forma incorreta). Confirme o número do contato.',
+            details: evolutionResult,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: 'Failed to send message via Evolution API',
+          details: evolutionResult,
+        }),
+        {
+          status: evolutionResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
     }
 
     // Update message status to sent
