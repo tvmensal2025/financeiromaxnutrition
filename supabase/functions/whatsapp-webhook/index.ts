@@ -10,12 +10,14 @@ const corsHeaders = {
 interface EvolutionWebhookPayload {
   event: string;
   instance: string;
+  sender?: string; // Campo sender contém o número real do remetente
   data: {
     key: {
       remoteJid: string;
       fromMe: boolean;
       id: string;
       participant?: string;
+      remoteJidAlt?: string;
     };
     pushName?: string;
     message?: {
@@ -97,12 +99,26 @@ serve(async (req) => {
       // For individual chats: extract real phone number
       let jidForContact = rawRemoteJid;
       
-      // Check for remoteJidAlt (Evolution API sends real number here when using LID)
-      if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
-        const addressingMode = String(key.addressingMode || '').toLowerCase();
-        if (addressingMode === 'lid' || rawRemoteJid.includes('@lid')) {
+      // Check if this is a LID (internal WhatsApp ID, not a real phone number)
+      const isLid = rawRemoteJid.includes('@lid') || (typeof key.addressingMode === 'string' && key.addressingMode.toLowerCase() === 'lid');
+      
+      if (isLid) {
+        // Priority 1: Use remoteJidAlt if available
+        if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
           jidForContact = key.remoteJidAlt;
           console.log('Using remoteJidAlt for real number:', jidForContact);
+        } 
+        // Priority 2: Use sender from root payload (Evolution API sends real number here)
+        else if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
+          jidForContact = payload.sender;
+          console.log('Using sender from payload for real number:', jidForContact);
+        }
+        // Priority 3: Reject LID-only messages as we can't identify the contact
+        else {
+          console.log('LID message without real number - cannot process:', rawRemoteJid);
+          return new Response(JSON.stringify({ success: true, message: 'LID without real number' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
       }
 
@@ -112,12 +128,28 @@ serve(async (req) => {
         .replace('@lid', '')
         .replace(/\D/g, '');
 
-      // Validate phone has reasonable length
+      // Validate phone has reasonable length and starts with valid country code
       if (!phone || phone.length < 10 || phone.length > 15) {
         console.log('Invalid phone number extracted:', phone, 'from:', jidForContact);
         return new Response(JSON.stringify({ success: true, message: 'Invalid phone' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      // Additional validation: must start with a valid country code (1-3 digits)
+      // Brazilian numbers start with 55, US with 1, etc.
+      const validCountryCodes = ['55', '1', '44', '351', '34', '33', '49', '39', '81', '86'];
+      const startsWithValidCode = validCountryCodes.some(code => phone.startsWith(code));
+      if (!startsWithValidCode && phone.length > 11) {
+        console.log('Phone does not start with valid country code:', phone);
+        // Try to use sender as fallback
+        if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
+          const senderPhone = payload.sender.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+          if (senderPhone && senderPhone.length >= 10 && senderPhone.length <= 15) {
+            phone = senderPhone;
+            console.log('Fallback to sender phone:', phone);
+          }
+        }
       }
     }
 
