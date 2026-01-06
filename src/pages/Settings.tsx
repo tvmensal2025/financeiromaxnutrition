@@ -20,10 +20,10 @@ export default function Settings() {
     name: business?.name || '',
     primary_color: business?.primary_color || '#3B82F6',
     n8n_webhook_url: business?.n8n_webhook_url || '',
-    evolution_instance: (business as any)?.evolution_instance || '',
-    reminder_days_before: (business as any)?.reminder_days_before ?? 3,
-    low_credits_threshold: (business as any)?.low_credits_threshold ?? 20,
-    auto_reminders_enabled: (business as any)?.auto_reminders_enabled ?? false,
+    evolution_instance: business?.evolution_instance || '',
+    reminder_days_before: business?.reminder_days_before ?? 3,
+    low_credits_threshold: business?.low_credits_threshold ?? 20,
+    auto_reminders_enabled: business?.auto_reminders_enabled ?? false,
   });
 
   const [profileData, setProfileData] = useState({
