@@ -9,7 +9,7 @@ import { ContactInfoPanel } from '@/components/chat/ContactInfoPanel';
 import { Message } from '@/components/chat/ChatMessage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { PanelRightClose, PanelRightOpen, TestTube } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, TestTube, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AddCustomerModal } from '@/components/chat/AddCustomerModal';
 import { CreateOpportunityModal } from '@/components/chat/CreateOpportunityModal';
@@ -337,6 +337,29 @@ export default function Messages() {
     },
   });
 
+  // Process scheduled messages mutation
+  const processScheduledMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('process-scheduled-messages');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Agendamentos processados!',
+        description: `${data?.results?.length || 0} mensagem(ns) processada(s).`,
+      });
+    },
+    onError: (error) => {
+      console.error('Process scheduled error:', error);
+      toast({
+        title: 'Erro ao processar',
+        description: 'Falha ao processar mensagens agendadas.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSelectConversation = (phone: string) => {
     setSelectedPhone(phone);
     if (isMobileView) {
@@ -361,6 +384,15 @@ export default function Messages() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => processScheduledMutation.mutate()}
+              disabled={processScheduledMutation.isPending}
+            >
+              <Clock className="h-4 w-4 mr-1" />
+              {processScheduledMutation.isPending ? 'Processando...' : 'Processar Agendadas'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
