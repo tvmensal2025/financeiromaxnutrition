@@ -9,7 +9,7 @@ import { ContactInfoPanel } from '@/components/chat/ContactInfoPanel';
 import { Message } from '@/components/chat/ChatMessage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, TestTube } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WhatsAppMessage {
@@ -268,6 +268,52 @@ export default function Messages() {
     },
   });
 
+  // Test webhook mutation
+  const testWebhookMutation = useMutation({
+    mutationFn: async () => {
+      if (!business?.id) throw new Error('Business not found');
+
+      const testPayload = {
+        event: 'messages.upsert',
+        instance: 'test',
+        data: {
+          key: {
+            remoteJid: '5511999999999@s.whatsapp.net',
+            fromMe: false,
+            id: `test-${Date.now()}`,
+          },
+          pushName: 'Teste Manual',
+          message: {
+            conversation: `Mensagem de teste - ${new Date().toLocaleTimeString('pt-BR')}`,
+          },
+          messageTimestamp: Math.floor(Date.now() / 1000),
+        },
+      };
+
+      const { data, error } = await supabase.functions.invoke('whatsapp-webhook', {
+        body: testPayload,
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Webhook testado!',
+        description: 'Mensagem de teste inserida com sucesso.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business?.id] });
+    },
+    onError: (error) => {
+      console.error('Test webhook error:', error);
+      toast({
+        title: 'Erro no teste',
+        description: error instanceof Error ? error.message : 'Falha ao testar webhook',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSelectConversation = (phone: string) => {
     setSelectedPhone(phone);
     if (isMobileView) {
@@ -291,19 +337,30 @@ export default function Messages() {
               {conversations.length} conversa{conversations.length !== 1 && 's'}
             </p>
           </div>
-          {!isMobileView && selectedPhone && (
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() => setShowInfoPanel(!showInfoPanel)}
+              onClick={() => testWebhookMutation.mutate()}
+              disabled={testWebhookMutation.isPending}
             >
-              {showInfoPanel ? (
-                <PanelRightClose className="h-4 w-4" />
-              ) : (
-                <PanelRightOpen className="h-4 w-4" />
-              )}
+              <TestTube className="h-4 w-4 mr-1" />
+              {testWebhookMutation.isPending ? 'Testando...' : 'Testar Webhook'}
             </Button>
-          )}
+            {!isMobileView && selectedPhone && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInfoPanel(!showInfoPanel)}
+              >
+                {showInfoPanel ? (
+                  <PanelRightClose className="h-4 w-4" />
+                ) : (
+                  <PanelRightOpen className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Main content */}
