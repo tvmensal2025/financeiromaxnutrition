@@ -19,6 +19,8 @@ export interface Conversation {
   unread_count: number;
   direction: 'inbound' | 'outbound';
   is_group?: boolean;
+  group_name?: string | null;
+  participant_count?: number;
 }
 
 interface ConversationsListProps {
@@ -275,12 +277,12 @@ export function ConversationsList({
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-semibold text-foreground truncate text-sm">
-                          {isGroup ? (conv.sender_name || 'Grupo') : (conv.sender_name || formatPhone(conv.phone))}
+                          {isGroup ? (conv.group_name || conv.sender_name || 'Grupo') : (conv.sender_name || formatPhone(conv.phone))}
                         </span>
                         {isGroup && (
                           <span className="group-indicator">
                             <UsersRound className="h-2.5 w-2.5" />
-                            Grupo
+                            {conv.participant_count ? `${conv.participant_count} membros` : 'Grupo'}
                           </span>
                         )}
                       </div>
