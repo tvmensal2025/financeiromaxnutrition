@@ -12,6 +12,8 @@ export interface Message {
   media_url?: string | null;
   media_type?: string | null;
   sender_name?: string | null;
+  is_group?: boolean;
+  participant_phone?: string | null;
 }
 
 interface ChatMessageProps {
@@ -20,6 +22,7 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const isOutbound = message.direction === 'outbound';
+  const showSenderName = !isOutbound && (message.sender_name || message.is_group);
 
   const getStatusIcon = () => {
     switch (message.status) {
@@ -39,40 +42,44 @@ export function ChatMessage({ message }: ChatMessageProps) {
   return (
     <div
       className={cn(
-        'flex w-full mb-3',
+        'flex w-full mb-3 group',
         isOutbound ? 'justify-end animate-slide-in-right' : 'justify-start animate-slide-in-left'
       )}
     >
       <div
         className={cn(
-          'max-w-[80%] md:max-w-[70%] px-4 py-2.5',
-          isOutbound ? 'chat-bubble-out' : 'chat-bubble-in'
+          'max-w-[80%] md:max-w-[70%] px-4 py-2.5 transition-transform duration-200',
+          isOutbound ? 'chat-bubble-out' : 'chat-bubble-in',
+          'group-hover:scale-[1.01]'
         )}
       >
-        {/* Sender name for inbound */}
-        {!isOutbound && message.sender_name && (
-          <p className="text-xs font-semibold text-primary mb-1">
-            {message.sender_name}
+        {/* Sender name for inbound (especially in groups) */}
+        {showSenderName && (
+          <p className="text-xs font-semibold text-primary mb-1.5">
+            {message.sender_name || 'Participante'}
           </p>
         )}
 
         {/* Media */}
         {message.media_url && (
-          <div className="mb-2">
-            {message.media_type?.startsWith('image') ? (
+          <div className="mb-2 rounded-lg overflow-hidden">
+            {message.media_type?.startsWith('image') || message.media_type === 'image' ? (
               <img
                 src={message.media_url}
                 alt="Mídia"
-                className="max-w-full rounded-lg"
+                className="max-w-full rounded-lg shadow-sm"
               />
             ) : (
               <a
                 href={message.media_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm underline"
+                className={cn(
+                  'inline-flex items-center gap-2 text-sm underline px-3 py-2 rounded-lg',
+                  isOutbound ? 'bg-white/10' : 'bg-muted'
+                )}
               >
-                Ver anexo
+                📎 Ver anexo
               </a>
             )}
           </div>

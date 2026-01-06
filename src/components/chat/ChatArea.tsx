@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Phone, MessageCircle, ArrowLeft, Sparkles } from 'lucide-react';
+import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical } from 'lucide-react';
 import { ChatMessage, Message } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { format } from 'date-fns';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface ChatAreaProps {
   phone: string | null;
   contactName: string | null;
-  contactType: 'lead' | 'customer' | 'new';
+  contactType: 'lead' | 'customer' | 'new' | 'group';
   messages: Message[];
   isLoading?: boolean;
   isSending?: boolean;
@@ -41,23 +41,26 @@ export function ChatArea({
     }
   }, [messages]);
 
+  const isGroup = phone?.startsWith('group:') || contactType === 'group';
+
   if (!phone) {
     return (
-      <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-muted/30 to-muted/10 p-8">
-        <div className="rounded-full bg-primary/10 p-6 mb-4 animate-pulse-slow">
-          <MessageCircle className="h-12 w-12 text-primary" />
+      <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-8">
+        <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 p-8 mb-6 animate-pulse-slow">
+          <MessageCircle className="h-16 w-16 text-primary" />
         </div>
-        <h3 className="text-xl font-semibold text-foreground mb-2">
+        <h3 className="text-2xl font-bold text-foreground mb-3">
           Selecione uma conversa
         </h3>
-        <p className="text-sm text-muted-foreground text-center max-w-xs">
-          Escolha um contato na lista para ver o histórico e enviar mensagens
+        <p className="text-sm text-muted-foreground text-center max-w-sm">
+          Escolha um contato na lista para visualizar o histórico e enviar mensagens
         </p>
       </div>
     );
   }
 
   const getInitials = (name: string | null, phone: string) => {
+    if (isGroup) return 'GP';
     if (name) {
       return name
         .split(' ')
@@ -70,6 +73,9 @@ export function ChatArea({
   };
 
   const getTypeLabel = () => {
+    if (isGroup) {
+      return { label: 'Grupo', className: 'bg-purple-500/10 text-purple-500' };
+    }
     switch (contactType) {
       case 'customer':
         return { label: 'Cliente', className: 'bg-success/10 text-success' };
@@ -84,6 +90,7 @@ export function ChatArea({
 
   // Format phone for display
   const formatPhone = (p: string) => {
+    if (p.startsWith('group:')) return 'Grupo do WhatsApp';
     const cleaned = p.replace(/\D/g, '');
     if (cleaned.length === 13) {
       return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4, 9)}-${cleaned.slice(9)}`;
@@ -121,34 +128,53 @@ export function ChatArea({
 
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-3 shadow-sm">
+      {/* Premium Header */}
+      <div className="flex items-center gap-3 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3">
         {showBack && (
-          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 md:hidden">
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 md:hidden h-9 w-9 rounded-full">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
         
-        <Avatar className="h-11 w-11 shrink-0 ring-2 ring-primary/20">
-          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground font-semibold">
-            {getInitials(contactName, phone)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className={cn(
+            'h-11 w-11 shrink-0 ring-2 ring-offset-2 ring-offset-card',
+            isGroup ? 'ring-purple-500/30' : 'ring-primary/30'
+          )}>
+            <AvatarFallback className={cn(
+              'font-semibold',
+              isGroup 
+                ? 'bg-purple-500/10 text-purple-500' 
+                : 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
+            )}>
+              {isGroup ? <UsersRound className="h-5 w-5" /> : getInitials(contactName, phone)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="status-dot online" />
+        </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground truncate">
-              {contactName || formatPhone(phone)}
+              {contactName || (isGroup ? 'Grupo' : formatPhone(phone))}
             </h3>
             <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', typeInfo.className)}>
               {typeInfo.label}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Phone className="h-3 w-3" />
+            {isGroup ? (
+              <UsersRound className="h-3 w-3" />
+            ) : (
+              <Phone className="h-3 w-3" />
+            )}
             <span>{formatPhone(phone)}</span>
           </div>
         </div>
+
+        <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full">
+          <MoreVertical className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Messages */}
@@ -157,20 +183,20 @@ export function ChatArea({
           {isLoading ? (
             <div className="flex items-center justify-center h-full py-20">
               <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+                <div className="h-10 w-10 animate-spin rounded-full border-3 border-primary border-t-transparent" />
                 <span className="text-sm text-muted-foreground">Carregando mensagens...</span>
               </div>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-20">
-              <div className="rounded-full bg-primary/10 p-4 mb-3">
-                <Sparkles className="h-8 w-8 text-primary" />
+              <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 p-5 mb-4">
+                <Sparkles className="h-10 w-10 text-primary" />
               </div>
-              <p className="font-medium text-foreground mb-1">
+              <p className="font-semibold text-foreground mb-1 text-lg">
                 Inicie a conversa
               </p>
               <p className="text-sm text-muted-foreground max-w-xs">
-                Envie a primeira mensagem para começar
+                Envie a primeira mensagem para começar a interação
               </p>
             </div>
           ) : (
@@ -178,8 +204,8 @@ export function ChatArea({
               {Object.entries(groupedMessages).map(([date, msgs]) => (
                 <div key={date}>
                   {/* Date separator */}
-                  <div className="flex items-center justify-center my-4">
-                    <div className="bg-card border border-border text-muted-foreground text-xs px-3 py-1 rounded-full shadow-sm">
+                  <div className="flex items-center justify-center my-6">
+                    <div className="bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground text-xs font-medium px-4 py-1.5 rounded-full shadow-sm">
                       {formatDateHeader(date)}
                     </div>
                   </div>
