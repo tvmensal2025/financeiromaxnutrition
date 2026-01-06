@@ -11,6 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { PanelRightClose, PanelRightOpen, TestTube } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AddCustomerModal } from '@/components/chat/AddCustomerModal';
+import { CreateOpportunityModal } from '@/components/chat/CreateOpportunityModal';
+import { CreateInvoiceModal } from '@/components/chat/CreateInvoiceModal';
+import { ScheduleMessageModal } from '@/components/chat/ScheduleMessageModal';
 
 interface WhatsAppMessage {
   id: string;
@@ -58,6 +62,12 @@ export default function Messages() {
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  
+  // Modal states
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [showOpportunityModal, setShowOpportunityModal] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Check screen size
   useEffect(() => {
@@ -410,12 +420,55 @@ export default function Messages() {
               <ContactInfoPanel
                 contact={contactInfo}
                 type={contactType}
+                onConvertToCustomer={() => setShowAddCustomerModal(true)}
+                onCreateOpportunity={() => setShowOpportunityModal(true)}
+                onCreateInvoice={() => setShowInvoiceModal(true)}
+                onScheduleMessage={() => setShowScheduleModal(true)}
                 onClose={() => setShowInfoPanel(false)}
               />
             </div>
           )}
         </div>
       </div>
+
+      {/* Modals */}
+      {selectedPhone && (
+        <>
+          <AddCustomerModal
+            open={showAddCustomerModal}
+            onOpenChange={setShowAddCustomerModal}
+            phone={selectedPhone}
+            name={contactInfo?.name}
+            email={contactInfo?.email}
+            leadId={selectedConversation?.lead_id}
+          />
+
+          <CreateOpportunityModal
+            open={showOpportunityModal}
+            onOpenChange={setShowOpportunityModal}
+            leadId={selectedConversation?.lead_id}
+            customerId={selectedConversation?.customer_id}
+            contactName={contactInfo?.name}
+          />
+
+          <CreateInvoiceModal
+            open={showInvoiceModal}
+            onOpenChange={setShowInvoiceModal}
+            customerId={selectedConversation?.customer_id}
+            contactName={contactInfo?.name}
+            onNeedCustomer={() => setShowAddCustomerModal(true)}
+          />
+
+          <ScheduleMessageModal
+            open={showScheduleModal}
+            onOpenChange={setShowScheduleModal}
+            phone={selectedPhone}
+            leadId={selectedConversation?.lead_id}
+            customerId={selectedConversation?.customer_id}
+            contactName={contactInfo?.name}
+          />
+        </>
+      )}
     </MainLayout>
   );
 }

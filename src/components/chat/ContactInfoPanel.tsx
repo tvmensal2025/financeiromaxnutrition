@@ -11,6 +11,9 @@ import {
   Building2,
   Thermometer,
   X,
+  Target,
+  FileText,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,6 +34,8 @@ interface ContactInfoPanelProps {
   type: 'lead' | 'customer' | 'new';
   onConvertToCustomer?: () => void;
   onCreateOpportunity?: () => void;
+  onCreateInvoice?: () => void;
+  onScheduleMessage?: () => void;
   onClose?: () => void;
 }
 
@@ -38,6 +43,9 @@ export function ContactInfoPanel({
   contact,
   type,
   onConvertToCustomer,
+  onCreateOpportunity,
+  onCreateInvoice,
+  onScheduleMessage,
   onClose,
 }: ContactInfoPanelProps) {
   if (!contact) return null;
@@ -178,14 +186,35 @@ export function ContactInfoPanel({
       </ScrollArea>
 
       {/* Actions */}
-      {type === 'lead' && onConvertToCustomer && (
-        <div className="border-t border-border p-4">
+      <div className="border-t border-border p-4 space-y-2">
+        {(type === 'lead' || type === 'new') && onConvertToCustomer && (
           <Button onClick={onConvertToCustomer} className="w-full">
             <UserPlus className="h-4 w-4 mr-2" />
-            Converter para Cliente
+            {type === 'lead' ? 'Converter para Cliente' : 'Adicionar como Cliente'}
           </Button>
-        </div>
-      )}
+        )}
+        
+        {onCreateOpportunity && (
+          <Button onClick={onCreateOpportunity} variant="outline" className="w-full">
+            <Target className="h-4 w-4 mr-2" />
+            Criar Oportunidade
+          </Button>
+        )}
+        
+        {onCreateInvoice && (
+          <Button onClick={onCreateInvoice} variant="outline" className="w-full">
+            <FileText className="h-4 w-4 mr-2" />
+            Criar Cobrança
+          </Button>
+        )}
+        
+        {onScheduleMessage && (
+          <Button onClick={onScheduleMessage} variant="outline" className="w-full">
+            <Clock className="h-4 w-4 mr-2" />
+            Agendar Mensagem
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
