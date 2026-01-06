@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.auto-reminders]
 verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.send-evolution-message]
+verify_jwt = false
