@@ -155,30 +155,32 @@ export function ConversationsList({
           />
         </div>
 
-        {/* Status Tabs */}
-        <div className="flex gap-1 p-1 bg-muted/50 rounded-lg">
-          {statusTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setStatusTab(tab.value)}
-              className={cn(
-                'status-tab flex-1 flex items-center justify-center gap-1.5',
-                statusTab === tab.value && 'active'
-              )}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className={cn(
-                  'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                  statusTab === tab.value 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted-foreground/20 text-muted-foreground'
-                )}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Status Tabs - Scrollable */}
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg min-w-max">
+            {statusTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setStatusTab(tab.value)}
+                className={cn(
+                  'status-tab flex items-center justify-center gap-1.5 px-4 py-2 min-w-[100px] whitespace-nowrap',
+                  statusTab === tab.value && 'active'
+                )}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={cn(
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                    statusTab === tab.value 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted-foreground/20 text-muted-foreground'
+                  )}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Filters */}
