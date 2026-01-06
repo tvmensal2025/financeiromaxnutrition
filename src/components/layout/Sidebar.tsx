@@ -17,9 +17,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Mensagens', href: '/mensagens', icon: MessageSquare, showBadge: true },
   { name: 'Leads', href: '/leads', icon: UserPlus },
   { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
   { name: 'Clientes', href: '/clientes', icon: Users },
@@ -29,13 +32,38 @@ const navigation = [
   { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
   { name: 'Faturas', href: '/faturas', icon: Receipt },
   { name: 'Importar', href: '/importar', icon: Upload },
-  { name: 'Mensagens', href: '/mensagens', icon: MessageSquare },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const { business, signOut, profile } = useAuth();
+
+  // Query para contar mensagens não lidas (inbound sem resposta nas últimas 24h)
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unread-messages', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return 0;
+      
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+      
+      const { data, error } = await supabase
+        .from('whatsapp_messages')
+        .select('phone')
+        .eq('business_id', business.id)
+        .eq('direction', 'inbound')
+        .gte('created_at', twentyFourHoursAgo.toISOString());
+      
+      if (error) return 0;
+      
+      // Conta telefones únicos com mensagens recentes
+      const uniquePhones = new Set(data?.map(m => m.phone) || []);
+      return uniquePhones.size;
+    },
+    enabled: !!business?.id,
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+  });
 
   return (
     <div className="flex h-screen w-64 flex-col bg-sidebar">
@@ -58,14 +86,21 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
           const isActive = location.pathname === item.href;
+          const showBadge = 'showBadge' in item && item.showBadge && unreadCount > 0;
+          
           return (
             <Link
               key={item.name}
               to={item.href}
-              className={cn('sidebar-link', isActive && 'active')}
+              className={cn('sidebar-link relative', isActive && 'active')}
             >
               <item.icon className="h-5 w-5" />
-              {item.name}
+              <span className="flex-1">{item.name}</span>
+              {showBadge && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1.5 animate-pulse">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}
