@@ -157,8 +157,18 @@ export default function Messages() {
   // Build conversations list
   const conversations: Conversation[] = useMemo(() => {
     const phoneMap = new Map<string, Conversation>();
+    const participantMap = new Map<string, Set<string>>(); // Track unique participants per group
 
     allMessages.forEach((msg) => {
+      const isGroup = msg.phone.startsWith('group:') || msg.is_group;
+      
+      // Track unique participants for groups
+      if (isGroup && msg.participant_phone) {
+        const participants = participantMap.get(msg.phone) || new Set<string>();
+        participants.add(msg.participant_phone);
+        participantMap.set(msg.phone, participants);
+      }
+
       const existing = phoneMap.get(msg.phone);
       
       if (!existing || new Date(msg.created_at) > new Date(existing.last_message_at)) {
@@ -175,7 +185,18 @@ export default function Messages() {
           last_message_at: msg.created_at,
           unread_count: unreadCount,
           direction: msg.direction,
+          is_group: isGroup,
+          group_name: msg.group_name,
+          participant_count: 0, // Will be updated below
         });
+      }
+    });
+
+    // Update participant counts for groups
+    participantMap.forEach((participants, phone) => {
+      const conv = phoneMap.get(phone);
+      if (conv) {
+        conv.participant_count = participants.size;
       }
     });
 
