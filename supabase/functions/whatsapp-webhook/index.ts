@@ -85,16 +85,29 @@ serve(async (req) => {
     if (isGroup) {
       // For groups: save group ID as phone, extract participant
       phone = 'group:' + rawRemoteJid.replace('@g.us', '');
-      groupName = senderName; // In groups, pushName is the sender's name, we'll use group subject if available
+      groupName = senderName; // pushName is the sender's name in groups
       
-      // Get participant who sent the message
-      const participant = key.participant || key.participantAlt || '';
-      participantPhone = participant
-        .replace('@s.whatsapp.net', '')
-        .replace('@lid', '')
-        .replace(/\D/g, '');
+      // Priority 1: Extract REAL participant number from payload.sender (Evolution API sends real number here)
+      if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
+        participantPhone = payload.sender
+          .replace('@s.whatsapp.net', '')
+          .replace(/\D/g, '');
+        console.log('Group: Using sender for participant:', participantPhone);
+      } 
+      // Priority 2: Try key.participant if it's a real number (not @lid)
+      else {
+        const participant = key.participant || key.participantAlt || '';
+        if (participant && !participant.includes('@lid')) {
+          participantPhone = participant
+            .replace('@s.whatsapp.net', '')
+            .replace(/\D/g, '');
+          console.log('Group: Using participant from key:', participantPhone);
+        } else {
+          console.log('Group: No valid participant phone found, participant:', participant);
+        }
+      }
       
-      console.log('Group message detected:', { phone, participantPhone, senderName });
+      console.log('Group message detected:', { phone, participantPhone, senderName, rawSender: payload.sender });
     } else {
       // For individual chats: extract real phone number
       let jidForContact = rawRemoteJid;
