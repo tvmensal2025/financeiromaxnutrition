@@ -122,6 +122,7 @@ export type Database = {
       }
       customers: {
         Row: {
+          avatar_url: string | null
           business_id: string
           created_at: string
           email: string | null
@@ -133,6 +134,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          avatar_url?: string | null
           business_id: string
           created_at?: string
           email?: string | null
@@ -144,6 +146,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          avatar_url?: string | null
           business_id?: string
           created_at?: string
           email?: string | null
@@ -307,6 +310,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          avatar_url: string | null
           business_id: string
           company: string | null
           converted_customer_id: string | null
@@ -323,6 +327,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          avatar_url?: string | null
           business_id: string
           company?: string | null
           converted_customer_id?: string | null
@@ -339,6 +344,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          avatar_url?: string | null
           business_id?: string
           company?: string | null
           converted_customer_id?: string | null
@@ -888,6 +894,7 @@ export type Database = {
           message: string
           participant_phone: string | null
           phone: string
+          sender_avatar_url: string | null
           sender_name: string | null
           status: Database["public"]["Enums"]["whatsapp_message_status"]
           updated_at: string
@@ -907,6 +914,7 @@ export type Database = {
           message: string
           participant_phone?: string | null
           phone: string
+          sender_avatar_url?: string | null
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
           updated_at?: string
@@ -926,6 +934,7 @@ export type Database = {
           message?: string
           participant_phone?: string | null
           phone?: string
+          sender_avatar_url?: string | null
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
           updated_at?: string

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Search, MessageCircle, User, Users, UsersRound, Plus, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,7 @@ export interface Conversation {
   is_group?: boolean;
   group_name?: string | null;
   participant_count?: number;
+  avatar_url?: string | null;
 }
 
 interface ConversationsListProps {
@@ -249,6 +250,12 @@ export function ConversationsList({
                             ? 'ring-warning/30'
                             : 'ring-primary/30'
                     )}>
+                      {conv.avatar_url && (
+                        <AvatarImage 
+                          src={conv.avatar_url} 
+                          alt={conv.sender_name || 'Contato'} 
+                        />
+                      )}
                       <AvatarFallback 
                         className={cn(
                           'font-semibold text-sm',
