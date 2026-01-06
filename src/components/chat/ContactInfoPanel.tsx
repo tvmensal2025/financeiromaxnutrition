@@ -2,6 +2,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Phone,
   Mail,
@@ -14,6 +16,13 @@ import {
   Target,
   FileText,
   Clock,
+  MessageSquare,
+  CreditCard,
+  CalendarClock,
+  ChevronRight,
+  Repeat,
+  Zap,
+  TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -185,34 +194,111 @@ export function ContactInfoPanel({
         </div>
       </ScrollArea>
 
-      {/* Actions */}
-      <div className="border-t border-border p-4 space-y-2">
+      {/* Premium Actions */}
+      <div className="border-t border-border p-4 space-y-3">
+        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+          Ações Rápidas
+        </h5>
+        
+        {/* Primary Action */}
         {(type === 'lead' || type === 'new') && onConvertToCustomer && (
-          <Button onClick={onConvertToCustomer} className="w-full">
-            <UserPlus className="h-4 w-4 mr-2" />
-            {type === 'lead' ? 'Converter para Cliente' : 'Adicionar como Cliente'}
+          <Button 
+            onClick={onConvertToCustomer} 
+            className="w-full h-12 text-left justify-start gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
+          >
+            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+              <UserPlus className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">
+                {type === 'lead' ? 'Converter para Cliente' : 'Adicionar como Cliente'}
+              </p>
+              <p className="text-[10px] opacity-80">Promover para cliente ativo</p>
+            </div>
+            <ChevronRight className="h-4 w-4 opacity-60" />
           </Button>
         )}
         
-        {onCreateOpportunity && (
-          <Button onClick={onCreateOpportunity} variant="outline" className="w-full">
-            <Target className="h-4 w-4 mr-2" />
-            Criar Oportunidade
-          </Button>
-        )}
-        
-        {onCreateInvoice && (
-          <Button onClick={onCreateInvoice} variant="outline" className="w-full">
-            <FileText className="h-4 w-4 mr-2" />
-            Criar Cobrança
-          </Button>
-        )}
-        
-        {onScheduleMessage && (
-          <Button onClick={onScheduleMessage} variant="outline" className="w-full">
-            <Clock className="h-4 w-4 mr-2" />
-            Agendar Mensagem
-          </Button>
+        {/* Action Cards Grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {onCreateOpportunity && (
+            <Card 
+              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+              onClick={onCreateOpportunity}
+            >
+              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Target className="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-foreground">Oportunidade</p>
+                  <p className="text-[10px] text-muted-foreground">Pipeline vendas</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {onCreateInvoice && (
+            <Card 
+              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+              onClick={onCreateInvoice}
+            >
+              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <FileText className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-foreground">Cobrança</p>
+                  <p className="text-[10px] text-muted-foreground">Criar fatura</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {onScheduleMessage && (
+            <Card 
+              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+              onClick={onScheduleMessage}
+            >
+              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CalendarClock className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-foreground">Agendar</p>
+                  <p className="text-[10px] text-muted-foreground">Mensagem futura</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          <Card 
+            className="cursor-pointer hover:bg-accent transition-colors border-dashed group opacity-60"
+          >
+            <CardContent className="p-3 flex flex-col items-center text-center gap-2">
+              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                <Repeat className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-foreground">Plano</p>
+                <p className="text-[10px] text-muted-foreground">Recorrência</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Stats */}
+        {type === 'customer' && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">Total em compras</span>
+              <span className="font-semibold text-foreground">R$ 0,00</span>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-muted-foreground">Faturas pendentes</span>
+              <Badge variant="outline" className="text-[10px]">0</Badge>
+            </div>
+          </div>
         )}
       </div>
     </div>
