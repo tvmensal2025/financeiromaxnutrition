@@ -99,54 +99,137 @@ export function ContactInfoPanel({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
-          {/* Avatar and name */}
-          <div className="flex flex-col items-center text-center">
-            <Avatar className="h-20 w-20 mb-3">
-              <AvatarFallback className="bg-primary/10 text-primary text-xl font-medium">
+        <div className="p-4 space-y-4">
+          {/* Avatar and name - compact */}
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12 shrink-0">
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                 {getInitials(contact.name, contact.phone)}
               </AvatarFallback>
             </Avatar>
-            <h4 className="text-lg font-medium text-foreground">
-              {contact.name || 'Sem nome'}
-            </h4>
-            <span
-              className={
-                type === 'customer'
-                  ? 'text-success text-sm'
-                  : type === 'lead'
-                  ? 'text-warning text-sm'
-                  : 'text-muted-foreground text-sm'
-              }
-            >
-              {type === 'customer' ? 'Cliente' : type === 'lead' ? 'Lead' : 'Novo contato'}
-            </span>
+            <div className="min-w-0 flex-1">
+              <h4 className="text-sm font-medium text-foreground truncate">
+                {contact.name || 'Sem nome'}
+              </h4>
+              <span
+                className={
+                  type === 'customer'
+                    ? 'text-success text-xs'
+                    : type === 'lead'
+                    ? 'text-warning text-xs'
+                    : 'text-muted-foreground text-xs'
+                }
+              >
+                {type === 'customer' ? 'Cliente' : type === 'lead' ? 'Lead' : 'Novo contato'}
+              </span>
+            </div>
+          </div>
+
+          {/* Premium Actions - NO TOPO */}
+          <div className="space-y-3">
+            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Ações Rápidas
+            </h5>
+            
+            {/* Primary Action */}
+            {(type === 'lead' || type === 'new') && onConvertToCustomer && (
+              <Button 
+                onClick={onConvertToCustomer} 
+                className="w-full h-11 text-left justify-start gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
+              >
+                <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                  <UserPlus className="h-3.5 w-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">
+                    {type === 'lead' ? 'Converter para Cliente' : 'Adicionar como Cliente'}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 opacity-60" />
+              </Button>
+            )}
+            
+            {/* Action Cards Grid */}
+            <div className="grid grid-cols-2 gap-2">
+              {onCreateOpportunity && (
+                <Card 
+                  className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+                  onClick={onCreateOpportunity}
+                >
+                  <CardContent className="p-2.5 flex flex-col items-center text-center gap-1.5">
+                    <div className="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Target className="h-4 w-4 text-warning" />
+                    </div>
+                    <p className="text-[11px] font-medium text-foreground">Oportunidade</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {onCreateInvoice && (
+                <Card 
+                  className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+                  onClick={onCreateInvoice}
+                >
+                  <CardContent className="p-2.5 flex flex-col items-center text-center gap-1.5">
+                    <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <FileText className="h-4 w-4 text-success" />
+                    </div>
+                    <p className="text-[11px] font-medium text-foreground">Cobrança</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {onScheduleMessage && (
+                <Card 
+                  className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
+                  onClick={onScheduleMessage}
+                >
+                  <CardContent className="p-2.5 flex flex-col items-center text-center gap-1.5">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CalendarClock className="h-4 w-4 text-primary" />
+                    </div>
+                    <p className="text-[11px] font-medium text-foreground">Agendar</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              <Card 
+                className="cursor-pointer hover:bg-accent transition-colors border-dashed group opacity-60"
+              >
+                <CardContent className="p-2.5 flex flex-col items-center text-center gap-1.5">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                    <Repeat className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-[11px] font-medium text-foreground">Plano</p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           <Separator />
 
           {/* Contact details */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Contato
             </h5>
             
             <div className="flex items-center gap-3 text-sm">
               <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-foreground">{contact.phone}</span>
+              <span className="text-foreground text-xs">{contact.phone}</span>
             </div>
 
             {contact.email && (
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-foreground truncate">{contact.email}</span>
+                <span className="text-foreground text-xs truncate">{contact.email}</span>
               </div>
             )}
 
             {contact.company && (
               <div className="flex items-center gap-3 text-sm">
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="text-foreground">{contact.company}</span>
+                <span className="text-foreground text-xs">{contact.company}</span>
               </div>
             )}
           </div>
@@ -155,7 +238,7 @@ export function ContactInfoPanel({
             <>
               <Separator />
               
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Lead Info
                 </h5>
@@ -163,14 +246,14 @@ export function ContactInfoPanel({
                 {contact.source && (
                   <div className="flex items-center gap-3 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-foreground">Origem: {contact.source}</span>
+                    <span className="text-foreground text-xs">Origem: {contact.source}</span>
                   </div>
                 )}
 
                 {tempInfo && (
                   <div className="flex items-center gap-3 text-sm">
                     <Thermometer className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className={tempInfo.className}>{tempInfo.label}</span>
+                    <span className={`text-xs ${tempInfo.className}`}>{tempInfo.label}</span>
                   </div>
                 )}
               </div>
@@ -179,128 +262,37 @@ export function ContactInfoPanel({
 
           <Separator />
 
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Histórico
             </h5>
             
             <div className="flex items-center gap-3 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-foreground">
+              <span className="text-foreground text-xs">
                 Desde {format(new Date(contact.createdAt), "d 'de' MMM, yyyy", { locale: ptBR })}
               </span>
             </div>
           </div>
+
+          {/* Quick Stats */}
+          {type === 'customer' && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Total em compras</span>
+                  <span className="font-semibold text-foreground">R$ 0,00</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Faturas pendentes</span>
+                  <Badge variant="outline" className="text-[10px]">0</Badge>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </ScrollArea>
-
-      {/* Premium Actions */}
-      <div className="border-t border-border p-4 space-y-3">
-        <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          Ações Rápidas
-        </h5>
-        
-        {/* Primary Action */}
-        {(type === 'lead' || type === 'new') && onConvertToCustomer && (
-          <Button 
-            onClick={onConvertToCustomer} 
-            className="w-full h-12 text-left justify-start gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20"
-          >
-            <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-              <UserPlus className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {type === 'lead' ? 'Converter para Cliente' : 'Adicionar como Cliente'}
-              </p>
-              <p className="text-[10px] opacity-80">Promover para cliente ativo</p>
-            </div>
-            <ChevronRight className="h-4 w-4 opacity-60" />
-          </Button>
-        )}
-        
-        {/* Action Cards Grid */}
-        <div className="grid grid-cols-2 gap-2">
-          {onCreateOpportunity && (
-            <Card 
-              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
-              onClick={onCreateOpportunity}
-            >
-              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Target className="h-5 w-5 text-warning" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-foreground">Oportunidade</p>
-                  <p className="text-[10px] text-muted-foreground">Pipeline vendas</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {onCreateInvoice && (
-            <Card 
-              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
-              onClick={onCreateInvoice}
-            >
-              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FileText className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-foreground">Cobrança</p>
-                  <p className="text-[10px] text-muted-foreground">Criar fatura</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          {onScheduleMessage && (
-            <Card 
-              className="cursor-pointer hover:bg-accent transition-colors border-dashed group"
-              onClick={onScheduleMessage}
-            >
-              <CardContent className="p-3 flex flex-col items-center text-center gap-2">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <CalendarClock className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-foreground">Agendar</p>
-                  <p className="text-[10px] text-muted-foreground">Mensagem futura</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          
-          <Card 
-            className="cursor-pointer hover:bg-accent transition-colors border-dashed group opacity-60"
-          >
-            <CardContent className="p-3 flex flex-col items-center text-center gap-2">
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <Repeat className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Plano</p>
-                <p className="text-[10px] text-muted-foreground">Recorrência</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Stats */}
-        {type === 'customer' && (
-          <div className="mt-4 pt-4 border-t border-border">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">Total em compras</span>
-              <span className="font-semibold text-foreground">R$ 0,00</span>
-            </div>
-            <div className="flex items-center justify-between text-xs mt-2">
-              <span className="text-muted-foreground">Faturas pendentes</span>
-              <Badge variant="outline" className="text-[10px]">0</Badge>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
