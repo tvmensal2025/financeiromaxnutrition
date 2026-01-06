@@ -68,26 +68,42 @@ serve(async (req) => {
       });
     }
 
+    // Ignore group messages
+    const rawRemoteJid: string = payload.data.key.remoteJid;
+    if (rawRemoteJid.endsWith('@g.us')) {
+      console.log('Ignoring group message:', rawRemoteJid);
+      return new Response(JSON.stringify({ success: true, message: 'Group message ignored' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Extract phone identifier
     // Notes:
     // - In some environments Evolution uses "lid" addressing.
     // - When that happens, "participantAlt" usually contains the real WhatsApp JID (e.g. 5511...@s.whatsapp.net).
     const key = payload.data.key as any;
-    const rawRemoteJid: string = key.remoteJid;
 
     let jidForContact = rawRemoteJid;
     if (typeof key.participantAlt === 'string' && key.participantAlt.length > 0) {
       const addressingMode = String(key.addressingMode || '').toLowerCase();
-      if (addressingMode === 'lid' || rawRemoteJid.endsWith('@g.us') || rawRemoteJid.includes('@lid')) {
+      if (addressingMode === 'lid' || rawRemoteJid.includes('@lid')) {
         jidForContact = key.participantAlt;
       }
     }
 
+    // Always clean the phone number - remove ALL suffixes and keep only digits
     const phone = jidForContact
       .replace('@s.whatsapp.net', '')
       .replace('@lid', '')
-      .replace('@g.us', '')
       .replace(/\D/g, '');
+
+    // Validate phone has reasonable length
+    if (!phone || phone.length < 10 || phone.length > 15) {
+      console.log('Invalid phone number extracted:', phone, 'from:', jidForContact);
+      return new Response(JSON.stringify({ success: true, message: 'Invalid phone' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const senderName = payload.data.pushName || 'Desconhecido';
     const externalId = payload.data.key.id;

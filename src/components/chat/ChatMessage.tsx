@@ -24,36 +24,34 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const getStatusIcon = () => {
     switch (message.status) {
       case 'read':
-        return <CheckCheck className="h-3.5 w-3.5 text-primary" />;
+        return <CheckCheck className="h-3.5 w-3.5 text-sky-400" />;
       case 'delivered':
-        return <CheckCheck className="h-3.5 w-3.5 text-muted-foreground" />;
+        return <CheckCheck className="h-3.5 w-3.5 text-primary-foreground/60" />;
       case 'sent':
-        return <Check className="h-3.5 w-3.5 text-muted-foreground" />;
+        return <Check className="h-3.5 w-3.5 text-primary-foreground/60" />;
       case 'failed':
-        return <XCircle className="h-3.5 w-3.5 text-destructive" />;
+        return <XCircle className="h-3.5 w-3.5 text-red-300" />;
       default:
-        return <Clock className="h-3.5 w-3.5 text-muted-foreground" />;
+        return <Clock className="h-3.5 w-3.5 text-primary-foreground/60" />;
     }
   };
 
   return (
     <div
       className={cn(
-        'flex w-full mb-2',
-        isOutbound ? 'justify-end' : 'justify-start'
+        'flex w-full mb-3',
+        isOutbound ? 'justify-end animate-slide-in-right' : 'justify-start animate-slide-in-left'
       )}
     >
       <div
         className={cn(
-          'max-w-[75%] rounded-2xl px-4 py-2 shadow-sm',
-          isOutbound
-            ? 'bg-primary text-primary-foreground rounded-br-md'
-            : 'bg-muted text-foreground rounded-bl-md'
+          'max-w-[80%] md:max-w-[70%] px-4 py-2.5',
+          isOutbound ? 'chat-bubble-out' : 'chat-bubble-in'
         )}
       >
         {/* Sender name for inbound */}
         {!isOutbound && message.sender_name && (
-          <p className="text-xs font-medium mb-1 opacity-80">
+          <p className="text-xs font-semibold text-primary mb-1">
             {message.sender_name}
           </p>
         )}
@@ -81,18 +79,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
 
         {/* Message text */}
-        <p className="text-sm whitespace-pre-wrap break-words">{message.message}</p>
+        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+          {message.message}
+        </p>
 
         {/* Time and status */}
         <div
           className={cn(
-            'flex items-center gap-1 mt-1',
+            'flex items-center gap-1.5 mt-1.5',
             isOutbound ? 'justify-end' : 'justify-start'
           )}
         >
           <span
             className={cn(
-              'text-xs',
+              'text-[11px]',
               isOutbound ? 'text-primary-foreground/70' : 'text-muted-foreground'
             )}
           >
