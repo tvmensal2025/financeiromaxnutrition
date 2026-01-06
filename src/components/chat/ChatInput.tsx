@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Smile, Paperclip } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -18,21 +18,27 @@ interface ChatInputProps {
 const templates = [
   {
     label: 'Saudação',
+    emoji: '👋',
     content: 'Olá! Como posso ajudá-lo(a) hoje?',
   },
   {
     label: 'Agradecimento',
+    emoji: '🙏',
     content: 'Obrigado pelo contato! Qualquer dúvida, estamos à disposição.',
   },
   {
     label: 'Lembrete',
+    emoji: '⏰',
     content: 'Olá! Passando para lembrar sobre nossa conversa. Posso ajudar em algo mais?',
   },
   {
     label: 'Boas-vindas',
-    content: 'Bem-vindo(a)! Estamos muito felizes em tê-lo(a) conosco. 🎉',
+    emoji: '🎉',
+    content: 'Bem-vindo(a)! Estamos muito felizes em tê-lo(a) conosco.',
   },
 ];
+
+const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥'];
 
 export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
   const [message, setMessage] = useState('');
@@ -64,51 +70,76 @@ export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
     textareaRef.current?.focus();
   };
 
+  const insertEmoji = (emoji: string) => {
+    setMessage((prev) => prev + emoji);
+    textareaRef.current?.focus();
+  };
+
   return (
-    <div className="border-t border-border bg-card p-4">
-      {/* Templates */}
-      <div className="mb-3">
+    <div className="border-t border-border bg-card p-3 space-y-2">
+      {/* Quick actions row */}
+      <div className="flex items-center gap-1 px-1">
+        {/* Templates */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-muted-foreground">
-              <FileText className="h-4 w-4 mr-2" />
-              Modelos rápidos
+            <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-foreground">
+              <FileText className="h-4 w-4 mr-1.5" />
+              <span className="text-xs">Modelos</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64 p-2">
-            <div className="space-y-1">
+          <PopoverContent align="start" className="w-72 p-2">
+            <p className="text-xs font-medium text-muted-foreground px-2 mb-2">Modelos rápidos</p>
+            <div className="space-y-0.5">
               {templates.map((t) => (
                 <button
                   key={t.label}
                   onClick={() => handleTemplate(t.content)}
-                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                  className="w-full rounded-lg px-3 py-2 text-left hover:bg-muted transition-colors"
                 >
-                  <p className="font-medium text-foreground">{t.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{t.content}</p>
+                  <p className="font-medium text-foreground text-sm flex items-center gap-2">
+                    <span>{t.emoji}</span>
+                    {t.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">{t.content}</p>
                 </button>
               ))}
             </div>
           </PopoverContent>
         </Popover>
+
+        {/* Quick emojis */}
+        <div className="flex items-center gap-0.5 ml-1">
+          {quickEmojis.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => insertEmoji(emoji)}
+              className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted transition-colors text-base"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Input area */}
       <div className="flex items-end gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Digite sua mensagem..."
-          disabled={disabled || isSending}
-          className="min-h-[44px] max-h-[120px] resize-none"
-          rows={1}
-        />
+        <div className="flex-1 relative">
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Digite sua mensagem..."
+            disabled={disabled || isSending}
+            className="min-h-[44px] max-h-[120px] resize-none pr-4 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/50"
+            rows={1}
+          />
+        </div>
         <Button
           onClick={handleSend}
           disabled={!message.trim() || disabled || isSending}
           size="icon"
-          className="h-11 w-11 shrink-0"
+          className="h-11 w-11 shrink-0 rounded-full shadow-lg shadow-primary/20"
         >
           {isSending ? (
             <Loader2 className="h-5 w-5 animate-spin" />

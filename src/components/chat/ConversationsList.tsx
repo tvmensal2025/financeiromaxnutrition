@@ -70,21 +70,34 @@ export function ConversationsList({
   };
 
   const formatTime = (date: string) => {
-    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: ptBR });
+    return formatDistanceToNow(new Date(date), { addSuffix: false, locale: ptBR });
+  };
+
+  const formatPhone = (p: string) => {
+    const cleaned = p.replace(/\D/g, '');
+    if (cleaned.length >= 11) {
+      return `(${cleaned.slice(-11, -9)}) ${cleaned.slice(-9, -4)}-${cleaned.slice(-4)}`;
+    }
+    return p;
   };
 
   const filters: { value: FilterType; label: string; icon: React.ReactNode }[] = [
-    { value: 'all', label: 'Todos', icon: <MessageCircle className="h-3 w-3" /> },
-    { value: 'unread', label: 'Não lidos', icon: <Badge className="h-2 w-2 rounded-full bg-primary p-0" /> },
-    { value: 'leads', label: 'Leads', icon: <User className="h-3 w-3" /> },
-    { value: 'customers', label: 'Clientes', icon: <Users className="h-3 w-3" /> },
+    { value: 'all', label: 'Todos', icon: <MessageCircle className="h-3.5 w-3.5" /> },
+    { value: 'unread', label: 'Não lidos', icon: <span className="h-2 w-2 rounded-full bg-primary" /> },
+    { value: 'leads', label: 'Leads', icon: <User className="h-3.5 w-3.5" /> },
+    { value: 'customers', label: 'Clientes', icon: <Users className="h-3.5 w-3.5" /> },
   ];
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-card">
       {/* Header */}
-      <div className="border-b border-border p-4">
-        <h2 className="text-lg font-semibold text-foreground mb-3">Conversas</h2>
+      <div className="border-b border-border p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-foreground">Conversas</h2>
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            {conversations.length}
+          </span>
+        </div>
         
         {/* Search */}
         <div className="relative">
@@ -93,21 +106,21 @@ export function ConversationsList({
             placeholder="Buscar conversas..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-muted/50 border-0 focus-visible:ring-1"
           />
         </div>
 
         {/* Filters */}
-        <div className="mt-3 flex gap-1 overflow-x-auto pb-1">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {filters.map((f) => (
             <button
               key={f.value}
               onClick={() => setFilter(f.value)}
               className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap',
+                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
                 filter === f.value
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-muted/70 text-muted-foreground hover:bg-muted'
               )}
             >
               {f.icon}
@@ -125,58 +138,86 @@ export function ConversationsList({
           </div>
         ) : filteredConversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <MessageCircle className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">Nenhuma conversa encontrada</p>
+            <div className="rounded-full bg-muted p-3 mb-3">
+              <MessageCircle className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground mb-1">Nenhuma conversa</p>
+            <p className="text-xs text-muted-foreground">
+              As mensagens aparecerão aqui
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {filteredConversations.map((conv) => (
+          <div>
+            {filteredConversations.map((conv, idx) => (
               <button
                 key={conv.phone}
                 onClick={() => onSelectConversation(conv.phone)}
                 className={cn(
-                  'flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-muted/50',
-                  selectedPhone === conv.phone && 'bg-muted'
+                  'flex w-full items-start gap-3 p-4 text-left transition-all hover:bg-muted/50',
+                  selectedPhone === conv.phone && 'bg-primary/5 border-l-2 border-l-primary',
+                  idx !== 0 && 'border-t border-border/50'
                 )}
               >
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                    {getInitials(conv.sender_name, conv.phone)}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-12 w-12 shrink-0">
+                    <AvatarFallback 
+                      className={cn(
+                        'font-semibold text-sm',
+                        conv.customer_id 
+                          ? 'bg-success/10 text-success'
+                          : conv.lead_id
+                          ? 'bg-warning/10 text-warning'
+                          : 'bg-primary/10 text-primary'
+                      )}
+                    >
+                      {getInitials(conv.sender_name, conv.phone)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {conv.unread_count > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-primary ring-2 ring-card" />
+                  )}
+                </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-foreground truncate">
-                      {conv.sender_name || conv.phone}
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="font-semibold text-foreground truncate text-sm">
+                      {conv.sender_name || formatPhone(conv.phone)}
                     </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap">
                       {formatTime(conv.last_message_at)}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-muted-foreground truncate">
                       {conv.direction === 'outbound' && (
-                        <span className="text-primary mr-1">Você:</span>
+                        <span className="text-primary font-medium mr-1">Você:</span>
                       )}
                       {conv.last_message}
                     </p>
                     {conv.unread_count > 0 && (
-                      <Badge className="h-5 min-w-5 shrink-0 rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                      <Badge className="h-5 min-w-5 shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
                         {conv.unread_count}
                       </Badge>
                     )}
                   </div>
 
                   {/* Type indicator */}
-                  <div className="mt-1">
+                  <div className="mt-1.5 flex items-center gap-1.5">
                     {conv.customer_id ? (
-                      <span className="text-xs text-success">Cliente</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                        <Users className="h-2.5 w-2.5" />
+                        Cliente
+                      </span>
                     ) : conv.lead_id ? (
-                      <span className="text-xs text-warning">Lead</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                        <User className="h-2.5 w-2.5" />
+                        Lead
+                      </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Novo</span>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        Novo
+                      </span>
                     )}
                   </div>
                 </div>
