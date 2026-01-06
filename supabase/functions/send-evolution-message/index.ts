@@ -14,6 +14,10 @@ interface SendMessageRequest {
   lead_id?: string;
   customer_id?: string;
   instance?: string;
+  media_url?: string;
+  media_type?: string;
+  media_base64?: string;
+  media_filename?: string;
 }
 
 serve(async (req) => {
@@ -39,18 +43,16 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SendMessageRequest = await req.json();
-    const { phone, message, business_id, lead_id, customer_id, instance } = body;
+    const { phone, message, business_id, lead_id, customer_id, instance, media_url, media_type, media_base64, media_filename } = body;
 
-    if (!phone || !message || !business_id) {
-      return new Response(JSON.stringify({ error: 'Missing required fields: phone, message, business_id' }), {
+    if (!phone || !business_id) {
+      return new Response(JSON.stringify({ error: 'Missing required fields: phone, business_id' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // Normalize phone number
-    // - Evolution expects a real WhatsApp number (E.164 digits)
-    // - "@lid" identifiers cannot be replied to reliably (Evolution will return exists:false)
     const isLidContact = phone.includes('@lid');
     const cleanPhone = phone
       .replace('@s.whatsapp.net', '')
@@ -80,7 +82,7 @@ serve(async (req) => {
       );
     }
 
-    // Determine instance name - use configured evolution_instance or fallback to provided instance or 'default'
+    // Determine instance name
     let instanceName = instance;
     if (!instanceName) {
       const { data: businessData } = await supabase
@@ -91,6 +93,25 @@ serve(async (req) => {
       instanceName = businessData?.evolution_instance || 'default';
     }
 
+    // Determine if we're sending media or text
+    const hasMedia = media_base64 || media_url;
+    let messageType = 'text';
+    let savedMediaUrl: string | null = null;
+    let savedMediaType: string | null = null;
+
+    if (hasMedia && media_type) {
+      if (media_type.includes('image') || media_type === 'image') {
+        messageType = 'image';
+      } else if (media_type.includes('audio') || media_type === 'audio') {
+        messageType = 'audio';
+      } else if (media_type.includes('video') || media_type === 'video') {
+        messageType = 'video';
+      } else {
+        messageType = 'document';
+      }
+      savedMediaType = media_type;
+    }
+
     // Save outbound message first
     const { data: savedMessage, error: saveError } = await supabase
       .from('whatsapp_messages')
@@ -99,9 +120,11 @@ serve(async (req) => {
         lead_id,
         customer_id,
         phone: cleanPhone,
-        message,
+        message: message || `[${messageType === 'image' ? 'Imagem' : messageType === 'audio' ? 'Áudio' : messageType === 'video' ? 'Vídeo' : 'Documento'}]`,
         direction: 'outbound',
         status: 'pending',
+        media_url: media_url || null,
+        media_type: savedMediaType,
       })
       .select()
       .single();
@@ -114,9 +137,54 @@ serve(async (req) => {
       });
     }
 
-    // Send message via Evolution API
-    const evolutionUrl = `${evolutionApiUrl}/message/sendText/${instanceName}`;
-    console.log('Sending to Evolution API:', evolutionUrl);
+    let evolutionUrl: string;
+    let evolutionBody: Record<string, unknown>;
+
+    if (messageType === 'text') {
+      // Send text message
+      evolutionUrl = `${evolutionApiUrl}/message/sendText/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        text: message,
+      };
+    } else if (messageType === 'image') {
+      // Send image
+      evolutionUrl = `${evolutionApiUrl}/message/sendMedia/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        mediatype: 'image',
+        caption: message || '',
+        ...(media_base64 ? { media: media_base64 } : { mediaUrl: media_url }),
+      };
+    } else if (messageType === 'audio') {
+      // Send audio (PTT style)
+      evolutionUrl = `${evolutionApiUrl}/message/sendWhatsAppAudio/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        ...(media_base64 ? { audio: media_base64 } : { audioUrl: media_url }),
+      };
+    } else if (messageType === 'video') {
+      // Send video
+      evolutionUrl = `${evolutionApiUrl}/message/sendMedia/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        mediatype: 'video',
+        caption: message || '',
+        ...(media_base64 ? { media: media_base64 } : { mediaUrl: media_url }),
+      };
+    } else {
+      // Send document
+      evolutionUrl = `${evolutionApiUrl}/message/sendMedia/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        mediatype: 'document',
+        caption: message || '',
+        fileName: media_filename || 'document',
+        ...(media_base64 ? { media: media_base64 } : { mediaUrl: media_url }),
+      };
+    }
+
+    console.log('Sending to Evolution API:', evolutionUrl, 'type:', messageType);
 
     const evolutionResponse = await fetch(evolutionUrl, {
       method: 'POST',
@@ -124,10 +192,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'apikey': evolutionApiKey,
       },
-      body: JSON.stringify({
-        number: cleanPhone,
-        text: message,
-      }),
+      body: JSON.stringify(evolutionBody),
     });
 
     const evolutionResult = await evolutionResponse.json();
@@ -145,7 +210,6 @@ serve(async (req) => {
         Array.isArray((evolutionResult as any)?.response?.message) &&
         (evolutionResult as any).response.message?.[0]?.exists === false;
 
-      // Treat "number does not exist on WhatsApp" as a handled business error (return 200 so the web app doesn't crash)
       if (existsFalse) {
         return new Response(
           JSON.stringify({

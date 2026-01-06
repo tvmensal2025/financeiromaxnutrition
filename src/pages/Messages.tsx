@@ -275,8 +275,25 @@ export default function Messages() {
 
   // Send message mutation
   const sendMutation = useMutation({
-    mutationFn: async (message: string) => {
+    mutationFn: async ({ message, media }: { message: string; media?: { file: File; type: string } }) => {
       if (!selectedPhone || !business?.id) throw new Error('Missing data');
+
+      let mediaBase64: string | undefined;
+      let mediaType: string | undefined;
+      let mediaFilename: string | undefined;
+
+      if (media) {
+        // Convert file to base64
+        const buffer = await media.file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        mediaBase64 = btoa(binary);
+        mediaType = media.type;
+        mediaFilename = media.file.name;
+      }
 
       const { data, error } = await supabase.functions.invoke('send-evolution-message', {
         body: {
@@ -285,6 +302,9 @@ export default function Messages() {
           business_id: business.id,
           lead_id: selectedConversation?.lead_id,
           customer_id: selectedConversation?.customer_id,
+          media_base64: mediaBase64,
+          media_type: mediaType,
+          media_filename: mediaFilename,
         },
       });
 
@@ -476,7 +496,7 @@ export default function Messages() {
               messages={selectedMessages}
               isLoading={messagesLoading && !!selectedPhone}
               isSending={sendMutation.isPending}
-              onSend={(msg) => sendMutation.mutate(msg)}
+              onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
               onBack={handleBack}
               showBack={isMobileView}
             />
