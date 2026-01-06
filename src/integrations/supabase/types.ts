@@ -79,6 +79,7 @@ export type Database = {
         Row: {
           auto_reminders_enabled: boolean | null
           created_at: string
+          evolution_instance: string | null
           id: string
           logo_url: string | null
           low_credits_threshold: number | null
@@ -92,6 +93,7 @@ export type Database = {
         Insert: {
           auto_reminders_enabled?: boolean | null
           created_at?: string
+          evolution_instance?: string | null
           id?: string
           logo_url?: string | null
           low_credits_threshold?: number | null
@@ -105,6 +107,7 @@ export type Database = {
         Update: {
           auto_reminders_enabled?: boolean | null
           created_at?: string
+          evolution_instance?: string | null
           id?: string
           logo_url?: string | null
           low_credits_threshold?: number | null
@@ -681,6 +684,79 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_messages: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          id: string
+          is_recurring: boolean | null
+          lead_id: string | null
+          message: string
+          phone: string
+          recurrence_end_date: string | null
+          recurrence_pattern: string | null
+          scheduled_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          lead_id?: string | null
+          message: string
+          phone: string
+          recurrence_end_date?: string | null
+          recurrence_pattern?: string | null
+          scheduled_at: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          lead_id?: string | null
+          message?: string
+          phone?: string
+          recurrence_end_date?: string | null
+          recurrence_pattern?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]

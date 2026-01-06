@@ -51,15 +51,15 @@ serve(async (req) => {
     // Clean phone number (keep only digits)
     const cleanPhone = phone.replace(/\D/g, '');
     
-    // Determine instance name (default to 'default' or use business slug)
+    // Determine instance name - use configured evolution_instance or fallback to provided instance or 'default'
     let instanceName = instance;
     if (!instanceName) {
-      const { data: business } = await supabase
+      const { data: businessData } = await supabase
         .from('businesses')
-        .select('slug')
+        .select('evolution_instance, slug')
         .eq('id', business_id)
         .single();
-      instanceName = business?.slug || 'default';
+      instanceName = businessData?.evolution_instance || 'default';
     }
 
     // Save outbound message first
