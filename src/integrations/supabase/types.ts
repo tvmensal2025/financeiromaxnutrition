@@ -796,6 +796,72 @@ export type Database = {
           },
         ]
       }
+      whatsapp_messages: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          direction: Database["public"]["Enums"]["message_direction"]
+          external_id: string | null
+          id: string
+          lead_id: string | null
+          media_type: string | null
+          media_url: string | null
+          message: string
+          phone: string
+          sender_name: string | null
+          status: Database["public"]["Enums"]["whatsapp_message_status"]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["message_direction"]
+          external_id?: string | null
+          id?: string
+          lead_id?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          message: string
+          phone: string
+          sender_name?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: Database["public"]["Enums"]["message_direction"]
+          external_id?: string | null
+          id?: string
+          lead_id?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          message?: string
+          phone?: string
+          sender_name?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -818,6 +884,7 @@ export type Database = {
         | "unqualified"
         | "converted"
       lead_temperature: "cold" | "warm" | "hot"
+      message_direction: "inbound" | "outbound"
       opportunity_stage:
         | "prospecting"
         | "qualification"
@@ -825,6 +892,12 @@ export type Database = {
         | "negotiation"
         | "closed_won"
         | "closed_lost"
+      whatsapp_message_status:
+        | "pending"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -968,6 +1041,7 @@ export const Constants = {
         "converted",
       ],
       lead_temperature: ["cold", "warm", "hot"],
+      message_direction: ["inbound", "outbound"],
       opportunity_stage: [
         "prospecting",
         "qualification",
@@ -975,6 +1049,13 @@ export const Constants = {
         "negotiation",
         "closed_won",
         "closed_lost",
+      ],
+      whatsapp_message_status: [
+        "pending",
+        "sent",
+        "delivered",
+        "read",
+        "failed",
       ],
     },
   },

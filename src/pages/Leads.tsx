@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus } from 'lucide-react';
+import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus, MessageCircle, Send } from 'lucide-react';
 
 type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted';
 type LeadTemperature = 'cold' | 'warm' | 'hot';
@@ -29,6 +30,22 @@ interface Lead {
   notes: string | null;
   created_at: string;
 }
+
+interface WhatsAppMessage {
+  id: string;
+  message: string;
+  direction: 'inbound' | 'outbound';
+  created_at: string;
+  sender_name: string | null;
+}
+
+const sourceLabels: Record<string, { label: string; color: string }> = {
+  whatsapp: { label: 'WhatsApp', color: 'bg-green-500/10 text-green-600' },
+  instagram: { label: 'Instagram', color: 'bg-pink-500/10 text-pink-600' },
+  facebook: { label: 'Facebook', color: 'bg-blue-500/10 text-blue-600' },
+  indicacao: { label: 'Indicação', color: 'bg-purple-500/10 text-purple-600' },
+  site: { label: 'Site', color: 'bg-orange-500/10 text-orange-600' },
+};
 
 const statusLabels: Record<LeadStatus, string> = {
   new: 'Novo',
@@ -57,8 +74,11 @@ export default function Leads() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [chatLeadId, setChatLeadId] = useState<string | null>(null);
+  const [chatMessage, setChatMessage] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -84,6 +104,23 @@ export default function Leads() {
       return data as Lead[];
     },
     enabled: !!business?.id,
+  });
+
+  // Query messages for the selected lead
+  const { data: leadMessages = [] } = useQuery({
+    queryKey: ['whatsapp-messages', chatLeadId],
+    queryFn: async () => {
+      if (!chatLeadId || !business?.id) return [];
+      const { data, error } = await supabase
+        .from('whatsapp_messages')
+        .select('*')
+        .eq('lead_id', chatLeadId)
+        .eq('business_id', business.id)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data as WhatsAppMessage[];
+    },
+    enabled: !!chatLeadId && !!business?.id,
   });
 
   const createMutation = useMutation({
@@ -153,6 +190,29 @@ export default function Leads() {
     },
   });
 
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ leadId, phone, message }: { leadId: string; phone: string; message: string }) => {
+      const { data, error } = await supabase.functions.invoke('send-evolution-message', {
+        body: {
+          phone,
+          message,
+          business_id: business!.id,
+          lead_id: leadId,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', chatLeadId] });
+      setChatMessage('');
+      toast({ title: 'Mensagem enviada!' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao enviar mensagem', variant: 'destructive' });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -194,12 +254,25 @@ export default function Leads() {
     }
   };
 
-  const filteredLeads = leads.filter(
-    (lead) =>
+  const handleSendMessage = (lead: Lead) => {
+    if (!chatMessage.trim() || !lead.whatsapp) return;
+    sendMessageMutation.mutate({
+      leadId: lead.id,
+      phone: lead.whatsapp,
+      message: chatMessage,
+    });
+  };
+
+  const chatLead = leads.find((l) => l.id === chatLeadId);
+
+  const filteredLeads = leads.filter((lead) => {
+    const matchesSearch =
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.company?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      lead.company?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSource = sourceFilter === 'all' || lead.source?.toLowerCase() === sourceFilter;
+    return matchesSearch && matchesSource;
+  });
 
   return (
     <MainLayout>
@@ -338,6 +411,19 @@ export default function Leads() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Origem" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas origens</SelectItem>
+              <SelectItem value="whatsapp">WhatsApp</SelectItem>
+              <SelectItem value="instagram">Instagram</SelectItem>
+              <SelectItem value="facebook">Facebook</SelectItem>
+              <SelectItem value="indicacao">Indicação</SelectItem>
+              <SelectItem value="site">Site</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -377,7 +463,16 @@ export default function Leads() {
                       </div>
                     </td>
                     <td>{lead.company || '-'}</td>
-                    <td>{lead.source || '-'}</td>
+                    <td>
+                      {lead.source ? (
+                        <Badge 
+                          className={sourceLabels[lead.source.toLowerCase()]?.color || 'bg-muted text-muted-foreground'} 
+                          variant="secondary"
+                        >
+                          {sourceLabels[lead.source.toLowerCase()]?.label || lead.source}
+                        </Badge>
+                      ) : '-'}
+                    </td>
                     <td>
                       {lead.temperature && temperatureIcons[lead.temperature]}
                     </td>
@@ -388,6 +483,16 @@ export default function Leads() {
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
+                        {lead.whatsapp && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setChatLeadId(lead.id)}
+                            title="Abrir chat"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => handleEdit(lead)}>
                           Editar
                         </Button>
@@ -410,6 +515,68 @@ export default function Leads() {
             </tbody>
           </table>
         </div>
+
+        {/* Chat Dialog */}
+        <Dialog open={!!chatLeadId} onOpenChange={(open) => !open && setChatLeadId(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-green-500" />
+                Chat com {chatLead?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col h-[400px]">
+              <ScrollArea className="flex-1 p-4 border rounded-lg mb-4">
+                {leadMessages.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhuma mensagem ainda
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {leadMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] p-3 rounded-lg ${
+                            msg.direction === 'outbound'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted'
+                          }`}
+                        >
+                          <p className="text-sm">{msg.message}</p>
+                          <p className="text-xs opacity-70 mt-1">
+                            {new Date(msg.created_at).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Digite sua mensagem..."
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && chatLead) {
+                      e.preventDefault();
+                      handleSendMessage(chatLead);
+                    }
+                  }}
+                />
+                <Button
+                  onClick={() => chatLead && handleSendMessage(chatLead)}
+                  disabled={!chatMessage.trim() || sendMessageMutation.isPending}
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
