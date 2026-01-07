@@ -20,6 +20,7 @@ import { ScheduleMessageModal } from '@/components/chat/ScheduleMessageModal';
 import { MessageTemplatesModal } from '@/components/chat/MessageTemplatesModal';
 import { BulkMessageModal } from '@/components/chat/BulkMessageModal';
 import { ExtractContactsModal } from '@/components/chat/ExtractContactsModal';
+import { ScheduledMessagesListModal } from '@/components/chat/ScheduledMessagesListModal';
 
 interface WhatsAppMessage {
   id: string;
@@ -99,6 +100,7 @@ export default function Messages() {
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [showBulkMessageModal, setShowBulkMessageModal] = useState(false);
   const [showExtractContactsModal, setShowExtractContactsModal] = useState(false);
+  const [showScheduledListModal, setShowScheduledListModal] = useState(false);
 
   // Check screen size
   useEffect(() => {
@@ -649,11 +651,10 @@ export default function Messages() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => processScheduledMutation.mutate()}
-                disabled={processScheduledMutation.isPending}
+                onClick={() => setShowScheduledListModal(true)}
               >
                 <Clock className="h-4 w-4 mr-1" />
-                {processScheduledMutation.isPending ? 'Processando...' : 'Agendadas'}
+                Agendadas
               </Button>
             </div>
             {!isMobileView && selectedPhone && (
@@ -837,6 +838,11 @@ export default function Messages() {
           businessId={business?.id}
         />
       )}
+
+      <ScheduledMessagesListModal
+        open={showScheduledListModal}
+        onOpenChange={setShowScheduledListModal}
+      />
     </MainLayout>
   );
 }
