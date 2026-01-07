@@ -75,8 +75,20 @@ export function GroupParticipantsPanel({
 
   const formatPhone = (phone: string) => {
     const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length >= 11) {
-      return `(${cleaned.slice(-11, -9)}) ${cleaned.slice(-9, -4)}-${cleaned.slice(-4)}`;
+    // Brazilian format: 55 + DDD (2 digits) + number (8-9 digits)
+    if (cleaned.length >= 12 && cleaned.startsWith('55')) {
+      const withoutCountry = cleaned.slice(2);
+      const ddd = withoutCountry.slice(0, 2);
+      const number = withoutCountry.slice(2);
+      if (number.length === 9) {
+        return `+55 (${ddd}) ${number.slice(0, 5)}-${number.slice(5)}`;
+      } else if (number.length === 8) {
+        return `+55 (${ddd}) ${number.slice(0, 4)}-${number.slice(4)}`;
+      }
+    }
+    // Fallback for other formats
+    if (cleaned.length >= 10) {
+      return `+${cleaned.slice(0, 2)} (${cleaned.slice(2, 4)}) ${cleaned.slice(4)}`;
     }
     return phone;
   };
