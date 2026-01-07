@@ -2,9 +2,18 @@ import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical } from 'lucide-react';
 import { ChatMessage, Message } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import type { ConversationStatus } from './ConversationsList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -13,6 +22,7 @@ interface ChatAreaProps {
   phone: string | null;
   contactName: string | null;
   contactType: 'lead' | 'customer' | 'new' | 'group';
+  conversationStatus?: ConversationStatus;
   messages: Message[];
   isLoading?: boolean;
   isSending?: boolean;
@@ -21,12 +31,14 @@ interface ChatAreaProps {
   onBack?: () => void;
   showBack?: boolean;
   onViewParticipants?: () => void;
+  onUpdateConversationStatus?: (status: ConversationStatus) => void;
 }
 
 export function ChatArea({
   phone,
   contactName,
   contactType,
+  conversationStatus,
   messages,
   isLoading,
   isSending,
@@ -34,6 +46,7 @@ export function ChatArea({
   onBack,
   showBack,
   onViewParticipants,
+  onUpdateConversationStatus,
 }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -186,9 +199,38 @@ export function ChatArea({
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full" title="Finalizado">
-          <MoreVertical className="h-5 w-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full">
+              <MoreVertical className="h-5 w-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuLabel>Status da conversa</DropdownMenuLabel>
+            <DropdownMenuItem
+              onSelect={() => onUpdateConversationStatus?.('waiting')}
+              className={cn(conversationStatus === 'waiting' || conversationStatus === 'pending' ? 'bg-accent' : '')}
+            >
+              Esperando
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onUpdateConversationStatus?.('inbox')}
+              className={cn(conversationStatus === 'inbox' ? 'bg-accent' : '')}
+            >
+              Entrada
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onUpdateConversationStatus?.('finished')}
+              className={cn(conversationStatus === 'finished' ? 'bg-accent' : '')}
+            >
+              Finalizado
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled className="text-muted-foreground">
+              Mais ações (em breve)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Messages */}
