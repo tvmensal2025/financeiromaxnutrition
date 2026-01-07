@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { PanelRightClose, PanelRightOpen, TestTube, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { AddCustomerModal } from '@/components/chat/AddCustomerModal';
 import { CreateOpportunityModal } from '@/components/chat/CreateOpportunityModal';
 import { CreateInvoiceModal } from '@/components/chat/CreateInvoiceModal';
@@ -485,72 +486,90 @@ export default function Messages() {
         </div>
 
         {/* Main content */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Conversations sidebar */}
-          <div
-            className={cn(
-              'shrink-0 overflow-hidden transition-all',
-              isMobileView
-                ? showChat
-                  ? 'w-0'
-                  : 'w-full'
-                : 'w-80'
-            )}
-          >
-            <ConversationsList
-              conversations={conversations}
-              selectedPhone={selectedPhone}
-              onSelectConversation={handleSelectConversation}
-              isLoading={messagesLoading}
-              showTitle={false}
-            />
-          </div>
-
-          {/* Chat area */}
-          <div
-            className={cn(
-              'flex-1 overflow-hidden',
-              isMobileView && !showChat && 'hidden'
-            )}
-          >
-            <ChatArea
-              phone={selectedPhone}
-              contactName={contactInfo?.name || null}
-              contactType={contactType}
-              messages={selectedMessages}
-              isLoading={messagesLoading && !!selectedPhone}
-              isSending={sendMutation.isPending}
-              onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
-              onBack={handleBack}
-              showBack={isMobileView}
-              onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
-            />
-          </div>
-
-          {/* Info panel - desktop only */}
-          {!isMobileView && showInfoPanel && selectedPhone && (
-            <div className="w-72 shrink-0 overflow-hidden">
-              {selectedConversation?.is_group ? (
-                <GroupParticipantsPanel
-                  groupPhone={selectedPhone}
-                  groupName={selectedConversation?.group_name || null}
-                  businessId={business?.id}
-                  onClose={() => setShowInfoPanel(false)}
-                />
-              ) : (
-                <ContactInfoPanel
-                  contact={contactInfo}
-                  type={contactType}
-                  onConvertToCustomer={() => setShowAddCustomerModal(true)}
-                  onCreateOpportunity={() => setShowOpportunityModal(true)}
-                  onCreateInvoice={() => setShowInvoiceModal(true)}
-                  onScheduleMessage={() => setShowScheduleModal(true)}
-                  onClose={() => setShowInfoPanel(false)}
-                />
-              )}
+        {isMobileView ? (
+          // Mobile: no resizable panels
+          <div className="flex flex-1 overflow-hidden">
+            <div className={cn('w-full overflow-hidden', showChat && 'hidden')}>
+              <ConversationsList
+                conversations={conversations}
+                selectedPhone={selectedPhone}
+                onSelectConversation={handleSelectConversation}
+                isLoading={messagesLoading}
+                showTitle={false}
+              />
             </div>
-          )}
-        </div>
+            <div className={cn('flex-1 overflow-hidden', !showChat && 'hidden')}>
+              <ChatArea
+                phone={selectedPhone}
+                contactName={contactInfo?.name || null}
+                contactType={contactType}
+                messages={selectedMessages}
+                isLoading={messagesLoading && !!selectedPhone}
+                isSending={sendMutation.isPending}
+                onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
+                onBack={handleBack}
+                showBack={isMobileView}
+                onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
+              />
+            </div>
+          </div>
+        ) : (
+          // Desktop: resizable panels
+          <ResizablePanelGroup direction="horizontal" className="flex-1">
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
+              <ConversationsList
+                conversations={conversations}
+                selectedPhone={selectedPhone}
+                onSelectConversation={handleSelectConversation}
+                isLoading={messagesLoading}
+                showTitle={false}
+              />
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            <ResizablePanel defaultSize={showInfoPanel && selectedPhone ? 50 : 75} minSize={30}>
+              <ChatArea
+                phone={selectedPhone}
+                contactName={contactInfo?.name || null}
+                contactType={contactType}
+                messages={selectedMessages}
+                isLoading={messagesLoading && !!selectedPhone}
+                isSending={sendMutation.isPending}
+                onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
+                onBack={handleBack}
+                showBack={false}
+                onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
+              />
+            </ResizablePanel>
+
+            {showInfoPanel && selectedPhone && (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={25} minSize={15} maxSize={35}>
+                  {selectedConversation?.is_group ? (
+                    <GroupParticipantsPanel
+                      groupPhone={selectedPhone}
+                      groupName={selectedConversation?.group_name || null}
+                      businessId={business?.id}
+                      onClose={() => setShowInfoPanel(false)}
+                    />
+                  ) : (
+                    <ContactInfoPanel
+                      contact={contactInfo}
+                      type={contactType}
+                      onConvertToCustomer={() => setShowAddCustomerModal(true)}
+                      onCreateOpportunity={() => setShowOpportunityModal(true)}
+                      onCreateInvoice={() => setShowInvoiceModal(true)}
+                      onScheduleMessage={() => setShowScheduleModal(true)}
+                      onClose={() => setShowInfoPanel(false)}
+                    />
+                  )}
+                </ResizablePanel>
+              </>
+            )}
+          </ResizablePanelGroup>
+        )}
       </div>
 
       {/* Modals */}
