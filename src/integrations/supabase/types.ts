@@ -120,6 +120,77 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_tag_assignments: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          phone: string
+          tag_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          phone: string
+          tag_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tag_assignments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_tag_assignments_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_tags: {
+        Row: {
+          business_id: string
+          color: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          business_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          business_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_tags_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           avatar_url: string | null
@@ -643,6 +714,35 @@ export type Database = {
           },
         ]
       }
+      pinned_conversations: {
+        Row: {
+          business_id: string
+          id: string
+          phone: string
+          pinned_at: string
+        }
+        Insert: {
+          business_id: string
+          id?: string
+          phone: string
+          pinned_at?: string
+        }
+        Update: {
+          business_id?: string
+          id?: string
+          phone?: string
+          pinned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinned_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           billing_cycle: string
@@ -967,6 +1067,7 @@ export type Database = {
       }
       whatsapp_messages: {
         Row: {
+          assigned_to: string | null
           business_id: string
           conversation_status:
             | Database["public"]["Enums"]["conversation_status"]
@@ -992,6 +1093,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_to?: string | null
           business_id: string
           conversation_status?:
             | Database["public"]["Enums"]["conversation_status"]
@@ -1017,6 +1119,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_to?: string | null
           business_id?: string
           conversation_status?:
             | Database["public"]["Enums"]["conversation_status"]
@@ -1042,6 +1145,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_messages_customer_id_fkey"
             columns: ["customer_id"]
