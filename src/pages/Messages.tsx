@@ -525,6 +525,7 @@ export default function Messages() {
                 <GroupParticipantsPanel
                   groupPhone={selectedPhone}
                   groupName={selectedConversation?.group_name || null}
+                  businessId={business?.id}
                   onClose={() => setShowInfoPanel(false)}
                 />
               ) : (

@@ -27,6 +27,7 @@ interface GroupParticipant {
 interface GroupParticipantsPanelProps {
   groupPhone: string;
   groupName: string | null;
+  businessId?: string;
   onClose?: () => void;
   onSelectParticipant?: (phone: string) => void;
 }
@@ -34,6 +35,7 @@ interface GroupParticipantsPanelProps {
 export function GroupParticipantsPanel({
   groupPhone,
   groupName,
+  businessId,
   onClose,
   onSelectParticipant,
 }: GroupParticipantsPanelProps) {
@@ -52,7 +54,7 @@ export function GroupParticipantsPanel({
     
     try {
       const { data, error: fnError } = await supabase.functions.invoke('get-group-participants', {
-        body: { group_id: groupPhone }
+        body: { group_id: groupPhone, business_id: businessId }
       });
 
       if (fnError) throw fnError;
