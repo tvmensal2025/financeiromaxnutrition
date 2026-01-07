@@ -441,7 +441,11 @@ export default function Messages() {
 
   // Send message mutation
   const sendMutation = useMutation({
-    mutationFn: async ({ message, media }: { message: string; media?: { file: File; type: string } }) => {
+    mutationFn: async ({ message, media, buttons }: { 
+      message: string; 
+      media?: { file: File; type: string };
+      buttons?: Array<{ text: string; type: 'reply' | 'link'; url?: string }>;
+    }) => {
       if (!selectedPhone || !business?.id) throw new Error('Missing data');
 
       let mediaBase64: string | undefined;
@@ -471,6 +475,7 @@ export default function Messages() {
           media_base64: mediaBase64,
           media_type: mediaType,
           media_filename: mediaFilename,
+          buttons: buttons,
         },
       });
 
@@ -697,7 +702,7 @@ export default function Messages() {
                 messages={selectedMessages}
                 isLoading={messagesLoading && !!selectedPhone}
                 isSending={sendMutation.isPending}
-                onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
+                onSend={(msg, media, buttons) => sendMutation.mutate({ message: msg, media, buttons })}
                 onBack={handleBack}
                 showBack={isMobileView}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
@@ -734,7 +739,7 @@ export default function Messages() {
                 messages={selectedMessages}
                 isLoading={messagesLoading && !!selectedPhone}
                 isSending={sendMutation.isPending}
-                onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
+                onSend={(msg, media, buttons) => sendMutation.mutate({ message: msg, media, buttons })}
                 onBack={handleBack}
                 showBack={false}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}

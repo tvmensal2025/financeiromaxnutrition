@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical, Pin, Tag, Target, UserCheck, ShoppingCart, UserPlus } from 'lucide-react';
 import { ChatMessage, Message } from './ChatMessage';
-import { ChatInput } from './ChatInput';
+import { ChatInput, TemplateButton } from './ChatInput';
 import type { ConversationStatus } from './ConversationsList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,7 +39,7 @@ interface ChatAreaProps {
   messages: Message[];
   isLoading?: boolean;
   isSending?: boolean;
-  onSend: (message: string, media?: { file: File; type: string }) => void;
+  onSend: (message: string, media?: { file: File; type: string }, buttons?: TemplateButton[]) => void;
   onConvertToCustomer?: () => void;
   onBack?: () => void;
   showBack?: boolean;
