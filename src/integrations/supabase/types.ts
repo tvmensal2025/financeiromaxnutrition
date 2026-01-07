@@ -911,6 +911,7 @@ export type Database = {
           cost: number
           created_at: string
           description: string | null
+          discount: number | null
           id: string
           is_active: boolean
           name: string
@@ -924,6 +925,7 @@ export type Database = {
           cost?: number
           created_at?: string
           description?: string | null
+          discount?: number | null
           id?: string
           is_active?: boolean
           name: string
@@ -937,6 +939,7 @@ export type Database = {
           cost?: number
           created_at?: string
           description?: string | null
+          discount?: number | null
           id?: string
           is_active?: boolean
           name?: string

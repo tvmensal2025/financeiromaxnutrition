@@ -19,6 +19,7 @@ interface Product {
   description: string | null;
   price: number;
   cost: number;
+  discount: number;
   sku: string | null;
   stock: number | null;
   is_active: boolean;
@@ -37,6 +38,7 @@ export default function Products() {
     description: '',
     price: '',
     cost: '',
+    discount: '',
     sku: '',
     stock: '',
     is_active: true,
@@ -65,6 +67,7 @@ export default function Products() {
         description: data.description || null,
         price: parseFloat(data.price) || 0,
         cost: parseFloat(data.cost) || 0,
+        discount: parseFloat(data.discount) || 0,
         sku: data.sku || null,
         stock: parseInt(data.stock) || 0,
         is_active: data.is_active,
@@ -90,6 +93,7 @@ export default function Products() {
           description: data.description || null,
           price: parseFloat(data.price) || 0,
           cost: parseFloat(data.cost) || 0,
+          discount: parseFloat(data.discount) || 0,
           sku: data.sku || null,
           stock: parseInt(data.stock) || 0,
           is_active: data.is_active,
@@ -127,6 +131,7 @@ export default function Products() {
       description: '',
       price: '',
       cost: '',
+      discount: '',
       sku: '',
       stock: '',
       is_active: true,
@@ -140,8 +145,9 @@ export default function Products() {
     setFormData({
       name: product.name,
       description: product.description || '',
-      price: product.price.toString(),
-      cost: product.cost.toString(),
+      price: (product.price ?? 0).toString(),
+      cost: (product.cost ?? 0).toString(),
+      discount: (product.discount ?? 0).toString(),
       sku: product.sku || '',
       stock: (product.stock || 0).toString(),
       is_active: product.is_active,
@@ -175,7 +181,9 @@ export default function Products() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Produtos</h1>
-            <p className="text-muted-foreground">Gerencie seu catálogo de produtos</p>
+            <p className="text-muted-foreground">
+              Gerencie seu catálogo de produtos • <span className="font-medium text-foreground">{products.length} produtos</span>
+            </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -231,11 +239,15 @@ export default function Products() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="sku">SKU</Label>
+                    <Label htmlFor="discount">Desconto (%)</Label>
                     <Input
-                      id="sku"
-                      value={formData.sku}
-                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      id="discount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={formData.discount}
+                      onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -247,6 +259,14 @@ export default function Products() {
                       onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU</Label>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch
@@ -303,7 +323,7 @@ export default function Products() {
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{product.description}</p>
                 )}
 
-                <div className="grid grid-cols-3 gap-2 text-sm mb-4">
+                <div className="grid grid-cols-4 gap-2 text-sm mb-4">
                   <div>
                     <p className="text-muted-foreground">Preço</p>
                     <p className="font-semibold text-success">
@@ -315,6 +335,10 @@ export default function Products() {
                     <p className="font-medium">
                       {(product.cost ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Desconto</p>
+                    <p className="font-medium text-orange-500">{(product.discount ?? 0).toFixed(0)}%</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Margem</p>
