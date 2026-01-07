@@ -16,16 +16,21 @@ import {
   Target,
   FileText,
   Clock,
-  MessageSquare,
-  CreditCard,
   CalendarClock,
   ChevronRight,
   Repeat,
-  Zap,
-  TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+interface ScheduledMessage {
+  id: string;
+  message: string;
+  scheduled_at: string;
+  is_recurring: boolean;
+  recurrence_pattern: string | null;
+  status: string;
+}
 
 interface ContactInfo {
   name: string | null;
@@ -41,6 +46,7 @@ interface ContactInfo {
 interface ContactInfoPanelProps {
   contact: ContactInfo | null;
   type: 'lead' | 'customer' | 'new';
+  scheduledMessages?: ScheduledMessage[];
   onConvertToCustomer?: () => void;
   onCreateOpportunity?: () => void;
   onCreateInvoice?: () => void;
@@ -51,6 +57,7 @@ interface ContactInfoPanelProps {
 export function ContactInfoPanel({
   contact,
   type,
+  scheduledMessages = [],
   onConvertToCustomer,
   onCreateOpportunity,
   onCreateInvoice,
@@ -84,7 +91,21 @@ export function ContactInfoPanel({
     }
   };
 
+  const getRecurrenceLabel = (pattern: string | null) => {
+    switch (pattern) {
+      case 'daily':
+        return 'Todo dia';
+      case 'weekly':
+        return 'Toda semana';
+      case 'monthly':
+        return 'Todo mês';
+      default:
+        return 'Recorrente';
+    }
+  };
+
   const tempInfo = getTemperatureInfo(contact.temperature);
+  const pendingScheduled = scheduledMessages.filter(m => m.status === 'pending');
 
   return (
     <div className="flex h-full flex-col border-l border-border bg-card">
@@ -205,6 +226,55 @@ export function ContactInfoPanel({
               </Card>
             </div>
           </div>
+
+          {/* Scheduled Messages Section */}
+          {pendingScheduled.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2.5">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5" />
+                  Agendamentos ({pendingScheduled.length})
+                </h5>
+                <div className="space-y-2">
+                  {pendingScheduled.slice(0, 5).map((msg) => (
+                    <div 
+                      key={msg.id} 
+                      className="p-2 rounded-lg bg-muted/50 border border-border/50"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className={`mt-0.5 shrink-0 ${msg.is_recurring ? 'text-primary' : 'text-warning'}`}>
+                          {msg.is_recurring ? (
+                            <Repeat className="h-3.5 w-3.5" />
+                          ) : (
+                            <Calendar className="h-3.5 w-3.5" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-foreground line-clamp-2">{msg.message}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-muted-foreground">
+                              {format(new Date(msg.scheduled_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                            </span>
+                            {msg.is_recurring && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                {getRecurrenceLabel(msg.recurrence_pattern)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {pendingScheduled.length > 5 && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      + {pendingScheduled.length - 5} agendamento(s)
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           <Separator />
 

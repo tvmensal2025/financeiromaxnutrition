@@ -257,6 +257,36 @@ export default function Messages() {
 
   // Get selected conversation info
   const selectedConversation = conversations.find((c) => c.phone === selectedPhone);
+
+  // Fetch scheduled messages for selected contact
+  const { data: scheduledMessages = [] } = useQuery({
+    queryKey: ['scheduled-messages', selectedConversation?.lead_id, selectedConversation?.customer_id, selectedPhone],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      
+      let query = supabase
+        .from('scheduled_messages')
+        .select('*')
+        .eq('business_id', business.id)
+        .eq('status', 'pending')
+        .order('scheduled_at', { ascending: true });
+
+      if (selectedConversation?.customer_id) {
+        query = query.eq('customer_id', selectedConversation.customer_id);
+      } else if (selectedConversation?.lead_id) {
+        query = query.eq('lead_id', selectedConversation.lead_id);
+      } else if (selectedPhone) {
+        query = query.eq('phone', selectedPhone);
+      } else {
+        return [];
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!business?.id && !!selectedPhone,
+  });
   
   // Contact info
   const contactInfo = useMemo(() => {
@@ -616,6 +646,7 @@ export default function Messages() {
                     <ContactInfoPanel
                       contact={contactInfo}
                       type={contactType}
+                      scheduledMessages={scheduledMessages}
                       onConvertToCustomer={() => setShowAddCustomerModal(true)}
                       onCreateOpportunity={() => setShowOpportunityModal(true)}
                       onCreateInvoice={() => setShowInvoiceModal(true)}
