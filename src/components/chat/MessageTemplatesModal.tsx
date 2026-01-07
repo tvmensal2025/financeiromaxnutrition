@@ -16,13 +16,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, Pencil, Trash2, FileText, Copy } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Plus, Pencil, Trash2, FileText, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface TemplateButton {
+  text: string;
+  type: 'reply' | 'link';
+  url?: string;
+}
 
 interface MessageTemplate {
   id: string;
   name: string;
   content: string;
+  emoji: string;
+  buttons: TemplateButton[];
   created_at: string;
 }
 
@@ -40,6 +49,8 @@ const AVAILABLE_VARIABLES = [
   { key: '{{hora}}', label: 'Hora', description: 'Hora atual' },
 ];
 
+const EMOJI_OPTIONS = ['📝', '👋', '😊', '🙏', '❤️', '✅', '🔥', '⭐', '💬', '📌', '🎉', '💡', '🛒', '💰', '📦', '🚀'];
+
 export function MessageTemplatesModal({
   open,
   onOpenChange,
@@ -51,7 +62,12 @@ export function MessageTemplatesModal({
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
-  const [formData, setFormData] = useState({ name: '', content: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    content: '', 
+    emoji: '📝',
+    buttons: [] as TemplateButton[]
+  });
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['message-templates', business?.id],
@@ -63,7 +79,14 @@ export function MessageTemplatesModal({
         .eq('business_id', business.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as MessageTemplate[];
+      return (data || []).map(t => ({
+        id: t.id,
+        name: t.name,
+        content: t.content,
+        created_at: t.created_at,
+        emoji: (t.emoji as string) || '📝',
+        buttons: (Array.isArray(t.buttons) ? t.buttons : []) as unknown as TemplateButton[]
+      }));
     },
     enabled: !!business?.id,
   });
@@ -71,11 +94,13 @@ export function MessageTemplatesModal({
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!business?.id) throw new Error('Business not found');
-      const { error } = await supabase.from('message_templates').insert({
+      const { error } = await supabase.from('message_templates').insert([{
         business_id: business.id,
         name: formData.name,
         content: formData.content,
-      });
+        emoji: formData.emoji,
+        buttons: JSON.parse(JSON.stringify(formData.buttons)),
+      }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -93,7 +118,12 @@ export function MessageTemplatesModal({
       if (!editingTemplate) throw new Error('No template selected');
       const { error } = await supabase
         .from('message_templates')
-        .update({ name: formData.name, content: formData.content })
+        .update({ 
+          name: formData.name, 
+          content: formData.content,
+          emoji: formData.emoji,
+          buttons: JSON.parse(JSON.stringify(formData.buttons)),
+        })
         .eq('id', editingTemplate.id);
       if (error) throw error;
     },
@@ -124,12 +154,17 @@ export function MessageTemplatesModal({
   const resetForm = () => {
     setIsEditing(false);
     setEditingTemplate(null);
-    setFormData({ name: '', content: '' });
+    setFormData({ name: '', content: '', emoji: '📝', buttons: [] });
   };
 
   const handleEdit = (template: MessageTemplate) => {
     setEditingTemplate(template);
-    setFormData({ name: template.name, content: template.content });
+    setFormData({ 
+      name: template.name, 
+      content: template.content,
+      emoji: template.emoji || '📝',
+      buttons: template.buttons || []
+    });
     setIsEditing(true);
   };
 
@@ -142,7 +177,19 @@ export function MessageTemplatesModal({
 
   const handleSelectTemplate = (template: MessageTemplate) => {
     if (onSelectTemplate) {
-      onSelectTemplate(template.content);
+      // Format message with buttons
+      let finalContent = template.content;
+      if (template.buttons && template.buttons.length > 0) {
+        finalContent += '\n\n';
+        template.buttons.forEach((btn, idx) => {
+          if (btn.type === 'reply') {
+            finalContent += `${idx + 1}️⃣ ${btn.text}\n`;
+          } else if (btn.type === 'link' && btn.url) {
+            finalContent += `🔗 ${btn.text}: ${btn.url}\n`;
+          }
+        });
+      }
+      onSelectTemplate(finalContent.trim());
       onOpenChange(false);
     }
   };
@@ -156,6 +203,29 @@ export function MessageTemplatesModal({
     }
   };
 
+  const addButton = () => {
+    setFormData(prev => ({
+      ...prev,
+      buttons: [...prev.buttons, { text: '', type: 'reply' }]
+    }));
+  };
+
+  const updateButton = (index: number, field: keyof TemplateButton, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      buttons: prev.buttons.map((btn, i) => 
+        i === index ? { ...btn, [field]: value } : btn
+      )
+    }));
+  };
+
+  const removeButton = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      buttons: prev.buttons.filter((_, i) => i !== index)
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
@@ -165,7 +235,7 @@ export function MessageTemplatesModal({
             Modelos de Mensagem
           </DialogTitle>
           <DialogDescription>
-            Crie e gerencie modelos de mensagem com variáveis personalizadas.
+            Crie e gerencie modelos de mensagem com variáveis e botões.
           </DialogDescription>
         </DialogHeader>
 
@@ -208,10 +278,23 @@ export function MessageTemplatesModal({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm truncate">{template.name}</p>
+                          <p className="font-medium text-sm truncate">
+                            <span className="mr-1.5">{template.emoji}</span>
+                            {template.name}
+                          </p>
                           <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                             {template.content}
                           </p>
+                          {template.buttons && template.buttons.length > 0 && (
+                            <div className="flex gap-1 mt-2 flex-wrap">
+                              {template.buttons.map((btn, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs">
+                                  {btn.type === 'link' ? <LinkIcon className="h-3 w-3 mr-1" /> : null}
+                                  {btn.text}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex gap-1 shrink-0">
                           <Button
@@ -249,15 +332,43 @@ export function MessageTemplatesModal({
           <div className="flex flex-col min-h-0">
             {isEditing ? (
               <form onSubmit={handleSubmit} className="flex flex-col h-full gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nome do modelo</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Boas-vindas"
-                    required
-                  />
+                <div className="flex gap-2">
+                  {/* Emoji picker */}
+                  <div className="space-y-2">
+                    <Label>Emoji</Label>
+                    <Select 
+                      value={formData.emoji} 
+                      onValueChange={(value) => setFormData({ ...formData, emoji: value })}
+                    >
+                      <SelectTrigger className="w-16 h-10">
+                        <SelectValue>{formData.emoji}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="grid grid-cols-4 gap-1 p-1">
+                          {EMOJI_OPTIONS.map((emoji) => (
+                            <SelectItem 
+                              key={emoji} 
+                              value={emoji}
+                              className="flex items-center justify-center text-lg cursor-pointer"
+                            >
+                              {emoji}
+                            </SelectItem>
+                          ))}
+                        </div>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="name">Nome do modelo</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="Ex: Boas-vindas"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0 space-y-2">
@@ -267,9 +378,69 @@ export function MessageTemplatesModal({
                     value={formData.content}
                     onChange={(e) => setFormData({ ...formData, content: e.target.value })}
                     placeholder="Olá {{nome}}, tudo bem?"
-                    className="flex-1 min-h-[120px] resize-none"
+                    className="flex-1 min-h-[80px] resize-none"
                     required
                   />
+                </div>
+
+                {/* Buttons section */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground">Botões de Resposta / Links</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={addButton}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                  {formData.buttons.length > 0 && (
+                    <div className="space-y-2 max-h-[120px] overflow-y-auto">
+                      {formData.buttons.map((btn, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <Select 
+                            value={btn.type} 
+                            onValueChange={(value) => updateButton(idx, 'type', value)}
+                          >
+                            <SelectTrigger className="w-24 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="reply">Resposta</SelectItem>
+                              <SelectItem value="link">Link</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={btn.text}
+                            onChange={(e) => updateButton(idx, 'text', e.target.value)}
+                            placeholder="Texto do botão"
+                            className="flex-1 h-8 text-xs"
+                          />
+                          {btn.type === 'link' && (
+                            <Input
+                              value={btn.url || ''}
+                              onChange={(e) => updateButton(idx, 'url', e.target.value)}
+                              placeholder="https://..."
+                              className="flex-1 h-8 text-xs"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-destructive hover:text-destructive"
+                            onClick={() => removeButton(idx)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

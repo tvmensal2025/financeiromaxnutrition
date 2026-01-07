@@ -39,7 +39,10 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
         .eq('business_id', businessId)
         .order('created_at');
       if (error) throw error;
-      return data;
+      return (data || []).map(t => ({
+        ...t,
+        emoji: t.emoji || '📝',
+      }));
     },
     enabled: !!businessId,
   });
@@ -58,7 +61,10 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 120);
+      textareaRef.current.style.height = `${newHeight}px`;
+      // Auto-scroll to bottom when content grows
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
     }
   }, [message]);
 
@@ -284,15 +290,16 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
 
       {/* Quick templates row - 1 click access */}
       <div className="flex items-center gap-1.5 px-1 overflow-x-auto">
-        {templates.map((t) => (
+        {templates.map((t: { id: string; name: string; content: string; emoji?: string }) => (
           <Button
             key={t.id}
             variant="outline"
             size="sm"
-            className="h-8 shrink-0 text-xs font-medium hover:bg-accent/50 rounded-full border-border/50"
+            className="h-8 shrink-0 text-xs hover:bg-accent/50 rounded-full border-border/50"
             onClick={() => handleTemplate(t.content)}
           >
-            {t.name}
+            <span className="mr-1">{t.emoji || '📝'}</span>
+            <span className="font-bold">{t.name}</span>
           </Button>
         ))}
         {onManageTemplates && (
