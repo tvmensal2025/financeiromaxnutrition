@@ -715,8 +715,12 @@ serve(async (req) => {
 
     // Process with AI if enabled and message is from admin phone
     if (aiSettings?.enabled && !isOutbound && !isGroup) {
-      const isFromAdmin = aiSettings.admin_phone && phone === aiSettings.admin_phone.replace(/\D/g, '');
-      console.log('AI check:', { enabled: aiSettings.enabled, isFromAdmin, adminPhone: aiSettings.admin_phone, phone });
+      const adminPhones = aiSettings.admin_phones || (aiSettings.admin_phone ? [aiSettings.admin_phone] : []);
+      const cleanPhone = phone.replace(/\D/g, '');
+      const isFromAdmin = adminPhones.some((adminPhone: string) => 
+        cleanPhone === adminPhone.replace(/\D/g, '')
+      );
+      console.log('AI check:', { enabled: aiSettings.enabled, isFromAdmin, adminPhones, phone: cleanPhone });
 
       if (isFromAdmin) {
         console.log('Processing message from admin phone with AI');
