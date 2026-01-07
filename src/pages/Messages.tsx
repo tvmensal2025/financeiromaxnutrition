@@ -10,13 +10,16 @@ import { GroupParticipantsPanel } from '@/components/chat/GroupParticipantsPanel
 import { Message } from '@/components/chat/ChatMessage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { PanelRightClose, PanelRightOpen, TestTube, Clock } from 'lucide-react';
+import { PanelRightClose, PanelRightOpen, TestTube, Clock, Send, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { AddCustomerModal } from '@/components/chat/AddCustomerModal';
 import { CreateOpportunityModal } from '@/components/chat/CreateOpportunityModal';
 import { CreateInvoiceModal } from '@/components/chat/CreateInvoiceModal';
 import { ScheduleMessageModal } from '@/components/chat/ScheduleMessageModal';
+import { MessageTemplatesModal } from '@/components/chat/MessageTemplatesModal';
+import { BulkMessageModal } from '@/components/chat/BulkMessageModal';
+import { ExtractContactsModal } from '@/components/chat/ExtractContactsModal';
 
 interface WhatsAppMessage {
   id: string;
@@ -76,6 +79,9 @@ export default function Messages() {
   const [showOpportunityModal, setShowOpportunityModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [showBulkMessageModal, setShowBulkMessageModal] = useState(false);
+  const [showExtractContactsModal, setShowExtractContactsModal] = useState(false);
 
   // Check screen size
   useEffect(() => {
@@ -491,22 +497,29 @@ export default function Messages() {
           <div className="flex items-center gap-2">
             <div className="hidden md:flex items-center gap-2">
               <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowBulkMessageModal(true)}
+              >
+                <Send className="h-4 w-4 mr-1" />
+                Disparo em Massa
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplatesModal(true)}
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Modelos
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => processScheduledMutation.mutate()}
                 disabled={processScheduledMutation.isPending}
               >
                 <Clock className="h-4 w-4 mr-1" />
-                {processScheduledMutation.isPending ? 'Processando...' : 'Processar Agendadas'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => testWebhookMutation.mutate()}
-                disabled={testWebhookMutation.isPending}
-              >
-                <TestTube className="h-4 w-4 mr-1" />
-                {testWebhookMutation.isPending ? 'Testando...' : 'Testar Webhook'}
+                {processScheduledMutation.isPending ? 'Processando...' : 'Agendadas'}
               </Button>
             </div>
             {!isMobileView && selectedPhone && (
@@ -597,6 +610,7 @@ export default function Messages() {
                       groupName={selectedConversation?.group_name || null}
                       businessId={business?.id}
                       onClose={() => setShowInfoPanel(false)}
+                      onExtractContacts={() => setShowExtractContactsModal(true)}
                     />
                   ) : (
                     <ContactInfoPanel
@@ -653,6 +667,29 @@ export default function Messages() {
             contactName={contactInfo?.name}
           />
         </>
+      )}
+
+      {/* Modais globais */}
+      <MessageTemplatesModal
+        open={showTemplatesModal}
+        onOpenChange={setShowTemplatesModal}
+      />
+
+      <BulkMessageModal
+        open={showBulkMessageModal}
+        onOpenChange={setShowBulkMessageModal}
+        conversations={conversations}
+        onOpenTemplates={() => setShowTemplatesModal(true)}
+      />
+
+      {selectedConversation?.is_group && (
+        <ExtractContactsModal
+          open={showExtractContactsModal}
+          onOpenChange={setShowExtractContactsModal}
+          groupPhone={selectedPhone || ''}
+          groupName={selectedConversation?.group_name || null}
+          businessId={business?.id}
+        />
       )}
     </MainLayout>
   );
