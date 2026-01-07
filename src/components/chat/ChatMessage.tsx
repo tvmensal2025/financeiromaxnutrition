@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, CheckCheck, Clock, XCircle, Play, Pause, FileText, Download, Image as ImageIcon, Film, Volume2 } from 'lucide-react';
+import { Check, CheckCheck, Clock, XCircle, Play, Pause, FileText, Download, Image as ImageIcon, MapPin, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 export interface Message {
@@ -13,6 +13,7 @@ export interface Message {
   created_at: string;
   media_url?: string | null;
   media_type?: string | null;
+  media_metadata?: any;
   sender_name?: string | null;
   is_group?: boolean;
   participant_phone?: string | null;
@@ -27,10 +28,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const showSenderName = !isOutbound && (message.sender_name || message.is_group);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    // Set duration from metadata if available
+    if (message.media_metadata?.duration) {
+      setDuration(message.media_metadata.duration);
+    }
+  }, [message.media_metadata]);
 
   const getStatusIcon = () => {
     switch (message.status) {
@@ -60,6 +70,35 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   const handleAudioEnded = () => {
     setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current && audioRef.current.duration && isFinite(audioRef.current.duration)) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioRef.current && duration > 0) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      const newTime = percent * duration;
+      audioRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getMediaTypeFromUrl = (url: string): string | null => {
@@ -82,10 +121,150 @@ export function ChatMessage({ message }: ChatMessageProps) {
     return null;
   };
 
-  const renderMedia = () => {
-    if (!message.media_url) return null;
+  // Parse phone numbers from vCard
+  const parseVCardPhones = (vcard: string): string[] => {
+    const phones: string[] = [];
+    const lines = vcard.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('TEL') || line.includes('TEL:') || line.includes('TEL;')) {
+        const match = line.match(/[\d\+\-\s\(\)]+/g);
+        if (match) {
+          phones.push(match.join('').trim());
+        }
+      }
+    }
+    return phones;
+  };
 
-    const mediaType = message.media_type || getMediaTypeFromUrl(message.media_url);
+  const renderMedia = () => {
+    if (!message.media_url && !message.media_type) return null;
+
+    const mediaType = message.media_type || (message.media_url ? getMediaTypeFromUrl(message.media_url) : null);
+
+    // Location
+    if (mediaType === 'location') {
+      const metadata = message.media_metadata || {};
+      const lat = metadata.latitude;
+      const lng = metadata.longitude;
+      const name = metadata.name;
+      const address = metadata.address;
+      
+      return (
+        <a
+          href={message.media_url || `https://www.google.com/maps?q=${lat},${lng}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'mb-2 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors',
+            isOutbound 
+              ? 'bg-white/10 hover:bg-white/20' 
+              : 'bg-muted hover:bg-accent'
+          )}
+        >
+          <div className={cn(
+            'p-2 rounded-lg shrink-0',
+            isOutbound ? 'bg-green-500/20' : 'bg-green-500/10'
+          )}>
+            <MapPin className="h-6 w-6 text-green-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{name || 'Localização'}</p>
+            {address && (
+              <p className={cn(
+                'text-xs truncate',
+                isOutbound ? 'text-primary-foreground/60' : 'text-muted-foreground'
+              )}>{address}</p>
+            )}
+            <p className={cn(
+              'text-xs',
+              isOutbound ? 'text-primary-foreground/60' : 'text-muted-foreground'
+            )}>Abrir no Maps</p>
+          </div>
+        </a>
+      );
+    }
+
+    // Contact
+    if (mediaType === 'contact') {
+      const metadata = message.media_metadata || {};
+      const displayName = metadata.displayName || 'Contato';
+      const phones = metadata.vcard ? parseVCardPhones(metadata.vcard) : [];
+      
+      return (
+        <div className={cn(
+          'mb-2 flex items-center gap-3 px-4 py-3 rounded-xl',
+          isOutbound 
+            ? 'bg-white/10' 
+            : 'bg-muted'
+        )}>
+          <div className={cn(
+            'p-2 rounded-full shrink-0',
+            isOutbound ? 'bg-blue-500/20' : 'bg-blue-500/10'
+          )}>
+            <User className="h-6 w-6 text-blue-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            {phones.length > 0 && (
+              <p className={cn(
+                'text-xs truncate',
+                isOutbound ? 'text-primary-foreground/60' : 'text-muted-foreground'
+              )}>{phones[0]}</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Contacts array
+    if (mediaType === 'contacts') {
+      const metadata = message.media_metadata || {};
+      const contacts = metadata.contacts || [];
+      
+      return (
+        <div className={cn(
+          'mb-2 flex items-center gap-3 px-4 py-3 rounded-xl',
+          isOutbound 
+            ? 'bg-white/10' 
+            : 'bg-muted'
+        )}>
+          <div className={cn(
+            'p-2 rounded-full shrink-0',
+            isOutbound ? 'bg-blue-500/20' : 'bg-blue-500/10'
+          )}>
+            <Users className="h-6 w-6 text-blue-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">{contacts.length} contatos</p>
+            <p className={cn(
+              'text-xs truncate',
+              isOutbound ? 'text-primary-foreground/60' : 'text-muted-foreground'
+            )}>
+              {contacts.map((c: any) => c.displayName).join(', ')}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Sticker
+    if (mediaType === 'sticker' && message.media_url) {
+      return (
+        <div className="mb-2">
+          <img
+            src={message.media_url}
+            alt="Sticker"
+            className="max-w-[150px] max-h-[150px]"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        </div>
+      );
+    }
+
+    // If no media URL for remaining types, return null
+    if (!message.media_url) return null;
 
     // Image
     if (mediaType === 'image' || mediaType?.startsWith('image')) {
@@ -106,8 +285,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 isOutbound ? 'bg-white/10 hover:bg-white/20' : 'bg-muted hover:bg-muted/80'
               )}
             >
-              <ImageIcon className="h-4 w-4" />
-              Ver imagem
+              <Download className="h-4 w-4" />
+              Baixar imagem
             </a>
           ) : (
             <>
@@ -133,6 +312,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
                     alt="Imagem ampliada"
                     className="max-w-full max-h-full object-contain"
                   />
+                  <a
+                    href={message.media_url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute bottom-6 right-6 p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Download className="h-6 w-6 text-white" />
+                  </a>
                 </div>
               )}
             </>
@@ -158,11 +347,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
       );
     }
 
-    // Audio
+    // Audio with improved player
     if (mediaType === 'audio' || mediaType?.startsWith('audio') || message.media_type?.includes('ogg') || message.media_type?.includes('opus')) {
+      const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+      
       return (
         <div className={cn(
-          'mb-2 flex items-center gap-3 px-3 py-2 rounded-xl min-w-[200px]',
+          'mb-2 flex items-center gap-3 px-3 py-2 rounded-xl min-w-[240px]',
           isOutbound ? 'bg-white/10' : 'bg-muted'
         )}>
           <audio
@@ -171,6 +362,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
             onEnded={handleAudioEnded}
             onPause={() => setIsPlaying(false)}
             onPlay={() => setIsPlaying(true)}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
             preload="metadata"
           />
           <Button
@@ -188,24 +381,37 @@ export function ChatMessage({ message }: ChatMessageProps) {
               <Play className="h-5 w-5 ml-0.5" />
             )}
           </Button>
-          <div className="flex-1 flex items-center gap-2">
-            <Volume2 className="h-4 w-4 text-muted-foreground" />
+          <div className="flex-1 flex flex-col gap-1">
+            <div 
+              className={cn(
+                'h-1.5 rounded-full cursor-pointer',
+                isOutbound ? 'bg-white/20' : 'bg-border'
+              )}
+              onClick={handleSeek}
+            >
+              <div 
+                className={cn(
+                  'h-full rounded-full transition-all',
+                  isOutbound ? 'bg-white/80' : 'bg-primary'
+                )}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
             <div className={cn(
-              'flex-1 h-1 rounded-full',
-              isOutbound ? 'bg-white/20' : 'bg-border'
+              'flex justify-between text-[10px]',
+              isOutbound ? 'text-primary-foreground/60' : 'text-muted-foreground'
             )}>
-              <div className={cn(
-                'h-full rounded-full w-0 transition-all',
-                isOutbound ? 'bg-white/60' : 'bg-primary/60'
-              )} />
+              <span>{formatTime(currentTime)}</span>
+              <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
             </div>
           </div>
           <a
             href={message.media_url}
+            download
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              'p-2 rounded-lg transition-colors',
+              'p-2 rounded-lg transition-colors shrink-0',
               isOutbound ? 'hover:bg-white/20' : 'hover:bg-accent'
             )}
             title="Baixar áudio"
@@ -218,15 +424,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
     // PDF
     if (mediaType === 'pdf' || message.media_type?.includes('pdf')) {
-      const fileName = message.message !== '[Documento]' && message.message !== '[PDF]' 
-        ? message.message 
-        : 'Documento.pdf';
+      const fileName = message.media_metadata?.fileName || 
+        (message.message !== '[Documento]' && message.message !== '[PDF]' ? message.message : 'Documento.pdf');
       
       return (
         <a
           href={message.media_url}
           target="_blank"
           rel="noopener noreferrer"
+          download
           className={cn(
             'mb-2 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors',
             isOutbound 
@@ -254,15 +460,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
     // Other documents
     if (mediaType === 'document' || message.media_type?.includes('document') || message.media_type?.includes('application')) {
-      const fileName = message.message !== '[Documento]' 
-        ? message.message 
-        : 'Documento';
+      const fileName = message.media_metadata?.fileName || 
+        (message.message !== '[Documento]' ? message.message : 'Documento');
       
       return (
         <a
           href={message.media_url}
           target="_blank"
           rel="noopener noreferrer"
+          download
           className={cn(
             'mb-2 flex items-center gap-3 px-4 py-3 rounded-xl transition-colors',
             isOutbound 
@@ -288,29 +494,35 @@ export function ChatMessage({ message }: ChatMessageProps) {
       );
     }
 
-    // Unknown/fallback - generic link
+    // Unknown/fallback - generic download link
     return (
       <a
         href={message.media_url}
         target="_blank"
         rel="noopener noreferrer"
+        download
         className={cn(
-          'mb-2 inline-flex items-center gap-2 text-sm underline px-3 py-2 rounded-lg',
+          'mb-2 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg',
           isOutbound ? 'bg-white/10 hover:bg-white/20' : 'bg-muted hover:bg-accent'
         )}
       >
-        📎 Ver anexo
+        <Download className="h-4 w-4" />
+        Baixar anexo
       </a>
     );
   };
 
   // Check if message is just a media placeholder
-  const isMediaPlaceholder = message.media_url && (
+  const isMediaPlaceholder = (message.media_url || message.media_type) && (
     message.message === '[Imagem]' ||
     message.message === '[Áudio]' ||
     message.message === '[Vídeo]' ||
     message.message === '[Documento]' ||
-    message.message === '[PDF]'
+    message.message === '[PDF]' ||
+    message.message === '[Sticker]' ||
+    message.message === '[Localização]' ||
+    message.message.startsWith('[Contato:') ||
+    message.message.startsWith('[Contatos:')
   );
 
   return (

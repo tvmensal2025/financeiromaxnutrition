@@ -87,10 +87,137 @@ async function getGroupInfo(groupJid: string, instance: string): Promise<{ name:
   }
 }
 
+// Baixar mídia da Evolution API e salvar no Storage
+async function downloadAndStoreMedia(
+  messageKey: { id: string; remoteJid: string; fromMe: boolean },
+  instance: string,
+  businessId: string,
+  phone: string,
+  mediaType: string,
+  supabase: any
+): Promise<{ url: string | null; metadata: any }> {
+  try {
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.log('Evolution API credentials not configured for media download');
+      return { url: null, metadata: null };
+    }
+
+    console.log('Downloading media with key:', messageKey.id);
+
+    // Call Evolution API to get base64 media
+    const response = await fetch(`${evolutionApiUrl}/chat/getBase64FromMediaMessage/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({
+        message: {
+          key: {
+            id: messageKey.id,
+            remoteJid: messageKey.remoteJid,
+            fromMe: messageKey.fromMe
+          }
+        },
+        convertToMp4: true // Convert audio/video to mp4 when possible
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log('Failed to download media:', response.status, errorText);
+      return { url: null, metadata: null };
+    }
+    
+    const data = await response.json();
+    console.log('Media download response keys:', Object.keys(data));
+    
+    if (!data.base64) {
+      console.log('No base64 data in response');
+      return { url: null, metadata: null };
+    }
+
+    // Determine file extension based on mimetype
+    const mimetype = data.mimetype || '';
+    let extension = 'bin';
+    if (mimetype.includes('image/jpeg') || mimetype.includes('image/jpg')) extension = 'jpg';
+    else if (mimetype.includes('image/png')) extension = 'png';
+    else if (mimetype.includes('image/gif')) extension = 'gif';
+    else if (mimetype.includes('image/webp')) extension = 'webp';
+    else if (mimetype.includes('video/mp4')) extension = 'mp4';
+    else if (mimetype.includes('video/')) extension = 'mp4';
+    else if (mimetype.includes('audio/ogg')) extension = 'ogg';
+    else if (mimetype.includes('audio/mp4')) extension = 'm4a';
+    else if (mimetype.includes('audio/mpeg')) extension = 'mp3';
+    else if (mimetype.includes('audio/')) extension = 'ogg';
+    else if (mimetype.includes('application/pdf')) extension = 'pdf';
+    else if (mimetype.includes('application/')) extension = 'bin';
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileName = data.fileName || `media_${timestamp}.${extension}`;
+    const cleanPhone = phone.replace('group:', '');
+    const filePath = `${businessId}/${cleanPhone}/${timestamp}_${fileName}`;
+
+    // Convert base64 to Uint8Array
+    const base64Data = data.base64.replace(/^data:[^;]+;base64,/, '');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log('Uploading to storage:', filePath, 'size:', bytes.length);
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('whatsapp-media')
+      .upload(filePath, bytes, {
+        contentType: mimetype || 'application/octet-stream',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      return { url: null, metadata: null };
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('whatsapp-media')
+      .getPublicUrl(filePath);
+
+    console.log('Media uploaded successfully:', publicUrlData.publicUrl);
+
+    // Build metadata
+    const metadata: any = {
+      originalMimetype: mimetype,
+      fileName: fileName,
+      fileSize: bytes.length,
+    };
+
+    // Add duration for audio/video if available
+    if (data.duration) {
+      metadata.duration = data.duration;
+    }
+
+    return { 
+      url: publicUrlData.publicUrl, 
+      metadata 
+    };
+  } catch (error) {
+    console.error('Error downloading/storing media:', error);
+    return { url: null, metadata: null };
+  }
+}
+
 interface EvolutionWebhookPayload {
   event: string;
   instance: string;
-  sender?: string; // Campo sender contém o número real do remetente
+  sender?: string;
   data: {
     key: {
       remoteJid: string;
@@ -109,20 +236,51 @@ interface EvolutionWebhookPayload {
         url?: string;
         mimetype?: string;
         caption?: string;
+        height?: number;
+        width?: number;
       };
       documentMessage?: {
         url?: string;
         mimetype?: string;
         fileName?: string;
+        pageCount?: number;
       };
       audioMessage?: {
         url?: string;
         mimetype?: string;
+        seconds?: number;
+        ptt?: boolean;
       };
       videoMessage?: {
         url?: string;
         mimetype?: string;
         caption?: string;
+        seconds?: number;
+        height?: number;
+        width?: number;
+      };
+      stickerMessage?: {
+        url?: string;
+        mimetype?: string;
+        height?: number;
+        width?: number;
+        isAnimated?: boolean;
+      };
+      locationMessage?: {
+        degreesLatitude?: number;
+        degreesLongitude?: number;
+        name?: string;
+        address?: string;
+      };
+      contactMessage?: {
+        displayName?: string;
+        vcard?: string;
+      };
+      contactsArrayMessage?: {
+        contacts?: Array<{
+          displayName?: string;
+          vcard?: string;
+        }>;
       };
     };
     messageTimestamp?: number;
@@ -164,25 +322,20 @@ serve(async (req) => {
     let participantCount: number = 0;
 
     if (isGroup) {
-      // For groups: save group ID as phone, extract participant
       const rawGroupId = rawRemoteJid.replace('@g.us', '');
       phone = 'group:' + rawGroupId;
       
-      // Fetch real group name and size from Evolution API
       const groupInfo = await getGroupInfo(rawRemoteJid, payload.instance);
-      groupName = groupInfo.name || `Grupo ${rawGroupId.slice(-6)}`; // Fallback to partial ID
+      groupName = groupInfo.name || `Grupo ${rawGroupId.slice(-6)}`;
       participantCount = groupInfo.size;
       console.log('Group info fetched:', { groupName, participantCount });
       
-      // Priority 1: Extract REAL participant number from payload.sender (Evolution API sends real number here)
       if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
         participantPhone = payload.sender
           .replace('@s.whatsapp.net', '')
           .replace(/\D/g, '');
         console.log('Group: Using sender for participant:', participantPhone);
-      } 
-      // Priority 2: Try key.participant if it's a real number (not @lid)
-      else {
+      } else {
         const participant = key.participant || key.participantAlt || '';
         if (participant && !participant.includes('@lid')) {
           participantPhone = participant
@@ -196,25 +349,18 @@ serve(async (req) => {
       
       console.log('Group message detected:', { phone, participantPhone, senderName, rawSender: payload.sender });
     } else {
-      // For individual chats: extract real phone number
       let jidForContact = rawRemoteJid;
       
-      // Check if this is a LID (internal WhatsApp ID, not a real phone number)
       const isLid = rawRemoteJid.includes('@lid') || (typeof key.addressingMode === 'string' && key.addressingMode.toLowerCase() === 'lid');
       
       if (isLid) {
-        // Priority 1: Use remoteJidAlt if available
         if (typeof key.remoteJidAlt === 'string' && key.remoteJidAlt.length > 0) {
           jidForContact = key.remoteJidAlt;
           console.log('Using remoteJidAlt for real number:', jidForContact);
-        } 
-        // Priority 2: Use sender from root payload (Evolution API sends real number here)
-        else if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
+        } else if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
           jidForContact = payload.sender;
           console.log('Using sender from payload for real number:', jidForContact);
-        }
-        // Priority 3: Reject LID-only messages as we can't identify the contact
-        else {
+        } else {
           console.log('LID message without real number - cannot process:', rawRemoteJid);
           return new Response(JSON.stringify({ success: true, message: 'LID without real number' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -222,13 +368,11 @@ serve(async (req) => {
         }
       }
 
-      // Clean the phone number
       phone = jidForContact
         .replace('@s.whatsapp.net', '')
         .replace('@lid', '')
         .replace(/\D/g, '');
 
-      // Validate phone has reasonable length and starts with valid country code
       if (!phone || phone.length < 10 || phone.length > 15) {
         console.log('Invalid phone number extracted:', phone, 'from:', jidForContact);
         return new Response(JSON.stringify({ success: true, message: 'Invalid phone' }), {
@@ -236,13 +380,10 @@ serve(async (req) => {
         });
       }
 
-      // Additional validation: must start with a valid country code (1-3 digits)
-      // Brazilian numbers start with 55, US with 1, etc.
       const validCountryCodes = ['55', '1', '44', '351', '34', '33', '49', '39', '81', '86'];
       const startsWithValidCode = validCountryCodes.some(code => phone.startsWith(code));
       if (!startsWithValidCode && phone.length > 11) {
         console.log('Phone does not start with valid country code:', phone);
-        // Try to use sender as fallback
         if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
           const senderPhone = payload.sender.replace('@s.whatsapp.net', '').replace(/\D/g, '');
           if (senderPhone && senderPhone.length >= 10 && senderPhone.length <= 15) {
@@ -253,32 +394,124 @@ serve(async (req) => {
       }
     }
 
-    // Extract message content
+    // Extract message content and media
     let messageContent = '';
     let mediaUrl: string | null = null;
     let mediaType: string | null = null;
+    let mediaMetadata: any = null;
+    let hasMedia = false;
 
     const msg = payload.data.message;
+    
+    // Text messages
     if (msg?.conversation) {
       messageContent = msg.conversation;
     } else if (msg?.extendedTextMessage?.text) {
       messageContent = msg.extendedTextMessage.text;
-    } else if (msg?.imageMessage) {
+    }
+    
+    // Image message
+    else if (msg?.imageMessage) {
       messageContent = msg.imageMessage.caption || '[Imagem]';
-      mediaUrl = msg.imageMessage.url || null;
       mediaType = 'image';
-    } else if (msg?.documentMessage) {
-      messageContent = msg.documentMessage.fileName || '[Documento]';
-      mediaUrl = msg.documentMessage.url || null;
-      mediaType = 'document';
-    } else if (msg?.audioMessage) {
-      messageContent = '[Áudio]';
-      mediaUrl = msg.audioMessage.url || null;
-      mediaType = 'audio';
-    } else if (msg?.videoMessage) {
+      hasMedia = true;
+      mediaMetadata = {
+        width: msg.imageMessage.width,
+        height: msg.imageMessage.height,
+      };
+    }
+    
+    // Video message
+    else if (msg?.videoMessage) {
       messageContent = msg.videoMessage.caption || '[Vídeo]';
-      mediaUrl = msg.videoMessage.url || null;
       mediaType = 'video';
+      hasMedia = true;
+      mediaMetadata = {
+        duration: msg.videoMessage.seconds,
+        width: msg.videoMessage.width,
+        height: msg.videoMessage.height,
+      };
+    }
+    
+    // Audio message
+    else if (msg?.audioMessage) {
+      messageContent = msg.audioMessage.ptt ? '[Áudio]' : '[Áudio]';
+      mediaType = 'audio';
+      hasMedia = true;
+      mediaMetadata = {
+        duration: msg.audioMessage.seconds,
+        isVoiceNote: msg.audioMessage.ptt || false,
+      };
+    }
+    
+    // Document message
+    else if (msg?.documentMessage) {
+      messageContent = msg.documentMessage.fileName || '[Documento]';
+      mediaType = msg.documentMessage.mimetype?.includes('pdf') ? 'pdf' : 'document';
+      hasMedia = true;
+      mediaMetadata = {
+        fileName: msg.documentMessage.fileName,
+        pageCount: msg.documentMessage.pageCount,
+        mimetype: msg.documentMessage.mimetype,
+      };
+    }
+    
+    // Sticker message
+    else if (msg?.stickerMessage) {
+      messageContent = '[Sticker]';
+      mediaType = 'sticker';
+      hasMedia = true;
+      mediaMetadata = {
+        isAnimated: msg.stickerMessage.isAnimated,
+        width: msg.stickerMessage.width,
+        height: msg.stickerMessage.height,
+      };
+    }
+    
+    // Location message
+    else if (msg?.locationMessage) {
+      const lat = msg.locationMessage.degreesLatitude;
+      const lng = msg.locationMessage.degreesLongitude;
+      const name = msg.locationMessage.name;
+      const address = msg.locationMessage.address;
+      
+      messageContent = name || address || '[Localização]';
+      mediaType = 'location';
+      mediaMetadata = {
+        latitude: lat,
+        longitude: lng,
+        name: name,
+        address: address,
+      };
+      // For location, we store the maps URL directly
+      if (lat && lng) {
+        mediaUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+      }
+    }
+    
+    // Contact message
+    else if (msg?.contactMessage) {
+      const displayName = msg.contactMessage.displayName || 'Contato';
+      messageContent = `[Contato: ${displayName}]`;
+      mediaType = 'contact';
+      mediaMetadata = {
+        displayName: displayName,
+        vcard: msg.contactMessage.vcard,
+      };
+    }
+    
+    // Contacts array message
+    else if (msg?.contactsArrayMessage?.contacts) {
+      const contacts = msg.contactsArrayMessage.contacts;
+      const names = contacts.map(c => c.displayName || 'Contato').join(', ');
+      messageContent = `[Contatos: ${names}]`;
+      mediaType = 'contacts';
+      mediaMetadata = {
+        contacts: contacts.map(c => ({
+          displayName: c.displayName,
+          vcard: c.vcard,
+        })),
+      };
     }
 
     if (!messageContent) {
@@ -304,6 +537,31 @@ serve(async (req) => {
 
     const businessId = businesses[0].id;
 
+    // Download and store media if present (for types that have downloadable media)
+    if (hasMedia && ['image', 'video', 'audio', 'document', 'pdf', 'sticker'].includes(mediaType!)) {
+      console.log('Attempting to download media:', mediaType);
+      const mediaResult = await downloadAndStoreMedia(
+        {
+          id: payload.data.key.id,
+          remoteJid: payload.data.key.remoteJid,
+          fromMe: payload.data.key.fromMe,
+        },
+        payload.instance,
+        businessId,
+        phone,
+        mediaType!,
+        supabase
+      );
+      
+      if (mediaResult.url) {
+        mediaUrl = mediaResult.url;
+        mediaMetadata = { ...mediaMetadata, ...mediaResult.metadata };
+        console.log('Media stored successfully:', mediaUrl);
+      } else {
+        console.log('Media download failed, message will be saved without permanent media URL');
+      }
+    }
+
     let leadId: string | null = null;
     let customerId: string | null = null;
     let senderAvatarUrl: string | null = null;
@@ -317,7 +575,6 @@ serve(async (req) => {
 
     // For individual chats, link to lead/customer
     if (!isGroup) {
-      // Check customers first
       const { data: existingCustomer } = await supabase
         .from('customers')
         .select('id, avatar_url')
@@ -330,7 +587,6 @@ serve(async (req) => {
         customerId = existingCustomer.id;
         console.log('Found existing customer:', customerId);
         
-        // Update avatar if not set
         if (senderAvatarUrl && !existingCustomer.avatar_url) {
           await supabase
             .from('customers')
@@ -339,7 +595,6 @@ serve(async (req) => {
           console.log('Updated customer avatar');
         }
       } else {
-        // Check leads
         const { data: existingLead } = await supabase
           .from('leads')
           .select('id, avatar_url')
@@ -352,7 +607,6 @@ serve(async (req) => {
           leadId = existingLead.id;
           console.log('Found existing lead:', leadId);
           
-          // Update avatar if not set
           if (senderAvatarUrl && !existingLead.avatar_url) {
             await supabase
               .from('leads')
@@ -361,7 +615,6 @@ serve(async (req) => {
             console.log('Updated lead avatar');
           }
         } else {
-          // Create new lead automatically with avatar
           const { data: newLead, error: leadError } = await supabase
             .from('leads')
             .insert({
@@ -401,6 +654,7 @@ serve(async (req) => {
         direction: 'inbound',
         media_url: mediaUrl,
         media_type: mediaType,
+        media_metadata: mediaMetadata,
         status: 'delivered',
         external_id: externalId,
         is_group: isGroup,
@@ -420,7 +674,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)');
+    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)', 'mediaType:', mediaType);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -428,6 +682,7 @@ serve(async (req) => {
       lead_id: leadId,
       customer_id: customerId,
       is_group: isGroup,
+      media_stored: !!mediaUrl,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
