@@ -31,9 +31,13 @@ import {
   Download,
   CheckCircle,
   Trash2,
-  Loader2
+  Loader2,
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreateTransactionModal } from '@/components/transactions/CreateTransactionModal';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Transaction {
   id: string;
@@ -46,6 +50,8 @@ interface Transaction {
   due_date: string | null;
   customer_id: string | null;
   created_at: string;
+  is_recurring: boolean | null;
+  recurrence_pattern: string | null;
   customers: {
     name: string;
   } | null;
@@ -59,6 +65,7 @@ export default function TransactionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ['transactions', business?.id],
@@ -78,6 +85,8 @@ export default function TransactionsPage() {
           due_date,
           customer_id,
           created_at,
+          is_recurring,
+          recurrence_pattern,
           customers (name)
         `)
         .eq('business_id', business.id)
@@ -188,13 +197,19 @@ export default function TransactionsPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Transações</h1>
             <p className="text-muted-foreground mt-1">
-              Todas as transações registradas pela IA
+              Gerencie suas receitas e despesas
             </p>
           </div>
-          <Button onClick={exportToCSV} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={exportToCSV} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Exportar CSV
+            </Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Transação
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -298,7 +313,28 @@ export default function TransactionsPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="font-medium">{transaction.description}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {transaction.description}
+                          {transaction.is_recurring && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <RefreshCw className="h-4 w-4 text-primary" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Recorrente: {
+                                    transaction.recurrence_pattern === 'weekly' ? 'Semanal' :
+                                    transaction.recurrence_pattern === 'biweekly' ? 'Quinzenal' :
+                                    transaction.recurrence_pattern === 'monthly' ? 'Mensal' :
+                                    'Personalizado'
+                                  }</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{transaction.customers?.name || '-'}</TableCell>
                       <TableCell>{transaction.category || '-'}</TableCell>
                       <TableCell>
@@ -353,6 +389,11 @@ export default function TransactionsPage() {
           )}
         </div>
       </div>
+
+      <CreateTransactionModal 
+        open={isCreateModalOpen} 
+        onOpenChange={setIsCreateModalOpen} 
+      />
     </MainLayout>
   );
 }
