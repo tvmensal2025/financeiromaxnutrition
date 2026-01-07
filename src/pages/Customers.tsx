@@ -18,9 +18,10 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench, CalendarDays, Clock, Bell } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench, CalendarDays, Clock, Bell, ShoppingCart, Percent } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 interface Customer {
   id: string;
@@ -54,6 +55,19 @@ interface Service {
   price: number;
 }
 
+interface SaleItem {
+  type: 'product' | 'service';
+  item_id: string;
+  quantity: number;
+}
+
+interface CustomerStats {
+  totalProducts: number;
+  totalServices: number;
+  totalDiscount: number;
+  totalPurchases: number;
+}
+
 export default function Customers() {
   const { business } = useAuth();
   const { toast } = useToast();
@@ -78,6 +92,11 @@ export default function Customers() {
     recurring_reminder_template: 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?',
     recurring_overdue_template: 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.',
   });
+  
+  // Sale form state
+  const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
+  const [saleDiscount, setSaleDiscount] = useState(0);
+  const [showSaleSection, setShowSaleSection] = useState(false);
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['customers'],
@@ -90,6 +109,45 @@ export default function Customers() {
       if (error) throw error;
       return data as Customer[];
     },
+  });
+
+  // Fetch customer invoices for stats
+  const { data: customerInvoices = [] } = useQuery({
+    queryKey: ['customer-invoices-stats', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*, invoice_items(*)')
+        .eq('business_id', business.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!business?.id,
+  });
+
+  // Calculate stats per customer
+  const customerStatsMap = new Map<string, CustomerStats>();
+  customerInvoices.forEach((inv: any) => {
+    const customerId = inv.customer_id;
+    const existing = customerStatsMap.get(customerId) || {
+      totalProducts: 0,
+      totalServices: 0,
+      totalDiscount: 0,
+      totalPurchases: 0,
+    };
+    
+    if (inv.status === 'paid') {
+      existing.totalPurchases += Number(inv.total || 0);
+    }
+    existing.totalDiscount += Number(inv.discount || 0);
+    
+    inv.invoice_items?.forEach((item: any) => {
+      if (item.product_id) existing.totalProducts += item.quantity || 1;
+      if (item.service_id) existing.totalServices += item.quantity || 1;
+    });
+    
+    customerStatsMap.set(customerId, existing);
   });
 
   // Fetch products
@@ -146,11 +204,17 @@ export default function Customers() {
         recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template : null,
         recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template : null,
       };
-      const { error } = await supabase.from('customers').insert(insertData);
+      const { data: newCustomer, error } = await supabase.from('customers').insert(insertData).select().single();
       if (error) throw error;
+      
+      // Create invoice if there are sale items
+      if (saleItems.length > 0 && newCustomer) {
+        await createSaleInvoice(newCustomer.id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-invoices-stats'] });
       toast({ title: 'Cliente criado com sucesso!' });
       resetForm();
     },
@@ -158,6 +222,78 @@ export default function Customers() {
       toast({ title: 'Erro ao criar cliente', variant: 'destructive' });
     },
   });
+
+  const createSaleInvoice = async (customerId: string) => {
+    if (!business?.id || saleItems.length === 0) return;
+    
+    // Calculate totals
+    let subtotal = 0;
+    const invoiceItems: any[] = [];
+    
+    for (const item of saleItems) {
+      if (item.type === 'product') {
+        const product = products.find(p => p.id === item.item_id);
+        if (product) {
+          const total = product.price * item.quantity;
+          subtotal += total;
+          invoiceItems.push({
+            product_id: item.item_id,
+            description: product.name,
+            quantity: item.quantity,
+            unit_price: product.price,
+            total,
+          });
+        }
+      } else {
+        const service = services.find(s => s.id === item.item_id);
+        if (service) {
+          const total = service.price * item.quantity;
+          subtotal += total;
+          invoiceItems.push({
+            service_id: item.item_id,
+            description: service.name,
+            quantity: item.quantity,
+            unit_price: service.price,
+            total,
+          });
+        }
+      }
+    }
+    
+    const total = subtotal - saleDiscount;
+    const invoiceNumber = `VND-${Date.now().toString().slice(-6)}`;
+    const dueDate = new Date().toISOString().split('T')[0];
+    
+    // Create invoice
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        business_id: business.id,
+        customer_id: customerId,
+        invoice_number: invoiceNumber,
+        subtotal,
+        discount: saleDiscount,
+        total,
+        due_date: dueDate,
+        status: 'paid',
+        paid_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+    
+    if (invoiceError) throw invoiceError;
+    
+    // Create invoice items
+    if (invoice) {
+      const itemsWithInvoiceId = invoiceItems.map(item => ({
+        ...item,
+        invoice_id: invoice.id,
+      }));
+      
+      const { error: itemsError } = await supabase.from('invoice_items').insert(itemsWithInvoiceId);
+      if (itemsError) throw itemsError;
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
@@ -223,8 +359,39 @@ export default function Customers() {
       recurring_reminder_template: 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?',
       recurring_overdue_template: 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.',
     });
+    setSaleItems([]);
+    setSaleDiscount(0);
+    setShowSaleSection(false);
     setEditingCustomer(null);
     setIsDialogOpen(false);
+  };
+
+  const addSaleItem = () => {
+    setSaleItems([...saleItems, { type: 'product', item_id: '', quantity: 1 }]);
+  };
+
+  const updateSaleItem = (index: number, updates: Partial<SaleItem>) => {
+    const newItems = [...saleItems];
+    newItems[index] = { ...newItems[index], ...updates };
+    setSaleItems(newItems);
+  };
+
+  const removeSaleItem = (index: number) => {
+    setSaleItems(saleItems.filter((_, i) => i !== index));
+  };
+
+  const calculateSaleTotal = () => {
+    let total = 0;
+    saleItems.forEach(item => {
+      if (item.type === 'product') {
+        const product = products.find(p => p.id === item.item_id);
+        if (product) total += product.price * item.quantity;
+      } else {
+        const service = services.find(s => s.id === item.item_id);
+        if (service) total += service.price * item.quantity;
+      }
+    });
+    return total - saleDiscount;
   };
 
   const handleEdit = (customer: Customer) => {
@@ -335,6 +502,121 @@ export default function Customers() {
                     rows={3}
                   />
                 </div>
+
+                {/* Sale Section - Only for new customers */}
+                {!editingCustomer && (
+                  <>
+                    <Separator className="my-4" />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                          <ShoppingCart className="h-4 w-4" />
+                          Nova Venda
+                        </h4>
+                        <Switch
+                          checked={showSaleSection}
+                          onCheckedChange={setShowSaleSection}
+                        />
+                      </div>
+                      
+                      {showSaleSection && (
+                        <div className="space-y-4 p-4 bg-muted/50 rounded-lg border border-border">
+                          {saleItems.map((item, index) => (
+                            <div key={index} className="flex items-end gap-2">
+                              <div className="flex-1 space-y-2">
+                                <Label className="text-xs">Tipo</Label>
+                                <Select
+                                  value={item.type}
+                                  onValueChange={(v: 'product' | 'service') => updateSaleItem(index, { type: v, item_id: '' })}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="product">Produto</SelectItem>
+                                    <SelectItem value="service">Serviço</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex-[2] space-y-2">
+                                <Label className="text-xs">{item.type === 'product' ? 'Produto' : 'Serviço'}</Label>
+                                <Select
+                                  value={item.item_id}
+                                  onValueChange={(v) => updateSaleItem(index, { item_id: v })}
+                                >
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {item.type === 'product'
+                                      ? products.map(p => (
+                                          <SelectItem key={p.id} value={p.id}>
+                                            {p.name} - R$ {p.price.toFixed(2)}
+                                          </SelectItem>
+                                        ))
+                                      : services.map(s => (
+                                          <SelectItem key={s.id} value={s.id}>
+                                            {s.name} - R$ {s.price.toFixed(2)}
+                                          </SelectItem>
+                                        ))
+                                    }
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="w-20 space-y-2">
+                                <Label className="text-xs">Qtd</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={item.quantity}
+                                  onChange={(e) => updateSaleItem(index, { quantity: parseInt(e.target.value) || 1 })}
+                                  className="h-9"
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 text-destructive"
+                                onClick={() => removeSaleItem(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          
+                          <Button type="button" variant="outline" size="sm" onClick={addSaleItem} className="w-full">
+                            <Plus className="h-4 w-4 mr-2" />
+                            Adicionar Item
+                          </Button>
+                          
+                          {saleItems.length > 0 && (
+                            <div className="space-y-3 pt-2 border-t border-border">
+                              <div className="flex items-center gap-2">
+                                <Label className="text-sm flex items-center gap-1">
+                                  <Percent className="h-3 w-3" />
+                                  Desconto (R$)
+                                </Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  step={0.01}
+                                  value={saleDiscount}
+                                  onChange={(e) => setSaleDiscount(parseFloat(e.target.value) || 0)}
+                                  className="w-32 h-9"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-sm font-medium">
+                                <span>Total da Venda:</span>
+                                <span className="text-success">R$ {calculateSaleTotal().toFixed(2)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <Separator className="my-4" />
 
@@ -584,76 +866,111 @@ export default function Customers() {
                   <th>Nome</th>
                   <th>Contato</th>
                   <th>WhatsApp</th>
+                  <th className="text-center">Produtos</th>
+                  <th className="text-center">Serviços</th>
+                  <th className="text-right">Descontos</th>
                   <th>Criado em</th>
                   <th className="text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="animate-fade-in">
-                    <td>
-                      <div>
-                        <p className="font-medium text-foreground">{customer.name}</p>
-                        {customer.notes && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {customer.notes}
-                          </p>
+                {filteredCustomers.map((customer) => {
+                  const stats = customerStatsMap.get(customer.id);
+                  return (
+                    <tr key={customer.id} className="animate-fade-in">
+                      <td>
+                        <div>
+                          <p className="font-medium text-foreground">{customer.name}</p>
+                          {customer.notes && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {customer.notes}
+                            </p>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="space-y-1">
+                          {customer.email && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {customer.email}
+                            </div>
+                          )}
+                          {customer.phone && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {customer.phone}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {customer.whatsapp && (
+                          <a
+                            href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-sm text-success hover:underline"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            {customer.whatsapp}
+                          </a>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="space-y-1">
-                        {customer.email && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </div>
+                      </td>
+                      <td className="text-center">
+                        {stats?.totalProducts ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <Package className="h-3 w-3" />
+                            {stats.totalProducts}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
                         )}
-                        {customer.phone && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            {customer.phone}
-                          </div>
+                      </td>
+                      <td className="text-center">
+                        {stats?.totalServices ? (
+                          <Badge variant="secondary" className="gap-1">
+                            <Wrench className="h-3 w-3" />
+                            {stats.totalServices}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      {customer.whatsapp && (
-                        <a
-                          href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-success hover:underline"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          {customer.whatsapp}
-                        </a>
-                      )}
-                    </td>
-                    <td className="text-muted-foreground">
-                      {format(new Date(customer.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                    </td>
-                    <td>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(customer)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(customer.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="text-right">
+                        {stats?.totalDiscount ? (
+                          <span className="text-warning font-medium">
+                            R$ {stats.totalDiscount.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      <td className="text-muted-foreground">
+                        {format(new Date(customer.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => deleteMutation.mutate(customer.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
