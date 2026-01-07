@@ -160,6 +160,7 @@ serve(async (req) => {
         title: '',
         description: message,
         buttons: replyButtons.map((btn, idx) => ({
+          type: 'reply',
           buttonId: `btn_${idx + 1}`,
           buttonText: { displayText: btn.text.slice(0, 20) }
         })),
