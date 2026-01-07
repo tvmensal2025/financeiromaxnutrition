@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { Bot, Save, Loader2, Phone, Sparkles } from 'lucide-react';
+import { Bot, Save, Loader2, Phone, Sparkles, Plus, X } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -15,11 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface AISettings {
   id?: string;
   business_id: string;
   admin_phone: string;
+  admin_phones: string[];
   enabled: boolean;
   auto_transcribe: boolean;
   auto_respond: boolean;
@@ -50,7 +52,7 @@ export function AIAssistantSettings() {
   });
 
   const [formData, setFormData] = useState<Partial<AISettings>>({
-    admin_phone: '',
+    admin_phones: [],
     enabled: false,
     auto_transcribe: true,
     auto_respond: true,
@@ -58,10 +60,12 @@ export function AIAssistantSettings() {
     default_categories: ['Recebimentos', 'Vendas', 'Serviços', 'Pagamentos', 'Outros'],
   });
 
+  const [newPhone, setNewPhone] = useState('');
+
   useEffect(() => {
     if (settings) {
       setFormData({
-        admin_phone: settings.admin_phone || '',
+        admin_phones: settings.admin_phones || (settings.admin_phone ? [settings.admin_phone] : []),
         enabled: settings.enabled ?? false,
         auto_transcribe: settings.auto_transcribe ?? true,
         auto_respond: settings.auto_respond ?? true,
@@ -71,13 +75,41 @@ export function AIAssistantSettings() {
     }
   }, [settings]);
 
+  const addPhone = () => {
+    const cleanPhone = newPhone.replace(/\D/g, '');
+    if (cleanPhone && cleanPhone.length >= 10 && !formData.admin_phones?.includes(cleanPhone)) {
+      setFormData({
+        ...formData,
+        admin_phones: [...(formData.admin_phones || []), cleanPhone],
+      });
+      setNewPhone('');
+    } else if (formData.admin_phones?.includes(cleanPhone)) {
+      toast({ title: 'Número já adicionado', variant: 'destructive' });
+    } else {
+      toast({ title: 'Número inválido', description: 'O número deve ter pelo menos 10 dígitos', variant: 'destructive' });
+    }
+  };
+
+  const removePhone = (phoneToRemove: string) => {
+    setFormData({
+      ...formData,
+      admin_phones: formData.admin_phones?.filter(p => p !== phoneToRemove) || [],
+    });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<AISettings>) => {
       if (!business?.id) throw new Error('Business not found');
 
       const payload = {
         business_id: business.id,
-        ...data,
+        admin_phones: data.admin_phones || [],
+        admin_phone: data.admin_phones?.[0] || '', // Manter compatibilidade
+        enabled: data.enabled,
+        auto_transcribe: data.auto_transcribe,
+        auto_respond: data.auto_respond,
+        greeting_style: data.greeting_style,
+        default_categories: data.default_categories,
       };
 
       if (settings?.id) {
@@ -139,19 +171,46 @@ export function AIAssistantSettings() {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="adminPhone" className="flex items-center gap-2">
+        <div className="space-y-3">
+          <Label className="flex items-center gap-2">
             <Phone className="h-4 w-4" />
-            Número Admin (WhatsApp)
+            Números Admin (WhatsApp)
           </Label>
-          <Input
-            id="adminPhone"
-            value={formData.admin_phone}
-            onChange={(e) => setFormData({ ...formData, admin_phone: e.target.value })}
-            placeholder="5511999999999"
-          />
+          
+          {/* Lista de números */}
+          <div className="flex flex-wrap gap-2">
+            {formData.admin_phones?.map((phone) => (
+              <Badge key={phone} variant="secondary" className="flex items-center gap-1 py-1 px-3">
+                {phone}
+                <button
+                  onClick={() => removePhone(phone)}
+                  className="ml-1 hover:text-destructive"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+            {formData.admin_phones?.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum número adicionado</p>
+            )}
+          </div>
+
+          {/* Input para adicionar novo número */}
+          <div className="flex gap-2">
+            <Input
+              value={newPhone}
+              onChange={(e) => setNewPhone(e.target.value)}
+              placeholder="5511999999999"
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addPhone())}
+            />
+            <Button type="button" variant="outline" onClick={addPhone}>
+              <Plus className="h-4 w-4 mr-1" />
+              Adicionar
+            </Button>
+          </div>
+          
           <p className="text-xs text-muted-foreground">
-            Número que enviará comandos para a IA (apenas este número será interpretado). 
+            Números que podem enviar comandos para a IA. 
             Use o formato: código do país + DDD + número, sem espaços ou símbolos.
           </p>
         </div>
@@ -210,7 +269,7 @@ export function AIAssistantSettings() {
           <p className="text-sm font-medium text-foreground">Como funciona:</p>
         </div>
         <ul className="text-sm text-muted-foreground space-y-1">
-          <li>• Envie áudios ou textos do número admin configurado</li>
+          <li>• Envie áudios ou textos de qualquer número admin configurado</li>
           <li>• A IA transcreve áudios e interpreta a mensagem</li>
           <li>• Extrai automaticamente: cliente, valor, categoria, status</li>
           <li>• Se faltar informação, ela pergunta de forma inteligente</li>

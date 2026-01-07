@@ -61,6 +61,7 @@ export type Database = {
       ai_settings: {
         Row: {
           admin_phone: string
+          admin_phones: string[] | null
           auto_respond: boolean | null
           auto_transcribe: boolean | null
           business_id: string
@@ -73,6 +74,7 @@ export type Database = {
         }
         Insert: {
           admin_phone?: string
+          admin_phones?: string[] | null
           auto_respond?: boolean | null
           auto_transcribe?: boolean | null
           business_id: string
@@ -85,6 +87,7 @@ export type Database = {
         }
         Update: {
           admin_phone?: string
+          admin_phones?: string[] | null
           auto_respond?: boolean | null
           auto_transcribe?: boolean | null
           business_id?: string
