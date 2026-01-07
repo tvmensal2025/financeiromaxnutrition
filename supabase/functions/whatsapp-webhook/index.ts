@@ -288,6 +288,135 @@ function formatTransactionMessage(
   return message;
 }
 
+// Process message with AI assistant and create transaction
+async function processWithAI(
+  supabase: any,
+  supabaseUrl: string,
+  supabaseServiceKey: string,
+  textToProcess: string,
+  businessId: string,
+  phone: string,
+  customerId: string | null,
+  instance: string,
+  aiSettings: any,
+  businessName: string
+): Promise<void> {
+  console.log('Processing with AI assistant:', textToProcess.substring(0, 100));
+  
+  try {
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        message: textToProcess,
+        businessId,
+        phone,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      console.error('AI assistant failed:', await aiResponse.text());
+      return;
+    }
+
+    const aiResult = await aiResponse.json();
+    console.log('AI assistant result:', JSON.stringify(aiResult, null, 2));
+
+    if (aiResult.action === 'needs_more_info' && aiResult.question) {
+      // Send question to user
+      await sendEvolutionMessage(instance, phone, aiResult.question);
+    } else if (aiResult.action === 'complete' && aiResult.data) {
+      // Create transaction
+      const data = aiResult.data;
+      
+      // Find or create customer if we have a name
+      let txCustomerId: string | null = customerId;
+      if (data.customerName && !txCustomerId) {
+        const { data: existingCust } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('business_id', businessId)
+          .ilike('name', `%${data.customerName}%`)
+          .limit(1)
+          .single();
+
+        if (existingCust) {
+          txCustomerId = existingCust.id;
+        } else {
+          // Create new customer
+          const { data: newCust } = await supabase
+            .from('customers')
+            .insert({
+              business_id: businessId,
+              name: data.customerName,
+              email: data.email,
+              phone: data.phone,
+            })
+            .select('id')
+            .single();
+          
+          if (newCust) {
+            txCustomerId = newCust.id;
+            console.log('Created new customer:', txCustomerId);
+          }
+        }
+      }
+
+      // Validate amount before creating transaction
+      if (!data.amount || isNaN(Number(data.amount))) {
+        console.log('Invalid amount, asking user for clarification');
+        await sendEvolutionMessage(instance, phone, 
+          '❓ Não consegui identificar o valor da transação. Por favor, envie novamente incluindo o valor (ex: "João pagou R$ 100").');
+        return;
+      }
+
+      // Create transaction
+      const { data: newTransaction, error: txError } = await supabase
+        .from('transactions')
+        .insert({
+          business_id: businessId,
+          customer_id: txCustomerId,
+          type: data.type || 'income',
+          description: data.description || data.customerName || 'Transação',
+          amount: Number(data.amount),
+          category: data.category || 'Recebimentos',
+          status: data.status || 'pending',
+          transaction_date: data.date || new Date().toISOString().split('T')[0],
+        })
+        .select()
+        .single();
+
+      if (txError) {
+        console.error('Error creating transaction:', txError);
+        await sendEvolutionMessage(instance, phone, 
+          '❌ Erro ao registrar transação. Por favor, tente novamente.');
+      } else {
+        console.log('Transaction created:', newTransaction.id);
+
+        // Send confirmation message
+        const confirmMessage = formatTransactionMessage(
+          businessName,
+          { ...data, date: data.date || new Date().toLocaleDateString('pt-BR') },
+          aiSettings.greeting_style || 'friendly'
+        );
+        await sendEvolutionMessage(instance, phone, confirmMessage);
+      }
+
+      // Clear conversation context after completion
+      await supabase
+        .from('ai_conversations')
+        .delete()
+        .eq('business_id', businessId)
+        .eq('phone', phone);
+    }
+  } catch (e) {
+    console.error('Error calling AI assistant:', e);
+  }
+}
+
 interface EvolutionWebhookPayload {
   event: string;
   instance: string;
@@ -778,111 +907,95 @@ serve(async (req) => {
           }
         }
 
-        // Process with AI assistant
+        // Check if we have a pending confirmation
+        const { data: existingConversation } = await supabase
+          .from('ai_conversations')
+          .select('*')
+          .eq('business_id', businessId)
+          .eq('phone', phone)
+          .single();
+
         const textToProcess = transcribedText || messageContent;
-        if (textToProcess && textToProcess !== '[Áudio]' && aiSettings.auto_respond) {
-          console.log('Calling AI assistant with:', textToProcess.substring(0, 100));
-          try {
-            const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${supabaseServiceKey}`,
-              },
-              body: JSON.stringify({
-                message: textToProcess,
-                businessId,
-                phone,
-              }),
-            });
+        const upperText = textToProcess.toUpperCase().trim();
 
-            if (aiResponse.ok) {
-              const aiResult = await aiResponse.json();
-              console.log('AI assistant result:', JSON.stringify(aiResult, null, 2));
-              aiProcessed = true;
-
-              if (aiResult.action === 'needs_more_info' && aiResult.question) {
-                // Send question to user
-                await sendEvolutionMessage(payload.instance, phone, aiResult.question);
-              } else if (aiResult.action === 'complete' && aiResult.data) {
-                // Create transaction
-                const data = aiResult.data;
-                
-                // Find or create customer if we have a name
-                let txCustomerId: string | null = customerId;
-                if (data.customerName && !txCustomerId) {
-                  const { data: existingCust } = await supabase
-                    .from('customers')
-                    .select('id')
-                    .eq('business_id', businessId)
-                    .ilike('name', `%${data.customerName}%`)
-                    .limit(1)
-                    .single();
-
-                  if (existingCust) {
-                    txCustomerId = existingCust.id;
-                  } else {
-                    // Create new customer
-                    const { data: newCust } = await supabase
-                      .from('customers')
-                      .insert({
-                        business_id: businessId,
-                        name: data.customerName,
-                        email: data.email,
-                        phone: data.phone,
-                      })
-                      .select('id')
-                      .single();
-                    
-                    if (newCust) {
-                      txCustomerId = newCust.id;
-                      console.log('Created new customer:', txCustomerId);
-                    }
-                  }
-                }
-
-                // Create transaction
-                const { data: newTransaction, error: txError } = await supabase
-                  .from('transactions')
-                  .insert({
-                    business_id: businessId,
-                    customer_id: txCustomerId,
-                    type: data.type || 'income',
-                    description: data.description || data.customerName || 'Transação',
-                    amount: data.amount,
-                    category: data.category || 'Recebimentos',
-                    status: data.status || 'pending',
-                    transaction_date: data.date || new Date().toISOString().split('T')[0],
-                  })
-                  .select()
-                  .single();
-
-                if (txError) {
-                  console.error('Error creating transaction:', txError);
-                } else {
-                  console.log('Transaction created:', newTransaction.id);
-
-                  // Send confirmation message
-                  const confirmMessage = formatTransactionMessage(
-                    businessName,
-                    { ...data, date: data.date || new Date().toLocaleDateString('pt-BR') },
-                    aiSettings.greeting_style || 'friendly'
-                  );
-                  await sendEvolutionMessage(payload.instance, phone, confirmMessage);
-                }
-
-                // Clear conversation context after completion
-                await supabase
-                  .from('ai_conversations')
-                  .delete()
-                  .eq('business_id', businessId)
-                  .eq('phone', phone);
-              }
-            } else {
-              console.error('AI assistant failed:', await aiResponse.text());
-            }
-          } catch (e) {
-            console.error('Error calling AI assistant:', e);
+        // Handle confirmation responses
+        if (existingConversation?.stage === 'awaiting_confirmation') {
+          const pendingData = existingConversation.pending_data as any;
+          
+          if (upperText === 'SIM' || upperText === 'S' || upperText === 'YES' || upperText === 'CONFIRMAR') {
+            // User confirmed - process with original transcription
+            console.log('User confirmed transcription, processing...');
+            const confirmedText = pendingData?.transcription || textToProcess;
+            
+            await processWithAI(
+              supabase, supabaseUrl, supabaseServiceKey,
+              confirmedText, businessId, phone, customerId,
+              payload.instance, aiSettings, businessName
+            );
+            aiProcessed = true;
+            
+          } else if (upperText === 'NAO' || upperText === 'NÃO' || upperText === 'N' || upperText === 'NO' || upperText === 'CANCELAR') {
+            // User cancelled
+            console.log('User cancelled, clearing conversation');
+            await supabase
+              .from('ai_conversations')
+              .delete()
+              .eq('business_id', businessId)
+              .eq('phone', phone);
+            
+            await sendEvolutionMessage(payload.instance, phone, '❌ Operação cancelada. Envie um novo áudio quando quiser registrar algo.');
+            aiProcessed = true;
+            
+          } else {
+            // User sent corrected text - use this instead
+            console.log('User sent correction, processing with corrected text:', textToProcess.substring(0, 50));
+            
+            await processWithAI(
+              supabase, supabaseUrl, supabaseServiceKey,
+              textToProcess, businessId, phone, customerId,
+              payload.instance, aiSettings, businessName
+            );
+            aiProcessed = true;
+          }
+        } else if (textToProcess && textToProcess !== '[Áudio]' && aiSettings.auto_respond) {
+          // New message - check if it's audio that needs confirmation
+          if (mediaType === 'audio' && transcribedText) {
+            console.log('Audio transcribed, asking for confirmation');
+            
+            // Save pending transcription
+            await supabase
+              .from('ai_conversations')
+              .upsert({
+                business_id: businessId,
+                phone: phone,
+                stage: 'awaiting_confirmation',
+                pending_data: { transcription: transcribedText },
+                last_intent: 'transcription',
+                expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min expiry
+                updated_at: new Date().toISOString(),
+              }, { onConflict: 'business_id,phone' });
+            
+            // Send confirmation request
+            const confirmationMessage = 
+              `📝 *Entendi o seguinte:*\n\n` +
+              `"${transcribedText}"\n\n` +
+              `✅ Digite *SIM* para confirmar\n` +
+              `✏️ Ou envie o *texto corrigido*\n` +
+              `❌ Digite *NAO* para cancelar`;
+            
+            await sendEvolutionMessage(payload.instance, phone, confirmationMessage);
+            aiProcessed = true;
+            
+          } else if (messageContent !== '[Áudio]') {
+            // Text message - process directly (no confirmation needed for text)
+            console.log('Text message, processing directly with AI');
+            
+            await processWithAI(
+              supabase, supabaseUrl, supabaseServiceKey,
+              textToProcess, businessId, phone, customerId,
+              payload.instance, aiSettings, businessName
+            );
+            aiProcessed = true;
           }
         }
       }
