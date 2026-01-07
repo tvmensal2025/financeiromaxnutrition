@@ -881,6 +881,9 @@ export type Database = {
       whatsapp_messages: {
         Row: {
           business_id: string
+          conversation_status:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at: string
           customer_id: string | null
           direction: Database["public"]["Enums"]["message_direction"]
@@ -902,6 +905,9 @@ export type Database = {
         }
         Insert: {
           business_id: string
+          conversation_status?:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at?: string
           customer_id?: string | null
           direction?: Database["public"]["Enums"]["message_direction"]
@@ -923,6 +929,9 @@ export type Database = {
         }
         Update: {
           business_id?: string
+          conversation_status?:
+            | Database["public"]["Enums"]["conversation_status"]
+            | null
           created_at?: string
           customer_id?: string | null
           direction?: Database["public"]["Enums"]["message_direction"]
@@ -973,6 +982,7 @@ export type Database = {
         | "completed"
         | "cancelled"
         | "no_show"
+      conversation_status: "pending" | "inbox" | "waiting" | "finished"
       invoice_status: "draft" | "pending" | "paid" | "overdue" | "cancelled"
       lead_status:
         | "new"
@@ -1129,6 +1139,7 @@ export const Constants = {
         "cancelled",
         "no_show",
       ],
+      conversation_status: ["pending", "inbox", "waiting", "finished"],
       invoice_status: ["draft", "pending", "paid", "overdue", "cancelled"],
       lead_status: [
         "new",

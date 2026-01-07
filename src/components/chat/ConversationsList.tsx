@@ -3,11 +3,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, MessageCircle, User, Users, UsersRound, Plus, Filter } from 'lucide-react';
+import { Search, MessageCircle, User, Users, UsersRound, Plus, Check, X, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+
+export type ConversationStatus = 'pending' | 'inbox' | 'waiting' | 'finished';
 
 export interface Conversation {
   phone: string;
@@ -22,51 +24,65 @@ export interface Conversation {
   group_name?: string | null;
   participant_count?: number;
   avatar_url?: string | null;
+  conversation_status?: ConversationStatus;
 }
 
 interface ConversationsListProps {
   conversations: Conversation[];
   selectedPhone: string | null;
   onSelectConversation: (phone: string) => void;
+  onApproveConversation?: (phone: string) => void;
+  onUpdateStatus?: (phone: string, status: ConversationStatus) => void;
   isLoading?: boolean;
   /** Mostra o título "Mensagens" + contador + botão "+" no topo da lista */
   showTitle?: boolean;
 }
 
 type FilterType = 'all' | 'unread' | 'groups' | 'leads' | 'customers';
-type StatusTab = 'entrada' | 'esperando' | 'resolvidos';
+type StatusTab = 'pending' | 'entrada' | 'esperando' | 'finalizado';
 
 export function ConversationsList({
   conversations,
   selectedPhone,
   onSelectConversation,
+  onApproveConversation,
+  onUpdateStatus,
   isLoading,
   showTitle = true,
 }: ConversationsListProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
-  const [statusTab, setStatusTab] = useState<StatusTab>('entrada');
+  const [statusTab, setStatusTab] = useState<StatusTab>('pending');
 
-  // Categorize conversations by status
-  const now = new Date();
+  // Categorize conversations by conversation_status from database
   const categorizedConversations = conversations.reduce(
     (acc, conv) => {
-      const lastMessageDate = new Date(conv.last_message_at);
-      const hoursSinceLastMessage = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60 * 60);
+      const status = conv.conversation_status || 'pending';
       
-      if (conv.unread_count > 0 || hoursSinceLastMessage < 1) {
-        // Active conversations (unread or recent)
-        acc.entrada.push(conv);
-      } else if (hoursSinceLastMessage < 24 && conv.direction === 'outbound') {
-        // Waiting for client response (we sent last message within 24h)
-        acc.esperando.push(conv);
-      } else {
-        // Resolved (no activity for 24h+)
-        acc.resolvidos.push(conv);
+      switch (status) {
+        case 'pending':
+          acc.pending.push(conv);
+          break;
+        case 'inbox':
+          acc.entrada.push(conv);
+          break;
+        case 'waiting':
+          acc.esperando.push(conv);
+          break;
+        case 'finished':
+          acc.finalizado.push(conv);
+          break;
+        default:
+          acc.pending.push(conv);
       }
       return acc;
     },
-    { entrada: [] as Conversation[], esperando: [] as Conversation[], resolvidos: [] as Conversation[] }
+    { 
+      pending: [] as Conversation[], 
+      entrada: [] as Conversation[], 
+      esperando: [] as Conversation[], 
+      finalizado: [] as Conversation[] 
+    }
   );
 
   const currentConversations = categorizedConversations[statusTab];
@@ -128,10 +144,11 @@ export function ConversationsList({
     { value: 'customers', label: 'Clientes', icon: <Users className="h-3.5 w-3.5" /> },
   ];
 
-  const statusTabs: { value: StatusTab; label: string; count: number }[] = [
+  const statusTabs: { value: StatusTab; label: string; count: number; icon?: React.ReactNode }[] = [
+    { value: 'pending', label: 'Pendentes', count: categorizedConversations.pending.length, icon: <Clock className="h-3.5 w-3.5" /> },
     { value: 'entrada', label: 'Entrada', count: categorizedConversations.entrada.length },
     { value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length },
-    { value: 'resolvidos', label: 'Resolvidos', count: categorizedConversations.resolvidos.length },
+    { value: 'finalizado', label: 'Finalizado', count: categorizedConversations.finalizado.length },
   ];
 
   return (
@@ -171,17 +188,21 @@ export function ConversationsList({
                 key={tab.value}
                 onClick={() => setStatusTab(tab.value)}
                 className={cn(
-                  'status-tab flex items-center justify-center gap-1.5 px-4 py-2 min-w-[100px] whitespace-nowrap',
-                  statusTab === tab.value && 'active'
+                  'status-tab flex items-center justify-center gap-1.5 px-3 py-2 min-w-[80px] whitespace-nowrap',
+                  statusTab === tab.value && 'active',
+                  tab.value === 'pending' && tab.count > 0 && 'text-warning'
                 )}
               >
+                {tab.icon}
                 {tab.label}
                 {tab.count > 0 && (
                   <span className={cn(
                     'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                     statusTab === tab.value 
                       ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted-foreground/20 text-muted-foreground'
+                      : tab.value === 'pending'
+                        ? 'bg-warning/20 text-warning'
+                        : 'bg-muted-foreground/20 text-muted-foreground'
                   )}>
                     {tab.count}
                   </span>
@@ -234,111 +255,146 @@ export function ConversationsList({
           <div className="py-2">
             {filteredConversations.map((conv) => {
               const isGroup = conv.phone.startsWith('group:') || conv.is_group;
+              const isPending = statusTab === 'pending';
               
               return (
-                <button
+                <div
                   key={conv.phone}
-                  onClick={() => onSelectConversation(conv.phone)}
                   className={cn(
                     'conversation-card',
                     selectedPhone === conv.phone && 'active'
                   )}
                 >
-                  <div className="relative">
-                    <Avatar className={cn(
-                      'h-12 w-12 shrink-0 ring-2 ring-offset-2 ring-offset-background transition-all',
-                      isGroup 
-                        ? 'ring-purple-500/30'
-                        : conv.customer_id 
-                          ? 'ring-success/30'
-                          : conv.lead_id
-                            ? 'ring-warning/30'
-                            : 'ring-primary/30'
-                    )}>
-                      {conv.avatar_url && (
-                        <AvatarImage 
-                          src={conv.avatar_url} 
-                          alt={conv.sender_name || 'Contato'} 
-                        />
-                      )}
-                      <AvatarFallback 
-                        className={cn(
-                          'font-semibold text-sm',
-                          isGroup
-                            ? 'bg-purple-500/10 text-purple-500'
-                            : conv.customer_id 
-                              ? 'bg-success/10 text-success'
-                              : conv.lead_id
-                                ? 'bg-warning/10 text-warning'
-                                : 'bg-primary/10 text-primary'
+                  <button 
+                    onClick={() => onSelectConversation(conv.phone)}
+                    className="flex items-start gap-3 flex-1 min-w-0 text-left"
+                  >
+                    <div className="relative">
+                      <Avatar className={cn(
+                        'h-12 w-12 shrink-0 ring-2 ring-offset-2 ring-offset-background transition-all',
+                        isGroup 
+                          ? 'ring-purple-500/30'
+                          : conv.customer_id 
+                            ? 'ring-success/30'
+                            : conv.lead_id
+                              ? 'ring-warning/30'
+                              : 'ring-primary/30'
+                      )}>
+                        {conv.avatar_url && (
+                          <AvatarImage 
+                            src={conv.avatar_url} 
+                            alt={conv.sender_name || 'Contato'} 
+                          />
                         )}
-                      >
-                        {isGroup ? (
-                          <UsersRound className="h-5 w-5" />
-                        ) : (
-                          getInitials(conv.sender_name, conv.phone, isGroup)
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-                    {conv.unread_count > 0 && (
-                      <span className="status-dot online" />
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-semibold text-foreground truncate text-sm">
-                          {isGroup ? (conv.group_name || conv.sender_name || 'Grupo') : (conv.sender_name || formatPhone(conv.phone))}
-                        </span>
-                        {isGroup && (
-                          <span className="group-indicator">
-                            <UsersRound className="h-2.5 w-2.5" />
-                            {conv.participant_count ? `${conv.participant_count} membros` : 'Grupo'}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        {formatTime(conv.last_message_at)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm text-muted-foreground truncate">
-                        {conv.direction === 'outbound' && (
-                          <span className="text-primary font-medium mr-1">Você:</span>
-                        )}
-                        {conv.last_message}
-                      </p>
+                        <AvatarFallback 
+                          className={cn(
+                            'font-semibold text-sm',
+                            isGroup
+                              ? 'bg-purple-500/10 text-purple-500'
+                              : conv.customer_id 
+                                ? 'bg-success/10 text-success'
+                                : conv.lead_id
+                                  ? 'bg-warning/10 text-warning'
+                                  : 'bg-primary/10 text-primary'
+                          )}
+                        >
+                          {isGroup ? (
+                            <UsersRound className="h-5 w-5" />
+                          ) : (
+                            getInitials(conv.sender_name, conv.phone, isGroup)
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
                       {conv.unread_count > 0 && (
-                        <Badge className="h-5 min-w-5 shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground shadow-md shadow-primary/30">
-                          {conv.unread_count}
-                        </Badge>
+                        <span className="status-dot online" />
                       )}
                     </div>
 
-                    {/* Type indicator - only show for non-groups */}
-                    {!isGroup && (
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        {conv.customer_id ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
-                            <Users className="h-2.5 w-2.5" />
-                            Cliente
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-semibold text-foreground truncate text-sm">
+                            {isGroup ? (conv.group_name || conv.sender_name || 'Grupo') : (conv.sender_name || formatPhone(conv.phone))}
                           </span>
-                        ) : conv.lead_id ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
-                            <User className="h-2.5 w-2.5" />
-                            Lead
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                            Novo
-                          </span>
+                          {isGroup && (
+                            <span className="group-indicator">
+                              <UsersRound className="h-2.5 w-2.5" />
+                              {conv.participant_count ? `${conv.participant_count} membros` : 'Grupo'}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          {formatTime(conv.last_message_at)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm text-muted-foreground truncate">
+                          {conv.direction === 'outbound' && (
+                            <span className="text-primary font-medium mr-1">Você:</span>
+                          )}
+                          {conv.last_message}
+                        </p>
+                        {conv.unread_count > 0 && (
+                          <Badge className="h-5 min-w-5 shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground shadow-md shadow-primary/30">
+                            {conv.unread_count}
+                          </Badge>
                         )}
                       </div>
-                    )}
-                  </div>
-                </button>
+
+                      {/* Type indicator - only show for non-groups */}
+                      {!isGroup && (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          {conv.customer_id ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                              <Users className="h-2.5 w-2.5" />
+                              Cliente
+                            </span>
+                          ) : conv.lead_id ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                              <User className="h-2.5 w-2.5" />
+                              Lead
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              Novo
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Approval buttons for pending conversations */}
+                  {isPending && onApproveConversation && (
+                    <div className="flex flex-col gap-1 ml-2 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 bg-success/10 hover:bg-success/20 text-success"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onApproveConversation(conv.phone);
+                        }}
+                        title="Aprovar para Entrada"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 bg-destructive/10 hover:bg-destructive/20 text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onUpdateStatus?.(conv.phone, 'finished');
+                        }}
+                        title="Arquivar"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

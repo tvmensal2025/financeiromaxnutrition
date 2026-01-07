@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { ConversationsList, Conversation } from '@/components/chat/ConversationsList';
+import { ConversationsList, Conversation, ConversationStatus } from '@/components/chat/ConversationsList';
 import { ChatArea } from '@/components/chat/ChatArea';
 import { ContactInfoPanel } from '@/components/chat/ContactInfoPanel';
 import { GroupParticipantsPanel } from '@/components/chat/GroupParticipantsPanel';
@@ -36,6 +36,7 @@ interface WhatsAppMessage {
   participant_phone?: string | null;
   sender_avatar_url?: string | null;
   participant_count?: number;
+  conversation_status?: ConversationStatus;
 }
 
 interface Lead {
@@ -206,6 +207,7 @@ export default function Messages() {
           group_name: msg.group_name,
           participant_count: msg.participant_count || 0,
           avatar_url: msg.sender_avatar_url,
+          conversation_status: msg.conversation_status || 'pending',
         });
         continue;
       }
@@ -425,6 +427,44 @@ export default function Messages() {
     },
   });
 
+  // Update conversation status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ phone, status }: { phone: string; status: ConversationStatus }) => {
+      if (!business?.id) throw new Error('Business not found');
+
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .update({ conversation_status: status })
+        .eq('business_id', business.id)
+        .eq('phone', phone);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business?.id] });
+    },
+    onError: (error) => {
+      console.error('Update status error:', error);
+      toast({
+        title: 'Erro ao atualizar status',
+        description: 'Não foi possível atualizar o status da conversa.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleApproveConversation = (phone: string) => {
+    updateStatusMutation.mutate({ phone, status: 'inbox' });
+    toast({
+      title: 'Conversa aprovada!',
+      description: 'A conversa foi movida para Entrada.',
+    });
+  };
+
+  const handleUpdateStatus = (phone: string, status: ConversationStatus) => {
+    updateStatusMutation.mutate({ phone, status });
+  };
+
   const handleSelectConversation = (phone: string) => {
     setSelectedPhone(phone);
     if (isMobileView) {
@@ -494,6 +534,8 @@ export default function Messages() {
                 conversations={conversations}
                 selectedPhone={selectedPhone}
                 onSelectConversation={handleSelectConversation}
+                onApproveConversation={handleApproveConversation}
+                onUpdateStatus={handleUpdateStatus}
                 isLoading={messagesLoading}
                 showTitle={false}
               />
@@ -521,6 +563,8 @@ export default function Messages() {
                 conversations={conversations}
                 selectedPhone={selectedPhone}
                 onSelectConversation={handleSelectConversation}
+                onApproveConversation={handleApproveConversation}
+                onUpdateStatus={handleUpdateStatus}
                 isLoading={messagesLoading}
                 showTitle={false}
               />
