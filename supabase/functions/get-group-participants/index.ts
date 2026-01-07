@@ -95,11 +95,12 @@ serve(async (req) => {
           
           if (groupInfo.participants && Array.isArray(groupInfo.participants)) {
             participants = groupInfo.participants.map((p: any) => {
-              const phone = (p.id || p.jid || '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
+              const phoneSource = (p.phoneNumber || p.phone || p.number || p.jid || p.id || '').toString();
+              const phone = phoneSource.split('@')[0].replace(/\D/g, '');
               return {
                 id: p.id || p.jid || phone,
-                phone: phone,
-                name: p.name || p.pushName || null,
+                phone,
+                name: p.name || p.pushName || p.notify || null,
                 isAdmin: p.admin === 'admin' || p.isAdmin === true,
                 isSuperAdmin: p.admin === 'superadmin' || p.isSuperAdmin === true,
               };
@@ -141,13 +142,13 @@ serve(async (req) => {
             if (group.participants && Array.isArray(group.participants)) {
               participants = group.participants.map((p: any) => {
                 console.log('Raw participant:', JSON.stringify(p));
-                // Extract phone from id/jid - format is usually "5511989000650@s.whatsapp.net"
-                const rawId = p.id || p.jid || '';
-                const phone = rawId.split('@')[0].replace(/\D/g, '');
-                console.log('Extracted phone from', rawId, ':', phone);
+                // Prefer phoneNumber when present (Evolution often returns a "@lid" id + phoneNumber JID)
+                const phoneSource = (p.phoneNumber || p.phone || p.number || p.jid || p.id || '').toString();
+                const phone = phoneSource.split('@')[0].replace(/\D/g, '');
+                console.log('Extracted phone from', phoneSource, ':', phone);
                 return {
-                  id: rawId || phone,
-                  phone: phone,
+                  id: p.id || p.jid || phone,
+                  phone,
                   name: p.name || p.pushName || p.notify || null,
                   isAdmin: p.admin === 'admin' || p.isAdmin === true,
                   isSuperAdmin: p.admin === 'superadmin' || p.isSuperAdmin === true,
@@ -183,11 +184,12 @@ serve(async (req) => {
           if (participantsData && Array.isArray(participantsData.participants || participantsData)) {
             const rawParticipants = participantsData.participants || participantsData;
             participants = rawParticipants.map((p: any) => {
-              const phone = (p.id || p.jid || '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
+              const phoneSource = (p.phoneNumber || p.phone || p.number || p.jid || p.id || '').toString();
+              const phone = phoneSource.split('@')[0].replace(/\D/g, '');
               return {
                 id: p.id || p.jid || phone,
-                phone: phone,
-                name: p.name || p.pushName || null,
+                phone,
+                name: p.name || p.pushName || p.notify || null,
                 isAdmin: p.admin === 'admin' || p.isAdmin === true,
                 isSuperAdmin: p.admin === 'superadmin' || p.isSuperAdmin === true,
               };
