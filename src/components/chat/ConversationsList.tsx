@@ -133,106 +133,119 @@ export function ConversationsList({
     return p;
   };
 
-  // Unified filter options: Status + Type
-  const unifiedFilters = [
-    { type: 'status' as const, value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length, icon: <Clock className="h-3.5 w-3.5" /> },
-    { type: 'status' as const, value: 'entrada', label: 'Entrada', count: categorizedConversations.entrada.length },
-    { type: 'status' as const, value: 'finalizado', label: 'Finalizado', count: categorizedConversations.finalizado.length },
-    { type: 'separator' as const },
-    { type: 'filter' as const, value: 'all', label: 'Todos', icon: <MessageCircle className="h-3.5 w-3.5" /> },
-    { type: 'filter' as const, value: 'groups', label: 'Grupos', icon: <UsersRound className="h-3.5 w-3.5" /> },
-    { type: 'filter' as const, value: 'leads', label: 'Leads', icon: <User className="h-3.5 w-3.5" /> },
-    { type: 'filter' as const, value: 'customers', label: 'Clientes', icon: <Users className="h-3.5 w-3.5" /> },
-  ];
-
   return (
     <div className="flex h-full flex-col bg-card/50 backdrop-blur-sm">
       {/* Header */}
-      <div className="border-b border-border p-4 space-y-4">
+      <div className="border-b border-border p-3 space-y-2">
         {showTitle && (
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
-              <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-foreground">Mensagens</h2>
+              <span className="text-[10px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                 {conversations.length}
               </span>
             </div>
-            <Button size="icon" className="h-9 w-9 rounded-full shadow-lg shadow-primary/20">
-              <Plus className="h-4 w-4" />
+            <Button size="icon" className="h-8 w-8 rounded-full shadow-md shadow-primary/20">
+              <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
         )}
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar conversas..."
+            placeholder="Buscar..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-11 bg-background/50 border-border/50 rounded-xl focus-visible:ring-1 focus-visible:ring-primary/50 transition-all"
+            className="pl-8 h-8 text-sm bg-background/50 border-border/50 rounded-lg"
           />
         </div>
 
-        {/* Unified Filters - Status + Type */}
-        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-          <div className="flex gap-1.5 min-w-max">
-            {unifiedFilters.map((item, index) => {
-              if (item.type === 'separator') {
-                return <div key={`sep-${index}`} className="w-px bg-border mx-1" />;
-              }
-              
-              if (item.type === 'status') {
-                const isActive = statusTab === item.value;
-                const isWarning = item.value === 'esperando' && (item.count || 0) > 0;
-                return (
-                  <button
-                    key={item.value}
-                    onClick={() => setStatusTab(item.value as StatusTab)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                        : isWarning
-                          ? 'bg-warning/10 text-warning hover:bg-warning/20 border border-warning/30'
-                          : 'bg-background/80 text-muted-foreground hover:bg-accent hover:text-foreground border border-border/50'
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                    {(item.count || 0) > 0 && (
-                      <span className={cn(
-                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                        isActive 
-                          ? 'bg-primary-foreground/20 text-primary-foreground' 
-                          : 'bg-current/10'
-                      )}>
-                        {item.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              }
-              
-              // Type filter
-              const isActive = filter === item.value;
-              return (
-                <button
-                  key={item.value}
-                  onClick={() => setFilter(item.value as FilterType)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                      : 'bg-background/80 text-muted-foreground hover:bg-accent hover:text-foreground border border-border/50'
-                  )}
-                >
-                  {item.icon}
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Compact Filters */}
+        <div className="flex gap-1 flex-wrap">
+          {/* Status filters */}
+          <button
+            onClick={() => setStatusTab('esperando')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              statusTab === 'esperando'
+                ? 'bg-warning text-warning-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Esperando {categorizedConversations.esperando.length > 0 && `(${categorizedConversations.esperando.length})`}
+          </button>
+          <button
+            onClick={() => setStatusTab('entrada')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              statusTab === 'entrada'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Entrada {categorizedConversations.entrada.length > 0 && `(${categorizedConversations.entrada.length})`}
+          </button>
+          <button
+            onClick={() => setStatusTab('finalizado')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              statusTab === 'finalizado'
+                ? 'bg-muted text-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Finalizado {categorizedConversations.finalizado.length > 0 && `(${categorizedConversations.finalizado.length})`}
+          </button>
+          
+          <div className="w-px bg-border mx-0.5" />
+          
+          {/* Type filters */}
+          <button
+            onClick={() => setFilter('all')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              filter === 'all'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => setFilter('groups')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              filter === 'groups'
+                ? 'bg-purple-500 text-white'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Grupos
+          </button>
+          <button
+            onClick={() => setFilter('leads')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              filter === 'leads'
+                ? 'bg-warning text-warning-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Leads
+          </button>
+          <button
+            onClick={() => setFilter('customers')}
+            className={cn(
+              'text-[10px] font-medium px-2 py-1 rounded transition-all',
+              filter === 'customers'
+                ? 'bg-success text-success-foreground'
+                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+            )}
+          >
+            Clientes
+          </button>
         </div>
       </div>
 
