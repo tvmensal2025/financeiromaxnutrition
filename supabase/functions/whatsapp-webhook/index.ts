@@ -120,7 +120,8 @@ async function downloadAndStoreMedia(
             fromMe: messageKey.fromMe
           }
         },
-        convertToMp4: true
+        // Only convert video to MP4, keep audio in original format (OGG/Opus) for transcription
+        convertToMp4: mediaType === 'video'
       })
     });
     
