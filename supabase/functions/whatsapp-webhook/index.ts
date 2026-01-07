@@ -712,6 +712,7 @@ serve(async (req) => {
       .single();
 
     let transcribedText: string | null = null;
+    let transcriptionError: string | null = null;
     let aiProcessed = false;
 
     // Process with AI if enabled and message is from admin phone
@@ -747,10 +748,18 @@ serve(async (req) => {
               transcribedText = transcribeResult.transcription;
               console.log('Audio transcribed:', transcribedText?.substring(0, 100));
             } else {
-              console.error('Transcription failed:', await transcribeResponse.text());
+              const errorBody = await transcribeResponse.text();
+              console.error('Transcription failed:', transcribeResponse.status, errorBody);
+              try {
+                const errorJson = JSON.parse(errorBody);
+                transcriptionError = errorJson.details || errorJson.error || `Erro ${transcribeResponse.status}`;
+              } catch {
+                transcriptionError = `Erro ${transcribeResponse.status}: ${errorBody.substring(0, 200)}`;
+              }
             }
           } catch (e) {
             console.error('Error calling transcribe function:', e);
+            transcriptionError = e instanceof Error ? e.message : 'Erro desconhecido na transcrição';
           }
         }
 
@@ -886,6 +895,7 @@ serve(async (req) => {
         sender_avatar_url: senderAvatarUrl,
         participant_count: participantCount,
         transcribed_text: transcribedText,
+        transcription_error: transcriptionError,
       })
       .select()
       .single();

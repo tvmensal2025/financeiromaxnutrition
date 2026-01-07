@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, CheckCheck, Clock, XCircle, Play, Pause, FileText, Download, Image as ImageIcon, MapPin, User, Users } from 'lucide-react';
+import { Check, CheckCheck, Clock, XCircle, Play, Pause, FileText, Download, Image as ImageIcon, MapPin, User, Users, AlertTriangle, MessageSquareText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,8 @@ export interface Message {
   sender_name?: string | null;
   is_group?: boolean;
   participant_phone?: string | null;
+  transcribed_text?: string | null;
+  transcription_error?: string | null;
 }
 
 interface ChatMessageProps {
@@ -548,6 +550,36 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
         {/* Media */}
         {renderMedia()}
+
+        {/* Transcription for audio messages */}
+        {message.media_type === 'audio' && message.transcribed_text && (
+          <div className={cn(
+            'mb-2 px-3 py-2 rounded-lg text-sm',
+            isOutbound ? 'bg-white/10' : 'bg-muted'
+          )}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <MessageSquareText className="h-3.5 w-3.5 text-primary" />
+              <span className={cn(
+                'text-xs font-medium',
+                isOutbound ? 'text-primary-foreground/70' : 'text-muted-foreground'
+              )}>Transcrição</span>
+            </div>
+            <p className="whitespace-pre-wrap break-words leading-relaxed italic">
+              "{message.transcribed_text}"
+            </p>
+          </div>
+        )}
+
+        {/* Transcription error for audio messages */}
+        {message.media_type === 'audio' && message.transcription_error && !message.transcribed_text && (
+          <div className={cn(
+            'mb-2 px-3 py-2 rounded-lg text-xs flex items-start gap-2',
+            isOutbound ? 'bg-red-500/20 text-red-100' : 'bg-red-50 text-red-600'
+          )}>
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span className="break-words">Transcrição falhou: {message.transcription_error}</span>
+          </div>
+        )}
 
         {/* Message text (hide if it's just a media placeholder) */}
         {!isMediaPlaceholder && message.message && (

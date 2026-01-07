@@ -1278,6 +1278,7 @@ export type Database = {
           sender_name: string | null
           status: Database["public"]["Enums"]["whatsapp_message_status"]
           transcribed_text: string | null
+          transcription_error: string | null
           updated_at: string
         }
         Insert: {
@@ -1305,6 +1306,7 @@ export type Database = {
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
           transcribed_text?: string | null
+          transcription_error?: string | null
           updated_at?: string
         }
         Update: {
@@ -1332,6 +1334,7 @@ export type Database = {
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
           transcribed_text?: string | null
+          transcription_error?: string | null
           updated_at?: string
         }
         Relationships: [
