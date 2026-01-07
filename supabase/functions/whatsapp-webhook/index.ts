@@ -860,6 +860,10 @@ serve(async (req) => {
         if (mediaType === 'audio' && audioBase64 && aiSettings.auto_transcribe) {
           console.log('Transcribing audio with Lovable AI (Gemini)...');
           
+          // Extract duration from metadata for plausibility check
+          const audioDuration = mediaMetadata?.duration || null;
+          console.log('Audio duration for transcription:', audioDuration);
+          
           try {
             const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/ai-transcribe-audio`, {
               method: 'POST',
@@ -870,6 +874,7 @@ serve(async (req) => {
               body: JSON.stringify({
                 audioBase64,
                 mimeType: audioMimeType,
+                durationSec: audioDuration, // Pass duration for plausibility check
               }),
             });
 
@@ -885,6 +890,11 @@ serve(async (req) => {
                 const errorJson = JSON.parse(errorBody);
                 if (errorJson.error === 'no_speech_detected') {
                   transcriptionError = 'Sem fala detectada no áudio';
+                } else if (errorJson.error === 'low_confidence') {
+                  transcriptionError = 'Baixa confiança na transcrição';
+                  // For low confidence, ask user to type manually
+                  await sendEvolutionMessage(payload.instance, phone, 
+                    '⚠️ Não consegui transcrever o áudio com confiança.\n\nPor favor, *digite o texto* que você falou ou *grave novamente* de forma mais clara.');
                 } else if (errorJson.error === 'rate_limit') {
                   transcriptionError = 'Limite de requisições excedido';
                 } else if (errorJson.error === 'payment_required') {
