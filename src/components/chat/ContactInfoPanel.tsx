@@ -19,6 +19,11 @@ import {
   CalendarClock,
   ChevronRight,
   Repeat,
+  Package,
+  Wrench,
+  Receipt,
+  Percent,
+  Bell,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,10 +48,24 @@ interface ContactInfo {
   createdAt: string;
 }
 
+interface CustomerStats {
+  totalPurchases: number;
+  totalProducts: number;
+  totalServices: number;
+  totalDiscount: number;
+  pendingInvoices: number;
+  pendingAmount: number;
+  nextDueDate?: string | null;
+  reminderDays?: number | null;
+  messageTime?: string | null;
+  messageType?: string | null;
+}
+
 interface ContactInfoPanelProps {
   contact: ContactInfo | null;
   type: 'lead' | 'customer' | 'new';
   scheduledMessages?: ScheduledMessage[];
+  customerStats?: CustomerStats;
   onConvertToCustomer?: () => void;
   onCreateOpportunity?: () => void;
   onCreateInvoice?: () => void;
@@ -58,6 +77,7 @@ export function ContactInfoPanel({
   contact,
   type,
   scheduledMessages = [],
+  customerStats,
   onConvertToCustomer,
   onCreateOpportunity,
   onCreateInvoice,
@@ -102,6 +122,26 @@ export function ContactInfoPanel({
       default:
         return 'Recorrente';
     }
+  };
+
+  const getMessageTypeLabel = (type: string | null | undefined) => {
+    switch (type) {
+      case 'reminder':
+        return 'Lembrete antes';
+      case 'overdue':
+        return 'Cobrança depois';
+      case 'both':
+        return 'Lembrete + Cobrança';
+      default:
+        return null;
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
   };
 
   const tempInfo = getTemperatureInfo(contact.temperature);
@@ -345,20 +385,111 @@ export function ContactInfoPanel({
             </div>
           </div>
 
-          {/* Quick Stats */}
-          {type === 'customer' && (
+          {/* Customer Stats */}
+          {type === 'customer' && customerStats && (
             <>
               <Separator />
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Total em compras</span>
-                  <span className="font-semibold text-foreground">R$ 0,00</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Faturas pendentes</span>
-                  <Badge variant="outline" className="text-[10px]">0</Badge>
+              <div className="space-y-3">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Receipt className="h-3.5 w-3.5" />
+                  Compras
+                </h5>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Package className="h-3.5 w-3.5" />
+                      Produtos comprados
+                    </span>
+                    <span className="font-semibold text-foreground">{customerStats.totalProducts}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground flex items-center gap-2">
+                      <Wrench className="h-3.5 w-3.5" />
+                      Serviços contratados
+                    </span>
+                    <span className="font-semibold text-foreground">{customerStats.totalServices}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Total em compras</span>
+                    <span className="font-semibold text-success">{formatCurrency(customerStats.totalPurchases)}</span>
+                  </div>
+                  {customerStats.totalDiscount > 0 && (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground flex items-center gap-2">
+                        <Percent className="h-3.5 w-3.5" />
+                        Descontos aplicados
+                      </span>
+                      <span className="font-semibold text-warning">{formatCurrency(customerStats.totalDiscount)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {(customerStats.pendingInvoices > 0 || customerStats.nextDueDate) && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5" />
+                      Faturas
+                    </h5>
+                    
+                    <div className="space-y-2">
+                      {customerStats.pendingInvoices > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Pendentes</span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px]">{customerStats.pendingInvoices}</Badge>
+                            <span className="font-semibold text-destructive">{formatCurrency(customerStats.pendingAmount)}</span>
+                          </div>
+                        </div>
+                      )}
+                      {customerStats.nextDueDate && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Próximo vencimento</span>
+                          <span className="font-semibold text-foreground">
+                            {format(new Date(customerStats.nextDueDate), 'dd/MM/yyyy', { locale: ptBR })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {(customerStats.reminderDays || customerStats.messageTime) && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <Bell className="h-3.5 w-3.5" />
+                      Agendamento Automático
+                    </h5>
+                    
+                    <div className="space-y-2">
+                      {customerStats.reminderDays && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Lembrete</span>
+                          <span className="font-semibold text-foreground">{customerStats.reminderDays} dias antes</span>
+                        </div>
+                      )}
+                      {customerStats.messageTime && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Horário</span>
+                          <span className="font-semibold text-foreground">{customerStats.messageTime.slice(0, 5)}</span>
+                        </div>
+                      )}
+                      {customerStats.messageType && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">Tipo</span>
+                          <span className="font-semibold text-foreground">{getMessageTypeLabel(customerStats.messageType)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
