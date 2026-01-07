@@ -29,7 +29,9 @@ serve(async (req) => {
       });
     }
 
-    console.log('Transcribing audio with Google Speech-to-Text, mimeType:', mimeType);
+    // Log audio details for debugging
+    const base64Size = audioBase64.length;
+    console.log('Transcribing audio:', { mimeType, base64SizeBytes: Math.round(base64Size * 0.75) });
 
     // Reject unsupported formats (MP4/M4A/AAC) early with clear error
     if (mimeType?.includes('mp4') || mimeType?.includes('m4a') || mimeType?.includes('aac')) {
@@ -48,13 +50,11 @@ serve(async (req) => {
     const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
 
     // Determine encoding based on mimeType
-    // For Opus (OGG/WebM), Google expects an explicit supported sample rate (typically 48000)
     let encoding = 'OGG_OPUS';
-    let sampleRateHertz: number | undefined = undefined;
+    let sampleRateHertz: number = 48000;
 
     if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
       encoding = 'MP3';
-      // MP3 requires explicit sample rate, use common value
       sampleRateHertz = 16000;
     } else if (mimeType?.includes('wav')) {
       encoding = 'LINEAR16';
@@ -67,19 +67,16 @@ serve(async (req) => {
       sampleRateHertz = 48000;
     }
 
-    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz || 'auto-detect');
+    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz);
 
-    // Build config object, only include sampleRateHertz if defined
+    // Build config object
     const config: any = {
       encoding: encoding,
+      sampleRateHertz: sampleRateHertz,
       languageCode: 'pt-BR',
       enableAutomaticPunctuation: true,
       model: 'default',
     };
-    
-    if (sampleRateHertz !== undefined) {
-      config.sampleRateHertz = sampleRateHertz;
-    }
 
     // Google Speech-to-Text API request
     const response = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${googleApiKey}`, {
@@ -116,11 +113,25 @@ serve(async (req) => {
         .trim();
     }
 
-    console.log('Transcription successful:', transcription?.substring(0, 100));
+    // Check if we got an empty transcription (no speech detected)
+    if (!transcription) {
+      console.log('No speech detected in audio (results empty or no transcript)');
+      return new Response(JSON.stringify({ 
+        error: 'no_speech_detected', 
+        details: 'Não foi detectada fala no áudio ou o áudio não pôde ser reconhecido.',
+        googleRequestId: result.requestId,
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Transcription successful:', transcription.substring(0, 100));
 
     return new Response(JSON.stringify({ 
       transcription: transcription,
       confidence: result.results?.[0]?.alternatives?.[0]?.confidence,
+      provider: 'google',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
