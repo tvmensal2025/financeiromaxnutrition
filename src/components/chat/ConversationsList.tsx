@@ -162,9 +162,8 @@ export function ConversationsList({
           />
         </div>
 
-        {/* Compact Filters */}
-        <div className="flex gap-1 flex-wrap">
-          {/* Status filters */}
+        {/* Status Filters */}
+        <div className="flex gap-1">
           <button
             onClick={() => setStatusTab('esperando')}
             className={cn(
@@ -198,10 +197,10 @@ export function ConversationsList({
           >
             Finalizado {categorizedConversations.finalizado.length > 0 && `(${categorizedConversations.finalizado.length})`}
           </button>
-          
-          <div className="w-px bg-border mx-0.5" />
-          
-          {/* Type filters */}
+        </div>
+
+        {/* Type Filters - Below */}
+        <div className="flex gap-1">
           <button
             onClick={() => setFilter('all')}
             className={cn(
@@ -234,17 +233,6 @@ export function ConversationsList({
             )}
           >
             Leads
-          </button>
-          <button
-            onClick={() => setFilter('customers')}
-            className={cn(
-              'text-[10px] font-medium px-2 py-1 rounded transition-all',
-              filter === 'customers'
-                ? 'bg-success text-success-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            )}
-          >
-            Clientes
           </button>
         </div>
       </div>
