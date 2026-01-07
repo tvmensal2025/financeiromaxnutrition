@@ -11,10 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
-    if (!googleApiKey) {
-      console.error('GOOGLE_API_KEY not configured');
-      return new Response(JSON.stringify({ error: 'Google API key not configured' }), {
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(JSON.stringify({ error: 'Lovable API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -29,72 +29,78 @@ serve(async (req) => {
       });
     }
 
-    // Log audio details for debugging
-    const base64Size = audioBase64.length;
-    console.log('Transcribing audio:', { mimeType, base64SizeBytes: Math.round(base64Size * 0.75) });
-
-    // Reject unsupported formats (MP4/M4A/AAC) early with clear error
-    if (mimeType?.includes('mp4') || mimeType?.includes('m4a') || mimeType?.includes('aac')) {
-      console.error('Unsupported audio format for Google STT:', mimeType);
-      return new Response(JSON.stringify({ 
-        error: 'Unsupported audio format', 
-        details: 'Google Speech-to-Text does not support MP4/M4A/AAC audio. The webhook should send audio in OGG/Opus or WebM format.',
-        mimeType 
-      }), {
-        status: 415,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     // Clean base64 data
     const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
+    const base64Size = base64Data.length;
+    console.log('Transcribing audio with Lovable AI (Gemini):', { mimeType, base64SizeBytes: Math.round(base64Size * 0.75) });
 
-    // Determine encoding based on mimeType
-    let encoding = 'OGG_OPUS';
-    let sampleRateHertz: number = 48000;
-
-    if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
-      encoding = 'MP3';
-      sampleRateHertz = 16000;
-    } else if (mimeType?.includes('wav')) {
-      encoding = 'LINEAR16';
-      sampleRateHertz = 16000;
-    } else if (mimeType?.includes('webm')) {
-      encoding = 'WEBM_OPUS';
-      sampleRateHertz = 48000;
-    } else if (mimeType?.includes('ogg')) {
-      encoding = 'OGG_OPUS';
-      sampleRateHertz = 48000;
+    // Determine audio format for Lovable AI
+    function getAudioFormat(mime: string): string {
+      if (mime?.includes('ogg')) return 'ogg';
+      if (mime?.includes('mp3') || mime?.includes('mpeg')) return 'mp3';
+      if (mime?.includes('wav')) return 'wav';
+      if (mime?.includes('webm')) return 'webm';
+      if (mime?.includes('m4a') || mime?.includes('mp4') || mime?.includes('aac')) return 'mp4';
+      return 'ogg'; // default for WhatsApp
     }
 
-    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz);
+    const audioFormat = getAudioFormat(mimeType || '');
+    console.log('Using audio format:', audioFormat);
 
-    // Build config object
-    const config: any = {
-      encoding: encoding,
-      sampleRateHertz: sampleRateHertz,
-      languageCode: 'pt-BR',
-      enableAutomaticPunctuation: true,
-      model: 'default',
-    };
-
-    // Google Speech-to-Text API request
-    const response = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${googleApiKey}`, {
-      method: 'POST',
+    // Call Lovable AI Gateway with Gemini multimodal
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${lovableApiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        config,
-        audio: {
-          content: base64Data,
-        },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito, sem explicações, sem aspas, sem formatação adicional. Se não houver fala ou o áudio estiver vazio, responda apenas: [SEM_FALA]"
+              },
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: base64Data,
+                  format: audioFormat
+                }
+              }
+            ]
+          }
+        ]
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Google Speech API error:', response.status, errorText);
+      console.error('Lovable AI error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ 
+          error: 'rate_limit', 
+          details: 'Limite de requisições excedido. Tente novamente em alguns segundos.' 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ 
+          error: 'payment_required', 
+          details: 'Créditos insuficientes. Adicione créditos ao workspace Lovable.' 
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       return new Response(JSON.stringify({ error: 'Transcription failed', details: errorText }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -102,24 +108,17 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    console.log('Google Speech API response:', JSON.stringify(result));
+    console.log('Lovable AI response received');
 
-    // Extract transcription from Google's response format
-    let transcription = '';
-    if (result.results && result.results.length > 0) {
-      transcription = result.results
-        .map((r: any) => r.alternatives?.[0]?.transcript || '')
-        .join(' ')
-        .trim();
-    }
-
-    // Check if we got an empty transcription (no speech detected)
-    if (!transcription) {
-      console.log('No speech detected in audio (results empty or no transcript)');
+    // Extract transcription from response
+    const transcription = result.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Check for empty/no speech markers
+    if (!transcription || transcription === '[SEM_FALA]' || transcription.toLowerCase().includes('sem fala')) {
+      console.log('No speech detected in audio');
       return new Response(JSON.stringify({ 
         error: 'no_speech_detected', 
-        details: 'Não foi detectada fala no áudio ou o áudio não pôde ser reconhecido.',
-        googleRequestId: result.requestId,
+        details: 'Não foi detectada fala no áudio.',
       }), {
         status: 422,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -130,8 +129,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       transcription: transcription,
-      confidence: result.results?.[0]?.alternatives?.[0]?.confidence,
-      provider: 'google',
+      provider: 'lovable-ai-gemini',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
