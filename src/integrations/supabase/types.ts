@@ -633,24 +633,30 @@ export type Database = {
       message_templates: {
         Row: {
           business_id: string
+          buttons: Json | null
           content: string
           created_at: string
+          emoji: string | null
           id: string
           name: string
           updated_at: string
         }
         Insert: {
           business_id: string
+          buttons?: Json | null
           content: string
           created_at?: string
+          emoji?: string | null
           id?: string
           name: string
           updated_at?: string
         }
         Update: {
           business_id?: string
+          buttons?: Json | null
           content?: string
           created_at?: string
+          emoji?: string | null
           id?: string
           name?: string
           updated_at?: string
