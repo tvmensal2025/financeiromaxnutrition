@@ -588,6 +588,7 @@ export default function Messages() {
                 phone={selectedPhone}
                 contactName={contactInfo?.name || null}
                 contactType={contactType}
+                conversationStatus={selectedConversation?.conversation_status}
                 messages={selectedMessages}
                 isLoading={messagesLoading && !!selectedPhone}
                 isSending={sendMutation.isPending}
@@ -595,6 +596,7 @@ export default function Messages() {
                 onBack={handleBack}
                 showBack={isMobileView}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
+                onUpdateConversationStatus={(status) => selectedPhone && handleUpdateStatus(selectedPhone, status)}
               />
             </div>
           </div>
@@ -620,6 +622,7 @@ export default function Messages() {
                 phone={selectedPhone}
                 contactName={contactInfo?.name || null}
                 contactType={contactType}
+                conversationStatus={selectedConversation?.conversation_status}
                 messages={selectedMessages}
                 isLoading={messagesLoading && !!selectedPhone}
                 isSending={sendMutation.isPending}
@@ -627,6 +630,7 @@ export default function Messages() {
                 onBack={handleBack}
                 showBack={false}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
+                onUpdateConversationStatus={(status) => selectedPhone && handleUpdateStatus(selectedPhone, status)}
               />
             </ResizablePanel>
 
