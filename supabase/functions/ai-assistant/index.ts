@@ -13,6 +13,7 @@ interface AIResponse {
   stage?: string;
   data?: {
     intent: string;
+    // Dados gerais
     customerName?: string;
     amount?: number;
     category?: string;
@@ -20,10 +21,43 @@ interface AIResponse {
     date?: string;
     type?: 'income' | 'expense';
     description?: string;
-    appointmentDate?: string;
-    appointmentTime?: string;
     email?: string;
     phone?: string;
+    notes?: string;
+    // Dados de Lead
+    leadName?: string;
+    leadSource?: string;
+    leadTemperature?: 'cold' | 'warm' | 'hot';
+    leadCompany?: string;
+    // Dados de Oportunidade
+    opportunityTitle?: string;
+    opportunityStage?: string;
+    opportunityValue?: number;
+    expectedCloseDate?: string;
+    probability?: number;
+    // Dados de Agendamento
+    appointmentDate?: string;
+    appointmentTime?: string;
+    appointmentDuration?: number;
+    serviceName?: string;
+    // Dados de Fatura
+    invoiceDueDate?: string;
+    invoiceItems?: Array<{ description: string; quantity: number; unitPrice: number }>;
+    // Dados de Assinatura
+    planName?: string;
+    planPrice?: number;
+    billingCycle?: 'monthly' | 'yearly';
+    startDate?: string;
+    // Dados de Produto/Serviço
+    productName?: string;
+    productPrice?: number;
+    productCost?: number;
+    productStock?: number;
+    servicePrice?: number;
+    serviceDuration?: number;
+    // Consulta
+    queryType?: string;
+    queryTarget?: string;
   };
   message?: string;
 }
@@ -89,61 +123,156 @@ serve(async (req) => {
       conversation = existingConversation || { stage: 'idle', pending_data: {} };
     }
 
-    const systemPrompt = `Você é um assistente financeiro inteligente para o negócio "${business?.name || 'Empresa'}".
-Seu papel é interpretar mensagens do dono do negócio (áudios transcritos ou textos) e extrair informações sobre transações financeiras, clientes e agendamentos.
+    const systemPrompt = `Você é um assistente COMPLETO de gestão de negócios para "${business?.name || 'Empresa'}".
+Seu papel é interpretar mensagens do dono do negócio (áudios transcritos ou textos) e executar ações no sistema.
 
 ESTILO DE RESPOSTA: ${greetingStyle === 'friendly' ? 'Amigável, use emojis e seja descontraído' : greetingStyle === 'formal' ? 'Formal e profissional' : 'Casual e direto'}
 
-CATEGORIAS DISPONÍVEIS: ${defaultCategories.join(', ')}
+CATEGORIAS FINANCEIRAS: ${defaultCategories.join(', ')}
 
-CONTEXTO ATUAL DA CONVERSA:
+CONTEXTO DA CONVERSA:
 - Estágio: ${conversation.stage}
 - Dados pendentes: ${JSON.stringify(conversation.pending_data)}
 
-INSTRUÇÕES:
-1. Analise a mensagem e identifique a intenção do usuário:
-   - Registrar recebimento/pagamento
-   - Registrar despesa
-   - Cadastrar novo cliente
-   - Agendar compromisso
-   - Atualizar status de transação existente
-   
-2. Para registrar uma transação, você PRECISA de:
-   - Nome do cliente ou descrição (OBRIGATÓRIO)
-   - Valor (OBRIGATÓRIO)
-   - Tipo: income (recebimento) ou expense (pagamento)
-   - Status: received (já recebeu), pending (a receber), paid (pago)
-   - Categoria (opcional, usa padrão)
-   - Data (opcional, usa hoje)
+═══════════════════════════════════════════════════
+📊 CAPACIDADES DO ASSISTENTE
+═══════════════════════════════════════════════════
 
-3. Se faltar alguma informação OBRIGATÓRIA, faça UMA pergunta clara para obtê-la.
+1. FINANCEIRO (Transações)
+   - Registrar receitas/recebimentos (register_income)
+   - Registrar despesas/pagamentos (register_expense)
+   - Atualizar status de transação (update_transaction_status)
+   Dados: customerName, amount, category, status (pending/received/paid), date, description
 
-4. Use os dados pendentes do contexto para completar informações de mensagens anteriores.
+2. CLIENTES
+   - Cadastrar cliente (create_customer)
+   - Buscar cliente (find_customer)
+   - Atualizar cliente (update_customer)
+   Dados: customerName, email, phone, notes
 
-5. Quando tiver todos os dados necessários, confirme a transação.
+3. LEADS
+   - Criar lead (create_lead)
+   - Atualizar temperatura do lead (update_lead_temperature)
+   - Converter lead em cliente (convert_lead)
+   Dados: leadName, leadSource (instagram/facebook/site/indicação/whatsapp/outro), leadTemperature (cold/warm/hot), leadCompany, email, phone
 
-EXEMPLOS DE INTERPRETAÇÃO:
-- "Recebimento do José, 595 reais" → income, customer: José, amount: 595, status: pending
-- "José pagou os 595" → Atualizar transação do José para status: received
-- "Venda pro João, 1200 do plano mensal" → income, customer: João, amount: 1200, category: Vendas
-- "Pagar fornecedor, 800 reais" → expense, description: Fornecedor, amount: 800
-- "Agendar José para sexta as 14h" → appointment, customer: José, date/time parsing
+4. OPORTUNIDADES (Pipeline de Vendas)
+   - Criar oportunidade (create_opportunity)
+   - Mover estágio da oportunidade (update_opportunity_stage)
+   - Fechar como ganha (close_opportunity_won)
+   - Fechar como perdida (close_opportunity_lost)
+   Dados: opportunityTitle, customerName/leadName, opportunityValue, opportunityStage (prospecting/qualification/proposal/negotiation/closed_won/closed_lost), expectedCloseDate, probability
 
-Responda SEMPRE usando a função extract_transaction_data.`;
+5. AGENDAMENTOS
+   - Criar agendamento (create_appointment)
+   - Remarcar agendamento (reschedule_appointment)
+   - Cancelar agendamento (cancel_appointment)
+   Dados: customerName, appointmentDate (YYYY-MM-DD), appointmentTime (HH:MM), appointmentDuration (minutos), serviceName, notes
+
+6. FATURAS
+   - Gerar fatura (create_invoice)
+   - Marcar fatura como paga (mark_invoice_paid)
+   Dados: customerName, amount, invoiceDueDate, invoiceItems, notes
+
+7. ASSINATURAS
+   - Criar assinatura (create_subscription)
+   - Pausar assinatura (pause_subscription)
+   - Cancelar assinatura (cancel_subscription)
+   Dados: customerName, planName, planPrice, billingCycle (monthly/yearly), startDate
+
+8. PRODUTOS
+   - Cadastrar produto (create_product)
+   - Atualizar produto (update_product)
+   Dados: productName, productPrice, productCost, productStock, description
+
+9. SERVIÇOS
+   - Cadastrar serviço (create_service)
+   - Atualizar serviço (update_service)
+   Dados: serviceName, servicePrice, serviceDuration, description
+
+10. CONSULTAS RÁPIDAS
+    - Saldo devedor de cliente (query_balance)
+    - Próximos agendamentos (query_appointments)
+    - Leads recentes (query_leads)
+    - Resumo do dia/semana (query_summary)
+    - Consulta geral (query_general)
+    Dados: queryType, queryTarget (nome do cliente ou período)
+
+═══════════════════════════════════════════════════
+📝 EXEMPLOS DE COMANDOS
+═══════════════════════════════════════════════════
+
+FINANCEIRO:
+- "Recebimento do José, 595 reais" → register_income
+- "José pagou os 595" → update_transaction_status
+- "Venda pro João, 1200 do plano mensal" → register_income
+- "Pagar fornecedor, 800 reais" → register_expense
+
+CLIENTES:
+- "Cadastrar cliente Maria, telefone 11999999999" → create_customer
+- "Atualizar email do José para jose@email.com" → update_customer
+
+LEADS:
+- "Novo lead Pedro, veio do Instagram, muito interessado" → create_lead (temperature: hot)
+- "Lead Joana esfriou, não responde mais" → update_lead_temperature (cold)
+- "Converter lead Pedro em cliente" → convert_lead
+
+OPORTUNIDADES:
+- "Criar oportunidade pro José, 5000 reais, plano anual" → create_opportunity
+- "Mover José pra proposta enviada" → update_opportunity_stage (proposal)
+- "José fechou o contrato de 5000" → close_opportunity_won
+- "Pedro desistiu, preço alto" → close_opportunity_lost
+
+AGENDAMENTOS:
+- "Agendar Maria pra quinta 14h" → create_appointment
+- "Remarcar José de quinta pra sexta 10h" → reschedule_appointment
+- "Cancelar agendamento da Maria" → cancel_appointment
+
+FATURAS:
+- "Gerar fatura pro José, 1500, vence dia 20" → create_invoice
+- "Fatura do João foi paga" → mark_invoice_paid
+
+ASSINATURAS:
+- "Nova assinatura do Pedro, plano básico 99 mensal" → create_subscription
+- "Pausar assinatura da Maria" → pause_subscription
+- "Cancelar assinatura do João" → cancel_subscription
+
+PRODUTOS/SERVIÇOS:
+- "Cadastrar produto curso online 299 reais" → create_product
+- "Novo serviço consultoria, 500 por hora" → create_service
+
+CONSULTAS:
+- "Quanto o José deve?" → query_balance
+- "Próximos agendamentos" → query_appointments
+- "Quantos leads entraram essa semana?" → query_leads
+- "Resumo do dia" → query_summary
+
+═══════════════════════════════════════════════════
+⚠️ REGRAS IMPORTANTES
+═══════════════════════════════════════════════════
+
+1. SEMPRE identifique a intenção correta do usuário
+2. Para ações que precisam de dados obrigatórios, faça UMA pergunta clara
+3. Use os dados pendentes do contexto para completar informações
+4. Quando tiver todos os dados, confirme a ação com resumo formatado
+5. Para consultas, indique claramente o que será buscado
+6. Se a mensagem não for um comando de negócio, responda normalmente como assistente
+
+Responda SEMPRE usando a função extract_business_data.`;
 
     const tools = [
       {
         type: "function",
         function: {
-          name: "extract_transaction_data",
-          description: "Extrai dados da mensagem e determina próxima ação",
+          name: "extract_business_data",
+          description: "Extrai dados da mensagem e determina a ação a ser executada no sistema",
           parameters: {
             type: "object",
             properties: {
               action: {
                 type: "string",
                 enum: ["needs_more_info", "complete", "error"],
-                description: "needs_more_info se precisar de mais dados, complete se tiver tudo"
+                description: "needs_more_info se precisar de mais dados, complete se tiver tudo para executar"
               },
               question: {
                 type: "string",
@@ -151,7 +280,7 @@ Responda SEMPRE usando a função extract_transaction_data.`;
               },
               stage: {
                 type: "string",
-                enum: ["idle", "collecting_name", "collecting_value", "collecting_category", "collecting_date", "collecting_status", "confirming"],
+                enum: ["idle", "collecting_name", "collecting_value", "collecting_details", "confirming"],
                 description: "Próximo estágio da conversa"
               },
               data: {
@@ -159,8 +288,30 @@ Responda SEMPRE usando a função extract_transaction_data.`;
                 properties: {
                   intent: {
                     type: "string",
-                    enum: ["register_income", "register_expense", "update_status", "create_customer", "create_appointment", "unknown"]
+                    enum: [
+                      // Financeiro
+                      "register_income", "register_expense", "update_transaction_status",
+                      // Clientes
+                      "create_customer", "find_customer", "update_customer",
+                      // Leads
+                      "create_lead", "update_lead_temperature", "convert_lead",
+                      // Oportunidades
+                      "create_opportunity", "update_opportunity_stage", "close_opportunity_won", "close_opportunity_lost",
+                      // Agendamentos
+                      "create_appointment", "reschedule_appointment", "cancel_appointment",
+                      // Faturas
+                      "create_invoice", "mark_invoice_paid",
+                      // Assinaturas
+                      "create_subscription", "pause_subscription", "cancel_subscription",
+                      // Produtos/Serviços
+                      "create_product", "update_product", "create_service", "update_service",
+                      // Consultas
+                      "query_balance", "query_appointments", "query_leads", "query_summary", "query_general",
+                      // Outros
+                      "unknown", "chat"
+                    ]
                   },
+                  // Dados gerais
                   customerName: { type: "string" },
                   amount: { type: "number" },
                   category: { type: "string" },
@@ -168,16 +319,49 @@ Responda SEMPRE usando a função extract_transaction_data.`;
                   date: { type: "string", description: "Data no formato YYYY-MM-DD" },
                   type: { type: "string", enum: ["income", "expense"] },
                   description: { type: "string" },
+                  email: { type: "string" },
+                  phone: { type: "string" },
+                  notes: { type: "string" },
+                  // Lead
+                  leadName: { type: "string" },
+                  leadSource: { type: "string", enum: ["instagram", "facebook", "site", "indicacao", "whatsapp", "outro"] },
+                  leadTemperature: { type: "string", enum: ["cold", "warm", "hot"] },
+                  leadCompany: { type: "string" },
+                  // Oportunidade
+                  opportunityTitle: { type: "string" },
+                  opportunityStage: { type: "string", enum: ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"] },
+                  opportunityValue: { type: "number" },
+                  expectedCloseDate: { type: "string" },
+                  probability: { type: "number" },
+                  // Agendamento
                   appointmentDate: { type: "string" },
                   appointmentTime: { type: "string" },
-                  email: { type: "string" },
-                  phone: { type: "string" }
+                  appointmentDuration: { type: "number" },
+                  serviceName: { type: "string" },
+                  // Fatura
+                  invoiceDueDate: { type: "string" },
+                  // Assinatura
+                  planName: { type: "string" },
+                  planPrice: { type: "number" },
+                  billingCycle: { type: "string", enum: ["monthly", "yearly"] },
+                  startDate: { type: "string" },
+                  // Produto
+                  productName: { type: "string" },
+                  productPrice: { type: "number" },
+                  productCost: { type: "number" },
+                  productStock: { type: "number" },
+                  // Serviço
+                  servicePrice: { type: "number" },
+                  serviceDuration: { type: "number" },
+                  // Consulta
+                  queryType: { type: "string" },
+                  queryTarget: { type: "string" }
                 },
                 additionalProperties: false
               },
               message: {
                 type: "string",
-                description: "Mensagem de confirmação se action=complete"
+                description: "Mensagem de confirmação/resposta para o usuário"
               }
             },
             required: ["action"],
@@ -202,7 +386,7 @@ Responda SEMPRE usando a função extract_transaction_data.`;
           { role: "user", content: message }
         ],
         tools,
-        tool_choice: { type: "function", function: { name: "extract_transaction_data" } }
+        tool_choice: { type: "function", function: { name: "extract_business_data" } }
       }),
     });
 
