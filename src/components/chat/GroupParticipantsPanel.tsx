@@ -9,10 +9,9 @@ import {
   X,
   Crown,
   Shield,
-  User,
-  Loader2,
   Phone,
-  MessageCircle,
+  Loader2,
+  Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +29,7 @@ interface GroupParticipantsPanelProps {
   businessId?: string;
   onClose?: () => void;
   onSelectParticipant?: (phone: string) => void;
+  onExtractContacts?: () => void;
 }
 
 export function GroupParticipantsPanel({
@@ -38,6 +38,7 @@ export function GroupParticipantsPanel({
   businessId,
   onClose,
   onSelectParticipant,
+  onExtractContacts,
 }: GroupParticipantsPanelProps) {
   const [participants, setParticipants] = useState<GroupParticipant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -135,6 +136,17 @@ export function GroupParticipantsPanel({
             </span>
           </div>
         </div>
+        {onExtractContacts && participants.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-3"
+            onClick={onExtractContacts}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Extrair Contatos
+          </Button>
+        )}
       </div>
 
       {/* Participants List */}

@@ -339,26 +339,29 @@ export function ConversationsList({
                         )}
                       </div>
 
-                      {/* Type indicator - only show for non-groups */}
-                      {!isGroup && (
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          {conv.customer_id ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
-                              <Users className="h-2.5 w-2.5" />
-                              Cliente
-                            </span>
-                          ) : conv.lead_id ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
-                              <User className="h-2.5 w-2.5" />
-                              Lead
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                              Novo
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      {/* Type indicator */}
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        {isGroup ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded">
+                            <UsersRound className="h-2.5 w-2.5" />
+                            Grupo
+                          </span>
+                        ) : conv.customer_id ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-1.5 py-0.5 rounded">
+                            <Users className="h-2.5 w-2.5" />
+                            Cliente
+                          </span>
+                        ) : conv.lead_id ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                            <User className="h-2.5 w-2.5" />
+                            Lead
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            Novo
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
 
