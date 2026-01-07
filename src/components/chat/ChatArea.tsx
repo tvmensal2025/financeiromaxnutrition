@@ -1,4 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -9,14 +12,23 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical } from 'lucide-react';
+import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical, Pin, Tag, Target, UserCheck, ShoppingCart, UserPlus } from 'lucide-react';
 import { ChatMessage, Message } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import type { ConversationStatus } from './ConversationsList';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { QuickSaleModal } from './QuickSaleModal';
+import { ManageTagsModal } from './ManageTagsModal';
+import { AssignAgentModal } from './AssignAgentModal';
+import { CreateOpportunityModal } from './CreateOpportunityModal';
+import { AddCustomerModal } from './AddCustomerModal';
 
 interface ChatAreaProps {
   phone: string | null;
@@ -32,6 +44,9 @@ interface ChatAreaProps {
   showBack?: boolean;
   onViewParticipants?: () => void;
   onUpdateConversationStatus?: (status: ConversationStatus) => void;
+  leadId?: string | null;
+  customerId?: string | null;
+  email?: string | null;
 }
 
 export function ChatArea({
@@ -47,8 +62,75 @@ export function ChatArea({
   showBack,
   onViewParticipants,
   onUpdateConversationStatus,
+  leadId,
+  customerId,
+  email,
 }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { business } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Modal states
+  const [showQuickSale, setShowQuickSale] = useState(false);
+  const [showManageTags, setShowManageTags] = useState(false);
+  const [showAssignAgent, setShowAssignAgent] = useState(false);
+  const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
+  const [showAddCustomer, setShowAddCustomer] = useState(false);
+
+  // Check if conversation is pinned
+  const { data: isPinned } = useQuery({
+    queryKey: ['pinned-conversation', business?.id, phone],
+    queryFn: async () => {
+      if (!business?.id || !phone) return false;
+      const { data, error } = await supabase
+        .from('pinned_conversations')
+        .select('id')
+        .eq('business_id', business.id)
+        .eq('phone', phone)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!business?.id && !!phone,
+  });
+
+  // Toggle pin mutation
+  const togglePinMutation = useMutation({
+    mutationFn: async () => {
+      if (!business?.id || !phone) throw new Error('Dados inválidos');
+      
+      if (isPinned) {
+        const { error } = await supabase
+          .from('pinned_conversations')
+          .delete()
+          .eq('business_id', business.id)
+          .eq('phone', phone);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('pinned_conversations')
+          .insert({
+            business_id: business.id,
+            phone: phone,
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pinned-conversation'] });
+      toast({
+        title: isPinned ? 'Conversa desfixada' : 'Conversa fixada!',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+    },
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -205,30 +287,90 @@ export function ChatArea({
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>Status da conversa</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            {/* Pin conversation */}
             <DropdownMenuItem
-              onSelect={() => onUpdateConversationStatus?.('waiting')}
-              className={cn(conversationStatus === 'waiting' || conversationStatus === 'pending' ? 'bg-accent' : '')}
+              onSelect={() => togglePinMutation.mutate()}
+              disabled={togglePinMutation.isPending}
             >
-              Esperando
+              <Pin className={cn("mr-2 h-4 w-4", isPinned && "text-primary")} />
+              {isPinned ? 'Desafixar conversa' : 'Fixar conversa'}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => onUpdateConversationStatus?.('inbox')}
-              className={cn(conversationStatus === 'inbox' ? 'bg-accent' : '')}
-            >
-              Entrada
+            
+            {/* Tags */}
+            <DropdownMenuItem onSelect={() => setShowManageTags(true)}>
+              <Tag className="mr-2 h-4 w-4" />
+              Etiquetas
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => onUpdateConversationStatus?.('finished')}
-              className={cn(conversationStatus === 'finished' ? 'bg-accent' : '')}
-            >
-              Finalizado
+            
+            {/* Assign agent */}
+            <DropdownMenuItem onSelect={() => setShowAssignAgent(true)}>
+              <UserCheck className="mr-2 h-4 w-4" />
+              Atribuir atendente
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled className="text-muted-foreground">
-              Mais ações (em breve)
-            </DropdownMenuItem>
+            
+            {/* Quick actions for leads/new contacts */}
+            {!isGroup && (contactType === 'lead' || contactType === 'new') && (
+              <>
+                <DropdownMenuItem onSelect={() => setShowAddCustomer(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Converter para cliente
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
+                  <ShoppingCart className="mr-2 h-4 w-4 text-success" />
+                  Venda rápida
+                </DropdownMenuItem>
+              </>
+            )}
+            
+            {/* Quick actions for customers */}
+            {!isGroup && contactType === 'customer' && (
+              <>
+                <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
+                  <ShoppingCart className="mr-2 h-4 w-4 text-success" />
+                  Venda rápida
+                </DropdownMenuItem>
+              </>
+            )}
+
+            {/* Create opportunity */}
+            {!isGroup && (
+              <DropdownMenuItem onSelect={() => setShowCreateOpportunity(true)}>
+                <Target className="mr-2 h-4 w-4 text-warning" />
+                Criar oportunidade
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+            
+            {/* Status submenu */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                Status da conversa
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  onSelect={() => onUpdateConversationStatus?.('waiting')}
+                  className={cn(conversationStatus === 'waiting' || conversationStatus === 'pending' ? 'bg-accent' : '')}
+                >
+                  Esperando
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => onUpdateConversationStatus?.('inbox')}
+                  className={cn(conversationStatus === 'inbox' ? 'bg-accent' : '')}
+                >
+                  Entrada
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => onUpdateConversationStatus?.('finished')}
+                  className={cn(conversationStatus === 'finished' ? 'bg-accent' : '')}
+                >
+                  Finalizado
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -279,6 +421,50 @@ export function ChatArea({
 
       {/* Input */}
       <ChatInput onSend={onSend} disabled={!phone} isSending={isSending} />
+
+      {/* Modals */}
+      {phone && (
+        <>
+          <QuickSaleModal
+            open={showQuickSale}
+            onOpenChange={setShowQuickSale}
+            phone={phone}
+            name={contactName}
+            email={email}
+            leadId={leadId}
+            customerId={customerId}
+          />
+          
+          <ManageTagsModal
+            open={showManageTags}
+            onOpenChange={setShowManageTags}
+            phone={phone}
+          />
+          
+          <AssignAgentModal
+            open={showAssignAgent}
+            onOpenChange={setShowAssignAgent}
+            phone={phone}
+          />
+          
+          <CreateOpportunityModal
+            open={showCreateOpportunity}
+            onOpenChange={setShowCreateOpportunity}
+            leadId={leadId}
+            customerId={customerId}
+            contactName={contactName}
+          />
+          
+          <AddCustomerModal
+            open={showAddCustomer}
+            onOpenChange={setShowAddCustomer}
+            phone={phone}
+            name={contactName}
+            email={email}
+            leadId={leadId}
+          />
+        </>
+      )}
     </div>
   );
 }

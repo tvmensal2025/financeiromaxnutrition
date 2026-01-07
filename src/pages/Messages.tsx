@@ -597,6 +597,9 @@ export default function Messages() {
                 showBack={isMobileView}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
                 onUpdateConversationStatus={(status) => selectedPhone && handleUpdateStatus(selectedPhone, status)}
+                leadId={selectedConversation?.lead_id}
+                customerId={selectedConversation?.customer_id}
+                email={contactInfo?.email}
               />
             </div>
           </div>
@@ -631,6 +634,9 @@ export default function Messages() {
                 showBack={false}
                 onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
                 onUpdateConversationStatus={(status) => selectedPhone && handleUpdateStatus(selectedPhone, status)}
+                leadId={selectedConversation?.lead_id}
+                customerId={selectedConversation?.customer_id}
+                email={contactInfo?.email}
               />
             </ResizablePanel>
 
