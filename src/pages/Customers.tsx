@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench, CalendarDays, Clock, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -34,6 +34,12 @@ interface Customer {
   interested_product_id?: string | null;
   interested_service_id?: string | null;
   interest_is_recurring?: boolean | null;
+  recurring_due_date?: string | null;
+  recurring_message_time?: string | null;
+  recurring_reminder_days?: number | null;
+  recurring_message_type?: string | null;
+  recurring_reminder_template?: string | null;
+  recurring_overdue_template?: string | null;
 }
 
 interface Product {
@@ -65,6 +71,12 @@ export default function Customers() {
     interested_product_id: '',
     interested_service_id: '',
     interest_is_recurring: false,
+    recurring_due_date: '',
+    recurring_message_time: '09:00',
+    recurring_reminder_days: 3,
+    recurring_message_type: 'both',
+    recurring_reminder_template: 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?',
+    recurring_overdue_template: 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.',
   });
 
   const { data: customers, isLoading } = useQuery({
@@ -127,6 +139,12 @@ export default function Customers() {
         interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
         interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
         interest_is_recurring: data.interest_is_recurring,
+        recurring_due_date: data.interest_is_recurring && data.recurring_due_date ? data.recurring_due_date : null,
+        recurring_message_time: data.interest_is_recurring ? data.recurring_message_time : null,
+        recurring_reminder_days: data.interest_is_recurring ? data.recurring_reminder_days : null,
+        recurring_message_type: data.interest_is_recurring ? data.recurring_message_type : null,
+        recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template : null,
+        recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template : null,
       };
       const { error } = await supabase.from('customers').insert(insertData);
       if (error) throw error;
@@ -153,6 +171,12 @@ export default function Customers() {
         interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
         interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
         interest_is_recurring: data.interest_is_recurring,
+        recurring_due_date: data.interest_is_recurring && data.recurring_due_date ? data.recurring_due_date : null,
+        recurring_message_time: data.interest_is_recurring ? data.recurring_message_time : null,
+        recurring_reminder_days: data.interest_is_recurring ? data.recurring_reminder_days : null,
+        recurring_message_type: data.interest_is_recurring ? data.recurring_message_type : null,
+        recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template : null,
+        recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template : null,
       };
       const { error } = await supabase.from('customers').update(updateData).eq('id', id);
       if (error) throw error;
@@ -192,6 +216,12 @@ export default function Customers() {
       interested_product_id: '',
       interested_service_id: '',
       interest_is_recurring: false,
+      recurring_due_date: '',
+      recurring_message_time: '09:00',
+      recurring_reminder_days: 3,
+      recurring_message_type: 'both',
+      recurring_reminder_template: 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?',
+      recurring_overdue_template: 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.',
     });
     setEditingCustomer(null);
     setIsDialogOpen(false);
@@ -209,6 +239,12 @@ export default function Customers() {
       interested_product_id: customer.interested_product_id || '',
       interested_service_id: customer.interested_service_id || '',
       interest_is_recurring: customer.interest_is_recurring || false,
+      recurring_due_date: customer.recurring_due_date || '',
+      recurring_message_time: customer.recurring_message_time || '09:00',
+      recurring_reminder_days: customer.recurring_reminder_days || 3,
+      recurring_message_type: customer.recurring_message_type || 'both',
+      recurring_reminder_template: customer.recurring_reminder_template || 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?',
+      recurring_overdue_template: customer.recurring_overdue_template || 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.',
     });
     setIsDialogOpen(true);
   };
@@ -394,6 +430,112 @@ export default function Customers() {
                         checked={formData.interest_is_recurring}
                         onCheckedChange={(v) => setFormData({ ...formData, interest_is_recurring: v })}
                       />
+                    </div>
+                  )}
+
+                  {/* Recurring Message Settings */}
+                  {formData.interest_is_recurring && (
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg border border-border">
+                      <h5 className="text-sm font-medium text-foreground flex items-center gap-2">
+                        <Bell className="h-4 w-4" />
+                        Configurações de Mensagem Automática
+                      </h5>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="recurring_due_date" className="flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            Próximo Vencimento
+                          </Label>
+                          <Input
+                            id="recurring_due_date"
+                            type="date"
+                            value={formData.recurring_due_date}
+                            onChange={(e) => setFormData({ ...formData, recurring_due_date: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="recurring_message_time" className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Horário de Envio
+                          </Label>
+                          <Input
+                            id="recurring_message_time"
+                            type="time"
+                            value={formData.recurring_message_time}
+                            onChange={(e) => setFormData({ ...formData, recurring_message_time: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Lembrete com antecedência</Label>
+                          <Select
+                            value={formData.recurring_reminder_days.toString()}
+                            onValueChange={(v) => setFormData({ ...formData, recurring_reminder_days: parseInt(v) })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">1 dia antes</SelectItem>
+                              <SelectItem value="2">2 dias antes</SelectItem>
+                              <SelectItem value="3">3 dias antes</SelectItem>
+                              <SelectItem value="5">5 dias antes</SelectItem>
+                              <SelectItem value="7">7 dias antes</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Tipo de mensagem</Label>
+                          <Select
+                            value={formData.recurring_message_type}
+                            onValueChange={(v) => setFormData({ ...formData, recurring_message_type: v })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="reminder">Lembrete antes</SelectItem>
+                              <SelectItem value="overdue">Cobrança depois</SelectItem>
+                              <SelectItem value="both">Ambos</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="recurring_reminder_template">
+                          📩 Mensagem de Lembrete
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Use: {'{nome}'}, {'{produto}'}, {'{valor}'}, {'{vencimento}'}
+                        </p>
+                        <Textarea
+                          id="recurring_reminder_template"
+                          value={formData.recurring_reminder_template}
+                          onChange={(e) => setFormData({ ...formData, recurring_reminder_template: e.target.value })}
+                          rows={3}
+                          className="text-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="recurring_overdue_template">
+                          📩 Mensagem de Cobrança
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Enviada após o vencimento caso não pague
+                        </p>
+                        <Textarea
+                          id="recurring_overdue_template"
+                          value={formData.recurring_overdue_template}
+                          onChange={(e) => setFormData({ ...formData, recurring_overdue_template: e.target.value })}
+                          rows={3}
+                          className="text-sm"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

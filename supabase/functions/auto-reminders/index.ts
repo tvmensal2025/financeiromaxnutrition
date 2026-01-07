@@ -33,6 +33,43 @@ interface SubscriptionWithDetails {
   }
 }
 
+interface RecurringCustomer {
+  id: string
+  name: string
+  whatsapp: string | null
+  business_id: string
+  recurring_due_date: string
+  recurring_message_time: string
+  recurring_reminder_days: number
+  recurring_message_type: string
+  recurring_reminder_template: string | null
+  recurring_overdue_template: string | null
+  interest_type: string
+  interested_product_id: string | null
+  interested_service_id: string | null
+  products: { name: string; price: number } | null
+  services: { name: string; price: number } | null
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('pt-BR')
+}
+
+function replaceTemplateVariables(
+  template: string,
+  customerName: string,
+  productName: string,
+  productPrice: number,
+  dueDate: string
+): string {
+  return template
+    .replace(/{nome}/g, customerName)
+    .replace(/{produto}/g, productName)
+    .replace(/{valor}/g, productPrice.toFixed(2))
+    .replace(/{vencimento}/g, formatDate(dueDate))
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -71,6 +108,8 @@ Deno.serve(async (req) => {
       renewalReminders: 0,
       lowCreditsAlerts: 0,
       expirationAlerts: 0,
+      customerReminders: 0,
+      customerOverdue: 0,
       errors: 0,
     }
 
@@ -84,14 +123,113 @@ Deno.serve(async (req) => {
 
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+      const todayStr = today.toISOString().split('T')[0]
+
+      // =====================================================
+      // 1. PROCESSAR CLIENTES COM ASSINATURAS RECORRENTES
+      // =====================================================
+      console.log('Buscando clientes com recorrência ativa...')
+      
+      const { data: recurringCustomers, error: rcError } = await supabase
+        .from('customers')
+        .select(`
+          id, name, whatsapp, business_id, 
+          recurring_due_date, recurring_message_time, recurring_reminder_days, 
+          recurring_message_type, recurring_reminder_template, recurring_overdue_template,
+          interest_type, interested_product_id, interested_service_id,
+          products:interested_product_id(name, price),
+          services:interested_service_id(name, price)
+        `)
+        .eq('business_id', business.id)
+        .eq('interest_is_recurring', true)
+        .not('recurring_due_date', 'is', null)
+
+      if (rcError) {
+        console.error('Erro ao buscar clientes recorrentes:', rcError)
+        results.errors++
+      } else if (recurringCustomers && recurringCustomers.length > 0) {
+        console.log(`Encontrados ${recurringCustomers.length} clientes recorrentes para ${business.name}`)
+
+        for (const customer of recurringCustomers as unknown as RecurringCustomer[]) {
+          if (!customer.whatsapp) {
+            console.log(`Cliente ${customer.name} sem WhatsApp, pulando...`)
+            continue
+          }
+
+          const dueDate = new Date(customer.recurring_due_date + 'T00:00:00')
+          const reminderDate = new Date(dueDate)
+          reminderDate.setDate(reminderDate.getDate() - customer.recurring_reminder_days)
+
+          const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+          
+          // Get product/service info
+          const productName = customer.products?.name || customer.services?.name || 'Assinatura'
+          const productPrice = customer.products?.price || customer.services?.price || 0
+
+          let messageType: string | null = null
+          let content = ''
+          const defaultReminderTemplate = 'Olá {nome}! Sua assinatura de {produto} (R$ {valor}) vence em {vencimento}. Podemos confirmar o pagamento?'
+          const defaultOverdueTemplate = 'Olá {nome}! Sua fatura de {produto} (R$ {valor}) venceu. Por favor, regularize o pagamento para continuar utilizando o serviço.'
+
+          // Check if should send OVERDUE message (after due date)
+          if (daysUntilDue < 0 && (customer.recurring_message_type === 'overdue' || customer.recurring_message_type === 'both')) {
+            messageType = 'customer_overdue'
+            const template = customer.recurring_overdue_template || defaultOverdueTemplate
+            content = replaceTemplateVariables(template, customer.name, productName, productPrice, customer.recurring_due_date)
+            results.customerOverdue++
+          }
+          // Check if should send REMINDER message (X days before)
+          else if (daysUntilDue === customer.recurring_reminder_days && 
+                   (customer.recurring_message_type === 'reminder' || customer.recurring_message_type === 'both')) {
+            messageType = 'customer_reminder'
+            const template = customer.recurring_reminder_template || defaultReminderTemplate
+            content = replaceTemplateVariables(template, customer.name, productName, productPrice, customer.recurring_due_date)
+            results.customerReminders++
+          }
+
+          if (messageType && content) {
+            console.log(`Enviando ${messageType} para ${customer.name} (${customer.whatsapp})`)
+
+            try {
+              // Send to n8n webhook
+              const webhookResponse = await fetch(business.n8n_webhook_url!, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  message_type: messageType,
+                  customer_id: customer.id,
+                  customer_name: customer.name,
+                  customer_whatsapp: customer.whatsapp,
+                  content,
+                  product_name: productName,
+                  product_price: productPrice,
+                  due_date: customer.recurring_due_date,
+                  days_until_due: daysUntilDue,
+                  created_at: new Date().toISOString(),
+                }),
+              })
+
+              if (webhookResponse.ok) {
+                console.log(`Mensagem ${messageType} enviada para ${customer.name}`)
+              } else {
+                console.error(`Erro ao enviar para n8n: ${webhookResponse.status}`)
+                results.errors++
+              }
+            } catch (webhookError) {
+              console.error('Erro ao chamar webhook:', webhookError)
+              results.errors++
+            }
+          }
+        }
+      }
+
+      // =====================================================
+      // 2. PROCESSAR ASSINATURAS (código existente)
+      // =====================================================
       
       // Data limite para lembretes de renovação (X dias no futuro)
       const reminderDate = new Date(today)
       reminderDate.setDate(reminderDate.getDate() + business.reminder_days_before)
-      const reminderDateStr = reminderDate.toISOString().split('T')[0]
-
-      // Data de hoje para verificar expirados
-      const todayStr = today.toISOString().split('T')[0]
 
       // Buscar assinaturas ativas do negócio
       const { data: subscriptions, error: subError } = await supabase

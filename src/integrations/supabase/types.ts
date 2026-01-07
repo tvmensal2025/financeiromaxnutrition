@@ -299,6 +299,12 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          recurring_due_date: string | null
+          recurring_message_time: string | null
+          recurring_message_type: string | null
+          recurring_overdue_template: string | null
+          recurring_reminder_days: number | null
+          recurring_reminder_template: string | null
           updated_at: string
           whatsapp: string | null
         }
@@ -315,6 +321,12 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          recurring_due_date?: string | null
+          recurring_message_time?: string | null
+          recurring_message_type?: string | null
+          recurring_overdue_template?: string | null
+          recurring_reminder_days?: number | null
+          recurring_reminder_template?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -331,6 +343,12 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          recurring_due_date?: string | null
+          recurring_message_time?: string | null
+          recurring_message_type?: string | null
+          recurring_overdue_template?: string | null
+          recurring_reminder_days?: number | null
+          recurring_reminder_template?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
