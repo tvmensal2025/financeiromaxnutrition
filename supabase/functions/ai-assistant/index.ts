@@ -24,6 +24,10 @@ interface AIResponse {
     email?: string;
     phone?: string;
     notes?: string;
+    // Recorrência
+    isRecurring?: boolean;
+    recurrencePattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'custom';
+    recurrenceInterval?: number;
     // Dados de Lead
     leadName?: string;
     leadSource?: string;
@@ -230,6 +234,12 @@ INFERÊNCIAS AUTOMÁTICAS (quando não for explícito):
 10. "PRÓXIMOS/AMANHÃ TEM" + AGENDAMENTO/REUNIÃO = CONSULTA
     Ex: "O que tem amanhã?" → query_appointments
 
+11. PALAVRAS DE RECORRÊNCIA = TRANSAÇÃO RECORRENTE
+    - "mensal/todo mês" = recurrence_pattern: monthly
+    - "semanal/toda semana" = recurrence_pattern: weekly
+    - "quinzenal/a cada 15 dias" = recurrence_pattern: biweekly
+    Ex: "Aluguel mensal 1700" → register_expense, 1700, is_recurring: true, recurrence_pattern: monthly
+
 ═══════════════════════════════════════════════════
 💬 EXEMPLOS DE COMANDOS NATURAIS (como pessoas realmente falam)
 ═══════════════════════════════════════════════════
@@ -243,6 +253,13 @@ FINANCEIRO - Formas informais que você DEVE entender:
 - "Paguei o fornecedor, 2 conto" → register_expense, 2000, fornecedor
 - "Saiu 150 de material" → register_expense, 150, material
 - "Entrou 3 e meio do João" → register_income, João, 3500
+
+RECORRENTES - Detecte palavras de frequência:
+- "Aluguel mensal 1700" → register_expense, 1700, aluguel, is_recurring: true, recurrence_pattern: monthly
+- "Academia semanal 150" → register_expense, 150, academia, is_recurring: true, recurrence_pattern: weekly
+- "Internet todo mês 120" → register_expense, 120, internet, is_recurring: true, recurrence_pattern: monthly
+- "Faxina quinzenal 200 reais" → register_expense, 200, faxina, is_recurring: true, recurrence_pattern: biweekly
+- "Mensalidade do João 500" → register_income, 500, is_recurring: true, recurrence_pattern: monthly
 
 LEADS/CLIENTES:
 - "Tem um cara novo, veio pelo Insta, parece interessado" → create_lead, instagram, warm
@@ -373,6 +390,10 @@ Responda SEMPRE usando a função extract_business_data.`;
                   email: { type: "string" },
                   phone: { type: "string" },
                   notes: { type: "string" },
+                  // Recorrência
+                  isRecurring: { type: "boolean", description: "Se a transação é recorrente (detecte palavras: mensal, semanal, quinzenal, todo mês, toda semana)" },
+                  recurrencePattern: { type: "string", enum: ["daily", "weekly", "biweekly", "monthly", "custom"], description: "Frequência da recorrência" },
+                  recurrenceInterval: { type: "number", description: "Intervalo customizado em dias" },
                   // Lead
                   leadName: { type: "string" },
                   leadSource: { type: "string", enum: ["instagram", "facebook", "site", "indicacao", "whatsapp", "outro"] },

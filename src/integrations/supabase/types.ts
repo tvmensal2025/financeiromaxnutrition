@@ -1171,7 +1171,13 @@ export type Database = {
           due_date: string | null
           id: string
           invoice_id: string | null
+          is_recurring: boolean | null
+          next_due_date: string | null
           notes: string | null
+          parent_transaction_id: string | null
+          recurrence_end_date: string | null
+          recurrence_interval: number | null
+          recurrence_pattern: string | null
           source_message_id: string | null
           status: string | null
           transaction_date: string | null
@@ -1189,7 +1195,13 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_id?: string | null
+          is_recurring?: boolean | null
+          next_due_date?: string | null
           notes?: string | null
+          parent_transaction_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_pattern?: string | null
           source_message_id?: string | null
           status?: string | null
           transaction_date?: string | null
@@ -1207,7 +1219,13 @@ export type Database = {
           due_date?: string | null
           id?: string
           invoice_id?: string | null
+          is_recurring?: boolean | null
+          next_due_date?: string | null
           notes?: string | null
+          parent_transaction_id?: string | null
+          recurrence_end_date?: string | null
+          recurrence_interval?: number | null
+          recurrence_pattern?: string | null
           source_message_id?: string | null
           status?: string | null
           transaction_date?: string | null
@@ -1241,6 +1259,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_parent_transaction_id_fkey"
+            columns: ["parent_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {
