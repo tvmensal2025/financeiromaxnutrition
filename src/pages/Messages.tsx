@@ -90,15 +90,31 @@ export default function Messages() {
     queryKey: ['whatsapp-messages', business?.id],
     queryFn: async () => {
       if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('whatsapp_messages')
-        .select('*')
-        .eq('business_id', business.id)
-        .order('created_at', { ascending: false })
-        .limit(500);
-      
-      if (error) throw error;
-      return data as WhatsAppMessage[];
+
+      // Paginação para não perder mensagens (o backend limita o nº de linhas por request)
+      const pageSize = 1000;
+      let from = 0;
+      const results: WhatsAppMessage[] = [];
+
+      while (true) {
+        const to = from + pageSize - 1;
+        const { data, error } = await supabase
+          .from('whatsapp_messages')
+          .select('*')
+          .eq('business_id', business.id)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        results.push(...(data as WhatsAppMessage[]));
+
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      return results;
     },
     enabled: !!business?.id,
   });
@@ -159,38 +175,23 @@ export default function Messages() {
 
   // Build conversations list
   const conversations: Conversation[] = useMemo(() => {
-    const phoneMap = new Map<string, Conversation>();
-    const groupDataMap = new Map<string, { name: string | null; count: number }>(); // Track group name and participant count
+    const unreadCountByPhone = new Map<string, number>();
 
-    allMessages.forEach((msg) => {
-      const isGroup = msg.phone.startsWith('group:') || msg.is_group;
-      
-      // Track group data (name and participant count from latest message)
-      if (isGroup) {
-        const existingGroup = groupDataMap.get(msg.phone);
-        // Use the latest group_name and participant_count from messages
-        if (!existingGroup || (msg.group_name && !existingGroup.name)) {
-          groupDataMap.set(msg.phone, {
-            name: msg.group_name || existingGroup?.name || null,
-            count: msg.participant_count || existingGroup?.count || 0
-          });
-        }
-        // Update count if we got a higher one
-        if (msg.participant_count && msg.participant_count > (existingGroup?.count || 0)) {
-          groupDataMap.set(msg.phone, {
-            name: existingGroup?.name || msg.group_name || null,
-            count: msg.participant_count
-          });
-        }
+    for (const m of allMessages) {
+      if (m.direction === 'inbound' && m.status === 'pending') {
+        unreadCountByPhone.set(m.phone, (unreadCountByPhone.get(m.phone) || 0) + 1);
       }
+    }
 
+    const phoneMap = new Map<string, Conversation>();
+
+    // allMessages vem em ordem desc (mais recente primeiro)
+    for (const msg of allMessages) {
+      const isGroup = msg.phone.startsWith('group:') || msg.is_group;
       const existing = phoneMap.get(msg.phone);
-      
-      if (!existing || new Date(msg.created_at) > new Date(existing.last_message_at)) {
-        const unreadCount = allMessages.filter(
-          (m) => m.phone === msg.phone && m.direction === 'inbound' && m.status === 'pending'
-        ).length;
 
+      // Primeiro registro do phone é a última mensagem (por causa do order desc)
+      if (!existing) {
         phoneMap.set(msg.phone, {
           phone: msg.phone,
           sender_name: msg.sender_name,
@@ -198,24 +199,29 @@ export default function Messages() {
           customer_id: msg.customer_id,
           last_message: msg.message,
           last_message_at: msg.created_at,
-          unread_count: unreadCount,
+          unread_count: unreadCountByPhone.get(msg.phone) || 0,
           direction: msg.direction,
           is_group: isGroup,
           group_name: msg.group_name,
           participant_count: msg.participant_count || 0,
           avatar_url: msg.sender_avatar_url,
         });
+        continue;
       }
-    });
 
-    // Update group names and counts from collected data
-    groupDataMap.forEach((data, phone) => {
-      const conv = phoneMap.get(phone);
-      if (conv) {
-        if (data.name) conv.group_name = data.name;
-        if (data.count > (conv.participant_count || 0)) conv.participant_count = data.count;
+      // Completar dados faltantes (principalmente em grupos)
+      if (isGroup) {
+        if (!existing.group_name && msg.group_name) existing.group_name = msg.group_name;
+        if ((msg.participant_count || 0) > (existing.participant_count || 0)) {
+          existing.participant_count = msg.participant_count || existing.participant_count || 0;
+        }
       }
-    });
+
+      if (!existing.sender_name && msg.sender_name) existing.sender_name = msg.sender_name;
+      if (!existing.lead_id && msg.lead_id) existing.lead_id = msg.lead_id;
+      if (!existing.customer_id && msg.customer_id) existing.customer_id = msg.customer_id;
+      if (!existing.avatar_url && msg.sender_avatar_url) existing.avatar_url = msg.sender_avatar_url;
+    }
 
     return Array.from(phoneMap.values()).sort(
       (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
@@ -442,24 +448,26 @@ export default function Messages() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => processScheduledMutation.mutate()}
-              disabled={processScheduledMutation.isPending}
-            >
-              <Clock className="h-4 w-4 mr-1" />
-              {processScheduledMutation.isPending ? 'Processando...' : 'Processar Agendadas'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => testWebhookMutation.mutate()}
-              disabled={testWebhookMutation.isPending}
-            >
-              <TestTube className="h-4 w-4 mr-1" />
-              {testWebhookMutation.isPending ? 'Testando...' : 'Testar Webhook'}
-            </Button>
+            <div className="hidden md:flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => processScheduledMutation.mutate()}
+                disabled={processScheduledMutation.isPending}
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                {processScheduledMutation.isPending ? 'Processando...' : 'Processar Agendadas'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => testWebhookMutation.mutate()}
+                disabled={testWebhookMutation.isPending}
+              >
+                <TestTube className="h-4 w-4 mr-1" />
+                {testWebhookMutation.isPending ? 'Testando...' : 'Testar Webhook'}
+              </Button>
+            </div>
             {!isMobileView && selectedPhone && (
               <Button
                 variant="ghost"
@@ -494,6 +502,7 @@ export default function Messages() {
               selectedPhone={selectedPhone}
               onSelectConversation={handleSelectConversation}
               isLoading={messagesLoading}
+              showTitle={false}
             />
           </div>
 

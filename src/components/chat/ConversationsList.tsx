@@ -29,6 +29,8 @@ interface ConversationsListProps {
   selectedPhone: string | null;
   onSelectConversation: (phone: string) => void;
   isLoading?: boolean;
+  /** Mostra o título "Mensagens" + contador + botão "+" no topo da lista */
+  showTitle?: boolean;
 }
 
 type FilterType = 'all' | 'unread' | 'groups' | 'leads' | 'customers';
@@ -39,6 +41,7 @@ export function ConversationsList({
   selectedPhone,
   onSelectConversation,
   isLoading,
+  showTitle = true,
 }: ConversationsListProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
@@ -135,18 +138,20 @@ export function ConversationsList({
     <div className="flex h-full flex-col bg-card/50 backdrop-blur-sm">
       {/* Header */}
       <div className="border-b border-border p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
-            <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
-              {conversations.length}
-            </span>
+        {showTitle && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-foreground">Mensagens</h2>
+              <span className="text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                {conversations.length}
+              </span>
+            </div>
+            <Button size="icon" className="h-9 w-9 rounded-full shadow-lg shadow-primary/20">
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-          <Button size="icon" className="h-9 w-9 rounded-full shadow-lg shadow-primary/20">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-        
+        )}
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
