@@ -727,11 +727,10 @@ serve(async (req) => {
       if (isFromAdmin) {
         console.log('Processing message from admin phone with AI');
         
-        // Transcribe audio if present
+        // Transcribe audio if present using Lovable AI (Gemini)
         if (mediaType === 'audio' && audioBase64 && aiSettings.auto_transcribe) {
-          console.log('Transcribing audio with Google Speech-to-Text...');
+          console.log('Transcribing audio with Lovable AI (Gemini)...');
           
-          // Try Google Speech-to-Text first
           try {
             const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/ai-transcribe-audio`, {
               method: 'POST',
@@ -748,69 +747,24 @@ serve(async (req) => {
             if (transcribeResponse.ok) {
               const transcribeResult = await transcribeResponse.json();
               transcribedText = transcribeResult.transcription;
-              console.log('Google transcription successful:', transcribedText?.substring(0, 100));
+              console.log('Lovable AI transcription successful:', transcribedText?.substring(0, 100));
             } else {
               const errorBody = await transcribeResponse.text();
-              console.log('Google transcription failed, status:', transcribeResponse.status, 'trying Whisper fallback...');
+              console.log('Lovable AI transcription failed, status:', transcribeResponse.status);
               
-              // Try OpenAI Whisper as fallback
-              const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-              if (openaiApiKey) {
-                try {
-                  // Convert base64 to blob for Whisper
-                  const base64Clean = audioBase64.replace(/^data:[^;]+;base64,/, '');
-                  const binaryString = atob(base64Clean);
-                  const bytes = new Uint8Array(binaryString.length);
-                  for (let i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                  }
-                  
-                  // Determine file extension
-                  let ext = 'ogg';
-                  if (audioMimeType?.includes('mp3') || audioMimeType?.includes('mpeg')) ext = 'mp3';
-                  else if (audioMimeType?.includes('wav')) ext = 'wav';
-                  else if (audioMimeType?.includes('webm')) ext = 'webm';
-                  else if (audioMimeType?.includes('m4a') || audioMimeType?.includes('mp4')) ext = 'm4a';
-                  
-                  const formData = new FormData();
-                  formData.append('file', new Blob([bytes], { type: audioMimeType || 'audio/ogg' }), `audio.${ext}`);
-                  formData.append('model', 'whisper-1');
-                  formData.append('language', 'pt');
-                  
-                  console.log('Calling OpenAI Whisper...');
-                  const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${openaiApiKey}`,
-                    },
-                    body: formData,
-                  });
-                  
-                  if (whisperResponse.ok) {
-                    const whisperResult = await whisperResponse.json();
-                    transcribedText = whisperResult.text;
-                    console.log('Whisper transcription successful:', transcribedText?.substring(0, 100));
-                  } else {
-                    const whisperError = await whisperResponse.text();
-                    console.error('Whisper also failed:', whisperResponse.status, whisperError);
-                    transcriptionError = 'Transcrição falhou (Google e Whisper)';
-                  }
-                } catch (whisperErr) {
-                  console.error('Error calling Whisper:', whisperErr);
-                  transcriptionError = 'Erro ao chamar Whisper';
+              try {
+                const errorJson = JSON.parse(errorBody);
+                if (errorJson.error === 'no_speech_detected') {
+                  transcriptionError = 'Sem fala detectada no áudio';
+                } else if (errorJson.error === 'rate_limit') {
+                  transcriptionError = 'Limite de requisições excedido';
+                } else if (errorJson.error === 'payment_required') {
+                  transcriptionError = 'Créditos insuficientes';
+                } else {
+                  transcriptionError = errorJson.details || errorJson.error || `Erro ${transcribeResponse.status}`;
                 }
-              } else {
-                // No Whisper available, save the Google error
-                try {
-                  const errorJson = JSON.parse(errorBody);
-                  if (errorJson.error === 'no_speech_detected') {
-                    transcriptionError = 'Sem fala detectada no áudio';
-                  } else {
-                    transcriptionError = errorJson.details || errorJson.error || `Erro ${transcribeResponse.status}`;
-                  }
-                } catch {
-                  transcriptionError = `Erro ${transcribeResponse.status}: ${errorBody.substring(0, 200)}`;
-                }
+              } catch {
+                transcriptionError = `Erro ${transcribeResponse.status}: ${errorBody.substring(0, 200)}`;
               }
             }
           } catch (e) {
