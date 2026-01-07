@@ -39,7 +39,7 @@ interface ConversationsListProps {
 }
 
 type FilterType = 'all' | 'unread' | 'groups' | 'leads' | 'customers';
-type StatusTab = 'pending' | 'entrada' | 'esperando' | 'finalizado';
+type StatusTab = 'entrada' | 'esperando' | 'finalizado';
 
 export function ConversationsList({
   conversations,
@@ -52,7 +52,7 @@ export function ConversationsList({
 }: ConversationsListProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>('all');
-  const [statusTab, setStatusTab] = useState<StatusTab>('pending');
+  const [statusTab, setStatusTab] = useState<StatusTab>('esperando');
 
   // Categorize conversations by conversation_status from database
   const categorizedConversations = conversations.reduce(
@@ -61,24 +61,22 @@ export function ConversationsList({
       
       switch (status) {
         case 'pending':
-          acc.pending.push(conv);
+        case 'waiting':
+          // Unificado: pending e waiting vão para "esperando"
+          acc.esperando.push(conv);
           break;
         case 'inbox':
           acc.entrada.push(conv);
-          break;
-        case 'waiting':
-          acc.esperando.push(conv);
           break;
         case 'finished':
           acc.finalizado.push(conv);
           break;
         default:
-          acc.pending.push(conv);
+          acc.esperando.push(conv);
       }
       return acc;
     },
     { 
-      pending: [] as Conversation[], 
       entrada: [] as Conversation[], 
       esperando: [] as Conversation[], 
       finalizado: [] as Conversation[] 
@@ -145,9 +143,8 @@ export function ConversationsList({
   ];
 
   const statusTabs: { value: StatusTab; label: string; count: number; icon?: React.ReactNode }[] = [
-    { value: 'pending', label: 'Pendentes', count: categorizedConversations.pending.length, icon: <Clock className="h-3.5 w-3.5" /> },
+    { value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length, icon: <Clock className="h-3.5 w-3.5" /> },
     { value: 'entrada', label: 'Entrada', count: categorizedConversations.entrada.length },
-    { value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length },
     { value: 'finalizado', label: 'Finalizado', count: categorizedConversations.finalizado.length },
   ];
 
@@ -190,7 +187,7 @@ export function ConversationsList({
                 className={cn(
                   'status-tab flex items-center justify-center gap-1.5 px-3 py-2 min-w-[80px] whitespace-nowrap',
                   statusTab === tab.value && 'active',
-                  tab.value === 'pending' && tab.count > 0 && 'text-warning'
+                  tab.value === 'esperando' && tab.count > 0 && 'text-warning'
                 )}
               >
                 {tab.icon}
@@ -200,7 +197,7 @@ export function ConversationsList({
                     'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
                     statusTab === tab.value 
                       ? 'bg-primary text-primary-foreground' 
-                      : tab.value === 'pending'
+                      : tab.value === 'esperando'
                         ? 'bg-warning/20 text-warning'
                         : 'bg-muted-foreground/20 text-muted-foreground'
                   )}>
@@ -255,7 +252,7 @@ export function ConversationsList({
           <div className="py-2">
             {filteredConversations.map((conv) => {
               const isGroup = conv.phone.startsWith('group:') || conv.is_group;
-              const isPending = statusTab === 'pending';
+              const isWaiting = statusTab === 'esperando';
               
               return (
                 <div
@@ -365,8 +362,8 @@ export function ConversationsList({
                     </div>
                   </button>
 
-                  {/* Approval buttons for pending conversations */}
-                  {isPending && onApproveConversation && (
+                  {/* Approval buttons for waiting conversations */}
+                  {isWaiting && onApproveConversation && (
                     <div className="flex flex-col gap-1 ml-2 shrink-0">
                       <Button
                         size="icon"
