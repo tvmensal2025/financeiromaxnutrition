@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle } from 'lucide-react';
+import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Settings2 } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -19,34 +21,28 @@ interface ChatInputProps {
   onSend: (message: string, media?: { file: File; type: string }) => void;
   disabled?: boolean;
   isSending?: boolean;
+  businessId?: string;
+  onManageTemplates?: () => void;
 }
-
-const templates = [
-  {
-    label: 'Saudação',
-    emoji: '👋',
-    content: 'Olá! Como posso ajudá-lo(a) hoje?',
-  },
-  {
-    label: 'Agradecimento',
-    emoji: '🙏',
-    content: 'Obrigado pelo contato! Qualquer dúvida, estamos à disposição.',
-  },
-  {
-    label: 'Lembrete',
-    emoji: '⏰',
-    content: 'Olá! Passando para lembrar sobre nossa conversa. Posso ajudar em algo mais?',
-  },
-  {
-    label: 'Boas-vindas',
-    emoji: '🎉',
-    content: 'Bem-vindo(a)! Estamos muito felizes em tê-lo(a) conosco.',
-  },
-];
 
 const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉'];
 
-export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, isSending, businessId, onManageTemplates }: ChatInputProps) {
+  // Fetch templates from database
+  const { data: templates = [] } = useQuery({
+    queryKey: ['message-templates', businessId],
+    queryFn: async () => {
+      if (!businessId) return [];
+      const { data, error } = await supabase
+        .from('message_templates')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('created_at');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!businessId,
+  });
   const [message, setMessage] = useState('');
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -290,16 +286,36 @@ export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
       <div className="flex items-center gap-1.5 px-1 overflow-x-auto">
         {templates.map((t) => (
           <Button
-            key={t.label}
+            key={t.id}
             variant="outline"
             size="sm"
             className="h-8 shrink-0 text-xs font-medium hover:bg-accent/50 rounded-full border-border/50"
             onClick={() => handleTemplate(t.content)}
           >
-            <span className="mr-1">{t.emoji}</span>
-            {t.label}
+            {t.name}
           </Button>
         ))}
+        {onManageTemplates && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-full"
+            onClick={onManageTemplates}
+          >
+            <Settings2 className="h-4 w-4" />
+          </Button>
+        )}
+        {templates.length === 0 && onManageTemplates && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 text-xs font-medium hover:bg-accent/50 rounded-full border-dashed border-border/50"
+            onClick={onManageTemplates}
+          >
+            <Settings2 className="h-3 w-3 mr-1" />
+            Criar modelos
+          </Button>
+        )}
       </div>
 
       {/* Quick actions row */}
