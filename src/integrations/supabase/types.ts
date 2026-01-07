@@ -927,6 +927,7 @@ export type Database = {
           id: string
           is_group: boolean | null
           lead_id: string | null
+          media_metadata: Json | null
           media_type: string | null
           media_url: string | null
           message: string
@@ -951,6 +952,7 @@ export type Database = {
           id?: string
           is_group?: boolean | null
           lead_id?: string | null
+          media_metadata?: Json | null
           media_type?: string | null
           media_url?: string | null
           message: string
@@ -975,6 +977,7 @@ export type Database = {
           id?: string
           is_group?: boolean | null
           lead_id?: string | null
+          media_metadata?: Json | null
           media_type?: string | null
           media_url?: string | null
           message?: string
