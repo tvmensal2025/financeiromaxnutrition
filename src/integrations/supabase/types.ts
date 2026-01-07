@@ -1145,11 +1145,16 @@ export type Database = {
           credits_total: number
           credits_used: number
           customer_id: string
+          discount: number
           end_date: string
           id: string
           plan_id: string
+          quantity: number
           start_date: string
           status: string
+          subtotal: number
+          total: number
+          unit_price: number
           updated_at: string
         }
         Insert: {
@@ -1159,11 +1164,16 @@ export type Database = {
           credits_total: number
           credits_used?: number
           customer_id: string
+          discount?: number
           end_date: string
           id?: string
           plan_id: string
+          quantity?: number
           start_date?: string
           status?: string
+          subtotal?: number
+          total?: number
+          unit_price?: number
           updated_at?: string
         }
         Update: {
@@ -1173,11 +1183,16 @@ export type Database = {
           credits_total?: number
           credits_used?: number
           customer_id?: string
+          discount?: number
           end_date?: string
           id?: string
           plan_id?: string
+          quantity?: number
           start_date?: string
           status?: string
+          subtotal?: number
+          total?: number
+          unit_price?: number
           updated_at?: string
         }
         Relationships: [
