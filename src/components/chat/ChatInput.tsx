@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Settings2 } from 'lucide-react';
+import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Settings2, Sparkles } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -17,8 +17,14 @@ interface AttachedFile {
   type: 'image' | 'audio' | 'video' | 'document';
 }
 
+export interface TemplateButton {
+  text: string;
+  type: 'reply' | 'link';
+  url?: string;
+}
+
 interface ChatInputProps {
-  onSend: (message: string, media?: { file: File; type: string }) => void;
+  onSend: (message: string, media?: { file: File; type: string }, buttons?: TemplateButton[]) => void;
   disabled?: boolean;
   isSending?: boolean;
   businessId?: string;
@@ -26,12 +32,6 @@ interface ChatInputProps {
 }
 
 const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉'];
-
-interface TemplateButton {
-  text: string;
-  type: 'reply' | 'link';
-  url?: string;
-}
 
 interface TemplateData {
   id: string;
@@ -64,6 +64,7 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
     enabled: !!businessId,
   });
   const [message, setMessage] = useState('');
+  const [pendingButtons, setPendingButtons] = useState<TemplateButton[]>([]);
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -202,9 +203,10 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
       onSend(message.trim() || '', { file: attachedFile.file, type: attachedFile.type });
       setAttachedFile(null);
     } else {
-      onSend(message.trim());
+      onSend(message.trim(), undefined, pendingButtons.length > 0 ? pendingButtons : undefined);
     }
     setMessage('');
+    setPendingButtons([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -215,18 +217,16 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
   };
 
   const handleTemplate = (template: TemplateData) => {
-    let finalContent = template.content;
+    // Set the message content (without formatted buttons - those go as real buttons)
+    setMessage(template.content);
+    
+    // Store buttons to send as interactive buttons
     if (template.buttons && template.buttons.length > 0) {
-      finalContent += '\n\n';
-      template.buttons.forEach((btn, idx) => {
-        if (btn.type === 'reply') {
-          finalContent += `${idx + 1}️⃣ ${btn.text}\n`;
-        } else if (btn.type === 'link' && btn.url) {
-          finalContent += `🔗 ${btn.text}: ${btn.url}\n`;
-        }
-      });
+      setPendingButtons(template.buttons);
+    } else {
+      setPendingButtons([]);
     }
-    setMessage(finalContent.trim());
+    
     textareaRef.current?.focus();
   };
 
@@ -312,6 +312,31 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
           >
             <StopCircle className="h-4 w-4 mr-1" />
             Parar
+          </Button>
+        </div>
+      )}
+
+      {/* Pending buttons indicator */}
+      {pendingButtons.length > 0 && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-primary">
+            {pendingButtons.length} botão(ões) interativo(s)
+          </span>
+          <div className="flex-1 flex gap-1 overflow-x-auto">
+            {pendingButtons.map((btn, idx) => (
+              <span key={idx} className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full shrink-0">
+                {btn.type === 'reply' ? `↩️ ${btn.text}` : `🔗 ${btn.text}`}
+              </span>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary hover:text-primary/80 hover:bg-primary/10"
+            onClick={() => setPendingButtons([])}
+          >
+            <X className="h-4 w-4" />
           </Button>
         </div>
       )}

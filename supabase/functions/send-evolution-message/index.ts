@@ -7,6 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface TemplateButton {
+  text: string;
+  type: 'reply' | 'link';
+  url?: string;
+}
+
 interface SendMessageRequest {
   phone: string;
   message: string;
@@ -18,6 +24,7 @@ interface SendMessageRequest {
   media_type?: string;
   media_base64?: string;
   media_filename?: string;
+  buttons?: TemplateButton[];
 }
 
 serve(async (req) => {
@@ -43,7 +50,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: SendMessageRequest = await req.json();
-    const { phone, message, business_id, lead_id, customer_id, instance, media_url, media_type, media_base64, media_filename } = body;
+    const { phone, message, business_id, lead_id, customer_id, instance, media_url, media_type, media_base64, media_filename, buttons } = body;
 
     if (!phone || !business_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields: phone, business_id' }), {
@@ -140,7 +147,34 @@ serve(async (req) => {
     let evolutionUrl: string;
     let evolutionBody: Record<string, unknown>;
 
-    if (messageType === 'text') {
+    // Check if we have interactive buttons
+    const hasButtons = buttons && buttons.length > 0;
+    const replyButtons = hasButtons ? buttons.filter(b => b.type === 'reply').slice(0, 3) : [];
+    const linkButton = hasButtons ? buttons.find(b => b.type === 'link' && b.url) : null;
+
+    if (messageType === 'text' && replyButtons.length > 0) {
+      // Send message with reply buttons (max 3)
+      evolutionUrl = `${evolutionApiUrl}/message/sendButtons/${instanceName}`;
+      evolutionBody = {
+        number: cleanPhone,
+        title: '',
+        description: message,
+        buttons: replyButtons.map((btn, idx) => ({
+          buttonId: `btn_${idx + 1}`,
+          buttonText: { displayText: btn.text.slice(0, 20) }
+        })),
+        footer: ''
+      };
+      console.log('Sending buttons message:', evolutionBody);
+    } else if (messageType === 'text' && linkButton) {
+      // Send message with link button using sections/list
+      evolutionUrl = `${evolutionApiUrl}/message/sendText/${instanceName}`;
+      // For link buttons, append as formatted text since WhatsApp API has restrictions
+      evolutionBody = {
+        number: cleanPhone,
+        text: `${message}\n\n🔗 ${linkButton.text}: ${linkButton.url}`,
+      };
+    } else if (messageType === 'text') {
       // Send text message
       evolutionUrl = `${evolutionApiUrl}/message/sendText/${instanceName}`;
       evolutionBody = {
