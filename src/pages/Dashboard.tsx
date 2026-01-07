@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { MetricCard } from '@/components/dashboard/MetricCard';
 import { SubscriptionsList } from '@/components/dashboard/SubscriptionsList';
+import { TransactionsList } from '@/components/dashboard/TransactionsList';
 import { 
   Users, 
   CreditCard, 
@@ -10,11 +11,15 @@ import {
   Clock,
   DollarSign,
   RefreshCw,
-  ArrowUpRight
+  ArrowUpRight,
+  Receipt
 } from 'lucide-react';
 import { differenceInDays } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Dashboard() {
+  const { business } = useAuth();
+  
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -141,6 +146,35 @@ export default function Dashboard() {
             icon={Clock}
             variant="warning"
           />
+        </div>
+
+        {/* Transactions List */}
+        <div className="bg-card rounded-xl border border-border shadow-card animate-slide-up">
+          <div className="flex items-center justify-between p-6 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Receipt className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Transações Recentes
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Transações registradas pela IA
+                </p>
+              </div>
+            </div>
+            <a 
+              href="/transacoes" 
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              Ver todas
+              <ArrowUpRight className="h-4 w-4" />
+            </a>
+          </div>
+          <div className="p-6">
+            <TransactionsList />
+          </div>
         </div>
 
         {/* Subscriptions List */}

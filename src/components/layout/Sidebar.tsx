@@ -13,7 +13,8 @@ import {
   Package,
   Wrench,
   Calendar,
-  Receipt
+  Receipt,
+  Wallet
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare, showBadge: true },
+  { name: 'Transações', href: '/transacoes', icon: Wallet },
   { name: 'Leads', href: '/leads', icon: UserPlus },
   { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
   { name: 'Clientes', href: '/clientes', icon: Users },
