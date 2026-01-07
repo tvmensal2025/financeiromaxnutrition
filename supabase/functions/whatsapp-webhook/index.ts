@@ -41,6 +41,52 @@ async function getProfilePicture(phone: string, instance: string): Promise<strin
   }
 }
 
+// Buscar informações do grupo na Evolution API
+async function getGroupInfo(groupJid: string, instance: string): Promise<{ name: string | null; size: number }> {
+  try {
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.log('Evolution API credentials not configured for group info');
+      return { name: null, size: 0 };
+    }
+
+    const response = await fetch(`${evolutionApiUrl}/group/fetchAllGroups/${instance}?getParticipants=true`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      }
+    });
+    
+    if (!response.ok) {
+      console.log('Failed to fetch groups:', response.status);
+      return { name: null, size: 0 };
+    }
+    
+    const groups = await response.json();
+    console.log('Groups response count:', groups?.length || 0);
+    
+    // Find the specific group by JID
+    const targetJid = groupJid.includes('@g.us') ? groupJid : `${groupJid}@g.us`;
+    const group = groups?.find((g: any) => g.id === targetJid || g.jid === targetJid);
+    
+    if (group) {
+      console.log('Found group:', { name: group.subject || group.name, size: group.size || group.participants?.length });
+      return {
+        name: group.subject || group.name || null,
+        size: group.size || group.participants?.length || 0
+      };
+    }
+    
+    return { name: null, size: 0 };
+  } catch (error) {
+    console.log('Error fetching group info:', error);
+    return { name: null, size: 0 };
+  }
+}
+
 interface EvolutionWebhookPayload {
   event: string;
   instance: string;
@@ -115,11 +161,18 @@ serve(async (req) => {
     let phone: string;
     let groupName: string | null = null;
     let participantPhone: string | null = null;
+    let participantCount: number = 0;
 
     if (isGroup) {
       // For groups: save group ID as phone, extract participant
-      phone = 'group:' + rawRemoteJid.replace('@g.us', '');
-      groupName = senderName; // pushName is the sender's name in groups
+      const rawGroupId = rawRemoteJid.replace('@g.us', '');
+      phone = 'group:' + rawGroupId;
+      
+      // Fetch real group name and size from Evolution API
+      const groupInfo = await getGroupInfo(rawRemoteJid, payload.instance);
+      groupName = groupInfo.name || `Grupo ${rawGroupId.slice(-6)}`; // Fallback to partial ID
+      participantCount = groupInfo.size;
+      console.log('Group info fetched:', { groupName, participantCount });
       
       // Priority 1: Extract REAL participant number from payload.sender (Evolution API sends real number here)
       if (payload.sender && payload.sender.includes('@s.whatsapp.net')) {
@@ -354,6 +407,7 @@ serve(async (req) => {
         group_name: groupName,
         participant_phone: participantPhone,
         sender_avatar_url: senderAvatarUrl,
+        participant_count: participantCount,
       })
       .select()
       .single();
