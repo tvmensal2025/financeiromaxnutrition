@@ -27,6 +27,20 @@ interface ChatInputProps {
 
 const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉'];
 
+interface TemplateButton {
+  text: string;
+  type: 'reply' | 'link';
+  url?: string;
+}
+
+interface TemplateData {
+  id: string;
+  name: string;
+  content: string;
+  emoji: string;
+  buttons: TemplateButton[];
+}
+
 export function ChatInput({ onSend, disabled, isSending, businessId, onManageTemplates }: ChatInputProps) {
   // Fetch templates from database
   const { data: templates = [] } = useQuery({
@@ -40,9 +54,12 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
         .order('created_at');
       if (error) throw error;
       return (data || []).map(t => ({
-        ...t,
-        emoji: t.emoji || '📝',
-      }));
+        id: t.id,
+        name: t.name,
+        content: t.content,
+        emoji: (t.emoji as string) || '📝',
+        buttons: (Array.isArray(t.buttons) ? t.buttons : []) as unknown as TemplateButton[]
+      })) as TemplateData[];
     },
     enabled: !!businessId,
   });
@@ -197,8 +214,19 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
     }
   };
 
-  const handleTemplate = (content: string) => {
-    setMessage(content);
+  const handleTemplate = (template: TemplateData) => {
+    let finalContent = template.content;
+    if (template.buttons && template.buttons.length > 0) {
+      finalContent += '\n\n';
+      template.buttons.forEach((btn, idx) => {
+        if (btn.type === 'reply') {
+          finalContent += `${idx + 1}️⃣ ${btn.text}\n`;
+        } else if (btn.type === 'link' && btn.url) {
+          finalContent += `🔗 ${btn.text}: ${btn.url}\n`;
+        }
+      });
+    }
+    setMessage(finalContent.trim());
     textareaRef.current?.focus();
   };
 
@@ -290,15 +318,15 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
 
       {/* Quick templates row - 1 click access */}
       <div className="flex items-center gap-1.5 px-1 overflow-x-auto">
-        {templates.map((t: { id: string; name: string; content: string; emoji?: string }) => (
+        {templates.map((t) => (
           <Button
             key={t.id}
             variant="outline"
             size="sm"
             className="h-8 shrink-0 text-xs hover:bg-accent/50 rounded-full border-border/50"
-            onClick={() => handleTemplate(t.content)}
+            onClick={() => handleTemplate(t)}
           >
-            <span className="mr-1">{t.emoji || '📝'}</span>
+            <span className="mr-1">{t.emoji}</span>
             <span className="font-bold">{t.name}</span>
           </Button>
         ))}
