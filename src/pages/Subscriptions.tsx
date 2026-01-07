@@ -38,6 +38,11 @@ interface Subscription {
   auto_renew: boolean;
   customer_id: string;
   plan_id: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  discount: number;
+  total: number;
   customers: {
     name: string;
     email: string | null;
@@ -46,6 +51,7 @@ interface Subscription {
     name: string;
     price: number;
     billing_cycle: string;
+    credits: number;
   } | null;
 }
 
@@ -73,6 +79,8 @@ export default function Subscriptions() {
   const [formData, setFormData] = useState({
     customer_id: '',
     plan_id: '',
+    quantity: 1,
+    discount: 0,
     credits_used: '0',
     end_date: '',
   });
@@ -85,7 +93,7 @@ export default function Subscriptions() {
         .select(`
           *,
           customers (name, email),
-          plans (name, price, billing_cycle)
+          plans (name, price, billing_cycle, credits)
         `)
         .order('end_date', { ascending: true });
 
@@ -136,6 +144,12 @@ export default function Subscriptions() {
     }
   };
 
+  const selectedPlan = plans?.find((p) => p.id === formData.plan_id);
+  const unitPrice = selectedPlan?.price || 0;
+  const subtotal = unitPrice * formData.quantity;
+  const totalValue = subtotal - formData.discount;
+  const totalCredits = (selectedPlan?.credits || 0) * formData.quantity;
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const plan = plans?.find((p) => p.id === data.plan_id);
@@ -143,13 +157,25 @@ export default function Subscriptions() {
 
       const startDate = new Date();
       const endDate = getEndDate(startDate, plan.billing_cycle);
+      
+      const quantity = data.quantity || 1;
+      const unitPriceValue = plan.price;
+      const subtotalValue = unitPriceValue * quantity;
+      const discountValue = data.discount || 0;
+      const totalValueCalc = subtotalValue - discountValue;
+      const creditsTotal = plan.credits * quantity;
 
       const { error } = await supabase.from('subscriptions').insert({
         customer_id: data.customer_id,
         plan_id: data.plan_id,
         auto_renew: false,
         credits_used: parseInt(data.credits_used) || 0,
-        credits_total: plan.credits,
+        credits_total: creditsTotal,
+        quantity: quantity,
+        unit_price: unitPriceValue,
+        subtotal: subtotalValue,
+        discount: discountValue,
+        total: totalValueCalc,
         start_date: format(startDate, 'yyyy-MM-dd'),
         end_date: format(endDate, 'yyyy-MM-dd'),
         status: 'active',
@@ -233,6 +259,8 @@ export default function Subscriptions() {
     setFormData({
       customer_id: '',
       plan_id: '',
+      quantity: 1,
+      discount: 0,
       credits_used: '0',
       end_date: '',
     });
@@ -245,6 +273,8 @@ export default function Subscriptions() {
     setFormData({
       customer_id: subscription.customer_id,
       plan_id: subscription.plan_id,
+      quantity: subscription.quantity || 1,
+      discount: subscription.discount || 0,
       credits_used: subscription.credits_used.toString(),
       end_date: subscription.end_date,
     });
@@ -360,6 +390,63 @@ export default function Subscriptions() {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    {/* Quantidade e Valor Unitário */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity">Quantidade</Label>
+                        <Input
+                          id="quantity"
+                          type="number"
+                          min="1"
+                          value={formData.quantity}
+                          onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Valor Unitário</Label>
+                        <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground">
+                          R$ {unitPrice.toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Subtotal */}
+                    <div className="space-y-2">
+                      <Label>Subtotal</Label>
+                      <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground">
+                        R$ {subtotal.toFixed(2)}
+                      </div>
+                    </div>
+                    
+                    {/* Desconto */}
+                    <div className="space-y-2">
+                      <Label htmlFor="discount">Desconto (R$)</Label>
+                      <Input
+                        id="discount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        max={subtotal}
+                        value={formData.discount}
+                        onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    
+                    {/* Valor Final */}
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold text-foreground">VALOR FINAL:</span>
+                        <span className="text-2xl font-bold text-primary">
+                          R$ {totalValue.toFixed(2)}
+                        </span>
+                      </div>
+                      {selectedPlan && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Créditos: {totalCredits} unidades
+                        </p>
+                      )}
+                    </div>
                   </>
                 )}
                 {editingSubscription && (
@@ -446,6 +533,7 @@ export default function Subscriptions() {
                 <tr>
                   <th>Cliente</th>
                   <th>Plano</th>
+                  <th>Valor</th>
                   <th>Consumo</th>
                   <th>Período</th>
                   <th>Dias p/ Vencer</th>
@@ -475,9 +563,32 @@ export default function Subscriptions() {
                         <p className="font-medium text-foreground">
                           {sub.plans?.name || 'Plano'}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          R$ {sub.plans?.price?.toFixed(2) || '0,00'}
-                        </p>
+                      </td>
+                      <td>
+                        <div>
+                          {sub.quantity > 1 ? (
+                            <>
+                              <p className="font-medium text-foreground">
+                                {sub.quantity} × R$ {sub.unit_price?.toFixed(2) || sub.plans?.price?.toFixed(2) || '0,00'}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {sub.discount > 0 ? (
+                                  <>
+                                    <span className="line-through">R$ {sub.subtotal?.toFixed(2)}</span>
+                                    {' → '}
+                                    <span className="text-success font-medium">R$ {sub.total?.toFixed(2)}</span>
+                                  </>
+                                ) : (
+                                  <>= R$ {sub.subtotal?.toFixed(2) || (sub.plans?.price || 0 * sub.quantity).toFixed(2)}</>
+                                )}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="font-medium text-foreground">
+                              R$ {sub.total > 0 ? sub.total.toFixed(2) : sub.plans?.price?.toFixed(2) || '0,00'}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
