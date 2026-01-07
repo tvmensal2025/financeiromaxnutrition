@@ -286,44 +286,24 @@ export function ChatInput({ onSend, disabled, isSending }: ChatInputProps) {
         </div>
       )}
 
+      {/* Quick templates row - 1 click access */}
+      <div className="flex items-center gap-1.5 px-1 overflow-x-auto">
+        {templates.map((t) => (
+          <Button
+            key={t.label}
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0 text-xs font-medium hover:bg-accent/50 rounded-full border-border/50"
+            onClick={() => handleTemplate(t.content)}
+          >
+            <span className="mr-1">{t.emoji}</span>
+            {t.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Quick actions row */}
       <div className="flex items-center gap-2 px-1">
-        {/* Templates */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
-            >
-              <FileText className="h-4 w-4 mr-1.5" />
-              <span className="text-xs font-medium">Modelos</span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80 p-2 rounded-xl">
-            <p className="text-xs font-semibold text-muted-foreground px-2 mb-2 uppercase tracking-wider">
-              Modelos rápidos
-            </p>
-            <div className="space-y-1">
-              {templates.map((t) => (
-                <button
-                  key={t.label}
-                  onClick={() => handleTemplate(t.content)}
-                  className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-accent transition-colors group"
-                >
-                  <p className="font-medium text-foreground text-sm flex items-center gap-2">
-                    <span className="text-lg">{t.emoji}</span>
-                    {t.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5 group-hover:text-foreground/70 transition-colors">
-                    {t.content}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-
         {/* Emoji picker */}
         <Popover>
           <PopoverTrigger asChild>
