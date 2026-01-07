@@ -38,7 +38,7 @@ interface ConversationsListProps {
   showTitle?: boolean;
 }
 
-type FilterType = 'all' | 'unread' | 'groups' | 'leads' | 'customers';
+type FilterType = 'all' | 'groups' | 'leads' | 'customers';
 type StatusTab = 'entrada' | 'esperando' | 'finalizado';
 
 export function ConversationsList({
@@ -96,8 +96,6 @@ export function ConversationsList({
     const isGroup = conv.phone.startsWith('group:') || conv.is_group;
 
     switch (filter) {
-      case 'unread':
-        return conv.unread_count > 0;
       case 'groups':
         return isGroup;
       case 'leads':
@@ -135,17 +133,16 @@ export function ConversationsList({
     return p;
   };
 
-  const filters: { value: FilterType; label: string; icon: React.ReactNode }[] = [
-    { value: 'all', label: 'Todos', icon: <MessageCircle className="h-3.5 w-3.5" /> },
-    { value: 'groups', label: 'Grupos', icon: <UsersRound className="h-3.5 w-3.5" /> },
-    { value: 'leads', label: 'Leads', icon: <User className="h-3.5 w-3.5" /> },
-    { value: 'customers', label: 'Clientes', icon: <Users className="h-3.5 w-3.5" /> },
-  ];
-
-  const statusTabs: { value: StatusTab; label: string; count: number; icon?: React.ReactNode }[] = [
-    { value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length, icon: <Clock className="h-3.5 w-3.5" /> },
-    { value: 'entrada', label: 'Entrada', count: categorizedConversations.entrada.length },
-    { value: 'finalizado', label: 'Finalizado', count: categorizedConversations.finalizado.length },
+  // Unified filter options: Status + Type
+  const unifiedFilters = [
+    { type: 'status' as const, value: 'esperando', label: 'Esperando', count: categorizedConversations.esperando.length, icon: <Clock className="h-3.5 w-3.5" /> },
+    { type: 'status' as const, value: 'entrada', label: 'Entrada', count: categorizedConversations.entrada.length },
+    { type: 'status' as const, value: 'finalizado', label: 'Finalizado', count: categorizedConversations.finalizado.length },
+    { type: 'separator' as const },
+    { type: 'filter' as const, value: 'all', label: 'Todos', icon: <MessageCircle className="h-3.5 w-3.5" /> },
+    { type: 'filter' as const, value: 'groups', label: 'Grupos', icon: <UsersRound className="h-3.5 w-3.5" /> },
+    { type: 'filter' as const, value: 'leads', label: 'Leads', icon: <User className="h-3.5 w-3.5" /> },
+    { type: 'filter' as const, value: 'customers', label: 'Clientes', icon: <Users className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -177,55 +174,65 @@ export function ConversationsList({
           />
         </div>
 
-        {/* Status Tabs - Scrollable */}
+        {/* Unified Filters - Status + Type */}
         <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-          <div className="flex gap-1 p-1 bg-muted/50 rounded-lg min-w-max">
-            {statusTabs.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setStatusTab(tab.value)}
-                className={cn(
-                  'status-tab flex items-center justify-center gap-1.5 px-3 py-2 min-w-[80px] whitespace-nowrap',
-                  statusTab === tab.value && 'active',
-                  tab.value === 'esperando' && tab.count > 0 && 'text-warning'
-                )}
-              >
-                {tab.icon}
-                {tab.label}
-                {tab.count > 0 && (
-                  <span className={cn(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
-                    statusTab === tab.value 
-                      ? 'bg-primary text-primary-foreground' 
-                      : tab.value === 'esperando'
-                        ? 'bg-warning/20 text-warning'
-                        : 'bg-muted-foreground/20 text-muted-foreground'
-                  )}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="flex gap-1.5 min-w-max">
+            {unifiedFilters.map((item, index) => {
+              if (item.type === 'separator') {
+                return <div key={`sep-${index}`} className="w-px bg-border mx-1" />;
+              }
+              
+              if (item.type === 'status') {
+                const isActive = statusTab === item.value;
+                const isWarning = item.value === 'esperando' && (item.count || 0) > 0;
+                return (
+                  <button
+                    key={item.value}
+                    onClick={() => setStatusTab(item.value as StatusTab)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                        : isWarning
+                          ? 'bg-warning/10 text-warning hover:bg-warning/20 border border-warning/30'
+                          : 'bg-background/80 text-muted-foreground hover:bg-accent hover:text-foreground border border-border/50'
+                    )}
+                  >
+                    {item.icon}
+                    {item.label}
+                    {(item.count || 0) > 0 && (
+                      <span className={cn(
+                        'text-[10px] font-bold px-1.5 py-0.5 rounded-full',
+                        isActive 
+                          ? 'bg-primary-foreground/20 text-primary-foreground' 
+                          : 'bg-current/10'
+                      )}>
+                        {item.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              }
+              
+              // Type filter
+              const isActive = filter === item.value;
+              return (
+                <button
+                  key={item.value}
+                  onClick={() => setFilter(item.value as FilterType)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                      : 'bg-background/80 text-muted-foreground hover:bg-accent hover:text-foreground border border-border/50'
+                  )}
+                >
+                  {item.icon}
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-1.5 overflow-x-auto">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap',
-                filter === f.value
-                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                  : 'bg-background/80 text-muted-foreground hover:bg-accent hover:text-foreground border border-border/50'
-              )}
-            >
-              {f.icon}
-              {f.label}
-            </button>
-          ))}
         </div>
       </div>
 
