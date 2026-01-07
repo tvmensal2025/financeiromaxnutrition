@@ -48,7 +48,7 @@ serve(async (req) => {
     const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
 
     // Determine encoding based on mimeType
-    // For OGG_OPUS and WEBM_OPUS, omit sampleRateHertz to let Google auto-detect
+    // For Opus (OGG/WebM), Google expects an explicit supported sample rate (typically 48000)
     let encoding = 'OGG_OPUS';
     let sampleRateHertz: number | undefined = undefined;
 
@@ -61,10 +61,10 @@ serve(async (req) => {
       sampleRateHertz = 16000;
     } else if (mimeType?.includes('webm')) {
       encoding = 'WEBM_OPUS';
-      // Let Google auto-detect for Opus codecs
+      sampleRateHertz = 48000;
     } else if (mimeType?.includes('ogg')) {
       encoding = 'OGG_OPUS';
-      // Let Google auto-detect for Opus codecs
+      sampleRateHertz = 48000;
     }
 
     console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz || 'auto-detect');
