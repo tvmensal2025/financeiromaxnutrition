@@ -149,9 +149,9 @@ export function AIAssistantSettings() {
           <Bot className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Assistente IA</h2>
+          <h2 className="text-lg font-semibold text-foreground">Assistente IA Completo</h2>
           <p className="text-sm text-muted-foreground">
-            IA que interpreta áudios e textos para registrar transações
+            IA que gerencia todo o negócio via comandos de voz ou texto
           </p>
         </div>
       </div>
@@ -263,30 +263,63 @@ export function AIAssistantSettings() {
         </div>
       </div>
 
-      <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+      <div className="p-4 bg-muted/50 rounded-lg space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium text-foreground">Como funciona:</p>
+          <p className="text-sm font-medium text-foreground">Capacidades da IA:</p>
         </div>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          <li>• Envie áudios ou textos de qualquer número admin configurado</li>
-          <li>• A IA transcreve áudios e interpreta a mensagem</li>
-          <li>• Extrai automaticamente: cliente, valor, categoria, status</li>
-          <li>• Se faltar informação, ela pergunta de forma inteligente</li>
-          <li>• Cria transações, clientes e agendamentos automaticamente</li>
-          <li>• Responde com resumo formatado (estilo Meu Assessor)</li>
-        </ul>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">💰 Financeiro</p>
+            <p className="text-muted-foreground">Receitas, despesas, cobranças</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">👥 Clientes</p>
+            <p className="text-muted-foreground">Cadastro, busca, atualização</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">🎯 Leads</p>
+            <p className="text-muted-foreground">Criar, qualificar, converter</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">📊 Pipeline</p>
+            <p className="text-muted-foreground">Oportunidades de venda</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">📅 Agenda</p>
+            <p className="text-muted-foreground">Criar, remarcar, cancelar</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">📄 Faturas</p>
+            <p className="text-muted-foreground">Gerar, cobrar, dar baixa</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">🔄 Assinaturas</p>
+            <p className="text-muted-foreground">Criar, pausar, cancelar</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">📦 Catálogo</p>
+            <p className="text-muted-foreground">Produtos e serviços</p>
+          </div>
+          <div className="p-2 bg-background rounded border">
+            <p className="font-medium">🔍 Consultas</p>
+            <p className="text-muted-foreground">Saldos, resumos, relatórios</p>
+          </div>
+        </div>
       </div>
 
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
         <p className="text-sm font-medium text-foreground">Exemplos de comandos:</p>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          <li>📝 "Recebimento do José, 595 reais"</li>
-          <li>📝 "Venda pro João, 1200 do plano mensal"</li>
-          <li>📝 "José pagou os 595"</li>
-          <li>📝 "Cadastrar cliente Maria, email maria@email.com"</li>
-          <li>📝 "Agendar José para sexta às 14h"</li>
-        </ul>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm text-muted-foreground">
+          <p>💰 "Recebimento do José, 595 reais"</p>
+          <p>👥 "Cadastrar cliente Maria, 11999999999"</p>
+          <p>🎯 "Novo lead Pedro do Instagram, quente"</p>
+          <p>📊 "Oportunidade pro José, 5000 do anual"</p>
+          <p>📅 "Agendar Maria pra quinta 14h"</p>
+          <p>📄 "Gerar fatura pro João, 1500"</p>
+          <p>🔄 "Nova assinatura do Pedro, 99 mensal"</p>
+          <p>🔍 "Quanto o José deve?"</p>
+        </div>
       </div>
 
       <Button
