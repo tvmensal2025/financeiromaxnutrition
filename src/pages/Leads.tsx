@@ -11,8 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus, MessageCircle, Send } from 'lucide-react';
+import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus, MessageCircle, Send, Package, Wrench } from 'lucide-react';
 
 type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted';
 type LeadTemperature = 'cold' | 'warm' | 'hot';
@@ -29,6 +31,10 @@ interface Lead {
   temperature: LeadTemperature | null;
   notes: string | null;
   created_at: string;
+  interest_type?: string | null;
+  interested_product_id?: string | null;
+  interested_service_id?: string | null;
+  interest_is_recurring?: boolean | null;
 }
 
 interface WhatsAppMessage {
@@ -37,6 +43,18 @@ interface WhatsAppMessage {
   direction: 'inbound' | 'outbound';
   created_at: string;
   sender_name: string | null;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  price: number;
 }
 
 const sourceLabels: Record<string, { label: string; color: string }> = {
@@ -89,6 +107,10 @@ export default function Leads() {
     status: 'new' as LeadStatus,
     temperature: 'cold' as LeadTemperature,
     notes: '',
+    interest_type: 'none',
+    interested_product_id: '',
+    interested_service_id: '',
+    interest_is_recurring: false,
   });
 
   const { data: leads = [], isLoading } = useQuery({
@@ -102,6 +124,40 @@ export default function Leads() {
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as Lead[];
+    },
+    enabled: !!business?.id,
+  });
+
+  // Fetch products
+  const { data: products = [] } = useQuery({
+    queryKey: ['products', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, price')
+        .eq('business_id', business.id)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data as Product[];
+    },
+    enabled: !!business?.id,
+  });
+
+  // Fetch services
+  const { data: services = [] } = useQuery({
+    queryKey: ['services', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data, error } = await supabase
+        .from('services')
+        .select('id, name, price')
+        .eq('business_id', business.id)
+        .eq('is_active', true)
+        .order('name');
+      if (error) throw error;
+      return data as Service[];
     },
     enabled: !!business?.id,
   });
@@ -125,10 +181,23 @@ export default function Leads() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const { error } = await supabase.from('leads').insert({
+      const insertData: any = {
         business_id: business!.id,
-        ...data,
-      });
+        name: data.name,
+        email: data.email || null,
+        phone: data.phone || null,
+        whatsapp: data.whatsapp || null,
+        company: data.company || null,
+        source: data.source || null,
+        status: data.status,
+        temperature: data.temperature,
+        notes: data.notes || null,
+        interest_type: data.interest_type,
+        interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
+        interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
+        interest_is_recurring: data.interest_is_recurring,
+      };
+      const { error } = await supabase.from('leads').insert(insertData);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -143,7 +212,22 @@ export default function Leads() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const { error } = await supabase.from('leads').update(data).eq('id', id);
+      const updateData: any = {
+        name: data.name,
+        email: data.email || null,
+        phone: data.phone || null,
+        whatsapp: data.whatsapp || null,
+        company: data.company || null,
+        source: data.source || null,
+        status: data.status,
+        temperature: data.temperature,
+        notes: data.notes || null,
+        interest_type: data.interest_type,
+        interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
+        interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
+        interest_is_recurring: data.interest_is_recurring,
+      };
+      const { error } = await supabase.from('leads').update(updateData).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -224,6 +308,10 @@ export default function Leads() {
       status: 'new',
       temperature: 'cold',
       notes: '',
+      interest_type: 'none',
+      interested_product_id: '',
+      interested_service_id: '',
+      interest_is_recurring: false,
     });
     setEditingLead(null);
     setIsDialogOpen(false);
@@ -241,6 +329,10 @@ export default function Leads() {
       status: lead.status,
       temperature: lead.temperature || 'cold',
       notes: lead.notes || '',
+      interest_type: lead.interest_type || 'none',
+      interested_product_id: lead.interested_product_id || '',
+      interested_service_id: lead.interested_service_id || '',
+      interest_is_recurring: lead.interest_is_recurring || false,
     });
     setIsDialogOpen(true);
   };
@@ -289,7 +381,7 @@ export default function Leads() {
                 Novo Lead
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingLead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
               </DialogHeader>
@@ -393,6 +485,105 @@ export default function Leads() {
                     rows={3}
                   />
                 </div>
+
+                <Separator className="my-4" />
+
+                {/* Interest Section */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Interesse em Produto/Serviço
+                  </h4>
+                  
+                  <div className="space-y-2">
+                    <Label>Tipo de interesse</Label>
+                    <Select
+                      value={formData.interest_type}
+                      onValueChange={(v) => setFormData({ 
+                        ...formData, 
+                        interest_type: v,
+                        interested_product_id: '',
+                        interested_service_id: '',
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        <SelectItem value="product">
+                          <span className="flex items-center gap-2">
+                            <Package className="h-4 w-4" /> Produto
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="service">
+                          <span className="flex items-center gap-2">
+                            <Wrench className="h-4 w-4" /> Serviço
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {formData.interest_type === 'product' && (
+                    <div className="space-y-2">
+                      <Label>Produto</Label>
+                      <Select
+                        value={formData.interested_product_id}
+                        onValueChange={(v) => setFormData({ ...formData, interested_product_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um produto..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name} - R$ {p.price.toFixed(2)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.interest_type === 'service' && (
+                    <div className="space-y-2">
+                      <Label>Serviço</Label>
+                      <Select
+                        value={formData.interested_service_id}
+                        onValueChange={(v) => setFormData({ ...formData, interested_service_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um serviço..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {services.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name} - R$ {s.price.toFixed(2)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {formData.interest_type !== 'none' && (
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="recurring">Recorrente?</Label>
+                        <p className="text-xs text-muted-foreground">
+                          O cliente quer compra/assinatura contínua
+                        </p>
+                      </div>
+                      <Switch
+                        id="recurring"
+                        checked={formData.interest_is_recurring}
+                        onCheckedChange={(v) => setFormData({ ...formData, interest_is_recurring: v })}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <Button type="submit" className="w-full" disabled={createMutation.isPending || updateMutation.isPending}>
                   {editingLead ? 'Salvar Alterações' : 'Criar Lead'}
                 </Button>

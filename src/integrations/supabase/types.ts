@@ -127,6 +127,10 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          interest_is_recurring: boolean | null
+          interest_type: string | null
+          interested_product_id: string | null
+          interested_service_id: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -139,6 +143,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          interest_is_recurring?: boolean | null
+          interest_type?: string | null
+          interested_product_id?: string | null
+          interested_service_id?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -151,6 +159,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          interest_is_recurring?: boolean | null
+          interest_type?: string | null
+          interested_product_id?: string | null
+          interested_service_id?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -163,6 +175,20 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_interested_product_id_fkey"
+            columns: ["interested_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_interested_service_id_fkey"
+            columns: ["interested_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -317,6 +343,10 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          interest_is_recurring: boolean | null
+          interest_type: string | null
+          interested_product_id: string | null
+          interested_service_id: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -334,6 +364,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          interest_is_recurring?: boolean | null
+          interest_type?: string | null
+          interested_product_id?: string | null
+          interested_service_id?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -351,6 +385,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          interest_is_recurring?: boolean | null
+          interest_type?: string | null
+          interested_product_id?: string | null
+          interested_service_id?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -373,6 +411,20 @@ export type Database = {
             columns: ["converted_customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_interested_product_id_fkey"
+            columns: ["interested_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_interested_service_id_fkey"
+            columns: ["interested_service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
