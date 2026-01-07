@@ -62,6 +62,23 @@ interface Customer {
   phone: string | null;
   whatsapp: string | null;
   created_at: string;
+  recurring_due_date?: string | null;
+  recurring_reminder_days?: number | null;
+  recurring_message_time?: string | null;
+  recurring_message_type?: string | null;
+}
+
+interface CustomerStats {
+  totalPurchases: number;
+  totalProducts: number;
+  totalServices: number;
+  totalDiscount: number;
+  pendingInvoices: number;
+  pendingAmount: number;
+  nextDueDate?: string | null;
+  reminderDays?: number | null;
+  messageTime?: string | null;
+  messageType?: string | null;
 }
 
 export default function Messages() {
@@ -263,6 +280,39 @@ export default function Messages() {
   // Get selected conversation info
   const selectedConversation = conversations.find((c) => c.phone === selectedPhone);
 
+  // Fetch invoices for selected customer
+  const { data: customerInvoices = [] } = useQuery({
+    queryKey: ['customer-invoices', selectedConversation?.customer_id],
+    queryFn: async () => {
+      if (!business?.id || !selectedConversation?.customer_id) return [];
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*, invoice_items(*)')
+        .eq('business_id', business.id)
+        .eq('customer_id', selectedConversation.customer_id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!business?.id && !!selectedConversation?.customer_id,
+  });
+
+  // Fetch won opportunities for selected customer
+  const { data: customerOpportunities = [] } = useQuery({
+    queryKey: ['customer-opportunities', selectedConversation?.customer_id],
+    queryFn: async () => {
+      if (!business?.id || !selectedConversation?.customer_id) return [];
+      const { data, error } = await supabase
+        .from('opportunities')
+        .select('*')
+        .eq('business_id', business.id)
+        .eq('customer_id', selectedConversation.customer_id)
+        .eq('stage', 'closed_won');
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!business?.id && !!selectedConversation?.customer_id,
+  });
+
   // Fetch scheduled messages for selected contact
   const { data: scheduledMessages = [] } = useQuery({
     queryKey: ['scheduled-messages', selectedConversation?.lead_id, selectedConversation?.customer_id, selectedPhone],
@@ -337,6 +387,55 @@ export default function Messages() {
     : selectedConversation?.lead_id
     ? 'lead'
     : 'new';
+
+  // Calculate customer stats
+  const customerStats: CustomerStats | undefined = useMemo(() => {
+    if (!selectedConversation?.customer_id) return undefined;
+
+    const customer = customers.find((c) => c.id === selectedConversation.customer_id);
+    
+    // Calculate totals from invoices
+    const paidInvoices = customerInvoices.filter((inv: any) => inv.status === 'paid');
+    const pendingInvoicesData = customerInvoices.filter((inv: any) => 
+      inv.status === 'pending' || inv.status === 'overdue'
+    );
+
+    const totalPurchases = paidInvoices.reduce((sum: number, inv: any) => sum + Number(inv.total || 0), 0);
+    const totalDiscount = customerInvoices.reduce((sum: number, inv: any) => sum + Number(inv.discount || 0), 0);
+    const pendingAmount = pendingInvoicesData.reduce((sum: number, inv: any) => sum + Number(inv.total || 0), 0);
+
+    // Count products and services from invoice items
+    let totalProducts = 0;
+    let totalServices = 0;
+    customerInvoices.forEach((inv: any) => {
+      inv.invoice_items?.forEach((item: any) => {
+        if (item.product_id) totalProducts += item.quantity || 1;
+        if (item.service_id) totalServices += item.quantity || 1;
+      });
+    });
+
+    // Add from opportunities
+    totalPurchases + customerOpportunities.reduce((sum: number, opp: any) => sum + Number(opp.value || 0), 0);
+
+    // Find next due date from pending invoices
+    const nextDueDate = pendingInvoicesData
+      .map((inv: any) => inv.due_date)
+      .filter(Boolean)
+      .sort()[0] || customer?.recurring_due_date;
+
+    return {
+      totalPurchases: totalPurchases + customerOpportunities.reduce((sum: number, opp: any) => sum + Number(opp.value || 0), 0),
+      totalProducts,
+      totalServices,
+      totalDiscount,
+      pendingInvoices: pendingInvoicesData.length,
+      pendingAmount,
+      nextDueDate,
+      reminderDays: customer?.recurring_reminder_days,
+      messageTime: customer?.recurring_message_time,
+      messageType: customer?.recurring_message_type,
+    };
+  }, [selectedConversation?.customer_id, customers, customerInvoices, customerOpportunities]);
 
   // Send message mutation
   const sendMutation = useMutation({
@@ -662,6 +761,7 @@ export default function Messages() {
                       contact={contactInfo}
                       type={contactType}
                       scheduledMessages={scheduledMessages}
+                      customerStats={customerStats}
                       onConvertToCustomer={() => setShowAddCustomerModal(true)}
                       onCreateOpportunity={() => setShowOpportunityModal(true)}
                       onCreateInvoice={() => setShowInvoiceModal(true)}
