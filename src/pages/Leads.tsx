@@ -13,8 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus, MessageCircle, Send, Package, Wrench } from 'lucide-react';
+import { Plus, Search, Flame, Snowflake, ThermometerSun, UserPlus, MessageCircle, Send, Package, Wrench, Trash2 } from 'lucide-react';
 
 type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted';
 type LeadTemperature = 'cold' | 'warm' | 'hot';
@@ -35,6 +36,12 @@ interface Lead {
   interested_product_id?: string | null;
   interested_service_id?: string | null;
   interest_is_recurring?: boolean | null;
+  recurring_due_date?: string | null;
+  recurring_message_time?: string | null;
+  recurring_reminder_days?: number | null;
+  recurring_message_type?: string | null;
+  recurring_reminder_template?: string | null;
+  recurring_overdue_template?: string | null;
 }
 
 interface WhatsAppMessage {
@@ -93,6 +100,8 @@ export default function Leads() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [temperatureFilter, setTemperatureFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [chatLeadId, setChatLeadId] = useState<string | null>(null);
@@ -111,6 +120,12 @@ export default function Leads() {
     interested_product_id: '',
     interested_service_id: '',
     interest_is_recurring: false,
+    recurring_due_date: '',
+    recurring_message_time: '09:00',
+    recurring_reminder_days: 3,
+    recurring_message_type: 'both',
+    recurring_reminder_template: '',
+    recurring_overdue_template: '',
   });
 
   const { data: leads = [], isLoading } = useQuery({
@@ -196,6 +211,12 @@ export default function Leads() {
         interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
         interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
         interest_is_recurring: data.interest_is_recurring,
+        recurring_due_date: data.interest_is_recurring && data.recurring_due_date ? data.recurring_due_date : null,
+        recurring_message_time: data.interest_is_recurring ? data.recurring_message_time : null,
+        recurring_reminder_days: data.interest_is_recurring ? data.recurring_reminder_days : null,
+        recurring_message_type: data.interest_is_recurring ? data.recurring_message_type : null,
+        recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template || null : null,
+        recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template || null : null,
       };
       const { error } = await supabase.from('leads').insert(insertData);
       if (error) throw error;
@@ -226,6 +247,12 @@ export default function Leads() {
         interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
         interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
         interest_is_recurring: data.interest_is_recurring,
+        recurring_due_date: data.interest_is_recurring && data.recurring_due_date ? data.recurring_due_date : null,
+        recurring_message_time: data.interest_is_recurring ? data.recurring_message_time : null,
+        recurring_reminder_days: data.interest_is_recurring ? data.recurring_reminder_days : null,
+        recurring_message_type: data.interest_is_recurring ? data.recurring_message_type : null,
+        recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template || null : null,
+        recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template || null : null,
       };
       const { error } = await supabase.from('leads').update(updateData).eq('id', id);
       if (error) throw error;
@@ -237,6 +264,20 @@ export default function Leads() {
     },
     onError: () => {
       toast({ title: 'Erro ao atualizar lead', variant: 'destructive' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('leads').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast({ title: 'Lead excluído com sucesso!' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao excluir lead', variant: 'destructive' });
     },
   });
 
@@ -312,6 +353,12 @@ export default function Leads() {
       interested_product_id: '',
       interested_service_id: '',
       interest_is_recurring: false,
+      recurring_due_date: '',
+      recurring_message_time: '09:00',
+      recurring_reminder_days: 3,
+      recurring_message_type: 'both',
+      recurring_reminder_template: '',
+      recurring_overdue_template: '',
     });
     setEditingLead(null);
     setIsDialogOpen(false);
@@ -333,6 +380,12 @@ export default function Leads() {
       interested_product_id: lead.interested_product_id || '',
       interested_service_id: lead.interested_service_id || '',
       interest_is_recurring: lead.interest_is_recurring || false,
+      recurring_due_date: lead.recurring_due_date || '',
+      recurring_message_time: lead.recurring_message_time || '09:00',
+      recurring_reminder_days: lead.recurring_reminder_days || 3,
+      recurring_message_type: lead.recurring_message_type || 'both',
+      recurring_reminder_template: lead.recurring_reminder_template || '',
+      recurring_overdue_template: lead.recurring_overdue_template || '',
     });
     setIsDialogOpen(true);
   };
@@ -363,7 +416,9 @@ export default function Leads() {
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.company?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSource = sourceFilter === 'all' || lead.source?.toLowerCase() === sourceFilter;
-    return matchesSearch && matchesSource;
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+    const matchesTemperature = temperatureFilter === 'all' || lead.temperature === temperatureFilter;
+    return matchesSearch && matchesSource && matchesStatus && matchesTemperature;
   });
 
   return (
@@ -372,7 +427,9 @@ export default function Leads() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Leads</h1>
-            <p className="text-muted-foreground">Gerencie seus potenciais clientes</p>
+            <p className="text-muted-foreground">
+              Gerencie seus potenciais clientes · <span className="font-medium text-foreground">{leads.length} leads</span>
+            </p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -568,19 +625,118 @@ export default function Leads() {
                   )}
 
                   {formData.interest_type !== 'none' && (
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="recurring">Recorrente?</Label>
-                        <p className="text-xs text-muted-foreground">
-                          O cliente quer compra/assinatura contínua
-                        </p>
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="recurring">Recorrente?</Label>
+                          <p className="text-xs text-muted-foreground">
+                            O cliente quer compra/assinatura contínua
+                          </p>
+                        </div>
+                        <Switch
+                          id="recurring"
+                          checked={formData.interest_is_recurring}
+                          onCheckedChange={(v) => setFormData({ ...formData, interest_is_recurring: v })}
+                        />
                       </div>
-                      <Switch
-                        id="recurring"
-                        checked={formData.interest_is_recurring}
-                        onCheckedChange={(v) => setFormData({ ...formData, interest_is_recurring: v })}
-                      />
-                    </div>
+
+                      {/* Recurring message settings */}
+                      {formData.interest_is_recurring && (
+                        <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
+                          <h5 className="text-sm font-medium text-foreground">Configurações de Mensagem Automática</h5>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="recurring_due_date">Próximo Vencimento</Label>
+                              <Input
+                                id="recurring_due_date"
+                                type="date"
+                                value={formData.recurring_due_date}
+                                onChange={(e) => setFormData({ ...formData, recurring_due_date: e.target.value })}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="recurring_message_time">Horário de Envio</Label>
+                              <Input
+                                id="recurring_message_time"
+                                type="time"
+                                value={formData.recurring_message_time}
+                                onChange={(e) => setFormData({ ...formData, recurring_message_time: e.target.value })}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Lembrete com antecedência</Label>
+                              <Select
+                                value={String(formData.recurring_reminder_days)}
+                                onValueChange={(v) => setFormData({ ...formData, recurring_reminder_days: Number(v) })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1 dia antes</SelectItem>
+                                  <SelectItem value="2">2 dias antes</SelectItem>
+                                  <SelectItem value="3">3 dias antes</SelectItem>
+                                  <SelectItem value="5">5 dias antes</SelectItem>
+                                  <SelectItem value="7">7 dias antes</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Tipo de mensagem</Label>
+                              <Select
+                                value={formData.recurring_message_type}
+                                onValueChange={(v) => setFormData({ ...formData, recurring_message_type: v })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="reminder">Só lembrete antes</SelectItem>
+                                  <SelectItem value="overdue">Só cobrança depois</SelectItem>
+                                  <SelectItem value="both">Ambos</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {(formData.recurring_message_type === 'reminder' || formData.recurring_message_type === 'both') && (
+                            <div className="space-y-2">
+                              <Label htmlFor="recurring_reminder_template">Mensagem de Lembrete</Label>
+                              <Textarea
+                                id="recurring_reminder_template"
+                                placeholder="Olá {nome}! Sua assinatura de {produto} no valor de {valor} vence em {vencimento}."
+                                value={formData.recurring_reminder_template}
+                                onChange={(e) => setFormData({ ...formData, recurring_reminder_template: e.target.value })}
+                                rows={3}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Use: {'{nome}'}, {'{produto}'}, {'{valor}'}, {'{vencimento}'}
+                              </p>
+                            </div>
+                          )}
+
+                          {(formData.recurring_message_type === 'overdue' || formData.recurring_message_type === 'both') && (
+                            <div className="space-y-2">
+                              <Label htmlFor="recurring_overdue_template">Mensagem de Cobrança</Label>
+                              <Textarea
+                                id="recurring_overdue_template"
+                                placeholder="Olá {nome}! Sua fatura de {produto} no valor de {valor} venceu em {vencimento}."
+                                value={formData.recurring_overdue_template}
+                                onChange={(e) => setFormData({ ...formData, recurring_overdue_template: e.target.value })}
+                                rows={3}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Use: {'{nome}'}, {'{produto}'}, {'{valor}'}, {'{vencimento}'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -592,8 +748,8 @@ export default function Leads() {
           </Dialog>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="relative flex-1 min-w-[200px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar leads..."
@@ -603,7 +759,7 @@ export default function Leads() {
             />
           </div>
           <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Origem" />
             </SelectTrigger>
             <SelectContent>
@@ -613,6 +769,30 @@ export default function Leads() {
               <SelectItem value="facebook">Facebook</SelectItem>
               <SelectItem value="indicacao">Indicação</SelectItem>
               <SelectItem value="site">Site</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos status</SelectItem>
+              <SelectItem value="new">Novo</SelectItem>
+              <SelectItem value="contacted">Contactado</SelectItem>
+              <SelectItem value="qualified">Qualificado</SelectItem>
+              <SelectItem value="unqualified">Não Qualificado</SelectItem>
+              <SelectItem value="converted">Convertido</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={temperatureFilter} onValueChange={setTemperatureFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Temperatura" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas temperaturas</SelectItem>
+              <SelectItem value="cold">🥶 Frio</SelectItem>
+              <SelectItem value="warm">🌡️ Morno</SelectItem>
+              <SelectItem value="hot">🔥 Quente</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -627,19 +807,20 @@ export default function Leads() {
                 <th>Origem</th>
                 <th>Temperatura</th>
                 <th>Status</th>
+                <th>Criado em</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={8} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </td>
                 </tr>
               ) : filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <td colSpan={8} className="text-center py-8 text-muted-foreground">
                     Nenhum lead encontrado
                   </td>
                 </tr>
@@ -672,6 +853,9 @@ export default function Leads() {
                         {statusLabels[lead.status]}
                       </Badge>
                     </td>
+                    <td className="text-sm text-muted-foreground">
+                      {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         {lead.whatsapp && (
@@ -698,6 +882,30 @@ export default function Leads() {
                             Converter
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir Lead</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir o lead "{lead.name}"? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMutation.mutate(lead.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </td>
                   </tr>
