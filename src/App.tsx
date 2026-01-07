@@ -20,6 +20,7 @@ import Products from "./pages/Products";
 import Services from "./pages/Services";
 import Appointments from "./pages/Appointments";
 import Invoices from "./pages/Invoices";
+import TransactionsPage from "./pages/TransactionsPage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -148,6 +149,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Invoices />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transacoes"
+        element={
+          <ProtectedRoute>
+            <TransactionsPage />
           </ProtectedRoute>
         }
       />

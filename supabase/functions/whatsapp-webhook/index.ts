@@ -68,7 +68,6 @@ async function getGroupInfo(groupJid: string, instance: string): Promise<{ name:
     const groups = await response.json();
     console.log('Groups response count:', groups?.length || 0);
     
-    // Find the specific group by JID
     const targetJid = groupJid.includes('@g.us') ? groupJid : `${groupJid}@g.us`;
     const group = groups?.find((g: any) => g.id === targetJid || g.jid === targetJid);
     
@@ -95,7 +94,7 @@ async function downloadAndStoreMedia(
   phone: string,
   mediaType: string,
   supabase: any
-): Promise<{ url: string | null; metadata: any }> {
+): Promise<{ url: string | null; metadata: any; base64?: string; mimeType?: string }> {
   try {
     const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
     const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
@@ -107,7 +106,6 @@ async function downloadAndStoreMedia(
 
     console.log('Downloading media with key:', messageKey.id);
 
-    // Call Evolution API to get base64 media
     const response = await fetch(`${evolutionApiUrl}/chat/getBase64FromMediaMessage/${instance}`, {
       method: 'POST',
       headers: {
@@ -122,7 +120,7 @@ async function downloadAndStoreMedia(
             fromMe: messageKey.fromMe
           }
         },
-        convertToMp4: true // Convert audio/video to mp4 when possible
+        convertToMp4: true
       })
     });
     
@@ -140,7 +138,6 @@ async function downloadAndStoreMedia(
       return { url: null, metadata: null };
     }
 
-    // Determine file extension based on mimetype
     const mimetype = data.mimetype || '';
     let extension = 'bin';
     if (mimetype.includes('image/jpeg') || mimetype.includes('image/jpg')) extension = 'jpg';
@@ -156,13 +153,11 @@ async function downloadAndStoreMedia(
     else if (mimetype.includes('application/pdf')) extension = 'pdf';
     else if (mimetype.includes('application/')) extension = 'bin';
 
-    // Generate unique filename
     const timestamp = Date.now();
     const fileName = data.fileName || `media_${timestamp}.${extension}`;
     const cleanPhone = phone.replace('group:', '');
     const filePath = `${businessId}/${cleanPhone}/${timestamp}_${fileName}`;
 
-    // Convert base64 to Uint8Array
     const base64Data = data.base64.replace(/^data:[^;]+;base64,/, '');
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
@@ -172,7 +167,6 @@ async function downloadAndStoreMedia(
 
     console.log('Uploading to storage:', filePath, 'size:', bytes.length);
 
-    // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('whatsapp-media')
       .upload(filePath, bytes, {
@@ -185,33 +179,112 @@ async function downloadAndStoreMedia(
       return { url: null, metadata: null };
     }
 
-    // Get public URL
     const { data: publicUrlData } = supabase.storage
       .from('whatsapp-media')
       .getPublicUrl(filePath);
 
     console.log('Media uploaded successfully:', publicUrlData.publicUrl);
 
-    // Build metadata
     const metadata: any = {
       originalMimetype: mimetype,
       fileName: fileName,
       fileSize: bytes.length,
     };
 
-    // Add duration for audio/video if available
     if (data.duration) {
       metadata.duration = data.duration;
     }
 
     return { 
       url: publicUrlData.publicUrl, 
-      metadata 
+      metadata,
+      base64: data.base64,
+      mimeType: mimetype
     };
   } catch (error) {
     console.error('Error downloading/storing media:', error);
     return { url: null, metadata: null };
   }
+}
+
+// Send message via Evolution API
+async function sendEvolutionMessage(instance: string, phone: string, message: string): Promise<boolean> {
+  try {
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.log('Evolution API credentials not configured for sending message');
+      return false;
+    }
+
+    const response = await fetch(`${evolutionApiUrl}/message/sendText/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({
+        number: phone,
+        text: message
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send message:', response.status, await response.text());
+      return false;
+    }
+
+    console.log('Message sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending message:', error);
+    return false;
+  }
+}
+
+// Format AI response message (Meu Assessor style)
+function formatTransactionMessage(
+  businessName: string,
+  data: any,
+  greetingStyle: string
+): string {
+  const isIncome = data.type === 'income';
+  const statusEmoji = data.status === 'received' || data.status === 'paid' ? '🟢' : '🟡';
+  const statusText = data.status === 'received' ? 'Recebido' : data.status === 'paid' ? 'Pago' : 'A receber';
+  
+  const friendlyIntros = [
+    '🎉 Ótima notícia! Transação registrada com sucesso! 📈',
+    '✨ Perfeito! Anotei aqui pra você! 📝',
+    '🚀 Pronto! Mais uma transação na conta! 💰',
+    '👍 Feito! Registrei tudo direitinho! ✅',
+  ];
+  
+  const intro = greetingStyle === 'friendly' 
+    ? friendlyIntros[Math.floor(Math.random() * friendlyIntros.length)]
+    : greetingStyle === 'formal'
+    ? 'Transação registrada com sucesso.'
+    : 'Pronto! Registrado.';
+
+  const amount = Number(data.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const date = data.date || new Date().toLocaleDateString('pt-BR');
+
+  let message = `${intro}\n\n`;
+  message += `[📜] Resumo da Transação:\n\n`;
+  message += `[💬] Descrição: ${data.description || data.customerName || 'Transação'}\n`;
+  if (data.customerName) {
+    message += `[👤] Cliente: ${data.customerName}\n`;
+  }
+  message += `[💰] Valor: R$ ${amount}\n`;
+  message += `[📂] Categoria: ${data.category || 'Recebimentos'}\n`;
+  message += `[📅] Data: ${date}\n`;
+  message += `[${statusEmoji}] Status: ${statusText}\n`;
+  
+  if (greetingStyle === 'friendly') {
+    message += `\n[📊] Acesse o painel para mais detalhes.\n\nPrecisa de algo mais? 😊`;
+  }
+
+  return message;
 }
 
 interface EvolutionWebhookPayload {
@@ -288,7 +361,6 @@ interface EvolutionWebhookPayload {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -301,7 +373,6 @@ serve(async (req) => {
     const payload: EvolutionWebhookPayload = await req.json();
     console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
 
-    // Only process message events
     if (payload.event !== 'messages.upsert') {
       console.log('Ignoring event:', payload.event);
       return new Response(JSON.stringify({ success: true, message: 'Event ignored' }), {
@@ -309,15 +380,12 @@ serve(async (req) => {
       });
     }
 
-    // Determine if this is an outbound message (sent from phone)
     const isOutbound = payload.data?.key?.fromMe === true;
-
     const rawRemoteJid: string = payload.data.key.remoteJid;
     const key = payload.data.key as any;
     const senderName = payload.data.pushName || 'Desconhecido';
     const externalId = payload.data.key.id;
 
-    // Detect if this is a group message
     const isGroup = rawRemoteJid.endsWith('@g.us');
     let phone: string;
     let groupName: string | null = null;
@@ -403,17 +471,16 @@ serve(async (req) => {
     let mediaType: string | null = null;
     let mediaMetadata: any = null;
     let hasMedia = false;
+    let audioBase64: string | null = null;
+    let audioMimeType: string | null = null;
 
     const msg = payload.data.message;
     
-    // Text messages
     if (msg?.conversation) {
       messageContent = msg.conversation;
     } else if (msg?.extendedTextMessage?.text) {
       messageContent = msg.extendedTextMessage.text;
     }
-    
-    // Image message
     else if (msg?.imageMessage) {
       messageContent = msg.imageMessage.caption || '[Imagem]';
       mediaType = 'image';
@@ -423,8 +490,6 @@ serve(async (req) => {
         height: msg.imageMessage.height,
       };
     }
-    
-    // Video message
     else if (msg?.videoMessage) {
       messageContent = msg.videoMessage.caption || '[Vídeo]';
       mediaType = 'video';
@@ -435,8 +500,6 @@ serve(async (req) => {
         height: msg.videoMessage.height,
       };
     }
-    
-    // Audio message
     else if (msg?.audioMessage) {
       messageContent = msg.audioMessage.ptt ? '[Áudio]' : '[Áudio]';
       mediaType = 'audio';
@@ -446,8 +509,6 @@ serve(async (req) => {
         isVoiceNote: msg.audioMessage.ptt || false,
       };
     }
-    
-    // Document message
     else if (msg?.documentMessage) {
       messageContent = msg.documentMessage.fileName || '[Documento]';
       mediaType = msg.documentMessage.mimetype?.includes('pdf') ? 'pdf' : 'document';
@@ -458,8 +519,6 @@ serve(async (req) => {
         mimetype: msg.documentMessage.mimetype,
       };
     }
-    
-    // Sticker message
     else if (msg?.stickerMessage) {
       messageContent = '[Sticker]';
       mediaType = 'sticker';
@@ -470,8 +529,6 @@ serve(async (req) => {
         height: msg.stickerMessage.height,
       };
     }
-    
-    // Location message
     else if (msg?.locationMessage) {
       const lat = msg.locationMessage.degreesLatitude;
       const lng = msg.locationMessage.degreesLongitude;
@@ -486,13 +543,10 @@ serve(async (req) => {
         name: name,
         address: address,
       };
-      // For location, we store the maps URL directly
       if (lat && lng) {
         mediaUrl = `https://www.google.com/maps?q=${lat},${lng}`;
       }
     }
-    
-    // Contact message
     else if (msg?.contactMessage) {
       const displayName = msg.contactMessage.displayName || 'Contato';
       messageContent = `[Contato: ${displayName}]`;
@@ -502,8 +556,6 @@ serve(async (req) => {
         vcard: msg.contactMessage.vcard,
       };
     }
-    
-    // Contacts array message
     else if (msg?.contactsArrayMessage?.contacts) {
       const contacts = msg.contactsArrayMessage.contacts;
       const names = contacts.map(c => c.displayName || 'Contato').join(', ');
@@ -527,7 +579,7 @@ serve(async (req) => {
     // Get business
     const { data: businesses, error: bizError } = await supabase
       .from('businesses')
-      .select('id')
+      .select('id, name')
       .limit(1);
 
     if (bizError || !businesses?.length) {
@@ -539,8 +591,9 @@ serve(async (req) => {
     }
 
     const businessId = businesses[0].id;
+    const businessName = businesses[0].name;
 
-    // Download and store media if present (for types that have downloadable media)
+    // Download and store media if present
     if (hasMedia && ['image', 'video', 'audio', 'document', 'pdf', 'sticker'].includes(mediaType!)) {
       console.log('Attempting to download media:', mediaType);
       const mediaResult = await downloadAndStoreMedia(
@@ -560,6 +613,12 @@ serve(async (req) => {
         mediaUrl = mediaResult.url;
         mediaMetadata = { ...mediaMetadata, ...mediaResult.metadata };
         console.log('Media stored successfully:', mediaUrl);
+        
+        // Keep audio base64 for transcription
+        if (mediaType === 'audio' && mediaResult.base64) {
+          audioBase64 = mediaResult.base64;
+          audioMimeType = mediaResult.mimeType || 'audio/ogg';
+        }
       } else {
         console.log('Media download failed, message will be saved without permanent media URL');
       }
@@ -576,7 +635,7 @@ serve(async (req) => {
       console.log('Fetched avatar URL:', senderAvatarUrl);
     }
 
-    // For individual chats, link to lead/customer (only for inbound, or find existing for outbound)
+    // For individual chats, link to lead/customer
     if (!isGroup) {
       const { data: existingCustomer } = await supabase
         .from('customers')
@@ -618,7 +677,6 @@ serve(async (req) => {
             console.log('Updated lead avatar');
           }
         } else if (!isOutbound) {
-          // Only create new lead for inbound messages
           const { data: newLead, error: leadError } = await supabase
             .from('leads')
             .insert({
@@ -645,6 +703,162 @@ serve(async (req) => {
       }
     }
 
+    // Check AI settings for this business
+    const { data: aiSettings } = await supabase
+      .from('ai_settings')
+      .select('*')
+      .eq('business_id', businessId)
+      .single();
+
+    let transcribedText: string | null = null;
+    let aiProcessed = false;
+
+    // Process with AI if enabled and message is from admin phone
+    if (aiSettings?.enabled && !isOutbound && !isGroup) {
+      const isFromAdmin = aiSettings.admin_phone && phone === aiSettings.admin_phone.replace(/\D/g, '');
+      console.log('AI check:', { enabled: aiSettings.enabled, isFromAdmin, adminPhone: aiSettings.admin_phone, phone });
+
+      if (isFromAdmin) {
+        console.log('Processing message from admin phone with AI');
+        
+        // Transcribe audio if present
+        if (mediaType === 'audio' && audioBase64 && aiSettings.auto_transcribe) {
+          console.log('Transcribing audio...');
+          try {
+            const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/ai-transcribe-audio`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                audioBase64,
+                mimeType: audioMimeType,
+              }),
+            });
+
+            if (transcribeResponse.ok) {
+              const transcribeResult = await transcribeResponse.json();
+              transcribedText = transcribeResult.transcription;
+              console.log('Audio transcribed:', transcribedText?.substring(0, 100));
+            } else {
+              console.error('Transcription failed:', await transcribeResponse.text());
+            }
+          } catch (e) {
+            console.error('Error calling transcribe function:', e);
+          }
+        }
+
+        // Process with AI assistant
+        const textToProcess = transcribedText || messageContent;
+        if (textToProcess && textToProcess !== '[Áudio]' && aiSettings.auto_respond) {
+          console.log('Calling AI assistant with:', textToProcess.substring(0, 100));
+          try {
+            const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-assistant`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+              },
+              body: JSON.stringify({
+                message: textToProcess,
+                businessId,
+                phone,
+              }),
+            });
+
+            if (aiResponse.ok) {
+              const aiResult = await aiResponse.json();
+              console.log('AI assistant result:', JSON.stringify(aiResult, null, 2));
+              aiProcessed = true;
+
+              if (aiResult.action === 'needs_more_info' && aiResult.question) {
+                // Send question to user
+                await sendEvolutionMessage(payload.instance, phone, aiResult.question);
+              } else if (aiResult.action === 'complete' && aiResult.data) {
+                // Create transaction
+                const data = aiResult.data;
+                
+                // Find or create customer if we have a name
+                let txCustomerId: string | null = customerId;
+                if (data.customerName && !txCustomerId) {
+                  const { data: existingCust } = await supabase
+                    .from('customers')
+                    .select('id')
+                    .eq('business_id', businessId)
+                    .ilike('name', `%${data.customerName}%`)
+                    .limit(1)
+                    .single();
+
+                  if (existingCust) {
+                    txCustomerId = existingCust.id;
+                  } else {
+                    // Create new customer
+                    const { data: newCust } = await supabase
+                      .from('customers')
+                      .insert({
+                        business_id: businessId,
+                        name: data.customerName,
+                        email: data.email,
+                        phone: data.phone,
+                      })
+                      .select('id')
+                      .single();
+                    
+                    if (newCust) {
+                      txCustomerId = newCust.id;
+                      console.log('Created new customer:', txCustomerId);
+                    }
+                  }
+                }
+
+                // Create transaction
+                const { data: newTransaction, error: txError } = await supabase
+                  .from('transactions')
+                  .insert({
+                    business_id: businessId,
+                    customer_id: txCustomerId,
+                    type: data.type || 'income',
+                    description: data.description || data.customerName || 'Transação',
+                    amount: data.amount,
+                    category: data.category || 'Recebimentos',
+                    status: data.status || 'pending',
+                    transaction_date: data.date || new Date().toISOString().split('T')[0],
+                  })
+                  .select()
+                  .single();
+
+                if (txError) {
+                  console.error('Error creating transaction:', txError);
+                } else {
+                  console.log('Transaction created:', newTransaction.id);
+
+                  // Send confirmation message
+                  const confirmMessage = formatTransactionMessage(
+                    businessName,
+                    { ...data, date: data.date || new Date().toLocaleDateString('pt-BR') },
+                    aiSettings.greeting_style || 'friendly'
+                  );
+                  await sendEvolutionMessage(payload.instance, phone, confirmMessage);
+                }
+
+                // Clear conversation context after completion
+                await supabase
+                  .from('ai_conversations')
+                  .delete()
+                  .eq('business_id', businessId)
+                  .eq('phone', phone);
+              }
+            } else {
+              console.error('AI assistant failed:', await aiResponse.text());
+            }
+          } catch (e) {
+            console.error('Error calling AI assistant:', e);
+          }
+        }
+      }
+    }
+
     // Save the message
     const { data: savedMessage, error: msgError } = await supabase
       .from('whatsapp_messages')
@@ -666,6 +880,7 @@ serve(async (req) => {
         participant_phone: participantPhone,
         sender_avatar_url: senderAvatarUrl,
         participant_count: participantCount,
+        transcribed_text: transcribedText,
       })
       .select()
       .single();
@@ -678,7 +893,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)', 'direction:', isOutbound ? 'outbound' : 'inbound', 'mediaType:', mediaType);
+    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)', 'direction:', isOutbound ? 'outbound' : 'inbound', 'mediaType:', mediaType, 'aiProcessed:', aiProcessed);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -687,6 +902,8 @@ serve(async (req) => {
       customer_id: customerId,
       is_group: isGroup,
       media_stored: !!mediaUrl,
+      transcribed: !!transcribedText,
+      ai_processed: aiProcessed,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

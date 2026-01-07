@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.get-group-participants]
 verify_jwt = false
+
+[functions.ai-transcribe-audio]
+verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false

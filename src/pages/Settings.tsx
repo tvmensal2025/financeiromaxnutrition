@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { AIAssistantSettings } from '@/components/settings/AIAssistantSettings';
 import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play, MessageSquare } from 'lucide-react';
 
 export default function Settings() {
@@ -257,6 +258,9 @@ export default function Settings() {
             Salvar Integração
           </Button>
         </div>
+
+        {/* AI Assistant Settings */}
+        <AIAssistantSettings />
 
         {/* Auto Reminders Settings */}
         <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">

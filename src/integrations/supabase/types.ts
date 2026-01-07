@@ -14,6 +14,97 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversations: {
+        Row: {
+          business_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          last_intent: string | null
+          pending_data: Json | null
+          phone: string
+          stage: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_intent?: string | null
+          pending_data?: Json | null
+          phone: string
+          stage?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_intent?: string | null
+          pending_data?: Json | null
+          phone?: string
+          stage?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_settings: {
+        Row: {
+          admin_phone: string
+          auto_respond: boolean | null
+          auto_transcribe: boolean | null
+          business_id: string
+          created_at: string
+          default_categories: string[] | null
+          enabled: boolean | null
+          greeting_style: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_phone?: string
+          auto_respond?: boolean | null
+          auto_transcribe?: boolean | null
+          business_id: string
+          created_at?: string
+          default_categories?: string[] | null
+          enabled?: boolean | null
+          greeting_style?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_phone?: string
+          auto_respond?: boolean | null
+          auto_transcribe?: boolean | null
+          business_id?: string
+          created_at?: string
+          default_categories?: string[] | null
+          enabled?: boolean | null
+          greeting_style?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           business_id: string
@@ -1065,6 +1156,99 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          amount: number
+          appointment_id: string | null
+          business_id: string
+          category: string | null
+          created_at: string
+          customer_id: string | null
+          description: string
+          due_date: string | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          source_message_id: string | null
+          status: string | null
+          transaction_date: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          appointment_id?: string | null
+          business_id: string
+          category?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description: string
+          due_date?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          source_message_id?: string | null
+          status?: string | null
+          transaction_date?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          appointment_id?: string | null
+          business_id?: string
+          category?: string | null
+          created_at?: string
+          customer_id?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          source_message_id?: string | null
+          status?: string | null
+          transaction_date?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           assigned_to: string | null
@@ -1090,6 +1274,7 @@ export type Database = {
           sender_avatar_url: string | null
           sender_name: string | null
           status: Database["public"]["Enums"]["whatsapp_message_status"]
+          transcribed_text: string | null
           updated_at: string
         }
         Insert: {
@@ -1116,6 +1301,7 @@ export type Database = {
           sender_avatar_url?: string | null
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          transcribed_text?: string | null
           updated_at?: string
         }
         Update: {
@@ -1142,6 +1328,7 @@ export type Database = {
           sender_avatar_url?: string | null
           sender_name?: string | null
           status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          transcribed_text?: string | null
           updated_at?: string
         }
         Relationships: [

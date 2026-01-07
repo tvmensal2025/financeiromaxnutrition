@@ -1,0 +1,246 @@
+import { useState, useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { Bot, Save, Loader2, Phone, Sparkles } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+interface AISettings {
+  id?: string;
+  business_id: string;
+  admin_phone: string;
+  enabled: boolean;
+  auto_transcribe: boolean;
+  auto_respond: boolean;
+  greeting_style: string;
+  default_categories: string[];
+}
+
+export function AIAssistantSettings() {
+  const { business } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['ai-settings', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('ai_settings')
+        .select('*')
+        .eq('business_id', business.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data as AISettings | null;
+    },
+    enabled: !!business?.id,
+  });
+
+  const [formData, setFormData] = useState<Partial<AISettings>>({
+    admin_phone: '',
+    enabled: false,
+    auto_transcribe: true,
+    auto_respond: true,
+    greeting_style: 'friendly',
+    default_categories: ['Recebimentos', 'Vendas', 'Serviços', 'Pagamentos', 'Outros'],
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        admin_phone: settings.admin_phone || '',
+        enabled: settings.enabled ?? false,
+        auto_transcribe: settings.auto_transcribe ?? true,
+        auto_respond: settings.auto_respond ?? true,
+        greeting_style: settings.greeting_style || 'friendly',
+        default_categories: settings.default_categories || ['Recebimentos', 'Vendas', 'Serviços', 'Pagamentos', 'Outros'],
+      });
+    }
+  }, [settings]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: Partial<AISettings>) => {
+      if (!business?.id) throw new Error('Business not found');
+
+      const payload = {
+        business_id: business.id,
+        ...data,
+      };
+
+      if (settings?.id) {
+        const { error } = await supabase
+          .from('ai_settings')
+          .update(payload)
+          .eq('id', settings.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('ai_settings')
+          .insert(payload);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: 'Configurações da IA salvas!' });
+      queryClient.invalidateQueries({ queryKey: ['ai-settings'] });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao salvar configurações', description: String(error), variant: 'destructive' });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <Bot className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Assistente IA</h2>
+          <p className="text-sm text-muted-foreground">
+            IA que interpreta áudios e textos para registrar transações
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div className="space-y-0.5">
+            <Label htmlFor="aiEnabled">Habilitar Assistente IA</Label>
+            <p className="text-xs text-muted-foreground">
+              Ativa a interpretação automática de áudios e textos
+            </p>
+          </div>
+          <Switch
+            id="aiEnabled"
+            checked={formData.enabled}
+            onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="adminPhone" className="flex items-center gap-2">
+            <Phone className="h-4 w-4" />
+            Número Admin (WhatsApp)
+          </Label>
+          <Input
+            id="adminPhone"
+            value={formData.admin_phone}
+            onChange={(e) => setFormData({ ...formData, admin_phone: e.target.value })}
+            placeholder="5511999999999"
+          />
+          <p className="text-xs text-muted-foreground">
+            Número que enviará comandos para a IA (apenas este número será interpretado). 
+            Use o formato: código do país + DDD + número, sem espaços ou símbolos.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="space-y-0.5">
+              <Label htmlFor="autoTranscribe">Auto-transcrever áudios</Label>
+              <p className="text-xs text-muted-foreground">
+                Transcreve áudios automaticamente
+              </p>
+            </div>
+            <Switch
+              id="autoTranscribe"
+              checked={formData.auto_transcribe}
+              onCheckedChange={(checked) => setFormData({ ...formData, auto_transcribe: checked })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className="space-y-0.5">
+              <Label htmlFor="autoRespond">Auto-responder</Label>
+              <p className="text-xs text-muted-foreground">
+                Envia resposta automática após interpretar
+              </p>
+            </div>
+            <Switch
+              id="autoRespond"
+              checked={formData.auto_respond}
+              onCheckedChange={(checked) => setFormData({ ...formData, auto_respond: checked })}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="greetingStyle">Estilo de Resposta</Label>
+          <Select
+            value={formData.greeting_style}
+            onValueChange={(value) => setFormData({ ...formData, greeting_style: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o estilo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="friendly">🤗 Amigável (com emojis)</SelectItem>
+              <SelectItem value="formal">👔 Formal (profissional)</SelectItem>
+              <SelectItem value="casual">😎 Casual (direto)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-sm font-medium text-foreground">Como funciona:</p>
+        </div>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Envie áudios ou textos do número admin configurado</li>
+          <li>• A IA transcreve áudios e interpreta a mensagem</li>
+          <li>• Extrai automaticamente: cliente, valor, categoria, status</li>
+          <li>• Se faltar informação, ela pergunta de forma inteligente</li>
+          <li>• Cria transações, clientes e agendamentos automaticamente</li>
+          <li>• Responde com resumo formatado (estilo Meu Assessor)</li>
+        </ul>
+      </div>
+
+      <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+        <p className="text-sm font-medium text-foreground">Exemplos de comandos:</p>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>📝 "Recebimento do José, 595 reais"</li>
+          <li>📝 "Venda pro João, 1200 do plano mensal"</li>
+          <li>📝 "José pagou os 595"</li>
+          <li>📝 "Cadastrar cliente Maria, email maria@email.com"</li>
+          <li>📝 "Agendar José para sexta às 14h"</li>
+        </ul>
+      </div>
+
+      <Button
+        onClick={() => saveMutation.mutate(formData)}
+        disabled={saveMutation.isPending}
+      >
+        {saveMutation.isPending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Save className="mr-2 h-4 w-4" />
+        )}
+        Salvar Configurações
+      </Button>
+    </div>
+  );
+}
