@@ -20,6 +20,7 @@ interface ChatAreaProps {
   onConvertToCustomer?: () => void;
   onBack?: () => void;
   showBack?: boolean;
+  onViewParticipants?: () => void;
 }
 
 export function ChatArea({
@@ -32,6 +33,7 @@ export function ChatArea({
   onSend,
   onBack,
   showBack,
+  onViewParticipants,
 }: ChatAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -171,6 +173,18 @@ export function ChatArea({
             <span>{formatPhone(phone)}</span>
           </div>
         </div>
+
+        {isGroup && onViewParticipants && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onViewParticipants}
+            className="shrink-0 gap-2 text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
+          >
+            <UsersRound className="h-4 w-4" />
+            <span className="hidden sm:inline">Ver Participantes</span>
+          </Button>
+        )}
 
         <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full">
           <MoreVertical className="h-5 w-5" />

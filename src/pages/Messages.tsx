@@ -514,6 +514,7 @@ export default function Messages() {
               onSend={(msg, media) => sendMutation.mutate({ message: msg, media })}
               onBack={handleBack}
               showBack={isMobileView}
+              onViewParticipants={selectedConversation?.is_group ? () => setShowInfoPanel(true) : undefined}
             />
           </div>
 
