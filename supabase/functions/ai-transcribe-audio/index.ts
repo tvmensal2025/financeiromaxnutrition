@@ -1,4 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -12,10 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY not configured');
-      return new Response(JSON.stringify({ error: 'OpenAI API key not configured' }), {
+    const googleApiKey = Deno.env.get('GOOGLE_API_KEY');
+    if (!googleApiKey) {
+      console.error('GOOGLE_API_KEY not configured');
+      return new Response(JSON.stringify({ error: 'Google API key not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -30,44 +29,54 @@ serve(async (req) => {
       });
     }
 
-    console.log('Transcribing audio, mimeType:', mimeType);
+    console.log('Transcribing audio with Google Speech-to-Text, mimeType:', mimeType);
 
-    // Determine file extension from mimetype
-    let extension = 'ogg';
-    if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) extension = 'mp3';
-    else if (mimeType?.includes('mp4') || mimeType?.includes('m4a')) extension = 'm4a';
-    else if (mimeType?.includes('webm')) extension = 'webm';
-    else if (mimeType?.includes('wav')) extension = 'wav';
-
-    // Convert base64 to binary
+    // Clean base64 data
     const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+
+    // Determine encoding based on mimeType
+    let encoding = 'OGG_OPUS';
+    let sampleRateHertz = 16000;
+
+    if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
+      encoding = 'MP3';
+      sampleRateHertz = 16000;
+    } else if (mimeType?.includes('wav')) {
+      encoding = 'LINEAR16';
+      sampleRateHertz = 16000;
+    } else if (mimeType?.includes('webm')) {
+      encoding = 'WEBM_OPUS';
+      sampleRateHertz = 48000;
+    } else if (mimeType?.includes('ogg')) {
+      encoding = 'OGG_OPUS';
+      sampleRateHertz = 16000;
     }
 
-    // Create form data for Whisper API
-    const formData = new FormData();
-    const audioBlob = new Blob([bytes], { type: mimeType || 'audio/ogg' });
-    formData.append('file', audioBlob, `audio.${extension}`);
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'pt');
-    formData.append('response_format', 'json');
+    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz);
 
-    console.log('Sending to Whisper API...');
-
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    // Google Speech-to-Text API request
+    const response = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${googleApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
       },
-      body: formData,
+      body: JSON.stringify({
+        config: {
+          encoding: encoding,
+          sampleRateHertz: sampleRateHertz,
+          languageCode: 'pt-BR',
+          enableAutomaticPunctuation: true,
+          model: 'default',
+        },
+        audio: {
+          content: base64Data,
+        },
+      }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Whisper API error:', response.status, errorText);
+      console.error('Google Speech API error:', response.status, errorText);
       return new Response(JSON.stringify({ error: 'Transcription failed', details: errorText }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -75,11 +84,22 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    console.log('Transcription successful:', result.text?.substring(0, 100));
+    console.log('Google Speech API response:', JSON.stringify(result));
+
+    // Extract transcription from Google's response format
+    let transcription = '';
+    if (result.results && result.results.length > 0) {
+      transcription = result.results
+        .map((r: any) => r.alternatives?.[0]?.transcript || '')
+        .join(' ')
+        .trim();
+    }
+
+    console.log('Transcription successful:', transcription?.substring(0, 100));
 
     return new Response(JSON.stringify({ 
-      transcription: result.text,
-      duration: result.duration,
+      transcription: transcription,
+      confidence: result.results?.[0]?.alternatives?.[0]?.confidence,
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
