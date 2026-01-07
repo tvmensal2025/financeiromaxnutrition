@@ -301,13 +301,16 @@ serve(async (req) => {
     const payload: EvolutionWebhookPayload = await req.json();
     console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
 
-    // Only process incoming messages
-    if (payload.event !== 'messages.upsert' || payload.data?.key?.fromMe) {
-      console.log('Ignoring event:', payload.event, 'fromMe:', payload.data?.key?.fromMe);
+    // Only process message events
+    if (payload.event !== 'messages.upsert') {
+      console.log('Ignoring event:', payload.event);
       return new Response(JSON.stringify({ success: true, message: 'Event ignored' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Determine if this is an outbound message (sent from phone)
+    const isOutbound = payload.data?.key?.fromMe === true;
 
     const rawRemoteJid: string = payload.data.key.remoteJid;
     const key = payload.data.key as any;
@@ -566,14 +569,14 @@ serve(async (req) => {
     let customerId: string | null = null;
     let senderAvatarUrl: string | null = null;
 
-    // Fetch profile picture from Evolution API
+    // Fetch profile picture from Evolution API (only for inbound messages)
     const phoneForPicture = isGroup && participantPhone ? participantPhone : phone;
-    if (!isGroup || participantPhone) {
+    if (!isOutbound && (!isGroup || participantPhone)) {
       senderAvatarUrl = await getProfilePicture(phoneForPicture, payload.instance);
       console.log('Fetched avatar URL:', senderAvatarUrl);
     }
 
-    // For individual chats, link to lead/customer
+    // For individual chats, link to lead/customer (only for inbound, or find existing for outbound)
     if (!isGroup) {
       const { data: existingCustomer } = await supabase
         .from('customers')
@@ -587,7 +590,7 @@ serve(async (req) => {
         customerId = existingCustomer.id;
         console.log('Found existing customer:', customerId);
         
-        if (senderAvatarUrl && !existingCustomer.avatar_url) {
+        if (!isOutbound && senderAvatarUrl && !existingCustomer.avatar_url) {
           await supabase
             .from('customers')
             .update({ avatar_url: senderAvatarUrl })
@@ -607,14 +610,15 @@ serve(async (req) => {
           leadId = existingLead.id;
           console.log('Found existing lead:', leadId);
           
-          if (senderAvatarUrl && !existingLead.avatar_url) {
+          if (!isOutbound && senderAvatarUrl && !existingLead.avatar_url) {
             await supabase
               .from('leads')
               .update({ avatar_url: senderAvatarUrl })
               .eq('id', leadId);
             console.log('Updated lead avatar');
           }
-        } else {
+        } else if (!isOutbound) {
+          // Only create new lead for inbound messages
           const { data: newLead, error: leadError } = await supabase
             .from('leads')
             .insert({
@@ -649,13 +653,13 @@ serve(async (req) => {
         lead_id: leadId,
         customer_id: customerId,
         phone: phone,
-        sender_name: senderName,
+        sender_name: isOutbound ? 'Você' : senderName,
         message: messageContent,
-        direction: 'inbound',
+        direction: isOutbound ? 'outbound' : 'inbound',
         media_url: mediaUrl,
         media_type: mediaType,
         media_metadata: mediaMetadata,
-        status: 'delivered',
+        status: isOutbound ? 'sent' : 'delivered',
         external_id: externalId,
         is_group: isGroup,
         group_name: groupName,
@@ -674,7 +678,7 @@ serve(async (req) => {
       });
     }
 
-    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)', 'mediaType:', mediaType);
+    console.log('Message saved successfully:', savedMessage.id, isGroup ? '(group)' : '(individual)', 'direction:', isOutbound ? 'outbound' : 'inbound', 'mediaType:', mediaType);
 
     return new Response(JSON.stringify({ 
       success: true, 
