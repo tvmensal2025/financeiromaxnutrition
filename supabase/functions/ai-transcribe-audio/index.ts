@@ -31,28 +31,55 @@ serve(async (req) => {
 
     console.log('Transcribing audio with Google Speech-to-Text, mimeType:', mimeType);
 
+    // Reject unsupported formats (MP4/M4A/AAC) early with clear error
+    if (mimeType?.includes('mp4') || mimeType?.includes('m4a') || mimeType?.includes('aac')) {
+      console.error('Unsupported audio format for Google STT:', mimeType);
+      return new Response(JSON.stringify({ 
+        error: 'Unsupported audio format', 
+        details: 'Google Speech-to-Text does not support MP4/M4A/AAC audio. The webhook should send audio in OGG/Opus or WebM format.',
+        mimeType 
+      }), {
+        status: 415,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Clean base64 data
     const base64Data = audioBase64.replace(/^data:[^;]+;base64,/, '');
 
     // Determine encoding based on mimeType
+    // For OGG_OPUS and WEBM_OPUS, omit sampleRateHertz to let Google auto-detect
     let encoding = 'OGG_OPUS';
-    let sampleRateHertz = 16000;
+    let sampleRateHertz: number | undefined = undefined;
 
     if (mimeType?.includes('mp3') || mimeType?.includes('mpeg')) {
       encoding = 'MP3';
+      // MP3 requires explicit sample rate, use common value
       sampleRateHertz = 16000;
     } else if (mimeType?.includes('wav')) {
       encoding = 'LINEAR16';
       sampleRateHertz = 16000;
     } else if (mimeType?.includes('webm')) {
       encoding = 'WEBM_OPUS';
-      sampleRateHertz = 48000;
+      // Let Google auto-detect for Opus codecs
     } else if (mimeType?.includes('ogg')) {
       encoding = 'OGG_OPUS';
-      sampleRateHertz = 16000;
+      // Let Google auto-detect for Opus codecs
     }
 
-    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz);
+    console.log('Using encoding:', encoding, 'sampleRate:', sampleRateHertz || 'auto-detect');
+
+    // Build config object, only include sampleRateHertz if defined
+    const config: any = {
+      encoding: encoding,
+      languageCode: 'pt-BR',
+      enableAutomaticPunctuation: true,
+      model: 'default',
+    };
+    
+    if (sampleRateHertz !== undefined) {
+      config.sampleRateHertz = sampleRateHertz;
+    }
 
     // Google Speech-to-Text API request
     const response = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${googleApiKey}`, {
@@ -61,13 +88,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        config: {
-          encoding: encoding,
-          sampleRateHertz: sampleRateHertz,
-          languageCode: 'pt-BR',
-          enableAutomaticPunctuation: true,
-          model: 'default',
-        },
+        config,
         audio: {
           content: base64Data,
         },
