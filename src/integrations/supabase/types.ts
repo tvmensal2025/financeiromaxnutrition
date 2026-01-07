@@ -892,6 +892,7 @@ export type Database = {
           media_type: string | null
           media_url: string | null
           message: string
+          participant_count: number | null
           participant_phone: string | null
           phone: string
           sender_avatar_url: string | null
@@ -912,6 +913,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message: string
+          participant_count?: number | null
           participant_phone?: string | null
           phone: string
           sender_avatar_url?: string | null
@@ -932,6 +934,7 @@ export type Database = {
           media_type?: string | null
           media_url?: string | null
           message?: string
+          participant_count?: number | null
           participant_phone?: string | null
           phone?: string
           sender_avatar_url?: string | null

@@ -33,6 +33,7 @@ interface WhatsAppMessage {
   group_name?: string | null;
   participant_phone?: string | null;
   sender_avatar_url?: string | null;
+  participant_count?: number;
 }
 
 interface Lead {
@@ -158,16 +159,28 @@ export default function Messages() {
   // Build conversations list
   const conversations: Conversation[] = useMemo(() => {
     const phoneMap = new Map<string, Conversation>();
-    const participantMap = new Map<string, Set<string>>(); // Track unique participants per group
+    const groupDataMap = new Map<string, { name: string | null; count: number }>(); // Track group name and participant count
 
     allMessages.forEach((msg) => {
       const isGroup = msg.phone.startsWith('group:') || msg.is_group;
       
-      // Track unique participants for groups
-      if (isGroup && msg.participant_phone) {
-        const participants = participantMap.get(msg.phone) || new Set<string>();
-        participants.add(msg.participant_phone);
-        participantMap.set(msg.phone, participants);
+      // Track group data (name and participant count from latest message)
+      if (isGroup) {
+        const existingGroup = groupDataMap.get(msg.phone);
+        // Use the latest group_name and participant_count from messages
+        if (!existingGroup || (msg.group_name && !existingGroup.name)) {
+          groupDataMap.set(msg.phone, {
+            name: msg.group_name || existingGroup?.name || null,
+            count: msg.participant_count || existingGroup?.count || 0
+          });
+        }
+        // Update count if we got a higher one
+        if (msg.participant_count && msg.participant_count > (existingGroup?.count || 0)) {
+          groupDataMap.set(msg.phone, {
+            name: existingGroup?.name || msg.group_name || null,
+            count: msg.participant_count
+          });
+        }
       }
 
       const existing = phoneMap.get(msg.phone);
@@ -188,17 +201,18 @@ export default function Messages() {
           direction: msg.direction,
           is_group: isGroup,
           group_name: msg.group_name,
-          participant_count: 0, // Will be updated below
+          participant_count: msg.participant_count || 0,
           avatar_url: msg.sender_avatar_url,
         });
       }
     });
 
-    // Update participant counts for groups
-    participantMap.forEach((participants, phone) => {
+    // Update group names and counts from collected data
+    groupDataMap.forEach((data, phone) => {
       const conv = phoneMap.get(phone);
       if (conv) {
-        conv.participant_count = participants.size;
+        if (data.name) conv.group_name = data.name;
+        if (data.count > (conv.participant_count || 0)) conv.participant_count = data.count;
       }
     });
 
