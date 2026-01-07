@@ -29,6 +29,7 @@ import { ManageTagsModal } from './ManageTagsModal';
 import { AssignAgentModal } from './AssignAgentModal';
 import { CreateOpportunityModal } from './CreateOpportunityModal';
 import { AddCustomerModal } from './AddCustomerModal';
+import { MessageTemplatesModal } from './MessageTemplatesModal';
 
 interface ChatAreaProps {
   phone: string | null;
@@ -77,6 +78,7 @@ export function ChatArea({
   const [showAssignAgent, setShowAssignAgent] = useState(false);
   const [showCreateOpportunity, setShowCreateOpportunity] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
 
   // Check if conversation is pinned
   const { data: isPinned } = useQuery({
@@ -420,7 +422,13 @@ export function ChatArea({
       </ScrollArea>
 
       {/* Input */}
-      <ChatInput onSend={onSend} disabled={!phone} isSending={isSending} />
+      <ChatInput 
+        onSend={onSend} 
+        disabled={!phone} 
+        isSending={isSending} 
+        businessId={business?.id}
+        onManageTemplates={() => setShowTemplatesModal(true)}
+      />
 
       {/* Modals */}
       {phone && (
@@ -462,6 +470,11 @@ export function ChatArea({
             name={contactName}
             email={email}
             leadId={leadId}
+          />
+          
+          <MessageTemplatesModal
+            open={showTemplatesModal}
+            onOpenChange={setShowTemplatesModal}
           />
         </>
       )}
