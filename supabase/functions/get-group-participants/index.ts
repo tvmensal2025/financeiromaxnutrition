@@ -134,16 +134,21 @@ serve(async (req) => {
           
           if (group) {
             console.log('Found group:', group.subject || group.name);
+            console.log('Raw group participants:', JSON.stringify(group.participants?.slice(0, 3)));
             groupName = group.subject || group.name || null;
             groupDescription = group.desc || group.description || null;
             
             if (group.participants && Array.isArray(group.participants)) {
               participants = group.participants.map((p: any) => {
-                const phone = (p.id || p.jid || '').replace('@s.whatsapp.net', '').replace(/\D/g, '');
+                console.log('Raw participant:', JSON.stringify(p));
+                // Extract phone from id/jid - format is usually "5511989000650@s.whatsapp.net"
+                const rawId = p.id || p.jid || '';
+                const phone = rawId.split('@')[0].replace(/\D/g, '');
+                console.log('Extracted phone from', rawId, ':', phone);
                 return {
-                  id: p.id || p.jid || phone,
+                  id: rawId || phone,
                   phone: phone,
-                  name: p.name || p.pushName || null,
+                  name: p.name || p.pushName || p.notify || null,
                   isAdmin: p.admin === 'admin' || p.isAdmin === true,
                   isSuperAdmin: p.admin === 'superadmin' || p.isSuperAdmin === true,
                 };
