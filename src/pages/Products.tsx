@@ -307,18 +307,18 @@ export default function Products() {
                   <div>
                     <p className="text-muted-foreground">Preço</p>
                     <p className="font-semibold text-success">
-                      {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {(product.price ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Custo</p>
                     <p className="font-medium">
-                      {product.cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      {(product.cost ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Margem</p>
-                    <p className="font-medium">{margin(product.price, product.cost).toFixed(1)}%</p>
+                    <p className="font-medium">{margin(product.price ?? 0, product.cost ?? 0).toFixed(1)}%</p>
                   </div>
                 </div>
 
