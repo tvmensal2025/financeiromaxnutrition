@@ -186,7 +186,7 @@ export function ChatArea({
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full">
+        <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full" title="Finalizado">
           <MoreVertical className="h-5 w-5" />
         </Button>
       </div>
