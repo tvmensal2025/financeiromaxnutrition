@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { ConversationsList, Conversation } from '@/components/chat/ConversationsList';
 import { ChatArea } from '@/components/chat/ChatArea';
 import { ContactInfoPanel } from '@/components/chat/ContactInfoPanel';
+import { GroupParticipantsPanel } from '@/components/chat/GroupParticipantsPanel';
 import { Message } from '@/components/chat/ChatMessage';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -519,15 +520,23 @@ export default function Messages() {
           {/* Info panel - desktop only */}
           {!isMobileView && showInfoPanel && selectedPhone && (
             <div className="w-72 shrink-0 overflow-hidden">
-              <ContactInfoPanel
-                contact={contactInfo}
-                type={contactType}
-                onConvertToCustomer={() => setShowAddCustomerModal(true)}
-                onCreateOpportunity={() => setShowOpportunityModal(true)}
-                onCreateInvoice={() => setShowInvoiceModal(true)}
-                onScheduleMessage={() => setShowScheduleModal(true)}
-                onClose={() => setShowInfoPanel(false)}
-              />
+              {selectedConversation?.is_group ? (
+                <GroupParticipantsPanel
+                  groupPhone={selectedPhone}
+                  groupName={selectedConversation?.group_name || null}
+                  onClose={() => setShowInfoPanel(false)}
+                />
+              ) : (
+                <ContactInfoPanel
+                  contact={contactInfo}
+                  type={contactType}
+                  onConvertToCustomer={() => setShowAddCustomerModal(true)}
+                  onCreateOpportunity={() => setShowOpportunityModal(true)}
+                  onCreateInvoice={() => setShowInvoiceModal(true)}
+                  onScheduleMessage={() => setShowScheduleModal(true)}
+                  onClose={() => setShowInfoPanel(false)}
+                />
+              )}
             </div>
           )}
         </div>
