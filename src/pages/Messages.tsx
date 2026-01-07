@@ -243,7 +243,7 @@ export default function Messages() {
     return allMessages
       .filter((m) => m.phone === selectedPhone)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .map((m) => ({
+      .map((m: any) => ({
         id: m.id,
         message: m.message,
         direction: m.direction,
@@ -251,7 +251,12 @@ export default function Messages() {
         created_at: m.created_at,
         media_url: m.media_url,
         media_type: m.media_type,
+        media_metadata: m.media_metadata,
         sender_name: m.sender_name,
+        is_group: m.is_group,
+        participant_phone: m.participant_phone,
+        transcribed_text: m.transcribed_text,
+        transcription_error: m.transcription_error,
       }));
   }, [allMessages, selectedPhone]);
 
