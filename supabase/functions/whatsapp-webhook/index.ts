@@ -244,13 +244,72 @@ async function sendEvolutionMessage(instance: string, phone: string, message: st
   }
 }
 
-// Format AI response message (Meu Assessor style)
+// Send message with interactive buttons via Evolution API
+async function sendEvolutionMessageWithButtons(
+  instance: string,
+  phone: string,
+  title: string,
+  description: string,
+  footer: string,
+  buttons: Array<{ id: string; displayText: string }>
+): Promise<boolean> {
+  try {
+    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
+    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
+    
+    if (!evolutionApiUrl || !evolutionApiKey) {
+      console.log('Evolution API credentials not configured for sending buttons');
+      return false;
+    }
+
+    console.log('Sending message with buttons:', { phone, title, buttons });
+
+    const response = await fetch(`${evolutionApiUrl}/message/sendButtons/${instance}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': evolutionApiKey
+      },
+      body: JSON.stringify({
+        number: phone,
+        title: title,
+        description: description,
+        footer: footer,
+        buttons: buttons
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to send buttons message:', response.status, errorText);
+      // Fallback to simple text message if buttons fail
+      console.log('Falling back to simple text message');
+      return await sendEvolutionMessage(instance, phone, `${title}\n\n${description}\n\n${footer}`);
+    }
+
+    console.log('Buttons message sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending buttons message:', error);
+    // Fallback to simple text message
+    return await sendEvolutionMessage(instance, phone, `${title}\n\n${description}\n\n${footer}`);
+  }
+}
+
+// Format AI response message with buttons data (Meu Assessor style)
+interface TransactionMessageData {
+  title: string;
+  description: string;
+  footer: string;
+  buttons: Array<{ id: string; displayText: string }>;
+}
+
 function formatTransactionMessage(
   businessName: string,
   data: any,
-  greetingStyle: string
-): string {
-  const isIncome = data.type === 'income';
+  greetingStyle: string,
+  transactionId?: string
+): TransactionMessageData {
   const statusEmoji = data.status === 'received' || data.status === 'paid' ? '🟢' : '🟡';
   const statusText = data.status === 'received' ? 'Recebido' : data.status === 'paid' ? 'Pago' : 'A receber';
   
@@ -261,7 +320,7 @@ function formatTransactionMessage(
     '👍 Feito! Registrei tudo direitinho! ✅',
   ];
   
-  const intro = greetingStyle === 'friendly' 
+  const title = greetingStyle === 'friendly' 
     ? friendlyIntros[Math.floor(Math.random() * friendlyIntros.length)]
     : greetingStyle === 'formal'
     ? 'Transação registrada com sucesso.'
@@ -270,22 +329,30 @@ function formatTransactionMessage(
   const amount = Number(data.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
   const date = data.date || new Date().toLocaleDateString('pt-BR');
 
-  let message = `${intro}\n\n`;
-  message += `[📜] Resumo da Transação:\n\n`;
-  message += `[💬] Descrição: ${data.description || data.customerName || 'Transação'}\n`;
+  let description = `📜 Resumo da Transação:\n\n`;
+  description += `💬 Descrição: ${data.description || data.customerName || 'Transação'}\n`;
   if (data.customerName) {
-    message += `[👤] Cliente: ${data.customerName}\n`;
+    description += `👤 Cliente: ${data.customerName}\n`;
   }
-  message += `[💰] Valor: R$ ${amount}\n`;
-  message += `[📂] Categoria: ${data.category || 'Recebimentos'}\n`;
-  message += `[📅] Data: ${date}\n`;
-  message += `[${statusEmoji}] Status: ${statusText}\n`;
-  
-  if (greetingStyle === 'friendly') {
-    message += `\n[📊] Acesse o painel para mais detalhes.\n\nPrecisa de algo mais? 😊`;
+  description += `💰 Valor: R$ ${amount}\n`;
+  description += `📂 Categoria: ${data.category || 'Recebimentos'}\n`;
+  description += `📅 Data: ${date}\n`;
+  description += `${statusEmoji} Status: ${statusText}`;
+
+  const footer = greetingStyle === 'friendly' 
+    ? '📊 Clique para editar ou excluir'
+    : 'Selecione uma opção';
+
+  // Build buttons with transaction ID for identification
+  const buttons: Array<{ id: string; displayText: string }> = [];
+  if (transactionId) {
+    buttons.push(
+      { id: `edit_tx_${transactionId}`, displayText: '✏️ Editar transação' },
+      { id: `delete_tx_${transactionId}`, displayText: '🗑️ Excluir transação' }
+    );
   }
 
-  return message;
+  return { title, description, footer, buttons };
 }
 
 // Process message with AI assistant and create transaction
@@ -396,13 +463,23 @@ async function processWithAI(
       } else {
         console.log('Transaction created:', newTransaction.id);
 
-        // Send confirmation message
+        // Send confirmation message with interactive buttons
         const confirmMessage = formatTransactionMessage(
           businessName,
           { ...data, date: data.date || new Date().toLocaleDateString('pt-BR') },
-          aiSettings.greeting_style || 'friendly'
+          aiSettings.greeting_style || 'friendly',
+          newTransaction.id
         );
-        await sendEvolutionMessage(instance, phone, confirmMessage);
+        
+        // Try to send with buttons, fallback is handled inside the function
+        await sendEvolutionMessageWithButtons(
+          instance,
+          phone,
+          confirmMessage.title,
+          confirmMessage.description,
+          confirmMessage.footer,
+          confirmMessage.buttons
+        );
       }
 
       // Clear conversation context after completion
