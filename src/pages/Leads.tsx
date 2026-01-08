@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -97,6 +98,7 @@ const temperatureIcons: Record<LeadTemperature, React.ReactNode> = {
 export default function Leads() {
   const { business } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
@@ -304,11 +306,15 @@ export default function Leads() {
         .update({ status: 'converted', converted_customer_id: customer.id })
         .eq('id', lead.id);
       if (leadError) throw leadError;
+      
+      return customer;
     },
-    onSuccess: () => {
+    onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast({ title: 'Lead convertido em cliente!' });
+      // Redirect to subscriptions page with customer pre-selected
+      navigate(`/assinaturas?customer_id=${customer.id}`);
     },
     onError: () => {
       toast({ title: 'Erro ao converter lead', variant: 'destructive' });
