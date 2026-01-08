@@ -169,6 +169,140 @@ export type Database = {
           },
         ]
       }
+      broadcast_campaigns: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          failed_count: number | null
+          id: string
+          media_type: string | null
+          media_url: string | null
+          message: string
+          name: string
+          scheduled_at: string | null
+          sent_count: number | null
+          status: string | null
+          total_recipients: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message: string
+          name: string
+          scheduled_at?: string | null
+          sent_count?: number | null
+          status?: string | null
+          total_recipients?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          failed_count?: number | null
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          message?: string
+          name?: string
+          scheduled_at?: string | null
+          sent_count?: number | null
+          status?: string | null
+          total_recipients?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broadcast_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcast_recipients: {
+        Row: {
+          business_id: string
+          campaign_id: string
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          lead_id: string | null
+          name: string | null
+          phone: string
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          business_id: string
+          campaign_id: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string | null
+          phone: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          business_id?: string
+          campaign_id?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          lead_id?: string | null
+          name?: string | null
+          phone?: string
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_recipients_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broadcast_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "broadcast_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broadcast_recipients_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broadcast_recipients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           auto_reminders_enabled: boolean | null
@@ -213,6 +347,71 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contact_notes: {
+        Row: {
+          business_id: string
+          content: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          lead_id: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          content: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          lead_id?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          lead_id?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_notes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_notes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversation_tag_assignments: {
         Row: {
@@ -1020,6 +1219,80 @@ export type Database = {
           },
         ]
       }
+      reminders: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          description: string | null
+          id: string
+          is_completed: boolean | null
+          lead_id: string | null
+          phone: string | null
+          remind_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          lead_id?: string | null
+          phone?: string | null
+          remind_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          is_completed?: boolean | null
+          lead_id?: string | null
+          phone?: string | null
+          remind_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_messages: {
         Row: {
           business_id: string
@@ -1333,6 +1606,104 @@ export type Database = {
             columns: ["source_message_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhook_logs: {
+        Row: {
+          business_id: string
+          event_type: string | null
+          executed_at: string
+          id: string
+          payload: Json | null
+          response_body: string | null
+          response_status: number | null
+          webhook_id: string | null
+        }
+        Insert: {
+          business_id: string
+          event_type?: string | null
+          executed_at?: string
+          id?: string
+          payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id?: string | null
+        }
+        Update: {
+          business_id?: string
+          event_type?: string | null
+          executed_at?: string
+          id?: string
+          payload?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          business_id: string
+          created_at: string
+          events: string[] | null
+          headers: Json | null
+          id: string
+          is_active: boolean | null
+          name: string
+          secret_key: string | null
+          type: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          events?: string[] | null
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          secret_key?: string | null
+          type: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          events?: string[] | null
+          headers?: Json | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          secret_key?: string | null
+          type?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
