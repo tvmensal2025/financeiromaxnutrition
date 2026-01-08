@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
+
 import {
   Select,
   SelectContent,
@@ -60,12 +60,11 @@ export function AddCustomerModal({
     whatsapp: phone,
     phone: phone,
     notes: '',
-    interest_type: '' as 'product' | 'service' | '',
+    interest_type: '' as 'product' | 'service' | 'subscription' | '',
     interested_product_id: '',
     interested_service_id: '',
   });
 
-  const [createSubscription, setCreateSubscription] = useState(false);
   const [subscriptionData, setSubscriptionData] = useState({
     plan_id: '',
     quantity: 1,
@@ -85,7 +84,6 @@ export function AddCustomerModal({
         interested_product_id: '',
         interested_service_id: '',
       });
-      setCreateSubscription(false);
       setSubscriptionData({
         plan_id: '',
         quantity: 1,
@@ -217,8 +215,8 @@ export function AddCustomerModal({
           .eq('business_id', business.id);
       }
 
-      // Create subscription if enabled
-      if (createSubscription && subscriptionData.plan_id && selectedPlan) {
+      // Create subscription if interest_type is subscription
+      if (formData.interest_type === 'subscription' && subscriptionData.plan_id && selectedPlan) {
         const startDate = new Date();
         const endDate = getEndDate(startDate, selectedPlan.billing_cycle);
         
@@ -247,7 +245,7 @@ export function AddCustomerModal({
       return customer;
     },
     onSuccess: () => {
-      const message = createSubscription 
+      const message = formData.interest_type === 'subscription' && subscriptionData.plan_id
         ? `${formData.name} foi adicionado como cliente com assinatura.`
         : `${formData.name} foi adicionado como cliente.`;
       toast({
@@ -348,12 +346,17 @@ export function AddCustomerModal({
             <Label>Interesse em</Label>
             <Select
               value={formData.interest_type}
-              onValueChange={(value) => setFormData({ 
-                ...formData, 
-                interest_type: value as 'product' | 'service' | '',
-                interested_product_id: '',
-                interested_service_id: '',
-              })}
+              onValueChange={(value) => {
+                setFormData({ 
+                  ...formData, 
+                  interest_type: value as 'product' | 'service' | 'subscription' | '',
+                  interested_product_id: '',
+                  interested_service_id: '',
+                });
+                if (value !== 'subscription') {
+                  setSubscriptionData({ plan_id: '', quantity: 1, discount: 0 });
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o tipo de interesse (opcional)" />
@@ -362,6 +365,7 @@ export function AddCustomerModal({
                 <SelectItem value="none">Nenhum</SelectItem>
                 <SelectItem value="product">Produto</SelectItem>
                 <SelectItem value="service">Serviço</SelectItem>
+                <SelectItem value="subscription">Assinatura</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -421,100 +425,85 @@ export function AddCustomerModal({
             />
           </div>
 
-          {/* Create Subscription Section */}
-          {plans && plans.length > 0 && (
-            <div className="border-t pt-4 mt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="create-subscription" className="font-medium">
-                  Criar Assinatura
-                </Label>
-                <Switch
-                  id="create-subscription"
-                  checked={createSubscription}
-                  onCheckedChange={setCreateSubscription}
-                />
+          {/* Subscription Section - shown when interest_type is subscription */}
+          {formData.interest_type === 'subscription' && plans && plans.length > 0 && (
+            <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+              <div className="space-y-2">
+                <Label>Plano *</Label>
+                <Select
+                  value={subscriptionData.plan_id}
+                  onValueChange={(value) => setSubscriptionData({ ...subscriptionData, plan_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um plano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name} - {formatPrice(plan.price)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {createSubscription && (
+              {subscriptionData.plan_id && (
                 <>
-                  <div className="space-y-2">
-                    <Label>Plano *</Label>
-                    <Select
-                      value={subscriptionData.plan_id}
-                      onValueChange={(value) => setSubscriptionData({ ...subscriptionData, plan_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um plano" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {plans.map((plan) => (
-                          <SelectItem key={plan.id} value={plan.id}>
-                            {plan.name} - {formatPrice(plan.price)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="quantity">Quantidade</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        value={subscriptionData.quantity}
+                        onChange={(e) => setSubscriptionData({ 
+                          ...subscriptionData, 
+                          quantity: parseInt(e.target.value) || 1 
+                        })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Valor Unitário</Label>
+                      <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                        {formatPrice(unitPrice)}
+                      </div>
+                    </div>
                   </div>
 
-                  {subscriptionData.plan_id && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="quantity">Quantidade</Label>
-                          <Input
-                            id="quantity"
-                            type="number"
-                            min="1"
-                            value={subscriptionData.quantity}
-                            onChange={(e) => setSubscriptionData({ 
-                              ...subscriptionData, 
-                              quantity: parseInt(e.target.value) || 1 
-                            })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Valor Unitário</Label>
-                          <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
-                            {formatPrice(unitPrice)}
-                          </div>
-                        </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Subtotal</Label>
+                      <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                        {formatPrice(subtotal)}
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="discount">Desconto (R$)</Label>
+                      <Input
+                        id="discount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        max={subtotal}
+                        value={subscriptionData.discount}
+                        onChange={(e) => setSubscriptionData({ 
+                          ...subscriptionData, 
+                          discount: parseFloat(e.target.value) || 0 
+                        })}
+                      />
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Subtotal</Label>
-                          <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
-                            {formatPrice(subtotal)}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="discount">Desconto (R$)</Label>
-                          <Input
-                            id="discount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            max={subtotal}
-                            value={subscriptionData.discount}
-                            onChange={(e) => setSubscriptionData({ 
-                              ...subscriptionData, 
-                              discount: parseFloat(e.target.value) || 0 
-                            })}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="bg-primary/5 rounded-lg p-3 flex justify-between items-center">
-                        <div>
-                          <span className="text-sm text-muted-foreground">Valor Final:</span>
-                          <p className="text-xs text-muted-foreground">{totalCredits} créditos</p>
-                        </div>
-                        <span className="text-xl font-bold text-primary">
-                          {formatPrice(totalValue)}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                  <div className="bg-primary/5 rounded-lg p-3 flex justify-between items-center">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Valor Final:</span>
+                      <p className="text-xs text-muted-foreground">{totalCredits} créditos</p>
+                    </div>
+                    <span className="text-xl font-bold text-primary">
+                      {formatPrice(totalValue)}
+                    </span>
+                  </div>
                 </>
               )}
             </div>
@@ -529,7 +518,7 @@ export function AddCustomerModal({
               disabled={
                 mutation.isPending || 
                 !formData.name || 
-                (createSubscription && !subscriptionData.plan_id)
+                (formData.interest_type === 'subscription' && !subscriptionData.plan_id)
               }
             >
               {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
