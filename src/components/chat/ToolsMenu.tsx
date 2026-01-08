@@ -19,12 +19,16 @@ import {
   Radio,
   Eye,
   EyeOff,
+  Users,
+  Info,
 } from 'lucide-react';
 import { ValidateNumberModal } from './ValidateNumberModal';
 import { WhatsAppLinkGenerator } from './WhatsAppLinkGenerator';
 import { ImportContactsModal } from './ImportContactsModal';
 import { ExportContactsModal } from './ExportContactsModal';
 import { RemindersModal } from './RemindersModal';
+import { ToolsInfoModal } from './ToolsInfoModal';
+import { SelectGroupModal } from './SelectGroupModal';
 import { usePrivacy } from '@/contexts/PrivacyContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -37,6 +41,8 @@ export function ToolsMenu() {
   const [showImportCustomers, setShowImportCustomers] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
+  const [showToolsInfo, setShowToolsInfo] = useState(false);
+  const [showGroupExtractor, setShowGroupExtractor] = useState(false);
 
   return (
     <>
@@ -47,6 +53,11 @@ export function ToolsMenu() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onClick={() => setShowToolsInfo(true)}>
+            <Info className="h-4 w-4 mr-2" />
+            Sobre as Ferramentas
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuLabel>Ferramentas</DropdownMenuLabel>
           <DropdownMenuSeparator />
           
@@ -81,6 +92,11 @@ export function ToolsMenu() {
           <DropdownMenuItem onClick={() => setShowExport(true)}>
             <Download className="h-4 w-4 mr-2" />
             Exportar Contatos
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => setShowGroupExtractor(true)}>
+            <Users className="h-4 w-4 mr-2" />
+            Extrair Contatos de Grupos
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
@@ -120,6 +136,8 @@ export function ToolsMenu() {
       <ImportContactsModal open={showImportCustomers} onOpenChange={setShowImportCustomers} type="customers" />
       <ExportContactsModal open={showExport} onOpenChange={setShowExport} />
       <RemindersModal open={showReminders} onOpenChange={setShowReminders} />
+      <ToolsInfoModal open={showToolsInfo} onOpenChange={setShowToolsInfo} />
+      <SelectGroupModal open={showGroupExtractor} onOpenChange={setShowGroupExtractor} />
     </>
   );
 }
