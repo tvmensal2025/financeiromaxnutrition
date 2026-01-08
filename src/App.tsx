@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PrivacyProvider } from "@/contexts/PrivacyContext";
 
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -21,6 +22,8 @@ import Services from "./pages/Services";
 import Appointments from "./pages/Appointments";
 import Invoices from "./pages/Invoices";
 import TransactionsPage from "./pages/TransactionsPage";
+import Webhooks from "./pages/Webhooks";
+import Broadcasts from "./pages/Broadcasts";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -161,6 +164,22 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/webhooks"
+        element={
+          <ProtectedRoute>
+            <Webhooks />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/broadcasts"
+        element={
+          <ProtectedRoute>
+            <Broadcasts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/importar"
         element={
           <ProtectedRoute>
@@ -192,13 +211,15 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <PrivacyProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </PrivacyProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
