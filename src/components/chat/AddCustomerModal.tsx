@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { format, addMonths, addWeeks, addYears } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -30,6 +32,14 @@ interface AddCustomerModalProps {
   name?: string | null;
   email?: string | null;
   leadId?: string | null;
+}
+
+interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  credits: number;
+  billing_cycle: string;
 }
 
 export function AddCustomerModal({
@@ -55,6 +65,13 @@ export function AddCustomerModal({
     interested_service_id: '',
   });
 
+  const [createSubscription, setCreateSubscription] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState({
+    plan_id: '',
+    quantity: 1,
+    discount: 0,
+  });
+
   // Reset form when modal opens with new data
   useEffect(() => {
     if (open) {
@@ -67,6 +84,12 @@ export function AddCustomerModal({
         interest_type: '',
         interested_product_id: '',
         interested_service_id: '',
+      });
+      setCreateSubscription(false);
+      setSubscriptionData({
+        plan_id: '',
+        quantity: 1,
+        discount: 0,
       });
     }
   }, [open, name, email, phone]);
@@ -104,6 +127,45 @@ export function AddCustomerModal({
     },
     enabled: !!business?.id && open,
   });
+
+  // Fetch plans
+  const { data: plans } = useQuery({
+    queryKey: ['plans', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return [];
+      const { data, error } = await supabase
+        .from('plans')
+        .select('id, name, price, credits, billing_cycle')
+        .eq('business_id', business.id)
+        .eq('is_active', true)
+        .order('price');
+      if (error) throw error;
+      return data as Plan[];
+    },
+    enabled: !!business?.id && open,
+  });
+
+  // Calculate subscription values
+  const selectedPlan = plans?.find((p) => p.id === subscriptionData.plan_id);
+  const unitPrice = selectedPlan?.price || 0;
+  const subtotal = unitPrice * subscriptionData.quantity;
+  const totalValue = subtotal - subscriptionData.discount;
+  const totalCredits = (selectedPlan?.credits || 0) * subscriptionData.quantity;
+
+  const getEndDate = (startDate: Date, billingCycle: string) => {
+    switch (billingCycle) {
+      case 'weekly':
+        return addWeeks(startDate, 1);
+      case 'monthly':
+        return addMonths(startDate, 1);
+      case 'quarterly':
+        return addMonths(startDate, 3);
+      case 'yearly':
+        return addYears(startDate, 1);
+      default:
+        return addMonths(startDate, 1);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -155,15 +217,46 @@ export function AddCustomerModal({
           .eq('business_id', business.id);
       }
 
+      // Create subscription if enabled
+      if (createSubscription && subscriptionData.plan_id && selectedPlan) {
+        const startDate = new Date();
+        const endDate = getEndDate(startDate, selectedPlan.billing_cycle);
+        
+        const { error: subscriptionError } = await supabase
+          .from('subscriptions')
+          .insert({
+            business_id: business.id,
+            customer_id: customer.id,
+            plan_id: subscriptionData.plan_id,
+            quantity: subscriptionData.quantity,
+            unit_price: unitPrice,
+            subtotal: subtotal,
+            discount: subscriptionData.discount,
+            total: totalValue,
+            credits_total: totalCredits,
+            credits_used: 0,
+            start_date: format(startDate, 'yyyy-MM-dd'),
+            end_date: format(endDate, 'yyyy-MM-dd'),
+            status: 'active',
+            auto_renew: false,
+          });
+        
+        if (subscriptionError) throw subscriptionError;
+      }
+
       return customer;
     },
     onSuccess: () => {
+      const message = createSubscription 
+        ? `${formData.name} foi adicionado como cliente com assinatura.`
+        : `${formData.name} foi adicionado como cliente.`;
       toast({
         title: leadId ? 'Lead convertido!' : 'Cliente adicionado!',
-        description: `${formData.name} foi adicionado como cliente.`,
+        description: message,
       });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
       onOpenChange(false);
@@ -324,15 +417,121 @@ export function AddCustomerModal({
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Observações sobre o cliente..."
-              rows={3}
+              rows={2}
             />
           </div>
+
+          {/* Create Subscription Section */}
+          {plans && plans.length > 0 && (
+            <div className="border-t pt-4 mt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="create-subscription" className="font-medium">
+                  Criar Assinatura
+                </Label>
+                <Switch
+                  id="create-subscription"
+                  checked={createSubscription}
+                  onCheckedChange={setCreateSubscription}
+                />
+              </div>
+
+              {createSubscription && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Plano *</Label>
+                    <Select
+                      value={subscriptionData.plan_id}
+                      onValueChange={(value) => setSubscriptionData({ ...subscriptionData, plan_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um plano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {plans.map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>
+                            {plan.name} - {formatPrice(plan.price)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {subscriptionData.plan_id && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="quantity">Quantidade</Label>
+                          <Input
+                            id="quantity"
+                            type="number"
+                            min="1"
+                            value={subscriptionData.quantity}
+                            onChange={(e) => setSubscriptionData({ 
+                              ...subscriptionData, 
+                              quantity: parseInt(e.target.value) || 1 
+                            })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Valor Unitário</Label>
+                          <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                            {formatPrice(unitPrice)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Subtotal</Label>
+                          <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                            {formatPrice(subtotal)}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="discount">Desconto (R$)</Label>
+                          <Input
+                            id="discount"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            max={subtotal}
+                            value={subscriptionData.discount}
+                            onChange={(e) => setSubscriptionData({ 
+                              ...subscriptionData, 
+                              discount: parseFloat(e.target.value) || 0 
+                            })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-primary/5 rounded-lg p-3 flex justify-between items-center">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Valor Final:</span>
+                          <p className="text-xs text-muted-foreground">{totalCredits} créditos</p>
+                        </div>
+                        <span className="text-xl font-bold text-primary">
+                          {formatPrice(totalValue)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={mutation.isPending || !formData.name}>
+            <Button 
+              type="submit" 
+              disabled={
+                mutation.isPending || 
+                !formData.name || 
+                (createSubscription && !subscriptionData.plan_id)
+              }
+            >
               {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {leadId ? 'Converter' : 'Adicionar'}
             </Button>
