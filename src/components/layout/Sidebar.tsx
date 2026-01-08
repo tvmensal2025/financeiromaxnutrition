@@ -14,7 +14,9 @@ import {
   Wrench,
   Calendar,
   Receipt,
-  Wallet
+  Wallet,
+  Webhook,
+  Radio
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -33,6 +35,8 @@ const navigation = [
   { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
   { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
   { name: 'Faturas', href: '/faturas', icon: Receipt },
+  { name: 'Transmissões', href: '/broadcasts', icon: Radio },
+  { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];

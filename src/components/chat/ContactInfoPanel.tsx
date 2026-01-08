@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { NotesPanel } from './NotesPanel';
 
 interface ScheduledMessage {
   id: string;
@@ -492,6 +493,10 @@ export function ContactInfoPanel({
               )}
             </>
           )}
+
+          {/* Notes Panel */}
+          <Separator />
+          <NotesPanel phone={contact.phone} />
         </div>
       </ScrollArea>
     </div>

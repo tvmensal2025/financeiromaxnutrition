@@ -21,6 +21,7 @@ import { MessageTemplatesModal } from '@/components/chat/MessageTemplatesModal';
 import { BulkMessageModal } from '@/components/chat/BulkMessageModal';
 import { ExtractContactsModal } from '@/components/chat/ExtractContactsModal';
 import { ScheduledMessagesListModal } from '@/components/chat/ScheduledMessagesListModal';
+import { ToolsMenu } from '@/components/chat/ToolsMenu';
 
 interface WhatsAppMessage {
   id: string;
@@ -661,6 +662,7 @@ export default function Messages() {
                 <Clock className="h-4 w-4 mr-1" />
                 Agendadas
               </Button>
+              <ToolsMenu />
             </div>
             {!isMobileView && selectedPhone && (
               <Button
