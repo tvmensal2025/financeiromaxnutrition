@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -72,6 +73,7 @@ export default function Subscriptions() {
   const { business } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -84,6 +86,17 @@ export default function Subscriptions() {
     credits_used: '0',
     end_date: '',
   });
+
+  // Handle customer_id from URL (when coming from lead conversion)
+  useEffect(() => {
+    const customerIdFromUrl = searchParams.get('customer_id');
+    if (customerIdFromUrl) {
+      setFormData(prev => ({ ...prev, customer_id: customerIdFromUrl }));
+      setIsDialogOpen(true);
+      // Clear the URL param
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ['subscriptions'],
