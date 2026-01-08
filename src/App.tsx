@@ -24,9 +24,6 @@ import Invoices from "./pages/Invoices";
 import TransactionsPage from "./pages/TransactionsPage";
 import Webhooks from "./pages/Webhooks";
 import Broadcasts from "./pages/Broadcasts";
-import CRM from "./pages/CRM";
-import Catalog from "./pages/Catalog";
-import Finance from "./pages/Finance";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -87,41 +84,45 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/mensagens"
+        path="/leads"
         element={
           <ProtectedRoute>
-            <Messages />
+            <Leads />
           </ProtectedRoute>
         }
       />
-      
-      {/* CRM Routes */}
       <Route
-        path="/crm"
+        path="/pipeline"
         element={
           <ProtectedRoute>
-            <CRM />
+            <Pipeline />
           </ProtectedRoute>
         }
       />
-      <Route path="/leads" element={<Navigate to="/crm?tab=leads" replace />} />
-      <Route path="/pipeline" element={<Navigate to="/crm?tab=pipeline" replace />} />
-      <Route path="/clientes" element={<Navigate to="/crm?tab=clientes" replace />} />
-      
-      {/* Catalog Routes */}
       <Route
-        path="/catalogo"
+        path="/clientes"
         element={
           <ProtectedRoute>
-            <Catalog />
+            <Customers />
           </ProtectedRoute>
         }
       />
-      <Route path="/produtos" element={<Navigate to="/catalogo?tab=produtos" replace />} />
-      <Route path="/servicos" element={<Navigate to="/catalogo?tab=servicos" replace />} />
-      <Route path="/planos" element={<Navigate to="/catalogo?tab=planos" replace />} />
-      
-      {/* Schedule */}
+      <Route
+        path="/produtos"
+        element={
+          <ProtectedRoute>
+            <Products />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/servicos"
+        element={
+          <ProtectedRoute>
+            <Services />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/agendamentos"
         element={
@@ -130,21 +131,70 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
-      {/* Finance Routes */}
       <Route
-        path="/financeiro"
+        path="/planos"
         element={
           <ProtectedRoute>
-            <Finance />
+            <Plans />
           </ProtectedRoute>
         }
       />
-      <Route path="/transacoes" element={<Navigate to="/financeiro?tab=transacoes" replace />} />
-      <Route path="/faturas" element={<Navigate to="/financeiro?tab=faturas" replace />} />
-      <Route path="/assinaturas" element={<Navigate to="/financeiro?tab=assinaturas" replace />} />
-      
-      {/* Settings (includes webhooks, imports, broadcasts) */}
+      <Route
+        path="/assinaturas"
+        element={
+          <ProtectedRoute>
+            <Subscriptions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faturas"
+        element={
+          <ProtectedRoute>
+            <Invoices />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transacoes"
+        element={
+          <ProtectedRoute>
+            <TransactionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/webhooks"
+        element={
+          <ProtectedRoute>
+            <Webhooks />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/broadcasts"
+        element={
+          <ProtectedRoute>
+            <Broadcasts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/importar"
+        element={
+          <ProtectedRoute>
+            <Import />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mensagens"
+        element={
+          <ProtectedRoute>
+            <Messages />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/configuracoes"
         element={
@@ -153,10 +203,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route path="/webhooks" element={<Navigate to="/configuracoes?tab=webhooks" replace />} />
-      <Route path="/broadcasts" element={<Navigate to="/configuracoes?tab=transmissoes" replace />} />
-      <Route path="/importar" element={<Navigate to="/configuracoes?tab=importar" replace />} />
-      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

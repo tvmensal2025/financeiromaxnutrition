@@ -2,13 +2,21 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
+  FileText, 
   MessageSquare, 
   Settings,
   LogOut,
   Building2,
+  Upload,
+  UserPlus,
+  TrendingUp,
   Package,
+  Wrench,
   Calendar,
-  Wallet
+  Receipt,
+  Wallet,
+  Webhook,
+  Radio
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -18,10 +26,18 @@ import { supabase } from '@/integrations/supabase/client';
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare, showBadge: true },
-  { name: 'CRM', href: '/crm', icon: Users },
-  { name: 'Catálogo', href: '/catalogo', icon: Package },
-  { name: 'Agenda', href: '/agendamentos', icon: Calendar },
-  { name: 'Financeiro', href: '/financeiro', icon: Wallet },
+  { name: 'Transações', href: '/transacoes', icon: Wallet },
+  { name: 'Leads', href: '/leads', icon: UserPlus },
+  { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
+  { name: 'Clientes', href: '/clientes', icon: Users },
+  { name: 'Produtos', href: '/produtos', icon: Package },
+  { name: 'Serviços', href: '/servicos', icon: Wrench },
+  { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
+  { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
+  { name: 'Faturas', href: '/faturas', icon: Receipt },
+  { name: 'Transmissões', href: '/broadcasts', icon: Radio },
+  { name: 'Webhooks', href: '/webhooks', icon: Webhook },
+  { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
 ];
 
