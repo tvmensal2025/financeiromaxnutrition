@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Settings2, Sparkles } from 'lucide-react';
+import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Plus, Sparkles } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -31,7 +31,7 @@ interface ChatInputProps {
   onManageTemplates?: () => void;
 }
 
-const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉'];
+const quickEmojis = ['👍', '❤️', '😊', '🙏', '✅', '🔥', '👏', '🎉', '😂', '🤔', '👋', '💪'];
 
 interface TemplateData {
   id: string;
@@ -42,7 +42,6 @@ interface TemplateData {
 }
 
 export function ChatInput({ onSend, disabled, isSending, businessId, onManageTemplates }: ChatInputProps) {
-  // Fetch templates from database
   const { data: templates = [] } = useQuery({
     queryKey: ['message-templates', businessId],
     queryFn: async () => {
@@ -63,11 +62,13 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
     },
     enabled: !!businessId,
   });
+  
   const [message, setMessage] = useState('');
   const [pendingButtons, setPendingButtons] = useState<TemplateButton[]>([]);
   const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,14 +80,11 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      const newHeight = Math.min(textareaRef.current.scrollHeight, 120);
+      const newHeight = Math.min(textareaRef.current.scrollHeight, 100);
       textareaRef.current.style.height = `${newHeight}px`;
-      // Auto-scroll to bottom when content grows
-      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
     }
   }, [message]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (recordingIntervalRef.current) {
@@ -112,7 +110,6 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
     const type = forceType || getFileType(file);
     const attached: AttachedFile = { file, type };
 
-    // Create preview for images
     if (type === 'image') {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -124,7 +121,6 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
       setAttachedFile(attached);
     }
 
-    // Reset input
     e.target.value = '';
   };
 
@@ -160,7 +156,6 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
           type: 'audio'
         });
 
-        // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -168,7 +163,6 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
       setIsRecording(true);
       setRecordingTime(0);
 
-      // Start timer
       recordingIntervalRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -217,16 +211,15 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
   };
 
   const handleTemplate = (template: TemplateData) => {
-    // Set the message content (without formatted buttons - those go as real buttons)
     setMessage(template.content);
     
-    // Store buttons to send as interactive buttons
     if (template.buttons && template.buttons.length > 0) {
       setPendingButtons(template.buttons);
     } else {
       setPendingButtons([]);
     }
     
+    setTemplatesOpen(false);
     textareaRef.current?.focus();
   };
 
@@ -238,7 +231,7 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
   const canSend = (message.trim() || attachedFile) && !disabled && !isSending;
 
   return (
-    <div className="border-t border-border bg-card/80 backdrop-blur-sm p-4 space-y-3">
+    <div className="border-t border-border/50 bg-card/95 backdrop-blur-md">
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -257,147 +250,170 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
 
       {/* Attached file preview */}
       {attachedFile && (
-        <div className={cn(
-          'flex items-center gap-3 p-3 rounded-xl',
-          'bg-muted/50 border border-border'
-        )}>
-          {attachedFile.type === 'image' && attachedFile.preview ? (
-            <img 
-              src={attachedFile.preview} 
-              alt="Preview" 
-              className="h-16 w-16 object-cover rounded-lg"
-            />
-          ) : attachedFile.type === 'audio' ? (
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Mic className="h-6 w-6 text-primary" />
+        <div className="px-3 pt-3">
+          <div className={cn(
+            'flex items-center gap-3 p-2.5 rounded-xl',
+            'bg-muted/50 border border-border/50'
+          )}>
+            {attachedFile.type === 'image' && attachedFile.preview ? (
+              <img 
+                src={attachedFile.preview} 
+                alt="Preview" 
+                className="h-12 w-12 object-cover rounded-lg"
+              />
+            ) : attachedFile.type === 'audio' ? (
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Mic className="h-5 w-5 text-primary" />
+              </div>
+            ) : attachedFile.type === 'video' ? (
+              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <File className="h-5 w-5 text-purple-500" />
+              </div>
+            ) : (
+              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-blue-500" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{attachedFile.file.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(attachedFile.file.size / 1024).toFixed(1)} KB
+              </p>
             </div>
-          ) : attachedFile.type === 'video' ? (
-            <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <File className="h-6 w-6 text-purple-500" />
-            </div>
-          ) : (
-            <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-blue-500" />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{attachedFile.file.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {(attachedFile.file.size / 1024).toFixed(1)} KB
-            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={removeAttachment}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={removeAttachment}
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       )}
 
       {/* Recording indicator */}
       {isRecording && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-          <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-          <span className="text-sm font-medium text-red-500">Gravando</span>
-          <span className="text-sm text-muted-foreground">{formatTime(recordingTime)}</span>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-            onClick={stopRecording}
-          >
-            <StopCircle className="h-4 w-4 mr-1" />
-            Parar
-          </Button>
+        <div className="px-3 pt-3">
+          <div className="flex items-center gap-3 p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-sm font-medium text-red-500">Gravando</span>
+            <span className="text-sm text-muted-foreground">{formatTime(recordingTime)}</span>
+            <div className="flex-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-8"
+              onClick={stopRecording}
+            >
+              <StopCircle className="h-4 w-4 mr-1" />
+              Parar
+            </Button>
+          </div>
         </div>
       )}
 
       {/* Pending buttons indicator */}
       {pendingButtons.length > 0 && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium text-primary">
-            {pendingButtons.length} botão(ões) interativo(s)
-          </span>
-          <div className="flex-1 flex gap-1 overflow-x-auto">
-            {pendingButtons.map((btn, idx) => (
-              <span key={idx} className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full shrink-0">
-                {btn.type === 'reply' ? `↩️ ${btn.text}` : `🔗 ${btn.text}`}
-              </span>
-            ))}
+        <div className="px-3 pt-3">
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary">
+              {pendingButtons.length} botão(ões)
+            </span>
+            <div className="flex-1 flex gap-1 overflow-x-auto">
+              {pendingButtons.map((btn, idx) => (
+                <span key={idx} className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full shrink-0">
+                  {btn.text}
+                </span>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-primary hover:text-primary/80"
+              onClick={() => setPendingButtons([])}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary hover:text-primary/80 hover:bg-primary/10"
-            onClick={() => setPendingButtons([])}
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       )}
 
-      {/* Quick templates row - 1 click access */}
-      <div className="flex items-center gap-1.5 px-1 overflow-x-auto">
-        {templates.map((t) => (
-          <Button
-            key={t.id}
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 text-xs hover:bg-accent/50 rounded-full border-border/50"
-            onClick={() => handleTemplate(t)}
-          >
-            <span className="mr-1">{t.emoji}</span>
-            <span className="font-bold">{t.name}</span>
-          </Button>
-        ))}
-        {onManageTemplates && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 shrink-0 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-full"
-            onClick={onManageTemplates}
-          >
-            <Settings2 className="h-4 w-4" />
-          </Button>
-        )}
-        {templates.length === 0 && onManageTemplates && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 text-xs font-medium hover:bg-accent/50 rounded-full border-dashed border-border/50"
-            onClick={onManageTemplates}
-          >
-            <Settings2 className="h-3 w-3 mr-1" />
-            Criar modelos
-          </Button>
-        )}
-      </div>
+      {/* Compact input area */}
+      <div className="flex items-end gap-2 p-3">
+        {/* Templates popover */}
+        <Popover open={templatesOpen} onOpenChange={setTemplatesOpen}>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent side="top" align="start" className="w-72 p-2">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground px-2 py-1">Modelos rápidos</p>
+              {templates.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-2">Nenhum modelo</p>
+                  {onManageTemplates && (
+                    <Button variant="outline" size="sm" onClick={() => { setTemplatesOpen(false); onManageTemplates(); }}>
+                      Criar modelo
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-0.5">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleTemplate(t)}
+                      className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent text-left transition-colors"
+                    >
+                      <span className="text-lg">{t.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{t.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{t.content.substring(0, 40)}...</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {templates.length > 0 && onManageTemplates && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mt-1 text-muted-foreground"
+                  onClick={() => { setTemplatesOpen(false); onManageTemplates(); }}
+                >
+                  Gerenciar modelos
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
-      {/* Quick actions row */}
-      <div className="flex items-center gap-2 px-1">
         {/* Emoji picker */}
         <Popover>
           <PopoverTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+              className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
             >
-              <Smile className="h-4 w-4" />
+              <Smile className="h-5 w-5" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-3 rounded-xl">
-            <div className="grid grid-cols-4 gap-1">
+          <PopoverContent align="start" side="top" className="w-auto p-2">
+            <div className="grid grid-cols-6 gap-0.5">
               {quickEmojis.map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => insertEmoji(emoji)}
-                  className="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-xl"
+                  className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-lg"
                 >
                   {emoji}
                 </button>
@@ -406,87 +422,89 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
           </PopoverContent>
         </Popover>
 
-        {/* Attachment (documents) */}
+        {/* Attachment */}
         <Button 
           variant="ghost" 
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+          className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
           onClick={() => fileInputRef.current?.click()}
           disabled={isRecording}
         >
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="h-5 w-5" />
         </Button>
 
         {/* Image/Video */}
         <Button 
           variant="ghost" 
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent/50 rounded-lg"
+          className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
           onClick={() => imageInputRef.current?.click()}
           disabled={isRecording}
         >
-          <Image className="h-4 w-4" />
+          <Image className="h-5 w-5" />
         </Button>
-      </div>
 
-      {/* Input area */}
-      <div className="flex items-end gap-3">
+        {/* Input */}
         <div className="flex-1 relative">
           <Textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={attachedFile ? "Adicione uma legenda..." : "Digite sua mensagem..."}
+            placeholder={attachedFile ? "Legenda..." : "Digite uma mensagem"}
             disabled={disabled || isSending || isRecording}
             className={cn(
-              'min-h-[48px] max-h-[120px] resize-none pr-4 rounded-2xl',
-              'bg-background/50 border-border/50',
-              'focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/50',
-              'transition-all duration-200'
+              'min-h-[40px] max-h-[100px] resize-none rounded-2xl py-2.5 px-4',
+              'bg-background border-border/50',
+              'focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:border-primary/50',
+              'transition-all duration-200 text-sm'
             )}
             rows={1}
           />
         </div>
 
         {/* Audio button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-12 w-12 shrink-0 rounded-full transition-colors",
-            isRecording 
-              ? "text-red-500 hover:text-red-600 hover:bg-red-500/10" 
-              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-          )}
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={disabled || isSending || !!attachedFile}
-        >
-          {isRecording ? (
-            <StopCircle className="h-5 w-5" />
-          ) : (
+        {!canSend && !isRecording && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50"
+            onClick={startRecording}
+            disabled={disabled || isSending || !!attachedFile}
+          >
             <Mic className="h-5 w-5" />
-          )}
-        </Button>
+          </Button>
+        )}
+
+        {isRecording && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-full text-red-500 hover:text-red-600 hover:bg-red-500/10"
+            onClick={stopRecording}
+          >
+            <StopCircle className="h-5 w-5" />
+          </Button>
+        )}
 
         {/* Send button */}
-        <Button
-          onClick={handleSend}
-          disabled={!canSend}
-          size="icon"
-          className={cn(
-            'h-12 w-12 shrink-0 rounded-full transition-all duration-300',
-            canSend 
-              ? 'shadow-lg shadow-primary/30 scale-100' 
-              : 'scale-95 opacity-70'
-          )}
-        >
-          {isSending ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Send className="h-5 w-5" />
-          )}
-        </Button>
+        {(canSend || isSending) && (
+          <Button
+            onClick={handleSend}
+            disabled={!canSend}
+            size="icon"
+            className={cn(
+              'h-10 w-10 shrink-0 rounded-full transition-all duration-300',
+              canSend && 'shadow-lg shadow-primary/25 animate-pulse-slow'
+            )}
+          >
+            {isSending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -9,14 +9,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical, Pin, Tag, Target, UserCheck, ShoppingCart, UserPlus } from 'lucide-react';
+import { Phone, MessageCircle, ArrowLeft, Sparkles, UsersRound, MoreVertical, Pin, Tag, Target, UserCheck, ShoppingCart, UserPlus, Search, Video } from 'lucide-react';
 import { ChatMessage, Message } from './ChatMessage';
 import { ChatInput, TemplateButton } from './ChatInput';
 import type { ConversationStatus } from './ConversationsList';
@@ -134,10 +133,20 @@ export function ChatArea({
     },
   });
 
+  // Auto-scroll to bottom when messages change - FIX for ScrollArea
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    const timer = setTimeout(() => {
+      if (scrollRef.current) {
+        const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollElement) {
+          scrollElement.scrollTo({ 
+            top: scrollElement.scrollHeight, 
+            behavior: 'smooth' 
+          });
+        }
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const isGroup = phone?.startsWith('group:') || contactType === 'group';
@@ -173,15 +182,15 @@ export function ChatArea({
 
   const getTypeLabel = () => {
     if (isGroup) {
-      return { label: 'Grupo', className: 'bg-purple-500/10 text-purple-500' };
+      return { label: 'Grupo', className: 'bg-purple-500/10 text-purple-500 border border-purple-500/20' };
     }
     switch (contactType) {
       case 'customer':
-        return { label: 'Cliente', className: 'bg-success/10 text-success' };
+        return { label: 'Cliente', className: 'bg-success/10 text-success border border-success/20' };
       case 'lead':
-        return { label: 'Lead', className: 'bg-warning/10 text-warning' };
+        return { label: 'Lead', className: 'bg-warning/10 text-warning border border-warning/20' };
       default:
-        return { label: 'Novo', className: 'bg-muted text-muted-foreground' };
+        return { label: 'Novo', className: 'bg-muted text-muted-foreground border border-border' };
     }
   };
 
@@ -227,26 +236,26 @@ export function ChatArea({
 
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Premium Header */}
-      <div className="flex items-center gap-3 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3">
+      {/* Compact Premium Header */}
+      <div className="flex items-center gap-3 border-b border-border/50 bg-card/95 backdrop-blur-md px-3 py-2">
         {showBack && (
-          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 md:hidden h-9 w-9 rounded-full">
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0 md:hidden h-8 w-8 rounded-full">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
         )}
         
         <div className="relative">
           <Avatar className={cn(
-            'h-11 w-11 shrink-0 ring-2 ring-offset-2 ring-offset-card',
-            isGroup ? 'ring-purple-500/30' : 'ring-primary/30'
+            'h-10 w-10 shrink-0 ring-2 ring-offset-1 ring-offset-card',
+            isGroup ? 'ring-purple-500/40' : 'ring-primary/40'
           )}>
             <AvatarFallback className={cn(
-              'font-semibold',
+              'font-semibold text-sm',
               isGroup 
                 ? 'bg-purple-500/10 text-purple-500' 
                 : 'bg-gradient-to-br from-primary to-primary/70 text-primary-foreground'
             )}>
-              {isGroup ? <UsersRound className="h-5 w-5" /> : getInitials(contactName, phone)}
+              {isGroup ? <UsersRound className="h-4 w-4" /> : getInitials(contactName, phone)}
             </AvatarFallback>
           </Avatar>
           <span className="status-dot online" />
@@ -254,158 +263,171 @@ export function ChatArea({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground truncate">
+            <h3 className="font-semibold text-sm text-foreground truncate">
               {contactName || (isGroup ? 'Grupo' : formatPhone(phone))}
             </h3>
-            <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', typeInfo.className)}>
+            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium', typeInfo.className)}>
               {typeInfo.label}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            {isGroup ? (
-              <UsersRound className="h-3 w-3" />
-            ) : (
-              <Phone className="h-3 w-3" />
-            )}
-            <span>{formatPhone(phone)}</span>
-          </div>
+          <p className="text-xs text-muted-foreground truncate">
+            {isGroup ? 'Toque para ver participantes' : formatPhone(phone)}
+          </p>
         </div>
 
-        {isGroup && onViewParticipants && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onViewParticipants}
-            className="shrink-0 gap-2 text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-          >
-            <UsersRound className="h-4 w-4" />
-            <span className="hidden sm:inline">Ver Participantes</span>
-          </Button>
-        )}
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="shrink-0 h-9 w-9 rounded-full">
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {/* Pin conversation */}
-            <DropdownMenuItem
-              onSelect={() => togglePinMutation.mutate()}
-              disabled={togglePinMutation.isPending}
+        {/* Action buttons */}
+        <div className="flex items-center gap-1">
+          {isGroup && onViewParticipants && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={onViewParticipants}
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
             >
-              <Pin className={cn("mr-2 h-4 w-4", isPinned && "text-primary")} />
-              {isPinned ? 'Desafixar conversa' : 'Fixar conversa'}
-            </DropdownMenuItem>
-            
-            {/* Tags */}
-            <DropdownMenuItem onSelect={() => setShowManageTags(true)}>
-              <Tag className="mr-2 h-4 w-4" />
-              Etiquetas
-            </DropdownMenuItem>
-            
-            {/* Assign agent */}
-            <DropdownMenuItem onSelect={() => setShowAssignAgent(true)}>
-              <UserCheck className="mr-2 h-4 w-4" />
-              Atribuir atendente
-            </DropdownMenuItem>
+              <UsersRound className="h-4 w-4" />
+            </Button>
+          )}
+          
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <Video className="h-4 w-4" />
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <Search className="h-4 w-4" />
+          </Button>
 
-            <DropdownMenuSeparator />
-            
-            {/* Quick actions for leads/new contacts */}
-            {!isGroup && (contactType === 'lead' || contactType === 'new') && (
-              <>
-                <DropdownMenuItem onSelect={() => setShowAddCustomer(true)}>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Converter para cliente
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
-                  <ShoppingCart className="mr-2 h-4 w-4 text-success" />
-                  Venda rápida
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            {/* Quick actions for customers */}
-            {!isGroup && contactType === 'customer' && (
-              <>
-                <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
-                  <ShoppingCart className="mr-2 h-4 w-4 text-success" />
-                  Venda rápida
-                </DropdownMenuItem>
-              </>
-            )}
-
-            {/* Create opportunity */}
-            {!isGroup && (
-              <DropdownMenuItem onSelect={() => setShowCreateOpportunity(true)}>
-                <Target className="mr-2 h-4 w-4 text-warning" />
-                Criar oportunidade
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              {/* Pin conversation */}
+              <DropdownMenuItem
+                onSelect={() => togglePinMutation.mutate()}
+                disabled={togglePinMutation.isPending}
+              >
+                <Pin className={cn("mr-2 h-4 w-4", isPinned && "text-primary")} />
+                {isPinned ? 'Desafixar' : 'Fixar conversa'}
               </DropdownMenuItem>
-            )}
+              
+              {/* Tags */}
+              <DropdownMenuItem onSelect={() => setShowManageTags(true)}>
+                <Tag className="mr-2 h-4 w-4" />
+                Etiquetas
+              </DropdownMenuItem>
+              
+              {/* Assign agent */}
+              <DropdownMenuItem onSelect={() => setShowAssignAgent(true)}>
+                <UserCheck className="mr-2 h-4 w-4" />
+                Atribuir atendente
+              </DropdownMenuItem>
 
-            <DropdownMenuSeparator />
-            
-            {/* Status submenu */}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                Status da conversa
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem
-                  onSelect={() => onUpdateConversationStatus?.('waiting')}
-                  className={cn(conversationStatus === 'waiting' || conversationStatus === 'pending' ? 'bg-accent' : '')}
-                >
-                  Esperando
+              <DropdownMenuSeparator />
+              
+              {/* Quick actions for leads/new contacts */}
+              {!isGroup && (contactType === 'lead' || contactType === 'new') && (
+                <>
+                  <DropdownMenuItem onSelect={() => setShowAddCustomer(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Converter para cliente
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
+                    <ShoppingCart className="mr-2 h-4 w-4 text-success" />
+                    Venda rápida
+                  </DropdownMenuItem>
+                </>
+              )}
+              
+              {/* Quick actions for customers */}
+              {!isGroup && contactType === 'customer' && (
+                <>
+                  <DropdownMenuItem onSelect={() => setShowQuickSale(true)}>
+                    <ShoppingCart className="mr-2 h-4 w-4 text-success" />
+                    Venda rápida
+                  </DropdownMenuItem>
+                </>
+              )}
+
+              {/* Create opportunity */}
+              {!isGroup && (
+                <DropdownMenuItem onSelect={() => setShowCreateOpportunity(true)}>
+                  <Target className="mr-2 h-4 w-4 text-warning" />
+                  Criar oportunidade
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => onUpdateConversationStatus?.('inbox')}
-                  className={cn(conversationStatus === 'inbox' ? 'bg-accent' : '')}
-                >
-                  Entrada
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => onUpdateConversationStatus?.('finished')}
-                  className={cn(conversationStatus === 'finished' ? 'bg-accent' : '')}
-                >
-                  Finalizado
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+
+              <DropdownMenuSeparator />
+              
+              {/* Status submenu */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  Status da conversa
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  <DropdownMenuItem
+                    onSelect={() => onUpdateConversationStatus?.('waiting')}
+                    className={cn(conversationStatus === 'waiting' || conversationStatus === 'pending' ? 'bg-accent' : '')}
+                  >
+                    Esperando
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => onUpdateConversationStatus?.('inbox')}
+                    className={cn(conversationStatus === 'inbox' ? 'bg-accent' : '')}
+                  >
+                    Entrada
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => onUpdateConversationStatus?.('finished')}
+                    className={cn(conversationStatus === 'finished' ? 'bg-accent' : '')}
+                  >
+                    Finalizado
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1 chat-container" ref={scrollRef}>
-        <div className="p-4 min-h-full">
+        <div className="px-4 py-2 min-h-full">
           {isLoading ? (
             <div className="flex items-center justify-center h-full py-20">
               <div className="flex flex-col items-center gap-3">
-                <div className="h-10 w-10 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-                <span className="text-sm text-muted-foreground">Carregando mensagens...</span>
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <span className="text-sm text-muted-foreground">Carregando...</span>
               </div>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-20">
-              <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 p-5 mb-4">
-                <Sparkles className="h-10 w-10 text-primary" />
+              <div className="rounded-full bg-gradient-to-br from-primary/20 to-primary/5 p-4 mb-4">
+                <Sparkles className="h-8 w-8 text-primary" />
               </div>
-              <p className="font-semibold text-foreground mb-1 text-lg">
+              <p className="font-medium text-foreground mb-1">
                 Inicie a conversa
               </p>
               <p className="text-sm text-muted-foreground max-w-xs">
-                Envie a primeira mensagem para começar a interação
+                Envie a primeira mensagem
               </p>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {Object.entries(groupedMessages).map(([date, msgs]) => (
                 <div key={date}>
                   {/* Date separator */}
-                  <div className="flex items-center justify-center my-6">
-                    <div className="bg-card/80 backdrop-blur-sm border border-border/50 text-muted-foreground text-xs font-medium px-4 py-1.5 rounded-full shadow-sm">
+                  <div className="flex items-center justify-center my-4">
+                    <div className="bg-card/90 backdrop-blur-sm border border-border/30 text-muted-foreground text-[11px] font-medium px-3 py-1 rounded-full shadow-sm">
                       {formatDateHeader(date)}
                     </div>
                   </div>
