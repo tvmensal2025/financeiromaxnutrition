@@ -19,11 +19,7 @@ import {
 
 type ConnectionStatus = 'disconnected' | 'waiting_qr' | 'connected' | 'loading';
 
-interface WhatsAppConnectionProps {
-  businessId?: string;
-}
-
-export function WhatsAppConnection({ businessId }: WhatsAppConnectionProps) {
+export function WhatsAppConnection() {
   const [status, setStatus] = useState<ConnectionStatus>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [phoneNumber, setPhoneNumber] = useState<string | null>(null);

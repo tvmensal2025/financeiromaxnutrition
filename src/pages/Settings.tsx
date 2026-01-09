@@ -158,7 +158,7 @@ export default function Settings() {
         </div>
 
         {/* WhatsApp Connection */}
-        <WhatsAppConnection businessId={business?.id} />
+        <WhatsAppConnection />
 
         <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
           <div className="flex items-center gap-3">

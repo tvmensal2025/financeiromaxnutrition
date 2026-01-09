@@ -595,21 +595,21 @@ serve(async (req) => {
           whatsappStatus = 'waiting_qr';
         }
         
-        // Update business status
-        const updateData: any = { whatsapp_status: whatsappStatus };
+        // Update whatsapp_instances table by instance_name
+        const updateData: any = { status: whatsappStatus };
         if (whatsappStatus === 'connected') {
-          updateData.whatsapp_connected_at = new Date().toISOString();
+          updateData.connected_at = new Date().toISOString();
         }
         
         const { error } = await supabase
-          .from('businesses')
+          .from('whatsapp_instances')
           .update(updateData)
-          .eq('evolution_instance', instanceName);
+          .eq('instance_name', instanceName);
           
         if (error) {
-          console.error('Error updating business status:', error);
+          console.error('Error updating instance status:', error);
         } else {
-          console.log('Business status updated:', whatsappStatus);
+          console.log('Instance status updated:', whatsappStatus);
         }
       }
       
@@ -836,22 +836,26 @@ serve(async (req) => {
       console.log('No message content - saving as system message');
     }
 
-    // Get business
-    const { data: businesses, error: bizError } = await supabase
-      .from('businesses')
-      .select('id, name')
-      .limit(1);
+    // Get business and user from instance
+    const instanceName = payload.instance;
+    
+    const { data: instance, error: instError } = await supabase
+      .from('whatsapp_instances')
+      .select('user_id, business_id, businesses(name)')
+      .eq('instance_name', instanceName)
+      .single();
 
-    if (bizError || !businesses?.length) {
-      console.error('No business found:', bizError);
-      return new Response(JSON.stringify({ error: 'No business found' }), {
+    if (instError || !instance) {
+      console.error('No instance found for:', instanceName, instError);
+      return new Response(JSON.stringify({ error: 'Instance not found' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const businessId = businesses[0].id;
-    const businessName = businesses[0].name;
+    const businessId = instance.business_id;
+    const userId = instance.user_id;
+    const businessName = (instance as any).businesses?.name || 'Negócio';
 
     // Download and store media if present
     if (hasMedia && ['image', 'video', 'audio', 'document', 'pdf', 'sticker'].includes(mediaType!)) {
@@ -1141,11 +1145,12 @@ serve(async (req) => {
       }
     }
 
-    // Save the message
+    // Save the message with user_id for individual ownership
     const { data: savedMessage, error: msgError } = await supabase
       .from('whatsapp_messages')
       .insert({
         business_id: businessId,
+        user_id: userId,
         lead_id: leadId,
         customer_id: customerId,
         phone: phone,
