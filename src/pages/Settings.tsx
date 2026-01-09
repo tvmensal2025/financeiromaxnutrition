@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { AIAssistantSettings } from '@/components/settings/AIAssistantSettings';
 import { WhatsAppConnection } from '@/components/settings/WhatsAppConnection';
-import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play, Lock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play, Lock, Sun, Moon, Monitor } from 'lucide-react';
 
 export default function Settings() {
   const { business, profile, user } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTestingReminders, setIsTestingReminders] = useState(false);
@@ -101,6 +104,105 @@ export default function Settings() {
           <p className="text-muted-foreground mt-1">
             Gerencie as configurações do seu negócio
           </p>
+        </div>
+
+        {/* Appearance Settings */}
+        <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10">
+              {resolvedTheme === 'dark' ? (
+                <Moon className="h-5 w-5 text-purple-500" />
+              ) : (
+                <Sun className="h-5 w-5 text-purple-500" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Aparência</h2>
+              <p className="text-sm text-muted-foreground">
+                Personalize a aparência do sistema
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Tema</Label>
+              <Select value={theme} onValueChange={(value: 'light' | 'dark' | 'system') => setTheme(value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">
+                    <div className="flex items-center gap-2">
+                      <Sun className="h-4 w-4" />
+                      <span>Claro</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="dark">
+                    <div className="flex items-center gap-2">
+                      <Moon className="h-4 w-4" />
+                      <span>Escuro</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="system">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4" />
+                      <span>Sistema</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Escolha entre tema claro, escuro ou seguir a preferência do sistema
+              </p>
+            </div>
+
+            {/* Theme Preview */}
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`relative rounded-lg border-2 p-3 transition-all ${
+                  theme === 'light' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="h-8 rounded bg-slate-100 border border-slate-200" />
+                  <div className="h-2 rounded bg-slate-300 w-3/4" />
+                  <div className="h-2 rounded bg-slate-200 w-1/2" />
+                </div>
+                <span className="mt-2 block text-xs font-medium">Claro</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`relative rounded-lg border-2 p-3 transition-all ${
+                  theme === 'dark' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="h-8 rounded bg-slate-800 border border-slate-700" />
+                  <div className="h-2 rounded bg-slate-600 w-3/4" />
+                  <div className="h-2 rounded bg-slate-700 w-1/2" />
+                </div>
+                <span className="mt-2 block text-xs font-medium">Escuro</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('system')}
+                className={`relative rounded-lg border-2 p-3 transition-all ${
+                  theme === 'system' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-muted-foreground'
+                }`}
+              >
+                <div className="space-y-2">
+                  <div className="h-8 rounded bg-gradient-to-r from-slate-100 to-slate-800 border" />
+                  <div className="h-2 rounded bg-gradient-to-r from-slate-300 to-slate-600 w-3/4" />
+                  <div className="h-2 rounded bg-gradient-to-r from-slate-200 to-slate-700 w-1/2" />
+                </div>
+                <span className="mt-2 block text-xs font-medium">Sistema</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Business Settings */}

@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, Settings, LogOut, Upload, UserPlus, Package, Calendar, Receipt, Wallet, Webhook, Radio, ExternalLink, Briefcase, Building2, FileSignature } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Settings, LogOut, Upload, UserPlus, Package, Calendar, Receipt, Wallet, Webhook, Radio, ExternalLink, Briefcase, Building2, FileSignature, UsersRound } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
 const navigation = [{
   name: 'Dashboard',
   href: '/',
@@ -17,6 +18,10 @@ const navigation = [{
   name: 'Fornecedores',
   href: '/fornecedores',
   icon: Building2
+}, {
+  name: 'Sócios',
+  href: '/socios',
+  icon: UsersRound
 }, {
   name: 'Produtos/Serviços',
   href: '/produtos-servicos',
