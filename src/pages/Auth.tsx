@@ -12,8 +12,7 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
 });
 const signupSchema = loginSchema.extend({
-  fullName: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-  businessName: z.string().min(2, 'Nome do negócio deve ter no mínimo 2 caracteres')
+  fullName: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres')
 });
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,7 +20,6 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [businessName, setBusinessName] = useState('');
   const {
     signIn,
     signUp
@@ -68,8 +66,7 @@ export default function Auth() {
         const validation = signupSchema.safeParse({
           email,
           password,
-          fullName,
-          businessName
+          fullName
         });
         if (!validation.success) {
           toast({
@@ -82,7 +79,7 @@ export default function Auth() {
         }
         const {
           error
-        } = await signUp(email, password, fullName, businessName);
+        } = await signUp(email, password, fullName);
         if (error) {
           let message = 'Erro ao criar conta';
           if (error.message.includes('already registered')) {
