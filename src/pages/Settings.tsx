@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { AIAssistantSettings } from '@/components/settings/AIAssistantSettings';
-import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play, MessageSquare } from 'lucide-react';
+import { WhatsAppConnection } from '@/components/settings/WhatsAppConnection';
+import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play } from 'lucide-react';
 
 export default function Settings() {
   const { business, profile, user } = useAuth();
@@ -156,57 +157,8 @@ export default function Settings() {
           </Button>
         </div>
 
-        {/* Evolution API Settings */}
-        <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/10">
-              <MessageSquare className="h-5 w-5 text-success" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">Evolution API</h2>
-              <p className="text-sm text-muted-foreground">
-                Configuração de envio de mensagens WhatsApp
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="evolutionInstance">Nome da Instância</Label>
-              <Input
-                id="evolutionInstance"
-                value={businessData.evolution_instance}
-                onChange={(e) => setBusinessData({ ...businessData, evolution_instance: e.target.value })}
-                placeholder="nome-da-instancia"
-              />
-              <p className="text-xs text-muted-foreground">
-                Nome da instância configurada no Evolution API (ex: minha-empresa, default)
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-            <p className="text-sm font-medium text-foreground">Como encontrar o nome da instância:</p>
-            <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-              <li>Acesse o painel do Evolution API</li>
-              <li>Vá em "Instâncias" ou "Instances"</li>
-              <li>Copie o nome exato da instância conectada</li>
-              <li>Cole aqui e salve</li>
-            </ol>
-          </div>
-
-          <Button
-            onClick={() => updateBusinessMutation.mutate(businessData)}
-            disabled={updateBusinessMutation.isPending}
-          >
-            {updateBusinessMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Salvar Instância
-          </Button>
-        </div>
+        {/* WhatsApp Connection */}
+        <WhatsAppConnection businessId={business?.id} />
 
         <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
           <div className="flex items-center gap-3">
