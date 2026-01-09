@@ -302,32 +302,32 @@ x-webhook-secret: (opcional)`}</pre>
                     </div>
 
                     <div className="space-y-2">
-                      <h4 className="font-semibold">4. Estrutura do Payload (JSON)</h4>
+                      <h4 className="font-semibold">4. Estrutura do Payload (JSON) - Formato Plano</h4>
                       <pre className="bg-muted p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">{`{
-  "source": "nome-do-sistema",
-  "event": "signup",
-  "lead": {
-    "user_id": "123",
-    "full_name": "João Silva",
-    "email": "joao@email.com",
-    "phone": "11999999999",
-    "city": "São Paulo",
-    "state": "SP",
-    "birth_date": "1990-01-15",
-    "gender": "male"
-  },
-  "health_profile": {
-    "height_cm": 175,
-    "current_weight_kg": 80,
-    "target_weight_kg": 70,
-    "activity_level": "moderate",
-    "fitness_level": "beginner"
-  },
-  "engagement": {
-    "points": 100,
-    "signup_date": "2026-01-09"
-  }
+  "event": "lead.created",
+  "event_type": "new_user",
+  "source": "seu-sistema",
+  "id": "user-123",
+  "full_name": "João Silva",
+  "first_name": "João",
+  "last_name": "Silva",
+  "email": "joao@email.com",
+  "phone": "11999999999",
+  "city": "São Paulo",
+  "state": "SP",
+  "country": "BR",
+  "gender": "male",
+  "birth_date": "1990-01-15",
+  "height": 175,
+  "current_weight": 80,
+  "target_weight": 70,
+  "activity_level": "moderate",
+  "points": 100,
+  "created_at": "2026-01-09T10:00:00Z"
 }`}</pre>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Também aceita formato aninhado com <code>lead</code>, <code>health_profile</code> e <code>engagement</code>.
+                      </p>
                     </div>
 
                     <div className="space-y-2">
