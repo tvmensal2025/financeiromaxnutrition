@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Building2, Edit, Trash2, Phone, Mail, MapPin } from "lucide-react";
+import { Plus, Building2, Edit, Trash2, Phone, Mail, MapPin, MessageCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 interface Fornecedor {
@@ -264,57 +265,94 @@ export default function Fornecedores() {
 
         {isLoading ? (
           <div className="flex justify-center py-8">Carregando...</div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {fornecedores?.map((fornecedor) => (
-              <Card key={fornecedor.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-lg">{fornecedor.nome_fornecedor}</CardTitle>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" onClick={() => handleEdit(fornecedor)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => deleteMutation.mutate(fornecedor.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <span className="inline-block rounded-full bg-primary/10 px-2 py-1 text-xs text-primary">
-                    {tiposFornecedor.find((t) => t.value === fornecedor.tipo_fornecedor)?.label}
-                  </span>
-                  {fornecedor.telefone && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      {fornecedor.telefone}
-                    </div>
-                  )}
-                  {fornecedor.email && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      {fornecedor.email}
-                    </div>
-                  )}
-                  {(fornecedor.cidade || fornecedor.estado) && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      {[fornecedor.cidade, fornecedor.estado].filter(Boolean).join(" - ")}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        ) : fornecedores && fornecedores.length > 0 ? (
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fornecedor</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Localização</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fornecedores.map((fornecedor) => {
+                  const formatPhone = (phone: string) => phone.replace(/\D/g, "");
+                  const whatsappUrl = fornecedor.telefone 
+                    ? `https://wa.me/55${formatPhone(fornecedor.telefone)}`
+                    : null;
+
+                  return (
+                    <TableRow key={fornecedor.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-primary" />
+                          <span className="font-medium">{fornecedor.nome_fornecedor}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {tiposFornecedor.find((t) => t.value === fornecedor.tipo_fornecedor)?.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 text-sm">
+                          {fornecedor.telefone && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              {fornecedor.telefone}
+                            </div>
+                          )}
+                          {fornecedor.email && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Mail className="h-3 w-3" />
+                              {fornecedor.email}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {(fornecedor.cidade || fornecedor.estado) && (
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {[fornecedor.cidade, fornecedor.estado].filter(Boolean).join(" - ")}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          {whatsappUrl && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={() => window.open(whatsappUrl, "_blank")}
+                              title="Enviar WhatsApp"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => handleEdit(fornecedor)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => deleteMutation.mutate(fornecedor.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </Card>
+        ) : null}
 
         {fornecedores?.length === 0 && (
           <Card className="p-8 text-center">
