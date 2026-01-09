@@ -118,13 +118,18 @@ serve(async (req) => {
     if (participants.length === 0) {
       try {
         console.log('Trying fetchAllGroups endpoint...');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+        
         const response = await fetch(`${evolutionApiUrl}/group/fetchAllGroups/${instanceName}?getParticipants=true`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'apikey': evolutionApiKey
-          }
+          },
+          signal: controller.signal
         });
+        clearTimeout(timeout);
         
         if (response.ok) {
           const groups = await response.json();
@@ -135,17 +140,13 @@ serve(async (req) => {
           
           if (group) {
             console.log('Found group:', group.subject || group.name);
-            console.log('Raw group participants:', JSON.stringify(group.participants?.slice(0, 3)));
             groupName = group.subject || group.name || null;
             groupDescription = group.desc || group.description || null;
             
             if (group.participants && Array.isArray(group.participants)) {
               participants = group.participants.map((p: any) => {
-                console.log('Raw participant:', JSON.stringify(p));
-                // Prefer phoneNumber when present (Evolution often returns a "@lid" id + phoneNumber JID)
                 const phoneSource = (p.phoneNumber || p.phone || p.number || p.jid || p.id || '').toString();
                 const phone = phoneSource.split('@')[0].replace(/\D/g, '');
-                console.log('Extracted phone from', phoneSource, ':', phone);
                 return {
                   id: p.id || p.jid || phone,
                   phone,
