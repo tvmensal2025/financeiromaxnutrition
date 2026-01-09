@@ -7,17 +7,14 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Mail, Lock, User, Loader2 } from 'lucide-react';
 import { z } from 'zod';
-
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
+  password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres')
 });
-
 const signupSchema = loginSchema.extend({
   fullName: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
-  businessName: z.string().min(2, 'Nome do negócio deve ter no mínimo 2 caracteres'),
+  businessName: z.string().min(2, 'Nome do negócio deve ter no mínimo 2 caracteres')
 });
-
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,29 +22,35 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [businessName, setBusinessName] = useState('');
-  
-  const { signIn, signUp } = useAuth();
+  const {
+    signIn,
+    signUp
+  } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       if (isLogin) {
-        const validation = loginSchema.safeParse({ email, password });
+        const validation = loginSchema.safeParse({
+          email,
+          password
+        });
         if (!validation.success) {
           toast({
             title: 'Erro de validação',
             description: validation.error.errors[0].message,
-            variant: 'destructive',
+            variant: 'destructive'
           });
           setIsLoading(false);
           return;
         }
-
-        const { error } = await signIn(email, password);
+        const {
+          error
+        } = await signIn(email, password);
         if (error) {
           let message = 'Erro ao fazer login';
           if (error.message.includes('Invalid login credentials')) {
@@ -56,24 +59,30 @@ export default function Auth() {
           toast({
             title: 'Erro',
             description: message,
-            variant: 'destructive',
+            variant: 'destructive'
           });
         } else {
           navigate('/');
         }
       } else {
-        const validation = signupSchema.safeParse({ email, password, fullName, businessName });
+        const validation = signupSchema.safeParse({
+          email,
+          password,
+          fullName,
+          businessName
+        });
         if (!validation.success) {
           toast({
             title: 'Erro de validação',
             description: validation.error.errors[0].message,
-            variant: 'destructive',
+            variant: 'destructive'
           });
           setIsLoading(false);
           return;
         }
-
-        const { error } = await signUp(email, password, fullName, businessName);
+        const {
+          error
+        } = await signUp(email, password, fullName, businessName);
         if (error) {
           let message = 'Erro ao criar conta';
           if (error.message.includes('already registered')) {
@@ -82,12 +91,12 @@ export default function Auth() {
           toast({
             title: 'Erro',
             description: message,
-            variant: 'destructive',
+            variant: 'destructive'
           });
         } else {
           toast({
             title: 'Conta criada!',
-            description: 'Bem-vindo ao SubsManager',
+            description: 'Bem-vindo ao SubsManager'
           });
           navigate('/');
         }
@@ -96,15 +105,13 @@ export default function Auth() {
       toast({
         title: 'Erro',
         description: 'Ocorreu um erro inesperado',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     } finally {
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+  return <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md animate-scale-in">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -124,62 +131,28 @@ export default function Auth() {
               {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {isLogin 
-                ? 'Acesse seu painel de gestão' 
-                : 'Configure seu negócio em minutos'}
+              {isLogin ? 'Acesse seu painel de gestão' : 'Configure seu negócio em minutos'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <>
+            {!isLogin && <>
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Seu nome</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="João Silva"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
+                    <Input id="fullName" type="text" placeholder="João Silva" value={fullName} onChange={e => setFullName(e.target.value)} className="pl-10" required />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Nome do negócio</Label>
-                  <div className="relative">
-                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="businessName"
-                      type="text"
-                      placeholder="Minha Empresa"
-                      value={businessName}
-                      onChange={(e) => setBusinessName(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+                
+              </>}
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+                <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={e => setEmail(e.target.value)} className="pl-10" required />
               </div>
             </div>
 
@@ -187,15 +160,7 @@ export default function Auth() {
               <Label htmlFor="password">Senha</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+                <Input id="password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="pl-10" required />
               </div>
             </div>
 
@@ -206,18 +171,11 @@ export default function Auth() {
           </form>
 
           <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-primary hover:underline"
-            >
-              {isLogin 
-                ? 'Não tem conta? Criar agora' 
-                : 'Já tem conta? Entrar'}
+            <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-sm text-primary hover:underline">
+              {isLogin ? 'Não tem conta? Criar agora' : 'Já tem conta? Entrar'}
             </button>
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 }
