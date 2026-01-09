@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,11 +88,21 @@ export default function Messages() {
   const { business } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   
   const [selectedPhone, setSelectedPhone] = useState<string | null>(null);
   const [showInfoPanel, setShowInfoPanel] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [phoneFromUrl, setPhoneFromUrl] = useState<string | null>(null);
+
+  // Check for phone parameter in URL (from LeadsExternos)
+  useEffect(() => {
+    const phoneParam = searchParams.get('phone');
+    if (phoneParam) {
+      setPhoneFromUrl(phoneParam);
+    }
+  }, [searchParams]);
   
   // Modal states
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
@@ -256,6 +267,20 @@ export default function Messages() {
       (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
     );
   }, [allMessages]);
+
+  // Auto-select conversation when phone comes from URL
+  useEffect(() => {
+    if (phoneFromUrl && conversations.length > 0 && !selectedPhone) {
+      // Find conversation matching the phone (with or without country code)
+      const matchingConversation = conversations.find(c => 
+        c.phone.includes(phoneFromUrl) || phoneFromUrl.includes(c.phone.replace(/\D/g, ''))
+      );
+      if (matchingConversation) {
+        setSelectedPhone(matchingConversation.phone);
+        setShowChat(true);
+      }
+    }
+  }, [phoneFromUrl, conversations, selectedPhone]);
 
   // Get messages for selected conversation
   const selectedMessages: Message[] = useMemo(() => {

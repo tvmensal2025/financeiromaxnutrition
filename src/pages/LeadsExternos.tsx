@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,6 +60,8 @@ const stages: LeadStage[] = ['new', 'contacted', 'interested', 'proposal', 'nego
 
 export default function LeadsExternos() {
   const { toast } = useToast();
+  const { business } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [cityFilter, setCityFilter] = useState<string>('all');
@@ -97,6 +101,47 @@ export default function LeadsExternos() {
     },
     onError: () => {
       toast({ title: 'Erro ao atualizar lead', variant: 'destructive' });
+    }
+  });
+
+  // Converter lead externo em cliente
+  const convertToCustomerMutation = useMutation({
+    mutationFn: async (lead: LeadExterno) => {
+      if (!business?.id) throw new Error('Business não encontrado');
+
+      // 1. Criar cliente
+      const { error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          business_id: business.id,
+          name: lead.full_name || lead.first_name || 'Cliente sem nome',
+          email: lead.email || null,
+          phone: lead.phone || null,
+          whatsapp: lead.phone || null,
+          notes: `Convertido de lead externo - ${lead.source}`,
+        });
+      
+      if (customerError) throw customerError;
+
+      // 2. Marcar lead como convertido
+      const { error: leadError } = await supabase
+        .from('leads_externos')
+        .update({
+          stage: 'converted',
+          converted: true,
+          conversion_date: new Date().toISOString()
+        })
+        .eq('id', lead.id);
+      
+      if (leadError) throw leadError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leads-externos'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast({ title: 'Lead convertido em cliente com sucesso!' });
+    },
+    onError: () => {
+      toast({ title: 'Erro ao converter lead', variant: 'destructive' });
     }
   });
 
@@ -161,7 +206,7 @@ export default function LeadsExternos() {
 
   const openWhatsApp = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${cleanPhone}`, '_blank');
+    navigate(`/mensagens?phone=${cleanPhone}`);
   };
 
   return (
@@ -336,9 +381,9 @@ export default function LeadsExternos() {
                                   className="flex-1 h-7 text-xs text-green-600 hover:bg-green-50"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    updateStageMutation.mutate({ id: lead.id, stage: 'converted' });
+                                    convertToCustomerMutation.mutate(lead);
                                   }}
-                                  disabled={updateStageMutation.isPending}
+                                  disabled={convertToCustomerMutation.isPending}
                                 >
                                   Converter
                                 </Button>
