@@ -47,12 +47,13 @@ export default function Dashboard() {
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      const [customersRes, leadsRes, fornecedoresRes, produtosRes, contratosRes] = await Promise.all([
+      const [customersRes, leadsRes, fornecedoresRes, produtosRes, contratosRes, pagamentosRes] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact' }),
         supabase.from('leads').select('id', { count: 'exact' }),
         supabase.from('fornecedores').select('id', { count: 'exact' }),
         supabase.from('produtos_servicos').select('*'),
         supabase.from('contratos_taxas').select('*'),
+        supabase.from('pagamentos_fornecedor').select('*'),
       ]);
 
       const customers = customersRes.count || 0;
@@ -60,14 +61,16 @@ export default function Dashboard() {
       const fornecedores = fornecedoresRes.count || 0;
       const produtos = produtosRes.data || [];
       const contratos = contratosRes.data || [];
+      const pagamentos = pagamentosRes.data || [];
 
       const totalProdutos = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
       const totalContratos = contratos.reduce((acc, c) => acc + (c.valor || 0), 0);
       const totalInvestido = totalProdutos + totalContratos;
       
-      const totalPagoProdutos = produtos.reduce((acc, p) => acc + (p.valor_pago || 0), 0);
+      // Calcular total pago a partir da tabela pagamentos_fornecedor
+      const totalPagoPagamentos = pagamentos.reduce((acc, p) => acc + Number(p.valor_pago || 0), 0);
       const totalPagoContratos = contratos.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + (c.valor || 0), 0);
-      const totalPago = totalPagoProdutos + totalPagoContratos;
+      const totalPago = totalPagoPagamentos + totalPagoContratos;
       
       const totalEstoque = produtos.reduce((acc, p) => acc + (p.quantidade_estoque || 0), 0);
 
@@ -90,12 +93,16 @@ export default function Dashboard() {
       const { data: fornecedores } = await supabase.from('fornecedores').select('*');
       const { data: produtos } = await supabase.from('produtos_servicos').select('*');
       const { data: contratos } = await supabase.from('contratos_taxas').select('*');
+      const { data: pagamentos } = await supabase.from('pagamentos_fornecedor').select('*');
 
       return fornecedores?.map((f) => {
         const produtosForn = produtos?.filter((p) => p.fornecedor_id === f.id) || [];
         const contratosForn = contratos?.filter((c) => c.fornecedor_id === f.id) || [];
+        const pagamentosForn = pagamentos?.filter((p) => p.fornecedor_id === f.id) || [];
+        
         const total = produtosForn.reduce((acc, p) => acc + (p.valor_total || 0), 0) + contratosForn.reduce((acc, c) => acc + c.valor, 0);
-        const pago = produtosForn.reduce((acc, p) => acc + (p.valor_pago || 0), 0) + contratosForn.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + c.valor, 0);
+        // Usar pagamentos da tabela pagamentos_fornecedor
+        const pago = pagamentosForn.reduce((acc, p) => acc + Number(p.valor_pago || 0), 0) + contratosForn.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + c.valor, 0);
         return { 
           ...f, 
           total, 
