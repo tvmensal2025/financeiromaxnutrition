@@ -104,15 +104,17 @@ export default function ContratosTaxas() {
     onError: () => toast.error("Erro ao excluir contrato/taxa"),
   });
 
-  const marcarPagoMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("contratos_taxas").update({ status_pagamento: "pago" }).eq("id", id);
+  const togglePagoMutation = useMutation({
+    mutationFn: async ({ id, isPago }: { id: string; isPago: boolean }) => {
+      const newStatus = isPago ? "pendente" : "pago";
+      const { error } = await supabase.from("contratos_taxas").update({ status_pagamento: newStatus }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { isPago }) => {
       queryClient.invalidateQueries({ queryKey: ["contratos_taxas"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard_financeiro"] });
-      toast.success("Marcado como pago!");
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["fornecedores-resumo"] });
+      toast.success(isPago ? "Marcado como pendente!" : "Marcado como pago!");
     },
     onError: () => toast.error("Erro ao atualizar status"),
   });
@@ -280,15 +282,15 @@ export default function ContratosTaxas() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          {contrato.status_pagamento !== "pago" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => marcarPagoMutation.mutate(contrato.id)}
-                            >
-                              <CreditCard className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant={contrato.status_pagamento === "pago" ? "default" : "outline"}
+                            className={contrato.status_pagamento === "pago" ? "bg-green-500 hover:bg-green-600" : ""}
+                            onClick={() => togglePagoMutation.mutate({ id: contrato.id, isPago: contrato.status_pagamento === "pago" })}
+                            title={contrato.status_pagamento === "pago" ? "Desfazer pagamento" : "Marcar como pago"}
+                          >
+                            <CreditCard className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="ghost" onClick={() => handleEdit(contrato)}>
                             <Edit className="h-4 w-4" />
                           </Button>
