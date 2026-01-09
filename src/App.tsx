@@ -22,6 +22,10 @@ import Invoices from "./pages/Invoices";
 import TransactionsPage from "./pages/TransactionsPage";
 import Webhooks from "./pages/Webhooks";
 import Broadcasts from "./pages/Broadcasts";
+import Fornecedores from "./pages/Fornecedores";
+import ProdutosServicos from "./pages/ProdutosServicos";
+import ContratosTaxas from "./pages/ContratosTaxas";
+import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -78,6 +82,38 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/financeiro"
+        element={
+          <ProtectedRoute>
+            <DashboardFinanceiro />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/fornecedores"
+        element={
+          <ProtectedRoute>
+            <Fornecedores />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/produtos-servicos"
+        element={
+          <ProtectedRoute>
+            <ProdutosServicos />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contratos"
+        element={
+          <ProtectedRoute>
+            <ContratosTaxas />
           </ProtectedRoute>
         }
       />
