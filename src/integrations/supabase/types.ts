@@ -933,6 +933,84 @@ export type Database = {
           },
         ]
       }
+      leads_externos: {
+        Row: {
+          activity_level: string | null
+          birth_date: string | null
+          city: string | null
+          conversion_date: string | null
+          converted: boolean | null
+          current_weight_kg: number | null
+          email: string | null
+          event_type: string | null
+          external_user_id: string | null
+          fitness_level: string | null
+          full_name: string | null
+          gender: string | null
+          height_cm: number | null
+          id: string
+          notes: string | null
+          phone: string | null
+          points: number | null
+          raw_payload: Json | null
+          received_at: string | null
+          signup_date: string | null
+          source: string
+          state: string | null
+          target_weight_kg: number | null
+        }
+        Insert: {
+          activity_level?: string | null
+          birth_date?: string | null
+          city?: string | null
+          conversion_date?: string | null
+          converted?: boolean | null
+          current_weight_kg?: number | null
+          email?: string | null
+          event_type?: string | null
+          external_user_id?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          points?: number | null
+          raw_payload?: Json | null
+          received_at?: string | null
+          signup_date?: string | null
+          source?: string
+          state?: string | null
+          target_weight_kg?: number | null
+        }
+        Update: {
+          activity_level?: string | null
+          birth_date?: string | null
+          city?: string | null
+          conversion_date?: string | null
+          converted?: boolean | null
+          current_weight_kg?: number | null
+          email?: string | null
+          event_type?: string | null
+          external_user_id?: string | null
+          fitness_level?: string | null
+          full_name?: string | null
+          gender?: string | null
+          height_cm?: number | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          points?: number | null
+          raw_payload?: Json | null
+          received_at?: string | null
+          signup_date?: string | null
+          source?: string
+          state?: string | null
+          target_weight_kg?: number | null
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           business_id: string
