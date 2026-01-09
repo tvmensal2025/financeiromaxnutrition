@@ -317,6 +317,9 @@ export type Database = {
           reminder_days_before: number | null
           slug: string
           updated_at: string
+          whatsapp_connected_at: string | null
+          whatsapp_phone: string | null
+          whatsapp_status: string | null
         }
         Insert: {
           auto_reminders_enabled?: boolean | null
@@ -331,6 +334,9 @@ export type Database = {
           reminder_days_before?: number | null
           slug: string
           updated_at?: string
+          whatsapp_connected_at?: string | null
+          whatsapp_phone?: string | null
+          whatsapp_status?: string | null
         }
         Update: {
           auto_reminders_enabled?: boolean | null
@@ -345,6 +351,9 @@ export type Database = {
           reminder_days_before?: number | null
           slug?: string
           updated_at?: string
+          whatsapp_connected_at?: string | null
+          whatsapp_phone?: string | null
+          whatsapp_status?: string | null
         }
         Relationships: []
       }

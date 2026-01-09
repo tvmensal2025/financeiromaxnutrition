@@ -577,8 +577,46 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: EvolutionWebhookPayload = await req.json();
+    const payload = await req.json();
     console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
+
+    // Handle CONNECTION_UPDATE event
+    if (payload.event === 'CONNECTION_UPDATE' || payload.event === 'connection.update') {
+      console.log('Processing connection update:', payload);
+      
+      const instanceName = payload.instance;
+      const state = payload.data?.state || payload.state;
+      
+      if (instanceName && state) {
+        let whatsappStatus = 'disconnected';
+        if (state === 'open' || state === 'connected') {
+          whatsappStatus = 'connected';
+        } else if (state === 'connecting' || state === 'qr') {
+          whatsappStatus = 'waiting_qr';
+        }
+        
+        // Update business status
+        const updateData: any = { whatsapp_status: whatsappStatus };
+        if (whatsappStatus === 'connected') {
+          updateData.whatsapp_connected_at = new Date().toISOString();
+        }
+        
+        const { error } = await supabase
+          .from('businesses')
+          .update(updateData)
+          .eq('evolution_instance', instanceName);
+          
+        if (error) {
+          console.error('Error updating business status:', error);
+        } else {
+          console.log('Business status updated:', whatsappStatus);
+        }
+      }
+      
+      return new Response(JSON.stringify({ success: true, message: 'Connection update processed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Accept both messages.upsert (received) and send.message (sent from phone)
     const validEvents = ['messages.upsert', 'send.message', 'MESSAGES_UPSERT', 'SEND_MESSAGE'];
@@ -781,11 +819,11 @@ serve(async (req) => {
     }
     else if (msg?.contactsArrayMessage?.contacts) {
       const contacts = msg.contactsArrayMessage.contacts;
-      const names = contacts.map(c => c.displayName || 'Contato').join(', ');
+      const names = contacts.map((c: any) => c.displayName || 'Contato').join(', ');
       messageContent = `[Contatos: ${names}]`;
       mediaType = 'contacts';
       mediaMetadata = {
-        contacts: contacts.map(c => ({
+        contacts: contacts.map((c: any) => ({
           displayName: c.displayName,
           vcard: c.vcard,
         })),
