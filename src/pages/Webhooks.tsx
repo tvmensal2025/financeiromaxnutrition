@@ -14,11 +14,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Webhook, Plus, Trash2, Copy, RefreshCw, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Webhook, Plus, Trash2, Copy, CheckCircle2, XCircle, Clock, ChevronDown, BookOpen, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
+const RECEIVE_LEADS_URL = 'https://tljbxoakdzuipkxkecph.supabase.co/functions/v1/receive-leads';
 interface WebhookType {
   id: string;
   name: string;
@@ -253,19 +256,129 @@ export default function Webhooks() {
           </TabsList>
 
           <TabsContent value="webhooks" className="space-y-4">
+            {/* Webhook Fixo para Receber Leads */}
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-base">Webhook para Receber Leads</CardTitle>
+                    <Badge variant="secondary">Entrada</Badge>
+                    <Badge className="bg-green-500">Sempre Ativo</Badge>
+                  </div>
+                </div>
+                <CardDescription className="flex items-center gap-2 mt-2">
+                  <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">{RECEIVE_LEADS_URL}</code>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => copyUrl(RECEIVE_LEADS_URL)}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Collapsible>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between">
+                      <span className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4" />
+                        Ver Tutorial de Integração
+                      </span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-4 space-y-4 text-sm">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">1. URL do Webhook</h4>
+                      <code className="block bg-muted p-2 rounded text-xs break-all">{RECEIVE_LEADS_URL}</code>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">2. Método HTTP</h4>
+                      <Badge>POST</Badge>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">3. Headers</h4>
+                      <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">{`Content-Type: application/json
+x-webhook-secret: (opcional)`}</pre>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">4. Estrutura do Payload (JSON)</h4>
+                      <pre className="bg-muted p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">{`{
+  "source": "nome-do-sistema",
+  "event": "signup",
+  "lead": {
+    "user_id": "123",
+    "full_name": "João Silva",
+    "email": "joao@email.com",
+    "phone": "11999999999",
+    "city": "São Paulo",
+    "state": "SP",
+    "birth_date": "1990-01-15",
+    "gender": "male"
+  },
+  "health_profile": {
+    "height_cm": 175,
+    "current_weight_kg": 80,
+    "target_weight_kg": 70,
+    "activity_level": "moderate",
+    "fitness_level": "beginner"
+  },
+  "engagement": {
+    "points": 100,
+    "signup_date": "2026-01-09"
+  }
+}`}</pre>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">5. Exemplo com cURL</h4>
+                      <pre className="bg-muted p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">{`curl -X POST \\
+  ${RECEIVE_LEADS_URL} \\
+  -H "Content-Type: application/json" \\
+  -d '{"source":"teste","lead":{"full_name":"Teste","email":"teste@email.com"}}'`}</pre>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          navigator.clipboard.writeText(`curl -X POST ${RECEIVE_LEADS_URL} -H "Content-Type: application/json" -d '{"source":"teste","lead":{"full_name":"Teste","email":"teste@email.com"}}'`);
+                          toast.success('Comando cURL copiado!');
+                        }}
+                      >
+                        <Copy className="h-3 w-3 mr-2" />
+                        Copiar cURL
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-semibold">6. Onde ver os leads recebidos</h4>
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/leads-externos">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Ver Leads Externos
+                        </Link>
+                      </Button>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </CardContent>
+            </Card>
+
+            {/* Webhooks Personalizados */}
+            <div className="flex items-center justify-between pt-4">
+              <h3 className="text-lg font-semibold">Seus Webhooks Personalizados</h3>
+            </div>
+
             {isLoading ? (
               <p className="text-muted-foreground text-center py-8">Carregando...</p>
             ) : webhooks.length === 0 ? (
               <Card>
-                <CardContent className="text-center py-12">
-                  <Webhook className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="font-semibold mb-2">Nenhum webhook configurado</h3>
+                <CardContent className="text-center py-8">
                   <p className="text-sm text-muted-foreground mb-4">
-                    Configure webhooks para integrar com outros sistemas
+                    Nenhum webhook personalizado configurado
                   </p>
                   <Button onClick={() => setIsDialogOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Criar Primeiro Webhook
+                    Criar Webhook
                   </Button>
                 </CardContent>
               </Card>
