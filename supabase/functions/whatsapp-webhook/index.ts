@@ -580,12 +580,16 @@ serve(async (req) => {
     const payload: EvolutionWebhookPayload = await req.json();
     console.log('Received webhook payload:', JSON.stringify(payload, null, 2));
 
-    if (payload.event !== 'messages.upsert') {
+    // Accept both messages.upsert (received) and send.message (sent from phone)
+    const validEvents = ['messages.upsert', 'send.message', 'MESSAGES_UPSERT', 'SEND_MESSAGE'];
+    if (!validEvents.includes(payload.event)) {
       console.log('Ignoring event:', payload.event);
       return new Response(JSON.stringify({ success: true, message: 'Event ignored' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    
+    console.log('Processing event:', payload.event);
 
     const isOutbound = payload.data?.key?.fromMe === true;
     const rawRemoteJid: string = payload.data.key.remoteJid;
@@ -615,13 +619,20 @@ serve(async (req) => {
         console.log('Group: Using sender for participant:', participantPhone);
       } else {
         const participant = key.participant || key.participantAlt || '';
-        if (participant && !participant.includes('@lid')) {
-          participantPhone = participant
+      if (participant) {
+          // Extract phone even from LID format if possible
+          const cleanParticipant = participant
             .replace('@s.whatsapp.net', '')
+            .replace('@lid', '')
             .replace(/\D/g, '');
-          console.log('Group: Using participant from key:', participantPhone);
+          if (cleanParticipant && cleanParticipant.length >= 10) {
+            participantPhone = cleanParticipant;
+            console.log('Group: Using participant from key:', participantPhone);
+          } else {
+            console.log('Group: Participant extracted but invalid:', cleanParticipant);
+          }
         } else {
-          console.log('Group: No valid participant phone found, participant:', participant);
+          console.log('Group: No participant found in key');
         }
       }
       
@@ -639,10 +650,15 @@ serve(async (req) => {
           jidForContact = payload.sender;
           console.log('Using sender from payload for real number:', jidForContact);
         } else {
-          console.log('LID message without real number - cannot process:', rawRemoteJid);
-          return new Response(JSON.stringify({ success: true, message: 'LID without real number' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+          // For outbound LID messages, try to extract from remoteJid directly
+          const lidNumber = rawRemoteJid.replace('@lid', '').replace(/\D/g, '');
+          if (lidNumber && lidNumber.length >= 10) {
+            console.log('Using LID number directly:', lidNumber);
+            jidForContact = rawRemoteJid;
+          } else {
+            console.log('LID message without real number - saving anyway:', rawRemoteJid);
+            // Don't return early - save with LID format for reference
+          }
         }
       }
 
@@ -776,11 +792,10 @@ serve(async (req) => {
       };
     }
 
-    if (!messageContent) {
-      console.log('No message content found');
-      return new Response(JSON.stringify({ success: true, message: 'No content' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // If no content and no media, still save as system message
+    if (!messageContent && !hasMedia) {
+      messageContent = '[Mensagem do sistema]';
+      console.log('No message content - saving as system message');
     }
 
     // Get business
