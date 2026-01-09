@@ -2,7 +2,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
-  FileText, 
   MessageSquare, 
   Settings,
   LogOut,
@@ -11,7 +10,6 @@ import {
   UserPlus,
   TrendingUp,
   Package,
-  Wrench,
   Calendar,
   Receipt,
   Wallet,
@@ -31,11 +29,9 @@ const navigation = [
   { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Produtos', href: '/produtos', icon: Package },
-  { name: 'Serviços', href: '/servicos', icon: Wrench },
   { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
-  { name: 'Assinaturas', href: '/assinaturas', icon: FileText },
   { name: 'Faturas', href: '/faturas', icon: Receipt },
-  { name: 'Transmissões', href: '/broadcasts', icon: Radio },
+  { name: 'Disparo em Massa', href: '/broadcasts', icon: Radio },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Importar', href: '/importar', icon: Upload },
   { name: 'Configurações', href: '/configuracoes', icon: Settings },
@@ -80,10 +76,10 @@ export function Sidebar() {
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-semibold text-sidebar-foreground">
-            {business?.name || 'SubsManager'}
+            {business?.name || 'Maxnutrition'}
           </span>
           <span className="text-xs text-sidebar-foreground/60">
-            Gestão de Assinaturas
+            Gestão Maxnutrition
           </span>
         </div>
       </div>

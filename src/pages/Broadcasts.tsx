@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { Radio, Plus, Trash2, Play, Pause, Users, Send, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Radio, Plus, Trash2, Play, Pause, Users, Send, Clock, CheckCircle2, XCircle, Square } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -25,11 +25,20 @@ interface Campaign {
   message: string;
   media_url: string | null;
   scheduled_at: string | null;
-  status: 'draft' | 'scheduled' | 'sending' | 'completed' | 'cancelled';
+  status: 'draft' | 'scheduled' | 'sending' | 'paused' | 'completed' | 'cancelled';
   total_recipients: number;
   sent_count: number;
   failed_count: number;
   created_at: string;
+}
+
+interface Recipient {
+  id: string;
+  phone: string;
+  name: string | null;
+  status: string;
+  error_message: string | null;
+  sent_at: string | null;
 }
 
 interface Contact {
@@ -44,11 +53,15 @@ export default function Broadcasts() {
   const { business, profile } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
+  const [currentRecipientIndex, setCurrentRecipientIndex] = useState(0);
+  const [countdown, setCountdown] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const abortRef = useRef(false);
   const [step, setStep] = useState<'details' | 'recipients' | 'review'>('details');
   const [formData, setFormData] = useState({
     name: '',
     message: '',
-    scheduledAt: '',
   });
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,17 +96,30 @@ export default function Broadcasts() {
     enabled: isDialogOpen && !!business?.id,
   });
 
+  const { data: recipients = [], refetch: refetchRecipients } = useQuery({
+    queryKey: ['broadcast-recipients', sendingCampaignId],
+    queryFn: async () => {
+      if (!sendingCampaignId) return [];
+      const { data, error } = await supabase
+        .from('broadcast_recipients')
+        .select('*')
+        .eq('campaign_id', sendingCampaignId)
+        .order('id');
+      if (error) throw error;
+      return data as Recipient[];
+    },
+    enabled: !!sendingCampaignId,
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      // Create campaign
       const { data: campaign, error: campaignError } = await supabase
         .from('broadcast_campaigns')
         .insert({
           business_id: business?.id,
           name: formData.name,
           message: formData.message,
-          scheduled_at: formData.scheduledAt ? new Date(formData.scheduledAt).toISOString() : null,
-          status: formData.scheduledAt ? 'scheduled' : 'draft',
+          status: 'draft',
           total_recipients: selectedContacts.length,
           created_by: profile?.id,
         })
@@ -102,8 +128,7 @@ export default function Broadcasts() {
 
       if (campaignError) throw campaignError;
 
-      // Create recipients
-      const recipients = selectedContacts.map(contactId => {
+      const recipientsData = selectedContacts.map(contactId => {
         const contact = contacts.find(c => c.id === contactId);
         return {
           campaign_id: campaign.id,
@@ -117,7 +142,7 @@ export default function Broadcasts() {
 
       const { error: recipientsError } = await supabase
         .from('broadcast_recipients')
-        .insert(recipients);
+        .insert(recipientsData);
 
       if (recipientsError) throw recipientsError;
 
@@ -144,26 +169,8 @@ export default function Broadcasts() {
     onError: () => toast.error('Erro ao remover campanha'),
   });
 
-  const startMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('broadcast_campaigns')
-        .update({ status: 'sending' })
-        .eq('id', id);
-      if (error) throw error;
-      
-      // Trigger the broadcast processing function
-      await supabase.functions.invoke('process-broadcast', { body: { campaignId: id } });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
-      toast.success('Transmissão iniciada');
-    },
-    onError: () => toast.error('Erro ao iniciar transmissão'),
-  });
-
   const resetForm = () => {
-    setFormData({ name: '', message: '', scheduledAt: '' });
+    setFormData({ name: '', message: '' });
     setSelectedContacts([]);
     setStep('details');
     setSearchTerm('');
@@ -189,15 +196,191 @@ export default function Broadcasts() {
   };
 
   const getStatusBadge = (status: Campaign['status']) => {
-    const variants: Record<Campaign['status'], { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+    const variants: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
       draft: { variant: 'outline', label: 'Rascunho' },
       scheduled: { variant: 'secondary', label: 'Agendada' },
       sending: { variant: 'default', label: 'Enviando' },
+      paused: { variant: 'secondary', label: 'Pausado' },
       completed: { variant: 'default', label: 'Concluída' },
       cancelled: { variant: 'destructive', label: 'Cancelada' },
     };
-    return <Badge variant={variants[status].variant}>{variants[status].label}</Badge>;
+    const config = variants[status] || { variant: 'outline', label: status };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
+
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const sendNextMessage = useCallback(async (campaignId: string, recipientsList: Recipient[], index: number) => {
+    if (abortRef.current || index >= recipientsList.length) {
+      // Finished or aborted
+      if (index >= recipientsList.length) {
+        await supabase
+          .from('broadcast_campaigns')
+          .update({ status: 'completed' })
+          .eq('id', campaignId);
+        toast.success('Disparo concluído!');
+      }
+      setSendingCampaignId(null);
+      setCurrentRecipientIndex(0);
+      setCountdown(0);
+      setIsPaused(false);
+      abortRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
+      return;
+    }
+
+    const recipient = recipientsList[index];
+    if (recipient.status === 'sent') {
+      // Skip already sent
+      sendNextMessage(campaignId, recipientsList, index + 1);
+      return;
+    }
+
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign) return;
+
+    // Personalize message
+    let personalizedMessage = campaign.message;
+    if (recipient.name) {
+      personalizedMessage = personalizedMessage.replace(/{nome}/gi, recipient.name);
+    }
+
+    try {
+      // Send message via Evolution API
+      const { error } = await supabase.functions.invoke('send-evolution-message', {
+        body: {
+          phone: recipient.phone,
+          message: personalizedMessage,
+        },
+      });
+
+      if (error) throw error;
+
+      // Update recipient status
+      await supabase
+        .from('broadcast_recipients')
+        .update({ status: 'sent', sent_at: new Date().toISOString() })
+        .eq('id', recipient.id);
+
+      // Update campaign sent count
+      await supabase
+        .from('broadcast_campaigns')
+        .update({ sent_count: (campaign.sent_count || 0) + 1 })
+        .eq('id', campaignId);
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      await supabase
+        .from('broadcast_recipients')
+        .update({ status: 'failed', error_message: errorMessage })
+        .eq('id', recipient.id);
+
+      await supabase
+        .from('broadcast_campaigns')
+        .update({ failed_count: (campaign.failed_count || 0) + 1 })
+        .eq('id', campaignId);
+    }
+
+    await refetchRecipients();
+    queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
+    setCurrentRecipientIndex(index + 1);
+
+    // Don't auto-continue - wait for user to click next
+  }, [campaigns, queryClient, refetchRecipients]);
+
+  const startManualSending = async (campaignId: string) => {
+    abortRef.current = false;
+    setIsPaused(false);
+    setSendingCampaignId(campaignId);
+    
+    await supabase
+      .from('broadcast_campaigns')
+      .update({ status: 'sending' })
+      .eq('id', campaignId);
+    
+    queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
+    
+    // Find first pending recipient
+    const { data } = await supabase
+      .from('broadcast_recipients')
+      .select('*')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'pending')
+      .order('id')
+      .limit(1);
+    
+    if (data && data.length > 0) {
+      const allRecipients = await supabase
+        .from('broadcast_recipients')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('id');
+      
+      const idx = allRecipients.data?.findIndex(r => r.id === data[0].id) || 0;
+      setCurrentRecipientIndex(idx);
+    }
+  };
+
+  const handleSendNext = async () => {
+    if (!sendingCampaignId) return;
+    
+    // Start countdown
+    setCountdown(30);
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    // Wait 30 seconds
+    await sleep(30000);
+    
+    if (abortRef.current) {
+      clearInterval(countdownInterval);
+      return;
+    }
+
+    // Send the message
+    await sendNextMessage(sendingCampaignId, recipients, currentRecipientIndex);
+  };
+
+  const handlePause = async () => {
+    abortRef.current = true;
+    setIsPaused(true);
+    if (sendingCampaignId) {
+      await supabase
+        .from('broadcast_campaigns')
+        .update({ status: 'paused' })
+        .eq('id', sendingCampaignId);
+      queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
+    }
+    setSendingCampaignId(null);
+    setCountdown(0);
+  };
+
+  const handleStop = async () => {
+    abortRef.current = true;
+    if (sendingCampaignId) {
+      await supabase
+        .from('broadcast_campaigns')
+        .update({ status: 'paused' })
+        .eq('id', sendingCampaignId);
+      queryClient.invalidateQueries({ queryKey: ['broadcast-campaigns'] });
+    }
+    setSendingCampaignId(null);
+    setCurrentRecipientIndex(0);
+    setCountdown(0);
+    setIsPaused(false);
+    abortRef.current = false;
+  };
+
+  const pendingRecipients = recipients.filter(r => r.status === 'pending');
+  const sentRecipients = recipients.filter(r => r.status === 'sent');
+  const failedRecipients = recipients.filter(r => r.status === 'failed');
 
   return (
     <MainLayout>
@@ -206,9 +389,9 @@ export default function Broadcasts() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Radio className="h-6 w-6 text-primary" />
-              Transmissões em Massa
+              Disparo em Massa
             </h1>
-            <p className="text-muted-foreground">Envie mensagens para múltiplos contatos</p>
+            <p className="text-muted-foreground">Envie mensagens manualmente com pausa de 30s entre cada envio</p>
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -232,7 +415,7 @@ export default function Broadcasts() {
                   <div className="space-y-2">
                     <Label>Nome da Campanha *</Label>
                     <Input
-                      placeholder="Ex: Promoção de Janeiro"
+                      placeholder="Ex: Promoção Drop1"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     />
@@ -249,15 +432,6 @@ export default function Broadcasts() {
                     <p className="text-xs text-muted-foreground">
                       Use {'{nome}'} para personalizar com o nome do contato
                     </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Agendar Envio (opcional)</Label>
-                    <Input
-                      type="datetime-local"
-                      value={formData.scheduledAt}
-                      onChange={(e) => setFormData({ ...formData, scheduledAt: e.target.value })}
-                    />
                   </div>
 
                   <div className="flex justify-end">
@@ -346,19 +520,9 @@ export default function Broadcasts() {
                         <Label className="text-muted-foreground">Mensagem</Label>
                         <p className="text-sm bg-muted p-3 rounded-lg whitespace-pre-wrap">{formData.message}</p>
                       </div>
-                      <div className="flex gap-8">
-                        <div>
-                          <Label className="text-muted-foreground">Destinatários</Label>
-                          <p className="font-medium">{selectedContacts.length}</p>
-                        </div>
-                        <div>
-                          <Label className="text-muted-foreground">Agendamento</Label>
-                          <p className="font-medium">
-                            {formData.scheduledAt 
-                              ? format(new Date(formData.scheduledAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                              : 'Enviar agora'}
-                          </p>
-                        </div>
+                      <div>
+                        <Label className="text-muted-foreground">Destinatários</Label>
+                        <p className="font-medium">{selectedContacts.length}</p>
                       </div>
                     </CardContent>
                   </Card>
@@ -367,7 +531,7 @@ export default function Broadcasts() {
                     <Button variant="outline" onClick={() => setStep('recipients')}>Voltar</Button>
                     <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
                       <Send className="h-4 w-4 mr-2" />
-                      {formData.scheduledAt ? 'Agendar Campanha' : 'Criar Campanha'}
+                      Criar Campanha
                     </Button>
                   </div>
                 </div>
@@ -375,6 +539,79 @@ export default function Broadcasts() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Sending Panel */}
+        {sendingCampaignId && (
+          <Card className="border-primary">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Radio className="h-5 w-5 text-primary animate-pulse" />
+                Enviando Disparo
+              </CardTitle>
+              <CardDescription>
+                Clique em "Enviar Próxima" para disparar a próxima mensagem (aguarde 30s entre envios)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  {recipients.length} total
+                </div>
+                <div className="flex items-center gap-1 text-green-500">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {sentRecipients.length} enviadas
+                </div>
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Clock className="h-4 w-4" />
+                  {pendingRecipients.length} pendentes
+                </div>
+                {failedRecipients.length > 0 && (
+                  <div className="flex items-center gap-1 text-destructive">
+                    <XCircle className="h-4 w-4" />
+                    {failedRecipients.length} falhas
+                  </div>
+                )}
+              </div>
+
+              <Progress 
+                value={(sentRecipients.length / recipients.length) * 100} 
+                className="h-2"
+              />
+
+              {countdown > 0 && (
+                <div className="text-center py-4">
+                  <p className="text-2xl font-bold text-primary">{countdown}s</p>
+                  <p className="text-sm text-muted-foreground">Aguardando para enviar próxima mensagem...</p>
+                </div>
+              )}
+
+              {pendingRecipients.length > 0 && recipients[currentRecipientIndex] && (
+                <div className="bg-muted p-3 rounded-lg">
+                  <p className="text-sm font-medium">Próximo destinatário:</p>
+                  <p className="text-sm">
+                    {recipients[currentRecipientIndex]?.name || 'Sem nome'} - {recipients[currentRecipientIndex]?.phone}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleSendNext} 
+                  disabled={countdown > 0 || pendingRecipients.length === 0}
+                  className="flex-1"
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Enviar Próxima ({pendingRecipients.length} restantes)
+                </Button>
+                <Button variant="outline" onClick={handleStop}>
+                  <Square className="h-4 w-4 mr-2" />
+                  Parar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <p className="text-muted-foreground text-center py-8">Carregando...</p>
@@ -403,10 +640,14 @@ export default function Broadcasts() {
                       {getStatusBadge(campaign.status)}
                     </div>
                     <div className="flex items-center gap-2">
-                      {campaign.status === 'draft' && (
-                        <Button size="sm" onClick={() => startMutation.mutate(campaign.id)}>
+                      {(campaign.status === 'draft' || campaign.status === 'paused') && (
+                        <Button 
+                          size="sm" 
+                          onClick={() => startManualSending(campaign.id)}
+                          disabled={!!sendingCampaignId}
+                        >
                           <Play className="h-4 w-4 mr-1" />
-                          Iniciar
+                          {campaign.status === 'paused' ? 'Continuar' : 'Iniciar'}
                         </Button>
                       )}
                       {campaign.status !== 'sending' && (
@@ -422,17 +663,10 @@ export default function Broadcasts() {
                     </div>
                   </div>
                   <CardDescription>
-                    {campaign.scheduled_at ? (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        Agendada para {format(new Date(campaign.scheduled_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Criada em {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                    )}
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Criada em {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -444,9 +678,9 @@ export default function Broadcasts() {
                       </div>
                       <div className="flex items-center gap-1 text-green-500">
                         <CheckCircle2 className="h-4 w-4" />
-                        {campaign.sent_count} enviadas
+                        {campaign.sent_count || 0} enviadas
                       </div>
-                      {campaign.failed_count > 0 && (
+                      {(campaign.failed_count || 0) > 0 && (
                         <div className="flex items-center gap-1 text-destructive">
                           <XCircle className="h-4 w-4" />
                           {campaign.failed_count} falhas
@@ -454,14 +688,14 @@ export default function Broadcasts() {
                       )}
                     </div>
 
-                    {(campaign.status === 'sending' || campaign.status === 'completed') && (
+                    {(campaign.status === 'sending' || campaign.status === 'completed' || campaign.status === 'paused') && campaign.total_recipients > 0 && (
                       <div className="space-y-1">
                         <Progress 
-                          value={(campaign.sent_count / campaign.total_recipients) * 100} 
+                          value={((campaign.sent_count || 0) / campaign.total_recipients) * 100} 
                           className="h-2"
                         />
                         <p className="text-xs text-muted-foreground text-right">
-                          {Math.round((campaign.sent_count / campaign.total_recipients) * 100)}% concluído
+                          {Math.round(((campaign.sent_count || 0) / campaign.total_recipients) * 100)}% concluído
                         </p>
                       </div>
                     )}
