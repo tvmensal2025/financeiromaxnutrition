@@ -10,7 +10,6 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Plans from "./pages/Plans";
-import Subscriptions from "./pages/Subscriptions";
 import Import from "./pages/Import";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
@@ -18,7 +17,6 @@ import NotFound from "./pages/NotFound";
 import Leads from "./pages/Leads";
 import Pipeline from "./pages/Pipeline";
 import Products from "./pages/Products";
-import Services from "./pages/Services";
 import Appointments from "./pages/Appointments";
 import Invoices from "./pages/Invoices";
 import TransactionsPage from "./pages/TransactionsPage";
@@ -116,14 +114,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/servicos"
-        element={
-          <ProtectedRoute>
-            <Services />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/agendamentos"
         element={
           <ProtectedRoute>
@@ -136,14 +126,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Plans />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/assinaturas"
-        element={
-          <ProtectedRoute>
-            <Subscriptions />
           </ProtectedRoute>
         }
       />
