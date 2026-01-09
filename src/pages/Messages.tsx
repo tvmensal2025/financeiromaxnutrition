@@ -603,24 +603,56 @@ export default function Messages() {
   // Update conversation status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ phone, status }: { phone: string; status: ConversationStatus }) => {
-      if (!business?.id) throw new Error('Business not found');
+      if (!user?.id) throw new Error('User not found');
 
       const { error } = await supabase
         .from('whatsapp_messages')
         .update({ conversation_status: status })
-        .eq('business_id', business.id)
         .eq('phone', phone);
 
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business?.id] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', user?.id] });
     },
     onError: (error) => {
       console.error('Update status error:', error);
       toast({
         title: 'Erro ao atualizar status',
         description: 'Não foi possível atualizar o status da conversa.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Reject (delete) conversation mutation
+  const rejectConversationMutation = useMutation({
+    mutationFn: async (phone: string) => {
+      if (!user?.id) throw new Error('User not found');
+
+      const { error } = await supabase
+        .from('whatsapp_messages')
+        .delete()
+        .eq('phone', phone);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', user?.id] });
+      toast({
+        title: 'Conversa excluída',
+        description: 'A conversa foi removida.',
+      });
+      // Clear selection if deleted conversation was selected
+      if (selectedPhone) {
+        setSelectedPhone(null);
+      }
+    },
+    onError: (error) => {
+      console.error('Reject conversation error:', error);
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir a conversa.',
         variant: 'destructive',
       });
     },
@@ -636,6 +668,10 @@ export default function Messages() {
 
   const handleUpdateStatus = (phone: string, status: ConversationStatus) => {
     updateStatusMutation.mutate({ phone, status });
+  };
+
+  const handleRejectConversation = (phone: string) => {
+    rejectConversationMutation.mutate(phone);
   };
 
   const handleSelectConversation = (phone: string) => {
@@ -715,6 +751,7 @@ export default function Messages() {
                 selectedPhone={selectedPhone}
                 onSelectConversation={handleSelectConversation}
                 onApproveConversation={handleApproveConversation}
+                onRejectConversation={handleRejectConversation}
                 onUpdateStatus={handleUpdateStatus}
                 isLoading={messagesLoading}
                 showTitle={false}
@@ -749,6 +786,7 @@ export default function Messages() {
                 selectedPhone={selectedPhone}
                 onSelectConversation={handleSelectConversation}
                 onApproveConversation={handleApproveConversation}
+                onRejectConversation={handleRejectConversation}
                 onUpdateStatus={handleUpdateStatus}
                 isLoading={messagesLoading}
                 showTitle={false}
