@@ -29,6 +29,7 @@ interface ConversationsListProps {
   selectedPhone: string | null;
   onSelectConversation: (phone: string) => void;
   onApproveConversation?: (phone: string) => void;
+  onRejectConversation?: (phone: string) => void;
   onUpdateStatus?: (phone: string, status: ConversationStatus) => void;
   isLoading?: boolean;
   /** Mostra o título "Mensagens" + contador + botão "+" no topo da lista */
@@ -41,6 +42,7 @@ export function ConversationsList({
   selectedPhone,
   onSelectConversation,
   onApproveConversation,
+  onRejectConversation,
   onUpdateStatus,
   isLoading,
   showTitle = true
@@ -243,8 +245,8 @@ export function ConversationsList({
                       </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8 bg-destructive/10 hover:bg-destructive/20 text-destructive" onClick={e => {
                 e.stopPropagation();
-                onUpdateStatus?.(conv.phone, 'finished');
-              }} title="Arquivar">
+                onRejectConversation?.(conv.phone);
+              }} title="Excluir conversa">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>}
