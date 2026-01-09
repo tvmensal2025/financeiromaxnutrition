@@ -534,68 +534,104 @@ export type Database = {
       }
       customers: {
         Row: {
+          activity_level: string | null
           avatar_url: string | null
+          birth_date: string | null
           business_id: string
+          city: string | null
           created_at: string
+          current_weight_kg: number | null
           email: string | null
+          fitness_level: string | null
+          gender: string | null
+          height_cm: number | null
           id: string
           interest_is_recurring: boolean | null
           interest_type: string | null
           interested_product_id: string | null
           interested_service_id: string | null
+          lead_data: Json | null
           name: string
           notes: string | null
           phone: string | null
+          points: number | null
           recurring_due_date: string | null
           recurring_message_time: string | null
           recurring_message_type: string | null
           recurring_overdue_template: string | null
           recurring_reminder_days: number | null
           recurring_reminder_template: string | null
+          source: string | null
+          state: string | null
+          target_weight_kg: number | null
           updated_at: string
           whatsapp: string | null
         }
         Insert: {
+          activity_level?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
           business_id: string
+          city?: string | null
           created_at?: string
+          current_weight_kg?: number | null
           email?: string | null
+          fitness_level?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id?: string
           interest_is_recurring?: boolean | null
           interest_type?: string | null
           interested_product_id?: string | null
           interested_service_id?: string | null
+          lead_data?: Json | null
           name: string
           notes?: string | null
           phone?: string | null
+          points?: number | null
           recurring_due_date?: string | null
           recurring_message_time?: string | null
           recurring_message_type?: string | null
           recurring_overdue_template?: string | null
           recurring_reminder_days?: number | null
           recurring_reminder_template?: string | null
+          source?: string | null
+          state?: string | null
+          target_weight_kg?: number | null
           updated_at?: string
           whatsapp?: string | null
         }
         Update: {
+          activity_level?: string | null
           avatar_url?: string | null
+          birth_date?: string | null
           business_id?: string
+          city?: string | null
           created_at?: string
+          current_weight_kg?: number | null
           email?: string | null
+          fitness_level?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id?: string
           interest_is_recurring?: boolean | null
           interest_type?: string | null
           interested_product_id?: string | null
           interested_service_id?: string | null
+          lead_data?: Json | null
           name?: string
           notes?: string | null
           phone?: string | null
+          points?: number | null
           recurring_due_date?: string | null
           recurring_message_time?: string | null
           recurring_message_type?: string | null
           recurring_overdue_template?: string | null
           recurring_reminder_days?: number | null
           recurring_reminder_template?: string | null
+          source?: string | null
+          state?: string | null
+          target_weight_kg?: number | null
           updated_at?: string
           whatsapp?: string | null
         }

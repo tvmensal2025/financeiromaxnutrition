@@ -50,7 +50,7 @@ export function ExtractContactsModal({
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('get-group-participants', {
         body: {
-          group_phone: groupPhone,
+          group_id: groupPhone,
           business_id: businessId || business?.id,
         },
       });

@@ -34,7 +34,7 @@ const navigation = [{
   href: '/leads',
   icon: UserPlus
 }, {
-  name: 'Leads Externos',
+  name: 'Pipeline de Vendas',
   href: '/leads-externos',
   icon: ExternalLink
 }, {
