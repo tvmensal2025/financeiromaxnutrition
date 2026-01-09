@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -14,27 +15,60 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+interface FornecedorResumo {
+  id: string;
+  nome_fornecedor: string;
+  tipo_fornecedor: string;
+  total: number;
+  pago: number;
+  pendente: number;
+  produtos: Array<{
+    id: string;
+    nome_item: string;
+    quantidade: number;
+    valor_unitario: number;
+    valor_total: number;
+    valor_pago: number;
+  }>;
+  contratos: Array<{
+    id: string;
+    descricao: string;
+    valor: number;
+    status_pagamento: string;
+  }>;
+}
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const [selectedFornecedor, setSelectedFornecedor] = useState<FornecedorResumo | null>(null);
   
   const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      const [customersRes, leadsRes, fornecedoresRes, produtosRes] = await Promise.all([
+      const [customersRes, leadsRes, fornecedoresRes, produtosRes, contratosRes] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact' }),
         supabase.from('leads').select('id', { count: 'exact' }),
         supabase.from('fornecedores').select('id', { count: 'exact' }),
         supabase.from('produtos_servicos').select('*'),
+        supabase.from('contratos_taxas').select('*'),
       ]);
 
       const customers = customersRes.count || 0;
       const leads = leadsRes.count || 0;
       const fornecedores = fornecedoresRes.count || 0;
       const produtos = produtosRes.data || [];
+      const contratos = contratosRes.data || [];
 
-      const totalInvestido = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
-      const totalPago = produtos.reduce((acc, p) => acc + (p.valor_pago || 0), 0);
+      const totalProdutos = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
+      const totalContratos = contratos.reduce((acc, c) => acc + (c.valor || 0), 0);
+      const totalInvestido = totalProdutos + totalContratos;
+      
+      const totalPagoProdutos = produtos.reduce((acc, p) => acc + (p.valor_pago || 0), 0);
+      const totalPagoContratos = contratos.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + (c.valor || 0), 0);
+      const totalPago = totalPagoProdutos + totalPagoContratos;
+      
       const totalEstoque = produtos.reduce((acc, p) => acc + (p.quantidade_estoque || 0), 0);
 
       return {
@@ -62,7 +96,14 @@ export default function Dashboard() {
         const contratosForn = contratos?.filter((c) => c.fornecedor_id === f.id) || [];
         const total = produtosForn.reduce((acc, p) => acc + (p.valor_total || 0), 0) + contratosForn.reduce((acc, c) => acc + c.valor, 0);
         const pago = produtosForn.reduce((acc, p) => acc + (p.valor_pago || 0), 0) + contratosForn.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + c.valor, 0);
-        return { ...f, total, pago, pendente: total - pago };
+        return { 
+          ...f, 
+          total, 
+          pago, 
+          pendente: total - pago,
+          produtos: produtosForn,
+          contratos: contratosForn,
+        } as FornecedorResumo;
       }).filter((f) => f.total > 0).sort((a, b) => b.total - a.total) || [];
     },
     enabled: !!profile?.business_id,
@@ -145,7 +186,11 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {fornecedoresData?.map((f) => (
-                  <TableRow key={f.id}>
+                  <TableRow 
+                    key={f.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedFornecedor(f)}
+                  >
                     <TableCell className="font-medium">{f.nome_fornecedor}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{f.tipo_fornecedor}</Badge>
@@ -175,6 +220,100 @@ export default function Dashboard() {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Modal de Detalhes do Fornecedor */}
+        <Dialog open={!!selectedFornecedor} onOpenChange={() => setSelectedFornecedor(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                {selectedFornecedor?.nome_fornecedor}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              {/* Resumo */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-muted/50 p-3 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedFornecedor?.total || 0)}</p>
+                </div>
+                <div className="bg-green-500/10 p-3 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Pago</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(selectedFornecedor?.pago || 0)}</p>
+                </div>
+                <div className="bg-destructive/10 p-3 rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground">Pendente</p>
+                  <p className="text-lg font-bold text-destructive">{formatCurrency(selectedFornecedor?.pendente || 0)}</p>
+                </div>
+              </div>
+
+              {/* Produtos/Serviços */}
+              {selectedFornecedor?.produtos && selectedFornecedor.produtos.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Produtos/Serviços
+                  </h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead className="text-right">Qtd</TableHead>
+                        <TableHead className="text-right">Valor Unit.</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Pago</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedFornecedor.produtos.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-medium">{p.nome_item}</TableCell>
+                          <TableCell className="text-right">{p.quantidade}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(p.valor_unitario)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(p.valor_total)}</TableCell>
+                          <TableCell className="text-right text-green-600">{formatCurrency(p.valor_pago)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+
+              {/* Contratos/Taxas */}
+              {selectedFornecedor?.contratos && selectedFornecedor.contratos.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Contratos/Taxas
+                  </h4>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedFornecedor.contratos.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.descricao}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(c.valor)}</TableCell>
+                          <TableCell>
+                            <Badge className={c.status_pagamento === 'pago' ? 'bg-green-500' : 'bg-yellow-500'}>
+                              {c.status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
