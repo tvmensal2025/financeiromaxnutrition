@@ -2077,6 +2077,50 @@ export type Database = {
           },
         ]
       }
+      whatsapp_instances: {
+        Row: {
+          business_id: string
+          connected_at: string | null
+          created_at: string
+          id: string
+          instance_name: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_instances_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           assigned_to: string | null
@@ -2105,6 +2149,7 @@ export type Database = {
           transcribed_text: string | null
           transcription_error: string | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -2133,6 +2178,7 @@ export type Database = {
           transcribed_text?: string | null
           transcription_error?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -2161,6 +2207,7 @@ export type Database = {
           transcribed_text?: string | null
           transcription_error?: string | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {

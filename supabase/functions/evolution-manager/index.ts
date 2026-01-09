@@ -8,7 +8,6 @@ const corsHeaders = {
 
 interface RequestBody {
   action: 'create' | 'connect' | 'status' | 'logout' | 'delete';
-  business_id?: string;
 }
 
 serve(async (req) => {
@@ -58,32 +57,26 @@ serve(async (req) => {
     }
 
     const businessId = profile.business_id;
+    const userId = user.id;
 
-    // Get business data
-    const { data: business } = await supabase
-      .from('businesses')
+    // Get user's WhatsApp instance
+    const { data: instance } = await supabase
+      .from('whatsapp_instances')
       .select('*')
-      .eq('id', businessId)
+      .eq('user_id', userId)
       .single();
-
-    if (!business) {
-      return new Response(JSON.stringify({ error: 'Negócio não encontrado' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     const body: RequestBody = await req.json();
     const { action } = body;
 
-    // Generate instance name based on business ID
-    const instanceName = business.evolution_instance || `biz-${businessId.substring(0, 8)}`;
+    // Generate instance name based on user ID (unique per user)
+    const instanceName = instance?.instance_name || `user-${userId.substring(0, 8)}`;
 
-    console.log(`Action: ${action}, Instance: ${instanceName}`);
+    console.log(`Action: ${action}, Instance: ${instanceName}, User: ${userId}`);
 
     switch (action) {
       case 'create': {
-        // Check if instance already exists
+        // Check if instance already exists in Evolution API
         try {
           const checkResponse = await fetch(`${evolutionApiUrl}/instance/connectionState/${instanceName}`, {
             method: 'GET',
@@ -99,15 +92,16 @@ serve(async (req) => {
             
             // Instance exists, check if connected
             if (state?.instance?.state === 'open') {
-              // Already connected
+              // Already connected - upsert instance record
               await supabase
-                .from('businesses')
-                .update({
-                  evolution_instance: instanceName,
-                  whatsapp_status: 'connected',
-                  whatsapp_connected_at: new Date().toISOString()
-                })
-                .eq('id', businessId);
+                .from('whatsapp_instances')
+                .upsert({
+                  user_id: userId,
+                  business_id: businessId,
+                  instance_name: instanceName,
+                  status: 'connected',
+                  connected_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
 
               return new Response(JSON.stringify({
                 success: true,
@@ -171,14 +165,15 @@ serve(async (req) => {
             const qrResult = await qrResponse.json();
             console.log('QR response:', JSON.stringify(qrResult));
 
-            // Update business
+            // Upsert instance
             await supabase
-              .from('businesses')
-              .update({
-                evolution_instance: instanceName,
-                whatsapp_status: 'waiting_qr'
-              })
-              .eq('id', businessId);
+              .from('whatsapp_instances')
+              .upsert({
+                user_id: userId,
+                business_id: businessId,
+                instance_name: instanceName,
+                status: 'waiting_qr'
+              }, { onConflict: 'user_id' });
 
             return new Response(JSON.stringify({
               success: true,
@@ -200,14 +195,15 @@ serve(async (req) => {
           });
         }
 
-        // Update business with instance name
+        // Upsert instance with instance name
         await supabase
-          .from('businesses')
-          .update({
-            evolution_instance: instanceName,
-            whatsapp_status: 'waiting_qr'
-          })
-          .eq('id', businessId);
+          .from('whatsapp_instances')
+          .upsert({
+            user_id: userId,
+            business_id: businessId,
+            instance_name: instanceName,
+            status: 'waiting_qr'
+          }, { onConflict: 'user_id' });
 
         return new Response(JSON.stringify({
           success: true,
@@ -221,6 +217,13 @@ serve(async (req) => {
       }
 
       case 'connect': {
+        if (!instance?.instance_name) {
+          return new Response(JSON.stringify({ error: 'Instância não encontrada' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         // Get QR code for existing instance
         const qrResponse = await fetch(`${evolutionApiUrl}/instance/connect/${instanceName}`, {
           method: 'GET',
@@ -235,9 +238,9 @@ serve(async (req) => {
 
         // Update status
         await supabase
-          .from('businesses')
-          .update({ whatsapp_status: 'waiting_qr' })
-          .eq('id', businessId);
+          .from('whatsapp_instances')
+          .update({ status: 'waiting_qr' })
+          .eq('user_id', userId);
 
         return new Response(JSON.stringify({
           success: true,
@@ -250,6 +253,16 @@ serve(async (req) => {
       }
 
       case 'status': {
+        if (!instance?.instance_name) {
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'disconnected',
+            message: 'Nenhuma instância configurada'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         // Check connection status
         const stateResponse = await fetch(`${evolutionApiUrl}/instance/connectionState/${instanceName}`, {
           method: 'GET',
@@ -281,19 +294,19 @@ serve(async (req) => {
           whatsappStatus = 'waiting_qr';
         }
 
-        // Update business status
-        const updateData: any = { whatsapp_status: whatsappStatus };
+        // Update instance status
+        const updateData: any = { status: whatsappStatus };
         if (whatsappStatus === 'connected') {
-          updateData.whatsapp_connected_at = new Date().toISOString();
+          updateData.connected_at = new Date().toISOString();
         }
         
         await supabase
-          .from('businesses')
+          .from('whatsapp_instances')
           .update(updateData)
-          .eq('id', businessId);
+          .eq('user_id', userId);
 
         // Try to get phone number if connected
-        let phoneNumber = business.whatsapp_phone;
+        let phoneNumber = instance.phone;
         if (whatsappStatus === 'connected' && !phoneNumber) {
           try {
             const infoResponse = await fetch(`${evolutionApiUrl}/instance/fetchInstances?instanceName=${instanceName}`, {
@@ -306,14 +319,14 @@ serve(async (req) => {
             
             if (infoResponse.ok) {
               const instances = await infoResponse.json();
-              const instance = instances?.[0] || instances;
-              phoneNumber = instance?.owner?.split('@')?.[0] || instance?.profilePicUrl?.split('/')?.[4]?.split('-')?.[0] || null;
+              const inst = instances?.[0] || instances;
+              phoneNumber = inst?.owner?.split('@')?.[0] || inst?.profilePicUrl?.split('/')?.[4]?.split('-')?.[0] || null;
               
               if (phoneNumber) {
                 await supabase
-                  .from('businesses')
-                  .update({ whatsapp_phone: phoneNumber })
-                  .eq('id', businessId);
+                  .from('whatsapp_instances')
+                  .update({ phone: phoneNumber })
+                  .eq('user_id', userId);
               }
             }
           } catch (e) {
@@ -332,6 +345,13 @@ serve(async (req) => {
       }
 
       case 'logout': {
+        if (!instance?.instance_name) {
+          return new Response(JSON.stringify({ error: 'Instância não encontrada' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
         // Logout/disconnect instance
         const logoutResponse = await fetch(`${evolutionApiUrl}/instance/logout/${instanceName}`, {
           method: 'DELETE',
@@ -343,14 +363,14 @@ serve(async (req) => {
 
         console.log('Logout response status:', logoutResponse.status);
 
-        // Update business status
+        // Update instance status
         await supabase
-          .from('businesses')
+          .from('whatsapp_instances')
           .update({
-            whatsapp_status: 'disconnected',
-            whatsapp_phone: null
+            status: 'disconnected',
+            phone: null
           })
-          .eq('id', businessId);
+          .eq('user_id', userId);
 
         return new Response(JSON.stringify({
           success: true,
@@ -362,7 +382,17 @@ serve(async (req) => {
       }
 
       case 'delete': {
-        // Delete instance completely
+        if (!instance?.instance_name) {
+          return new Response(JSON.stringify({ 
+            success: true,
+            status: 'disconnected',
+            message: 'Nenhuma instância para remover' 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Delete instance from Evolution API
         const deleteResponse = await fetch(`${evolutionApiUrl}/instance/delete/${instanceName}`, {
           method: 'DELETE',
           headers: {
@@ -373,16 +403,11 @@ serve(async (req) => {
 
         console.log('Delete response status:', deleteResponse.status);
 
-        // Update business
+        // Delete instance record
         await supabase
-          .from('businesses')
-          .update({
-            evolution_instance: null,
-            whatsapp_status: 'disconnected',
-            whatsapp_phone: null,
-            whatsapp_connected_at: null
-          })
-          .eq('id', businessId);
+          .from('whatsapp_instances')
+          .delete()
+          .eq('user_id', userId);
 
         return new Response(JSON.stringify({
           success: true,
