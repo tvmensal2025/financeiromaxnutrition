@@ -78,7 +78,10 @@ serve(async (req) => {
       case 'create': {
         // Check if instance already exists in Evolution API
         try {
-          const checkResponse = await fetch(`${evolutionApiUrl}/instance/connectionState/${instanceName}`, {
+        console.log('Evolution API URL:', evolutionApiUrl);
+        console.log('Testing with apikey header...');
+        
+        const checkResponse = await fetch(`${evolutionApiUrl}/instance/connectionState/${instanceName}`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
