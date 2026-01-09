@@ -26,6 +26,9 @@ import Fornecedores from "./pages/Fornecedores";
 import ProdutosServicos from "./pages/ProdutosServicos";
 import ContratosTaxas from "./pages/ContratosTaxas";
 import LeadsExternos from "./pages/LeadsExternos";
+import ContratosDigitais from "./pages/ContratosDigitais";
+import VisualizarContrato from "./pages/VisualizarContrato";
+import AssinarContrato from "./pages/AssinarContrato";
 
 import { Loader2 } from "lucide-react";
 
@@ -222,6 +225,23 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/contratos-digitais"
+        element={
+          <ProtectedRoute>
+            <ContratosDigitais />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contratos-digitais/:id"
+        element={
+          <ProtectedRoute>
+            <VisualizarContrato />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="/assinar/:token" element={<AssinarContrato />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
