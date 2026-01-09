@@ -43,76 +43,174 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Detectar formato: plano (maxnutrition) ou aninhado (antigo)
-    const isFlat = !!(payload.full_name || payload.email || payload.id) && !payload.lead;
+    // Helper para limpar strings vazias
+    const cleanString = (val: any): string | null => {
+      if (val === null || val === undefined) return null;
+      const str = String(val).trim();
+      return str.length > 0 ? str : null;
+    };
 
-    let leadData;
+    // Detectar formato do payload
+    const hasContactNested = !!payload.contact;
+    const hasOldNested = !!payload.lead;
+    const isFlat = !hasContactNested && !hasOldNested;
 
-    if (isFlat) {
-      // Formato plano (maxnutrition-app e similares)
-      console.log("Formato detectado: PLANO");
-      
-      const firstName = payload.first_name || payload.full_name?.split(' ')[0] || null;
-      const lastName = payload.last_name || payload.full_name?.split(' ').slice(1).join(' ') || null;
+    console.log("Formato detectado:", hasContactNested ? "CONTACT_NESTED" : hasOldNested ? "OLD_NESTED" : "FLAT");
 
-      leadData = {
-        source: payload.source || 'external',
-        external_user_id: payload.id || payload.user_id || null,
-        event_type: payload.event || payload.event_type || 'lead.created',
-        full_name: payload.full_name || null,
-        first_name: firstName,
-        last_name: lastName,
-        email: payload.email || null,
-        phone: payload.phone || null,
-        city: payload.city || null,
-        state: payload.state || null,
-        birth_date: payload.birth_date || null,
-        gender: payload.gender || null,
-        height_cm: payload.height || payload.height_cm || null,
-        current_weight_kg: payload.current_weight || payload.current_weight_kg || null,
-        target_weight_kg: payload.target_weight || payload.target_weight_kg || null,
-        activity_level: payload.activity_level || null,
-        fitness_level: payload.fitness_level || null,
-        points: payload.points || 0,
-        signup_date: payload.created_at || payload.signup_date || null,
-        stage: 'new',
-        raw_payload: payload,
-      };
-    } else {
-      // Formato aninhado (antigo)
-      console.log("Formato detectado: ANINHADO");
-      
-      const lead = payload.lead || {};
-      const healthProfile = payload.health_profile || {};
-      const engagement = payload.engagement || {};
+    // Extrair dados de forma normalizada (tentando múltiplos caminhos)
+    const contact = payload.contact || {};
+    const lead = payload.lead || {};
+    const profile = payload.profile || {};
+    const location = payload.location || {};
+    const healthData = payload.health_data || {};
+    const healthProfile = payload.health_profile || {};
+    const engagement = payload.engagement || {};
 
-      const firstName = lead.full_name?.split(' ')[0] || null;
-      const lastName = lead.full_name?.split(' ').slice(1).join(' ') || null;
+    // Full name: tentar múltiplos caminhos
+    let fullName = cleanString(
+      payload.full_name || 
+      contact.full_name || 
+      lead.full_name ||
+      (contact.first_name && contact.last_name ? `${contact.first_name} ${contact.last_name}` : null) ||
+      (payload.first_name && payload.last_name ? `${payload.first_name} ${payload.last_name}` : null)
+    );
 
-      leadData = {
-        source: payload.source || "webhook",
-        external_user_id: lead.user_id || null,
-        event_type: payload.event || null,
-        full_name: lead.full_name || null,
-        first_name: firstName,
-        last_name: lastName,
-        email: lead.email || null,
-        phone: lead.phone || null,
-        city: lead.city || null,
-        state: lead.state || null,
-        birth_date: lead.birth_date || null,
-        gender: lead.gender || null,
-        height_cm: healthProfile.height_cm || null,
-        current_weight_kg: healthProfile.current_weight_kg || null,
-        target_weight_kg: healthProfile.target_weight_kg || null,
-        activity_level: healthProfile.activity_level || null,
-        fitness_level: healthProfile.fitness_level || null,
-        points: engagement.points || 0,
-        signup_date: engagement.signup_date || null,
-        stage: 'new',
-        raw_payload: payload,
-      };
+    // First/Last name
+    let firstName = cleanString(
+      payload.first_name || 
+      contact.first_name || 
+      lead.first_name ||
+      fullName?.split(' ')[0]
+    );
+    
+    let lastName = cleanString(
+      payload.last_name || 
+      contact.last_name || 
+      lead.last_name ||
+      fullName?.split(' ').slice(1).join(' ')
+    );
+
+    // Se não temos full_name mas temos first/last, montar
+    if (!fullName && (firstName || lastName)) {
+      fullName = [firstName, lastName].filter(Boolean).join(' ') || null;
     }
+
+    // Email
+    const email = cleanString(
+      payload.email || 
+      contact.email || 
+      lead.email
+    );
+
+    // Phone
+    const phone = cleanString(
+      payload.phone || 
+      contact.phone || 
+      lead.phone
+    );
+
+    // Location
+    const city = cleanString(
+      payload.city || 
+      location.city || 
+      lead.city
+    );
+    
+    const state = cleanString(
+      payload.state || 
+      location.state || 
+      lead.state
+    );
+
+    // Profile data
+    const gender = cleanString(
+      payload.gender || 
+      profile.gender || 
+      lead.gender
+    );
+    
+    const birthDate = cleanString(
+      payload.birth_date || 
+      profile.birth_date || 
+      lead.birth_date
+    );
+
+    // Health data
+    const heightCm = payload.height || payload.height_cm || 
+      healthData.height_cm || healthProfile.height_cm || null;
+    
+    const currentWeightKg = payload.current_weight || payload.current_weight_kg || 
+      healthData.current_weight_kg || healthProfile.current_weight_kg || null;
+    
+    const targetWeightKg = payload.target_weight || payload.target_weight_kg || 
+      healthData.target_weight_kg || healthProfile.target_weight_kg || null;
+    
+    const activityLevel = cleanString(
+      payload.activity_level || 
+      healthData.activity_level || 
+      healthProfile.activity_level
+    );
+    
+    const fitnessLevel = cleanString(
+      payload.fitness_level || 
+      healthData.fitness_level || 
+      healthProfile.fitness_level
+    );
+
+    // Engagement
+    const points = payload.points || engagement.points || 0;
+    
+    const signupDate = cleanString(
+      payload.created_at || 
+      payload.signup_date || 
+      engagement.registered_at || 
+      engagement.signup_date ||
+      payload.timestamp
+    );
+
+    // External user ID
+    const externalUserId = cleanString(
+      payload.id || 
+      payload.user_id || 
+      contact.id ||
+      contact.user_id ||
+      lead.user_id
+    );
+
+    // Source
+    const source = cleanString(payload.source) || 'external';
+
+    // Event type
+    const eventType = cleanString(
+      payload.event || 
+      payload.event_type
+    ) || 'lead.created';
+
+    const leadData = {
+      source,
+      external_user_id: externalUserId,
+      event_type: eventType,
+      full_name: fullName,
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      city,
+      state,
+      birth_date: birthDate,
+      gender,
+      height_cm: heightCm,
+      current_weight_kg: currentWeightKg,
+      target_weight_kg: targetWeightKg,
+      activity_level: activityLevel,
+      fitness_level: fitnessLevel,
+      points,
+      signup_date: signupDate,
+      stage: 'new',
+      raw_payload: payload,
+    };
+
+    console.log("Lead normalizado:", JSON.stringify(leadData, null, 2));
 
     // Inserir na tabela
     const { data, error } = await supabase
