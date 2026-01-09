@@ -1249,9 +1249,11 @@ export type Database = {
           contrato_taxa_id: string | null
           created_at: string
           data_pagamento: string
+          fornecedor_id: string | null
           id: string
           metodo_pagamento: string | null
           observacoes: string | null
+          pago_por_user_id: string | null
           produto_servico_id: string | null
           quantidade_liberada: number | null
           valor_pago: number
@@ -1261,9 +1263,11 @@ export type Database = {
           contrato_taxa_id?: string | null
           created_at?: string
           data_pagamento?: string
+          fornecedor_id?: string | null
           id?: string
           metodo_pagamento?: string | null
           observacoes?: string | null
+          pago_por_user_id?: string | null
           produto_servico_id?: string | null
           quantidade_liberada?: number | null
           valor_pago: number
@@ -1273,9 +1277,11 @@ export type Database = {
           contrato_taxa_id?: string | null
           created_at?: string
           data_pagamento?: string
+          fornecedor_id?: string | null
           id?: string
           metodo_pagamento?: string | null
           observacoes?: string | null
+          pago_por_user_id?: string | null
           produto_servico_id?: string | null
           quantidade_liberada?: number | null
           valor_pago?: number
@@ -1293,6 +1299,20 @@ export type Database = {
             columns: ["contrato_taxa_id"]
             isOneToOne: false
             referencedRelation: "contratos_taxas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_fornecedor_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_fornecedor_pago_por_user_id_fkey"
+            columns: ["pago_por_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
