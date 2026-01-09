@@ -318,6 +318,22 @@ CREATE TABLE public.contact_notes (
 
 
 --
+-- Name: contratos_taxas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contratos_taxas (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    business_id uuid NOT NULL,
+    fornecedor_id uuid NOT NULL,
+    descricao text NOT NULL,
+    valor numeric DEFAULT 0 NOT NULL,
+    status_pagamento text DEFAULT 'pendente'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: conversation_tag_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -368,6 +384,27 @@ CREATE TABLE public.customers (
     recurring_message_type text DEFAULT 'both'::text,
     recurring_reminder_template text,
     recurring_overdue_template text
+);
+
+
+--
+-- Name: fornecedores; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.fornecedores (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    business_id uuid NOT NULL,
+    nome_fornecedor text NOT NULL,
+    tipo_fornecedor text DEFAULT 'industrial'::text NOT NULL,
+    endereco text,
+    cidade text,
+    estado text,
+    cep text,
+    telefone text,
+    email text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -500,6 +537,24 @@ CREATE TABLE public.opportunities (
 
 
 --
+-- Name: pagamentos_fornecedor; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pagamentos_fornecedor (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    business_id uuid NOT NULL,
+    produto_servico_id uuid,
+    contrato_taxa_id uuid,
+    valor_pago numeric NOT NULL,
+    quantidade_liberada integer DEFAULT 0,
+    data_pagamento timestamp with time zone DEFAULT now() NOT NULL,
+    metodo_pagamento text,
+    observacoes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: payments; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -563,6 +618,30 @@ CREATE TABLE public.products (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     discount numeric DEFAULT 0
+);
+
+
+--
+-- Name: produtos_servicos; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.produtos_servicos (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    business_id uuid NOT NULL,
+    fornecedor_id uuid NOT NULL,
+    nome_item text NOT NULL,
+    categoria text DEFAULT 'produto'::text NOT NULL,
+    descricao text,
+    valor_unitario numeric DEFAULT 0 NOT NULL,
+    quantidade integer DEFAULT 0 NOT NULL,
+    quantidade_paga integer DEFAULT 0 NOT NULL,
+    quantidade_estoque integer DEFAULT 0 NOT NULL,
+    valor_total numeric GENERATED ALWAYS AS ((valor_unitario * (quantidade)::numeric)) STORED,
+    valor_pago numeric DEFAULT 0 NOT NULL,
+    condicao_pagamento text,
+    status_pagamento text DEFAULT 'pendente'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -838,6 +917,14 @@ ALTER TABLE ONLY public.contact_notes
 
 
 --
+-- Name: contratos_taxas contratos_taxas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contratos_taxas
+    ADD CONSTRAINT contratos_taxas_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: conversation_tag_assignments conversation_tag_assignments_business_id_tag_id_phone_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -867,6 +954,14 @@ ALTER TABLE ONLY public.conversation_tags
 
 ALTER TABLE ONLY public.customers
     ADD CONSTRAINT customers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: fornecedores fornecedores_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fornecedores
+    ADD CONSTRAINT fornecedores_pkey PRIMARY KEY (id);
 
 
 --
@@ -918,6 +1013,14 @@ ALTER TABLE ONLY public.opportunities
 
 
 --
+-- Name: pagamentos_fornecedor pagamentos_fornecedor_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagamentos_fornecedor
+    ADD CONSTRAINT pagamentos_fornecedor_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: payments payments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -955,6 +1058,14 @@ ALTER TABLE ONLY public.plans
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: produtos_servicos produtos_servicos_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.produtos_servicos
+    ADD CONSTRAINT produtos_servicos_pkey PRIMARY KEY (id);
 
 
 --
@@ -1226,6 +1337,13 @@ CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON public.customers FOR
 
 
 --
+-- Name: fornecedores update_fornecedores_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_fornecedores_updated_at BEFORE UPDATE ON public.fornecedores FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
 -- Name: invoices update_invoices_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1265,6 +1383,13 @@ CREATE TRIGGER update_plans_updated_at BEFORE UPDATE ON public.plans FOR EACH RO
 --
 
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+
+--
+-- Name: produtos_servicos update_produtos_servicos_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_produtos_servicos_updated_at BEFORE UPDATE ON public.produtos_servicos FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -1444,6 +1569,22 @@ ALTER TABLE ONLY public.contact_notes
 
 
 --
+-- Name: contratos_taxas contratos_taxas_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contratos_taxas
+    ADD CONSTRAINT contratos_taxas_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: contratos_taxas contratos_taxas_fornecedor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contratos_taxas
+    ADD CONSTRAINT contratos_taxas_fornecedor_id_fkey FOREIGN KEY (fornecedor_id) REFERENCES public.fornecedores(id) ON DELETE CASCADE;
+
+
+--
 -- Name: conversation_tag_assignments conversation_tag_assignments_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1489,6 +1630,14 @@ ALTER TABLE ONLY public.customers
 
 ALTER TABLE ONLY public.customers
     ADD CONSTRAINT customers_interested_service_id_fkey FOREIGN KEY (interested_service_id) REFERENCES public.services(id) ON DELETE SET NULL;
+
+
+--
+-- Name: fornecedores fornecedores_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.fornecedores
+    ADD CONSTRAINT fornecedores_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE;
 
 
 --
@@ -1636,6 +1785,30 @@ ALTER TABLE ONLY public.opportunities
 
 
 --
+-- Name: pagamentos_fornecedor pagamentos_fornecedor_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagamentos_fornecedor
+    ADD CONSTRAINT pagamentos_fornecedor_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: pagamentos_fornecedor pagamentos_fornecedor_contrato_taxa_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagamentos_fornecedor
+    ADD CONSTRAINT pagamentos_fornecedor_contrato_taxa_id_fkey FOREIGN KEY (contrato_taxa_id) REFERENCES public.contratos_taxas(id) ON DELETE SET NULL;
+
+
+--
+-- Name: pagamentos_fornecedor pagamentos_fornecedor_produto_servico_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pagamentos_fornecedor
+    ADD CONSTRAINT pagamentos_fornecedor_produto_servico_id_fkey FOREIGN KEY (produto_servico_id) REFERENCES public.produtos_servicos(id) ON DELETE SET NULL;
+
+
+--
 -- Name: payments payments_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1673,6 +1846,22 @@ ALTER TABLE ONLY public.plans
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: produtos_servicos produtos_servicos_business_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.produtos_servicos
+    ADD CONSTRAINT produtos_servicos_business_id_fkey FOREIGN KEY (business_id) REFERENCES public.businesses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: produtos_servicos produtos_servicos_fornecedor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.produtos_servicos
+    ADD CONSTRAINT produtos_servicos_fornecedor_id_fkey FOREIGN KEY (fornecedor_id) REFERENCES public.fornecedores(id) ON DELETE CASCADE;
 
 
 --
@@ -1910,10 +2099,28 @@ CREATE POLICY "Users can delete campaigns from their business" ON public.broadca
 
 
 --
+-- Name: contratos_taxas Users can delete contratos_taxas from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete contratos_taxas from their business" ON public.contratos_taxas FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: customers Users can delete customers from their business; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can delete customers from their business" ON public.customers FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: fornecedores Users can delete fornecedores from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete fornecedores from their business" ON public.fornecedores FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -1966,6 +2173,15 @@ CREATE POLICY "Users can delete opportunities from their business" ON public.opp
 
 
 --
+-- Name: pagamentos_fornecedor Users can delete pagamentos_fornecedor from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete pagamentos_fornecedor from their business" ON public.pagamentos_fornecedor FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: payments Users can delete payments from their business; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -1997,6 +2213,15 @@ CREATE POLICY "Users can delete plans from their business" ON public.plans FOR D
 --
 
 CREATE POLICY "Users can delete products from their business" ON public.products FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: produtos_servicos Users can delete produtos_servicos from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can delete produtos_servicos from their business" ON public.produtos_servicos FOR DELETE USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2128,10 +2353,28 @@ CREATE POLICY "Users can insert campaigns to their business" ON public.broadcast
 
 
 --
+-- Name: contratos_taxas Users can insert contratos_taxas to their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert contratos_taxas to their business" ON public.contratos_taxas FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: customers Users can insert customers to their business; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can insert customers to their business" ON public.customers FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: fornecedores Users can insert fornecedores to their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert fornecedores to their business" ON public.fornecedores FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2193,6 +2436,15 @@ CREATE POLICY "Users can insert opportunities to their business" ON public.oppor
 
 
 --
+-- Name: pagamentos_fornecedor Users can insert pagamentos_fornecedor to their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert pagamentos_fornecedor to their business" ON public.pagamentos_fornecedor FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: payments Users can insert payments to their business; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2224,6 +2476,15 @@ CREATE POLICY "Users can insert plans to their business" ON public.plans FOR INS
 --
 
 CREATE POLICY "Users can insert products to their business" ON public.products FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: produtos_servicos Users can insert produtos_servicos to their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can insert produtos_servicos to their business" ON public.produtos_servicos FOR INSERT WITH CHECK ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2355,10 +2616,28 @@ CREATE POLICY "Users can update campaigns from their business" ON public.broadca
 
 
 --
+-- Name: contratos_taxas Users can update contratos_taxas from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update contratos_taxas from their business" ON public.contratos_taxas FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: customers Users can update customers from their business; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can update customers from their business" ON public.customers FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: fornecedores Users can update fornecedores from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update fornecedores from their business" ON public.fornecedores FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2418,6 +2697,15 @@ CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING
 
 
 --
+-- Name: pagamentos_fornecedor Users can update pagamentos_fornecedor from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update pagamentos_fornecedor from their business" ON public.pagamentos_fornecedor FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: payments Users can update payments from their business; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2440,6 +2728,15 @@ CREATE POLICY "Users can update plans from their business" ON public.plans FOR U
 --
 
 CREATE POLICY "Users can update products from their business" ON public.products FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: produtos_servicos Users can update produtos_servicos from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can update produtos_servicos from their business" ON public.produtos_servicos FOR UPDATE USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2571,10 +2868,28 @@ CREATE POLICY "Users can view campaigns from their business" ON public.broadcast
 
 
 --
+-- Name: contratos_taxas Users can view contratos_taxas from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view contratos_taxas from their business" ON public.contratos_taxas FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: customers Users can view customers from their business; Type: POLICY; Schema: public; Owner: -
 --
 
 CREATE POLICY "Users can view customers from their business" ON public.customers FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: fornecedores Users can view fornecedores from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view fornecedores from their business" ON public.fornecedores FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2643,6 +2958,15 @@ CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (
 
 
 --
+-- Name: pagamentos_fornecedor Users can view pagamentos_fornecedor from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view pagamentos_fornecedor from their business" ON public.pagamentos_fornecedor FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
 -- Name: payments Users can view payments from their business; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -2674,6 +2998,15 @@ CREATE POLICY "Users can view plans from their business" ON public.plans FOR SEL
 --
 
 CREATE POLICY "Users can view products from their business" ON public.products FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
+   FROM public.profiles
+  WHERE (profiles.id = auth.uid()))));
+
+
+--
+-- Name: produtos_servicos Users can view produtos_servicos from their business; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Users can view produtos_servicos from their business" ON public.produtos_servicos FOR SELECT USING ((business_id IN ( SELECT profiles.business_id
    FROM public.profiles
   WHERE (profiles.id = auth.uid()))));
 
@@ -2838,6 +3171,12 @@ ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contact_notes ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: contratos_taxas; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.contratos_taxas ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: conversation_tag_assignments; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2854,6 +3193,12 @@ ALTER TABLE public.conversation_tags ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: fornecedores; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.fornecedores ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: invoice_items; Type: ROW SECURITY; Schema: public; Owner: -
@@ -2892,6 +3237,12 @@ ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.opportunities ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: pagamentos_fornecedor; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.pagamentos_fornecedor ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: payments; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2914,6 +3265,12 @@ ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: produtos_servicos; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.produtos_servicos ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: profiles; Type: ROW SECURITY; Schema: public; Owner: -
