@@ -23,14 +23,15 @@ import { supabase } from '@/integrations/supabase/client';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Dashboard Financeiro', href: '/financeiro', icon: TrendingUp },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare, showBadge: true },
+  { name: 'Fornecedores', href: '/fornecedores', icon: Building2 },
+  { name: 'Produtos/Serviços', href: '/produtos-servicos', icon: Package },
+  { name: 'Contratos/Taxas', href: '/contratos', icon: Receipt },
   { name: 'Transações', href: '/transacoes', icon: Wallet },
   { name: 'Leads', href: '/leads', icon: UserPlus },
-  { name: 'Pipeline', href: '/pipeline', icon: TrendingUp },
   { name: 'Clientes', href: '/clientes', icon: Users },
-  { name: 'Produtos', href: '/produtos', icon: Package },
   { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
-  { name: 'Faturas', href: '/faturas', icon: Receipt },
   { name: 'Disparo em Massa', href: '/broadcasts', icon: Radio },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Importar', href: '/importar', icon: Upload },

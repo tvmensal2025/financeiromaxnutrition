@@ -413,6 +413,54 @@ export type Database = {
           },
         ]
       }
+      contratos_taxas: {
+        Row: {
+          business_id: string
+          created_at: string
+          descricao: string
+          fornecedor_id: string
+          id: string
+          status_pagamento: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          descricao: string
+          fornecedor_id: string
+          id?: string
+          status_pagamento?: string
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          descricao?: string
+          fornecedor_id?: string
+          id?: string
+          status_pagamento?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_taxas_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_taxas_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_tag_assignments: {
         Row: {
           business_id: string
@@ -571,6 +619,62 @@ export type Database = {
             columns: ["interested_service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fornecedores: {
+        Row: {
+          business_id: string
+          cep: string | null
+          cidade: string | null
+          created_at: string
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          id: string
+          nome_fornecedor: string
+          observacoes: string | null
+          telefone: string | null
+          tipo_fornecedor: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          cep?: string | null
+          cidade?: string | null
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome_fornecedor: string
+          observacoes?: string | null
+          telefone?: string | null
+          tipo_fornecedor?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          cep?: string | null
+          cidade?: string | null
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome_fornecedor?: string
+          observacoes?: string | null
+          telefone?: string | null
+          tipo_fornecedor?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fornecedores_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -1001,6 +1105,67 @@ export type Database = {
           },
         ]
       }
+      pagamentos_fornecedor: {
+        Row: {
+          business_id: string
+          contrato_taxa_id: string | null
+          created_at: string
+          data_pagamento: string
+          id: string
+          metodo_pagamento: string | null
+          observacoes: string | null
+          produto_servico_id: string | null
+          quantidade_liberada: number | null
+          valor_pago: number
+        }
+        Insert: {
+          business_id: string
+          contrato_taxa_id?: string | null
+          created_at?: string
+          data_pagamento?: string
+          id?: string
+          metodo_pagamento?: string | null
+          observacoes?: string | null
+          produto_servico_id?: string | null
+          quantidade_liberada?: number | null
+          valor_pago: number
+        }
+        Update: {
+          business_id?: string
+          contrato_taxa_id?: string | null
+          created_at?: string
+          data_pagamento?: string
+          id?: string
+          metodo_pagamento?: string | null
+          observacoes?: string | null
+          produto_servico_id?: string | null
+          quantidade_liberada?: number | null
+          valor_pago?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamentos_fornecedor_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_fornecedor_contrato_taxa_id_fkey"
+            columns: ["contrato_taxa_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_taxas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_fornecedor_produto_servico_id_fkey"
+            columns: ["produto_servico_id"]
+            isOneToOne: false
+            referencedRelation: "produtos_servicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -1177,6 +1342,78 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produtos_servicos: {
+        Row: {
+          business_id: string
+          categoria: string
+          condicao_pagamento: string | null
+          created_at: string
+          descricao: string | null
+          fornecedor_id: string
+          id: string
+          nome_item: string
+          quantidade: number
+          quantidade_estoque: number
+          quantidade_paga: number
+          status_pagamento: string
+          updated_at: string
+          valor_pago: number
+          valor_total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          business_id: string
+          categoria?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          descricao?: string | null
+          fornecedor_id: string
+          id?: string
+          nome_item: string
+          quantidade?: number
+          quantidade_estoque?: number
+          quantidade_paga?: number
+          status_pagamento?: string
+          updated_at?: string
+          valor_pago?: number
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Update: {
+          business_id?: string
+          categoria?: string
+          condicao_pagamento?: string | null
+          created_at?: string
+          descricao?: string | null
+          fornecedor_id?: string
+          id?: string
+          nome_item?: string
+          quantidade?: number
+          quantidade_estoque?: number
+          quantidade_paga?: number
+          status_pagamento?: string
+          updated_at?: string
+          valor_pago?: number
+          valor_total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "produtos_servicos_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "produtos_servicos_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
             referencedColumns: ["id"]
           },
         ]
