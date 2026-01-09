@@ -42,6 +42,19 @@ interface LeadExterno {
   conversion_date: string | null;
   notes: string | null;
   stage: string | null;
+  // New fields
+  age: number | null;
+  country: string | null;
+  last_activity: string | null;
+  cpf: string | null;
+  address: string | null;
+  neighborhood: string | null;
+  zip_code: string | null;
+  company_name: string | null;
+  occupation: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
 }
 
 type LeadStage = 'new' | 'contacted' | 'interested' | 'proposal' | 'negotiation' | 'converted' | 'lost';
@@ -130,6 +143,19 @@ export default function LeadsExternos() {
         points: lead.points,
         source: lead.source,
         lead_data: lead.raw_payload,
+        // New fields for complete data transfer
+        age: lead.age,
+        country: lead.country,
+        last_activity: lead.last_activity,
+        cpf: lead.cpf,
+        address: lead.address,
+        neighborhood: lead.neighborhood,
+        zip_code: lead.zip_code,
+        company_name: lead.company_name,
+        occupation: lead.occupation,
+        utm_source: lead.utm_source,
+        utm_medium: lead.utm_medium,
+        utm_campaign: lead.utm_campaign,
       };
       
       const { error: customerError } = await supabase

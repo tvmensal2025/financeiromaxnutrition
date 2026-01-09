@@ -186,6 +186,65 @@ serve(async (req) => {
       payload.event_type
     ) || 'lead.created';
 
+    // NEW: Additional fields for complete data capture
+    const age = payload.age || profile.age || contact.age || null;
+    
+    const country = cleanString(
+      payload.country || 
+      location.country || 
+      contact.country
+    );
+
+    const lastActivity = payload.last_activity || 
+      engagement.last_activity || 
+      payload.updated_at || null;
+
+    const cpf = cleanString(
+      payload.cpf || 
+      payload.cpf_cnpj || 
+      contact.cpf || 
+      profile.cpf
+    );
+
+    const address = cleanString(
+      payload.address || 
+      location.address || 
+      payload.endereco ||
+      location.street
+    );
+
+    const neighborhood = cleanString(
+      payload.neighborhood || 
+      location.neighborhood || 
+      payload.bairro
+    );
+
+    const zipCode = cleanString(
+      payload.zip_code || 
+      payload.cep || 
+      location.zip_code ||
+      location.cep
+    );
+
+    const companyName = cleanString(
+      payload.company || 
+      payload.company_name || 
+      payload.empresa ||
+      profile.company
+    );
+
+    const occupation = cleanString(
+      payload.occupation || 
+      payload.job || 
+      payload.profissao ||
+      profile.occupation
+    );
+
+    // UTM parameters
+    const utmSource = cleanString(payload.utm_source);
+    const utmMedium = cleanString(payload.utm_medium);
+    const utmCampaign = cleanString(payload.utm_campaign);
+
     const leadData = {
       source,
       external_user_id: externalUserId,
@@ -208,6 +267,19 @@ serve(async (req) => {
       signup_date: signupDate,
       stage: 'new',
       raw_payload: payload,
+      // New fields
+      age,
+      country,
+      last_activity: lastActivity,
+      cpf,
+      address,
+      neighborhood,
+      zip_code: zipCode,
+      company_name: companyName,
+      occupation,
+      utm_source: utmSource,
+      utm_medium: utmMedium,
+      utm_campaign: utmCampaign,
     };
 
     console.log("Lead normalizado:", JSON.stringify(leadData, null, 2));

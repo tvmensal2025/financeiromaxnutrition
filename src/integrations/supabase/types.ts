@@ -723,10 +723,15 @@ export type Database = {
       customers: {
         Row: {
           activity_level: string | null
+          address: string | null
+          age: number | null
           avatar_url: string | null
           birth_date: string | null
           business_id: string
           city: string | null
+          company_name: string | null
+          country: string | null
+          cpf: string | null
           created_at: string
           current_weight_kg: number | null
           email: string | null
@@ -738,9 +743,12 @@ export type Database = {
           interest_type: string | null
           interested_product_id: string | null
           interested_service_id: string | null
+          last_activity: string | null
           lead_data: Json | null
           name: string
+          neighborhood: string | null
           notes: string | null
+          occupation: string | null
           phone: string | null
           points: number | null
           recurring_due_date: string | null
@@ -753,14 +761,23 @@ export type Database = {
           state: string | null
           target_weight_kg: number | null
           updated_at: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
           whatsapp: string | null
+          zip_code: string | null
         }
         Insert: {
           activity_level?: string | null
+          address?: string | null
+          age?: number | null
           avatar_url?: string | null
           birth_date?: string | null
           business_id: string
           city?: string | null
+          company_name?: string | null
+          country?: string | null
+          cpf?: string | null
           created_at?: string
           current_weight_kg?: number | null
           email?: string | null
@@ -772,9 +789,12 @@ export type Database = {
           interest_type?: string | null
           interested_product_id?: string | null
           interested_service_id?: string | null
+          last_activity?: string | null
           lead_data?: Json | null
           name: string
+          neighborhood?: string | null
           notes?: string | null
+          occupation?: string | null
           phone?: string | null
           points?: number | null
           recurring_due_date?: string | null
@@ -787,14 +807,23 @@ export type Database = {
           state?: string | null
           target_weight_kg?: number | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp?: string | null
+          zip_code?: string | null
         }
         Update: {
           activity_level?: string | null
+          address?: string | null
+          age?: number | null
           avatar_url?: string | null
           birth_date?: string | null
           business_id?: string
           city?: string | null
+          company_name?: string | null
+          country?: string | null
+          cpf?: string | null
           created_at?: string
           current_weight_kg?: number | null
           email?: string | null
@@ -806,9 +835,12 @@ export type Database = {
           interest_type?: string | null
           interested_product_id?: string | null
           interested_service_id?: string | null
+          last_activity?: string | null
           lead_data?: Json | null
           name?: string
+          neighborhood?: string | null
           notes?: string | null
+          occupation?: string | null
           phone?: string | null
           points?: number | null
           recurring_due_date?: string | null
@@ -821,7 +853,11 @@ export type Database = {
           state?: string | null
           target_weight_kg?: number | null
           updated_at?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
           whatsapp?: string | null
+          zip_code?: string | null
         }
         Relationships: [
           {
@@ -1160,10 +1196,15 @@ export type Database = {
       leads_externos: {
         Row: {
           activity_level: string | null
+          address: string | null
+          age: number | null
           birth_date: string | null
           city: string | null
+          company_name: string | null
           conversion_date: string | null
           converted: boolean | null
+          country: string | null
+          cpf: string | null
           current_weight_kg: number | null
           email: string | null
           event_type: string | null
@@ -1174,8 +1215,11 @@ export type Database = {
           gender: string | null
           height_cm: number | null
           id: string
+          last_activity: string | null
           last_name: string | null
+          neighborhood: string | null
           notes: string | null
+          occupation: string | null
           phone: string | null
           points: number | null
           raw_payload: Json | null
@@ -1185,13 +1229,22 @@ export type Database = {
           stage: string | null
           state: string | null
           target_weight_kg: number | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          zip_code: string | null
         }
         Insert: {
           activity_level?: string | null
+          address?: string | null
+          age?: number | null
           birth_date?: string | null
           city?: string | null
+          company_name?: string | null
           conversion_date?: string | null
           converted?: boolean | null
+          country?: string | null
+          cpf?: string | null
           current_weight_kg?: number | null
           email?: string | null
           event_type?: string | null
@@ -1202,8 +1255,11 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_activity?: string | null
           last_name?: string | null
+          neighborhood?: string | null
           notes?: string | null
+          occupation?: string | null
           phone?: string | null
           points?: number | null
           raw_payload?: Json | null
@@ -1213,13 +1269,22 @@ export type Database = {
           stage?: string | null
           state?: string | null
           target_weight_kg?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          zip_code?: string | null
         }
         Update: {
           activity_level?: string | null
+          address?: string | null
+          age?: number | null
           birth_date?: string | null
           city?: string | null
+          company_name?: string | null
           conversion_date?: string | null
           converted?: boolean | null
+          country?: string | null
+          cpf?: string | null
           current_weight_kg?: number | null
           email?: string | null
           event_type?: string | null
@@ -1230,8 +1295,11 @@ export type Database = {
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_activity?: string | null
           last_name?: string | null
+          neighborhood?: string | null
           notes?: string | null
+          occupation?: string | null
           phone?: string | null
           points?: number | null
           raw_payload?: Json | null
@@ -1241,6 +1309,10 @@ export type Database = {
           stage?: string | null
           state?: string | null
           target_weight_kg?: number | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          zip_code?: string | null
         }
         Relationships: []
       }
