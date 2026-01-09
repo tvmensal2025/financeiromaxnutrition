@@ -109,17 +109,32 @@ export default function LeadsExternos() {
     mutationFn: async (lead: LeadExterno) => {
       if (!business?.id) throw new Error('Business não encontrado');
 
-      // 1. Criar cliente
+      // 1. Criar cliente com TODAS as informações do lead
+      // Using type assertion because new columns may not be in generated types yet
+      const customerData = {
+        business_id: business.id,
+        name: lead.full_name || lead.first_name || 'Cliente sem nome',
+        email: lead.email || null,
+        phone: lead.phone || null,
+        whatsapp: lead.phone || null,
+        notes: `Convertido de lead externo - ${lead.source}\n${lead.notes || ''}`,
+        city: lead.city,
+        state: lead.state,
+        birth_date: lead.birth_date,
+        gender: lead.gender,
+        height_cm: lead.height_cm,
+        current_weight_kg: lead.current_weight_kg,
+        target_weight_kg: lead.target_weight_kg,
+        activity_level: lead.activity_level,
+        fitness_level: lead.fitness_level,
+        points: lead.points,
+        source: lead.source,
+        lead_data: lead.raw_payload,
+      };
+      
       const { error: customerError } = await supabase
         .from('customers')
-        .insert({
-          business_id: business.id,
-          name: lead.full_name || lead.first_name || 'Cliente sem nome',
-          email: lead.email || null,
-          phone: lead.phone || null,
-          whatsapp: lead.phone || null,
-          notes: `Convertido de lead externo - ${lead.source}`,
-        });
+        .insert(customerData as any);
       
       if (customerError) throw customerError;
 
