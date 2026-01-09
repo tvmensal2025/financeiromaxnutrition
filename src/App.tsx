@@ -25,7 +25,7 @@ import Broadcasts from "./pages/Broadcasts";
 import Fornecedores from "./pages/Fornecedores";
 import ProdutosServicos from "./pages/ProdutosServicos";
 import ContratosTaxas from "./pages/ContratosTaxas";
-import DashboardFinanceiro from "./pages/DashboardFinanceiro";
+
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -82,14 +82,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/financeiro"
-        element={
-          <ProtectedRoute>
-            <DashboardFinanceiro />
           </ProtectedRoute>
         }
       />

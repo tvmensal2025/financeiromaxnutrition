@@ -8,7 +8,6 @@ import {
   Building2,
   Upload,
   UserPlus,
-  TrendingUp,
   Package,
   Calendar,
   Receipt,
@@ -23,7 +22,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Dashboard Financeiro', href: '/financeiro', icon: TrendingUp },
   { name: 'Mensagens', href: '/mensagens', icon: MessageSquare, showBadge: true },
   { name: 'Fornecedores', href: '/fornecedores', icon: Building2 },
   { name: 'Produtos/Serviços', href: '/produtos-servicos', icon: Package },

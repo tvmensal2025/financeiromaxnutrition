@@ -2,204 +2,179 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { SubscriptionsList } from '@/components/dashboard/SubscriptionsList';
-import { TransactionsList } from '@/components/dashboard/TransactionsList';
 import { 
   Users, 
-  CreditCard, 
   TrendingUp, 
-  Clock,
   DollarSign,
-  RefreshCw,
-  ArrowUpRight,
-  Receipt
+  Package,
+  Building2,
+  ShoppingCart
 } from 'lucide-react';
-import { differenceInDays } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
 export default function Dashboard() {
-  const { business } = useAuth();
+  const { profile } = useAuth();
   
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      const [customersRes, subscriptionsRes, plansRes] = await Promise.all([
+      const [customersRes, leadsRes, fornecedoresRes, produtosRes] = await Promise.all([
         supabase.from('customers').select('id', { count: 'exact' }),
-        supabase.from('subscriptions').select(`
-          id,
-          status,
-          end_date,
-          auto_renew,
-          plans (price, cost)
-        `),
-        supabase.from('plans').select('id', { count: 'exact' }).eq('is_active', true),
+        supabase.from('leads').select('id', { count: 'exact' }),
+        supabase.from('fornecedores').select('id', { count: 'exact' }),
+        supabase.from('produtos_servicos').select('*'),
       ]);
 
       const customers = customersRes.count || 0;
-      const activePlans = plansRes.count || 0;
-      const subscriptions = subscriptionsRes.data || [];
+      const leads = leadsRes.count || 0;
+      const fornecedores = fornecedoresRes.count || 0;
+      const produtos = produtosRes.data || [];
 
-      // Active subscriptions
-      const activeSubscriptions = subscriptions.filter(s => s.status === 'active');
-      
-      // Subscriptions expiring in 7 days
-      const expiringSubscriptions = subscriptions.filter(s => {
-        const daysUntilEnd = differenceInDays(new Date(s.end_date), new Date());
-        return s.status === 'active' && daysUntilEnd <= 7 && daysUntilEnd >= 0;
-      });
-
-      // Calculate MRR (Monthly Recurring Revenue)
-      const mrr = activeSubscriptions.reduce((sum, sub) => {
-        const price = (sub.plans as any)?.price || 0;
-        return sum + Number(price);
-      }, 0);
-
-      // Calculate total cost
-      const totalCost = activeSubscriptions.reduce((sum, sub) => {
-        const cost = (sub.plans as any)?.cost || 0;
-        return sum + Number(cost);
-      }, 0);
-
-      // Calculate profit
-      const profit = mrr - totalCost;
-      const profitMargin = mrr > 0 ? ((profit / mrr) * 100).toFixed(1) : '0';
-
-      // Renewal rate (subscriptions with auto_renew enabled)
-      const renewalCount = activeSubscriptions.filter(s => s.auto_renew).length;
-      const renewalRate = activeSubscriptions.length > 0 
-        ? ((renewalCount / activeSubscriptions.length) * 100).toFixed(0)
-        : '0';
+      const totalInvestido = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
+      const totalPago = produtos.reduce((acc, p) => acc + (p.valor_pago || 0), 0);
+      const totalEstoque = produtos.reduce((acc, p) => acc + (p.quantidade_estoque || 0), 0);
 
       return {
         customers,
-        activeSubscriptions: activeSubscriptions.length,
-        expiringSubscriptions: expiringSubscriptions.length,
-        activePlans,
-        mrr,
-        profit,
-        profitMargin,
-        renewalRate,
+        leads,
+        fornecedores,
+        totalInvestido,
+        totalPago,
+        totalPendente: totalInvestido - totalPago,
+        totalEstoque,
       };
     },
+    enabled: !!profile?.business_id,
   });
+
+  const { data: fornecedoresData } = useQuery({
+    queryKey: ['fornecedores-resumo'],
+    queryFn: async () => {
+      const { data: fornecedores } = await supabase.from('fornecedores').select('*');
+      const { data: produtos } = await supabase.from('produtos_servicos').select('*');
+      const { data: contratos } = await supabase.from('contratos_taxas').select('*');
+
+      return fornecedores?.map((f) => {
+        const produtosForn = produtos?.filter((p) => p.fornecedor_id === f.id) || [];
+        const contratosForn = contratos?.filter((c) => c.fornecedor_id === f.id) || [];
+        const total = produtosForn.reduce((acc, p) => acc + (p.valor_total || 0), 0) + contratosForn.reduce((acc, c) => acc + c.valor, 0);
+        const pago = produtosForn.reduce((acc, p) => acc + (p.valor_pago || 0), 0) + contratosForn.filter((c) => c.status_pagamento === 'pago').reduce((acc, c) => acc + c.valor, 0);
+        return { ...f, total, pago, pendente: total - pago };
+      }).filter((f) => f.total > 0).sort((a, b) => b.total - a.total) || [];
+    },
+    enabled: !!profile?.business_id,
+  });
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
 
   return (
     <MainLayout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
-              Visão geral do seu negócio de assinaturas
-            </p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Visão geral do seu negócio
+          </p>
         </div>
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
-            title="Receita Recorrente (MRR)"
-            value={`R$ ${(stats?.mrr || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+            title="Total Investido"
+            value={formatCurrency(stats?.totalInvestido || 0)}
+            subtitle={`Pago: ${formatCurrency(stats?.totalPago || 0)}`}
             icon={DollarSign}
-            variant="success"
-            trend={{ value: 12.5, isPositive: true }}
-          />
-          <MetricCard
-            title="Lucro Estimado"
-            value={`R$ ${(stats?.profit || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-            subtitle={`Margem: ${stats?.profitMargin || 0}%`}
-            icon={TrendingUp}
             variant="primary"
           />
           <MetricCard
-            title="Assinaturas Ativas"
-            value={stats?.activeSubscriptions || 0}
-            subtitle={`${stats?.expiringSubscriptions || 0} expirando em breve`}
-            icon={CreditCard}
-            variant="default"
+            title="Pendente"
+            value={formatCurrency(stats?.totalPendente || 0)}
+            icon={TrendingUp}
+            variant="warning"
           />
           <MetricCard
-            title="Taxa de Renovação"
-            value={`${stats?.renewalRate || 0}%`}
-            subtitle="Auto-renovação ativa"
-            icon={RefreshCw}
+            title="Em Estoque"
+            value={stats?.totalEstoque || 0}
+            subtitle="Unidades disponíveis"
+            icon={Package}
             variant="success"
+          />
+          <MetricCard
+            title="Fornecedores"
+            value={stats?.fornecedores || 0}
+            icon={Building2}
           />
         </div>
 
         {/* Secondary Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <MetricCard
             title="Total de Clientes"
             value={stats?.customers || 0}
             icon={Users}
           />
           <MetricCard
-            title="Planos Ativos"
-            value={stats?.activePlans || 0}
-            icon={CreditCard}
-          />
-          <MetricCard
-            title="Expirando em 7 dias"
-            value={stats?.expiringSubscriptions || 0}
-            icon={Clock}
-            variant="warning"
+            title="Leads"
+            value={stats?.leads || 0}
+            icon={ShoppingCart}
           />
         </div>
 
-        {/* Transactions List */}
-        <div className="bg-card rounded-xl border border-border shadow-card animate-slide-up">
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Receipt className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Transações Recentes
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Transações registradas pela IA
-                </p>
-              </div>
-            </div>
-            <a 
-              href="/transacoes" 
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Ver todas
-              <ArrowUpRight className="h-4 w-4" />
-            </a>
-          </div>
-          <div className="p-6">
-            <TransactionsList />
-          </div>
-        </div>
-
-        {/* Subscriptions List */}
-        <div className="bg-card rounded-xl border border-border shadow-card animate-slide-up">
-          <div className="flex items-center justify-between p-6 border-b border-border">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Assinaturas Recentes
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Acompanhe o status das suas assinaturas
-              </p>
-            </div>
-            <a 
-              href="/assinaturas" 
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Ver todas
-              <ArrowUpRight className="h-4 w-4" />
-            </a>
-          </div>
-          <div className="p-6">
-            <SubscriptionsList />
-          </div>
-        </div>
+        {/* Fornecedores Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Resumo por Fornecedor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fornecedor</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Pago</TableHead>
+                  <TableHead className="text-right">Pendente</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {fornecedoresData?.map((f) => (
+                  <TableRow key={f.id}>
+                    <TableCell className="font-medium">{f.nome_fornecedor}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{f.tipo_fornecedor}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(f.total)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatCurrency(f.pago)}</TableCell>
+                    <TableCell className="text-right text-destructive">{formatCurrency(f.pendente)}</TableCell>
+                    <TableCell>
+                      {f.pendente === 0 ? (
+                        <Badge className="bg-green-500">Quitado</Badge>
+                      ) : f.pago > 0 ? (
+                        <Badge className="bg-yellow-500">Parcial</Badge>
+                      ) : (
+                        <Badge variant="destructive">Pendente</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {(!fornecedoresData || fornecedoresData.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      Nenhum fornecedor cadastrado
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );
