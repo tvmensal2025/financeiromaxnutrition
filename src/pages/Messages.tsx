@@ -85,7 +85,7 @@ interface CustomerStats {
 }
 
 export default function Messages() {
-  const { business } = useAuth();
+  const { business, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -124,11 +124,11 @@ export default function Messages() {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
-  // Fetch all WhatsApp messages
+  // Fetch all WhatsApp messages for current user
   const { data: allMessages = [], isLoading: messagesLoading } = useQuery({
-    queryKey: ['whatsapp-messages', business?.id],
+    queryKey: ['whatsapp-messages', user?.id],
     queryFn: async () => {
-      if (!business?.id) return [];
+      if (!user?.id) return [];
 
       // Paginação para não perder mensagens (o backend limita o nº de linhas por request)
       const pageSize = 1000;
@@ -137,10 +137,10 @@ export default function Messages() {
 
       while (true) {
         const to = from + pageSize - 1;
+        // RLS filtra automaticamente por user_id, mas podemos ser explícitos
         const { data, error } = await supabase
           .from('whatsapp_messages')
           .select('*')
-          .eq('business_id', business.id)
           .order('created_at', { ascending: false })
           .range(from, to);
 
@@ -155,7 +155,7 @@ export default function Messages() {
 
       return results;
     },
-    enabled: !!business?.id,
+    enabled: !!user?.id,
   });
 
   // Fetch leads and customers for contact info
@@ -187,9 +187,9 @@ export default function Messages() {
     enabled: !!business?.id,
   });
 
-  // Real-time subscription
+  // Real-time subscription for user's messages
   useEffect(() => {
-    if (!business?.id) return;
+    if (!user?.id) return;
 
     const channel = supabase
       .channel('whatsapp-messages-realtime')
@@ -199,10 +199,10 @@ export default function Messages() {
           event: '*',
           schema: 'public',
           table: 'whatsapp_messages',
-          filter: `business_id=eq.${business.id}`,
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', business.id] });
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', user.id] });
         }
       )
       .subscribe();
@@ -210,7 +210,7 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [business?.id, queryClient]);
+  }, [user?.id, queryClient]);
 
   // Build conversations list
   const conversations: Conversation[] = useMemo(() => {
