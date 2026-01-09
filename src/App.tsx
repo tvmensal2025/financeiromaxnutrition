@@ -25,6 +25,7 @@ import Broadcasts from "./pages/Broadcasts";
 import Fornecedores from "./pages/Fornecedores";
 import ProdutosServicos from "./pages/ProdutosServicos";
 import ContratosTaxas from "./pages/ContratosTaxas";
+import LeadsExternos from "./pages/LeadsExternos";
 
 import { Loader2 } from "lucide-react";
 
@@ -114,6 +115,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Leads />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leads-externos"
+        element={
+          <ProtectedRoute>
+            <LeadsExternos />
           </ProtectedRoute>
         }
       />

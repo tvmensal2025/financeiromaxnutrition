@@ -13,7 +13,8 @@ import {
   Receipt,
   Wallet,
   Webhook,
-  Radio
+  Radio,
+  ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Contratos/Taxas', href: '/contratos', icon: Receipt },
   { name: 'Transações', href: '/transacoes', icon: Wallet },
   { name: 'Leads', href: '/leads', icon: UserPlus },
+  { name: 'Leads Externos', href: '/leads-externos', icon: ExternalLink },
   { name: 'Clientes', href: '/clientes', icon: Users },
   { name: 'Agendamentos', href: '/agendamentos', icon: Calendar },
   { name: 'Disparo em Massa', href: '/broadcasts', icon: Radio },
