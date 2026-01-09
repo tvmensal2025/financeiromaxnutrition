@@ -10,13 +10,20 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { AIAssistantSettings } from '@/components/settings/AIAssistantSettings';
 import { WhatsAppConnection } from '@/components/settings/WhatsAppConnection';
-import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play } from 'lucide-react';
+import { Building2, User, Palette, Save, Loader2, Webhook, Bell, Play, Lock } from 'lucide-react';
 
 export default function Settings() {
   const { business, profile, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isTestingReminders, setIsTestingReminders] = useState(false);
+  
+  // Change password state
+  const [passwordData, setPasswordData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [businessData, setBusinessData] = useState({
     name: business?.name || '',
@@ -366,6 +373,88 @@ export default function Settings() {
               <Save className="mr-2 h-4 w-4" />
             )}
             Salvar Perfil
+          </Button>
+        </div>
+
+        {/* Change Password */}
+        <div className="bg-card rounded-xl border border-border shadow-card p-6 space-y-6 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10">
+              <Lock className="h-5 w-5 text-orange-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Alterar Senha</h2>
+              <p className="text-sm text-muted-foreground">
+                Atualize sua senha de acesso
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                placeholder="Digite a nova senha"
+                minLength={6}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                placeholder="Confirme a nova senha"
+                minLength={6}
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={async () => {
+              if (passwordData.newPassword.length < 6) {
+                toast({ title: 'A senha deve ter pelo menos 6 caracteres', variant: 'destructive' });
+                return;
+              }
+              if (passwordData.newPassword !== passwordData.confirmPassword) {
+                toast({ title: 'As senhas não coincidem', variant: 'destructive' });
+                return;
+              }
+              
+              setIsChangingPassword(true);
+              try {
+                const { error } = await supabase.auth.updateUser({
+                  password: passwordData.newPassword
+                });
+                
+                if (error) throw error;
+                
+                toast({ title: 'Senha alterada com sucesso!' });
+                setPasswordData({ newPassword: '', confirmPassword: '' });
+              } catch (error: any) {
+                toast({ 
+                  title: 'Erro ao alterar senha', 
+                  description: error.message,
+                  variant: 'destructive' 
+                });
+              } finally {
+                setIsChangingPassword(false);
+              }
+            }}
+            disabled={isChangingPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+          >
+            {isChangingPassword ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Lock className="mr-2 h-4 w-4" />
+            )}
+            Alterar Senha
           </Button>
         </div>
 
