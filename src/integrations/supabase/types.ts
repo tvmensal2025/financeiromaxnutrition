@@ -169,6 +169,74 @@ export type Database = {
           },
         ]
       }
+      assinaturas_contrato: {
+        Row: {
+          aceite_termos: boolean | null
+          assinado_em: string | null
+          codigo_verificacao: string | null
+          codigo_verificado: boolean | null
+          contrato_id: string
+          created_at: string
+          hash_documento: string | null
+          id: string
+          ip_address: string | null
+          ip_geolocation: Json | null
+          signatario_cpf_cnpj: string | null
+          signatario_email: string | null
+          signatario_nome: string
+          signatario_telefone: string | null
+          signatario_tipo: string
+          status: string
+          user_agent: string | null
+        }
+        Insert: {
+          aceite_termos?: boolean | null
+          assinado_em?: string | null
+          codigo_verificacao?: string | null
+          codigo_verificado?: boolean | null
+          contrato_id: string
+          created_at?: string
+          hash_documento?: string | null
+          id?: string
+          ip_address?: string | null
+          ip_geolocation?: Json | null
+          signatario_cpf_cnpj?: string | null
+          signatario_email?: string | null
+          signatario_nome: string
+          signatario_telefone?: string | null
+          signatario_tipo?: string
+          status?: string
+          user_agent?: string | null
+        }
+        Update: {
+          aceite_termos?: boolean | null
+          assinado_em?: string | null
+          codigo_verificacao?: string | null
+          codigo_verificado?: boolean | null
+          contrato_id?: string
+          created_at?: string
+          hash_documento?: string | null
+          id?: string
+          ip_address?: string | null
+          ip_geolocation?: Json | null
+          signatario_cpf_cnpj?: string | null
+          signatario_email?: string | null
+          signatario_nome?: string
+          signatario_telefone?: string | null
+          signatario_tipo?: string
+          status?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinaturas_contrato_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_digitais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broadcast_campaigns: {
         Row: {
           business_id: string
@@ -424,6 +492,111 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_audit_log: {
+        Row: {
+          acao: string
+          contrato_id: string
+          created_at: string
+          descricao: string | null
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          acao: string
+          contrato_id: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          acao?: string
+          contrato_id?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_audit_log_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_digitais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contratos_digitais: {
+        Row: {
+          business_id: string
+          conteudo: string
+          contrato_taxa_id: string | null
+          created_at: string
+          fornecedor_id: string | null
+          id: string
+          status: string
+          titulo: string
+          token_assinatura: string
+          updated_at: string
+          valor_total: number
+        }
+        Insert: {
+          business_id: string
+          conteudo: string
+          contrato_taxa_id?: string | null
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          status?: string
+          titulo: string
+          token_assinatura?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Update: {
+          business_id?: string
+          conteudo?: string
+          contrato_taxa_id?: string | null
+          created_at?: string
+          fornecedor_id?: string | null
+          id?: string
+          status?: string
+          titulo?: string
+          token_assinatura?: string
+          updated_at?: string
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contratos_digitais_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_digitais_contrato_taxa_id_fkey"
+            columns: ["contrato_taxa_id"]
+            isOneToOne: false
+            referencedRelation: "contratos_taxas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contratos_digitais_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
             referencedColumns: ["id"]
           },
         ]
