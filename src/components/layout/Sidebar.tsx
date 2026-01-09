@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, MessageSquare, Settings, LogOut, Upload, UserPlus, Package, Calendar, Receipt, Wallet, Webhook, Radio, ExternalLink, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Settings, LogOut, Upload, UserPlus, Package, Calendar, Receipt, Wallet, Webhook, Radio, ExternalLink, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
