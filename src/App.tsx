@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -29,6 +30,7 @@ import LeadsExternos from "./pages/LeadsExternos";
 import ContratosDigitais from "./pages/ContratosDigitais";
 import VisualizarContrato from "./pages/VisualizarContrato";
 import AssinarContrato from "./pages/AssinarContrato";
+import Socios from "./pages/Socios";
 
 import { Loader2 } from "lucide-react";
 
@@ -242,6 +244,14 @@ function AppRoutes() {
         }
       />
       <Route path="/assinar/:token" element={<AssinarContrato />} />
+      <Route
+        path="/socios"
+        element={
+          <ProtectedRoute>
+            <Socios />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -249,17 +259,19 @@ function AppRoutes() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <PrivacyProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </PrivacyProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <PrivacyProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </PrivacyProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

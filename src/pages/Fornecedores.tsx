@@ -38,15 +38,17 @@ interface Pagamento {
   data_pagamento: string;
   metodo_pagamento: string | null;
   observacoes: string | null;
-  pago_por_user_id: string | null;
-  pago_por?: {
-    full_name: string | null;
+  socio_id: string | null;
+  socio?: {
+    nome: string;
   } | null;
 }
 
-interface Profile {
+interface Socio {
   id: string;
-  full_name: string | null;
+  nome: string;
+  percentual_participacao: number;
+  is_active: boolean;
 }
 
 const tiposFornecedor = [
@@ -90,7 +92,7 @@ export default function Fornecedores() {
     valor_pago: "",
     data_pagamento: new Date().toISOString().split("T")[0],
     metodo_pagamento: "pix",
-    pago_por_user_id: "",
+    socio_id: "",
     observacoes: ""
   });
 
@@ -108,7 +110,7 @@ export default function Fornecedores() {
     enabled: !!profile?.business_id
   });
 
-  // Fetch pagamentos com quem pagou
+  // Fetch pagamentos com sócio
   const { data: pagamentos } = useQuery({
     queryKey: ["pagamentos-fornecedor"],
     queryFn: async () => {
@@ -116,7 +118,7 @@ export default function Fornecedores() {
         .from("pagamentos_fornecedor")
         .select(`
           *,
-          pago_por:profiles!pagamentos_fornecedor_pago_por_user_id_fkey(full_name)
+          socio:socios!pagamentos_fornecedor_socio_id_fkey(nome)
         `)
         .order("data_pagamento", { ascending: false });
       if (error) throw error;
@@ -125,16 +127,18 @@ export default function Fornecedores() {
     enabled: !!profile?.business_id
   });
 
-  // Fetch sócios (profiles do mesmo business)
+  // Fetch sócios
   const { data: socios } = useQuery({
     queryKey: ["socios"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("business_id", profile?.business_id);
+        .from("socios")
+        .select("id, nome, percentual_participacao, is_active")
+        .eq("business_id", profile?.business_id)
+        .eq("is_active", true)
+        .order("nome");
       if (error) throw error;
-      return data as Profile[];
+      return data as Socio[];
     },
     enabled: !!profile?.business_id
   });
@@ -189,13 +193,14 @@ export default function Fornecedores() {
         valor_pago: parseFloat(data.valor_pago),
         data_pagamento: data.data_pagamento,
         metodo_pagamento: data.metodo_pagamento,
-        pago_por_user_id: data.pago_por_user_id || null,
+        socio_id: data.socio_id || null,
         observacoes: data.observacoes || null
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pagamentos-fornecedor"] });
+      queryClient.invalidateQueries({ queryKey: ["pagamentos-por-socio"] });
       toast.success("Pagamento registrado!");
       resetPagamentoForm();
     },
@@ -235,7 +240,7 @@ export default function Fornecedores() {
       valor_pago: "",
       data_pagamento: new Date().toISOString().split("T")[0],
       metodo_pagamento: "pix",
-      pago_por_user_id: "",
+      socio_id: "",
       observacoes: ""
     });
     setSelectedFornecedor(null);
@@ -427,8 +432,8 @@ export default function Fornecedores() {
               <div>
                 <Label>Quem pagou? *</Label>
                 <Select
-                  value={pagamentoData.pago_por_user_id}
-                  onValueChange={v => setPagamentoData({ ...pagamentoData, pago_por_user_id: v })}
+                  value={pagamentoData.socio_id}
+                  onValueChange={v => setPagamentoData({ ...pagamentoData, socio_id: v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o sócio" />
@@ -436,7 +441,7 @@ export default function Fornecedores() {
                   <SelectContent>
                     {socios?.map(s => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.full_name || "Sem nome"}
+                        {s.nome} ({s.percentual_participacao}%)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -489,8 +494,8 @@ export default function Fornecedores() {
                 <Button type="button" variant="outline" onClick={resetPagamentoForm}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={!pagamentoData.valor_pago || !pagamentoData.pago_por_user_id}>
-                  Registrar Pagamento
+              <Button type="submit" disabled={!pagamentoData.valor_pago || !pagamentoData.socio_id}>
+                Registrar Pagamento
                 </Button>
               </div>
             </form>
@@ -595,7 +600,7 @@ export default function Fornecedores() {
                                     <TableRow key={pag.id}>
                                       <TableCell>
                                         <Badge variant="outline">
-                                          {pag.pago_por?.full_name || "Não informado"}
+                                          {pag.socio?.nome || "Não informado"}
                                         </Badge>
                                       </TableCell>
                                       <TableCell>

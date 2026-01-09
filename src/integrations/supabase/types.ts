@@ -1501,6 +1501,7 @@ export type Database = {
           pago_por_user_id: string | null
           produto_servico_id: string | null
           quantidade_liberada: number | null
+          socio_id: string | null
           valor_pago: number
         }
         Insert: {
@@ -1515,6 +1516,7 @@ export type Database = {
           pago_por_user_id?: string | null
           produto_servico_id?: string | null
           quantidade_liberada?: number | null
+          socio_id?: string | null
           valor_pago: number
         }
         Update: {
@@ -1529,6 +1531,7 @@ export type Database = {
           pago_por_user_id?: string | null
           produto_servico_id?: string | null
           quantidade_liberada?: number | null
+          socio_id?: string | null
           valor_pago?: number
         }
         Relationships: [
@@ -1565,6 +1568,13 @@ export type Database = {
             columns: ["produto_servico_id"]
             isOneToOne: false
             referencedRelation: "produtos_servicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_fornecedor_socio_id_fkey"
+            columns: ["socio_id"]
+            isOneToOne: false
+            referencedRelation: "socios"
             referencedColumns: ["id"]
           },
         ]
@@ -2043,6 +2053,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      socios: {
+        Row: {
+          business_id: string
+          cpf: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          nome: string
+          percentual_participacao: number | null
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          nome: string
+          percentual_participacao?: number | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          nome?: string
+          percentual_participacao?: number | null
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "socios_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
