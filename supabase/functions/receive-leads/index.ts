@@ -43,32 +43,83 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Extrair dados do payload
-    const lead = payload.lead || {};
-    const healthProfile = payload.health_profile || {};
-    const engagement = payload.engagement || {};
+    // Detectar formato: plano (maxnutrition) ou aninhado (antigo)
+    const isFlat = !!(payload.full_name || payload.email || payload.id) && !payload.lead;
+
+    let leadData;
+
+    if (isFlat) {
+      // Formato plano (maxnutrition-app e similares)
+      console.log("Formato detectado: PLANO");
+      
+      const firstName = payload.first_name || payload.full_name?.split(' ')[0] || null;
+      const lastName = payload.last_name || payload.full_name?.split(' ').slice(1).join(' ') || null;
+
+      leadData = {
+        source: payload.source || 'external',
+        external_user_id: payload.id || payload.user_id || null,
+        event_type: payload.event || payload.event_type || 'lead.created',
+        full_name: payload.full_name || null,
+        first_name: firstName,
+        last_name: lastName,
+        email: payload.email || null,
+        phone: payload.phone || null,
+        city: payload.city || null,
+        state: payload.state || null,
+        birth_date: payload.birth_date || null,
+        gender: payload.gender || null,
+        height_cm: payload.height || payload.height_cm || null,
+        current_weight_kg: payload.current_weight || payload.current_weight_kg || null,
+        target_weight_kg: payload.target_weight || payload.target_weight_kg || null,
+        activity_level: payload.activity_level || null,
+        fitness_level: payload.fitness_level || null,
+        points: payload.points || 0,
+        signup_date: payload.created_at || payload.signup_date || null,
+        stage: 'new',
+        raw_payload: payload,
+      };
+    } else {
+      // Formato aninhado (antigo)
+      console.log("Formato detectado: ANINHADO");
+      
+      const lead = payload.lead || {};
+      const healthProfile = payload.health_profile || {};
+      const engagement = payload.engagement || {};
+
+      const firstName = lead.full_name?.split(' ')[0] || null;
+      const lastName = lead.full_name?.split(' ').slice(1).join(' ') || null;
+
+      leadData = {
+        source: payload.source || "webhook",
+        external_user_id: lead.user_id || null,
+        event_type: payload.event || null,
+        full_name: lead.full_name || null,
+        first_name: firstName,
+        last_name: lastName,
+        email: lead.email || null,
+        phone: lead.phone || null,
+        city: lead.city || null,
+        state: lead.state || null,
+        birth_date: lead.birth_date || null,
+        gender: lead.gender || null,
+        height_cm: healthProfile.height_cm || null,
+        current_weight_kg: healthProfile.current_weight_kg || null,
+        target_weight_kg: healthProfile.target_weight_kg || null,
+        activity_level: healthProfile.activity_level || null,
+        fitness_level: healthProfile.fitness_level || null,
+        points: engagement.points || 0,
+        signup_date: engagement.signup_date || null,
+        stage: 'new',
+        raw_payload: payload,
+      };
+    }
 
     // Inserir na tabela
-    const { data, error } = await supabase.from("leads_externos").insert({
-      source: payload.source || "mission-health-nexus",
-      external_user_id: lead.user_id,
-      event_type: payload.event,
-      full_name: lead.full_name,
-      email: lead.email,
-      phone: lead.phone,
-      city: lead.city,
-      state: lead.state,
-      birth_date: lead.birth_date,
-      gender: lead.gender,
-      height_cm: healthProfile.height_cm,
-      current_weight_kg: healthProfile.current_weight_kg,
-      target_weight_kg: healthProfile.target_weight_kg,
-      activity_level: healthProfile.activity_level,
-      fitness_level: healthProfile.fitness_level,
-      points: engagement.points,
-      signup_date: engagement.signup_date,
-      raw_payload: payload,
-    }).select().single();
+    const { data, error } = await supabase
+      .from("leads_externos")
+      .insert(leadData)
+      .select()
+      .single();
 
     if (error) {
       console.error("Erro ao salvar lead:", error);
@@ -84,7 +135,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Lead recebido com sucesso",
-        lead_id: data.id 
+        lead_id: data.id,
+        stage: data.stage
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

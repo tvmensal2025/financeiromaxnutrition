@@ -944,11 +944,13 @@ export type Database = {
           email: string | null
           event_type: string | null
           external_user_id: string | null
+          first_name: string | null
           fitness_level: string | null
           full_name: string | null
           gender: string | null
           height_cm: number | null
           id: string
+          last_name: string | null
           notes: string | null
           phone: string | null
           points: number | null
@@ -956,6 +958,7 @@ export type Database = {
           received_at: string | null
           signup_date: string | null
           source: string
+          stage: string | null
           state: string | null
           target_weight_kg: number | null
         }
@@ -969,11 +972,13 @@ export type Database = {
           email?: string | null
           event_type?: string | null
           external_user_id?: string | null
+          first_name?: string | null
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
           points?: number | null
@@ -981,6 +986,7 @@ export type Database = {
           received_at?: string | null
           signup_date?: string | null
           source?: string
+          stage?: string | null
           state?: string | null
           target_weight_kg?: number | null
         }
@@ -994,11 +1000,13 @@ export type Database = {
           email?: string | null
           event_type?: string | null
           external_user_id?: string | null
+          first_name?: string | null
           fitness_level?: string | null
           full_name?: string | null
           gender?: string | null
           height_cm?: number | null
           id?: string
+          last_name?: string | null
           notes?: string | null
           phone?: string | null
           points?: number | null
@@ -1006,6 +1014,7 @@ export type Database = {
           received_at?: string | null
           signup_date?: string | null
           source?: string
+          stage?: string | null
           state?: string | null
           target_weight_kg?: number | null
         }
