@@ -307,6 +307,8 @@ export type Database = {
         Row: {
           auto_reminders_enabled: boolean | null
           created_at: string
+          evolution_api_key: string | null
+          evolution_api_url: string | null
           evolution_instance: string | null
           id: string
           logo_url: string | null
@@ -324,6 +326,8 @@ export type Database = {
         Insert: {
           auto_reminders_enabled?: boolean | null
           created_at?: string
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
           evolution_instance?: string | null
           id?: string
           logo_url?: string | null
@@ -341,6 +345,8 @@ export type Database = {
         Update: {
           auto_reminders_enabled?: boolean | null
           created_at?: string
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
           evolution_instance?: string | null
           id?: string
           logo_url?: string | null
