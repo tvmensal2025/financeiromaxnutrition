@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
@@ -17,11 +15,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench, CalendarDays, Clock, Bell, ShoppingCart, Percent } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { Plus, Search, Edit, Trash2, Phone, Mail, MessageSquare, Loader2, Package, Wrench, CalendarDays, Clock, Bell, ShoppingCart, Percent, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useCustomers } from '@/hooks/queries';
+import { useProducts } from '@/hooks/queries';
+import { useServices } from '@/hooks/queries';
+import { useCreateCustomer, useUpdateCustomer, useDeleteCustomer } from '@/hooks/mutations/useCustomerMutations';
+import { formatCurrency, formatDate } from '@/lib/formatters';
+import { DataTable, type Column } from '@/components/common/DataTable';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Customer {
   id: string;
@@ -70,8 +73,6 @@ interface CustomerStats {
 
 export default function Customers() {
   const { business } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
@@ -98,18 +99,10 @@ export default function Customers() {
   const [saleDiscount, setSaleDiscount] = useState(0);
   const [showSaleSection, setShowSaleSection] = useState(false);
 
-  const { data: customers, isLoading } = useQuery({
-    queryKey: ['customers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Customer[];
-    },
-  });
+  // Use custom hooks for data fetching
+  const { data: customers = [], isLoading } = useCustomers();
+  const { data: products = [] } = useProducts();
+  const { data: services = [] } = useServices();
 
   // Fetch customer invoices for stats
   const { data: customerInvoices = [] } = useQuery({
@@ -150,40 +143,12 @@ export default function Customers() {
     customerStatsMap.set(customerId, existing);
   });
 
-  // Fetch products
-  const { data: products = [] } = useQuery({
-    queryKey: ['products', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, price')
-        .eq('business_id', business.id)
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data as Product[];
-    },
-    enabled: !!business?.id,
-  });
+  // Use custom mutation hooks
+  const createCustomerMutation = useCreateCustomer();
+  const updateCustomerMutation = useUpdateCustomer();
+  const deleteCustomerMutation = useDeleteCustomer();
 
-  // Fetch services
-  const { data: services = [] } = useQuery({
-    queryKey: ['services', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('services')
-        .select('id, name, price')
-        .eq('business_id', business.id)
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data as Service[];
-    },
-    enabled: !!business?.id,
-  });
-
+  // Custom mutation for creating customer with sale invoice
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const insertData: any = {
@@ -297,47 +262,16 @@ export default function Customers() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const updateData: any = {
-        name: data.name,
-        email: data.email || null,
-        phone: data.phone || null,
-        whatsapp: data.whatsapp || null,
-        notes: data.notes || null,
-        interest_type: data.interest_type,
-        interested_product_id: data.interest_type === 'product' && data.interested_product_id ? data.interested_product_id : null,
-        interested_service_id: data.interest_type === 'service' && data.interested_service_id ? data.interested_service_id : null,
-        interest_is_recurring: data.interest_is_recurring,
-        recurring_due_date: data.interest_is_recurring && data.recurring_due_date ? data.recurring_due_date : null,
-        recurring_message_time: data.interest_is_recurring ? data.recurring_message_time : null,
-        recurring_reminder_days: data.interest_is_recurring ? data.recurring_reminder_days : null,
-        recurring_message_type: data.interest_is_recurring ? data.recurring_message_type : null,
-        recurring_reminder_template: data.interest_is_recurring ? data.recurring_reminder_template : null,
-        recurring_overdue_template: data.interest_is_recurring ? data.recurring_overdue_template : null,
-      };
-      const { error } = await supabase.from('customers').update(updateData).eq('id', id);
-      if (error) throw error;
+      await updateCustomerMutation.mutateAsync({ id, data });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast({ title: 'Cliente atualizado!' });
       resetForm();
-    },
-    onError: () => {
-      toast({ title: 'Erro ao atualizar cliente', variant: 'destructive' });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('customers').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      toast({ title: 'Cliente removido!' });
-    },
-    onError: () => {
-      toast({ title: 'Erro ao remover cliente', variant: 'destructive' });
+      await deleteCustomerMutation.mutateAsync(id);
     },
   });
 
@@ -425,12 +359,160 @@ export default function Customers() {
     }
   };
 
-  const filteredCustomers = customers?.filter(
+  const filteredCustomers = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
       c.phone?.includes(search)
   );
+
+  // Define columns for DataTable
+  const columns: Column<Customer>[] = [
+    {
+      key: 'name',
+      header: 'Nome',
+      accessor: 'name',
+      render: (_, customer) => (
+        <div>
+          <p className="font-medium text-foreground">{customer.name}</p>
+          {customer.notes && (
+            <p className="text-sm text-muted-foreground line-clamp-1">
+              {customer.notes}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'contact',
+      header: 'Contato',
+      accessor: () => null,
+      render: (_, customer) => (
+        <div className="space-y-1">
+          {customer.email && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Mail className="h-3 w-3" />
+              {customer.email}
+            </div>
+          )}
+          {customer.phone && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              {customer.phone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'whatsapp',
+      header: 'WhatsApp',
+      accessor: 'whatsapp',
+      render: (_, customer) =>
+        customer.whatsapp ? (
+          <a
+            href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-sm text-success hover:underline"
+          >
+            <MessageSquare className="h-4 w-4" />
+            {customer.whatsapp}
+          </a>
+        ) : null,
+    },
+    {
+      key: 'products',
+      header: 'Produtos',
+      accessor: () => null,
+      className: 'text-center',
+      render: (_, customer) => {
+        const stats = customerStatsMap.get(customer.id);
+        return stats?.totalProducts ? (
+          <Badge variant="secondary" className="gap-1">
+            <Package className="h-3 w-3" />
+            {stats.totalProducts}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
+      key: 'services',
+      header: 'Serviços',
+      accessor: () => null,
+      className: 'text-center',
+      render: (_, customer) => {
+        const stats = customerStatsMap.get(customer.id);
+        return stats?.totalServices ? (
+          <Badge variant="secondary" className="gap-1">
+            <Wrench className="h-3 w-3" />
+            {stats.totalServices}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
+      key: 'discounts',
+      header: 'Descontos',
+      accessor: () => null,
+      className: 'text-right',
+      render: (_, customer) => {
+        const stats = customerStatsMap.get(customer.id);
+        return stats?.totalDiscount ? (
+          <span className="text-warning font-medium">
+            {formatCurrency(stats.totalDiscount)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
+    },
+    {
+      key: 'created_at',
+      header: 'Criado em',
+      accessor: 'created_at',
+      render: (value) => (
+        <span className="text-muted-foreground">
+          {formatDate(value as string, "dd 'de' MMM, yyyy")}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Ações',
+      accessor: () => null,
+      className: 'text-right',
+      render: (_, customer) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(customer);
+            }}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteMutation.mutate(customer.id);
+            }}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <MainLayout>
@@ -551,12 +633,12 @@ export default function Customers() {
                                     {item.type === 'product'
                                       ? products.map(p => (
                                           <SelectItem key={p.id} value={p.id}>
-                                            {p.name} - R$ {p.price.toFixed(2)}
+                                            {p.name} - {formatCurrency(p.price)}
                                           </SelectItem>
                                         ))
                                       : services.map(s => (
                                           <SelectItem key={s.id} value={s.id}>
-                                            {s.name} - R$ {s.price.toFixed(2)}
+                                            {s.name} - {formatCurrency(s.price)}
                                           </SelectItem>
                                         ))
                                     }
@@ -608,7 +690,7 @@ export default function Customers() {
                               </div>
                               <div className="flex items-center justify-between text-sm font-medium">
                                 <span>Total da Venda:</span>
-                                <span className="text-success">R$ {calculateSaleTotal().toFixed(2)}</span>
+                                <span className="text-success">{formatCurrency(calculateSaleTotal())}</span>
                               </div>
                             </div>
                           )}
@@ -670,7 +752,7 @@ export default function Customers() {
                         <SelectContent>
                           {products.map((p) => (
                             <SelectItem key={p.id} value={p.id}>
-                              {p.name} - R$ {p.price.toFixed(2)}
+                              {p.name} - {formatCurrency(p.price)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -691,7 +773,7 @@ export default function Customers() {
                         <SelectContent>
                           {services.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
-                              {s.name} - R$ {s.price.toFixed(2)}
+                              {s.name} - {formatCurrency(s.price)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -851,129 +933,17 @@ export default function Customers() {
 
         {/* Table */}
         <div className="bg-card rounded-xl border border-border shadow-card overflow-hidden">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : !filteredCustomers?.length ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-muted-foreground">Nenhum cliente encontrado</p>
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Contato</th>
-                  <th>WhatsApp</th>
-                  <th className="text-center">Produtos</th>
-                  <th className="text-center">Serviços</th>
-                  <th className="text-right">Descontos</th>
-                  <th>Criado em</th>
-                  <th className="text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCustomers.map((customer) => {
-                  const stats = customerStatsMap.get(customer.id);
-                  return (
-                    <tr key={customer.id} className="animate-fade-in">
-                      <td>
-                        <div>
-                          <p className="font-medium text-foreground">{customer.name}</p>
-                          {customer.notes && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {customer.notes}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="space-y-1">
-                          {customer.email && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              {customer.email}
-                            </div>
-                          )}
-                          {customer.phone && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                              <Phone className="h-3 w-3" />
-                              {customer.phone}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        {customer.whatsapp && (
-                          <a
-                            href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-success hover:underline"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            {customer.whatsapp}
-                          </a>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        {stats?.totalProducts ? (
-                          <Badge variant="secondary" className="gap-1">
-                            <Package className="h-3 w-3" />
-                            {stats.totalProducts}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        {stats?.totalServices ? (
-                          <Badge variant="secondary" className="gap-1">
-                            <Wrench className="h-3 w-3" />
-                            {stats.totalServices}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="text-right">
-                        {stats?.totalDiscount ? (
-                          <span className="text-warning font-medium">
-                            R$ {stats.totalDiscount.toFixed(2)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="text-muted-foreground">
-                        {format(new Date(customer.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                      </td>
-                      <td>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(customer)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMutation.mutate(customer.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+          <DataTable
+            columns={columns}
+            data={filteredCustomers}
+            isLoading={isLoading}
+            rowKey="id"
+            emptyState={{
+              icon: Users,
+              title: 'Nenhum cliente encontrado',
+              description: search ? 'Tente ajustar sua busca' : 'Comece adicionando seu primeiro cliente',
+            }}
+          />
         </div>
       </div>
     </MainLayout>
