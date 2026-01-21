@@ -4,18 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { format, addMonths, addWeeks, addYears } from 'date-fns';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-
 import {
   Select,
   SelectContent,
@@ -23,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
+import { FormModal } from '@/components/common/FormModal';
+import { formatCurrency } from '@/lib/formatters';
 
 interface AddCustomerModalProps {
   open: boolean;
@@ -54,43 +47,22 @@ export function AddCustomerModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    name: name || '',
-    email: email || '',
-    whatsapp: phone,
-    phone: phone,
-    notes: '',
-    interest_type: '' as 'product' | 'service' | 'subscription' | '',
-    interested_product_id: '',
-    interested_service_id: '',
-  });
-
   const [subscriptionData, setSubscriptionData] = useState({
     plan_id: '',
     quantity: 1,
     discount: 0,
   });
 
-  // Reset form when modal opens with new data
+  // Reset subscription data when modal opens
   useEffect(() => {
     if (open) {
-      setFormData({
-        name: name || '',
-        email: email || '',
-        whatsapp: phone,
-        phone: phone,
-        notes: '',
-        interest_type: '',
-        interested_product_id: '',
-        interested_service_id: '',
-      });
       setSubscriptionData({
         plan_id: '',
         quantity: 1,
         discount: 0,
       });
     }
-  }, [open, name, email, phone]);
+  }, [open]);
 
   // Fetch products
   const { data: products } = useQuery({
@@ -166,7 +138,7 @@ export function AddCustomerModal({
   };
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (formData: any) => {
       if (!business?.id) throw new Error('Negócio não encontrado');
 
       // Create customer with interest info
@@ -244,7 +216,7 @@ export function AddCustomerModal({
 
       return customer;
     },
-    onSuccess: () => {
+    onSuccess: (_, formData) => {
       const message = formData.interest_type === 'subscription' && subscriptionData.plan_id
         ? `${formData.name} foi adicionado como cliente com assinatura.`
         : `${formData.name} foi adicionado como cliente.`;
@@ -257,7 +229,6 @@ export function AddCustomerModal({
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-messages'] });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
-      onOpenChange(false);
     },
     onError: (error) => {
       console.error('Add customer error:', error);
@@ -269,264 +240,198 @@ export function AddCustomerModal({
     },
   });
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(price);
+  const productOptions = products?.map(product => ({
+    value: product.id,
+    label: `${product.name} - ${formatCurrency(product.price)}`,
+  })) || [];
+
+  const serviceOptions = services?.map(service => ({
+    value: service.id,
+    label: `${service.name} - ${formatCurrency(service.price)}`,
+  })) || [];
+
+  const fields = [
+    {
+      name: 'name',
+      label: 'Nome',
+      type: 'text' as const,
+      placeholder: 'Nome do cliente',
+      required: true,
+      defaultValue: name || '',
+    },
+    {
+      name: 'email',
+      label: 'Email',
+      type: 'email' as const,
+      placeholder: 'email@exemplo.com',
+      defaultValue: email || '',
+    },
+    {
+      name: 'phone',
+      label: 'Telefone',
+      type: 'text' as const,
+      placeholder: '(11) 99999-9999',
+      defaultValue: phone,
+    },
+    {
+      name: 'whatsapp',
+      label: 'WhatsApp',
+      type: 'text' as const,
+      placeholder: '5511999999999',
+      defaultValue: phone,
+    },
+    {
+      name: 'interest_type',
+      label: 'Interesse em',
+      type: 'select' as const,
+      placeholder: 'Selecione o tipo de interesse (opcional)',
+      options: [
+        { value: 'none', label: 'Nenhum' },
+        { value: 'product', label: 'Produto' },
+        { value: 'service', label: 'Serviço' },
+        { value: 'subscription', label: 'Assinatura' },
+      ],
+    },
+    {
+      name: 'interested_product_id',
+      label: 'Produto',
+      type: 'select' as const,
+      placeholder: 'Selecione o produto',
+      options: productOptions,
+      visibleWhen: (data: any) => data.interest_type === 'product',
+    },
+    {
+      name: 'interested_service_id',
+      label: 'Serviço',
+      type: 'select' as const,
+      placeholder: 'Selecione o serviço',
+      options: serviceOptions,
+      visibleWhen: (data: any) => data.interest_type === 'service',
+    },
+    {
+      name: 'notes',
+      label: 'Observações',
+      type: 'textarea' as const,
+      placeholder: 'Observações sobre o cliente...',
+      rows: 2,
+    },
+  ];
+
+  const renderSubscriptionSection = (formData: any) => {
+    if (formData.interest_type !== 'subscription' || !plans || plans.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+        <div className="space-y-2">
+          <Label>Plano *</Label>
+          <Select
+            value={subscriptionData.plan_id}
+            onValueChange={(value) => setSubscriptionData({ ...subscriptionData, plan_id: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um plano" />
+            </SelectTrigger>
+            <SelectContent>
+              {plans.map((plan) => (
+                <SelectItem key={plan.id} value={plan.id}>
+                  {plan.name} - {formatCurrency(plan.price)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {subscriptionData.plan_id && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quantity">Quantidade</Label>
+                <Input
+                  id="quantity"
+                  type="number"
+                  min="1"
+                  value={subscriptionData.quantity}
+                  onChange={(e) => setSubscriptionData({ 
+                    ...subscriptionData, 
+                    quantity: parseInt(e.target.value) || 1 
+                  })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Unitário</Label>
+                <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                  {formatCurrency(unitPrice)}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Subtotal</Label>
+                <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
+                  {formatCurrency(subtotal)}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="discount">Desconto (R$)</Label>
+                <Input
+                  id="discount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  max={subtotal}
+                  value={subscriptionData.discount}
+                  onChange={(e) => setSubscriptionData({ 
+                    ...subscriptionData, 
+                    discount: parseFloat(e.target.value) || 0 
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="bg-primary/5 rounded-lg p-3 flex justify-between items-center">
+              <div>
+                <span className="text-sm text-muted-foreground">Valor Final:</span>
+                <p className="text-xs text-muted-foreground">{totalCredits} créditos</p>
+              </div>
+              <span className="text-xl font-bold text-primary">
+                {formatCurrency(totalValue)}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const customValidation = (formData: any) => {
+    if (formData.interest_type === 'subscription' && !subscriptionData.plan_id) {
+      return { subscription: 'Selecione um plano para a assinatura' };
+    }
+    return {};
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            {leadId ? 'Converter para Cliente' : 'Adicionar Cliente'}
-          </DialogTitle>
-          <DialogDescription>
-            {leadId
-              ? 'Preencha os dados para converter este lead em cliente.'
-              : 'Preencha os dados para adicionar este contato como cliente.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Nome do cliente"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="email@exemplo.com"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="whatsapp">WhatsApp</Label>
-              <Input
-                id="whatsapp"
-                value={formData.whatsapp}
-                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                placeholder="5511999999999"
-              />
-            </div>
-          </div>
-
-          {/* Interest Selection */}
-          <div className="space-y-2">
-            <Label>Interesse em</Label>
-            <Select
-              value={formData.interest_type}
-              onValueChange={(value) => {
-                setFormData({ 
-                  ...formData, 
-                  interest_type: value as 'product' | 'service' | 'subscription' | '',
-                  interested_product_id: '',
-                  interested_service_id: '',
-                });
-                if (value !== 'subscription') {
-                  setSubscriptionData({ plan_id: '', quantity: 1, discount: 0 });
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo de interesse (opcional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                <SelectItem value="product">Produto</SelectItem>
-                <SelectItem value="service">Serviço</SelectItem>
-                <SelectItem value="subscription">Assinatura</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Product Selection */}
-          {formData.interest_type === 'product' && products && products.length > 0 && (
-            <div className="space-y-2">
-              <Label>Produto</Label>
-              <Select
-                value={formData.interested_product_id}
-                onValueChange={(value) => setFormData({ ...formData, interested_product_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o produto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.name} - {formatPrice(product.price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Service Selection */}
-          {formData.interest_type === 'service' && services && services.length > 0 && (
-            <div className="space-y-2">
-              <Label>Serviço</Label>
-              <Select
-                value={formData.interested_service_id}
-                onValueChange={(value) => setFormData({ ...formData, interested_service_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o serviço" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service) => (
-                    <SelectItem key={service.id} value={service.id}>
-                      {service.name} - {formatPrice(service.price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Observações sobre o cliente..."
-              rows={2}
-            />
-          </div>
-
-          {/* Subscription Section - shown when interest_type is subscription */}
-          {formData.interest_type === 'subscription' && plans && plans.length > 0 && (
-            <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-              <div className="space-y-2">
-                <Label>Plano *</Label>
-                <Select
-                  value={subscriptionData.plan_id}
-                  onValueChange={(value) => setSubscriptionData({ ...subscriptionData, plan_id: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um plano" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plans.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} - {formatPrice(plan.price)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {subscriptionData.plan_id && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="quantity">Quantidade</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        min="1"
-                        value={subscriptionData.quantity}
-                        onChange={(e) => setSubscriptionData({ 
-                          ...subscriptionData, 
-                          quantity: parseInt(e.target.value) || 1 
-                        })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Valor Unitário</Label>
-                      <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
-                        {formatPrice(unitPrice)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Subtotal</Label>
-                      <div className="h-10 px-3 flex items-center bg-muted rounded-md text-muted-foreground text-sm">
-                        {formatPrice(subtotal)}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="discount">Desconto (R$)</Label>
-                      <Input
-                        id="discount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        max={subtotal}
-                        value={subscriptionData.discount}
-                        onChange={(e) => setSubscriptionData({ 
-                          ...subscriptionData, 
-                          discount: parseFloat(e.target.value) || 0 
-                        })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-primary/5 rounded-lg p-3 flex justify-between items-center">
-                    <div>
-                      <span className="text-sm text-muted-foreground">Valor Final:</span>
-                      <p className="text-xs text-muted-foreground">{totalCredits} créditos</p>
-                    </div>
-                    <span className="text-xl font-bold text-primary">
-                      {formatPrice(totalValue)}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={
-                mutation.isPending || 
-                !formData.name || 
-                (formData.interest_type === 'subscription' && !subscriptionData.plan_id)
-              }
-            >
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {leadId ? 'Converter' : 'Adicionar'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={leadId ? 'Converter para Cliente' : 'Adicionar Cliente'}
+      description={
+        leadId
+          ? 'Preencha os dados para converter este lead em cliente.'
+          : 'Preencha os dados para adicionar este contato como cliente.'
+      }
+      icon={UserPlus}
+      fields={fields}
+      onSubmit={mutation.mutate}
+      submitLabel={leadId ? 'Converter' : 'Adicionar'}
+      isLoading={mutation.isPending}
+      customValidation={customValidation}
+      className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+    >
+      {renderSubscriptionSection}
+    </FormModal>
   );
 }

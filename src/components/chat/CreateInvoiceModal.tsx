@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,11 +10,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, FileText, AlertCircle } from 'lucide-react';
+import { FileText, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { FormModal } from '@/components/common/FormModal';
 
 interface CreateInvoiceModalProps {
   open: boolean;
@@ -36,15 +33,8 @@ export function CreateInvoiceModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    description: '',
-    value: '',
-    due_date: '',
-    notes: '',
-  });
-
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (formData: any) => {
       if (!business?.id) throw new Error('Negócio não encontrado');
       if (!customerId) throw new Error('Cliente não encontrado');
 
@@ -91,13 +81,6 @@ export function CreateInvoiceModal({
         description: `Fatura ${invoice.invoice_number} criada com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      onOpenChange(false);
-      setFormData({
-        description: '',
-        value: '',
-        due_date: '',
-        notes: '',
-      });
     },
     onError: (error) => {
       console.error('Create invoice error:', error);
@@ -108,6 +91,38 @@ export function CreateInvoiceModal({
       });
     },
   });
+
+  const fields = [
+    {
+      name: 'description',
+      label: 'Descrição',
+      type: 'text' as const,
+      placeholder: 'Serviço ou produto',
+      required: true,
+    },
+    {
+      name: 'value',
+      label: 'Valor (R$)',
+      type: 'number' as const,
+      placeholder: '0,00',
+      required: true,
+      min: 0,
+      step: 0.01,
+    },
+    {
+      name: 'due_date',
+      label: 'Vencimento',
+      type: 'date' as const,
+      required: true,
+    },
+    {
+      name: 'notes',
+      label: 'Observações',
+      type: 'textarea' as const,
+      placeholder: 'Observações da fatura...',
+      rows: 3,
+    },
+  ];
 
   // If no customer, show alert
   if (!customerId) {
@@ -148,92 +163,16 @@ export function CreateInvoiceModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Criar Cobrança
-          </DialogTitle>
-          <DialogDescription>
-            Crie uma fatura para {contactName || 'este cliente'}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição *</Label>
-            <Input
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Serviço ou produto"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="value">Valor (R$) *</Label>
-              <Input
-                id="value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="0,00"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="due_date">Vencimento *</Label>
-              <Input
-                id="due_date"
-                type="date"
-                value={formData.due_date}
-                onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea
-              id="notes"
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Observações da fatura..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={
-                mutation.isPending ||
-                !formData.description ||
-                !formData.value ||
-                !formData.due_date
-              }
-            >
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Criar Fatura
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Criar Cobrança"
+      description={`Crie uma fatura para ${contactName || 'este cliente'}.`}
+      icon={FileText}
+      fields={fields}
+      onSubmit={mutation.mutate}
+      submitLabel="Criar Fatura"
+      isLoading={mutation.isPending}
+    />
   );
 }

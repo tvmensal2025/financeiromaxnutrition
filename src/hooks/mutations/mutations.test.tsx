@@ -92,7 +92,21 @@ function createMockSupabaseUpdate(error: Error | null = null) {
   const mockQuery = {
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockResolvedValue({ data: null, error }),
+    eq: vi.fn().mockImplementation((field: string, value: any) => {
+      // For delete operations, eq is the final call
+      if (mockQuery.delete.mock.calls.length > 0) {
+        return Promise.resolve({ data: null, error });
+      }
+      // For update operations, eq returns this to continue the chain
+      return mockQuery;
+    }),
+    select: vi.fn().mockReturnThis(),
+    single: vi.fn().mockImplementation(() => {
+      if (error) {
+        return Promise.resolve({ data: null, error });
+      }
+      return Promise.resolve({ data: { id: 'test-id', name: 'Test' }, error: null });
+    }),
   };
   return mockQuery;
 }

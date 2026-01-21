@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { messageTemplateQueries } from '@/factories';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Loader2, Smile, Paperclip, Mic, FileText, Image, X, File, StopCircle, Plus, Sparkles } from 'lucide-react';
@@ -42,25 +41,11 @@ interface TemplateData {
 }
 
 export function ChatInput({ onSend, disabled, isSending, businessId, onManageTemplates }: ChatInputProps) {
-  const { data: templates = [] } = useQuery({
-    queryKey: ['message-templates', businessId],
-    queryFn: async () => {
-      if (!businessId) return [];
-      const { data, error } = await supabase
-        .from('message_templates')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('created_at');
-      if (error) throw error;
-      return (data || []).map(t => ({
-        id: t.id,
-        name: t.name,
-        content: t.content,
-        emoji: (t.emoji as string) || '📝',
-        buttons: (Array.isArray(t.buttons) ? t.buttons : []) as unknown as TemplateButton[]
-      })) as TemplateData[];
+  const { data: templates = [] } = messageTemplateQueries.useEntities({
+    filters: {
+      orderBy: { field: 'created_at', direction: 'asc' }
     },
-    enabled: !!businessId,
+    select: 'id, name, content, emoji, buttons'
   });
   
   const [message, setMessage] = useState('');
@@ -210,7 +195,7 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
     }
   };
 
-  const handleTemplate = (template: TemplateData) => {
+  const handleTemplate = (template: any) => {
     setMessage(template.content);
     
     if (template.buttons && template.buttons.length > 0) {
@@ -373,7 +358,7 @@ export function ChatInput({ onSend, disabled, isSending, businessId, onManageTem
                       onClick={() => handleTemplate(t)}
                       className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-accent text-left transition-colors"
                     >
-                      <span className="text-lg">{t.emoji}</span>
+                      <span className="text-lg">{t.emoji || '📝'}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{t.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{t.content.substring(0, 40)}...</p>

@@ -1,10 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { createQueryFactory } from '@/factories/createQueryFactory';
+import { BusinessEntity } from '@/factories/types/core';
 
-export interface Product {
-  id: string;
-  business_id: string;
+export interface Product extends BusinessEntity {
   name: string;
   description: string | null;
   price: number;
@@ -13,13 +10,27 @@ export interface Product {
   sku: string | null;
   stock: number | null;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface UseProductsOptions {
   enabled?: boolean;
 }
+
+// Create the query factory for products with default filter for active products
+const productQueryFactory = createQueryFactory<Product>({
+  tableName: 'products',
+  defaultFilters: { is_active: true }, // Only fetch active products by default
+  cacheTime: 5 * 60 * 1000, // 5 minutes
+  staleTime: 1 * 60 * 1000, // 1 minute
+  defaultPageSize: 20,
+  queryKeyGenerator: (operation, filters) => {
+    // Maintain backward compatibility with existing query keys
+    if (operation === 'list') {
+      return ['products', filters?.businessId];
+    }
+    return ['products', operation, filters];
+  }
+});
 
 /**
  * Custom hook for fetching active products for the current business.
@@ -41,21 +52,20 @@ export interface UseProductsOptions {
  * Validates: Requirements 2.3, 2.8
  */
 export function useProducts(options: UseProductsOptions = {}) {
-  const { business } = useAuth();
+  return productQueryFactory.useEntities({
+    enabled: options.enabled,
+  });
+}
 
-  return useQuery({
-    queryKey: ['products', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('business_id', business.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data as Product[];
-    },
-    enabled: !!business?.id && (options.enabled ?? true),
+// Export additional factory-generated hooks for enhanced functionality
+export const useProduct = productQueryFactory.useEntity;
+export const useProductsInfinite = productQueryFactory.useEntitiesInfinite;
+export const useProductsCount = productQueryFactory.useEntitiesCount;
+
+// Export a hook for fetching all products (including inactive ones)
+export function useAllProducts(options: UseProductsOptions = {}) {
+  return productQueryFactory.useEntities({
+    enabled: options.enabled,
+    filters: { where: {} }, // Override default filters to get all products
   });
 }

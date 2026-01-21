@@ -1,20 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { transactionQueries } from '@/factories';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowDownLeft, ArrowUpRight, User } from 'lucide-react';
 
-interface Transaction {
+interface TransactionWithCustomer {
   id: string;
   type: 'income' | 'expense';
   description: string;
   amount: number;
   category: string | null;
   status: string;
-  transaction_date: string;
+  date: string;
   customer_id: string | null;
   customers: {
     name: string;
@@ -22,34 +20,21 @@ interface Transaction {
 }
 
 export function TransactionsList() {
-  const { business } = useAuth();
-
-  const { data: transactions, isLoading } = useQuery({
-    queryKey: ['recent-transactions', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          id,
-          type,
-          description,
-          amount,
-          category,
-          status,
-          transaction_date,
-          customer_id,
-          customers (name)
-        `)
-        .eq('business_id', business.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      
-      if (error) throw error;
-      return data as Transaction[];
-    },
-    enabled: !!business?.id,
+  const { data: transactions, isLoading } = transactionQueries.useEntities({
+    select: `
+      id,
+      type,
+      description,
+      amount,
+      category,
+      status,
+      date,
+      customer_id,
+      customers (name)
+    `,
+    filters: {
+      orderBy: { field: 'created_at', direction: 'desc' }
+    }
   });
 
   if (isLoading) {
@@ -117,7 +102,7 @@ export function TransactionsList() {
                 <span>{transaction.category || 'Sem categoria'}</span>
                 <span>•</span>
                 <span>
-                  {format(new Date(transaction.transaction_date), 'dd/MM/yyyy', { locale: ptBR })}
+                  {format(new Date(transaction.date), 'dd/MM/yyyy', { locale: ptBR })}
                 </span>
               </div>
             </div>

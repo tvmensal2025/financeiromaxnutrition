@@ -1,7 +1,34 @@
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useMutationWithToast } from './useMutationWithToast';
-import type { Lead, LeadStatus, LeadTemperature } from '../queries/useLeads';
+import { createCRUDFactory } from '@/factories/createCRUDFactory';
+import { BaseEntity } from '@/factories/types/core';
+import type { LeadStatus, LeadTemperature } from '../queries/useLeads';
+
+/**
+ * Lead entity type extending BaseEntity.
+ * This interface defines the shape of lead data returned from queries.
+ */
+export interface Lead extends BaseEntity {
+  business_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  company: string | null;
+  source: string | null;
+  status: LeadStatus;
+  temperature: LeadTemperature | null;
+  notes: string | null;
+  interest_type: string | null;
+  interested_product_id: string | null;
+  interested_service_id: string | null;
+  interest_is_recurring: boolean | null;
+  recurring_due_date: string | null;
+  recurring_message_time: string | null;
+  recurring_reminder_days: number | null;
+  recurring_message_type: string | null;
+  recurring_reminder_template: string | null;
+  recurring_overdue_template: string | null;
+  converted_customer_id: string | null;
+}
 
 /**
  * Data required to create a new lead.
@@ -30,9 +57,40 @@ export interface CreateLeadData {
 }
 
 /**
+ * Variables for updating a lead.
+ * Requires the lead ID and partial data to update.
+ */
+export interface UpdateLeadVariables {
+  id: string;
+  data: Partial<CreateLeadData>;
+}
+
+/**
+ * Lead CRUD factory instance.
+ * Provides standardized create, update, and delete operations for leads.
+ * 
+ * **Validates: Requirements 1.6 - Backward Compatibility Preservation**
+ */
+const leadCRUD = createCRUDFactory<Lead>({
+  tableName: 'leads',
+  successMessages: {
+    create: 'Lead criado com sucesso!',
+    update: 'Lead atualizado!',
+    delete: 'Lead removido!'
+  },
+  errorMessages: {
+    create: 'Erro ao criar lead',
+    update: 'Erro ao atualizar lead',
+    delete: 'Erro ao remover lead'
+  },
+  invalidateKeys: [['leads']],
+  optimisticUpdates: false
+});
+
+/**
  * Hook for creating a new lead.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the leads query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for creating leads
  * 
@@ -50,43 +108,16 @@ export interface CreateLeadData {
  * };
  * ```
  * 
- * Validates: Requirements 3.1
+ * Validates: Requirements 3.1, 1.6
  */
 export function useCreateLead() {
-  const { business } = useAuth();
-
-  return useMutationWithToast<Lead, Error, CreateLeadData>({
-    mutationFn: async (data: CreateLeadData) => {
-      if (!business?.id) throw new Error('Business not found');
-      
-      const { data: lead, error } = await supabase
-        .from('leads')
-        .insert({ ...data, business_id: business.id })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return lead as Lead;
-    },
-    successMessage: 'Lead criado com sucesso!',
-    errorMessage: 'Erro ao criar lead',
-    invalidateKeys: [['leads']],
-  });
-}
-
-/**
- * Variables for updating a lead.
- * Requires the lead ID and partial data to update.
- */
-export interface UpdateLeadVariables {
-  id: string;
-  data: Partial<CreateLeadData>;
+  return leadCRUD.useCreate();
 }
 
 /**
  * Hook for updating an existing lead.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the leads query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for updating leads
  * 
@@ -102,28 +133,16 @@ export interface UpdateLeadVariables {
  * };
  * ```
  * 
- * Validates: Requirements 3.2
+ * Validates: Requirements 3.2, 1.6
  */
 export function useUpdateLead() {
-  return useMutationWithToast<void, Error, UpdateLeadVariables>({
-    mutationFn: async ({ id, data }: UpdateLeadVariables) => {
-      const { error } = await supabase
-        .from('leads')
-        .update(data)
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    successMessage: 'Lead atualizado!',
-    errorMessage: 'Erro ao atualizar lead',
-    invalidateKeys: [['leads']],
-  });
+  return leadCRUD.useUpdate();
 }
 
 /**
  * Hook for deleting a lead.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the leads query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for deleting leads
  * 
@@ -136,20 +155,8 @@ export function useUpdateLead() {
  * };
  * ```
  * 
- * Validates: Requirements 3.3
+ * Validates: Requirements 3.3, 1.6
  */
 export function useDeleteLead() {
-  return useMutationWithToast<void, Error, string>({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('leads')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    successMessage: 'Lead removido!',
-    errorMessage: 'Erro ao remover lead',
-    invalidateKeys: [['leads']],
-  });
+  return leadCRUD.useDelete();
 }

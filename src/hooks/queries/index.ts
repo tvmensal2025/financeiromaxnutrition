@@ -16,15 +16,15 @@
  */
 
 // Re-export useCustomers hook and types
-export { useCustomers } from './useCustomers';
+export { useCustomers, useCustomer, useCustomersInfinite, useCustomersCount } from './useCustomers';
 export type { Customer, UseCustomersOptions } from './useCustomers';
 
 // Re-export useLeads hook and types
-export { useLeads } from './useLeads';
+export { useLeads, useLead, useLeadsInfinite, useLeadsCount } from './useLeads';
 export type { Lead, LeadStatus, LeadTemperature, UseLeadsOptions } from './useLeads';
 
 // Re-export useProducts hook and types
-export { useProducts } from './useProducts';
+export { useProducts, useProduct, useProductsInfinite, useProductsCount, useAllProducts } from './useProducts';
 export type { Product, UseProductsOptions } from './useProducts';
 
 // Re-export useServices hook and types

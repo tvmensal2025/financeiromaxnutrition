@@ -234,8 +234,8 @@ This implementation plan breaks down the WhatsApp Business CRM refactoring into 
 - [x] 12. Checkpoint - Verify Messages page functionality
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 13. Refactor Customers.tsx
-  - [-] 13.1 Refactor Customers.tsx to use new utilities and components
+- [x] 13. Refactor Customers.tsx
+  - [x] 13.1 Refactor Customers.tsx to use new utilities and components
     - Replace inline formatCurrency with centralized utility
     - Replace inline queries with useCustomers, useProducts, useServices
     - Replace inline mutations with useCustomerMutations
@@ -245,8 +245,8 @@ This implementation plan breaks down the WhatsApp Business CRM refactoring into 
     - Target: under 400 lines
     - _Requirements: 7.1-7.8_
 
-- [ ] 14. Refactor Leads.tsx
-  - [~] 14.1 Refactor Leads.tsx to use new utilities and components
+- [x] 14. Refactor Leads.tsx
+  - [x] 14.1 Refactor Leads.tsx to use new utilities and components
     - Replace inline formatCurrency with centralized utility
     - Replace inline queries with useLeads, useProducts, useServices
     - Replace inline mutations with useLeadMutations
@@ -256,35 +256,35 @@ This implementation plan breaks down the WhatsApp Business CRM refactoring into 
     - Target: under 400 lines
     - _Requirements: 7.1-7.7, 7.9_
 
-- [ ] 15. Checkpoint - Verify Customers and Leads pages
+- [x] 15. Checkpoint - Verify Customers and Leads pages
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 16. Consolidate chat modals
-  - [~] 16.1 Refactor CreateOpportunityModal to use FormModal
+- [x] 16. Consolidate chat modals
+  - [x] 16.1 Refactor CreateOpportunityModal to use FormModal
     - Define field configuration for opportunity form
     - Use FormModal with existing mutation logic
     - Preserve all validation and functionality
     - _Requirements: 8.2, 8.5, 8.6_
   
-  - [~] 16.2 Refactor CreateInvoiceModal to use FormModal
+  - [x] 16.2 Refactor CreateInvoiceModal to use FormModal
     - Define field configuration for invoice form
     - Handle customer requirement check
     - Use FormModal with existing mutation logic
     - _Requirements: 8.3, 8.5, 8.6_
   
-  - [~] 16.3 Refactor ScheduleMessageModal to use FormModal
+  - [x] 16.3 Refactor ScheduleMessageModal to use FormModal
     - Define field configuration with conditional recurrence fields
     - Use visibleWhen for recurrence options
     - Use FormModal with existing mutation logic
     - _Requirements: 8.4, 8.5, 8.6, 8.7_
   
-  - [~] 16.4 Refactor AddCustomerModal to use FormModal with custom sections
+  - [x] 16.4 Refactor AddCustomerModal to use FormModal with custom sections
     - Define base field configuration
     - Add custom subscription section as child component
     - Use FormModal with existing mutation logic
     - _Requirements: 8.1, 8.5, 8.6, 8.7_
 
-- [ ] 17. Final checkpoint - Full regression testing
+- [x] 17. Final checkpoint - Full regression testing
   - Ensure all tests pass, ask the user if questions arise.
   - Verify all pages render correctly
   - Verify all CRUD operations work

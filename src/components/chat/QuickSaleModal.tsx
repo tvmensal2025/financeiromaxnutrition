@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useSaleCreationService } from '@/factories/business-logic/saleCreationService';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,9 @@ export function QuickSaleModal({
   const { business } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Use the unified sale creation service
+  const saleService = business?.id ? useSaleCreationService(business.id) : null;
 
   const [formData, setFormData] = useState({
     customerName: name || '',
@@ -122,119 +126,26 @@ export function QuickSaleModal({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!business?.id) throw new Error('Negócio não encontrado');
+      if (!business?.id || !saleService) throw new Error('Negócio não encontrado');
 
-      let customerIdToUse = customerId;
       const value = parseFloat(formData.value) || getSelectedPrice();
 
-      // Step 1: Create customer if needed (converting from lead or new)
-      if (!customerIdToUse) {
-        const { data: customer, error: customerError } = await supabase
-          .from('customers')
-          .insert({
-            business_id: business.id,
-            name: formData.customerName,
-            email: formData.customerEmail || null,
-            whatsapp: phone,
-            phone: phone,
-            notes: formData.notes || null,
-            interest_type: formData.interest_type || null,
-            interested_product_id: formData.interest_type === 'product' ? formData.interested_product_id || null : null,
-            interested_service_id: formData.interest_type === 'service' ? formData.interested_service_id || null : null,
-          })
-          .select()
-          .single();
+      // Use the unified sale creation service
+      const quickSaleData = {
+        customerName: formData.customerName,
+        customerEmail: formData.customerEmail || undefined,
+        customerPhone: phone,
+        leadId: leadId || undefined,
+        customerId: customerId || undefined,
+        interest_type: formData.interest_type as 'product' | 'service' | undefined,
+        interested_product_id: formData.interested_product_id || undefined,
+        interested_service_id: formData.interested_service_id || undefined,
+        value,
+        notes: formData.notes || undefined,
+        createInvoice: formData.createInvoice
+      };
 
-        if (customerError) throw customerError;
-        customerIdToUse = customer.id;
-
-        // Update lead if converting
-        if (leadId) {
-          await supabase
-            .from('leads')
-            .update({
-              converted_customer_id: customer.id,
-              status: 'converted',
-            })
-            .eq('id', leadId);
-
-          await supabase
-            .from('whatsapp_messages')
-            .update({
-              customer_id: customer.id,
-              lead_id: null,
-            })
-            .eq('lead_id', leadId);
-        } else {
-          await supabase
-            .from('whatsapp_messages')
-            .update({ customer_id: customer.id })
-            .eq('phone', phone)
-            .eq('business_id', business.id);
-        }
-      }
-
-      // Step 2: Create opportunity as closed_won
-      const selectedItem = formData.interest_type === 'product'
-        ? products?.find(p => p.id === formData.interested_product_id)
-        : services?.find(s => s.id === formData.interested_service_id);
-
-      const { data: opportunity, error: oppError } = await supabase
-        .from('opportunities')
-        .insert({
-          business_id: business.id,
-          customer_id: customerIdToUse,
-          title: selectedItem ? `Venda - ${selectedItem.name}` : `Venda - ${formData.customerName}`,
-          value: value,
-          stage: 'closed_won',
-          probability: 100,
-          closed_at: new Date().toISOString(),
-          description: formData.notes || null,
-        })
-        .select()
-        .single();
-
-      if (oppError) throw oppError;
-
-      // Step 3: Create invoice if requested
-      if (formData.createInvoice && value > 0) {
-        const invoiceNumber = `INV-${Date.now()}`;
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 7);
-
-        const { data: invoice, error: invError } = await supabase
-          .from('invoices')
-          .insert({
-            business_id: business.id,
-            customer_id: customerIdToUse!,
-            opportunity_id: opportunity.id,
-            invoice_number: invoiceNumber,
-            subtotal: value,
-            total: value,
-            discount: 0,
-            due_date: dueDate.toISOString().split('T')[0],
-            status: 'pending',
-          })
-          .select()
-          .single();
-
-        if (invError) throw invError;
-
-        // Add invoice item
-        await supabase
-          .from('invoice_items')
-          .insert({
-            invoice_id: invoice.id,
-            description: selectedItem?.name || 'Venda',
-            quantity: 1,
-            unit_price: value,
-            total: value,
-            product_id: formData.interest_type === 'product' ? formData.interested_product_id || null : null,
-            service_id: formData.interest_type === 'service' ? formData.interested_service_id || null : null,
-          });
-      }
-
-      return { opportunity };
+      return await saleService.createQuickSale(quickSaleData);
     },
     onSuccess: () => {
       toast({

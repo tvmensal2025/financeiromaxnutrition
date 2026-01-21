@@ -1,27 +1,9 @@
-import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Loader2, Target } from 'lucide-react';
+import { Target } from 'lucide-react';
+import { FormModal, FormField } from '@/components/common/FormModal';
 
 interface CreateOpportunityModalProps {
   open: boolean;
@@ -40,6 +22,14 @@ const STAGES = [
   { value: 'closed_lost', label: 'Fechado (Perdido)' },
 ];
 
+/**
+ * CreateOpportunityModal - Refactored to use FormModal
+ * 
+ * Creates a new sales opportunity for a contact (lead or customer).
+ * Uses the generic FormModal component for consistent form handling.
+ * 
+ * Requirements: 8.2, 8.5, 8.6
+ */
 export function CreateOpportunityModal({
   open,
   onOpenChange,
@@ -51,17 +41,59 @@ export function CreateOpportunityModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState({
-    title: contactName ? `Oportunidade - ${contactName}` : '',
-    value: '',
-    stage: 'prospecting',
-    probability: '50',
-    expected_close_date: '',
-    description: '',
-  });
+  // Define form fields configuration
+  const fields: FormField[] = [
+    {
+      name: 'title',
+      label: 'Título',
+      type: 'text',
+      placeholder: 'Nome da oportunidade',
+      required: true,
+      defaultValue: contactName ? `Oportunidade - ${contactName}` : '',
+    },
+    {
+      name: 'value',
+      label: 'Valor (R$)',
+      type: 'number',
+      placeholder: '0,00',
+      min: 0,
+      step: 0.01,
+      defaultValue: '',
+    },
+    {
+      name: 'probability',
+      label: 'Probabilidade (%)',
+      type: 'number',
+      placeholder: '50',
+      min: 0,
+      max: 100,
+      defaultValue: '50',
+    },
+    {
+      name: 'stage',
+      label: 'Estágio',
+      type: 'select',
+      options: STAGES,
+      defaultValue: 'prospecting',
+    },
+    {
+      name: 'expected_close_date',
+      label: 'Data Prevista de Fechamento',
+      type: 'date',
+      defaultValue: '',
+    },
+    {
+      name: 'description',
+      label: 'Descrição',
+      type: 'textarea',
+      placeholder: 'Detalhes sobre a oportunidade...',
+      rows: 3,
+      defaultValue: '',
+    },
+  ];
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: Record<string, any>) => {
       if (!business?.id) throw new Error('Negócio não encontrado');
 
       const { data, error } = await supabase
@@ -70,12 +102,12 @@ export function CreateOpportunityModal({
           business_id: business.id,
           lead_id: leadId || null,
           customer_id: customerId || null,
-          title: formData.title,
-          value: parseFloat(formData.value) || 0,
-          stage: formData.stage as any,
-          probability: parseInt(formData.probability) || 50,
-          expected_close_date: formData.expected_close_date || null,
-          description: formData.description || null,
+          title: values.title,
+          value: parseFloat(values.value) || 0,
+          stage: values.stage as any,
+          probability: parseInt(values.probability) || 50,
+          expected_close_date: values.expected_close_date || null,
+          description: values.description || null,
         })
         .select()
         .single();
@@ -83,21 +115,13 @@ export function CreateOpportunityModal({
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, values) => {
       toast({
         title: 'Oportunidade criada!',
-        description: `${formData.title} foi adicionada ao pipeline.`,
+        description: `${values.title} foi adicionada ao pipeline.`,
       });
       queryClient.invalidateQueries({ queryKey: ['opportunities'] });
       onOpenChange(false);
-      setFormData({
-        title: '',
-        value: '',
-        stage: 'prospecting',
-        probability: '50',
-        expected_close_date: '',
-        description: '',
-      });
     },
     onError: (error) => {
       console.error('Create opportunity error:', error);
@@ -109,117 +133,22 @@ export function CreateOpportunityModal({
     },
   });
 
+  const handleSubmit = async (values: Record<string, any>) => {
+    await mutation.mutateAsync(values);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            Criar Oportunidade
-          </DialogTitle>
-          <DialogDescription>
-            Crie uma nova oportunidade de venda para este contato.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="title">Título *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Nome da oportunidade"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="value">Valor (R$)</Label>
-              <Input
-                id="value"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="0,00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="probability">Probabilidade (%)</Label>
-              <Input
-                id="probability"
-                type="number"
-                min="0"
-                max="100"
-                value={formData.probability}
-                onChange={(e) => setFormData({ ...formData, probability: e.target.value })}
-                placeholder="50"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="stage">Estágio</Label>
-            <Select
-              value={formData.stage}
-              onValueChange={(value) => setFormData({ ...formData, stage: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o estágio" />
-              </SelectTrigger>
-              <SelectContent>
-                {STAGES.map((stage) => (
-                  <SelectItem key={stage.value} value={stage.value}>
-                    {stage.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expected_close_date">Data Prevista de Fechamento</Label>
-            <Input
-              id="expected_close_date"
-              type="date"
-              value={formData.expected_close_date}
-              onChange={(e) =>
-                setFormData({ ...formData, expected_close_date: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Detalhes sobre a oportunidade..."
-              rows={3}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={mutation.isPending || !formData.title}>
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Criar Oportunidade
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Criar Oportunidade"
+      description="Crie uma nova oportunidade de venda para este contato."
+      icon={Target}
+      fields={fields}
+      onSubmit={handleSubmit}
+      isLoading={mutation.isPending}
+      submitLabel="Criar Oportunidade"
+      cancelLabel="Cancelar"
+    />
   );
 }

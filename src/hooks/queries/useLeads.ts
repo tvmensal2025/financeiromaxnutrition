@@ -1,13 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { createQueryFactory } from '@/factories/createQueryFactory';
+import { BusinessEntity } from '@/factories/types/core';
 
 export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'unqualified' | 'converted';
 export type LeadTemperature = 'cold' | 'warm' | 'hot';
 
-export interface Lead {
-  id: string;
-  business_id: string;
+export interface Lead extends BusinessEntity {
   name: string;
   email: string | null;
   phone: string | null;
@@ -27,13 +24,26 @@ export interface Lead {
   recurring_message_type: string | null;
   recurring_reminder_template: string | null;
   recurring_overdue_template: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface UseLeadsOptions {
   enabled?: boolean;
 }
+
+// Create the query factory for leads
+const leadQueryFactory = createQueryFactory<Lead>({
+  tableName: 'leads',
+  cacheTime: 5 * 60 * 1000, // 5 minutes
+  staleTime: 1 * 60 * 1000, // 1 minute
+  defaultPageSize: 20,
+  queryKeyGenerator: (operation, filters) => {
+    // Maintain backward compatibility with existing query keys
+    if (operation === 'list') {
+      return ['leads', filters?.businessId];
+    }
+    return ['leads', operation, filters];
+  }
+});
 
 /**
  * Custom hook for fetching leads for the current business.
@@ -54,20 +64,12 @@ export interface UseLeadsOptions {
  * Validates: Requirements 2.2, 2.8
  */
 export function useLeads(options: UseLeadsOptions = {}) {
-  const { business } = useAuth();
-
-  return useQuery({
-    queryKey: ['leads', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('business_id', business.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data as Lead[];
-    },
-    enabled: !!business?.id && (options.enabled ?? true),
+  return leadQueryFactory.useEntities({
+    enabled: options.enabled,
   });
 }
+
+// Export additional factory-generated hooks for enhanced functionality
+export const useLead = leadQueryFactory.useEntity;
+export const useLeadsInfinite = leadQueryFactory.useEntitiesInfinite;
+export const useLeadsCount = leadQueryFactory.useEntitiesCount;

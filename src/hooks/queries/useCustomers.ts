@@ -1,10 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { createQueryFactory } from '@/factories/createQueryFactory';
+import { BusinessEntity } from '@/factories/types/core';
 
-export interface Customer {
-  id: string;
-  business_id: string;
+export interface Customer extends BusinessEntity {
   name: string;
   email: string | null;
   phone: string | null;
@@ -45,13 +42,26 @@ export interface Customer {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface UseCustomersOptions {
   enabled?: boolean;
 }
+
+// Create the query factory for customers
+const customerQueryFactory = createQueryFactory<Customer>({
+  tableName: 'customers',
+  cacheTime: 5 * 60 * 1000, // 5 minutes
+  staleTime: 1 * 60 * 1000, // 1 minute
+  defaultPageSize: 20,
+  queryKeyGenerator: (operation, filters) => {
+    // Maintain backward compatibility with existing query keys
+    if (operation === 'list') {
+      return ['customers', filters?.businessId];
+    }
+    return ['customers', operation, filters];
+  }
+});
 
 /**
  * Custom hook for fetching customers for the current business.
@@ -72,20 +82,12 @@ export interface UseCustomersOptions {
  * Validates: Requirements 2.1, 2.7, 2.8
  */
 export function useCustomers(options: UseCustomersOptions = {}) {
-  const { business } = useAuth();
-
-  return useQuery({
-    queryKey: ['customers', business?.id],
-    queryFn: async () => {
-      if (!business?.id) return [];
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('business_id', business.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data as Customer[];
-    },
-    enabled: !!business?.id && (options.enabled ?? true),
+  return customerQueryFactory.useEntities({
+    enabled: options.enabled,
   });
 }
+
+// Export additional factory-generated hooks for enhanced functionality
+export const useCustomer = customerQueryFactory.useEntity;
+export const useCustomersInfinite = customerQueryFactory.useEntitiesInfinite;
+export const useCustomersCount = customerQueryFactory.useEntitiesCount;

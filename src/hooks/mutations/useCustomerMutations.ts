@@ -1,13 +1,11 @@
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useMutationWithToast } from './useMutationWithToast';
+import { createCRUDFactory } from '@/factories/createCRUDFactory';
+import { BaseEntity } from '@/factories/types/core';
 
 /**
  * Customer entity type representing a row from the customers table.
  * This interface defines the shape of customer data returned from queries.
  */
-export interface Customer {
-  id: string;
+export interface Customer extends BaseEntity {
   business_id: string;
   name: string;
   email: string | null;
@@ -49,8 +47,6 @@ export interface Customer {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 /**
@@ -89,9 +85,40 @@ export interface CreateCustomerData {
 }
 
 /**
+ * Variables for updating a customer.
+ * Requires the customer ID and partial data to update.
+ */
+export interface UpdateCustomerVariables {
+  id: string;
+  data: Partial<CreateCustomerData>;
+}
+
+/**
+ * Customer CRUD factory instance.
+ * Provides standardized create, update, and delete operations for customers.
+ * 
+ * **Validates: Requirements 1.6 - Backward Compatibility Preservation**
+ */
+const customerCRUD = createCRUDFactory<Customer>({
+  tableName: 'customers',
+  successMessages: {
+    create: 'Cliente criado com sucesso!',
+    update: 'Cliente atualizado!',
+    delete: 'Cliente removido!'
+  },
+  errorMessages: {
+    create: 'Erro ao criar cliente',
+    update: 'Erro ao atualizar cliente',
+    delete: 'Erro ao remover cliente'
+  },
+  invalidateKeys: [['customers']],
+  optimisticUpdates: false
+});
+
+/**
  * Hook for creating a new customer.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the customers query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for creating customers
  * 
@@ -108,43 +135,16 @@ export interface CreateCustomerData {
  * };
  * ```
  * 
- * Validates: Requirements 3.1
+ * Validates: Requirements 3.1, 1.6
  */
 export function useCreateCustomer() {
-  const { business } = useAuth();
-
-  return useMutationWithToast<Customer, Error, CreateCustomerData>({
-    mutationFn: async (data: CreateCustomerData) => {
-      if (!business?.id) throw new Error('Business not found');
-      
-      const { data: customer, error } = await supabase
-        .from('customers')
-        .insert({ ...data, business_id: business.id })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return customer as Customer;
-    },
-    successMessage: 'Cliente criado com sucesso!',
-    errorMessage: 'Erro ao criar cliente',
-    invalidateKeys: [['customers']],
-  });
-}
-
-/**
- * Variables for updating a customer.
- * Requires the customer ID and partial data to update.
- */
-export interface UpdateCustomerVariables {
-  id: string;
-  data: Partial<CreateCustomerData>;
+  return customerCRUD.useCreate();
 }
 
 /**
  * Hook for updating an existing customer.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the customers query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for updating customers
  * 
@@ -160,28 +160,16 @@ export interface UpdateCustomerVariables {
  * };
  * ```
  * 
- * Validates: Requirements 3.2
+ * Validates: Requirements 3.2, 1.6
  */
 export function useUpdateCustomer() {
-  return useMutationWithToast<void, Error, UpdateCustomerVariables>({
-    mutationFn: async ({ id, data }: UpdateCustomerVariables) => {
-      const { error } = await supabase
-        .from('customers')
-        .update(data)
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    successMessage: 'Cliente atualizado!',
-    errorMessage: 'Erro ao atualizar cliente',
-    invalidateKeys: [['customers']],
-  });
+  return customerCRUD.useUpdate();
 }
 
 /**
  * Hook for deleting a customer.
- * Uses useMutationWithToast for standardized toast notifications.
- * Automatically invalidates the customers query on success.
+ * Uses the CRUD factory for standardized operations.
+ * Maintains backward compatibility with the existing API.
  * 
  * @returns A React Query mutation object for deleting customers
  * 
@@ -194,20 +182,8 @@ export function useUpdateCustomer() {
  * };
  * ```
  * 
- * Validates: Requirements 3.3
+ * Validates: Requirements 3.3, 1.6
  */
 export function useDeleteCustomer() {
-  return useMutationWithToast<void, Error, string>({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('customers')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-    },
-    successMessage: 'Cliente removido!',
-    errorMessage: 'Erro ao remover cliente',
-    invalidateKeys: [['customers']],
-  });
+  return customerCRUD.useDelete();
 }
