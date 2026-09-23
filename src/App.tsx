@@ -1,278 +1,64 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { PrivacyProvider } from "@/contexts/PrivacyContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/auth";
+import { BusinessProvider } from "@/contexts/BusinessContext";
+import { Layout } from "@/components/Layout";
+import Entrar from "@/pages/Entrar";
+import Painel from "@/pages/Painel";
+import Modulo from "@/pages/Modulo";
+import CrmPage from "@/pages/CrmPage";
+import FinanceiroPage from "@/pages/FinanceiroPage";
+import CalendarioPage from "@/pages/CalendarioPage";
 
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Customers from "./pages/Customers";
-import Plans from "./pages/Plans";
-import Import from "./pages/Import";
-import Messages from "./pages/Messages";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
-import Leads from "./pages/Leads";
-import Pipeline from "./pages/Pipeline";
-import Products from "./pages/Products";
-import Appointments from "./pages/Appointments";
-import Invoices from "./pages/Invoices";
-import TransactionsPage from "./pages/TransactionsPage";
-import Webhooks from "./pages/Webhooks";
-import Broadcasts from "./pages/Broadcasts";
-import Fornecedores from "./pages/Fornecedores";
-import ProdutosServicos from "./pages/ProdutosServicos";
-import ContratosTaxas from "./pages/ContratosTaxas";
-import LeadsExternos from "./pages/LeadsExternos";
-import ContratosDigitais from "./pages/ContratosDigitais";
-import VisualizarContrato from "./pages/VisualizarContrato";
-import AssinarContrato from "./pages/AssinarContrato";
-import Socios from "./pages/Socios";
-
-import { Loader2 } from "lucide-react";
-
-const queryClient = new QueryClient();
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function Protegida({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-background text-foreground">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground animate-pulse">
+          Abrindo o Sistema Helena…
+        </p>
       </div>
     );
   }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
+  if (!user) return <Navigate to="/entrar" replace />;
   return <>{children}</>;
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-function AppRoutes() {
+function Rotas() {
   return (
     <Routes>
+      <Route path="/entrar" element={<Entrar />} />
       <Route
-        path="/auth"
         element={
-          <PublicRoute>
-            <Auth />
-          </PublicRoute>
+          <Protegida>
+            <Layout />
+          </Protegida>
         }
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/fornecedores"
-        element={
-          <ProtectedRoute>
-            <Fornecedores />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/produtos-servicos"
-        element={
-          <ProtectedRoute>
-            <ProdutosServicos />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/contratos"
-        element={
-          <ProtectedRoute>
-            <ContratosTaxas />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/leads"
-        element={
-          <ProtectedRoute>
-            <Leads />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/leads-externos"
-        element={
-          <ProtectedRoute>
-            <LeadsExternos />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/pipeline"
-        element={
-          <ProtectedRoute>
-            <Pipeline />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/clientes"
-        element={
-          <ProtectedRoute>
-            <Customers />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/produtos"
-        element={
-          <ProtectedRoute>
-            <Products />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/agendamentos"
-        element={
-          <ProtectedRoute>
-            <Appointments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/planos"
-        element={
-          <ProtectedRoute>
-            <Plans />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/faturas"
-        element={
-          <ProtectedRoute>
-            <Invoices />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/transacoes"
-        element={
-          <ProtectedRoute>
-            <TransactionsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/webhooks"
-        element={
-          <ProtectedRoute>
-            <Webhooks />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/broadcasts"
-        element={
-          <ProtectedRoute>
-            <Broadcasts />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/importar"
-        element={
-          <ProtectedRoute>
-            <Import />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/mensagens"
-        element={
-          <ProtectedRoute>
-            <Messages />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/configuracoes"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/contratos-digitais"
-        element={
-          <ProtectedRoute>
-            <ContratosDigitais />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/contratos-digitais/:id"
-        element={
-          <ProtectedRoute>
-            <VisualizarContrato />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/assinar/:token" element={<AssinarContrato />} />
-      <Route
-        path="/socios"
-        element={
-          <ProtectedRoute>
-            <Socios />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<NotFound />} />
+      >
+        <Route path="/" element={<Painel />} />
+        <Route path="/crm" element={<CrmPage />} />
+        <Route path="/financeiro" element={<FinanceiroPage />} />
+        <Route path="/calendario" element={<CalendarioPage />} />
+        <Route path="/helena" element={<Navigate to="/" replace />} />
+        <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
+        <Route path="/modulo/calendario" element={<Navigate to="/calendario" replace />} />
+        <Route path="/modulo/:tabela" element={<Modulo />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
-        <PrivacyProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </TooltipProvider>
-        </PrivacyProvider>
-      </AuthProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+export default function App() {
+  return (
+    <AuthProvider>
+      <BusinessProvider>
+        <BrowserRouter>
+          <Rotas />
+        </BrowserRouter>
+      </BusinessProvider>
+    </AuthProvider>
+  );
+}

@@ -1,0 +1,128 @@
+[
+  {
+    "agent_id": "AGT-01",
+    "agente": "Helena",
+    "cargo_funcao": "Chief of Staff / Orquestradora",
+    "quando_ativar": "Assunto geral, prioridades, conflitos entre áreas, painel, decisões"
+  },
+  {
+    "agent_id": "AGT-02",
+    "agente": "Laura",
+    "cargo_funcao": "Comunicação e Desenvolvimento do Fundador",
+    "quando_ativar": "Fala, clareza, hábitos, aprendizagem, leitura, desenvolvimento"
+  },
+  {
+    "agent_id": "AGT-03",
+    "agente": "Augusto",
+    "cargo_funcao": "Estratégia Corporativa",
+    "quando_ativar": "Modelo de negócio, posicionamento, cenários, escolhas estratégicas"
+  },
+  {
+    "agent_id": "AGT-04",
+    "agente": "Marina",
+    "cargo_funcao": "Execução e PMO",
+    "quando_ativar": "Projetos, cronogramas, dependências, prazos, conclusão"
+  },
+  {
+    "agent_id": "AGT-05",
+    "agente": "Caio",
+    "cargo_funcao": "Finanças / CFO",
+    "quando_ativar": "Caixa, receita, despesa, margem, orçamento, runway, projeções"
+  },
+  {
+    "agent_id": "AGT-06",
+    "agente": "Clara",
+    "cargo_funcao": "Risco, Jurídico e Compliance",
+    "quando_ativar": "Contratos, privacidade, compliance, segurança, regulação"
+  },
+  {
+    "agent_id": "AGT-07",
+    "agente": "Bianca",
+    "cargo_funcao": "Pessoas e Cultura",
+    "quando_ativar": "Contratação, desempenho, estrutura de equipe, cultura"
+  },
+  {
+    "agent_id": "AGT-08",
+    "agente": "Daniel",
+    "cargo_funcao": "Dados e BI",
+    "quando_ativar": "KPIs, dashboard, métricas, análises"
+  },
+  {
+    "agent_id": "AGT-09",
+    "agente": "Theo",
+    "cargo_funcao": "Tecnologia e IA",
+    "quando_ativar": "Arquitetura, integrações, automações, IA, escalabilidade"
+  },
+  {
+    "agent_id": "AGT-10",
+    "agente": "Nina",
+    "cargo_funcao": "Produto",
+    "quando_ativar": "Roadmap, funcionalidades, proposta de valor, experiência"
+  },
+  {
+    "agent_id": "AGT-11",
+    "agente": "Ravi",
+    "cargo_funcao": "Pesquisa e Insights",
+    "quando_ativar": "Usuários, concorrência, hipóteses, validação"
+  },
+  {
+    "agent_id": "AGT-12",
+    "agente": "Maya",
+    "cargo_funcao": "Design / UX / UI",
+    "quando_ativar": "Interface, fluxo, design system, usabilidade"
+  },
+  {
+    "agent_id": "AGT-13",
+    "agente": "Bruno",
+    "cargo_funcao": "Qualidade / QA",
+    "quando_ativar": "Testes, bugs, aceite, releases"
+  },
+  {
+    "agent_id": "AGT-14",
+    "agente": "Olívia",
+    "cargo_funcao": "Operações",
+    "quando_ativar": "SOPs, rotina operacional, eficiência"
+  },
+  {
+    "agent_id": "AGT-15",
+    "agente": "Victor",
+    "cargo_funcao": "Vendas",
+    "quando_ativar": "Prospecção, pipeline, abordagem, fechamento"
+  },
+  {
+    "agent_id": "AGT-16",
+    "agente": "Camila",
+    "cargo_funcao": "Marketing e Growth",
+    "quando_ativar": "Aquisição, campanhas, canais, funil"
+  },
+  {
+    "agent_id": "AGT-17",
+    "agente": "Isabela",
+    "cargo_funcao": "Marca, Conteúdo e Copy",
+    "quando_ativar": "Narrativa, conteúdo, copy, posicionamento verbal"
+  },
+  {
+    "agent_id": "AGT-18",
+    "agente": "Pedro",
+    "cargo_funcao": "Parcerias e Desenvolvimento de Negócios",
+    "quando_ativar": "Parcerias, canais, afiliados, oportunidades"
+  },
+  {
+    "agent_id": "AGT-19",
+    "agente": "Renata",
+    "cargo_funcao": "Customer Success",
+    "quando_ativar": "Ativação, retenção, valor, relacionamento"
+  },
+  {
+    "agent_id": "AGT-20",
+    "agente": "Joana",
+    "cargo_funcao": "Atendimento",
+    "quando_ativar": "Suporte, dúvidas, reclamações, experiência diária"
+  },
+  {
+    "agent_id": "AGT-21",
+    "agente": "Felipe",
+    "cargo_funcao": "Administração",
+    "quando_ativar": "Documentos, fornecedores, controles, rotinas administrativas"
+  }
+]

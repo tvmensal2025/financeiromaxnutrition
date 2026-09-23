@@ -1,0 +1,111 @@
+import { describe, expect, it } from "vitest";
+import { classificar, lerValor, proximoId, type Contexto } from "./helena";
+import { lerCaixa, lerDre } from "./caixa";
+
+const ctx: Contexto = {
+  focoId: "FOC-004",
+  focoFrente: "Homologação técnica do Sistema Helena",
+  focoStatus: "EM EXECUÇÃO",
+  negocios: [
+    { business_id: "BIZ-001", negocio: "iGreen", gargalo: "Comercial / conseguir clientes." },
+    { business_id: "BIZ-002", negocio: "Ecossistema de Saúde", gargalo: "Escopo amplo." },
+    { business_id: "BIZ-003", negocio: "Humano Digital", gargalo: "Modelo ainda não validado." },
+  ],
+};
+
+const agora = "2026-09-23T04:00:00.000Z";
+
+function tabelas(texto: string) {
+  return classificar(texto, ctx, agora).escritas.map((item) => item.tabela);
+}
+
+describe("Helena", () => {
+  it("manda WhatsApp para depois e não mexe no foco", () => {
+    const plano = classificar("quero integrar o whatsapp agora", ctx, agora);
+    expect(plano.decisao).toContain("DEPOIS");
+    expect(tabelas("quero integrar o whatsapp agora")).toEqual(["ideias", "handoffs", "memoria_mestre"]);
+    expect(plano.escritas[0].row.decisao).toBe("DEPOIS");
+    expect(plano.escritas.some((item) => item.tabela === "foco_executivo")).toBe(false);
+    expect(plano.escritas.some((item) => item.tabela === "integracoes")).toBe(false);
+  });
+
+  it("não grava dinheiro sem conta", () => {
+    const plano = classificar("recebi R$ 100,00 na igreen", ctx, agora);
+    expect(plano.decisao).toContain("DADO A COLETAR");
+    expect(plano.escritas.some((item) => item.tabela === "financeiro")).toBe(false);
+  });
+
+  it("grava entrada com valor positivo e sem coluna calculada", () => {
+    const plano = classificar("recebi R$ 1.250,50 na conta ACC-IG da igreen", ctx, agora);
+    const fin = plano.escritas.find((item) => item.tabela === "financeiro");
+    expect(fin?.row).toMatchObject({
+      business_id: "BIZ-001",
+      fluxo: "ENTRADA",
+      valor_original: 1250.5,
+      moeda: "BRL",
+      conta_id: "ACC-IG",
+      status: "RECEBIDO",
+    });
+    expect(fin?.row.valor_brl).toBeUndefined();
+    expect(fin?.row.movimento_caixa_brl).toBeUndefined();
+    expect(plano.garantirContas[0]).toMatchObject({ conta_id: "ACC-IG", business_id: "BIZ-001" });
+  });
+
+  it("não trata parcial como quitação", () => {
+    const plano = classificar("paguei R$ 50,00 parcial na conta ACC-IG da igreen", ctx, agora);
+    const fin = plano.escritas.find((item) => item.tabela === "financeiro");
+    expect(fin?.row.status).toBe("PARCIAL");
+    expect(fin?.row.fluxo).toBe("SAÍDA");
+    expect(fin?.row.valor_original).toBe(50);
+  });
+
+  it("bloqueia movimento entre empresas", () => {
+    const plano = classificar("transferi R$ 80,00 da igreen para a saude", ctx, agora);
+    expect(plano.conclusao).toContain("não foi gravado");
+    expect(plano.escritas.some((item) => item.tabela === "financeiro")).toBe(false);
+  });
+
+  it("não inicia Caixa durante a homologação", () => {
+    const plano = classificar("pode iniciar caixa agora", ctx, agora);
+    expect(plano.conclusao).toContain("permanece planejado");
+    expect(plano.escritas.every((item) => item.tabela === "memoria_mestre")).toBe(true);
+  });
+
+  it("exige origem no estorno", () => {
+    const plano = classificar("estorna R$ 10,00 na conta ACC-IG da igreen", ctx, agora);
+    expect(plano.decisao).toContain("finance_id de origem");
+    expect(plano.escritas.some((item) => item.tabela === "financeiro")).toBe(false);
+  });
+
+  it("lê valor brasileiro e próximo id", () => {
+    expect(lerValor("R$ 1.005")).toBe(1005);
+    expect(lerValor("R$ 80,00")).toBe(80);
+    return expect(proximoId(["IDEA-0001", "IDEA-0009"], "IDEA")).resolves.toBe("IDEA-0010");
+  });
+});
+
+describe("caixa e DRE", () => {
+  it("não transforma ausência em zero de movimento", () => {
+    expect(lerCaixa([]).vazio).toBe(true);
+    expect(lerDre([]).vazio).toBe(true);
+  });
+
+  it("usa liquidação no caixa e deixa previsto de fora", () => {
+    const caixa = lerCaixa([
+      { business_id: "BIZ-001", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 100, conta_id: "ACC-IG" },
+      { business_id: "BIZ-001", fluxo: "SAÍDA", status: "PREVISTO", moeda: "BRL", valor_original: 40, conta_id: "ACC-IG" },
+      { business_id: "BIZ-001", fluxo: "SAÍDA", status: "PARCIAL", moeda: "BRL", valor_original: 30, conta_id: "ACC-IG" },
+    ]);
+    expect(caixa.saldo).toBe(100);
+    expect(caixa.motivos.some((item) => item.includes("Parcial"))).toBe(true);
+  });
+
+  it("calcula DRE pela competência e ignora cancelado", () => {
+    const dre = lerDre([
+      { business_id: "BIZ-001", fluxo: "ENTRADA", status: "ABERTO", moeda: "BRL", valor_original: 200, competencia: "2026-09" },
+      { business_id: "BIZ-001", fluxo: "SAÍDA", status: "CANCELADO", moeda: "BRL", valor_original: 50, competencia: "2026-09" },
+      { business_id: "BIZ-001", fluxo: "ENTRADA", status: "PREVISTO", moeda: "BRL", valor_original: 999, competencia: "2026-09" },
+    ]);
+    expect(dre.resultado).toBe(200);
+  });
+});

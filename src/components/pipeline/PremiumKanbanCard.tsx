@@ -11,6 +11,7 @@ interface PremiumKanbanCardProps {
   probability: number;
   customerName?: string;
   expectedCloseDate?: string;
+  nextActionDate?: string;
   onClick: () => void;
 }
 
@@ -20,6 +21,7 @@ export function PremiumKanbanCard({
   probability,
   customerName,
   expectedCloseDate,
+  nextActionDate,
   onClick,
 }: PremiumKanbanCardProps) {
   const getProbabilityColor = (prob: number) => {
@@ -67,10 +69,20 @@ export function PremiumKanbanCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-border/50">
-        {expectedCloseDate ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5" />
-            <span>{format(new Date(expectedCloseDate), 'dd MMM', { locale: ptBR })}</span>
+        {nextActionDate || expectedCloseDate ? (
+          <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+            {nextActionDate && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>Próx.: {format(new Date(nextActionDate), "dd MMM", { locale: ptBR })}</span>
+              </div>
+            )}
+            {expectedCloseDate && (
+              <div className="flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 opacity-60" />
+                <span>Fecha: {format(new Date(expectedCloseDate), "dd MMM", { locale: ptBR })}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div />
