@@ -15,6 +15,7 @@ import EquipePage from "@/pages/EquipePage";
 import HelenaInboxPage from "@/pages/HelenaInboxPage";
 import SistemaPage from "@/pages/SistemaPage";
 import ExecucaoPage from "@/pages/ExecucaoPage";
+import IntegracoesPage from "@/pages/IntegracoesPage";
 import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -106,11 +107,14 @@ function Rotas() {
         <Route path="/equipe" element={<EquipePage />} />
         <Route path="/inbox" element={<HelenaInboxPage />} />
         <Route path="/sistema" element={<SistemaPage />} />
+        <Route path="/integracoes" element={<IntegracoesPage />} />
 
         {/* Redirecionamentos de conveniência */}
         <Route path="/central-execucao" element={<Navigate to="/execucao" replace />} />
+        <Route path="/central-integracoes" element={<Navigate to="/integracoes" replace />} />
         <Route path="/caixa-entrada" element={<Navigate to="/inbox" replace />} />
         <Route path="/helena" element={<Navigate to="/" replace />} />
+        <Route path="/modulo/integracoes" element={<Navigate to="/integracoes" replace />} />
         <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
         <Route path="/modulo/calendario" element={<Navigate to="/calendario" replace />} />
         <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />

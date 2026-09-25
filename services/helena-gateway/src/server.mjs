@@ -11,6 +11,7 @@ import crypto from 'node:crypto';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createIntegrationsRouter } from './routes/integrations.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -857,14 +858,17 @@ app.disable('x-powered-by');
 // CORS seguro com suporte a WWW-Authenticate
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-helena-webhook-secret');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey, x-api-key, x-helena-webhook-secret');
   res.header('Access-Control-Expose-Headers', 'WWW-Authenticate, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
   next();
 });
+
+// Monta Central de Integrações (Evolution, Meowcaller, ElevenLabs, Laya)
+app.use(createIntegrationsRouter({ supabaseFetch, authenticateUser: authenticateMcp }));
 
 // Helpers de OAuth 2.1 Protected Resource Metadata
 function getResourceHost(req) {
