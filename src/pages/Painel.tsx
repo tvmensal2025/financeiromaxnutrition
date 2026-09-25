@@ -70,6 +70,27 @@ function moeda(valor: number) {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+const EMPRESAS_PADRAO_MAP: Record<string, Negocio> = {
+  "BIZ-001": {
+    business_id: "BIZ-001",
+    negocio: "iGreen Energy",
+    estagio: "VENDAS",
+    principal_gargalo: "Comercial / conseguir clientes.",
+  },
+  "BIZ-002": {
+    business_id: "BIZ-002",
+    negocio: "Ecossistema de Saúde",
+    estagio: "PRODUTO",
+    principal_gargalo: "Escopo amplo ainda não consolidado.",
+  },
+  "BIZ-003": {
+    business_id: "BIZ-003",
+    negocio: "Humano Digital",
+    estagio: "VALIDAÇÃO",
+    principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
+  },
+};
+
 export default function Painel() {
   const {
     empresas,
@@ -273,27 +294,6 @@ export default function Painel() {
       principal_gargalo: currentBusiness?.principal_gargalo || "Acompanhamento executivo contínuo.",
     };
   }, [isConsolidated, negocios, currentBusinessId, currentBusiness]);
-
-  const EMPRESAS_PADRAO_MAP: Record<string, Negocio> = {
-    "BIZ-001": {
-      business_id: "BIZ-001",
-      negocio: "iGreen Energy",
-      estagio: "VENDAS",
-      principal_gargalo: "Comercial / conseguir clientes.",
-    },
-    "BIZ-002": {
-      business_id: "BIZ-002",
-      negocio: "Ecossistema de Saúde",
-      estagio: "PRODUTO",
-      principal_gargalo: "Escopo amplo ainda não consolidado.",
-    },
-    "BIZ-003": {
-      business_id: "BIZ-003",
-      negocio: "Humano Digital",
-      estagio: "VALIDAÇÃO",
-      principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
-    },
-  };
 
   const negociosVisiveis = useMemo(() => {
     if (isConsolidated) return negocios;
