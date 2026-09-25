@@ -13,9 +13,7 @@ function getHeaders() {
     'Accept': 'application/json'
   };
   if (MEOWCALLER_TOKEN) {
-    headers['Authorization'] = `Bearer ${MEOWCALLER_TOKEN}`;
     headers['X-API-Key'] = MEOWCALLER_TOKEN;
-    headers['x-api-key'] = MEOWCALLER_TOKEN;
   }
   return headers;
 }

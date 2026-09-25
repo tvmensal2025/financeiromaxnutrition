@@ -59,6 +59,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if key == "" {
 			key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		}
+		if strings.Contains(key, ",") {
+			parts := strings.Split(key, ",")
+			key = strings.TrimSpace(parts[0])
+		}
 		if key != s.cfg.InternalAPIKey {
 			s.fail(w, "Não autorizado. Chave de API inválida.", http.StatusUnauthorized)
 			return
