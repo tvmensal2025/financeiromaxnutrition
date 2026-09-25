@@ -53,7 +53,7 @@ async def security_and_limit_middleware(request: Request, call_next):
         )
 
     # Validação de API Key interna (se configurada)
-    if settings.laya_api_key and request.url.path not in ("/health", "/docs", "/openapi.json"):
+    if settings.laya_api_key and request.url.path not in ("/", "/health", "/docs", "/openapi.json"):
         auth_header = request.headers.get("x-api-key") or request.headers.get("authorization")
         expected = settings.laya_api_key
         token = auth_header.replace("Bearer ", "") if auth_header else ""
@@ -68,6 +68,25 @@ async def security_and_limit_middleware(request: Request, call_next):
     duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
     response.headers["X-Response-Time-Ms"] = str(duration_ms)
     return response
+
+
+@app.get("/")
+def root():
+    """Endpoint raiz amigável exibindo metadata do Laya Service."""
+    return {
+        "service": "laya-service",
+        "status": "online",
+        "version": "1.0.0",
+        "description": "Helena Laya Service — Camada Rápida de Decisão, Classificação e Roteamento",
+        "device": settings.laya_device,
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "classify": "/v1/classify",
+            "score": "/v1/score",
+            "route": "/v1/route"
+        }
+    }
 
 
 @app.get("/health", response_model=HealthResponse)

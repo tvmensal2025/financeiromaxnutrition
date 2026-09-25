@@ -33,6 +33,7 @@ func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// Rotas públicas
+	mux.HandleFunc("GET /", s.handleRoot)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
 	// Rotas autenticadas da API v1
@@ -63,6 +64,25 @@ func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r)
 	}
+}
+
+func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	s.jsonResponse(w, map[string]interface{}{
+		"service":     "meowcaller-service",
+		"status":      "online",
+		"version":     "1.0.0",
+		"description": "Helena Meowcaller Service — WhatsApp Voice Transport",
+		"endpoints": map[string]string{
+			"health":  "/health",
+			"session": "/v1/session",
+			"calls":   "/v1/calls",
+			"events":  "/v1/events",
+		},
+	}, http.StatusOK)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
