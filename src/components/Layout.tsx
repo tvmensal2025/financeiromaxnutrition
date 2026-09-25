@@ -1,179 +1,280 @@
-import { useState, type ComponentType } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import React, { useState, type ComponentType } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
-  CalendarClock,
   LayoutDashboard,
-  Leaf,
-  Menu,
-  Receipt,
+  Inbox,
   Target,
-  X,
   Building2,
   Users,
-  Inbox,
+  Receipt,
+  CalendarClock,
   Briefcase,
-  ChevronDown,
   Layers,
   Shield,
-  Cog,
   FileText,
-  DollarSign,
-  TrendingUp,
+  Sliders,
+  Menu,
+  X,
+  Compass,
+  Zap,
+  Activity,
+  CheckSquare,
+  HelpCircle,
+  FolderOpen,
+  PieChart,
+  UserCheck,
+  Package,
+  Settings,
 } from "lucide-react";
-import { MODULOS, GRUPOS } from "@/lib/modulos";
 import { Header } from "@/components/Header";
-import { EmpresaSelector } from "@/components/EmpresaSelector";
-import { PageHero } from "@/components/PageHero";
+import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
+import { ExecutiveBusinessSwitcher } from "@/components/executive/ExecutiveBusinessSwitcher";
+import { ExecutiveCommandMenu } from "@/components/executive/ExecutiveCommandMenu";
+import { useBusiness } from "@/contexts/BusinessContext";
+import { MODULOS } from "@/lib/modulos";
 
-const ITENS_COMANDO = [
-  { to: "/", label: "Painel Executivo", icon: LayoutDashboard, end: true },
-  { to: "/portfolio", label: "Portfólio de Negócios", icon: Building2 },
-  { to: "/inbox", label: "Caixa de Entrada", icon: Inbox },
-];
-
-const ITENS_OPERACAO = [
-  { to: "/crm", label: "CRM & Vendas", icon: Target },
-  { to: "/financeiro", label: "Caixa & Financeiro", icon: Receipt },
-  { to: "/calendario", label: "Calendário", icon: CalendarClock },
-  { to: "/equipe", label: "Equipe Digital (21)", icon: Users },
-];
-
-function Item({
-  to,
-  label,
-  icon: Icon,
-  end,
-  onClick,
-}: {
+type NavItemConfig = {
   to: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  badge?: string | number;
   end?: boolean;
+};
+
+const BLOCO_CENTRAL: NavItemConfig[] = [
+  { to: "/", label: "Painel", icon: LayoutDashboard, end: true },
+  { to: "/inbox", label: "Inbox", icon: Inbox },
+  { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
+];
+
+const BLOCO_NEGOCIOS: NavItemConfig[] = [
+  { to: "/portfolio", label: "Portfólio", icon: Building2 },
+  { to: "/crm", label: "CRM", icon: Target },
+  { to: "/modulo/marketing", label: "Marketing", icon: Zap },
+  { to: "/modulo/clientes", label: "Clientes", icon: UserCheck },
+  { to: "/modulo/produto", label: "Produto", icon: Package },
+];
+
+const BLOCO_OPERACAO: NavItemConfig[] = [
+  { to: "/financeiro", label: "Financeiro", icon: Receipt },
+  { to: "/calendario", label: "Calendário", icon: CalendarClock },
+  { to: "/modulo/projetos", label: "Projetos", icon: Briefcase },
+  { to: "/modulo/tarefas", label: "Tarefas", icon: CheckSquare },
+  { to: "/modulo/processos", label: "Processos", icon: Layers },
+];
+
+const BLOCO_INTELIGENCIA: NavItemConfig[] = [
+  { to: "/equipe", label: "Equipe Digital", icon: Users, badge: "21" },
+  { to: "/modulo/estado_mestre", label: "Estado Mestre", icon: Activity },
+  { to: "/modulo/memoria_mestre", label: "Memória Mestre", icon: FileText },
+  { to: "/modulo/handoffs", label: "Handoffs", icon: Layers },
+];
+
+const BLOCO_GOVERNANCA: NavItemConfig[] = [
+  { to: "/modulo/riscos", label: "Riscos", icon: Shield },
+  { to: "/modulo/decisoes", label: "Decisões", icon: FileText },
+  { to: "/modulo/governanca", label: "Governança", icon: Shield },
+  { to: "/modulo/integracoes", label: "Integrações", icon: Zap },
+];
+
+const BLOCO_ADMINISTRACAO: NavItemConfig[] = [
+  { to: "/modulo/documentos", label: "Documentos", icon: FolderOpen },
+  { to: "/modulo/fornecedores", label: "Fornecedores", icon: Building2 },
+  { to: "/modulo/ativos", label: "Ativos", icon: Layers },
+  { to: "/sistema", label: "Configurações", icon: Settings },
+];
+
+function NavItemLink({
+  item,
+  onClick,
+}: {
+  item: NavItemConfig;
   onClick?: () => void;
 }) {
+  const Icon = item.icon;
+
   return (
     <NavLink
-      to={to}
-      end={end}
+      to={item.to}
+      end={item.end}
       onClick={onClick}
       className={({ isActive }) => `pe-nav-item ${isActive ? "is-active" : ""}`}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span>{label}</span>
+      <span className="truncate flex-1">{item.label}</span>
+      {item.badge && (
+        <span className="rounded-[6px] bg-muted/80 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+          {item.badge}
+        </span>
+      )}
     </NavLink>
   );
 }
 
 export function Layout() {
-  const [aberto, setAberto] = useState(false);
-  const fechar = () => setAberto(false);
+  const [mobileAberto, setMobileAberto] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const { pathname } = useLocation();
+  const { currentBusiness, currentBusinessId, isConsolidated, rotulo } = useBusiness();
 
-  // Módulos agrupados por áreas funcionais (excluindo as que já têm rota direta no menu principal)
-  const rotasDedicadas = new Set(["/portfolio", "/crm", "/financeiro", "/calendario", "/equipe", "/inbox"]);
+  const fecharMobile = () => setMobileAberto(false);
 
-  const menu = (
-    <>
-      <div className="pe-sidebar-top">
-        <div className="pe-sidebar-product-brand">
-          <span className="pe-sidebar-product-mark">
-            <Leaf className="h-5 w-5" />
-          </span>
-          <span className="pe-sidebar-product-copy">
-            <strong>Helena</strong>
-            <small>CEO Virtual · Fundador</small>
-          </span>
-        </div>
-        <EmpresaSelector />
+  // Calcula o breadcrumb simples e executivo
+  const getBreadcrumb = () => {
+    const empresaNome = isConsolidated ? "Grupo Consolidado" : (currentBusiness?.nome || "iGreen");
+    if (pathname === "/") return `${empresaNome} / Painel`;
+    if (pathname === "/inbox") return `${empresaNome} / Inbox`;
+    if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
+    if (pathname === "/equipe") return `Sistema Helena / Equipe Digital`;
+    if (pathname === "/crm") return `${empresaNome} / CRM`;
+    if (pathname === "/financeiro") return `${empresaNome} / Financeiro`;
+    if (pathname === "/calendario") return `${empresaNome} / Calendário`;
+    if (pathname === "/sistema") return `Sistema Helena / Saúde do Sistema`;
+
+    if (pathname.startsWith("/modulo/")) {
+      const tabela = pathname.replace("/modulo/", "");
+      const modulo = MODULOS.find((m) => m.tabela === tabela);
+      return `${empresaNome} / ${modulo?.titulo || tabela}`;
+    }
+
+    return `${empresaNome} / Central`;
+  };
+
+  const menuContent = (
+    <div className="flex flex-col h-full py-4">
+      {/* Topo da Sidebar com Logo Helena */}
+      <div className="px-5 pb-5 pt-1">
+        <ExecutiveLogo size="md" />
       </div>
 
-      <p className="pe-sidebar-section">Comando</p>
-      {ITENS_COMANDO.map((item) => (
-        <Item key={item.to} {...item} onClick={fechar} />
-      ))}
+      {/* Navegação por blocos ordenados */}
+      <div className="flex-1 overflow-y-auto px-1 space-y-4 scrollbar-thin">
+        <div>
+          <p className="pe-sidebar-section">Central</p>
+          <div className="space-y-0.5">
+            {BLOCO_CENTRAL.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
+        </div>
 
-      <p className="pe-sidebar-section">Operação Central</p>
-      {ITENS_OPERACAO.map((item) => (
-        <Item key={item.to} {...item} onClick={fechar} />
-      ))}
+        <div>
+          <p className="pe-sidebar-section">Negócios</p>
+          <div className="space-y-0.5">
+            {BLOCO_NEGOCIOS.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
+        </div>
 
-      <div className="pt-2">
-        <p className="pe-sidebar-section">Módulos por Área</p>
-        <div className="space-y-1 pb-6">
-          {GRUPOS.map((grupo) => {
-            const modulosDoGrupo = MODULOS.filter(
-              (m) => m.grupo === grupo && (!m.rota || !rotasDedicadas.has(m.rota))
-            );
-            if (modulosDoGrupo.length === 0) return null;
+        <div>
+          <p className="pe-sidebar-section">Operação</p>
+          <div className="space-y-0.5">
+            {BLOCO_OPERACAO.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
+        </div>
 
-            return (
-              <details key={grupo} className="group/det px-1">
-                <summary className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors">
-                  <span>{grupo}</span>
-                  <span className="text-[10px] opacity-60">({modulosDoGrupo.length})</span>
-                </summary>
-                <div className="pl-3 py-1 space-y-0.5">
-                  {modulosDoGrupo.map((mod) => (
-                    <Item
-                      key={mod.tabela}
-                      to={mod.rota || `/modulo/${mod.tabela}`}
-                      label={mod.titulo}
-                      icon={Layers}
-                      onClick={fechar}
-                    />
-                  ))}
-                </div>
-              </details>
-            );
-          })}
+        <div>
+          <p className="pe-sidebar-section">Inteligência</p>
+          <div className="space-y-0.5">
+            {BLOCO_INTELIGENCIA.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="pe-sidebar-section">Governança</p>
+          <div className="space-y-0.5">
+            {BLOCO_GOVERNANCA.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
+        </div>
+
+        <div className="pb-6">
+          <p className="pe-sidebar-section">Administração</p>
+          <div className="space-y-0.5">
+            {BLOCO_ADMINISTRACAO.map((item) => (
+              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
+            ))}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 
   return (
-    <div className="painel-elite flex min-h-screen">
-      <aside className="pe-sidebar sticky top-0 hidden h-[100dvh] flex-col overflow-y-auto md:flex scrollbar-thin">
-        {menu}
+    <div className="painel-elite flex min-h-screen bg-background text-foreground antialiased">
+      {/* Sidebar Desktop */}
+      <aside className="pe-sidebar sticky top-0 hidden h-[100dvh] flex-col overflow-hidden md:flex">
+        {menuContent}
       </aside>
 
-      {aberto && (
+      {/* Backdrop Mobile */}
+      {mobileAberto && (
         <button
           type="button"
           aria-label="Fechar menu"
-          className="fixed inset-0 z-30 bg-black/40 md:hidden"
-          onClick={fechar}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={fecharMobile}
         />
       )}
 
+      {/* Drawer Sidebar Mobile */}
       <aside
-        className={`pe-sidebar fixed inset-y-0 left-0 z-40 overflow-y-auto md:hidden ${
-          aberto ? "translate-x-0" : "-translate-x-full"
+        className={`pe-sidebar fixed inset-y-0 left-0 z-50 overflow-y-auto transition-transform duration-200 md:hidden ${
+          mobileAberto ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <button
           type="button"
-          className="absolute right-3 top-3 text-[var(--pe-text)]"
-          onClick={fechar}
+          className="absolute right-3 top-4 text-[#8A9690] hover:text-white"
+          onClick={fecharMobile}
           aria-label="Fechar"
         >
           <X className="h-5 w-5" />
         </button>
-        {menu}
+        {menuContent}
       </aside>
 
-      <div className="min-w-0 flex-1">
-        <div className="pe-topbar">
-          <button type="button" className="pe-menu-mobile" onClick={() => setAberto(true)}>
-            <Menu />
-            <span>Menu</span>
-          </button>
-          <Header />
-        </div>
-        <main className="pe-main">
-          <PageHero />
+      {/* Área Central de Conteúdo */}
+      <div className="min-w-0 flex-1 flex flex-col">
+        {/* Topbar Executiva (64px) */}
+        <header className="pe-topbar">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-foreground md:hidden"
+              onClick={() => setMobileAberto(true)}
+              aria-label="Abrir menu"
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+
+            {/* Breadcrumb curto */}
+            <div className="hidden sm:flex items-center text-xs font-medium text-muted-foreground mr-2 truncate">
+              <span>{getBreadcrumb()}</span>
+            </div>
+
+            {/* Seletor Multiempresa Premium */}
+            <ExecutiveBusinessSwitcher />
+          </div>
+
+          {/* Lado Direito do Topbar */}
+          <Header onOpenSearch={() => setCommandOpen(true)} />
+        </header>
+
+        {/* Conteúdo Principal com Max Width Executivo */}
+        <main className="pe-main flex-1 w-full">
           <Outlet />
         </main>
       </div>
+
+      {/* Command Palette Global (Ctrl + K) */}
+      <ExecutiveCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   );
 }

@@ -71,12 +71,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  async function entrar(email: string, senha: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    if (error) return error.message;
-    if (data.user) {
-      await carregarAppAccess(data.user.id);
+  async function entrar(email: string, senha: string): Promise<string | null> {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: senha,
+    });
+
+    if (error) {
+      if (
+        error.message.toLowerCase().includes("invalid login credentials") ||
+        error.message.toLowerCase().includes("invalid_grant")
+      ) {
+        return "E-mail ou senha incorretos.";
+      }
+      return error.message;
     }
+
+    if (data.user) {
+      // Validação mandatória de app_access.active = true
+      try {
+        const { data: accessData, error: accessError } = await supabase
+          .from("app_access")
+          .select("user_id,role,active")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        if (accessError || !accessData || !accessData.active) {
+          // Bloqueia e desloga imediatamente
+          await supabase.auth.signOut();
+          setSession(null);
+          setAppAccess(null);
+          return "Usuário não autorizado para o Sistema Helena.";
+        }
+
+        setAppAccess(accessData as AppAccess);
+      } catch (err: any) {
+        await supabase.auth.signOut();
+        setSession(null);
+        setAppAccess(null);
+        return "Usuário não autorizado para o Sistema Helena.";
+      }
+    }
+
     return null;
   }
 

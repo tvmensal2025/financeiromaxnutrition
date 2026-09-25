@@ -1,171 +1,297 @@
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Inbox,
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Sparkles,
-  ArrowRight,
   ShieldAlert,
-  HelpCircle,
-  Flame,
+  ArrowRight,
+  Filter,
   Check,
+  Building2,
+  FileText,
+  Compass,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
+import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
+import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
+import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
 
 export type InboxItem = {
   id: string;
-  tipo: "DECISAO_FUNDADOR" | "TAREFA_ATRASADA" | "RISCO_CRITICO" | "INTEGRACAO_FALHOU" | "APROVACAO_NECESSARIA" | "JOB_CONCLUIDO";
+  tipo: "DECISAO" | "APROVACAO" | "RISCO" | "BLOQUEIO";
   titulo: string;
   descricao: string;
+  business_id: string;
   origem: string;
   data: string;
-  urgencia: "CRITICA" | "ALTA" | "MEDIA" | "INFORMATIVA";
-  business_id?: string;
-  resolvido?: boolean;
+  prioridade: "CRITICA" | "ALTA" | "MEDIA";
+  status: "PENDENTE" | "RESOLVIDO";
+  ctaUrl: string;
+  ctaLabel: string;
 };
 
-const ITENS_INBOX_PADRAO: InboxItem[] = [
+const ITENS_INBOX: InboxItem[] = [
   {
-    id: "INB-01",
-    tipo: "DECISAO_FUNDADOR",
+    id: "INB-001",
+    tipo: "DECISAO",
     titulo: "Homologação do Núcleo Técnico (FOC-004)",
-    descricao: "Validar se a transição para o Supabase como fonte canônica e o isolamento multiempresa atendem aos requisitos do fundador.",
+    descricao: "Validar se a transição para o Supabase como fonte canônica e o isolamento multiempresa atendem integralmente aos requisitos do fundador.",
+    business_id: "GRUPO",
     origem: "Helena (CEO Virtual)",
     data: "Hoje",
-    urgencia: "ALTA",
-    business_id: "GRUPO",
+    prioridade: "ALTA",
+    status: "PENDENTE",
+    ctaUrl: "/modulo/foco_executivo",
+    ctaLabel: "Auditar foco",
   },
   {
-    id: "INB-02",
-    tipo: "RISCO_CRITICO",
-    titulo: "Aquisição Comercial em iGreen Energy (BIZ-001)",
-    descricao: "Risco mapeado: continuar construindo produto sem resolver aquisição massiva de clientes por assinatura.",
-    origem: "Matriz de Riscos",
-    data: "Recente",
-    urgencia: "ALTA",
+    id: "INB-002",
+    tipo: "RISCO",
+    titulo: "Aquisição Comercial — iGreen",
+    descricao: "Continuar construindo produto e refinamento sem resolver aquisição massiva de clientes por assinatura gera descompasso de tração.",
     business_id: "BIZ-001",
+    origem: "Victor (Vendas)",
+    data: "Hoje",
+    prioridade: "ALTA",
+    status: "PENDENTE",
+    ctaUrl: "/crm",
+    ctaLabel: "Ver pipeline",
   },
   {
-    id: "INB-03",
-    tipo: "APROVACAO_NECESSARIA",
+    id: "INB-003",
+    tipo: "APROVACAO",
     titulo: "Ativação de FOC-002 (Caixa das Empresas)",
-    descricao: "Frente de Caixa permanece em PLANEJADO aguardando a conclusão formal de FOC-004.",
-    origem: "Foco Executivo",
-    data: "Aguardando",
-    urgencia: "MEDIA",
+    descricao: "A frente de Caixa permanece em PLANEJADO/AGUARDANDO e não deve ser iniciada até a deliberação formal de conclusão de FOC-004.",
     business_id: "GRUPO",
+    origem: "Caio (CFO) & Helena",
+    data: "Hoje",
+    prioridade: "MEDIA",
+    status: "PENDENTE",
+    ctaUrl: "/modulo/foco_executivo",
+    ctaLabel: "Ver planejamento",
+  },
+  {
+    id: "INB-004",
+    tipo: "BLOQUEIO",
+    titulo: "Definição de Escopo de Produto em Saúde",
+    descricao: "Escopo amplo de funcionalidades precisa ser delimitado para entrega do MVP da unidade de saúde.",
+    business_id: "BIZ-002",
+    origem: "Nina (Produto)",
+    data: "Ontem",
+    prioridade: "ALTA",
+    status: "PENDENTE",
+    ctaUrl: "/portfolio",
+    ctaLabel: "Ver negócio",
   },
 ];
 
 export default function HelenaInboxPage() {
-  const { currentBusinessId, rotulo, isConsolidated } = useBusiness();
-  const [itens, setItens] = useState<InboxItem[]>(ITENS_INBOX_PADRAO);
-  const [carregando, setCarregando] = useState(false);
+  const { currentBusinessId, isConsolidated } = useBusiness();
+  const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
+  const [itens, setItens] = useState<InboxItem[]>(ITENS_INBOX);
 
-  // Filtra itens pelo contexto atual (ou grupo)
-  const itensVisiveis = itens.filter((i) => {
-    if (isConsolidated) return true;
-    if (!i.business_id || i.business_id === "GRUPO") return true;
-    return i.business_id === currentBusinessId;
+  // Filtragem por contexto de empresa e tipo
+  const itensFiltrados = itens.filter((item) => {
+    // 1. Contexto de empresa
+    if (!isConsolidated && currentBusinessId) {
+      if (item.business_id !== "GRUPO" && item.business_id !== currentBusinessId) {
+        return false;
+      }
+    }
+    // 2. Filtro de tipo
+    if (filtroTipo === "DECISOES") return item.tipo === "DECISAO";
+    if (filtroTipo === "APROVACOES") return item.tipo === "APROVACAO";
+    if (filtroTipo === "RISCOS") return item.tipo === "RISCO";
+    if (filtroTipo === "BLOQUEIOS") return item.tipo === "BLOQUEIO";
+    return true;
   });
 
-  const getBadgeTipo = (tipo: InboxItem["tipo"]) => {
+  // Métricas do resumo da fila
+  const total = itens.length;
+  const criticos = itens.filter((i) => i.prioridade === "CRITICA" || i.prioridade === "ALTA").length;
+  const aguardandoFundador = itens.filter((i) => i.tipo === "DECISAO" || i.tipo === "APROVACAO").length;
+  const hoje = itens.filter((i) => i.data === "Hoje").length;
+
+  const getBorderColor = (tipo: InboxItem["tipo"]) => {
     switch (tipo) {
-      case "DECISAO_FUNDADOR":
-        return { label: "Decisão do Fundador", cor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30" };
-      case "RISCO_CRITICO":
-        return { label: "Risco Crítico", cor: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30" };
-      case "APROVACAO_NECESSARIA":
-        return { label: "Aprovação Necessária", cor: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" };
-      case "INTEGRACAO_FALHOU":
-        return { label: "Falha de Integração", cor: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30" };
-      case "TAREFA_ATRASADA":
-        return { label: "Tarefa Atrasada", cor: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30" };
-      case "JOB_CONCLUIDO":
-        return { label: "Job Concluído", cor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" };
+      case "DECISAO":
+        return "border-l-purple-500";
+      case "APROVACAO":
+        return "border-l-[#B47D14]";
+      case "RISCO":
+        return "border-l-[#B91C1C]";
+      case "BLOQUEIO":
+        return "border-l-rose-600";
+    }
+  };
+
+  const getBadge = (tipo: InboxItem["tipo"]) => {
+    switch (tipo) {
+      case "DECISAO":
+        return <ExecutiveBadge variant="purple" size="sm">DECISÃO</ExecutiveBadge>;
+      case "APROVACAO":
+        return <ExecutiveBadge variant="warning" size="sm">APROVAÇÃO</ExecutiveBadge>;
+      case "RISCO":
+        return <ExecutiveBadge variant="danger" size="sm">RISCO</ExecutiveBadge>;
+      case "BLOQUEIO":
+        return <ExecutiveBadge variant="danger" size="sm">BLOQUEIO</ExecutiveBadge>;
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Topo */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Comando</span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">Central de Direção</span>
-          </div>
-          <h1 className="pe-page-title flex items-center gap-2">
-            <Inbox className="h-6 w-6 text-primary" />
-            Caixa de Entrada da Helena
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            Pendências executivas, decisões pendentes do fundador, aprovações e alertas prioritários do ecossistema.
-          </p>
-        </div>
+      <ExecutivePageHeader
+        title="Caixa de Decisões da Helena"
+        description="Fila executiva de deliberações, aprovações necessárias, riscos críticos e bloqueios do fundador."
+        icon={Inbox}
+        breadcrumb="Central / Inbox da Helena"
+      />
 
-        <div className="flex items-center gap-2">
-          <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-semibold text-primary">
-            {itensVisiveis.length} item(ns) na fila
-          </span>
-        </div>
-      </div>
-
-      {/* Lista de Itens da Inbox */}
-      <div className="space-y-3.5">
-        {itensVisiveis.map((item) => {
-          const badge = getBadgeTipo(item.tipo);
+      {/* Filtros no Topo */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border/60 pb-3">
+        {[
+          { id: "TODOS", label: "Todos" },
+          { id: "DECISOES", label: "Decisões" },
+          { id: "APROVACOES", label: "Aprovações" },
+          { id: "RISCOS", label: "Riscos" },
+          { id: "BLOQUEIOS", label: "Bloqueios" },
+        ].map((tab) => {
+          const ativo = filtroTipo === tab.id;
           return (
-            <div
-              key={item.id}
-              className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm hover:border-primary/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFiltroTipo(tab.id)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                ativo
+                  ? "bg-foreground text-background shadow-sm"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
             >
-              <div className="space-y-2 max-w-3xl">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badge.cor}`}>
-                    {badge.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="font-mono text-[10px] font-bold text-muted-foreground">{item.id}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-xs text-muted-foreground">Origem: <strong>{item.origem}</strong></span>
-                  {item.business_id && item.business_id !== "GRUPO" && (
-                    <span className="rounded-md bg-muted px-1.5 py-0.2 text-[10px] font-bold text-foreground">
-                      {item.business_id}
-                    </span>
-                  )}
-                </div>
-
-                <h3 className="text-base font-bold text-foreground">{item.titulo}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{item.descricao}</p>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                <span className="text-[11px] text-muted-foreground">{item.data}</span>
-                <Link
-                  to="/"
-                  className="rounded-xl border border-border/60 bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-primary hover:text-primary-foreground transition-all"
-                >
-                  Ver no Painel
-                </Link>
-              </div>
-            </div>
+              {tab.label}
+            </button>
           );
         })}
+      </div>
 
-        {itensVisiveis.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border/60 p-12 text-center space-y-2">
-            <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto" />
-            <p className="text-sm font-bold text-foreground">Caixa de Entrada Limpa</p>
-            <p className="text-xs text-muted-foreground">
-              Nenhuma pendência crítica ou decisão urgente aguardando a Helena ou o fundador no momento.
+      {/* Layout Desktop: 70% Coluna Principal + 30% Painel Lateral */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-10">
+        {/* Coluna Principal: 70% (7 colunas de 10) */}
+        <div className="lg:col-span-7 space-y-3">
+          {itensFiltrados.length === 0 ? (
+            <ExecutiveEmptyState
+              title="Nenhuma pendência encontrada"
+              description="Não há itens com os filtros selecionados para o contexto de negócio ativo."
+            />
+          ) : (
+            itensFiltrados.map((item) => (
+              <div
+                key={item.id}
+                className={`rounded-xl border border-border bg-card p-5 border-l-4 ${getBorderColor(
+                  item.tipo
+                )} transition-colors hover:border-border/90`}
+                style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="space-y-1.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {getBadge(item.tipo)}
+                      <span className="text-xs font-mono text-muted-foreground">
+                        {item.business_id}
+                      </span>
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.origem}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
+                      {item.titulo}
+                    </h3>
+
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {item.descricao}
+                    </p>
+
+                    <div className="flex items-center gap-3 pt-2 text-[11px] text-muted-foreground">
+                      <span>Prazo: <strong className="text-foreground">{item.data}</strong></span>
+                      <span>·</span>
+                      <span>
+                        Prioridade:{" "}
+                        <strong
+                          className={
+                            item.prioridade === "CRITICA" || item.prioridade === "ALTA"
+                              ? "text-[#B91C1C] dark:text-[#f87171]"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {item.prioridade}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 pt-1">
+                    <Link
+                      to={item.ctaUrl}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                    >
+                      <span>{item.ctaLabel}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Painel Lateral: 30% (3 colunas de 10) */}
+        <div className="lg:col-span-3 space-y-4">
+          <div
+            className="rounded-xl border border-border bg-card p-5 space-y-4"
+            style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
+          >
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2.5">
+              Resumo da Fila
+            </h4>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Total de Pendências:</span>
+                <strong className="text-foreground text-sm font-semibold">{total}</strong>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Crítico / Alta:</span>
+                <strong className="text-[#B91C1C] text-sm font-semibold">{criticos}</strong>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Aguardando Fundador:</span>
+                <strong className="text-purple-600 dark:text-purple-400 text-sm font-semibold">
+                  {aguardandoFundador}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-between text-xs border-t border-border/50 pt-2.5">
+                <span className="text-muted-foreground">Para Hoje:</span>
+                <strong className="text-foreground text-sm font-semibold">{hoje}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-2">
+            <span className="text-[11px] font-semibold text-foreground">
+              Diretriz de Decisão:
+            </span>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Itens da Inbox são triados pela Helena (CEO Virtual) e escalados para o Fundador apenas quando exigem deliberação soberana ou validação de marcos.
             </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

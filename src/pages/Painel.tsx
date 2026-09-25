@@ -1,938 +1,634 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  DollarSign,
-  TrendingUp,
-  Target,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Lightbulb,
-  Building2,
-  Zap,
-  Activity,
-  Bot,
-  Crown,
+  Compass,
   ArrowRight,
-  Filter,
-  Check,
-  ShieldCheck,
-  ChevronRight,
-  Package,
-  Layers,
+  Shield,
+  Inbox,
+  Target,
+  Receipt,
+  Building2,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
   Flame,
+  ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { format, subMonths } from "date-fns";
-import { lerCaixa, lerDreMes, variacaoPercentual, type Lancamento } from "@/lib/caixa";
-import { useBusiness, type Empresa } from "@/contexts/BusinessContext";
-import { StatsGrid } from "@/components/dashboard/StatsGrid";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
-import { SalesDonutChart } from "@/components/dashboard/SalesDonutChart";
-import { ConversionFunnel } from "@/components/dashboard/ConversionFunnel";
+import { useBusiness } from "@/contexts/BusinessContext";
+import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
+import { ExecutiveMetricCard } from "@/components/executive/ExecutiveMetricCard";
+import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 
-type Foco = {
-  id: string;
+type FocoItem = {
+  foco_id?: string;
+  id?: string;
   frente: string;
   status: string;
-  objetivo: string;
+  objetivo?: string;
   ordem?: number;
   responsavel?: string;
   criterio_de_saida?: string;
 };
 
-type Negocio = {
+type NegocioPortfolio = {
   business_id: string;
   negocio: string;
-  estagio: string;
-  principal_gargalo: string;
-  ativo?: string;
-  publico?: string;
+  estagio?: string | null;
+  principal_gargalo?: string | null;
+  objetivo_atual?: string | null;
+  kpi_principal?: string | null;
+  proxima_entrega?: string | null;
+  responsavel_executivo?: string | null;
 };
 
-type Ideia = {
-  id: string;
-  ideia: string;
-  decisao: string;
-  business_id: string;
-  motivo?: string;
-};
-
-type Oportunidade = {
+type OportunidadeCrm = {
   opportunity_id: string;
   business_id: string;
   etapa: string;
+  status: string;
   valor_potencial?: number | string | null;
   probabilidade?: number | string | null;
 };
 
-function moeda(valor: number) {
+type LancamentoFin = {
+  business_id: string;
+  fluxo: string;
+  status: string;
+  valor_original: number | string;
+  vencimento?: string | null;
+  liquidacao?: string | null;
+};
+
+function formatarMoeda(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-const EMPRESAS_PADRAO_MAP: Record<string, Negocio> = {
-  "BIZ-001": {
-    business_id: "BIZ-001",
-    negocio: "iGreen Energy",
-    estagio: "VENDAS",
-    principal_gargalo: "Comercial / conseguir clientes.",
-  },
-  "BIZ-002": {
-    business_id: "BIZ-002",
-    negocio: "Ecossistema de Saúde",
-    estagio: "PRODUTO",
-    principal_gargalo: "Escopo amplo ainda não consolidado.",
-  },
-  "BIZ-003": {
-    business_id: "BIZ-003",
-    negocio: "Humano Digital",
-    estagio: "VALIDAÇÃO",
-    principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
-  },
-};
-
 export default function Painel() {
-  const {
-    empresas,
-    currentBusiness,
-    currentBusinessId,
-    isConsolidated,
-    selecionadas,
-    todasLigadas,
-    rotulo,
-    alternar,
-    ligarTodas,
-    pertence,
-    nomeDe,
-  } = useBusiness();
+  const navigate = useNavigate();
+  const { currentBusiness, currentBusinessId, isConsolidated, rotulo } = useBusiness();
 
-  const [foco, setFoco] = useState<Foco[]>([]);
-  const [negocios, setNegocios] = useState<Negocio[]>([]);
-  const [ideias, setIdeias] = useState<Ideia[]>([]);
-  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
-  const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
-  const [erro, setErro] = useState("");
+  const [focoAtivo, setFocoAtivo] = useState<FocoItem>({
+    foco_id: "FOC-004",
+    frente: "Homologação técnica do Sistema Helena",
+    status: "EM EXECUÇÃO",
+    responsavel: "Helena (CEO Virtual)",
+    criterio_de_saida: "Bateria reproduzível de validação técnica, catálogo oficial, RLS multiempresa e segurança comprovada.",
+  });
+
+  const [proximoFoco, setProximoFoco] = useState<FocoItem>({
+    foco_id: "FOC-002",
+    frente: "Caixa das Empresas",
+    status: "AGUARDANDO",
+    responsavel: "Helena & Caio",
+  });
+
+  const [negocioInfo, setNegocioInfo] = useState<NegocioPortfolio | null>(null);
+  const [oportunidades, setOportunidades] = useState<OportunidadeCrm[]>([]);
+  const [lancamentos, setLancamentos] = useState<LancamentoFin[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  // Filtro amigável para ideias
-  const [filtroDecisao, setFiltroDecisao] = useState<string>("TODAS");
-
-  // Estado canônico de foco do ecossistema conforme Supabase oficial
-  const FOCO_PADRAO: Foco[] = useMemo(() => {
-    return [
-      {
-        id: "FOC-004",
-        frente: "Homologação técnica do Sistema Helena",
-        status: "EM EXECUÇÃO",
-        objetivo: "Consolidação técnica do ecossistema, Supabase como fonte operacional de verdade e alinhamento dos 3 negócios.",
-        ordem: 1,
-        responsavel: "Helena (CEO Virtual)",
-        criterio_de_saida: "Núcleo homologado com banco relacional e regras V8 validadas.",
-      },
-      {
-        id: "FOC-002",
-        frente: "Caixa das Empresas",
-        status: "PLANEJADO",
-        objetivo: "Gestão integrada de liquidez e conciliação bancária das unidades.",
-        ordem: 2,
-        responsavel: "Helena (CEO Virtual)",
-        criterio_de_saida: "Contas financeiras ativas e conciliação validada.",
-      },
-      {
-        id: "FOC-001",
-        frente: "Estruturação Inicial do Ecossistema",
-        status: "CONCLUÍDO",
-        objetivo: "Mapeamento das frentes de negócio e governança básica.",
-        ordem: 3,
-        responsavel: "Helena",
-      },
-      {
-        id: "FOC-003",
-        frente: "Definição Arquitetural V8",
-        status: "CONCLUÍDO",
-        objetivo: "Definição do modelo relacional e governança executiva.",
-        ordem: 4,
-        responsavel: "Helena",
-      },
-    ];
+  // Saudação executiva baseada no horário local
+  const saudacao = useMemo(() => {
+    const hora = new Date().getHours();
+    if (hora >= 5 && hora < 12) return "Bom dia";
+    if (hora >= 12 && hora < 18) return "Boa tarde";
+    return "Boa noite";
   }, []);
 
-  const NEGOCIOS_PADRAO: Negocio[] = useMemo(() => {
-    return [
-      {
-        business_id: "BIZ-001",
-        negocio: "iGreen Energy",
-        estagio: "VENDAS",
-        principal_gargalo: "Comercial / conseguir clientes.",
-      },
-      {
-        business_id: "BIZ-002",
-        negocio: "Ecossistema de Saúde",
-        estagio: "PRODUTO",
-        principal_gargalo: "Escopo amplo ainda não consolidado.",
-      },
-      {
-        business_id: "BIZ-003",
-        negocio: "Humano Digital",
-        estagio: "VALIDAÇÃO",
-        principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
-      },
-    ];
-  }, []);
-
-  // EFEITO COM ISOLAMENTO DE EMPRESA:
-  // Ao trocar de empresa, limpa imediatamente os dados anteriores e busca com filtro estrito
   useEffect(() => {
-    setCarregando(true);
-    setErro("");
-    // Limpa dados imediatamente para evitar contaminação visual durante o carregamento
-    setLancamentos([]);
-    setOportunidades([]);
-    setIdeias([]);
+    async function carregarDados() {
+      setCarregando(true);
+      try {
+        // 1. Foco Executivo
+        const { data: focos } = await supabase
+          .from("foco_executivo")
+          .select("*")
+          .order("ordem", { ascending: true });
 
-    // Consultas estritamente filtradas por business_id
-    let qFoco = supabase.from("foco_executivo").select("*").order("ordem");
-    let qPort = supabase.from("portfolio").select("business_id,negocio,estagio,principal_gargalo,ativo,publico").order("business_id");
-    let qIdeias = supabase.from("ideias").select("id,ideia,decisao,business_id").order("id", { ascending: false }).limit(20);
-    let qFin = supabase
-      .from("financeiro")
-      .select("business_id,fluxo,status,moeda,valor_original,valor_liquidado_informado_brl,conta_id,competencia,liquidacao");
-    let qCrm = supabase.from("crm").select("opportunity_id,business_id,etapa,valor_potencial,probabilidade");
+        if (focos && focos.length > 0) {
+          const ativo = focos.find(
+            (f) => String(f.status).toUpperCase() === "EM EXECUÇÃO"
+          );
+          if (ativo) {
+            setFocoAtivo({
+              foco_id: ativo.foco_id || ativo.id || "FOC-004",
+              frente: ativo.frente,
+              status: ativo.status,
+              responsavel: ativo.responsavel || "Helena (CEO Virtual)",
+              criterio_de_saida:
+                ativo.criterio_de_saida ||
+                "Bateria reproduzível de validação técnica e governança concluída.",
+            });
+          }
 
-    if (!isConsolidated && currentBusinessId) {
-      qIdeias = qIdeias.eq("business_id", currentBusinessId);
-      qFin = qFin.eq("business_id", currentBusinessId);
-      qCrm = qCrm.eq("business_id", currentBusinessId);
-    } else if (isConsolidated && selecionadas.length > 0) {
-      qIdeias = qIdeias.in("business_id", selecionadas);
-      qFin = qFin.in("business_id", selecionadas);
-      qCrm = qCrm.in("business_id", selecionadas);
-    }
-
-    Promise.all([qFoco, qPort, qIdeias, qFin, qCrm])
-      .then(([f, p, i, fin, crm]) => {
-        const falha = f.error || p.error || i.error || fin.error || crm.error;
-        const ehPermissao = falha && /permission denied|jwt|unauthorized|not allowed/i.test(falha.message);
-        if (falha && !ehPermissao) {
-          setErro(falha.message);
-        } else {
-          setErro("");
+          const planejado = focos.find(
+            (f) =>
+              String(f.status).toUpperCase().includes("PLANEJADO") ||
+              String(f.status).toUpperCase().includes("AGUARDANDO")
+          );
+          if (planejado) {
+            setProximoFoco({
+              foco_id: planejado.foco_id || planejado.id || "FOC-002",
+              frente: planejado.frente,
+              status: "AGUARDANDO",
+              responsavel: planejado.responsavel || "Helena & Caio",
+            });
+          }
         }
 
-        setFoco((f.data && f.data.length ? f.data : FOCO_PADRAO) as Foco[]);
-        setNegocios((p.data && p.data.length ? p.data : NEGOCIOS_PADRAO) as Negocio[]);
-        setIdeias((i.data || []) as Ideia[]);
-        setLancamentos((fin.data || []) as Lancamento[]);
-        setOportunidades((crm.data || []) as Oportunidade[]);
-      })
-      .catch((err) => {
-        setErro(err?.message || "Erro na consulta");
-      })
-      .finally(() => {
+        // 2. Portfólio / Contexto da Empresa
+        const { data: portf } = await supabase.from("portfolio").select("*");
+        if (portf && portf.length > 0) {
+          if (!isConsolidated && currentBusinessId) {
+            const biz = portf.find((p) => p.business_id === currentBusinessId);
+            if (biz) setNegocioInfo(biz);
+          } else {
+            const biz1 = portf.find((p) => p.business_id === "BIZ-001");
+            if (biz1) setNegocioInfo(biz1);
+          }
+        }
+
+        // 3. CRM Oportunidades
+        let qCrm = supabase.from("crm").select("opportunity_id, business_id, etapa, status, valor_potencial, probabilidade");
+        if (!isConsolidated && currentBusinessId) {
+          qCrm = qCrm.eq("business_id", currentBusinessId);
+        }
+        const { data: crmData } = await qCrm;
+        setOportunidades((crmData || []) as OportunidadeCrm[]);
+
+        // 4. Lançamentos Financeiros
+        let qFin = supabase.from("financeiro").select("business_id, fluxo, status, valor_original, vencimento, liquidacao");
+        if (!isConsolidated && currentBusinessId) {
+          qFin = qFin.eq("business_id", currentBusinessId);
+        }
+        const { data: finData } = await qFin;
+        setLancamentos((finData || []) as LancamentoFin[]);
+      } catch (err) {
+        console.error("Erro ao carregar dados do Painel Executivo:", err);
+      } finally {
         setCarregando(false);
-      });
+      }
+    }
+
+    carregarDados();
   }, [currentBusinessId, isConsolidated]);
 
-  // Filtros usando o BusinessContext
-  const filtro = todasLigadas ? undefined : selecionadas;
-  const caixa = useMemo(() => lerCaixa(lancamentos, filtro), [lancamentos, filtro]);
+  // Cálculos das Métricas Essenciais (com separação rigorosa de "Sem dados" vs "Zero")
+  const metricas = useMemo(() => {
+    // 1. Caixa Realizado (lançamentos liquidados: ENTRADA - SAÍDA)
+    const lancamentosLiquidados = lancamentos.filter(
+      (l) => l.status === "RECEBIDO" || l.status === "PAGO" || l.status === "LIQUIDADO"
+    );
 
-  // Foco Executivo com garantia estrita de WIP = 1
-  const frentesAtivas = useMemo(() => {
-    return foco.filter((item) => (item.status || "").trim().toUpperCase() === "EM EXECUÇÃO");
-  }, [foco]);
-  const temViolacaoWip = frentesAtivas.length > 1;
-  const focoAtivo = frentesAtivas.length === 1 ? frentesAtivas[0] : (frentesAtivas.length > 1 ? frentesAtivas[0] : null);
-  const proximoFoco = useMemo(() => {
-    return foco.find((item) => (item.status || "").trim().toUpperCase() === "PLANEJADO") || null;
-  }, [foco]);
-  const ativo = focoAtivo;
+    let caixaRealizadoStr: string | null = null;
+    let temCaixaRealizado = false;
 
-  // Negócio ativo com dados canônicos de portfolio
-  const dadosNegocioAtivo = useMemo(() => {
-    if (isConsolidated) {
-      return {
-        negocio: "Todas as Empresas (Grupo Helena)",
-        estagio: "CONSOLIDADO",
-        principal_gargalo: "Sinergia, caixa integrado e foco de prioridades entre unidades.",
-      };
+    if (lancamentosLiquidados.length > 0) {
+      temCaixaRealizado = true;
+      const saldo = lancamentosLiquidados.reduce((acc, l) => {
+        const val = Number(l.valor_original) || 0;
+        return l.fluxo === "ENTRADA" ? acc + val : acc - val;
+      }, 0);
+      caixaRealizadoStr = formatarMoeda(saldo);
     }
-    const encontrado = negocios.find((n) => n.business_id === currentBusinessId);
-    if (encontrado) return encontrado;
-    const base = EMPRESAS_PADRAO_MAP[currentBusinessId];
-    if (base) return base;
+
+    // 2. Pipeline Comercial (negociações ativas que não estão GANHO ou PERDIDO)
+    const abertas = oportunidades.filter(
+      (o) => o.etapa !== "PERDIDO" && o.status !== "CANCELADO"
+    );
+
+    let pipelineStr: string | null = null;
+    let previsaoStr: string | null = null;
+    let temPipeline = false;
+
+    if (abertas.length > 0) {
+      temPipeline = true;
+      const totalPipeline = abertas.reduce((acc, o) => acc + (Number(o.valor_potencial) || 0), 0);
+      const totalPrevisao = abertas.reduce((acc, o) => {
+        const val = Number(o.valor_potencial) || 0;
+        const prob = (Number(o.probabilidade) || 50) / 100;
+        return acc + val * prob;
+      }, 0);
+
+      pipelineStr = formatarMoeda(totalPipeline);
+      previsaoStr = formatarMoeda(totalPrevisao);
+    }
+
+    // 3. Receita do mês (entradas liquidadas no mês atual)
+    const mesAtual = new Date().toISOString().slice(0, 7);
+    const entradasMes = lancamentos.filter(
+      (l) =>
+        l.fluxo === "ENTRADA" &&
+        (l.status === "RECEBIDO" || l.status === "LIQUIDADO") &&
+        (l.liquidacao?.startsWith(mesAtual) || l.vencimento?.startsWith(mesAtual))
+    );
+
+    let receitaMesStr: string | null = null;
+    let temReceitaMes = false;
+
+    if (entradasMes.length > 0) {
+      temReceitaMes = true;
+      const totalReceita = entradasMes.reduce(
+        (acc, l) => acc + (Number(l.valor_original) || 0),
+        0
+      );
+      receitaMesStr = formatarMoeda(totalReceita);
+    }
+
     return {
-      negocio: currentBusiness?.nome || "Empresa Selecionada",
-      estagio: currentBusiness?.estagio || "EM OPERAÇÃO",
-      principal_gargalo: currentBusiness?.principal_gargalo || "Acompanhamento executivo contínuo.",
+      caixa: { valor: caixaRealizadoStr, hasData: temCaixaRealizado },
+      pipeline: { valor: pipelineStr, hasData: temPipeline, count: abertas.length },
+      previsao: { valor: previsaoStr, hasData: temPipeline },
+      receitaMes: { valor: receitaMesStr, hasData: temReceitaMes },
     };
-  }, [isConsolidated, negocios, currentBusinessId, currentBusiness]);
-
-  const negociosVisiveis = useMemo(() => {
-    if (isConsolidated) return negocios;
-    return negocios.filter((item) => item.business_id === currentBusinessId);
-  }, [negocios, isConsolidated, currentBusinessId]);
-
-  const ideiasVisiveis = useMemo(() => {
-    let lista = ideias.filter((item) => pertence(item.business_id));
-    if (filtroDecisao !== "TODAS") {
-      lista = lista.filter((item) => {
-        if (filtroDecisao === "AGORA") return item.decisao === "AGORA";
-        if (filtroDecisao === "DEPOIS") return item.decisao === "DEPOIS";
-        if (filtroDecisao === "VALIDAR") return item.decisao === "PRECISA VALIDAR" || item.decisao === "VALIDAR";
-        return true;
-      });
-    }
-    return lista;
-  }, [ideias, pertence, filtroDecisao]);
-
-  const oportunidadesFiltradas = useMemo(() => {
-    return oportunidades.filter((op) => pertence(op.business_id));
-  }, [oportunidades, pertence]);
-
-  const pipelineCrm = useMemo(() => {
-    let total = 0;
-    let ativas = 0;
-    for (const op of oportunidadesFiltradas) {
-      if ((op.etapa || "").toUpperCase() === "PERDIDO") continue;
-      total += Number(op.valor_potencial || 0);
-      ativas += 1;
-    }
-    return { total, ativas };
-  }, [oportunidadesFiltradas]);
-
-  const comparativoDreMes = useMemo(() => {
-    const ref = new Date();
-    const mesAtual = format(ref, "yyyy-MM");
-    const mesAnterior = format(subMonths(ref, 1), "yyyy-MM");
-    const atual = lerDreMes(lancamentos, mesAtual, filtro);
-    const anterior = lerDreMes(lancamentos, mesAnterior, filtro);
-    const change =
-      atual.usados > 0 && anterior.usados > 0
-        ? variacaoPercentual(atual.resultado, anterior.resultado)
-        : undefined;
-    return { atual, change };
-  }, [lancamentos, filtro]);
-
-  // Informações visuais amigáveis da marca
-  const getProdutoInfo = (businessId: string) => {
-    const emp = empresas.find((e) => e.id === businessId);
-    if (businessId === "BIZ-001" || /igreen/i.test(emp?.nome || "")) {
-      return {
-        nome: "iGreen Energy",
-        categoria: "Energia Solar por Assinatura",
-        icone: Zap,
-        cor: "#10b981",
-        badgeCor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-      };
-    }
-    if (businessId === "BIZ-002" || /sa[uú]de|max|nutrition|refit/i.test(emp?.nome || "")) {
-      return {
-        nome: "Ecossistema de Saúde",
-        categoria: "Suplementação & Saúde Integrada",
-        icone: Activity,
-        cor: "#3b82f6",
-        badgeCor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-      };
-    }
-    if (businessId === "BIZ-003" || /humano/i.test(emp?.nome || "")) {
-      return {
-        nome: "Humano Digital",
-        categoria: "Agentes de Inteligência Artificial",
-        icone: Bot,
-        cor: "#8b5cf6",
-        badgeCor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-      };
-    }
-    return {
-      nome: emp?.sigla || emp?.nome || "Todas as Marcas",
-      categoria: "Unidade de Negócio",
-      icone: Package,
-      cor: emp?.cor || "#007A3D",
-      badgeCor: "bg-primary/10 text-primary border-primary/20",
-    };
-  };
-
-  const getDecisaoAmigavel = (decisao: string) => {
-    const d = (decisao || "").toUpperCase();
-    if (d === "AGORA") {
-      return {
-        rotulo: "Fazer Agora",
-        estilo: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-      };
-    }
-    if (d === "DEPOIS") {
-      return {
-        rotulo: "Para Depois",
-        estilo: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30",
-      };
-    }
-    if (d.includes("VALID") || d.includes("ANALIS") || d.includes("PRECISA")) {
-      return {
-        rotulo: "Em Avaliação",
-        estilo: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30",
-      };
-    }
-    if (d.includes("DESCART")) {
-      return {
-        rotulo: "Descartado",
-        estilo: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30",
-      };
-    }
-    return {
-      rotulo: "Em Estudo",
-      estilo: "bg-muted text-muted-foreground border-border",
-    };
-  };
-
-  // 1. StatsGrid Cards
-  const statsGridData = useMemo(() => {
-    const dreMesAtual = comparativoDreMes.atual;
-    const resultadoMesLabel = dreMesAtual.vazio ? "—" : moeda(dreMesAtual.resultado);
-
-    return [
-      {
-        label: isConsolidated ? "Saldo em Caixa (Grupo)" : `Caixa Disponível (${currentBusiness?.sigla || "Empresa"})`,
-        value: caixa.vazio ? "—" : moeda(caixa.saldo),
-        change: undefined,
-        icon: DollarSign,
-        color: "success" as const,
-        description: caixa.vazio
-          ? "Sem lançamentos liquidados no período"
-          : `Baseado em ${caixa.usados} lançamento(s) registrados`,
-      },
-      {
-        label: "Resultado do Mês",
-        value: resultadoMesLabel,
-        change: comparativoDreMes.change,
-        icon: TrendingUp,
-        color: "primary" as const,
-        description: dreMesAtual.vazio
-          ? "Sem lançamentos no mês atual"
-          : "Entradas menos saídas com base em competência",
-      },
-      {
-        label: "Vendas em Negociação",
-        value: moeda(pipelineCrm.total),
-        change: undefined,
-        icon: Target,
-        color: "warning" as const,
-        description:
-          pipelineCrm.ativas === 0
-            ? "Nenhuma oportunidade em andamento"
-            : `${pipelineCrm.ativas} oportunidade(s) no pipeline`,
-      },
-      {
-        label: "Foco Principal de Hoje",
-        value: ativo?.frente || "—",
-        change: undefined,
-        icon: Crown,
-        color: "primary" as const,
-        description: ativo ? "WIP = 1 (Foco Executivo)" : "Nenhuma prioridade em andamento",
-      },
-    ];
-  }, [caixa, comparativoDreMes, pipelineCrm, ativo, isConsolidated, currentBusiness]);
-
-  // 2. Gráfico de Entradas vs Saídas
-  const revenueChartData = useMemo(() => {
-    const mapa = new Map<string, { month: string; revenue: number; expenses: number; sort: string }>();
-    const lancsFiltrados = lancamentos.filter((l) => pertence(l.business_id));
-    const mesCurto = (yyyyMm: string) => {
-      const m = yyyyMm.slice(5, 7);
-      const nomes: Record<string, string> = {
-        "01": "Jan", "02": "Fev", "03": "Mar", "04": "Abr",
-        "05": "Mai", "06": "Jun", "07": "Jul", "08": "Ago",
-        "09": "Set", "10": "Out", "11": "Nov", "12": "Dez",
-      };
-      return nomes[m] || m;
-    };
-
-    for (const l of lancsFiltrados) {
-      const comp = (l.competencia || "").slice(0, 7);
-      if (!comp || comp.length < 7) continue;
-      const status = (l.status || "").toUpperCase();
-      const fluxo = (l.fluxo || "").toUpperCase();
-      if (status === "PREVISTO" || status === "CANCELADO" || fluxo.startsWith("TRANSFER")) continue;
-      if ((l.moeda || "BRL").toUpperCase() !== "BRL") continue;
-      const v = Number(l.valor_original || 0);
-      if (!Number.isFinite(v) || v === 0) continue;
-
-      if (!mapa.has(comp)) {
-        mapa.set(comp, { month: mesCurto(comp), revenue: 0, expenses: 0, sort: comp });
-      }
-      const bucket = mapa.get(comp)!;
-      if (fluxo.startsWith("ENTRADA")) bucket.revenue += v;
-      else if (fluxo.startsWith("SA")) bucket.expenses += v;
-    }
-
-    return [...mapa.values()]
-      .sort((a, b) => a.sort.localeCompare(b.sort))
-      .map(({ month, revenue, expenses }) => ({ month, revenue, expenses }));
-  }, [lancamentos, pertence]);
-
-  // 3. Gráfico Donut de Origem por Produto
-  const salesDonutData = useMemo(() => {
-    const porEmpresa = new Map<string, number>();
-    for (const l of lancamentos) {
-      if (!pertence(l.business_id)) continue;
-      const status = (l.status || "").toUpperCase();
-      const fluxo = (l.fluxo || "").toUpperCase();
-      if (!l.competencia || status === "PREVISTO" || status === "CANCELADO" || fluxo.startsWith("TRANSFER")) continue;
-      if (!fluxo.startsWith("ENTRADA")) continue;
-      if ((l.moeda || "BRL").toUpperCase() !== "BRL") continue;
-      const v = Number(l.valor_original || 0);
-      if (!Number.isFinite(v) || v <= 0) continue;
-      const id = l.business_id!;
-      porEmpresa.set(id, (porEmpresa.get(id) || 0) + v);
-    }
-
-    return empresas
-      .filter((emp) => pertence(emp.id))
-      .map((emp) => {
-        const info = getProdutoInfo(emp.id);
-        return {
-          name: info.nome,
-          value: porEmpresa.get(emp.id) || 0,
-          color: info.cor,
-        };
-      })
-      .filter((item) => item.value > 0);
-  }, [lancamentos, empresas, pertence]);
-
-  // 4. Funil de Vendas
-  const funnelData = useMemo(() => {
-    const etapas: { id: string; label: string; color: string }[] = [
-      { id: "PROSPECCAO", label: "Prospecção", color: "#3b82f6" },
-      { id: "QUALIFICACAO", label: "Qualificação", color: "#8b5cf6" },
-      { id: "APRESENTACAO", label: "Apresentação", color: "#6366f1" },
-      { id: "PROPOSTA", label: "Proposta", color: "#f59e0b" },
-      { id: "NEGOCIACAO", label: "Negociação", color: "#f97316" },
-      { id: "GANHO", label: "Fechado / Ganho", color: "#10b981" },
-    ];
-    return etapas.map((e) => ({
-      name: e.label,
-      value: oportunidadesFiltradas.filter((op) => (op.etapa || "").toUpperCase() === e.id).length,
-      color: e.color,
-    }));
-  }, [oportunidadesFiltradas]);
+  }, [lancamentos, oportunidades]);
 
   if (carregando) {
-    return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center space-y-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-xs uppercase font-bold tracking-widest text-muted-foreground animate-pulse">
-          Carregando dados de {rotulo}…
-        </p>
-      </div>
-    );
+    return <ExecutiveLoadingState type="cards" rows={4} />;
   }
 
-  const infoAtual = getProdutoInfo(currentBusinessId);
-  const IconeEmpresa = isConsolidated ? Layers : infoAtual.icone;
-
   return (
-    <div className="space-y-8 animate-fade-in pb-16">
-      {erro && (
-        <div className="flex items-center gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-destructive">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          <span>{erro}</span>
-        </div>
-      )}
-
-      {/* 🏢 1. BANNER OBRIGATÓRIO DO CONTEXTO DE EMPRESA (Item 26 Helena) */}
-      <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card/90 to-background p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start md:items-center gap-4">
-            <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm border"
-              style={{
-                backgroundColor: isConsolidated ? "#4F46E518" : `${infoAtual.cor}18`,
-                borderColor: isConsolidated ? "#4F46E535" : `${infoAtual.cor}35`,
-              }}
-            >
-              <IconeEmpresa
-                className="h-7 w-7"
-                style={{ color: isConsolidated ? "#4F46E5" : infoAtual.cor }}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Empresa Selecionada:
-                </span>
-                <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-primary">
-                  {currentBusinessId}
-                </span>
-                <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25">
-                  Estágio: {dadosNegocioAtivo.estagio || "EM OPERAÇÃO"}
-                </span>
-              </div>
-
-              <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
-                {dadosNegocioAtivo.negocio}
-              </h1>
-            </div>
-          </div>
-
-          {/* Gargalo Principal da Empresa Selecionada */}
-          <div className="md:max-w-md w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1">
-            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-              <Flame className="h-4 w-4 shrink-0" />
-              <p className="text-[11px] font-black uppercase tracking-wider">
-                Principal Gargalo da Empresa
-              </p>
-            </div>
-            <p className="text-xs font-semibold text-foreground/90 leading-snug">
-              {dadosNegocioAtivo.principal_gargalo || "Nenhum gargalo crítico registrado."}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 🎯 2. HERO CARD: PRIORIDADE NÚMERO 1 DO GRUPO (WIP = 1) */}
-      {temViolacaoWip && (
-        <section className="rounded-3xl border-2 border-rose-500/50 bg-rose-500/10 p-6 space-y-2">
-          <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black">
-            <AlertCircle className="h-5 w-5" />
-            <span className="text-sm uppercase tracking-wider">⚠️ ALERTA DE GOVERNANÇA: VIOLAÇÃO DE WIP EXECUTIVO = 1</span>
-          </div>
-          <p className="text-xs text-foreground leading-relaxed">
-            Existem <strong>{frentesAtivas.length}</strong> frentes marcadas simultaneamente como &quot;EM EXECUÇÃO&quot; no foco executivo:
-            <span className="font-semibold text-rose-500"> {frentesAtivas.map((f) => `${f.id} (${f.frente})`).join(", ")}</span>.
-            A regra fundamental do Sistema Helena determina <strong>WIP = 1</strong> (começar, finalizar, depois abrir outra frente).
-            Acesse o módulo de Foco Executivo para concluir ou pausar as frentes em paralelo.
-          </p>
-        </section>
-      )}
-
-      {!temViolacaoWip && frentesAtivas.length === 0 && (
-        <section className="rounded-3xl border border-border/70 bg-card p-6 text-center space-y-2">
-          <p className="text-sm font-bold text-foreground">Nenhuma frente executiva ativa no momento</p>
-          <p className="text-xs text-muted-foreground">
-            Todas as frentes de trabalho anteriores foram concluídas ou aguardam ativação formal do fundador.
-          </p>
-        </section>
-      )}
-
-      {ativo && (
-        <section className="relative overflow-hidden rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-background p-6 shadow-sm backdrop-blur-md">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="space-y-2 max-w-3xl">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  🎯 Foco Executivo Atual do Grupo (WIP = 1)
-                </p>
-                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                  {ativo.id}
-                </span>
-              </div>
-
-              <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
-                {ativo.frente}
-              </h2>
-              <div className="space-y-1.5 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                <p>
-                  <strong className="text-foreground font-semibold">O que precisamos fazer: </strong>
-                  {ativo.objetivo}
-                </p>
-                {ativo.criterio_de_saida && (
-                  <p className="pt-0.5 text-foreground/90 flex items-center gap-2 font-medium">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                    <span>
-                      <strong>Critério de saída: </strong>
-                      {ativo.criterio_de_saida}
-                    </span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  EM EXECUÇÃO
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  Liderado por: <strong className="text-foreground">Helena (CEO Virtual)</strong>
-                </span>
-              </div>
-
-              {proximoFoco && (
-                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-1.5 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Próxima Prioridade no Roadmap</p>
-                  <p className="text-xs font-semibold text-foreground">{proximoFoco.id} · {proximoFoco.frente}</p>
-                  <span className="text-[10px] text-amber-500 font-medium">(Aguardando conclusão de {ativo.id})</span>
-                </div>
+    <div className="space-y-7 pb-8">
+      {/* ======================================================================
+          NÍVEL 1 — COMANDO DO DIA (Hero Executivo Sóbrio)
+          ====================================================================== */}
+      <section
+        className="rounded-2xl border border-border bg-card p-6 sm:p-7 shadow-sm transition-all"
+        style={{ boxShadow: "0 1px 3px 0 rgba(0, 0, 0, 0.03)" }}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          {/* Lado Esquerdo: Saudação & Foco Executivo Ativo */}
+          <div className="space-y-3.5 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-semibold text-foreground">{saudacao}, Fundador.</span>
+              <span className="text-muted-foreground/60">·</span>
+              <span className="font-medium text-muted-foreground">
+                {isConsolidated ? "Grupo Consolidado" : currentBusiness?.nome || "iGreen"}
+              </span>
+              {!isConsolidated && currentBusiness?.estagio && (
+                <>
+                  <span className="text-muted-foreground/60">·</span>
+                  <ExecutiveBadge variant="default" size="sm">
+                    {currentBusiness.estagio}
+                  </ExecutiveBadge>
+                </>
               )}
             </div>
-          </div>
-        </section>
-      )}
 
-      {/* 📊 3. GRADE DE INDICADORES (StatsGrid Polido) */}
-      <StatsGrid stats={statsGridData} />
-
-      {/* 📈 4. GRÁFICOS EXECUTIVOS: Entradas vs Saídas & De Onde Vem o Dinheiro */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={revenueChartData} />
-        <SalesDonutChart data={salesDonutData} />
-      </div>
-
-      {/* 🏢 5. PRODUTOS & UNIDADES DE NEGÓCIO */}
-      <section className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
-          <div>
-            <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              Unidades de Negócio & Portfólio
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Acompanhamento de cada empresa do ecossistema e o que precisa ser destravado para faturar.
-            </p>
-          </div>
-          <Link
-            to="/modulo/portfolio"
-            className="text-xs font-semibold text-primary hover:underline self-start sm:self-auto"
-          >
-            Ver Cadastro no Portfólio →
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {negociosVisiveis.map((item) => {
-            const info = getProdutoInfo(item.business_id);
-            const Icone = info.icone;
-            const selecionadaAtiva = currentBusinessId === item.business_id;
-
-            return (
-              <div
-                key={item.business_id}
-                className={`rounded-3xl border bg-card/90 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between border-t-4 ${
-                  selecionadaAtiva
-                    ? "border-primary ring-2 ring-primary/20 shadow-md"
-                    : "border-border/60 hover:border-primary/40"
-                }`}
-                style={{ borderTopColor: info.cor }}
-              >
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm"
-                        style={{ backgroundColor: `${info.cor}15` }}
-                      >
-                        <Icone className="h-6 w-6" style={{ color: info.cor }} />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-foreground">
-                          {item.negocio || info.nome}
-                        </h3>
-                        <p className="text-[11px] text-muted-foreground">{item.business_id} · {info.categoria}</p>
-                      </div>
-                    </div>
-
-                    <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${info.badgeCor}`}>
-                      {item.estagio || "EM OPERAÇÃO"}
-                    </span>
-                  </div>
-
-                  {/* O que precisa destravar */}
-                  <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                      O que precisa destravar:
-                    </p>
-                    <p className="text-xs text-foreground font-medium leading-relaxed">
-                      {item.principal_gargalo || "Operação fluindo normalmente."}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-4 border-t border-border/40 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => alternar(item.business_id)}
-                    className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>{selecionadaAtiva ? "Empresa Atual" : "Focar nesta Empresa"}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-
-                  <Link
-                    to="/crm"
-                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
-                  >
-                    Ver Vendas
-                  </Link>
-                </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#007A3D]">
+                  Foco Executivo Ativo
+                </span>
+                <span className="text-xs text-muted-foreground">({focoAtivo.foco_id})</span>
               </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 💡 6. SUGESTÕES & OPORTUNIDADES DA HELENA */}
-      <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
-                <Lightbulb className="h-4 w-4" />
-              </div>
-              <h2 className="text-lg font-black text-foreground">
-                Sugestões & Oportunidades da Helena
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+                {focoAtivo.frente}
               </h2>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ideias analisadas pela sua inteligência com foco na empresa selecionada ({rotulo}).
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">Critério de Saída:</strong>{" "}
+              {focoAtivo.criterio_de_saida}
             </p>
-          </div>
 
-          {/* Filtros simples e amigáveis */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border/40 self-start sm:self-auto">
-            {[
-              { valor: "TODAS", label: "Todas" },
-              { valor: "AGORA", label: "Fazer Agora" },
-              { valor: "VALIDAR", label: "Em Avaliação" },
-              { valor: "DEPOIS", label: "Para Depois" },
-            ].map((f) => (
-              <button
-                key={f.valor}
-                type="button"
-                onClick={() => setFiltroDecisao(f.valor)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  filtroDecisao === f.valor
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Lista de Ideias em Cards Modernos */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {ideiasVisiveis.map((item) => {
-            const info = getProdutoInfo(item.business_id);
-            const decisao = getDecisaoAmigavel(item.decisao);
-
-            return (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-border/50 bg-background/60 p-4.5 hover:border-primary/40 hover:bg-card transition-all flex flex-col justify-between gap-3"
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="rounded-lg px-2.5 py-0.5 text-[10px] font-bold border"
-                      style={{
-                        backgroundColor: `${info.cor}12`,
-                        color: info.cor,
-                        borderColor: `${info.cor}30`,
-                      }}
-                    >
-                      {info.nome}
-                    </span>
-
-                    <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${decisao.estilo}`}>
-                      {decisao.rotulo}
-                    </span>
-                  </div>
-
-                  <p className="text-xs md:text-sm font-medium text-foreground leading-relaxed pt-1">
-                    {item.ideia}
-                  </p>
-                </div>
-
-                <div className="pt-2 border-t border-border/30 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-muted-foreground">
-                    Análise da Helena
-                  </span>
-
-                  <span className="text-[11px] text-muted-foreground">Decisão no ChatGPT oficial</span>
-                </div>
+            <div className="flex flex-wrap items-center gap-4 pt-1">
+              <div className="flex items-center gap-2">
+                <ExecutiveBadge variant="success" dot size="sm">
+                  EM EXECUÇÃO
+                </ExecutiveBadge>
+                <span className="text-xs text-muted-foreground">
+                  Responsável: <strong className="text-foreground">{focoAtivo.responsavel}</strong>
+                </span>
               </div>
-            );
-          })}
 
-          {ideiasVisiveis.length === 0 && (
-            <div className="col-span-full py-10 text-center rounded-2xl border border-dashed border-border/60 bg-muted/20">
-              <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-bold text-foreground">Nenhuma ideia registrada para esta empresa.</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Ideias validadas cadastradas em public.ideias aparecerão aqui automaticamente.
+              <Link
+                to="/modulo/foco_executivo"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#007A3D] hover:underline"
+              >
+                <span>Ver foco executivo</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Lado Direito: Próxima Prioridade (WIP = 1 protegido) */}
+          <div className="lg:w-72 shrink-0 rounded-xl border border-border/70 bg-muted/20 p-4 space-y-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Próxima Prioridade
+            </span>
+            <div>
+              <h4 className="text-sm font-semibold text-foreground">
+                {proximoFoco.foco_id} · {proximoFoco.frente}
+              </h4>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Responsável: {proximoFoco.responsavel}
               </p>
             </div>
-          )}
+            <div className="pt-1">
+              <ExecutiveBadge variant="default" size="sm">
+                AGUARDANDO CONCLUSÃO DE FOC-004
+              </ExecutiveBadge>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 🚀 7. FUNIL DE VENDAS & AÇÕES RÁPIDAS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <ConversionFunnel stages={funnelData} />
+      {/* ======================================================================
+          NÍVEL 2 — NÚMEROS ESSENCIAIS
+          Distinção estrita: Ausência de dados = "—", nunca R$ 0,00 fictício
+          ====================================================================== */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Números Essenciais · {isConsolidated ? "Grupo Consolidado" : currentBusiness?.nome || "iGreen"}
+          </h3>
+          <span className="text-[11px] text-muted-foreground">Fonte: Supabase Operacional</span>
         </div>
 
-        {/* Card de Atalhos Rápidos */}
-        <div className="premium-card p-6 flex flex-col justify-between border border-border/60 bg-card/90">
-          <div>
-            <div className="flex items-center justify-between border-b border-border/40 pb-3">
-              <div>
-                <h3 className="font-bold text-sm text-foreground">
-                  Ações Rápidas
-                </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Atalhos para a empresa {rotulo}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ExecutiveMetricCard
+            label="Caixa Realizado"
+            value={metricas.caixa.valor}
+            hasData={metricas.caixa.hasData}
+            subtext="Saldo líquido em contas conciliadas."
+            icon={Receipt}
+          />
+          <ExecutiveMetricCard
+            label="Pipeline Comercial"
+            value={metricas.pipeline.valor}
+            hasData={metricas.pipeline.hasData}
+            subtext={
+              metricas.pipeline.hasData
+                ? `${metricas.pipeline.count} oportunidade(s) abertas.`
+                : "Sem oportunidades ativas registradas."
+            }
+            icon={Target}
+          />
+          <ExecutiveMetricCard
+            label="Previsão Ponderada"
+            value={metricas.previsao.valor}
+            hasData={metricas.previsao.hasData}
+            subtext="Calculado pela probabilidade do funil."
+            icon={Compass}
+          />
+          <ExecutiveMetricCard
+            label="Receita do Mês"
+            value={metricas.receitaMes.valor}
+            hasData={metricas.receitaMes.hasData}
+            subtext="Entradas liquidadas no mês corrente."
+            icon={Building2}
+          />
+        </div>
+      </section>
+
+      {/* ======================================================================
+          NÍVEL 3 — ATENÇÃO EXECUTIVA (Layout 2/3 + 1/3)
+          ====================================================================== */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Esquerda: 2/3 Pendências Executivas / Inbox */}
+        <div
+          className="lg:col-span-2 rounded-xl border border-border bg-card p-5 space-y-4"
+          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
+        >
+          <div className="flex items-center justify-between border-b border-border/50 pb-3">
+            <div className="flex items-center gap-2">
+              <Inbox className="h-4 w-4 text-[#007A3D]" />
+              <h3 className="text-sm font-semibold text-foreground">
+                Caixa de Decisões & Pendências
+              </h3>
+            </div>
+            <Link
+              to="/inbox"
+              className="text-xs font-semibold text-[#007A3D] hover:underline inline-flex items-center gap-1"
+            >
+              <span>Abrir Inbox</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {/* Item 1 */}
+            <div className="flex items-start justify-between gap-3 rounded-lg border-l-2 border-l-purple-500 bg-muted/20 p-3.5 text-xs transition-colors hover:bg-muted/40">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    Homologação Técnica do Núcleo
+                  </span>
+                  <ExecutiveBadge variant="purple" size="sm">
+                    Decisão
+                  </ExecutiveBadge>
+                </div>
+                <p className="text-muted-foreground line-clamp-1">
+                  Validar encerramento formal de FOC-004 e transição segura para frente de Caixa.
                 </p>
+                <div className="text-[10px] text-muted-foreground">
+                  Origem: <strong>Helena (CEO Virtual)</strong> · Prazo: <strong>Hoje</strong>
+                </div>
               </div>
-              <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
-                Atalhos
-              </span>
+              <Link
+                to="/modulo/foco_executivo"
+                className="shrink-0 rounded border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                Auditar
+              </Link>
             </div>
 
-            <div className="mt-4 space-y-2.5">
-              {[
-                { label: "+ Registrar Entrada de Dinheiro", rota: "/financeiro", cor: "bg-emerald-500", desc: "Adicionar uma nova venda ou recebimento" },
-                { label: "+ Nova Negociação com Cliente", rota: "/crm", cor: "bg-blue-500", desc: "Criar oportunidade no pipeline de vendas" },
-                { label: "+ Anotar Nova Decisão", rota: "/modulo/decisoes", cor: "bg-amber-500", desc: "Registrar o que foi acordado" },
-                { label: "Ver agenda do dia", rota: "/calendario", cor: "bg-purple-500", desc: "Compromissos e follow-ups do CRM" },
-                { label: "+ Registrar Novo Contrato", rota: "/modulo/contratos", cor: "bg-rose-500", desc: "Adicionar contrato de cliente fechado" },
-              ].map((act, idx) => (
-                <Link
-                  key={idx}
-                  to={act.rota}
-                  className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-background/60 hover:border-primary/40 hover:bg-card transition-all group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-2.5 w-2.5 rounded-full ${act.cor} group-hover:scale-125 transition-transform flex-shrink-0`} />
-                    <div>
-                      <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {act.label}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {act.desc}
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
-                </Link>
-              ))}
+            {/* Item 2 */}
+            <div className="flex items-start justify-between gap-3 rounded-lg border-l-2 border-l-[#B47D14] bg-muted/20 p-3.5 text-xs transition-colors hover:bg-muted/40">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    Aquisição Comercial em iGreen
+                  </span>
+                  <ExecutiveBadge variant="warning" size="sm">
+                    Gargalo
+                  </ExecutiveBadge>
+                </div>
+                <p className="text-muted-foreground line-clamp-1">
+                  Destravar prospecção ativa de clientes e registro de leads no pipeline CRM.
+                </p>
+                <div className="text-[10px] text-muted-foreground">
+                  Empresa: <strong>BIZ-001</strong> · Responsável: <strong>Victor (Vendas)</strong>
+                </div>
+              </div>
+              <Link
+                to="/crm"
+                className="shrink-0 rounded border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                Ver CRM
+              </Link>
+            </div>
+
+            {/* Item 3 */}
+            <div className="flex items-start justify-between gap-3 rounded-lg border-l-2 border-l-[#007A3D] bg-muted/20 p-3.5 text-xs transition-colors hover:bg-muted/40">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">
+                    Conexão dos 20 Especialistas Grok
+                  </span>
+                  <ExecutiveBadge variant="success" size="sm">
+                    Equipe
+                  </ExecutiveBadge>
+                </div>
+                <p className="text-muted-foreground line-clamp-1">
+                  20/20 Bots validados no Grok com External Agent IDs registrados no Supabase.
+                </p>
+                <div className="text-[10px] text-muted-foreground">
+                  Responsável: <strong>Theo (Tecnologia & IA)</strong> · Status: <strong>Connected</strong>
+                </div>
+              </div>
+              <Link
+                to="/equipe"
+                className="shrink-0 rounded border border-border bg-card px-2.5 py-1 text-[11px] font-semibold text-foreground hover:bg-muted"
+              >
+                Ver Equipe
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Direita: 1/3 Riscos & Próximas Decisões */}
+        <div
+          className="rounded-xl border border-border bg-card p-5 space-y-4"
+          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
+        >
+          <div className="flex items-center justify-between border-b border-border/50 pb-3">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-[#B91C1C]" />
+              <h3 className="text-sm font-semibold text-foreground">
+                Riscos & Decisões
+              </h3>
+            </div>
+            <Link
+              to="/modulo/riscos"
+              className="text-xs font-semibold text-[#007A3D] hover:underline"
+            >
+              Ver todos
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-3 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">Aquisição Comercial</span>
+                <ExecutiveBadge variant="danger" size="sm">
+                  ALTO
+                </ExecutiveBadge>
+              </div>
+              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                Risco de manter foco em refinamento técnico sem validar tração comercial em escala.
+              </p>
+              <div className="text-[10px] text-muted-foreground pt-1">
+                Contexto: <strong>iGreen (BIZ-001)</strong>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-3 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">Escopo de Produto</span>
+                <ExecutiveBadge variant="warning" size="sm">
+                  MÉDIO
+                </ExecutiveBadge>
+              </div>
+              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                Necessidade de fechar escopo mínimo antes de desenvolvimento de novas features.
+              </p>
+              <div className="text-[10px] text-muted-foreground pt-1">
+                Contexto: <strong>Saúde (BIZ-002)</strong>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/10 p-3 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">Validação de Comissionamento</span>
+                <ExecutiveBadge variant="default" size="sm">
+                  VALIDAÇÃO
+                </ExecutiveBadge>
+              </div>
+              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                Rastreamento confiável de comissões até a liquidação bancária.
+              </p>
+              <div className="text-[10px] text-muted-foreground pt-1">
+                Contexto: <strong>Humano Digital (BIZ-003)</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================================
+          NÍVEL 4 — CONTEXTO ESTRATÉGICO DA EMPRESA
+          Composição visual unificada (sem dezenas de cards soltos)
+          ====================================================================== */}
+      <section
+        className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+        style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
+      >
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/50 pb-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="h-3 w-3 rounded-full shrink-0"
+              style={{ backgroundColor: currentBusiness?.cor || "#007A3D" }}
+            />
+            <div>
+              <h3 className="text-base font-semibold text-foreground">
+                {isConsolidated ? "Grupo Consolidado" : currentBusiness?.nome || "iGreen Energy"}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {isConsolidated ? "Visão integrada do portfólio" : `Unidade ${currentBusinessId} · Diretriz Estratégica`}
+              </p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-2xl bg-primary/5 border border-primary/20 p-3.5 text-center">
-            <p className="text-[11px] font-bold text-foreground">
-              Sistema Helena Sincronizado
+          <div className="flex items-center gap-2">
+            {!isConsolidated && currentBusiness?.estagio && (
+              <ExecutiveBadge variant="default">
+                ESTÁGIO: {currentBusiness.estagio}
+              </ExecutiveBadge>
+            )}
+            <Link
+              to="/portfolio"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+            >
+              <span>Abrir Portfólio</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Grade Estruturada da Empresa */}
+        <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Principal Gargalo
+            </span>
+            <p className="text-xs font-medium text-foreground leading-relaxed">
+              {negocioInfo?.principal_gargalo || "Comercial / conseguir clientes massivamente."}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Contexto multiempresa aplicado ({currentBusinessId})
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Objetivo Atual
+            </span>
+            <p className="text-xs font-medium text-foreground leading-relaxed">
+              {negocioInfo?.objetivo_atual || "Validar e destravar aquisição de clientes por assinatura."}
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              KPI Principal
+            </span>
+            <p className="text-xs font-medium text-foreground leading-relaxed">
+              {negocioInfo?.kpi_principal || "Leads → conversas → propostas → vendas."}
             </p>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

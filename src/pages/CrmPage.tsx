@@ -16,6 +16,8 @@ import {
   Trophy,
   XCircle,
   X,
+  Layers,
+  Calendar,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
@@ -23,6 +25,12 @@ import { PremiumKanbanColumn } from "@/components/pipeline/PremiumKanbanColumn";
 import { PremiumKanbanCard } from "@/components/pipeline/PremiumKanbanCard";
 import { sincronizarEventosCrm } from "@/lib/crm-calendario";
 import { Link } from "react-router-dom";
+import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
+import { ExecutiveMetricCard } from "@/components/executive/ExecutiveMetricCard";
+import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
+import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
+import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
+import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
 
 export interface Oportunidade {
   opportunity_id: string;
@@ -51,7 +59,7 @@ const ETAPAS_CONFIG: Record<
   APRESENTACAO: { id: "APRESENTACAO", label: "Apresentação", color: "#6366f1", icon: FileText },
   PROPOSTA: { id: "PROPOSTA", label: "Proposta", color: "#f59e0b", icon: FileText },
   NEGOCIACAO: { id: "NEGOCIACAO", label: "Negociação", color: "#f97316", icon: Handshake },
-  GANHO: { id: "GANHO", label: "Fechado / Ganho", color: "#10b981", icon: Trophy },
+  GANHO: { id: "GANHO", label: "Ganho", color: "#10b981", icon: Trophy },
   PERDIDO: { id: "PERDIDO", label: "Perdido", color: "#ef4444", icon: XCircle },
 };
 
@@ -93,25 +101,25 @@ export default function CrmPage() {
     setErro("");
     setOportunidades([]);
 
-    let query = supabase.from("crm").select("*");
-    if (!isConsolidated && currentBusinessId) {
-      query = query.eq("business_id", currentBusinessId);
-    } else if (isConsolidated && selecionadas.length > 0) {
-      query = query.in("business_id", selecionadas);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      if (/permission denied|jwt|unauthorized|not allowed/i.test(error.message)) {
-        setErro("");
-        setOportunidades([]);
-      } else {
-        setErro(error.message);
+    try {
+      let query = supabase.from("crm").select("*");
+      if (!isConsolidated && currentBusinessId) {
+        query = query.eq("business_id", currentBusinessId);
+      } else if (isConsolidated && selecionadas.length > 0) {
+        query = query.in("business_id", selecionadas);
       }
-    } else {
-      setOportunidades((data || []) as Oportunidade[]);
+
+      const { data, error } = await query;
+      if (error) {
+        setErro(error.message);
+      } else {
+        setOportunidades((data || []) as Oportunidade[]);
+      }
+    } catch (e: any) {
+      setErro(e?.message || "Erro inesperado ao consultar oportunidades.");
+    } finally {
+      setCarregando(false);
     }
-    setCarregando(false);
   };
 
   useEffect(() => {
@@ -170,7 +178,6 @@ export default function CrmPage() {
 
   const abrirModalEditar = (op: Oportunidade) => {
     if (!isConsolidated && op.business_id && op.business_id !== currentBusinessId) {
-      alert("Operação bloqueada: Esta oportunidade pertence a outra empresa.");
       return;
     }
     setEditando(op);
@@ -232,139 +239,119 @@ export default function CrmPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Link to="/calendario" className="pe-tab">Abrir calendário</Link>
-          <div className="flex rounded-xl border border-border/50 bg-card/60 p-1">
+      <ExecutivePageHeader
+        icon={Target}
+        title="CRM & Pipeline"
+        description="Acompanhe oportunidades da primeira conversa ao fechamento."
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-border/70 bg-card p-0.5">
+              <button
+                type="button"
+                onClick={() => setModoVisualizacao("kanban")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modoVisualizacao === "kanban"
+                    ? "bg-foreground text-background font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Kanban className="h-3.5 w-3.5" />
+                <span>Kanban</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoVisualizacao("tabela")}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  modoVisualizacao === "tabela"
+                    ? "bg-foreground text-background font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+                <span>Tabela</span>
+              </button>
+            </div>
+
             <button
-              onClick={() => setModoVisualizacao("kanban")}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                modoVisualizacao === "kanban"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              type="button"
+              onClick={() => abrirModalNovo()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
             >
-              <Kanban className="h-3.5 w-3.5" />
-              <span>Kanban</span>
-            </button>
-            <button
-              onClick={() => setModoVisualizacao("tabela")}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                modoVisualizacao === "tabela"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <TableIcon className="h-3.5 w-3.5" />
-              <span>Tabela</span>
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nova oportunidade</span>
             </button>
           </div>
+        }
+      />
 
-          <button
-            onClick={() => abrirModalNovo()}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-glow transition-all hover:opacity-90"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nova Oportunidade</span>
-          </button>
-        </div>
-
-      {/* Grid de Métricas do Funil */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="metric-card p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Pipeline Total
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-              <DollarSign className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-3 text-2xl font-black text-foreground">
-            {metricas.ativas === 0 ? "Nenhuma oportunidade" : moeda(metricas.totalPipeline)}
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {metricas.ativas === 0 ? "O pipeline vazio não é saldo." : `${metricas.ativas} oportunidades ativas`}
-          </p>
-        </div>
-
-        <div className="metric-card p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Previsão Ponderada
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
-              <TrendingUp className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-3 text-2xl font-black text-foreground">
-            {metricas.ativas === 0 ? "Sem previsão" : moeda(metricas.totalPonderado)}
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Ajustada por probabilidade
-          </p>
-        </div>
-
-        <div className="metric-card p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Ticket Médio
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
-              <Building className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-3 text-2xl font-black text-foreground">
-            {metricas.ativas === 0 ? "Sem ticket" : moeda(metricas.ticketMedio)}
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">Por oportunidade</p>
-        </div>
-
-        <div className="metric-card p-5">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Holding Ativa
-            </p>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
-              <UserCheck className="h-4 w-4" />
-            </div>
-          </div>
-          <p className="mt-3 text-lg font-black text-foreground truncate">
-            {rotulo}
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground truncate">
-            Empresas ligadas no topo
-          </p>
-        </div>
+      {/* Grid de 4 Métricas Essenciais do CRM */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <ExecutiveMetricCard
+          label="Pipeline"
+          value={metricas.totalPipeline > 0 ? moeda(metricas.totalPipeline) : null}
+          subtext={metricas.totalPipeline > 0 ? `${metricas.ativas} oportunidades ativas` : "Sem dados realizados"}
+          icon={DollarSign}
+        />
+        <ExecutiveMetricCard
+          label="Previsão ponderada"
+          value={metricas.totalPonderado > 0 ? moeda(metricas.totalPonderado) : null}
+          subtext={metricas.totalPonderado > 0 ? "Ajustada por probabilidade" : "Sem dados realizados"}
+          icon={TrendingUp}
+        />
+        <ExecutiveMetricCard
+          label="Ticket médio"
+          value={metricas.ticketMedio > 0 ? moeda(metricas.ticketMedio) : null}
+          subtext={metricas.ticketMedio > 0 ? "Por oportunidade ativa" : "Sem dados realizados"}
+          icon={Building}
+        />
+        <ExecutiveMetricCard
+          label="Oportunidades abertas"
+          value={metricas.ativas > 0 ? metricas.ativas : null}
+          subtext={metricas.ativas > 0 ? "No funil comercial" : "Sem dados realizados"}
+          icon={UserCheck}
+        />
       </div>
 
-      {/* Barra de Filtro e Busca */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/50 bg-card/60 p-3 backdrop-blur-md">
+      {/* Barra de Busca e Filtros */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Buscar por lead, empresa, contato ou responsável…"
             value={termoBusca}
             onChange={(e) => setTermoBusca(e.target.value)}
-            className="w-full rounded-xl border border-border/50 bg-background/80 py-2.5 pl-10 pr-4 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+            className="w-full rounded-lg border border-border/70 bg-background py-1.5 pl-9 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
           />
         </div>
-        <p className="text-xs text-muted-foreground pr-2 hidden sm:block">
-          Mostrando <span className="font-bold text-foreground">{filtradas.length}</span> lead(s)
-        </p>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/calendario"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            <span>Calendário comercial</span>
+          </Link>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {filtradas.length} oportunidade(s)
+          </span>
+        </div>
       </div>
 
       {erro && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive">
-          {erro}
-        </div>
+        <ExecutiveErrorState
+          title="Erro ao carregar oportunidades"
+          message={erro}
+          onRetry={carregarOportunidades}
+        />
       )}
 
-      {/* Visualização KANBAN com os componentes PremiumKanbanColumn e PremiumKanbanCard */}
-      {modoVisualizacao === "kanban" ? (
+      {carregando ? (
+        <ExecutiveLoadingState message="Carregando pipeline de vendas..." />
+      ) : modoVisualizacao === "kanban" ? (
         <div className="relative">
           <div className="overflow-x-auto pb-6 scrollbar-thin">
-            <div className="flex gap-5 min-w-max px-1">
+            <div className="flex gap-4 min-w-max px-1">
               {ETAPAS_ORDEM.map((etapaKey) => {
                 const config = ETAPAS_CONFIG[etapaKey];
                 const itensEtapa = filtradas.filter(
@@ -385,19 +372,26 @@ export default function CrmPage() {
                     icon={config.icon}
                   >
                     {itensEtapa.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed border-border/40">
+                      <div className="flex flex-col items-center justify-center py-10 px-3 text-center rounded-xl border border-dashed border-border/60 bg-muted/20">
                         <div
-                          className="p-3.5 rounded-full mb-2"
+                          className="p-2.5 rounded-full mb-2"
                           style={{ backgroundColor: `${config.color}15` }}
                         >
-                          <config.icon className="h-6 w-6" style={{ color: config.color }} />
+                          <config.icon className="h-4 w-4" style={{ color: config.color }} />
                         </div>
-                        <p className="text-xs text-muted-foreground">Sem oportunidades</p>
+                        <p className="text-xs font-medium text-foreground">
+                          Nenhuma oportunidade em {config.label}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 max-w-[200px] leading-tight">
+                          Quando Victor registrar leads, eles aparecerão aqui.
+                        </p>
                         <button
+                          type="button"
                           onClick={() => abrirModalNovo(etapaKey)}
-                          className="mt-2 text-[10px] text-primary hover:underline font-semibold"
+                          className="mt-3 inline-flex items-center gap-1 rounded-md border border-border/80 bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
                         >
-                          + Adicionar lead
+                          <Plus className="h-3 w-3" />
+                          <span>Adicionar oportunidade</span>
                         </button>
                       </div>
                     ) : (

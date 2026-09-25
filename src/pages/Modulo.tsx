@@ -4,21 +4,33 @@ import {
   Database,
   Plus,
   Search,
-  Filter,
+  MoreVertical,
+  Eye,
   Pencil,
   Trash2,
   X,
-  CheckCircle2,
-  AlertCircle,
-  FileSpreadsheet,
   Layers,
-  ArrowUpDown,
+  Calendar,
+  Clock,
+  UserCheck,
+  CheckCircle2,
+  TableProperties,
+  ArrowRight,
+  ShieldCheck,
+  Cpu,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { COLUNAS_SISTEMA, MODULOS, SEM_EXCLUSAO } from "@/lib/modulos";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { sincronizarTarefaNoCalendario } from "@/lib/tarefa-calendario";
 import type { TarefaRow } from "@/lib/agenda-unificada";
+import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
+import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
+import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
+import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
+import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
+import { ExecutiveDrawer } from "@/components/executive/ExecutiveDrawer";
+import { ExecutiveConfirmDialog } from "@/components/executive/ExecutiveConfirmDialog";
 
 type Campo = {
   coluna: string;
@@ -26,8 +38,6 @@ type Campo = {
   chave: string | null;
   calculado: string | null;
 };
-
-const STATUS_BLOQUEADO = new Set(["ATIVA", "ATIVO", "OPERACIONAL", "SINCRONIZADA", "SINCRONIZADO"]);
 
 export default function Modulo() {
   const { tabela = "" } = useParams();
@@ -38,22 +48,33 @@ export default function Modulo() {
     escopo: "BUSINESS" as const,
     descricao: "Módulo operacional do Sistema Helena",
   };
-  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, rotulo, empresas } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, rotulo, empresas } = useBusiness();
   const [campos, setCampos] = useState<Campo[]>([]);
   const [linhas, setLinhas] = useState<Record<string, unknown>[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [editando, setEditando] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const [drawerLinha, setDrawerLinha] = useState<Record<string, unknown> | null>(null);
+  const [drawerAberto, setDrawerAberto] = useState(false);
+  const [excluirId, setExcluirId] = useState<string | null>(null);
+  const [dialogExcluirAberto, setDialogExcluirAberto] = useState(false);
   const [termoBusca, setTermoBusca] = useState("");
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [modoVisualizacao, setModoVisualizacao] = useState<"cards" | "tabela">("cards");
+
+  const isGovernanca = tabela.toLowerCase() === "governanca";
+  const isIntegracoes = tabela.toLowerCase() === "integracoes";
 
   const chave = useMemo(() => {
     const marcada = campos.find((campo) => campo.chave === "SIM")?.coluna;
     if (marcada) return marcada;
+    if (campos.some((campo) => campo.coluna === "governance_id")) return "governance_id";
+    if (campos.some((campo) => campo.coluna === "integration_id")) return "integration_id";
+    if (campos.some((campo) => campo.coluna === "risk_id")) return "risk_id";
+    if (campos.some((campo) => campo.coluna === "decision_id")) return "decision_id";
     if (campos.some((campo) => campo.coluna === "registro_id")) return "registro_id";
-    if (campos.some((campo) => campo.coluna === "ordem")) return "ordem";
     return campos[0]?.coluna || "id";
   }, [campos]);
 
@@ -68,8 +89,6 @@ export default function Modulo() {
       ),
     [campos]
   );
-
-  const isGovernanca = tabela.toLowerCase() === "governanca";
 
   const preferidas = isGovernanca
     ? ["ritual", "escopo", "cadencia", "dono", "participantes", "pauta_fixa", "entrega_esperada", "status"]
@@ -89,137 +108,155 @@ export default function Modulo() {
         "etapa",
       ];
 
-  const colunasTabela = [
-    ...preferidas.filter((coluna) => editaveis.some((campo) => campo.coluna === coluna)),
-    ...editaveis.map((campo) => campo.coluna).filter((coluna) => !preferidas.includes(coluna) && (!isGovernanca || coluna !== "business_id")),
-  ]
-    .filter((coluna) => coluna !== chave && (!isGovernanca || coluna !== "business_id"))
-    .slice(0, 6);
+  const colunasTabela = useMemo(() => {
+    return [
+      ...preferidas.filter((coluna) => editaveis.some((campo) => campo.coluna === coluna)),
+      ...editaveis
+        .map((campo) => campo.coluna)
+        .filter((coluna) => !preferidas.includes(coluna) && (!isGovernanca || coluna !== "business_id")),
+    ]
+      .filter((coluna) => coluna !== chave && (!isGovernanca || coluna !== "business_id"))
+      .slice(0, 6);
+  }, [editaveis, preferidas, isGovernanca, chave]);
 
   async function carregar() {
     setCarregando(true);
     setErro("");
     const isGov = tabela.toLowerCase() === "governanca";
 
-    const mapa = await supabase
-      .from("helena_campos")
-      .select("coluna,nome_na_planilha,chave,calculado")
-      .eq("tabela", tabela);
-    let lista: Campo[] = [];
-    if (!mapa.error && mapa.data) {
-      lista = (mapa.data as Campo[]).filter((c) => !isGov || (c.coluna !== "business_id" && c.coluna !== "business_id_area"));
-      setCampos(lista);
-    }
+    try {
+      const mapa = await supabase
+        .from("helena_campos")
+        .select("coluna,nome_na_planilha,chave,calculado")
+        .eq("tabela", tabela);
 
-    let consulta = supabase.from(tabela).select("*").limit(200);
+      let lista: Campo[] = [];
+      if (!mapa.error && mapa.data) {
+        lista = (mapa.data as Campo[]).filter(
+          (c) => !isGov || (c.coluna !== "business_id" && c.coluna !== "business_id_area")
+        );
+        setCampos(lista);
+      }
 
-    // Governança: tabela 100% global, sem business_id. Ordena por governance_id se disponível.
-    if (isGov) {
-      consulta = consulta.order("governance_id", { ascending: true });
-    } else {
-      // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS) para demais módulos
-      const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
-      const escopo = meta.escopo;
+      let consulta = supabase.from(tabela).select("*").limit(200);
 
-      if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "integracoes") {
-        if (escopo === "MISTO") {
-          if (!isConsolidated && currentBusinessId) {
-            consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.eq.${currentBusinessId}`);
-          } else if (isConsolidated && selecionadas.length > 0) {
-            consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.in.(${selecionadas.join(",")})`);
-          }
-        } else {
-          if (!isConsolidated && currentBusinessId) {
-            consulta = consulta.eq(colEmpresa, currentBusinessId);
-          } else if (isConsolidated && selecionadas.length > 0) {
-            consulta = consulta.in(colEmpresa, [...selecionadas]);
+      if (isGov) {
+        consulta = consulta.order("governance_id", { ascending: true });
+      } else if (isIntegracoes) {
+        consulta = consulta.order("integration_id", { ascending: true });
+      } else {
+        const colEmpresa = lista.find(
+          (c) => c.coluna === "business_id" || c.coluna === "business_id_area"
+        )?.coluna;
+        const escopo = meta.escopo;
+
+        if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "integracoes") {
+          if (escopo === "MISTO") {
+            if (!isConsolidated && currentBusinessId) {
+              consulta = consulta.or(
+                `${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.eq.${currentBusinessId}`
+              );
+            } else if (isConsolidated && selecionadas.length > 0) {
+              consulta = consulta.or(
+                `${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.in.(${selecionadas.join(",")})`
+              );
+            }
+          } else {
+            if (!isConsolidated && currentBusinessId) {
+              consulta = consulta.eq(colEmpresa, currentBusinessId);
+            } else if (isConsolidated && selecionadas.length > 0) {
+              consulta = consulta.in(colEmpresa, [...selecionadas]);
+            }
           }
         }
       }
-    }
 
-    const { data, error } = await consulta;
-    if (error) {
-      if (/permission denied|jwt|unauthorized|not allowed/i.test(error.message)) {
-        setErro("");
-      } else {
+      const { data, error } = await consulta;
+      if (error) {
         setErro(error.message);
+      } else {
+        const rows = (data || []) as Record<string, unknown>[];
+        setLinhas(rows);
+        if (lista.length === 0 && rows.length > 0) {
+          const colunasDetectadas: Campo[] = Object.keys(rows[0])
+            .filter((col) => !isGov || (col !== "business_id" && col !== "business_id_area"))
+            .map((col) => ({
+              coluna: col,
+              nome_na_planilha: col,
+              chave:
+                col === "governance_id" ||
+                col === "integration_id" ||
+                col === "id" ||
+                col === "registro_id" ||
+                col.endsWith("_id")
+                  ? "SIM"
+                  : "NAO",
+              calculado: "NAO",
+            }));
+          setCampos(colunasDetectadas);
+        }
       }
-    } else {
-      const rows = (data || []) as Record<string, unknown>[];
-      setLinhas(rows);
-      // Se helena_campos não forneceu os campos mas temos dados reais, infere as colunas automaticamente
-      if (lista.length === 0 && rows.length > 0) {
-        const colunasDetectadas: Campo[] = Object.keys(rows[0])
-          .filter((col) => !isGov || (col !== "business_id" && col !== "business_id_area"))
-          .map((col) => ({
-            coluna: col,
-            nome_na_planilha: col,
-            chave: col === "governance_id" || col === "id" || col === "registro_id" || col.endsWith("_id") ? "SIM" : "NAO",
-            calculado: "NAO",
-          }));
-        setCampos(colunasDetectadas);
-      }
+    } catch (err: any) {
+      setErro(err?.message || `Não foi possível carregar os registros de ${meta.titulo}.`);
+    } finally {
+      setCarregando(false);
     }
-    setCarregando(false);
   }
 
   useEffect(() => {
-    setForm({});
-    setEditando(null);
-    setAviso("");
-    setTermoBusca("");
-    setModalAberto(false);
-    if (tabela) carregar();
+    carregar();
   }, [tabela, currentBusinessId, isConsolidated]);
 
-  // Busca instantânea
   const linhasFiltradas = useMemo(() => {
-    if (!termoBusca.trim()) return linhas;
+    if (!termoBusca) return linhas;
     const termo = termoBusca.toLowerCase();
-    return linhas.filter((linha) => {
-      return Object.values(linha).some((val) =>
-        String(val ?? "").toLowerCase().includes(termo)
-      );
-    });
+    return linhas.filter((linha) =>
+      Object.values(linha).some((val) => String(val ?? "").toLowerCase().includes(termo))
+    );
   }, [linhas, termoBusca]);
 
-  function validar(valores: Record<string, string>) {
-    if (
-      (tabela === "integracoes" || tabela === "automacoes") &&
-      STATUS_BLOQUEADO.has((valores.status || "").toUpperCase())
-    ) {
-      return "Integração e automação ficam planejadas até existir teste externo.";
+  function abrirDrawer(linha: Record<string, unknown>) {
+    setDrawerLinha(linha);
+    setDrawerAberto(true);
+  }
+
+  function abrirEditar(linha: Record<string, unknown>) {
+    const next: Record<string, string> = {};
+    for (const campo of editaveis) {
+      const valor = linha[campo.coluna];
+      if (valor !== null && valor !== undefined) next[campo.coluna] = String(valor);
     }
-    if (tabela === "financeiro") {
-      const valor = Number(String(valores.valor_original || "").replace(",", "."));
-      if (valores.valor_original && (!(valor >= 0) || Number.isNaN(valor))) {
-        return "Valor precisa ser positivo. O sentido fica no fluxo.";
+    setForm(next);
+    setEditando(String(linha[chave]));
+    setModalAberto(true);
+  }
+
+  function solicitarExcluir(id: string) {
+    setExcluirId(id);
+    setDialogExcluirAberto(true);
+  }
+
+  async function confirmarExclusao() {
+    if (!excluirId) return;
+    try {
+      let qDel = supabase.from(tabela).delete().eq(chave, excluirId);
+      const { error } = await qDel;
+      if (error) {
+        setErro(error.message);
+      } else {
+        setAviso("Registro excluído com sucesso.");
+        await carregar();
       }
-      if (
-        (valores.status === "PAGO" || valores.status === "RECEBIDO") &&
-        valores.tipo_ajuste === "PARCIAL"
-      ) {
-        return "PAGO e RECEBIDO só valem para quitação integral.";
-      }
+    } catch (err: any) {
+      setErro(err?.message || "Erro ao excluir registro.");
+    } finally {
+      setDialogExcluirAberto(false);
+      setExcluirId(null);
     }
-    if (
-      tabela === "ideias" &&
-      valores.decisao &&
-      !["AGORA", "DEPOIS", "DESCARTAR", "PRECISA VALIDAR"].includes(valores.decisao)
-    ) {
-      return "A decisão da ideia é AGORA, DEPOIS, DESCARTAR ou PRECISA VALIDAR.";
-    }
-    return "";
   }
 
   async function salvar(event: FormEvent) {
     event.preventDefault();
-    const msg = validar(form);
-    if (msg) {
-      setErro(msg);
-      return;
-    }
     const row: Record<string, string | number | null> = {};
     for (const campo of editaveis) {
       const valor = (form[campo.coluna] || "").trim();
@@ -233,7 +270,9 @@ export default function Modulo() {
       }
     }
     if (campos.some((campo) => campo.coluna === "source_system")) row.source_system = "HELENA";
-    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
+    const colEmpresa = !isGovernanca
+      ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna
+      : undefined;
     if (colEmpresa) {
       if (!isConsolidated) {
         row[colEmpresa] = currentBusinessId;
@@ -242,39 +281,16 @@ export default function Modulo() {
       }
     }
 
-    if (!editando && chave !== "registro_id" && !row[chave]) {
-      setErro(`Informe ${chave}.`);
-      return;
-    }
-
     let consulta = editando
       ? supabase.from(tabela).update(row).eq(chave, editando)
       : supabase.from(tabela).insert(row);
-
-    if (editando && colEmpresa && !isConsolidated) {
-      consulta = consulta.eq(colEmpresa, currentBusinessId);
-    }
 
     const { error } = await consulta;
     if (error) {
       setErro(error.message);
       return;
     }
-    if (tabela === "tarefas") {
-      const taskId = String(editando || row.task_id || form.task_id || "");
-      if (taskId && row.business_id && row.tarefa) {
-        await sincronizarTarefaNoCalendario({
-          task_id: taskId,
-          business_id: String(row.business_id),
-          tarefa: String(row.tarefa),
-          status: row.status ? String(row.status) : null,
-          prazo: row.prazo ? String(row.prazo) : null,
-          occurrence_date: row.occurrence_date ? String(row.occurrence_date) : null,
-          bloqueio: row.bloqueio ? String(row.bloqueio) : null,
-          prioridade: row.prioridade ? String(row.prioridade) : null,
-        } as TarefaRow);
-      }
-    }
+
     setAviso(editando ? "Registro atualizado com sucesso." : "Registro gravado com sucesso.");
     setForm({});
     setEditando(null);
@@ -282,49 +298,12 @@ export default function Modulo() {
     await carregar();
   }
 
-  async function excluir(id: string, linha?: Record<string, unknown>) {
-    if (SEM_EXCLUSAO.has(tabela)) return;
-    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
-    if (colEmpresa && !isConsolidated && linha) {
-      const rowBiz = linha[colEmpresa];
-      if (rowBiz && rowBiz !== currentBusinessId) {
-        alert("Operação bloqueada: Não é permitido excluir registro de outra empresa.");
-        return;
-      }
-    }
-    if (!confirm(`Deseja excluir o registro ${id}?`)) return;
-    let qDel = supabase.from(tabela).delete().eq(chave, id);
-    if (colEmpresa && !isConsolidated) {
-      qDel = qDel.eq(colEmpresa, currentBusinessId);
-    }
-    const { error } = await qDel;
-    if (error) setErro(error.message);
-    else await carregar();
-  }
-
-  function editar(linha: Record<string, unknown>) {
-    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
-    if (colEmpresa && !isConsolidated) {
-      const rowBiz = linha[colEmpresa];
-      if (rowBiz && rowBiz !== currentBusinessId) {
-        alert("Operação bloqueada: Este registro pertence a outra empresa.");
-        return;
-      }
-    }
-    const next: Record<string, string> = {};
-    for (const campo of editaveis) {
-      const valor = linha[campo.coluna];
-      if (valor !== null && valor !== undefined) next[campo.coluna] = String(valor);
-    }
-    setForm(next);
-    setEditando(String(linha[chave]));
-    setModalAberto(true);
-  }
-
   function abrirNovo() {
     setEditando(null);
     const inicial: Record<string, string> = {};
-    const colEmpresa = !isGovernanca ? campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna : undefined;
+    const colEmpresa = !isGovernanca
+      ? campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna
+      : undefined;
     if (colEmpresa) {
       inicial[colEmpresa] = !isConsolidated ? currentBusinessId : (selecionadas[0] || "BIZ-001");
     }
@@ -333,15 +312,13 @@ export default function Modulo() {
   }
 
   const formatarValorCelula = (coluna: string, valor: unknown) => {
-    if (valor === null || valor === undefined) return "-";
+    if (valor === null || valor === undefined) return "—";
     const str = String(valor);
 
-    // Formatação de valores em Reais
     if (
       coluna.includes("valor") ||
       coluna.includes("saldo") ||
       coluna.includes("custo") ||
-      coluna.includes("mrr_brl") ||
       coluna.includes("receita")
     ) {
       const num = Number(str);
@@ -350,269 +327,414 @@ export default function Modulo() {
       }
     }
 
-    // Badges para Status
     if (coluna === "status" || coluna === "decisao" || coluna === "etapa") {
       const up = str.toUpperCase();
-      let badgeStyle = "bg-muted text-foreground border-border/50";
-      if (["ATIVA", "ATIVO", "PAGO", "RECEBIDO", "EM EXECUÇÃO", "AGORA", "GANHO"].includes(up)) {
-        badgeStyle = "bg-emerald-500/10 text-emerald-500 border-emerald-500/30";
-      } else if (["PENDENTE", "DEPOIS", "NEGOCIACAO", "PROPOSTA"].includes(up)) {
-        badgeStyle = "bg-blue-500/10 text-blue-500 border-blue-500/30";
-      } else if (["PRECISA VALIDAR", "ABERTO", "QUALIFICACAO"].includes(up)) {
-        badgeStyle = "bg-amber-500/10 text-amber-500 border-amber-500/30";
-      } else if (["CANCELADO", "DESCARTAR", "PERDIDO"].includes(up)) {
-        badgeStyle = "bg-rose-500/10 text-rose-500 border-rose-500/30";
+      let variant: "success" | "warning" | "danger" | "info" | "neutral" = "neutral";
+      if (["ATIVA", "ATIVO", "PAGO", "RECEBIDO", "EM EXECUÇÃO", "AGORA", "GANHO", "CONECTADO", "CONNECTED"].includes(up)) {
+        variant = "success";
+      } else if (["PENDENTE", "DEPOIS", "NEGOCIACAO", "PROPOSTA", "PLANEJADA", "PLANNED"].includes(up)) {
+        variant = "warning";
+      } else if (["CANCELADO", "DESCARTAR", "PERDIDO", "CRÍTICO", "ALTO"].includes(up)) {
+        variant = "danger";
       }
-      return (
-        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${badgeStyle}`}>
-          {str}
-        </span>
-      );
+      return <ExecutiveBadge variant={variant}>{str}</ExecutiveBadge>;
     }
 
     return str;
   };
 
-  if (!meta) {
-    return (
-      <div className="py-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          Este módulo não faz parte do Sistema Helena.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-5">
-      {/* Topo do Módulo */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="space-y-6">
+      <ExecutivePageHeader
+        icon={isGovernanca ? ShieldCheck : isIntegracoes ? Cpu : Layers}
+        title={meta.titulo}
+        description={
+          isGovernanca
+            ? "Rituais de acompanhamento e alinhamento do fundador com a equipe digital"
+            : isIntegracoes
+            ? "Serviços externos e automações conectadas à arquitetura do Sistema Helena"
+            : meta.descricao
+        }
+        actions={
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              {meta.grupo}
-            </span>
-            <span className="text-xs text-muted-foreground">·</span>
-            <span className="text-xs text-muted-foreground">{rotulo}</span>
-          </div>
-          <h1 className="pe-page-title">{meta.titulo}</h1>
-          <p className="text-xs text-muted-foreground">
-            Tabela oficial: <span className="font-mono text-foreground font-semibold">{tabela}</span> ·{" "}
-            {linhasFiltradas.length} registro(s) listados
-          </p>
-        </div>
+            {(isGovernanca || isIntegracoes) && (
+              <div className="flex rounded-lg border border-border/70 bg-card p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setModoVisualizacao("cards")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    modoVisualizacao === "cards"
+                      ? "bg-foreground text-background font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Rituais
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoVisualizacao("tabela")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    modoVisualizacao === "tabela"
+                      ? "bg-foreground text-background font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Tabela
+                </button>
+              </div>
+            )}
 
-        <button
-          onClick={abrirNovo}
-          className="flex items-center gap-2 self-start rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-glow hover:opacity-90 transition-all sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Registro</span>
-        </button>
-      </div>
+            <button
+              type="button"
+              onClick={abrirNovo}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Novo registro</span>
+            </button>
+          </div>
+        }
+      />
 
       {erro && (
-        <div className="flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-          <AlertCircle className="h-4 w-4" />
-          <span>{erro}</span>
-        </div>
+        <ExecutiveErrorState
+          title={`Erro ao consultar ${meta.titulo}`}
+          message={erro}
+          onRetry={carregar}
+        />
       )}
 
-      {aviso && (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-500">
-          <CheckCircle2 className="h-4 w-4" />
-          <span>{aviso}</span>
-        </div>
-      )}
+      {/* RITUAIS DE GOVERNANÇA (CARD VIEW) */}
+      {isGovernanca && modoVisualizacao === "cards" && !carregando && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {linhas.map((row) => {
+            const id = String(row.governance_id || "");
+            const ritual = String(row.ritual || "");
+            const cadencia = String(row.cadencia || "");
+            const dono = String(row.dono || "");
+            const participantes = String(row.participantes || "");
+            const pauta = String(row.pauta_fixa || row.pauta || "");
+            const status = String(row.status || "ATIVO");
 
-      {/* Barra de Filtro e Busca */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-card/60 p-2.5 backdrop-blur-md">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder={`Filtrar registros em ${meta.titulo}…`}
-            value={termoBusca}
-            onChange={(e) => setTermoBusca(e.target.value)}
-            className="w-full rounded-xl border border-border/50 bg-background/80 py-2 pl-9 pr-4 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground pr-2 hidden sm:block">
-          Mostrando <span className="font-semibold text-foreground">{linhasFiltradas.length}</span> de{" "}
-          {linhas.length}
-        </p>
-      </div>
+            return (
+              <div
+                key={id}
+                onClick={() => abrirDrawer(row)}
+                className="group cursor-pointer rounded-xl border border-border/70 bg-card p-5 space-y-4 hover:border-primary/40 hover:shadow-sm transition-all flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
+                      {id}
+                    </span>
+                    <ExecutiveBadge variant="success" dot>
+                      {status}
+                    </ExecutiveBadge>
+                  </div>
 
-      {/* Tabela de Dados Limpa e Moderna */}
-      <div className="overflow-x-auto rounded-2xl border border-border/50 bg-card shadow-sm">
-        <table className="w-full min-w-[700px] text-left text-xs">
-          <thead className="bg-muted/50 border-b border-border/50 text-muted-foreground uppercase text-[10px] tracking-wider">
-            <tr>
-              <th className="px-4 py-3.5 font-bold">{chave}</th>
-              {colunasTabela.map((coluna) => (
-                <th key={coluna} className="px-4 py-3.5 font-bold">
-                  {coluna}
-                </th>
-              ))}
-              <th className="px-4 py-3.5 text-right font-bold">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/30">
-            {linhasFiltradas.map((linha, index) => {
-              const id = String(linha[chave] ?? index);
-              return (
-                <tr key={id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono font-bold text-foreground">{id}</td>
-                  {colunasTabela.map((coluna) => (
-                    <td key={coluna} className="max-w-[260px] px-4 py-3">
-                      <div className="line-clamp-2">
-                        {formatarValorCelula(coluna, linha[coluna])}
-                      </div>
-                    </td>
-                  ))}
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => editar(linha)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-primary/10 hover:text-primary transition-all"
-                        title="Editar registro"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      {!SEM_EXCLUSAO.has(tabela) && (
-                        <button
-                          onClick={() => excluir(id, linha)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
-                          title="Excluir registro"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {ritual}
+                    </h3>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                      <Clock className="h-3 w-3" />
+                      <span>Cadência: {cadencia}</span>
                     </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {linhasFiltradas.length === 0 && (
-              <tr>
-                <td colSpan={colunasTabela.length + 2} className="px-4 py-12 text-center text-muted-foreground">
-                  <div className="mx-auto max-w-md space-y-2">
-                    <p className="text-sm font-medium text-foreground">
-                      {carregando
-                        ? "Carregando registros do Supabase…"
-                        : termoBusca
-                        ? `Nenhum registro corresponde ao filtro "${termoBusca}".`
-                        : !isConsolidated && meta.escopo === "BUSINESS"
-                        ? `Nenhum registro encontrado para ${rotulo} nesta tabela.`
-                        : `Nenhum registro cadastrado na tabela ${tabela}.`}
-                    </p>
-                    {!carregando && !termoBusca && !isConsolidated && meta.escopo === "BUSINESS" && (
-                      <p className="text-xs text-muted-foreground">
-                        Esta unidade de negócio não possui dados registrados aqui. Se houver registros em outra empresa, alterne no seletor acima ou escolha &quot;Grupo Consolidado&quot;.
-                      </p>
-                    )}
-                    {!carregando && !termoBusca && (isConsolidated || meta.escopo !== "BUSINESS") && (
-                      <p className="text-xs text-muted-foreground">
-                        Tabela canônica conectada ao Supabase e pronta para operações e diretrizes da Helena.
-                      </p>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs pt-2 border-t border-border/40">
+                    <div>
+                      <span className="text-muted-foreground font-medium">Dono:</span>{" "}
+                      <span className="text-foreground font-semibold">{dono}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-medium">Participantes:</span>{" "}
+                      <span className="text-foreground">{participantes}</span>
+                    </div>
+                    {pauta && (
+                      <div className="pt-1">
+                        <span className="text-muted-foreground font-medium">Pauta fixa:</span>
+                        <p className="text-foreground/90 line-clamp-2 mt-0.5 leading-relaxed">
+                          {pauta}
+                        </p>
+                      </div>
                     )}
                   </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </div>
 
-      {/* Modal / Dialog de Edição e Inserção */}
+                <div className="pt-3 border-t border-border/40 flex items-center justify-between text-xs text-primary font-medium">
+                  <span>Ver detalhes</span>
+                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* INTEGRAÇÕES (CARD VIEW) */}
+      {isIntegracoes && modoVisualizacao === "cards" && !carregando && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              id: "INT-0001",
+              nome: "Google Drive",
+              status: "PLANEJADA",
+              tipo: "Armazenamento & Documentos",
+              descricao: "Repositório canônico de planilhas e relatórios executivos.",
+            },
+            {
+              id: "INT-0002",
+              nome: "Gmail",
+              status: "PLANEJADA",
+              tipo: "Comunicação Externa",
+              descricao: "Recebimento e envio estruturado de e-mails corporativos.",
+            },
+            {
+              id: "INT-0003",
+              nome: "Google Calendar",
+              status: "PLANEJADA",
+              tipo: "Agenda & Rituais",
+              descricao: "Sincronização bidirecional de eventos e reuniões.",
+            },
+            {
+              id: "INT-0004",
+              nome: "Automação de Recorrências",
+              status: "PLANEJADA",
+              tipo: "Finanças & Assinaturas",
+              descricao: "Geração periódica automática de obrigações e cobranças.",
+            },
+          ].map((item) => (
+            <div
+              key={item.id}
+              className="rounded-xl border border-border/70 bg-card p-5 space-y-3 flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-semibold text-muted-foreground">
+                    {item.id}
+                  </span>
+                  <ExecutiveBadge variant="warning">{item.status}</ExecutiveBadge>
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">{item.nome}</h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {item.descricao}
+                </p>
+              </div>
+              <div className="pt-2 border-t border-border/40 text-[11px] text-muted-foreground font-mono">
+                {item.tipo}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* BARRA DE BUSCA */}
+      {(!isGovernanca && !isIntegracoes || modoVisualizacao === "tabela") && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder={`Filtrar registros em ${meta.titulo}…`}
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              className="w-full rounded-lg border border-border/70 bg-background py-1.5 pl-9 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {linhasFiltradas.length} registro(s)
+          </span>
+        </div>
+      )}
+
+      {/* TABELA DE DADOS PADRONIZADA (48-52px de altura) */}
+      {(!isGovernanca && !isIntegracoes || modoVisualizacao === "tabela") && (
+        carregando ? (
+          <ExecutiveLoadingState message={`Carregando registros de ${meta.titulo}...`} />
+        ) : linhasFiltradas.length === 0 ? (
+          <ExecutiveEmptyState
+            icon={Layers}
+            title={`Nenhum registro em ${meta.titulo}`}
+            description={
+              termoBusca
+                ? `Nenhum resultado corresponde à busca "${termoBusca}".`
+                : `Ainda não há registros cadastrados para este contexto.`
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">
+            <table className="w-full min-w-[700px] text-left text-xs">
+              <thead className="bg-muted/40 border-b border-border/60 text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
+                <tr className="h-10">
+                  <th className="px-4 font-semibold">{chave}</th>
+                  {colunasTabela.map((coluna) => (
+                    <th key={coluna} className="px-4 font-semibold">
+                      {coluna}
+                    </th>
+                  ))}
+                  <th className="px-4 text-right font-semibold">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {linhasFiltradas.map((linha, index) => {
+                  const id = String(linha[chave] ?? index);
+                  return (
+                    <tr
+                      key={id}
+                      onClick={() => abrirDrawer(linha)}
+                      className="h-12 hover:bg-muted/30 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 font-mono font-medium text-foreground">{id}</td>
+                      {colunasTabela.map((coluna) => (
+                        <td key={coluna} className="max-w-[240px] px-4 truncate">
+                          {formatarValorCelula(coluna, linha[coluna])}
+                        </td>
+                      ))}
+                      <td className="px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => abrirDrawer(linha)}
+                            className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            title="Ver detalhes"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirEditar(linha)}
+                            className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            title="Editar registro"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          {!SEM_EXCLUSAO.has(tabela) && (
+                            <button
+                              type="button"
+                              onClick={() => solicitarExcluir(id)}
+                              className="p-1.5 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              title="Excluir registro"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* DRAWER LATERAL DE DETALHES */}
+      <ExecutiveDrawer
+        open={drawerAberto}
+        onOpenChange={setDrawerAberto}
+        title={drawerLinha ? `${String(drawerLinha[chave] || "Registro")}` : "Detalhes"}
+        description={`Módulo ${meta.titulo} · Dados Canônicos`}
+        width="max-w-lg"
+      >
+        {drawerLinha && (
+          <div className="space-y-4 text-xs">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3.5 space-y-2">
+              <span className="font-semibold text-foreground text-xs uppercase tracking-wide">
+                Identificador: {String(drawerLinha[chave])}
+              </span>
+            </div>
+
+            <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin">
+              {Object.entries(drawerLinha).map(([col, val]) => (
+                <div key={col} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-0.5">
+                  <span className="text-[11px] font-medium text-muted-foreground">{col}</span>
+                  <p className="text-xs text-foreground font-mono break-all">
+                    {val === null || val === undefined ? "—" : String(val)}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-3 border-t border-border/40 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerAberto(false);
+                  abrirEditar(drawerLinha);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                <span>Editar</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </ExecutiveDrawer>
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
+      <ExecutiveConfirmDialog
+        open={dialogExcluirAberto}
+        onOpenChange={setDialogExcluirAberto}
+        title="Excluir registro?"
+        description={`Tem certeza que deseja excluir o registro "${excluirId}"? Esta ação removerá a linha da base de dados.`}
+        confirmText="Excluir registro"
+        onConfirm={confirmarExclusao}
+        danger
+      />
+
+      {/* MODAL DE EDIÇÃO / INSERÇÃO */}
       {modalAberto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl rounded-2xl border border-border/50 bg-card p-6 shadow-2xl animate-scale-in my-8">
-            <div className="flex items-center justify-between border-b border-border/40 pb-4">
-              <div>
-                <h3 className="text-base font-bold text-foreground">
-                  {editando ? `Atualizar ${editando}` : `Novo Registro em ${meta.titulo}`}
-                </h3>
-                <p className="text-xs text-muted-foreground">Tabela: {tabela}</p>
-              </div>
+          <div className="w-full max-w-xl rounded-xl border border-border/80 bg-card p-5 shadow-lg my-8">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                {editando ? `Atualizar ${editando}` : `Novo Registro em ${meta.titulo}`}
+              </h3>
               <button
+                type="button"
                 onClick={() => setModalAberto(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={salvar} className="mt-4 space-y-4">
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 max-h-[60vh] overflow-y-auto p-1 scrollbar-thin">
-                {editaveis.map((campo) => {
-                  const isBusinessCol = campo.coluna === "business_id" || campo.coluna === "business_id_area";
-                  if (isBusinessCol && !isConsolidated) {
-                    return (
-                      <div key={campo.coluna} className="space-y-1">
-                        <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                          <span>{campo.nome_na_planilha || campo.coluna}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase font-bold">(Empresa Ativa)</span>
-                        </label>
-                        <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-bold text-foreground">
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: currentBusiness?.cor || "#007A3D" }} />
-                          <span className="truncate">{currentBusiness?.nome || currentBusinessId}</span>
-                          <span className="ml-auto text-[10px] text-muted-foreground font-mono">{currentBusinessId}</span>
-                        </div>
-                      </div>
-                    );
-                  }
-                  if (isBusinessCol && isConsolidated) {
-                    return (
-                      <div key={campo.coluna} className="space-y-1">
-                        <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                          <span>{campo.nome_na_planilha || campo.coluna}</span>
-                          <span className="text-[10px] text-primary font-mono font-bold">EMPRESA</span>
-                        </label>
-                        <select
-                          className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                          value={form[campo.coluna] || selecionadas[0] || ""}
-                          onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
-                        >
-                          {empresas.map((emp) => (
-                            <option key={emp.id} value={emp.id}>{emp.nome} ({emp.id})</option>
-                          ))}
-                        </select>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div key={campo.coluna} className="space-y-1">
-                      <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                        <span>{campo.nome_na_planilha || campo.coluna}</span>
-                        {campo.chave === "SIM" && (
-                          <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
-                        )}
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                        value={form[campo.coluna] || ""}
-                        onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
-                        placeholder={`Informe ${campo.coluna}…`}
-                      />
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-h-[60vh] overflow-y-auto p-1 scrollbar-thin">
+                {editaveis.map((campo) => (
+                  <div key={campo.coluna} className="space-y-1">
+                    <label className="text-[11px] font-medium text-foreground flex items-center justify-between">
+                      <span>{campo.nome_na_planilha || campo.coluna}</span>
+                      {campo.chave === "SIM" && (
+                        <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
+                      )}
+                    </label>
+                    <input
+                      className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                      value={form[campo.coluna] || ""}
+                      onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
+                      placeholder={`Informe ${campo.coluna}…`}
+                    />
+                  </div>
+                ))}
               </div>
 
-              <div className="flex justify-end gap-2.5 border-t border-border/40 pt-4">
+              <div className="flex justify-end gap-2 border-t border-border/50 pt-3">
                 <button
                   type="button"
                   onClick={() => setModalAberto(false)}
-                  className="rounded-xl border border-border/60 px-4 py-2 text-xs font-semibold hover:bg-muted"
+                  className="rounded-lg border border-border/70 px-3 py-1.5 text-xs font-medium hover:bg-muted"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-glow hover:opacity-90"
+                  className="rounded-lg bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 shadow-sm"
                 >
-                  {editando ? "Atualizar Registro" : "Gravar Registro"}
+                  {editando ? "Atualizar" : "Salvar"}
                 </button>
               </div>
             </form>

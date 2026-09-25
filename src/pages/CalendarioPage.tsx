@@ -11,7 +11,16 @@ import {
   startOfWeek,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  ListTodo,
+  Clock,
+  Building,
+  UserCheck,
+} from "lucide-react";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { Link } from "react-router-dom";
 import {
@@ -23,6 +32,10 @@ import {
 import { sincronizarTodasTarefasNoCalendario } from "@/lib/tarefa-calendario";
 import { TarefaAgendaModal, type AcaoTarefaModal } from "@/components/tarefas/TarefaAgendaModal";
 import { concluirTarefa, concluirTarefaPorId } from "@/lib/tarefa-acoes";
+import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
+import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
+import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
+import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
 
 function idTarefaDeEvento(ev: EventoAgenda) {
   if (ev.related_object_type === "tarefas" && ev.related_object_id) return ev.related_object_id;
@@ -38,7 +51,7 @@ export default function CalendarioPage() {
   const [semData, setSemData] = useState<TarefaRow[]>([]);
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
-  const [modo, setModo] = useState<"calendario" | "lista">("calendario");
+  const [modo, setModo] = useState<"calendario" | "agenda">("calendario");
   const [modalTarefas, setModalTarefas] = useState(false);
   const [taskIdModal, setTaskIdModal] = useState<string | null>(null);
   const [acaoModal, setAcaoModal] = useState<AcaoTarefaModal>(null);
@@ -105,31 +118,75 @@ export default function CalendarioPage() {
   }, [eventosComData]);
 
   if (carregando) {
-    return <p className="text-sm text-[var(--pe-text-muted)]">Lendo calendário e tarefas…</p>;
+    return <ExecutiveLoadingState message="Lendo calendário e tarefas da agenda unificada..." />;
   }
 
   return (
     <div className="space-y-6">
-      {erro && <p className="pe-card text-sm text-red-700">{erro}</p>}
+      <ExecutivePageHeader
+        icon={CalendarIcon}
+        title="Calendário"
+        description="Gestão unificada de compromissos, tarefas com prazo e entregas estratégicas"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => abrirListaTarefas("nova")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nova tarefa</span>
+            </button>
+            <Link
+              to="/modulo/calendario"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors"
+            >
+              <span>Cadastro</span>
+            </Link>
+          </div>
+        }
+      />
 
-      <p className="text-xs text-[var(--pe-text-muted)]">
-        Toque em uma tarefa para abrir o painel premium. Compromissos e tarefas com prazo aparecem na grade.
-      </p>
+      {erro && (
+        <ExecutiveErrorState
+          title="Erro no calendário"
+          message={erro}
+          onRetry={recarregar}
+        />
+      )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className={`pe-tab ${modo === "calendario" ? "is-active" : ""}`} onClick={() => setModo("calendario")}>
+      {/* Tabs Oficiais: Calendário, Agenda, Tarefas */}
+      <div className="flex items-center gap-1.5 border-b border-border/50 pb-2">
+        <button
+          type="button"
+          onClick={() => setModo("calendario")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            modo === "calendario"
+              ? "bg-foreground text-background font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          }`}
+        >
           Calendário
         </button>
-        <button type="button" className={`pe-tab ${modo === "lista" ? "is-active" : ""}`} onClick={() => setModo("lista")}>
-          Lista
+        <button
+          type="button"
+          onClick={() => setModo("agenda")}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            modo === "agenda"
+              ? "bg-foreground text-background font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          }`}
+        >
+          Agenda
         </button>
-        <button type="button" className="pe-tab" onClick={() => abrirListaTarefas()}>
-          Tarefas
+        <button
+          type="button"
+          onClick={() => abrirListaTarefas()}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors inline-flex items-center gap-1.5"
+        >
+          <ListTodo className="h-3.5 w-3.5" />
+          <span>Tarefas</span>
         </button>
-        <button type="button" className="pe-tab" onClick={() => abrirListaTarefas("nova")}>
-          + Adicionar tarefa
-        </button>
-        <Link to="/modulo/calendario" className="pe-tab ml-auto">Cadastro completo</Link>
       </div>
 
       {semData.length > 0 && (
@@ -259,7 +316,7 @@ export default function CalendarioPage() {
         </div>
       )}
 
-      {modo === "lista" && (
+      {modo === "agenda" && (
         <div className="pe-card divide-y">
           {listaOrdenada.map((ev) => {
             const taskId = idTarefaDeEvento(ev);

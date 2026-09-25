@@ -1,87 +1,67 @@
 @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap");
 
 .painel-elite {
-  --pe-bg: #f6f8f7;
+  --pe-bg: #F7F8F7;
   --pe-surface: #ffffff;
-  --pe-surface-muted: #eef2f0;
-  --pe-border: #d8ded9;
-  --pe-border-strong: #b9c2bc;
-  --pe-emerald: #007a3d;
-  --pe-emerald-strong: #005c2e;
-  --pe-accent: #00a859;
-  --pe-text: #0a1f1a;
-  --pe-text-muted: #475a52;
+  --pe-surface-muted: #F0F3F1;
+  --pe-border: #E2E6E3;
+  --pe-border-strong: #CDD4CF;
+  --pe-emerald: #007A3D;
+  --pe-emerald-strong: #006030;
+  --pe-accent: #007A3D;
+  --pe-text: #111815;
+  --pe-text-muted: #5E6662;
   --pe-radius: 12px;
-  --pe-shadow-card: 0 1px 2px rgba(11, 31, 26, 0.04);
-  --pe-shadow-hover: 0 4px 12px rgba(11, 31, 26, 0.06);
-  --background: 150 16% 97%;
-  --foreground: 160 30% 8%;
-  --card: 0 0% 100%;
-  --card-foreground: 160 30% 8%;
-  --primary: 152 100% 24%;
-  --primary-foreground: 0 0% 100%;
-  --muted: 150 12% 93%;
-  --muted-foreground: 160 8% 32%;
-  --border: 150 10% 86%;
-  --input: 150 10% 86%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
-  font-family: Figtree, system-ui, sans-serif;
+  --pe-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --pe-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.05);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--pe-bg);
   color: var(--pe-text);
   min-height: 100vh;
 }
 
-html.dark .painel-elite .pe-sidebar {
-  background: #161616;
-  border-right-color: #2a2a2a;
-}
-
-html.dark .painel-elite .pe-nav-item.is-active {
-  background: #143024;
-  color: #bbf7d0;
-}
-
 html.dark .painel-elite {
-  --pe-bg: #111111;
-  --pe-surface: #1a1a1a;
-  --pe-surface-muted: #222222;
-  --pe-border: #2a2a2a;
-  --pe-border-strong: #3a3a3a;
-  --pe-text: #ffffff;
-  --pe-text-muted: #d1d5db;
-  --background: 0 0% 7%;
-  --foreground: 0 0% 100%;
-  --card: 0 0% 10%;
-  --card-foreground: 0 0% 100%;
-  --primary: 152 100% 33%;
-  --muted: 0 0% 16%;
-  --muted-foreground: 220 9% 75%;
-  --border: 0 0% 16%;
-  --input: 0 0% 16%;
+  --pe-bg: #101312;
+  --pe-surface: #161A18;
+  --pe-surface-muted: #1E2320;
+  --pe-border: #252B28;
+  --pe-border-strong: #333A36;
+  --pe-emerald: #008744;
+  --pe-emerald-strong: #006E37;
+  --pe-accent: #008744;
+  --pe-text: #F0F4F2;
+  --pe-text-muted: #8C9792;
+  --pe-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pe-shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 .painel-elite h1,
 .painel-elite h2,
 .painel-elite h3 {
-  font-family: Outfit, system-ui, sans-serif;
-  letter-spacing: -0.01em;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.015em;
   color: var(--pe-text);
 }
 
+/* Sidebar Grafite Profundo (#161918) */
 .painel-elite .pe-sidebar {
-  background: #ffffff;
-  color: var(--pe-text);
-  width: 220px;
+  background: #161918;
+  color: #E5EAE7;
+  width: 248px;
   flex-shrink: 0;
-  border-right: 1px solid var(--pe-border);
+  border-right: 1px solid #252A28;
+}
+
+html.dark .painel-elite .pe-sidebar {
+  background: #111413;
+  border-right-color: #222825;
 }
 
 .painel-elite .pe-sidebar-top {
-  margin: 0.75rem 0.55rem 0.35rem;
-  border: 1px solid var(--pe-border);
-  border-radius: 16px;
-  background: var(--pe-surface-muted);
+  margin: 0.75rem 0.65rem 0.5rem;
+  border: 1px solid #282E2B;
+  border-radius: 12px;
+  background: #1C211F;
   overflow: hidden;
 }
 
@@ -89,79 +69,86 @@ html.dark .painel-elite {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-height: 56px;
-  padding: 0.65rem 0.75rem;
-  border: 0;
-  border-radius: 0;
+  min-height: 52px;
+  padding: 0.6rem 0.75rem;
   background: transparent;
-  margin: 0;
 }
 
 .painel-elite .pe-sidebar-product-mark {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: #e5f6ec;
-  color: var(--pe-emerald);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #007A3D;
+  color: #FFFFFF;
 }
 
 .painel-elite .pe-sidebar-product-copy {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .painel-elite .pe-sidebar-product-copy strong {
-  font-family: Outfit, sans-serif;
-  font-size: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #FFFFFF;
 }
 
 .painel-elite .pe-sidebar-product-copy small {
-  color: var(--pe-text-muted);
+  color: #8A9690;
   font-size: 11px;
 }
 
 .painel-elite .pe-sidebar-section {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #8b9a94;
-  margin: 1rem 0.9rem 0.35rem;
+  color: #6C7872;
+  margin: 1.1rem 0.85rem 0.35rem;
 }
 
 .painel-elite .pe-nav-item {
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 40px;
   gap: 0.75rem;
-  margin: 0 0.55rem;
-  padding: 0.55rem 0.85rem;
-  border-radius: 10px;
+  margin: 0.1rem 0.55rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
   border-left: 3px solid transparent;
-  color: var(--pe-text-muted);
-  font-size: 0.875rem;
+  color: #9BA6A0;
+  font-size: 13px;
   font-weight: 500;
+  transition: all 140ms ease;
 }
 
 .painel-elite .pe-nav-item:hover {
-  background: var(--pe-surface-muted);
-  color: var(--pe-text);
+  background: #1F2422;
+  color: #FFFFFF;
 }
 
-.painel-elite .pe-nav-item.is-active {
-  background: #e8f6ee;
-  color: var(--pe-emerald-strong);
-  border-left-color: var(--pe-emerald);
+.painel-elite .pe-nav-item.is-active,
+html.dark .painel-elite .pe-nav-item.is-active {
+  background: #232926;
+  color: #FFFFFF;
+  border-left-color: #007A3D;
   font-weight: 600;
 }
 
 .painel-elite .pe-nav-item svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.painel-elite .pe-nav-item.is-active svg {
+  opacity: 1;
+  color: #00A859;
 }
 
 .painel-elite .pe-topbar {
@@ -171,18 +158,28 @@ html.dark .painel-elite {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 52px;
-  padding: 8px 20px;
-  background: color-mix(in srgb, var(--pe-surface) 92%, transparent);
-  backdrop-filter: blur(14px);
+  gap: 16px;
+  height: 64px;
+  padding: 0 32px;
+  background: var(--pe-surface);
   border-bottom: 1px solid var(--pe-border);
 }
 
-.painel-elite .pe-page {
-  max-width: 1400px;
+html.dark .painel-elite .pe-topbar {
+  background: #161A18;
+  border-bottom-color: #252B28;
+}
+
+.painel-elite .pe-main {
+  max-width: 1560px;
   margin: 0 auto;
-  padding: 24px 28px 40px;
+  padding: 24px 32px 48px;
+}
+
+.painel-elite .pe-page {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
 }
 
 .painel-elite .pe-page-title {

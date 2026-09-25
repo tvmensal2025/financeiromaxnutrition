@@ -1,54 +1,90 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { BrowserRouter } from "react-router-dom";
+import React from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import { BusinessProvider } from "@/contexts/BusinessContext";
 import { Layout } from "@/components/Layout";
-import Entrar from "@/pages/Entrar";
+import Login from "@/pages/Login";
 import Painel from "@/pages/Painel";
 import Modulo from "@/pages/Modulo";
 import CrmPage from "@/pages/CrmPage";
 import FinanceiroPage from "@/pages/FinanceiroPage";
 import CalendarioPage from "@/pages/CalendarioPage";
-
 import PortfolioPage from "@/pages/PortfolioPage";
 import EquipePage from "@/pages/EquipePage";
 import HelenaInboxPage from "@/pages/HelenaInboxPage";
+import SistemaPage from "@/pages/SistemaPage";
+import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
- * CONTROLE DE ACESSO:
- * Deixe `false` para o sistema ficar totalmente público sem tela de login nem senha.
+ * CONTROLE DE ACESSO EXECUTIVO:
+ * Exigência mandatória de autenticação real via Supabase Auth.
  */
-export const EXIGIR_AUTENTICACAO = false;
+export const EXIGIR_AUTENTICACAO = true;
 
 function Protegida({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, appAccess, loading, sair } = useAuth();
 
-  // Quando desativada a autenticação, libera acesso irrestrito
-  if (!EXIGIR_AUTENTICACAO) {
-    return <>{children}</>;
-  }
-
+  // Caso autenticação esteja ativada
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-background text-foreground">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#007A3D] text-white font-bold text-lg animate-pulse shadow-sm">
+          H
+        </div>
         <p className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground animate-pulse">
-          Abrindo o Sistema Helena…
+          Validando credenciais do Sistema Helena…
         </p>
       </div>
     );
   }
-  if (!user) return <Navigate to="/entrar" replace />;
+
+  // Visitante não autenticado -> redireciona para /login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
+  if (!appAccess || !appAccess.active) {
+    return (
+      <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">
+          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">
+              Acesso Não Autorizado
+            </h1>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Usuário não autorizado para o Sistema Helena.
+            </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => sair()}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sair e Voltar ao Início</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 
 function Rotas() {
   return (
     <Routes>
-      <Route
-        path="/entrar"
-        element={!EXIGIR_AUTENTICACAO ? <Navigate to="/" replace /> : <Entrar />}
-      />
+      {/* Rotas Públicas de Login */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/entrar" element={<Navigate to="/login" replace />} />
+
+      {/* Aplicação Administrativa Protegida */}
       <Route
         element={
           <Protegida>
@@ -63,6 +99,9 @@ function Rotas() {
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/equipe" element={<EquipePage />} />
         <Route path="/inbox" element={<HelenaInboxPage />} />
+        <Route path="/sistema" element={<SistemaPage />} />
+
+        {/* Redirecionamentos de conveniência */}
         <Route path="/caixa-entrada" element={<Navigate to="/inbox" replace />} />
         <Route path="/helena" element={<Navigate to="/" replace />} />
         <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
@@ -70,8 +109,12 @@ function Rotas() {
         <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />
         <Route path="/modulo/portfolio" element={<Navigate to="/portfolio" replace />} />
         <Route path="/modulo/equipe" element={<Navigate to="/equipe" replace />} />
+
+        {/* Tabelas e Módulos do Sistema Helena */}
         <Route path="/modulo/:tabela" element={<Modulo />} />
       </Route>
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
