@@ -259,11 +259,19 @@ PROTOCOLO OPERACIONAL OBRIGATÓRIO (V9):
  */
 async function handleRecordDispatch({
   job_id,
-  dispatcher_agent_id = 'AGT-17',
+  dispatcher_agent_id,
   target_agent_id,
   target_external_agent_id,
   notes
 }) {
+  if (!dispatcher_agent_id) {
+    throw new Error('dispatcher_agent_id é obrigatório para record_dispatch');
+  }
+
+  if (dispatcher_agent_id !== 'AGT-04') {
+    throw new Error('record_dispatch permitido somente para Marina / AGT-04');
+  }
+
   if (!job_id) {
     throw new Error('job_id é obrigatório para record_dispatch');
   }
@@ -604,7 +612,7 @@ const TOOLS_CONFIG = {
     description: 'Registra evento append-only DISPATCHED pela Marina (PMO) com cooldown de 180s. Não altera o status do job (continua READY até o claim pelo especialista).',
     schema: z.object({
       job_id: z.string().describe('ID do job a ser despachado'),
-      dispatcher_agent_id: z.string().optional().default('AGT-17').describe('ID do despachante (Marina / PMO)'),
+      dispatcher_agent_id: z.string().min(1).describe('ID do agente despachante. Marina = AGT-04'),
       target_agent_id: z.string().optional().describe('ID do especialista de destino'),
       target_external_agent_id: z.string().optional().describe('ID externo do Grok Bot'),
       notes: z.string().optional().describe('Notas adicionais de despacho')
@@ -1265,26 +1273,32 @@ app.post('/api/tools/:toolName', authenticateMcp, async (req, res) => {
 // INICIALIZAÇÃO DO SERVIDOR E AGENDAMENTOS
 // ======================================================================
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[HELENA_GATEWAY] Servidor ativo na porta ${PORT}`);
-  console.log(`[HELENA_GATEWAY] Host público configurado: ${PUBLIC_HOST}`);
-  console.log(`[HELENA_GATEWAY] Supabase: ${SUPABASE_URL}`);
-  console.log(`[HELENA_GATEWAY] Evolution API: ${EVOLUTION_BASE_URL ? 'CONFIGURADA' : 'DESATIVADA'}`);
+const disableListen = process.env.HELENA_GATEWAY_DISABLE_LISTEN === '1';
 
-  // Inicia loops periódicos
-  setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);
-  setInterval(tickNotificationOutbox, OUTBOX_TICK_MS);
-});
+const server = disableListen
+  ? null
+  : app.listen(PORT, '0.0.0.0', () => {
+      console.log(`[HELENA_GATEWAY] Servidor ativo na porta ${PORT}`);
+      console.log(`[HELENA_GATEWAY] Host público configurado: ${PUBLIC_HOST}`);
+      console.log(`[HELENA_GATEWAY] Supabase: ${SUPABASE_URL}`);
+      console.log(`[HELENA_GATEWAY] Evolution API: ${EVOLUTION_BASE_URL ? 'CONFIGURADA' : 'DESATIVADA'}`);
 
-// Encerramento gracioso
-process.on('SIGTERM', () => {
-  console.log('[HELENA_GATEWAY] Encerrando servidor graciosamente...');
-  server.close(() => process.exit(0));
-});
+      // Inicia loops periódicos
+      setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);
+      setInterval(tickNotificationOutbox, OUTBOX_TICK_MS);
+    });
 
-process.on('SIGINT', () => {
-  console.log('[HELENA_GATEWAY] Encerrando servidor...');
-  server.close(() => process.exit(0));
-});
+if (!disableListen) {
+  // Encerramento gracioso
+  process.on('SIGTERM', () => {
+    console.log('[HELENA_GATEWAY] Encerrando servidor graciosamente...');
+    server.close(() => process.exit(0));
+  });
 
-export { app, server, TOOLS_CONFIG };
+  process.on('SIGINT', () => {
+    console.log('[HELENA_GATEWAY] Encerrando servidor...');
+    server.close(() => process.exit(0));
+  });
+}
+
+export { app, server, TOOLS_CONFIG, handleRecordDispatch };
