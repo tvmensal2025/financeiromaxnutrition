@@ -82,29 +82,96 @@ export async function getEvolutionStatus() {
 }
 
 /**
- * Inicia conexão e solicita QR Code da instância
+ * Garante que a instância existe na Evolution API v2, criando-a automaticamente se necessário
+ */
+export async function ensureEvolutionInstance() {
+  if (!isEvolutionConfigured()) {
+    throw new Error('Evolution API não configurada');
+  }
+
+  try {
+    const createRes = await fetch(`${EVOLUTION_BASE_URL}/instance/create`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        instanceName: EVOLUTION_INSTANCE,
+        integration: 'WHATSAPP-BAILEYS',
+        qrcode: true
+      })
+    });
+
+    if (createRes.ok) {
+      const data = await createRes.json();
+      const qr = data?.qrcode?.base64 || data?.qrcode?.code || data?.base64 || data?.code || null;
+      const pairing = data?.qrcode?.pairingCode || data?.pairingCode || null;
+      return {
+        created: true,
+        qrcode: qr,
+        pairingCode: pairing,
+        status: data?.instance?.status || 'CONNECTING',
+        data
+      };
+    }
+  } catch (err) {
+    console.warn(`[EVOLUTION_CLIENT] Tentativa de criação retornou erro: ${err.message}`);
+  }
+
+  return { created: false };
+}
+
+/**
+ * Inicia conexão e solicita QR Code da instância (com auto-provisionamento)
  */
 export async function connectEvolution() {
   if (!isEvolutionConfigured()) {
     throw new Error('Evolution API não configurada');
   }
 
+  // 1. Tenta obter conexão da instância existente
   const res = await fetch(`${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(EVOLUTION_INSTANCE)}`, {
     method: 'GET',
     headers: getHeaders()
   });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Erro ao conectar');
-    throw new Error(`Falha ao iniciar conexão Evolution [${res.status}]: ${errText}`);
+  if (res.ok) {
+    const data = await res.json();
+    return {
+      qrcode: data?.base64 || data?.qrcode?.base64 || data?.code || data?.qrcode || null,
+      pairingCode: data?.pairingCode || data?.qrcode?.pairingCode || null,
+      status: data?.status || 'CONNECTING'
+    };
   }
 
-  const data = await res.json();
-  return {
-    qrcode: data?.qrcode || data?.base64 || data?.code || null,
-    pairingCode: data?.pairingCode || null,
-    status: data?.status || 'CONNECTING'
-  };
+  // 2. Se a instância não existe (404), cria a instância automaticamente!
+  if (res.status === 404) {
+    console.log(`[EVOLUTION_CLIENT] Instância "${EVOLUTION_INSTANCE}" não encontrada (404). Provisionando automaticamente...`);
+    const provision = await ensureEvolutionInstance();
+    if (provision.qrcode || provision.pairingCode) {
+      return {
+        qrcode: provision.qrcode,
+        pairingCode: provision.pairingCode,
+        status: provision.status || 'CONNECTING'
+      };
+    }
+
+    // Tenta conectar novamente após criar a instância
+    const retryRes = await fetch(`${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(EVOLUTION_INSTANCE)}`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+
+    if (retryRes.ok) {
+      const data = await retryRes.json();
+      return {
+        qrcode: data?.base64 || data?.qrcode?.base64 || data?.code || data?.qrcode || null,
+        pairingCode: data?.pairingCode || data?.qrcode?.pairingCode || null,
+        status: data?.status || 'CONNECTING'
+      };
+    }
+  }
+
+  const errText = await res.text().catch(() => 'Erro ao conectar');
+  throw new Error(`Falha ao iniciar conexão Evolution [${res.status}]: ${errText}`);
 }
 
 /**
@@ -120,17 +187,34 @@ export async function pairEvolution(phoneNumber) {
     throw new Error('Número de telefone inválido para pareamento');
   }
 
-  const res = await fetch(`${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(EVOLUTION_INSTANCE)}?number=${sanitizedPhone}`, {
+  // Garante que a instância existe
+  await ensureEvolutionInstance();
+
+  let res = await fetch(`${EVOLUTION_BASE_URL}/instance/connect/${encodeURIComponent(EVOLUTION_INSTANCE)}?number=${sanitizedPhone}`, {
     method: 'GET',
     headers: getHeaders()
   });
+
+  if (!res.ok) {
+    // Tenta rota alternativa /instance/pairCode/{instance}
+    res = await fetch(`${EVOLUTION_BASE_URL}/instance/pairCode/${encodeURIComponent(EVOLUTION_INSTANCE)}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ number: sanitizedPhone })
+    });
+  }
 
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Erro ao solicitar pairing code');
     throw new Error(`Falha no pareamento Evolution [${res.status}]: ${errText}`);
   }
 
-  return await res.json();
+  const data = await res.json();
+  return {
+    pairingCode: data?.pairingCode || data?.code || null,
+    status: data?.status || 'CONNECTING',
+    raw: data
+  };
 }
 
 /**
