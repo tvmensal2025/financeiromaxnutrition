@@ -221,10 +221,14 @@ export default function IntegracoesPage() {
       const res = await connectMeowcallerSession();
       if (res.result?.qrcode) {
         setMeowcallerQr(res.result.qrcode);
-        setMeowcallerFeedback("QR Code gerado. Aponte a câmera do WhatsApp para conectar.");
+        setMeowcallerFeedback("QR Code de chamadas gerado. Aponte a câmera do WhatsApp para conectar.");
       } else {
         const st = res.result?.status || (typeof res === "object" ? (res as any).status : "DISCONNECTED");
-        setMeowcallerFeedback(`Sessão Meowcaller: ${st}`);
+        setMeowcallerFeedback(
+          st === "CONNECTED"
+            ? "Canal Meowcaller conectado e pronto para ligações."
+            : "Canal VoIP Meowcaller em prontidão (DISCONNECTED). Aguardando ativação de chip de voz dedicado."
+        );
       }
       loadAll();
     } catch (err: any) {
@@ -818,11 +822,14 @@ export default function IntegracoesPage() {
                   />
                 </div>
               ) : (
-                <div className="p-8 text-center space-y-2">
-                  <PhoneCall className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-                  <p className="text-xs text-muted-foreground">
-                    Nenhum QR de chamadas ativo. Clique em &ldquo;Conectar WhatsApp de Ligações&rdquo;.
-                  </p>
+                <div className="p-6 text-center space-y-3 max-w-xs">
+                  <PhoneCall className="h-10 w-10 text-[#007A3D]/70 mx-auto" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground">Canal de Voz Separado (VoIP)</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      O Meowcaller gerencia o tráfego de voz em uma sessão independente. Para escanear o QR Code de mensagens e notificações, utilize a aba <strong>WhatsApp (Evolution)</strong>.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
