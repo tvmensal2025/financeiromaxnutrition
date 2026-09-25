@@ -10,6 +10,10 @@ import CrmPage from "@/pages/CrmPage";
 import FinanceiroPage from "@/pages/FinanceiroPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 
+import PortfolioPage from "@/pages/PortfolioPage";
+import EquipePage from "@/pages/EquipePage";
+import HelenaInboxPage from "@/pages/HelenaInboxPage";
+
 /**
  * CONTROLE DE ACESSO:
  * Deixe `false` para o sistema ficar totalmente público sem tela de login nem senha.
@@ -56,9 +60,16 @@ function Rotas() {
         <Route path="/crm" element={<CrmPage />} />
         <Route path="/financeiro" element={<FinanceiroPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/equipe" element={<EquipePage />} />
+        <Route path="/inbox" element={<HelenaInboxPage />} />
+        <Route path="/caixa-entrada" element={<Navigate to="/inbox" replace />} />
         <Route path="/helena" element={<Navigate to="/" replace />} />
         <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
         <Route path="/modulo/calendario" element={<Navigate to="/calendario" replace />} />
+        <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />
+        <Route path="/modulo/portfolio" element={<Navigate to="/portfolio" replace />} />
+        <Route path="/modulo/equipe" element={<Navigate to="/equipe" replace />} />
         <Route path="/modulo/:tabela" element={<Modulo />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

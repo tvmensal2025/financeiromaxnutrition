@@ -150,3 +150,33 @@ describe("Isolamento Multiempresa", () => {
   });
 });
 
+describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
+  it("contém 'documentos' formalmente cadastrado no catálogo oficial de módulos", async () => {
+    const { MODULOS, obterModulo } = await import("./modulos");
+    const mod = obterModulo("documentos");
+    expect(mod).toBeDefined();
+    expect(mod?.tabela).toBe("documentos");
+    expect(mod?.grupo).toBe("Operação");
+  });
+
+  it("classifica corretamente os escopos de Governança, Integrações e Agentes", async () => {
+    const { obterEscopoModulo } = await import("./modulos");
+    expect(obterEscopoModulo("governanca")).toBe("MISTO");
+    expect(obterEscopoModulo("integracoes")).toBe("MISTO");
+    expect(obterEscopoModulo("estado_mestre")).toBe("MISTO");
+    expect(obterEscopoModulo("memoria_mestre")).toBe("MISTO");
+    expect(obterEscopoModulo("agentes")).toBe("GLOBAL");
+    expect(obterEscopoModulo("configuracao")).toBe("GLOBAL");
+    expect(obterEscopoModulo("crm")).toBe("BUSINESS");
+    expect(obterEscopoModulo("financeiro")).toBe("BUSINESS");
+  });
+
+  it("preserva FOC-004 como foco ativo e não ativa Caixa silenciosamente (WIP = 1)", () => {
+    const plano = classificar("pode iniciar caixa agora", ctx, agora);
+    // Deve manter FOC-004 ativo e Caixa em planejamento até homologação completa
+    expect(plano.conclusao).toContain("permanece planejado");
+    expect(ctx.focoId).toBe("FOC-004");
+    expect(ctx.focoStatus).toBe("EM EXECUÇÃO");
+  });
+});
+

@@ -31,7 +31,13 @@ const STATUS_BLOQUEADO = new Set(["ATIVA", "ATIVO", "OPERACIONAL", "SINCRONIZADA
 
 export default function Modulo() {
   const { tabela = "" } = useParams();
-  const meta = MODULOS.find((item) => item.tabela === tabela);
+  const meta = MODULOS.find((item) => item.tabela === tabela) || {
+    grupo: "Geral",
+    tabela: tabela,
+    titulo: tabela.charAt(0).toUpperCase() + tabela.slice(1).replace(/_/g, " "),
+    escopo: "BUSINESS" as const,
+    descricao: "Módulo operacional do Sistema Helena",
+  };
   const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, rotulo, empresas } = useBusiness();
   const [campos, setCampos] = useState<Campo[]>([]);
   const [linhas, setLinhas] = useState<Record<string, unknown>[]>([]);
@@ -105,14 +111,29 @@ export default function Modulo() {
     const lista = (mapa.data || []) as Campo[];
     setCampos(lista);
 
-    let consulta = supabase.from(tabela).select("*").limit(100);
-    // Filtragem automática caso a tabela possua coluna de business_id
+    let consulta = supabase.from(tabela).select("*").limit(200);
+    // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS)
     const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
-    if (colEmpresa) {
-      if (!isConsolidated && currentBusinessId) {
-        consulta = consulta.eq(colEmpresa, currentBusinessId);
-      } else if (isConsolidated && selecionadas.length > 0) {
-        consulta = consulta.in(colEmpresa, [...selecionadas]);
+    const escopo = meta.escopo;
+
+    if (colEmpresa && tabela !== "portfolio") {
+      if (escopo === "GLOBAL") {
+        // Módulos globais: nunca filtra por business_id (traz visão completa do sistema)
+      } else if (escopo === "MISTO") {
+        // Módulos mistos (governanca, integracoes, estado_mestre, memoria_mestre, handoffs, decisoes, etc.):
+        // Registros globais (sem business_id ou 'GLOBAL') permanecem sempre visíveis, mais os da empresa ativa
+        if (!isConsolidated && currentBusinessId) {
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.${currentBusinessId}`);
+        } else if (isConsolidated && selecionadas.length > 0) {
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.GLOBAL,${colEmpresa}.in.(${selecionadas.join(",")})`);
+        }
+      } else {
+        // Módulos puramente BUSINESS (crm, financeiro, tarefas, etc.)
+        if (!isConsolidated && currentBusinessId) {
+          consulta = consulta.eq(colEmpresa, currentBusinessId);
+        } else if (isConsolidated && selecionadas.length > 0) {
+          consulta = consulta.in(colEmpresa, [...selecionadas]);
+        }
       }
     }
 
@@ -461,9 +482,27 @@ export default function Modulo() {
             {linhasFiltradas.length === 0 && (
               <tr>
                 <td colSpan={colunasTabela.length + 2} className="px-4 py-12 text-center text-muted-foreground">
-                  {carregando
-                    ? "Carregando dados…"
-                    : "Nenhum registro encontrado. Tabela pronta para gravação da Helena."}
+                  <div className="mx-auto max-w-md space-y-2">
+                    <p className="text-sm font-medium text-foreground">
+                      {carregando
+                        ? "Carregando registros do Supabase…"
+                        : termoBusca
+                        ? `Nenhum registro corresponde ao filtro "${termoBusca}".`
+                        : !isConsolidated && meta.escopo === "BUSINESS"
+                        ? `Nenhum registro encontrado para ${rotulo} nesta tabela.`
+                        : `Nenhum registro cadastrado na tabela ${tabela}.`}
+                    </p>
+                    {!carregando && !termoBusca && !isConsolidated && meta.escopo === "BUSINESS" && (
+                      <p className="text-xs text-muted-foreground">
+                        Esta unidade de negócio não possui dados registrados aqui. Se houver registros em outra empresa, alterne no seletor acima ou escolha &quot;Grupo Consolidado&quot;.
+                      </p>
+                    )}
+                    {!carregando && !termoBusca && (isConsolidated || meta.escopo !== "BUSINESS") && (
+                      <p className="text-xs text-muted-foreground">
+                        Tabela canônica conectada ao Supabase e pronta para operações e diretrizes da Helena.
+                      </p>
+                    )}
+                  </div>
                 </td>
               </tr>
             )}

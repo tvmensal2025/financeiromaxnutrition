@@ -8,6 +8,9 @@ const ROTAS: Record<string, { titulo: string; detalhe: string }> = {
   "/crm": { titulo: "CRM e pipeline", detalhe: "Negociação aberta, datas e ganho viram cliente." },
   "/financeiro": { titulo: "Financeiro", detalhe: "Caixa, DRE, lançamentos e recorrência por empresa." },
   "/calendario": { titulo: "Calendário", detalhe: "Compromissos, follow-ups do CRM e agenda do fundador." },
+  "/portfolio": { titulo: "Portfólio de negócios", detalhe: "As 3 empresas do ecossistema, seus gargalos e critérios de saída." },
+  "/equipe": { titulo: "Equipe digital", detalhe: "Helena (CEO Virtual) e os 20 especialistas corporativos." },
+  "/inbox": { titulo: "Caixa de entrada da Helena", detalhe: "Pendências executivas, decisões pendentes e aprovações." },
 };
 
 export function PageHero() {
@@ -16,7 +19,7 @@ export function PageHero() {
   const modulo = pathname.startsWith("/modulo/") ? MODULOS.find((m) => pathname === `/modulo/${m.tabela}`) : undefined;
   const info =
     ROTAS[pathname] ||
-    (modulo ? { titulo: modulo.titulo, detalhe: `Tabela ${modulo.tabela} · cadastro oficial.` } : { titulo: "Módulo", detalhe: "Cadastro e operação do Sistema Helena." });
+    (modulo ? { titulo: modulo.titulo, detalhe: `Tabela ${modulo.tabela} · ${modulo.descricao || "cadastro oficial"}.` } : { titulo: "Módulo", detalhe: "Cadastro e operação do Sistema Helena." });
 
   return (
     <section className="pe-hero">
@@ -39,11 +42,11 @@ export function PageHero() {
               )}
             </div>
           </div>
-          <h1 className="pe-hero-title">{info.titulo}</h1>
+          <h1 className="pe-page-title">{info.titulo}</h1>
           <p className="pe-hero-sub">{info.detalhe}</p>
         </div>
         <p className="pe-hero-note">
-          A Helena conversa no ChatGPT oficial. Aqui você visualiza e opera os dados em tempo real com isolamento multiempresa.
+          A Helena atua como CEO Virtual no ChatGPT oficial. Aqui você visualiza e opera os dados em tempo real com contexto multiempresa aplicado.
         </p>
       </div>
     </section>

@@ -117,59 +117,45 @@ export default function Painel() {
   // Filtro amigável para ideias
   const [filtroDecisao, setFiltroDecisao] = useState<string>("TODAS");
 
-  // Fallbacks contextualizados por empresa ativa conforme especificação Helena
+  // Estado canônico de foco do ecossistema conforme Supabase oficial
   const FOCO_PADRAO: Foco[] = useMemo(() => {
-    if (currentBusinessId === "BIZ-001") {
-      return [
-        {
-          id: "FOC-01",
-          frente: "Expansão Comercial iGreen Energy",
-          status: "EM EXECUÇÃO",
-          objetivo: "Aquisição de novos clientes e expansão da carteira de energia por assinatura",
-          ordem: 1,
-          responsavel: "Helena & Comercial",
-          criterio_de_saida: "Atingir meta mensal de contratos ativos com faturamento recorrente",
-        },
-      ];
-    }
-    if (currentBusinessId === "BIZ-002") {
-      return [
-        {
-          id: "FOC-02",
-          frente: "Consolidação de Escopo do Ecossistema de Saúde",
-          status: "EM EXECUÇÃO",
-          objetivo: "Definição de portfólio de produtos e experiência digital do aplicativo",
-          ordem: 1,
-          responsavel: "Helena & Produto",
-          criterio_de_saida: "Escopo consolidado com esteira de produção e vendas pronta",
-        },
-      ];
-    }
-    if (currentBusinessId === "BIZ-003") {
-      return [
-        {
-          id: "FOC-03",
-          frente: "Validação do Modelo Humano Digital",
-          status: "EM EXECUÇÃO",
-          objetivo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão",
-          ordem: 1,
-          responsavel: "Helena & Validação",
-          criterio_de_saida: "Ciclo de aquisição e comissionamento testado e comprovado",
-        },
-      ];
-    }
     return [
       {
-        id: "FOC-00",
-        frente: "Operação Integrada Helena (iGreen, Ecossistema de Saúde e Humano Digital)",
+        id: "FOC-004",
+        frente: "Homologação técnica do Sistema Helena",
         status: "EM EXECUÇÃO",
-        objetivo: "Centralização e governança executiva unificada das frentes de negócio",
+        objetivo: "Consolidação técnica do ecossistema, Supabase como fonte operacional de verdade e alinhamento dos 3 negócios.",
         ordem: 1,
-        responsavel: "Helena (Chief of Staff)",
-        criterio_de_saida: "Todas as frentes com CRM, fluxo e métricas sincronizadas",
+        responsavel: "Helena (CEO Virtual)",
+        criterio_de_saida: "Núcleo homologado com banco relacional e regras V8 validadas.",
+      },
+      {
+        id: "FOC-002",
+        frente: "Caixa das Empresas",
+        status: "PLANEJADO",
+        objetivo: "Gestão integrada de liquidez e conciliação bancária das unidades.",
+        ordem: 2,
+        responsavel: "Helena (CEO Virtual)",
+        criterio_de_saida: "Contas financeiras ativas e conciliação validada.",
+      },
+      {
+        id: "FOC-001",
+        frente: "Estruturação Inicial do Ecossistema",
+        status: "CONCLUÍDO",
+        objetivo: "Mapeamento das frentes de negócio e governança básica.",
+        ordem: 3,
+        responsavel: "Helena",
+      },
+      {
+        id: "FOC-003",
+        frente: "Definição Arquitetural V8",
+        status: "CONCLUÍDO",
+        objetivo: "Definição do modelo relacional e governança executiva.",
+        ordem: 4,
+        responsavel: "Helena",
       },
     ];
-  }, [currentBusinessId]);
+  }, []);
 
   const NEGOCIOS_PADRAO: Negocio[] = useMemo(() => {
     return [
@@ -273,7 +259,17 @@ export default function Painel() {
   // Filtros usando o BusinessContext
   const filtro = todasLigadas ? undefined : selecionadas;
   const caixa = useMemo(() => lerCaixa(lancamentos, filtro), [lancamentos, filtro]);
-  const ativo = foco.find((item) => item.status === "EM EXECUÇÃO") || foco[0];
+
+  // Foco Executivo com garantia estrita de WIP = 1
+  const frentesAtivas = useMemo(() => {
+    return foco.filter((item) => (item.status || "").trim().toUpperCase() === "EM EXECUÇÃO");
+  }, [foco]);
+  const temViolacaoWip = frentesAtivas.length > 1;
+  const focoAtivo = frentesAtivas.length === 1 ? frentesAtivas[0] : (frentesAtivas.length > 1 ? frentesAtivas[0] : null);
+  const proximoFoco = useMemo(() => {
+    return foco.find((item) => (item.status || "").trim().toUpperCase() === "PLANEJADO") || null;
+  }, [foco]);
+  const ativo = focoAtivo;
 
   // Negócio ativo com dados canônicos de portfolio
   const dadosNegocioAtivo = useMemo(() => {
@@ -617,57 +613,86 @@ export default function Painel() {
         </div>
       </section>
 
-      {/* 🎯 2. HERO CARD: PRIORIDADE NÚMERO 1 DE HOJE (WIP = 1) */}
-      <section className="relative overflow-hidden rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-background p-6 shadow-sm backdrop-blur-md">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                🎯 Prioridade Número 1 da Helena (WIP = 1)
-              </p>
-            </div>
+      {/* 🎯 2. HERO CARD: PRIORIDADE NÚMERO 1 DO GRUPO (WIP = 1) */}
+      {temViolacaoWip && (
+        <section className="rounded-3xl border-2 border-rose-500/50 bg-rose-500/10 p-6 space-y-2">
+          <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black">
+            <AlertCircle className="h-5 w-5" />
+            <span className="text-sm uppercase tracking-wider">⚠️ ALERTA DE GOVERNANÇA: VIOLAÇÃO DE WIP EXECUTIVO = 1</span>
+          </div>
+          <p className="text-xs text-foreground leading-relaxed">
+            Existem <strong>{frentesAtivas.length}</strong> frentes marcadas simultaneamente como &quot;EM EXECUÇÃO&quot; no foco executivo:
+            <span className="font-semibold text-rose-500"> {frentesAtivas.map((f) => `${f.id} (${f.frente})`).join(", ")}</span>.
+            A regra fundamental do Sistema Helena determina <strong>WIP = 1</strong> (começar, finalizar, depois abrir outra frente).
+            Acesse o módulo de Foco Executivo para concluir ou pausar as frentes em paralelo.
+          </p>
+        </section>
+      )}
 
-            {ativo ? (
-              <>
-                <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
-                  {ativo.frente}
-                </h2>
-                <div className="space-y-1.5 text-xs md:text-sm text-muted-foreground leading-relaxed">
-                  <p>
-                    <strong className="text-foreground font-semibold">O que precisamos fazer: </strong>
-                    {ativo.objetivo}
+      {!temViolacaoWip && frentesAtivas.length === 0 && (
+        <section className="rounded-3xl border border-border/70 bg-card p-6 text-center space-y-2">
+          <p className="text-sm font-bold text-foreground">Nenhuma frente executiva ativa no momento</p>
+          <p className="text-xs text-muted-foreground">
+            Todas as frentes de trabalho anteriores foram concluídas ou aguardam ativação formal do fundador.
+          </p>
+        </section>
+      )}
+
+      {ativo && (
+        <section className="relative overflow-hidden rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-background p-6 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2 max-w-3xl">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                  🎯 Foco Executivo Atual do Grupo (WIP = 1)
+                </p>
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.2 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  {ativo.id}
+                </span>
+              </div>
+
+              <h2 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
+                {ativo.frente}
+              </h2>
+              <div className="space-y-1.5 text-xs md:text-sm text-muted-foreground leading-relaxed">
+                <p>
+                  <strong className="text-foreground font-semibold">O que precisamos fazer: </strong>
+                  {ativo.objetivo}
+                </p>
+                {ativo.criterio_de_saida && (
+                  <p className="pt-0.5 text-foreground/90 flex items-center gap-2 font-medium">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+                    <span>
+                      <strong>Critério de saída: </strong>
+                      {ativo.criterio_de_saida}
+                    </span>
                   </p>
-                  {ativo.criterio_de_saida && (
-                    <p className="pt-0.5 text-foreground/90 flex items-center gap-2 font-medium">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-                      <span>
-                        <strong>Critério de saída: </strong>
-                        {ativo.criterio_de_saida}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Nenhuma prioridade ativa definida no momento.</p>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                EM EXECUÇÃO
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                Orquestrado por: <strong className="text-foreground">Helena (Sua IA)</strong>
-              </span>
+                )}
+              </div>
             </div>
 
-            <span className="text-xs text-muted-foreground">Acompanhado em tempo real no painel do fundador.</span>
+            <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  EM EXECUÇÃO
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Liderado por: <strong className="text-foreground">Helena (CEO Virtual)</strong>
+                </span>
+              </div>
+
+              {proximoFoco && (
+                <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-1.5 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Próxima Prioridade no Roadmap</p>
+                  <p className="text-xs font-semibold text-foreground">{proximoFoco.id} · {proximoFoco.frente}</p>
+                  <span className="text-[10px] text-amber-500 font-medium">(Aguardando conclusão de {ativo.id})</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 📊 3. GRADE DE INDICADORES (StatsGrid Polido) */}
       <StatsGrid stats={statsGridData} />
@@ -926,7 +951,7 @@ export default function Painel() {
               Sistema Helena Sincronizado
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Isolamento multiempresa ativo ({currentBusinessId})
+              Contexto multiempresa aplicado ({currentBusinessId})
             </p>
           </div>
         </div>

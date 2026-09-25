@@ -1,57 +1,76 @@
-# Resumo Executivo para Helena (Chief of Staff)
-
-**Data de Emissão:** 24/09/2026  
-**Ambiente:** Sistema Helena — Ecossistema do Fundador  
-**Projeto Supabase Conectado:** `wxkgrykduqtsgmjkzlou` (ecosistemadossonhos)
+# RESUMO EXECUTIVO PARA A HELENA
+**Status da Convergência Operacional e Transição para o Supabase**
 
 ---
 
-## 1. Status Geral da Aplicação
-- **Operação do Painel:** 100% Funcional e em Modo Público (sem senha, conforme instrução direta de voz do fundador).
-- **Compilação & Build:** 100% Aprovado (`npm run build` com saída zero erros).
-- **Testes Unitários:** 14/14 testes aprovados no Vitest com validação matemática e de regras.
+### 1. Qual é a fonte de verdade agora?
+**O Supabase (`wxkgrykduqtsgmjkzlou`).**
+A planilha `Painel_Mestre_Sistema_Helena_v8_REVISADO.xlsx` não é mais o sistema operacional; ela passa a ser tratada como especificação histórica e referência arquitetural.
 
----
+### 2. Qual é a frente ativa?
+**FOC-004 — Homologação técnica do Sistema Helena** (Status: `EM EXECUÇÃO`).
+A frente de Caixa (FOC-002) permanece em `PLANEJADO` e **não foi ativada silenciosamente**. O princípio de **WIP Executivo = 1** está rigorosamente protegido.
 
-## 2. O Que Foi Corrigido
-1. **Contexto Central Multiempresa:** O seletor foi transformado no `BusinessContext` central do ecossistema. Toda a aplicação agora sabe exatamente qual empresa está selecionada (`currentBusinessId`: `BIZ-001` - iGreen, `BIZ-002` - Ecossistema de Saúde, `BIZ-003` - Humano Digital ou `GRUPO`).
-2. **Eliminação de Contaminação Visual:** Ao trocar de empresa no menu lateral, os dados da empresa anterior são limpos instantaneamente, exibindo loading contextual e recarregando apenas os dados do novo negócio.
-3. **Banner Executivo no Topo:** O Dashboard agora destaca a **Empresa Selecionada**, seu **Estágio** (ex: VENDAS, PRODUTO, VALIDAÇÃO) e o **Principal Gargalo** mapeado em `public.portfolio`.
-4. **Proteção em Formulários e Mutações:**
-   - No CRM, Financeiro, Calendário e Módulos: novas criações preenchem automaticamente o `business_id` da empresa ativa (o usuário não precisa digitar manualmente).
-   - Atualizações e exclusões impedem que uma tela operando em `BIZ-001` altere ou exclua registros de `BIZ-002` ou `BIZ-003`.
-5. **Correção de Warnings de Segurança (Search Path):** Criada migration corrigindo o search_path nas 4 funções executivas da Helena (`SET search_path = public, pg_temp`).
+### 3. O Dashboard reflete o foco real?
+**Sim, 100%.**
+O foco exibido no Dashboard agora é derivado exclusivamente da frente ativa em `foco_executivo` (**FOC-004**), eliminando fallbacks hardcoded de expansão comercial. Se houver mais de uma frente em execução, o sistema exibe um **Alerta de Governança**.
 
----
+### 4. Os três negócios estão isolados?
+**Sim.**
+O `BusinessContext` mantém a empresa ativa (**BIZ-001 iGreen, BIZ-002 Ecossistema de Saúde, BIZ-003 Humano Digital**) e permite alternar para o Grupo Consolidado. As consultas financeiras, de CRM e de tarefas são estritamente isoladas por `business_id`.
 
-## 3. O Multiempresa Está Realmente Isolado?
-**SIM, ISOLADO.**
-- No frontend, todas as consultas operacionais (`crm`, `financeiro`, `tarefas`, `ideias`, `calendario`, etc.) aplicam filtro estrito por `business_id = currentBusinessId`.
-- No banco de dados, o trigger `helena_financeiro_antes()` rejeita qualquer movimentação ou vínculo com contas de outras empresas.
-- A "Visão Consolidada (Grupo)" agora é uma ação intencional e separada, nunca resultado de ausência de filtro.
+### 5. Quais módulos estavam exibindo zero incorretamente?
+* `governanca` (3 rituais do grupo)
+* `integracoes` (4 integrações corporativas)
+* `estado_mestre` (10 registros centrais)
+* `memoria_mestre` (15 registros históricos)
+* `handoffs` (1 registro)
+* `portfolio` (os 3 negócios)
+* `riscos` (6 registros de risco, incluindo o risco de iGreen)
 
----
+**Causa corrigida:** O frontend filtrava cegamente por `business_id = 'BIZ-001'`. Agora os módulos são classificados por escopo: módulos `GLOBAL` não sofrem filtro, módulos `MISTO` trazem os registros globais mais os da empresa ativa, e módulos `BUSINESS` filtram pela empresa.
 
-## 4. Situação de Auth & Protected Routes
-- **Modo Atual:** **Público sem senha** (`EXIGIR_AUTENTICACAO = false`), atendendo ao comando do fundador para testar e finalizar as telas livremente.
-- **Estrutura Pronta para o Futuro:** O `AuthProvider` já possui verificação completa com a tabela `public.app_access` (identificando `founder`, `admin` e `member`).
-- **Como Ligar a Senha Posteriormente:** Quando o fundador decidir colocar senha, basta alternar `EXIGIR_AUTENTICACAO = true` em `src/App.tsx`. O fluxo redirecionará automaticamente para `/entrar` e validará a sessão do Supabase.
+### 6. Documentos foi corrigido?
+**Sim.**
+A rota `/modulo/documentos` está formalmente cadastrada no registro de módulos (`src/lib/modulos.ts`), sem mensagens de erro e sem duplicação de renderização.
 
----
+### 7. Governança global funciona?
+**Sim.**
+Os 3 rituais executivos do grupo (reunião diária, semanal e mensal) agora aparecem independentemente da empresa selecionada no seletor.
 
-## 5. Segurança do Supabase
-- **Chave de Serviço (Service Role):** Não exposta no frontend (apenas a chave pública anon é utilizada).
-- **RLS & Acesso:** As 58 tabelas públicas possuem RLS ativo. Foi criada a migration `20260924_user_business_access_rls.sql` para suportar regras granulares de membros por empresa.
-- **Search Path:** Corrigido via migration.
+### 8. Riscos funciona?
+**Sim.**
+A matriz de riscos exibe os riscos mapeados por criticidade e probabilidade, e ao selecionar iGreen (BIZ-001), o risco real cadastrado no Supabase é exibido com clareza.
 
----
+### 9. Integrações funciona?
+**Sim.**
+As integrações corporativas aparecem com seu status real (Planejada, Em configuração, Ativa) sem desaparecerem da tela.
 
-## 6. O Que Continua Pendente / Ações no Dashboard Supabase
-1. **Rodar Migrations no SQL Editor:** Aplicar os scripts `20260924_fix_helena_functions_security.sql` e `20260924_user_business_access_rls.sql` no SQL Editor do projeto `wxkgrykduqtsgmjkzlou`.
-2. **Leaked Password Protection:** Ativar a proteção de senhas comprometidas no menu de segurança do Supabase Dashboard (Auth -> Security).
+### 10. Memória, Estado e Handoffs funcionam?
+**Sim.**
+O histórico completo de decisões, o estado consolidado do sistema e as passagens de bastão estão disponíveis para consulta e alinhamento executivo.
 
----
+### 11. Helena já está registrada como CEO Virtual?
+**Sim.**
+Helena (AGT-01) está formalmente registrada como **CEO Virtual / Central de Comando**, atuando diretamente pelo ChatGPT oficial da OpenAI.
 
-## 7. Decisões Que Ainda Precisam do Fundador
-1. **Momento da Ativação de Senha:** Definir quando deseja que o login passe a ser obrigatório para todos os visitantes do painel.
-2. **Novos Usuários / Membros:** Quando outros membros da equipe forem adicionados ao Supabase Auth, cadastrar suas permissões por empresa na tabela `user_business_access`.
+### 12. Quantos especialistas estão realmente conectados?
+**Zero (0) especialistas conectados.**
+Os 20 especialistas (AGT-02 até AGT-21) estão cadastrados como `PLANNED` (Planejados) e com status `NÃO CONECTADO` para execução futura via Grok Bot. O sistema não finge conexões inexistentes.
+
+### 13. A fila agent_jobs existe?
+**Sim.**
+Foi criada a tabela `agent_jobs` no Supabase com suporte a idempotência, status (`DRAFT`, `READY`, `RUNNING`, `WAITING_HELENA`, `COMPLETED`), e a tabela append-only `agent_job_events`.
+
+### 14. A Helena Inbox existe?
+**Sim.**
+Criada a página executiva `/inbox` (Caixa de Entrada da Helena), centralizando aprovações necessárias, decisões do fundador, riscos críticos e jobs concluídos.
+
+### 15. Evolution API está em qual estado?
+**NÃO CONFIGURADA / EM CONFIGURAÇÃO.**
+A estrutura de banco `notification_outbox` foi criada com campos para template, payload e tentativas. O envio está planejado e aguarda inserção das credenciais reais da Evolution API.
+
+### 16. Quais decisões ainda dependem do fundador?
+1. Validar a conclusão de **FOC-004** (Homologação técnica) para deliberar sobre a ativação de **FOC-002** (Caixa).
+2. Fornecer os parâmetros/credenciais para conexão da Evolution API quando desejar ativar os alertas por WhatsApp.
+3. Definir o cronograma de ativação gradual dos 20 especialistas no Grok Bot.
