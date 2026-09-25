@@ -135,6 +135,8 @@ export async function connectEvolution() {
 
   if (res.ok) {
     const data = await res.json();
+    // Garante que o webhook está configurado em background
+    setEvolutionWebhook().catch(() => {});
     return {
       qrcode: data?.base64 || data?.qrcode?.base64 || data?.code || data?.qrcode || null,
       pairingCode: data?.pairingCode || data?.qrcode?.pairingCode || null,
@@ -330,4 +332,73 @@ export function normalizeEvolutionWebhookEvent(body) {
     status: isFromMe ? 'ENVIADA' : 'RECEBIDA',
     raw_event: body
   };
+}
+
+/**
+ * Configura o webhook na Evolution API v2 para a instância ativa
+ */
+export async function setEvolutionWebhook(customWebhookUrl) {
+  if (!isEvolutionConfigured()) {
+    throw new Error('Evolution API não configurada');
+  }
+
+  const host = process.env.PUBLIC_HOST || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
+  const targetUrl = customWebhookUrl || `https://${host}/webhooks/evolution`;
+
+  const payload = {
+    webhook: {
+      enabled: true,
+      url: targetUrl,
+      byEvents: false,
+      base64: false,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  };
+
+  try {
+    const res = await fetch(`${EVOLUTION_BASE_URL}/webhook/set/${encodeURIComponent(EVOLUTION_INSTANCE)}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => 'Erro ao configurar webhook');
+      return { success: false, status: res.status, error: errText };
+    }
+
+    const data = await res.json().catch(() => ({ ok: true }));
+    return { success: true, url: targetUrl, instance: EVOLUTION_INSTANCE, data };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Consulta a configuração atual de webhook na Evolution API
+ */
+export async function getEvolutionWebhook() {
+  if (!isEvolutionConfigured()) {
+    return { configured: false, error: 'Evolution API não configurada' };
+  }
+
+  try {
+    const res = await fetch(`${EVOLUTION_BASE_URL}/webhook/find/${encodeURIComponent(EVOLUTION_INSTANCE)}`, {
+      method: 'GET',
+      headers: getHeaders()
+    });
+
+    if (!res.ok) {
+      return { configured: false, status: res.status };
+    }
+
+    const data = await res.json().catch(() => null);
+    return { configured: true, instance: EVOLUTION_INSTANCE, data };
+  } catch (err) {
+    return { configured: false, error: err.message };
+  }
 }

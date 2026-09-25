@@ -12,7 +12,9 @@ import {
   disconnectEvolution,
   sendEvolutionText,
   normalizeEvolutionWebhookEvent,
-  isEvolutionConfigured
+  isEvolutionConfigured,
+  setEvolutionWebhook,
+  getEvolutionWebhook
 } from '../integrations/evolution.mjs';
 import {
   getMeowcallerHealth,
@@ -241,7 +243,24 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
+  router.post('/api/integrations/evolution/webhook/setup', authenticateUser, async (req, res) => {
+    try {
+      const { url } = req.body || {};
+      const result = await setEvolutionWebhook(url);
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
 
+  router.get('/api/integrations/evolution/webhook', authenticateUser, async (req, res) => {
+    try {
+      const result = await getEvolutionWebhook();
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
 
   // Webhook público da Evolution API
   router.post('/webhooks/evolution', async (req, res) => {
