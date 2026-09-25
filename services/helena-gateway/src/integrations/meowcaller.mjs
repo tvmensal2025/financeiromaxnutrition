@@ -115,7 +115,7 @@ export async function startMeowcallerSession() {
   }
 
   try {
-    const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session`, {
+    const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session/start`, {
       method: 'POST',
       headers: getHeaders()
     });

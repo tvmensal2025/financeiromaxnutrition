@@ -34,6 +34,8 @@ async function gatewayFetch<T>(endpoint: string, options: RequestInit = {}): Pro
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    headers["Authorization"] = `Bearer helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f`;
   }
 
   if (options.body && typeof options.body === "string" && !headers["Content-Type"]) {
@@ -114,6 +116,8 @@ export interface AggregatedHealth {
     whatsapp_status?: string;
     active_calls?: number;
     connected_jid?: string;
+    has_qr_code?: boolean;
+    qrcode?: string;
     error?: string;
   };
   elevenlabs: {

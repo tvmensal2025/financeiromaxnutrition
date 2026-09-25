@@ -121,13 +121,30 @@ export default function IntegracoesPage() {
         fetchCallSessions().catch(() => []),
       ]);
 
-      if (h) setHealth(h);
+      if (h) {
+        setHealth(h);
+        if (h.meowcaller?.qrcode) {
+          setMeowcallerQr(h.meowcaller.qrcode);
+        }
+      }
       if (ev) setEvolutionStatus(ev.status);
       if (mc) {
         setMeowcallerStatus(mc.session);
         if (mc.session?.qrcode) {
           setMeowcallerQr(mc.session.qrcode);
         }
+      }
+      // Se a engine Meowcaller requer pareamento e o QR Code ainda não está em tela, requisita automaticamente
+      const currentQr = mc?.session?.qrcode || h?.meowcaller?.qrcode;
+      const isPairing =
+        h?.meowcaller?.whatsapp_status === "PAIRING_REQUIRED" ||
+        mc?.session?.status === "PAIRING_REQUIRED" ||
+        mc?.session?.whatsapp_status === "PAIRING_REQUIRED";
+      if (!currentQr && isPairing) {
+        connectMeowcallerSession().then((res) => {
+          const qr = res?.result?.qrcode || res?.session?.qrcode || (res as any)?.qrcode;
+          if (qr) setMeowcallerQr(qr);
+        }).catch(() => {});
       }
       setVoiceProfiles(vc);
       setEvents(evts);
@@ -379,7 +396,11 @@ export default function IntegracoesPage() {
     (typeof evolutionStatus === "string" ? evolutionStatus : evolutionStatus?.status) === "OPEN" ||
     Boolean(health?.evolution?.connected);
 
-  const activeMeowQr = meowcallerQr || (typeof meowcallerStatus === "object" ? meowcallerStatus?.qrcode : null);
+  const activeMeowQr =
+    meowcallerQr ||
+    (typeof meowcallerStatus === "object" ? meowcallerStatus?.qrcode : null) ||
+    health?.meowcaller?.qrcode ||
+    null;
 
   const tabs: {
     id: TabId;
@@ -840,29 +861,63 @@ export default function IntegracoesPage() {
                   <p className="text-[11px] text-muted-foreground">Insira este código na notificação do WhatsApp.</p>
                 </div>
               ) : isEvolutionConnected ? (
-                <div className="p-6 text-center space-y-3 max-w-xs">
-                  <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-[#007A3D] flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="h-6 w-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-foreground">WhatsApp de Mensagens Conectado!</p>
+                <div className="space-y-4 max-w-md w-full">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-2">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>WhatsApp de Mensagens & URA Conectado!</span>
+                    </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                       A instância <strong className="text-foreground">{evolutionStatus?.instance || "helena_mensagens"}</strong> já está online e respondendo mensagens automaticamente com URA (1, 2, 3...) e IA Laya.
                     </p>
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium pt-1">
-                      O QR Code pendente é o de <strong>ligações de voz VoIP</strong>.
-                    </p>
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("calls")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#007A3D] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
-                      >
-                        <PhoneCall className="h-3.5 w-3.5" />
-                        <span>Abrir QR Code de Ligações</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDisconnectEvo(true)}
+                      className="text-[10px] text-muted-foreground hover:text-rose-600 underline pt-1 block mx-auto"
+                    >
+                      Deseja trocar o chip de mensagens? Desconectar sessão
+                    </button>
                   </div>
+
+                  {!isMeowConnected && (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 text-center space-y-3">
+                      <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <QrCode className="h-4 w-4" />
+                        <span>QR Code Pendente: WhatsApp de Ligações VoIP</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Como você observou, mensagens e ligações são canais separados. O WhatsApp de mensagens já está ativo. Escaneie este QR Code com o WhatsApp do chip de ligações para habilitar chamadas de voz:
+                      </p>
+                      {activeMeowQr ? (
+                        <div className="p-3 bg-white rounded-xl border border-border shadow-sm inline-block mx-auto">
+                          <img
+                            src={
+                              activeMeowQr.startsWith("data:")
+                                ? activeMeowQr
+                                : `data:image/png;base64,${activeMeowQr}`
+                            }
+                            alt="QR Code WhatsApp Ligações"
+                            className="w-48 h-48 object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-48 h-48 flex flex-col items-center justify-center text-center p-4 space-y-2 mx-auto bg-white rounded-xl border border-border">
+                          <QrCode className="h-8 w-8 text-muted-foreground/40 animate-pulse" />
+                          <span className="text-xs text-muted-foreground font-medium">Carregando QR Code...</span>
+                          <button
+                            type="button"
+                            onClick={handleConnectMeowcaller}
+                            className="text-xs text-[#007A3D] underline font-semibold"
+                          >
+                            Clique para gerar
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-[10px] font-mono text-zinc-500">
+                        WhatsApp &gt; Dispositivos Conectados &gt; Conectar Dispositivo
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-8 text-center space-y-2">

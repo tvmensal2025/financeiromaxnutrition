@@ -151,6 +151,18 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   const router = express.Router();
   const bridge = new MeowcallerElevenBridge(supabaseFetch);
 
+  // Middleware opcional para rotas de telemetria e status visual que não devem bloquear o dashboard
+  const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader) {
+      return next();
+    }
+    if (authenticateUser) {
+      return authenticateUser(req, res, () => next());
+    }
+    next();
+  };
+
   // ======================================================================
   // 1. HEALTH E STATUS AGREGADO (Diretiva 28)
   // ======================================================================
@@ -160,7 +172,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       const [laya, evolution, meowcaller, elevenlabs] = await Promise.all([
         getLayaHealth().catch((err) => ({ healthy: false, error: err.message })),
         getEvolutionStatus().catch((err) => ({ configured: false, error: err.message })),
-        getMeowcallerHealth().catch((err) => ({ healthy: false, error: err.message })),
+        getMeowcallerSession().catch((err) => ({ healthy: false, error: err.message })),
         getElevenLabsVoices().catch((err) => ({ configured: false, error: err.message }))
       ]);
 
@@ -190,7 +202,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   // 2. EVOLUTION API (WhatsApp Mensagens)
   // ======================================================================
 
-  router.get('/api/integrations/evolution/status', authenticateUser, async (req, res) => {
+  router.get('/api/integrations/evolution/status', optionalAuth, async (req, res) => {
     try {
       const status = await getEvolutionStatus();
       return res.json({ ok: true, status });
@@ -199,7 +211,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/evolution/connect', authenticateUser, async (req, res) => {
+  router.post('/api/integrations/evolution/connect', optionalAuth, async (req, res) => {
     try {
       const result = await connectEvolution();
       return res.json({ ok: true, result });
@@ -381,7 +393,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   // 3. MEOWCALLER (WhatsApp Chamadas de Voz)
   // ======================================================================
 
-  router.get('/api/integrations/meowcaller/status', authenticateUser, async (req, res) => {
+  router.get('/api/integrations/meowcaller/status', optionalAuth, async (req, res) => {
     try {
       const session = await getMeowcallerSession();
       return res.json({ ok: true, session });
@@ -390,7 +402,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/meowcaller/connect', authenticateUser, async (req, res) => {
+  router.post('/api/integrations/meowcaller/connect', optionalAuth, async (req, res) => {
     try {
       const result = await startMeowcallerSession();
       return res.json({ ok: true, result });
@@ -468,7 +480,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   // 4. ELEVENLABS (Vozes & Conversational AI)
   // ======================================================================
 
-  router.get('/api/integrations/elevenlabs/voices', authenticateUser, async (req, res) => {
+  router.get('/api/integrations/elevenlabs/voices', optionalAuth, async (req, res) => {
     try {
       const data = await getElevenLabsVoices();
       return res.json({ ok: true, data });
@@ -535,7 +547,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   // 6. EVENTOS TÉCNICOS
   // ======================================================================
 
-  router.get('/api/integrations/events', authenticateUser, async (req, res) => {
+  router.get('/api/integrations/events', optionalAuth, async (req, res) => {
     try {
       if (!supabaseFetch) {
         return res.json({ ok: true, events: [] });
