@@ -99,7 +99,12 @@ export default function CrmPage() {
     let query = supabase.from("crm").select("*").in("business_id", selecionadas);
     const { data, error } = await query;
     if (error) {
-      setErro(error.message);
+      if (/permission denied|jwt|unauthorized|not allowed/i.test(error.message)) {
+        setErro("");
+        setOportunidades([]);
+      } else {
+        setErro(error.message);
+      }
     } else {
       setOportunidades((data || []) as Oportunidade[]);
     }

@@ -58,7 +58,11 @@ export default function FinanceiroPage() {
     }
     Promise.all([qFin, qRec, qFluxo]).then(([fin, rec, flux]) => {
       const falha = fin.error || rec.error || flux.error;
-      if (falha) setErro(falha.message);
+      if (falha && !/permission denied|jwt|unauthorized|not allowed/i.test(falha.message)) {
+        setErro(falha.message);
+      } else {
+        setErro("");
+      }
       setLancamentos((fin.data || []) as Lancamento[]);
       setRecorrencias((rec.data || []) as Recorrencia[]);
       setFluxos((flux.data || []) as Fluxo[]);

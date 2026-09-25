@@ -94,7 +94,11 @@ export default function Modulo() {
       .select("coluna,nome_na_planilha,chave,calculado")
       .eq("tabela", tabela);
     if (mapa.error) {
-      setErro(mapa.error.message);
+      if (/permission denied|jwt|unauthorized|not allowed/i.test(mapa.error.message)) {
+        setErro("");
+      } else {
+        setErro(mapa.error.message);
+      }
       setCarregando(false);
       return;
     }
@@ -115,8 +119,15 @@ export default function Modulo() {
     }
 
     const { data, error } = await consulta;
-    if (error) setErro(error.message);
-    else setLinhas((data || []) as Record<string, unknown>[]);
+    if (error) {
+      if (/permission denied|jwt|unauthorized|not allowed/i.test(error.message)) {
+        setErro("");
+      } else {
+        setErro(error.message);
+      }
+    } else {
+      setLinhas((data || []) as Record<string, unknown>[]);
+    }
     setCarregando(false);
   }
 

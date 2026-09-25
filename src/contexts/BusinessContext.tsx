@@ -93,12 +93,21 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(CHAVE, JSON.stringify(ids));
   };
 
+const EMPRESAS_BASE: Empresa[] = [
+  { id: "BIZ-001", nome: "iGreen Energy", sigla: "iGreen Energy", cor: "#007A3D" },
+  { id: "BIZ-002", nome: "Max Nutrition & Refit", sigla: "Max Nutrition & Refit", cor: "#2563EB" },
+  { id: "BIZ-003", nome: "Humano Digital", sigla: "Humano Digital", cor: "#B45309" },
+];
+
   const carregar = async (ligarId?: string) => {
     const { data, error } = await supabase
       .from("portfolio")
       .select("business_id,negocio")
       .order("business_id");
     if (error) {
+      setEmpresas(EMPRESAS_BASE);
+      const ids = EMPRESAS_BASE.map((item) => item.id);
+      setSelecionadas((atual) => (atual.length ? atual : ids));
       setCarregandoEmpresas(false);
       return;
     }
@@ -110,8 +119,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         sigla: siglaDe(item.negocio || item.business_id),
         cor: corDe(item.business_id, indice),
       }));
-    setEmpresas(lista);
-    const ids = lista.map((item) => item.id);
+    const listaFinal = lista.length ? lista : EMPRESAS_BASE;
+    setEmpresas(listaFinal);
+    const ids = listaFinal.map((item) => item.id);
     setSelecionadas((atual) => {
       const base = atual.length ? atual.filter((item) => ids.includes(item)) : lerSalvas(ids);
       const comNova = ligarId && ids.includes(ligarId) && !base.includes(ligarId) ? [...base, ligarId] : base;

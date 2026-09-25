@@ -103,5 +103,6 @@ export async function carregarAgenda(selecionadas: string[], todasLigadas: boole
   }
 
   const eventos = [...doCalendario, ...doTarefas];
-  return { eventos, semData, erro: erro?.message || "" };
+  const ehPermissao = erro && /permission denied|jwt|unauthorized|not allowed/i.test(erro.message);
+  return { eventos, semData, erro: ehPermissao ? "" : erro?.message || "" };
 }

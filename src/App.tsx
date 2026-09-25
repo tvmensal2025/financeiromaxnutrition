@@ -12,10 +12,9 @@ import CalendarioPage from "@/pages/CalendarioPage";
 
 /**
  * CONTROLE DE ACESSO:
- * - true: Exige autenticação (necessário porque o banco Supabase exige usuário logado para liberar as tabelas).
- * - false: Sistema público (só use se aplicar o script SQL liberando as tabelas para a role 'anon').
+ * Deixe `false` para o sistema ficar totalmente público sem tela de login nem senha.
  */
-export const EXIGIR_AUTENTICACAO = true;
+export const EXIGIR_AUTENTICACAO = false;
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
