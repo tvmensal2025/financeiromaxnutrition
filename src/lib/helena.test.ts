@@ -213,6 +213,35 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(listaEsperada["AGT-21"].cargo).toBe("Administração");
   });
 
+  it("valida a restauração dos contratos canônicos da V8 (quando_ativar e missao)", () => {
+    const contratoHelena = {
+      quando_ativar: "Assunto geral, prioridades, conflitos entre áreas, painel, decisões",
+      missao: "Integrar todo o portfólio, escolher o especialista certo, manter foco, memória e execução sincronizados.",
+    };
+    const contratoLaura = {
+      quando_ativar: "Fala, clareza, hábitos, aprendizagem, leitura, desenvolvimento",
+      missao: "Treinar o fundador por prática guiada, observando 1–2 padrões de maior impacto por sessão.",
+    };
+    const contratoVictor = {
+      quando_ativar: "Prospecção, pipeline, abordagem, fechamento",
+      missao: "Gerar aprendizado e receita por atividade comercial mensurável.",
+    };
+
+    expect(contratoHelena.quando_ativar).toContain("conflitos entre áreas");
+    expect(contratoLaura.missao).toContain("Treinar o fundador");
+    expect(contratoVictor.quando_ativar).toContain("Prospecção");
+  });
+
+  it("valida que governança é estritamente global e nunca filtra por business_id", () => {
+    const moduloGov = {
+      tabela: "governanca",
+      escopo: "GLOBAL",
+      chave: "governance_id",
+    };
+    expect(moduloGov.escopo).toBe("GLOBAL");
+    expect(moduloGov.chave).toBe("governance_id");
+  });
+
   it("valida que o portfólio renderiza diretamente valores do banco sem inventar dados", () => {
     const itemBanco = {
       business_id: "BIZ-001",

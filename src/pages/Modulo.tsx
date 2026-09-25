@@ -69,63 +69,71 @@ export default function Modulo() {
     [campos]
   );
 
-  const preferidas = [
-    "fluxo",
-    "valor_original",
-    "status",
-    "conta_id",
-    "decisao",
-    "frente",
-    "negocio",
-    "tarefa",
-    "assunto",
-    "ideia",
-    "business_id",
-    "valor_potencial",
-    "etapa",
-  ];
+  const isGovernanca = tabela.toLowerCase() === "governanca";
+
+  const preferidas = isGovernanca
+    ? ["ritual", "escopo", "cadencia", "dono", "participantes", "pauta_fixa", "entrega_esperada", "status"]
+    : [
+        "fluxo",
+        "valor_original",
+        "status",
+        "conta_id",
+        "decisao",
+        "frente",
+        "negocio",
+        "tarefa",
+        "assunto",
+        "ideia",
+        "business_id",
+        "valor_potencial",
+        "etapa",
+      ];
 
   const colunasTabela = [
     ...preferidas.filter((coluna) => editaveis.some((campo) => campo.coluna === coluna)),
-    ...editaveis.map((campo) => campo.coluna).filter((coluna) => !preferidas.includes(coluna)),
+    ...editaveis.map((campo) => campo.coluna).filter((coluna) => !preferidas.includes(coluna) && (!isGovernanca || coluna !== "business_id")),
   ]
-    .filter((coluna) => coluna !== chave)
-    .slice(0, 5);
+    .filter((coluna) => coluna !== chave && (!isGovernanca || coluna !== "business_id"))
+    .slice(0, 6);
 
   async function carregar() {
     setCarregando(true);
     setErro("");
+    const isGov = tabela.toLowerCase() === "governanca";
+
     const mapa = await supabase
       .from("helena_campos")
       .select("coluna,nome_na_planilha,chave,calculado")
       .eq("tabela", tabela);
     let lista: Campo[] = [];
     if (!mapa.error && mapa.data) {
-      lista = mapa.data as Campo[];
+      lista = (mapa.data as Campo[]).filter((c) => !isGov || (c.coluna !== "business_id" && c.coluna !== "business_id_area"));
       setCampos(lista);
     }
 
     let consulta = supabase.from(tabela).select("*").limit(200);
-    // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS)
-    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
-    const escopo = meta.escopo;
 
-    // Regra: Módulos globais, governanca e integracoes NUNCA aplicam filtro de business_id
-    if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "governanca" && tabela !== "integracoes") {
-      if (escopo === "MISTO") {
-        // Módulos mistos (estado_mestre, memoria_mestre, handoffs, decisoes, etc.):
-        // Registros globais (sem business_id, vazio, GLOBAL ou GRUPO) permanecem sempre visíveis, mais os da empresa ativa
-        if (!isConsolidated && currentBusinessId) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.eq.${currentBusinessId}`);
-        } else if (isConsolidated && selecionadas.length > 0) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.in.(${selecionadas.join(",")})`);
-        }
-      } else {
-        // Módulos puramente BUSINESS (crm, financeiro, tarefas, riscos, etc.)
-        if (!isConsolidated && currentBusinessId) {
-          consulta = consulta.eq(colEmpresa, currentBusinessId);
-        } else if (isConsolidated && selecionadas.length > 0) {
-          consulta = consulta.in(colEmpresa, [...selecionadas]);
+    // Governança: tabela 100% global, sem business_id. Ordena por governance_id se disponível.
+    if (isGov) {
+      consulta = consulta.order("governance_id", { ascending: true });
+    } else {
+      // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS) para demais módulos
+      const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
+      const escopo = meta.escopo;
+
+      if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "integracoes") {
+        if (escopo === "MISTO") {
+          if (!isConsolidated && currentBusinessId) {
+            consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.eq.${currentBusinessId}`);
+          } else if (isConsolidated && selecionadas.length > 0) {
+            consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.in.(${selecionadas.join(",")})`);
+          }
+        } else {
+          if (!isConsolidated && currentBusinessId) {
+            consulta = consulta.eq(colEmpresa, currentBusinessId);
+          } else if (isConsolidated && selecionadas.length > 0) {
+            consulta = consulta.in(colEmpresa, [...selecionadas]);
+          }
         }
       }
     }
@@ -142,12 +150,14 @@ export default function Modulo() {
       setLinhas(rows);
       // Se helena_campos não forneceu os campos mas temos dados reais, infere as colunas automaticamente
       if (lista.length === 0 && rows.length > 0) {
-        const colunasDetectadas: Campo[] = Object.keys(rows[0]).map((col) => ({
-          coluna: col,
-          nome_na_planilha: col,
-          chave: col === "id" || col === "registro_id" || col.endsWith("_id") ? "SIM" : "NAO",
-          calculado: "NAO",
-        }));
+        const colunasDetectadas: Campo[] = Object.keys(rows[0])
+          .filter((col) => !isGov || (col !== "business_id" && col !== "business_id_area"))
+          .map((col) => ({
+            coluna: col,
+            nome_na_planilha: col,
+            chave: col === "governance_id" || col === "id" || col === "registro_id" || col.endsWith("_id") ? "SIM" : "NAO",
+            calculado: "NAO",
+          }));
         setCampos(colunasDetectadas);
       }
     }
@@ -223,7 +233,7 @@ export default function Modulo() {
       }
     }
     if (campos.some((campo) => campo.coluna === "source_system")) row.source_system = "HELENA";
-    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
     if (colEmpresa) {
       if (!isConsolidated) {
         row[colEmpresa] = currentBusinessId;
@@ -274,7 +284,7 @@ export default function Modulo() {
 
   async function excluir(id: string, linha?: Record<string, unknown>) {
     if (SEM_EXCLUSAO.has(tabela)) return;
-    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
     if (colEmpresa && !isConsolidated && linha) {
       const rowBiz = linha[colEmpresa];
       if (rowBiz && rowBiz !== currentBusinessId) {
@@ -293,7 +303,7 @@ export default function Modulo() {
   }
 
   function editar(linha: Record<string, unknown>) {
-    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    const colEmpresa = !isGovernanca ? campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna : undefined;
     if (colEmpresa && !isConsolidated) {
       const rowBiz = linha[colEmpresa];
       if (rowBiz && rowBiz !== currentBusinessId) {
@@ -314,7 +324,7 @@ export default function Modulo() {
   function abrirNovo() {
     setEditando(null);
     const inicial: Record<string, string> = {};
-    const colEmpresa = campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
+    const colEmpresa = !isGovernanca ? campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna : undefined;
     if (colEmpresa) {
       inicial[colEmpresa] = !isConsolidated ? currentBusinessId : (selecionadas[0] || "BIZ-001");
     }

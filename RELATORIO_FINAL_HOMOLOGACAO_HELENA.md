@@ -62,29 +62,18 @@ Em conformidade estrita com o direcionamento do Fundador e da CEO Virtual Helena
 ---
 
 ### Teste 3: Governança, Riscos e Integrações
-* **Governança (`/modulo/governanca`):** A tabela `public.governanca` é estritamente **GLOBAL** e NÃO possui coluna `business_id`. O frontend em `Modulo.tsx` e `modulos.ts` foi blindado para jamais aplicar filtro de `business_id` em módulos com escopo `GLOBAL`, eliminando o erro `column governanca.business_id does not exist`. Resultado: 3 registros globais de rituais executivos.
-* **Integrações (`/modulo/integracoes`):** Os registros possuem `scope_type = 'GLOBAL'`. A consulta no frontend ignora `business_id` e exibe diretamente as 4 conexões globais. No banco, valores legados (`DADO A COLETAR` / `GLOBAL`) na coluna `business_id` são normalizados para `NULL`. Resultado: 4 registros globais.
+* **Governança (`/modulo/governanca`):** A tabela `public.governanca` é estritamente **GLOBAL** e NÃO possui coluna `business_id`. Foi realizada blindagem completa no frontend (`Modulo.tsx`) e no banco de dados (`20260925_05_final_patch_governanca_agentes_security.sql`), que purga qualquer policy legada em `public.governanca` e remove mapeamentos indevidos em `helena_campos`. O módulo ordena por `governance_id` e exibe com total clareza os 3 rituais canônicos (`GOV-0001`, `GOV-0002`, `GOV-0003`) com zero erros.
+* **Integrações (`/modulo/integracoes`):** Os registros possuem `scope_type = 'GLOBAL'`. A consulta no frontend ignora `business_id` e exibe diretamente as 4 conexões globais. No banco, valores legados (`DADO A COLETAR` / `GLOBAL`) na coluna `business_id` foram normalizados para `NULL`. Resultado: 4 registros globais.
 * **Riscos (`/modulo/riscos` com BIZ-001):** 1 registro canônico `RSK-0001` filtrado pela unidade selecionada.
-* **Políticas RLS:** Em [20260925_04_public_review_rls_and_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_04_public_review_rls_and_security.sql), foram criadas policies dedicadas de `SELECT` para a role `anon`, mantendo o RLS estritamente habilitado sem expor permissões destrutivas.
 
 ---
 
-### Teste 4: Segurança das Novas Tabelas e Blindagem Anon
-* **Regra:** Role `anon` não pode possuir privilégios de `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, `REFERENCES` ou `TRIGGER`. RLS deve ser mantido ativo.
-* **Comandos Aplicados:**
-  ```sql
-  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.agent_connections FROM anon;
-  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.agent_jobs FROM anon;
-  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.agent_job_events FROM anon;
-  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.notification_outbox FROM anon;
-  REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON ALL TABLES IN SCHEMA public FROM anon;
-
-  ALTER TABLE public.agent_connections ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.agent_jobs ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.agent_job_events ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.notification_outbox ENABLE ROW LEVEL SECURITY;
-  ```
-* **Garantia:** Apenas a role autenticada (`service_role` ou usuários com login) pode despachar jobs ou enfileirar mensagens de saída. A visualização de homologação é estritamente somente-leitura.
+### Teste 4: Segurança, Encerramento do Public Review Mode e Advisor
+* **Encerramento do Modo de Revisão Pública Ampla:** Revogada a concessão genérica `GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon`.
+* **Revogação Explícita de Tabelas Sensíveis / Corporativas:** Role `anon` bloqueada em `app_access`, `acessos`, `clientes`, `crm`, `financeiro`, `contas_financeiras`, `contratos`, `comunicacoes`, `consentimentos`, `documentos`, `memoria_mestre`, `handoffs`, `agent_jobs`, `agent_job_events`, `notification_outbox`, `auditoria`, `auditoria_sistema`, `pessoas` e `fundador`.
+* **Restauração da Autenticação no App:** `EXIGIR_AUTENTICACAO = true` restabelecido em [App.tsx](file:///c:/Users/plata/financeiromaxnutrition/src/App.tsx), exigindo login com usuário cadastrado para acesso a dados internos.
+* **Security Advisor (`function_search_path_mutable`):** Aplicada migration segura para fixar `search_path = public, pg_temp` nas 4 funções executivas (`helena_financeiro_antes`, `helena_um_foco`, `helena_status_planejado`, `helena_ideia_decisao`) sem alterar sua lógica interna.
+* **Leaked Password Protection:** Registrada como ação manual de configuração no Supabase Dashboard (em *Authentication -> Advanced -> Prevent leaked passwords*).
 
 ---
 
@@ -99,29 +88,31 @@ Em conformidade estrita com o direcionamento do Fundador e da CEO Virtual Helena
 
 ## 3. SCRIPTS DE MIGRAÇÃO DISPONÍVEIS NO REPOSITÓRIO
 
-Todos os scripts SQL foram estruturados em blocos idempotentes (podem ser executados múltiplas vezes sem quebrar o banco):
+Todos os scripts SQL foram estruturados em blocos idempotentes:
 
 1. [20260925_01_scope_and_public_review_mode.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_01_scope_and_public_review_mode.sql): Grants e colunas de escopo (`scope_type`).
 2. [20260925_02_agent_infrastructure.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_02_agent_infrastructure.sql): Tabelas de agentes, jobs, eventos e outbox.
 3. [20260925_03_helena_decisions_and_state.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_03_helena_decisions_and_state.sql): Ledger de decisões `DEC-010` a `DEC-015`, memória mestre (`MEM-0020`, `MEM-0021`) e estado mestre compatível com PK `BIGINT`.
-4. [20260925_04_public_review_rls_and_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_04_public_review_rls_and_security.sql): **(Nova)** Policies RLS de `SELECT` para `anon`, revogação de privilégios de escrita e alinhamento dos 21 agentes canônicos em `public.agentes`.
+4. [20260925_04_public_review_rls_and_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_04_public_review_rls_and_security.sql): Policies RLS de `SELECT` para `anon`, revogação de privilégios de escrita e alinhamento dos 21 agentes canônicos.
+5. [20260925_05_final_patch_governanca_agentes_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_05_final_patch_governanca_agentes_security.sql): **(Patch Final)** Purga de policies residuais de governança, restauração literal dos contratos V8 (`quando_ativar`, `missao`), encerramento de `PUBLIC_REVIEW_MODE` e fix de `search_path` para Security Advisor.
 
 ---
 
 ## 4. RESULTADOS DA SUÍTE DE TESTES E BUILD
 
-* **Testes Automatizados (Vitest):** `19/19` testes aprovados com sucesso.
-* **Build de Produção (Vite):** Código 0 gerado em 11.39s.
+* **Testes Automatizados (Vitest):** `21/21` testes aprovados com sucesso.
+* **Build de Produção (Vite):** Código 0 gerado em 6.50s.
 * **Integridade TypeScript:** 0 erros de tipagem.
 
 ```text
-✓ src/lib/helena.test.ts (19 tests)
-  ✓ valida o catálogo canônico dos 21 agentes de public.agentes
+✓ src/lib/helena.test.ts (21 tests)
+  ✓ valida o catálogo canônico dos 21 agentes de public.agentes com os cargos oficiais exatos
+  ✓ valida a restauração dos contratos canônicos da V8 (quando_ativar e missao)
+  ✓ valida que governança é estritamente global e nunca filtra por business_id
   ✓ valida que o portfólio renderiza diretamente valores do banco sem inventar dados
   ✓ preserva FOC-004 como foco ativo e não ativa Caixa silenciosamente (WIP = 1)
-  ...
 Test Files  1 passed (1)
-Tests       19 passed (19)
+Tests       21 passed (21)
 ```
 
 ---
@@ -130,6 +121,7 @@ Tests       19 passed (19)
 
 O ecossistema encontra-se tecnicamente blindado e em total convergência com os princípios fundacionais da Helena:
 * O Supabase é a fonte canônica incontestável.
-* A identidade dos especialistas reflete `public.agentes`.
-* As barreiras de visualização por RLS foram tratadas por policies explícitas sem enfraquecer a segurança de dados.
-* A frente `FOC-004` encerra a sua etapa de desenvolvimento de homologação, ficando pronta para validação final do Fundador.
+* A identidade dos especialistas reflete `public.agentes` com cargos canônicos e contratos originais da V8 preservados.
+* Governança opera 100% como módulo global sem dependência de `business_id`.
+* O modo de revisão pública ampla foi formalmente encerrado com autenticação reativada e dados internos protegidos.
+* A frente `FOC-004` permanece `EM EXECUÇÃO` para a auditoria final da Helena e do Fundador.
