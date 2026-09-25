@@ -1,0 +1,87 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import React from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
+import Login from "./Login";
+
+const mockUseAuth = vi.fn();
+vi.mock("@/auth", () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
+describe("Login Redirect Security", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("redireciona para / por padrão quando autenticado sem parâmetro redirect", async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "fundador@maxnutrition.com.br" },
+      appAccess: { user_id: "user-1", role: "founder", active: true },
+      loading: false,
+      entrar: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<div data-testid="dashboard">Dashboard Executivo</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard")).toBeDefined();
+    });
+  });
+
+  it("redireciona para a URL de destino quando fornecido parâmetro redirect válido", async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "fundador@maxnutrition.com.br" },
+      appAccess: { user_id: "user-1", role: "founder", active: true },
+      loading: false,
+      entrar: vi.fn(),
+    });
+
+    const targetUrl = "/oauth/consent?authorization_id=auth-secret-123";
+
+    render(
+      <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent(targetUrl)}`]}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/oauth/consent"
+            element={<div data-testid="consent-target">Página de Consentimento</div>}
+          />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("consent-target")).toBeDefined();
+    });
+  });
+
+  it("neutraliza tentativa de Open Redirect externo e redireciona com segurança para /", async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: "user-1", email: "fundador@maxnutrition.com.br" },
+      appAccess: { user_id: "user-1", role: "founder", active: true },
+      loading: false,
+      entrar: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/login?redirect=https://site-malicioso.com"]}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<div data-testid="dashboard">Dashboard Seguro</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard")).toBeDefined();
+    });
+  });
+});

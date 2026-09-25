@@ -1,9 +1,10 @@
 import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import { BusinessProvider } from "@/contexts/BusinessContext";
 import { Layout } from "@/components/Layout";
 import Login from "@/pages/Login";
+import OAuthConsent from "@/pages/OAuthConsent";
 import Painel from "@/pages/Painel";
 import Modulo from "@/pages/Modulo";
 import CrmPage from "@/pages/CrmPage";
@@ -24,6 +25,7 @@ export const EXIGIR_AUTENTICACAO = true;
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { user, appAccess, loading, sair } = useAuth();
+  const location = useLocation();
 
   // Caso autenticação esteja ativada
   if (loading) {
@@ -39,9 +41,10 @@ function Protegida({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Visitante não autenticado -> redireciona para /login
+  // Visitante não autenticado -> redireciona para /login preservando rota de destino
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const returnTarget = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${returnTarget}`} replace />;
   }
 
   // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
@@ -81,9 +84,10 @@ function Protegida({ children }: { children: React.ReactNode }) {
 function Rotas() {
   return (
     <Routes>
-      {/* Rotas Públicas de Login */}
+      {/* Rotas de Autenticação e Consentimento OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/entrar" element={<Navigate to="/login" replace />} />
+      <Route path="/oauth/consent" element={<OAuthConsent />} />
 
       {/* Aplicação Administrativa Protegida */}
       <Route
