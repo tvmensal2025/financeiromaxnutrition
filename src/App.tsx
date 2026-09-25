@@ -87,7 +87,14 @@ function Rotas() {
       {/* Rotas de Autenticação e Consentimento OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/entrar" element={<Navigate to="/login" replace />} />
-      <Route path="/oauth/consent" element={<OAuthConsent />} />
+      <Route
+        path="/oauth/consent"
+        element={
+          <Protegida>
+            <OAuthConsent />
+          </Protegida>
+        }
+      />
 
       {/* Aplicação Administrativa Protegida */}
       <Route
