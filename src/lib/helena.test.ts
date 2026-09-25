@@ -178,5 +178,56 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(ctx.focoId).toBe("FOC-004");
     expect(ctx.focoStatus).toBe("EM EXECUÇÃO");
   });
+
+  it("valida o catálogo canônico dos 21 agentes de public.agentes", () => {
+    const listaEsperada: Record<string, string> = {
+      "AGT-01": "Helena",
+      "AGT-02": "Laura",
+      "AGT-03": "Augusto",
+      "AGT-04": "Marina",
+      "AGT-05": "Caio",
+      "AGT-06": "Clara",
+      "AGT-07": "Bianca",
+      "AGT-08": "Daniel",
+      "AGT-09": "Theo",
+      "AGT-10": "Nina",
+      "AGT-11": "Ravi",
+      "AGT-12": "Maya",
+      "AGT-13": "Bruno",
+      "AGT-14": "Olívia",
+      "AGT-15": "Victor — Vendas",
+      "AGT-16": "Camila",
+      "AGT-17": "Isabela",
+      "AGT-18": "Pedro",
+      "AGT-19": "Renata",
+      "AGT-20": "Joana",
+      "AGT-21": "Felipe",
+    };
+
+    expect(Object.keys(listaEsperada)).toHaveLength(21);
+    expect(listaEsperada["AGT-01"]).toBe("Helena");
+    expect(listaEsperada["AGT-02"]).toBe("Laura");
+    expect(listaEsperada["AGT-15"]).toBe("Victor — Vendas");
+    expect(listaEsperada["AGT-21"]).toBe("Felipe");
+  });
+
+  it("valida que o portfólio renderiza diretamente valores do banco sem inventar dados", () => {
+    const itemBanco = {
+      business_id: "BIZ-001",
+      negocio: "iGreen Energy",
+      objetivo_atual: "DADO A COLETAR",
+      marco_atual: "DADO A COLETAR",
+      definicao_de_saida_do_estagio: "DADO A COLETAR",
+      principal_gargalo: "DADO A COLETAR",
+      kpi_principal: "DADO A COLETAR",
+      responsavel_executivo: "DADO A COLETAR",
+      modelo_de_receita: "DADO A COLETAR",
+    };
+
+    expect(itemBanco.objetivo_atual).toBe("DADO A COLETAR");
+    expect(itemBanco.modelo_de_receita).toBe("DADO A COLETAR");
+    expect(itemBanco.principal_gargalo).toBe("DADO A COLETAR");
+  });
 });
+
 

@@ -99,36 +99,30 @@ export default function Modulo() {
       .from("helena_campos")
       .select("coluna,nome_na_planilha,chave,calculado")
       .eq("tabela", tabela);
-    if (mapa.error) {
-      if (/permission denied|jwt|unauthorized|not allowed/i.test(mapa.error.message)) {
-        setErro("");
-      } else {
-        setErro(mapa.error.message);
-      }
-      setCarregando(false);
-      return;
+    let lista: Campo[] = [];
+    if (!mapa.error && mapa.data) {
+      lista = mapa.data as Campo[];
+      setCampos(lista);
     }
-    const lista = (mapa.data || []) as Campo[];
-    setCampos(lista);
 
     let consulta = supabase.from(tabela).select("*").limit(200);
     // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS)
-    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
+    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna || "business_id";
     const escopo = meta.escopo;
 
-    if (colEmpresa && tabela !== "portfolio") {
+    if (tabela !== "portfolio") {
       if (escopo === "GLOBAL") {
         // Módulos globais: nunca filtra por business_id (traz visão completa do sistema)
       } else if (escopo === "MISTO") {
         // Módulos mistos (governanca, integracoes, estado_mestre, memoria_mestre, handoffs, decisoes, etc.):
-        // Registros globais (sem business_id ou 'GLOBAL') permanecem sempre visíveis, mais os da empresa ativa
+        // Registros globais (sem business_id, vazio, GLOBAL ou GRUPO) permanecem sempre visíveis, mais os da empresa ativa
         if (!isConsolidated && currentBusinessId) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.${currentBusinessId}`);
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.${currentBusinessId}`);
         } else if (isConsolidated && selecionadas.length > 0) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.GLOBAL,${colEmpresa}.in.(${selecionadas.join(",")})`);
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.in.(${selecionadas.join(",")})`);
         }
       } else {
-        // Módulos puramente BUSINESS (crm, financeiro, tarefas, etc.)
+        // Módulos puramente BUSINESS (crm, financeiro, tarefas, riscos, etc.)
         if (!isConsolidated && currentBusinessId) {
           consulta = consulta.eq(colEmpresa, currentBusinessId);
         } else if (isConsolidated && selecionadas.length > 0) {
@@ -145,7 +139,18 @@ export default function Modulo() {
         setErro(error.message);
       }
     } else {
-      setLinhas((data || []) as Record<string, unknown>[]);
+      const rows = (data || []) as Record<string, unknown>[];
+      setLinhas(rows);
+      // Se helena_campos não forneceu os campos mas temos dados reais, infere as colunas automaticamente
+      if (lista.length === 0 && rows.length > 0) {
+        const colunasDetectadas: Campo[] = Object.keys(rows[0]).map((col) => ({
+          coluna: col,
+          nome_na_planilha: col,
+          chave: col === "id" || col === "registro_id" || col.endsWith("_id") ? "SIM" : "NAO",
+          calculado: "NAO",
+        }));
+        setCampos(colunasDetectadas);
+      }
     }
     setCarregando(false);
   }
