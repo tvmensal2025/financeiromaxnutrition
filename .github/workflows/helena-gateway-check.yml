@@ -1,0 +1,39 @@
+name: Helena Gateway Check
+
+on:
+  push:
+    paths:
+      - 'services/helena-gateway/**'
+      - '.github/workflows/helena-gateway-check.yml'
+  pull_request:
+    paths:
+      - 'services/helena-gateway/**'
+      - '.github/workflows/helena-gateway-check.yml'
+
+jobs:
+  check-and-build:
+    name: Lint Check & Container Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: 'services/helena-gateway/package-lock.json'
+
+      - name: Install Dependencies
+        working-directory: services/helena-gateway
+        run: npm ci
+
+      - name: Syntax Check
+        working-directory: services/helena-gateway
+        run: npm run check
+
+      - name: Docker Build Test
+        working-directory: services/helena-gateway
+        run: docker build -t helena-gateway:ci .

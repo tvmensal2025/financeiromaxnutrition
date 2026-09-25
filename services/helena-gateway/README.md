@@ -1,0 +1,247 @@
+# Helena Gateway — Backend Operacional & MCP Hub
+
+O **Helena Gateway** é o serviço backend independente do Sistema Helena, projetado para operar como canal operacional contínuo e hub de ferramentas Model Context Protocol (MCP) entre:
+- **Helena (CEO Virtual)** operando no ChatGPT oficial;
+- **Marina (PMO / Despachante)** e os **20 Bots Especialistas** operando no Grok;
+- **Supabase** como a fonte canônica e operacional de verdade (Project: `wxkgrykduqtsgmjkzlou`);
+- **EasyPanel / VPS** como ambiente de hospedagem autônomo e de alta disponibilidade;
+- **Evolution API** como canal assíncrono de notificações transacionais via WhatsApp.
+
+Este serviço foi construído de forma desacoplada, **sem alterar o aplicativo financeiro principal**, sem utilizar APIs pagas como executores automáticos e sem expor credenciais sensíveis no repositório.
+
+---
+
+## 1. Arquitetura do Sistema
+
+```
+                    ┌────────────────────────────────────────┐
+                    │      Helena (CEO Virtual / ChatGPT)     │
+                    └───────────────────┬────────────────────┘
+                                        │ (Decisões Estratégicas / Handoffs)
+                                        ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                      Supabase (Fonte Canônica)                         │
+│  - public.agent_jobs (Fila de Tarefas / Status Machine)                │
+│  - public.agent_job_events (Histórico Append-Only de Eventos)          │
+│  - public.agent_connections (21 Agentes: Provedor & Status)            │
+│  - public.notification_outbox (Fila Assíncrona de Mensagens)           │
+│  - RPCs Atômicas de Governança (Claim, Start, Complete, Fail, etc.)    │
+└───────────────▲───────────────────────────────────────▲────────────────┘
+                │ Database Webhook (WAKE_SIGNAL)        │ RPCs & REST
+                ▼                                       ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Helena Gateway (Node 22 / Express)                   │
+│                                                                        │
+│  [GET /health]                                                         │
+│  - Verifica integridade técnica com o Supabase                         │
+│                                                                        │
+│  [POST /webhooks/supabase/agent-job]                                   │
+│  - Recebe sinalização assíncrona e registra WAKE_SIGNAL                │
+│                                                                        │
+│  [POST /mcp] (Bearer Auth)                                             │
+│  - Hub MCP (JSON-RPC 2.0 / Streamable HTTP)                            │
+│  - 10 Ferramentas Oficiais com Governança V9                           │
+│                                                                        │
+│  [Rotinas Periódicas de Background]                                    │
+│  - gateway_release_scheduled_jobs (Liberação de jobs agendados)        │
+│  - outbox_processor (Envio assíncrono para Evolution API com retry)    │
+└───────────────▲────────────────────────────────────────────────────────┘
+                │
+                │ MCP Tools / JSON-RPC 2.0 (Authorization: Bearer)
+                │
+┌───────────────┴────────────────────────────────────────────────────────┐
+│                       Grok Bots / Especialistas                        │
+│                                                                        │
+│  - AGT-17 Marina (PMO): list_ready_jobs, record_dispatch               │
+│  - Especialistas (AGT-02 a AGT-21):                                    │
+│      claim_job -> start_job -> executar -> complete_job (com evidência)│
+│  - Handoffs automáticos entre agentes: enqueue_job                     │
+│  - Impasses executivos: waiting_helena                                 │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Governança e Protocolo Operacional V9
+
+O Gateway implementa estritamente os princípios do **Protocolo V9 (PAG-V9-001 ao PAG-V9-017)**:
+
+1. **Supabase como Fonte Única da Verdade:** Nenhuma ação é considerada concluída se não estiver gravada com chave e timestamp no Supabase. O fundador não atua como mensageiro de dados.
+2. **Marina Despachante (`record_dispatch`):** A Marina despacha o job identificando o especialista de destino, criando o evento `DISPATCHED`. O job **permanece com status `READY`** até que o especialista assuma a titularidade via `claim_job`. O despacho possui cooldown de 180 segundos para evitar redundância.
+3. **Reivindicação Atômica (`claim_job`):** Apenas o especialista de destino pode reivindicar o job (`READY` → `CLAIMED`), impedindo condições de corrida.
+4. **Execução Oficial (`start_job`):** Transição auditada (`CLAIMED` → `RUNNING`).
+5. **Conclusão Obrigatória com Evidências (`complete_job`):** É **terminantemente proibido** concluir um job sem preencher `result_summary` e informar pelo menos 1 registro em `evidence_refs` (IDs de tabelas, links, hashes ou logs). Tentativas sem evidência são bloqueadas pelo Gateway antes mesmo da gravação.
+6. **Reporte Transparente de Falhas (`fail_job`):** Se houver bloqueio técnico, a falha é registrada com `error_code` e `error_message`, sem camuflagem.
+7. **Escalonamento para a CEO (`waiting_helena`):** Em decisões fora da alçada do especialista, o job transiciona para `WAITING_HELENA` contendo `contexto`, `impacto`, `decisao_necessaria` e `recomendacao`. Helena consome isso diretamente pelo Supabase.
+8. **Handoff Direto (`enqueue_job`):** O especialista enfileira o próximo job da cadeia técnica automaticamente.
+
+---
+
+## 3. Endpoints HTTP do Gateway
+
+| Método | Endpoint | Autenticação | Descrição |
+|---|---|---|---|
+| `GET` | `/health` | Pública | Teste de prontidão operacional e conectividade com o Supabase. Retorna HTTP 200 `{ "ok": true, "supabase": true }` ou HTTP 503 `{ "ok": false, "supabase": false }`. |
+| `POST` | `/webhooks/supabase/agent-job` | Header `x-helena-webhook-secret` | Recebe webhook de novos jobs cadastrados no Supabase e registra evento `WAKE_SIGNAL`. Não executa o job de forma síncrona. |
+| `GET` | `/mcp` | `Authorization: Bearer <TOKEN>` | Metadados do servidor MCP e lista de ferramentas disponíveis. |
+| `POST` | `/mcp` | `Authorization: Bearer <TOKEN>` | Canal JSON-RPC 2.0 para execução de ferramentas (`tools/call`), listagem (`tools/list`) e handshake (`initialize`). |
+| `POST` | `/api/tools/:toolName` | `Authorization: Bearer <TOKEN>` | Endpoint REST alternativo para chamada direta de qualquer uma das 10 ferramentas. |
+
+---
+
+## 4. Catálogo das 10 Ferramentas MCP
+
+### 1. `list_ready_jobs`
+- **Finalidade:** Lista jobs prontos (`status = 'READY'` e `available_at <= now()`), ordenados por prioridade (`CRITICA`, `ALTA`, `MEDIA`, `BAIXA`) e `created_at`.
+- **Enriquecimento:** Cruza dados com `agent_connections` e `agentes`.
+- **Saída:** Retorna dados completos e a `dispatch_message` formatada com instruções operacionais.
+- **Parâmetros:**
+  - `limit` (opcional, padrão 10, máx 25)
+  - `agent_id` (opcional, filtro específico)
+
+### 2. `record_dispatch`
+- **Finalidade:** Marina registra o despacho do job para o especialista.
+- **Regra:** O job permanece `READY`. Cria evento `DISPATCHED` em `public.agent_job_events`.
+- **Cooldown:** Bloqueia despachos repetidos para o mesmo job em um intervalo de 180 segundos.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `dispatcher_agent_id` (opcional, padrão `AGT-17`)
+  - `target_agent_id` (opcional)
+  - `target_external_agent_id` (opcional)
+  - `notes` (opcional)
+
+### 3. `get_job`
+- **Finalidade:** Recupera os dados completos de um job, histórico recente de eventos e metadados de conexão do agente.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+
+### 4. `claim_job`
+- **Finalidade:** Reivindicação atômica do job pelo especialista via RPC `gateway_claim_agent_job`. Transição: `READY` → `CLAIMED`.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `agent_id` (obrigatório)
+
+### 5. `start_job`
+- **Finalidade:** Iniciação da execução técnica via RPC `gateway_start_agent_job`. Transição: `CLAIMED` → `RUNNING`.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `agent_id` (obrigatório)
+
+### 6. `complete_job`
+- **Finalidade:** Conclusão da tarefa via RPC `gateway_complete_agent_job`. Transição: `RUNNING`/`CLAIMED` → `COMPLETED`.
+- **Regra Estrita V9:** Exige `result_summary` e pelo menos 1 evidência em `evidence_refs`.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `agent_id` (obrigatório)
+  - `result_summary` (obrigatório)
+  - `evidence_refs` (array obrigatório com ≥ 1 item)
+  - `result_payload` (objeto opcional)
+
+### 7. `fail_job`
+- **Finalidade:** Registro transparente de falha técnica ou operacional via RPC `gateway_fail_agent_job`. Transição: → `FAILED`.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `agent_id` (obrigatório)
+  - `error_code` (obrigatório)
+  - `error_message` (obrigatório)
+  - `payload` (objeto opcional)
+
+### 8. `waiting_helena`
+- **Finalidade:** Encaminha impasse ou decisão de alçada para a CEO Virtual Helena via RPC `gateway_waiting_helena`. Transição: → `WAITING_HELENA`.
+- **Parâmetros:**
+  - `job_id` (obrigatório)
+  - `agent_id` (obrigatório)
+  - `contexto` (obrigatório)
+  - `impacto` (obrigatório)
+  - `decisao_necessaria` (obrigatório)
+  - `recomendacao` (obrigatório)
+
+### 9. `enqueue_job`
+- **Finalidade:** Enfileiramento de novo job via RPC `gateway_enqueue_agent_job` para agendamento futuro ou handoff imediato entre agentes.
+- **Parâmetros:**
+  - `agent_id` (obrigatório)
+  - `objective` (obrigatório)
+  - `instruction` (opcional)
+  - `business_id` (opcional)
+  - `task_id` (opcional)
+  - `priority` (opcional: `CRITICA`, `ALTA`, `MEDIA`, `BAIXA`)
+  - `scheduled_at` (opcional ISO timestamp)
+  - `available_at` (opcional ISO timestamp)
+  - `approval_required` (opcional boolean)
+  - `idempotency_key` (opcional)
+  - `correlation_id` (opcional)
+
+### 10. `queue_summary`
+- **Finalidade:** Resumo analítico da fila por status, prioridade e agente para acompanhamento da Marina (PMO) e Daniel (BI).
+- **Parâmetros:**
+  - `business_id` (opcional)
+
+---
+
+## 5. Variáveis de Ambiente (Configuração EasyPanel)
+
+As credenciais e parâmetros operacionais **NÃO devem ser commitados no repositório**. Todas as variáveis sensíveis são configuradas exclusivamente no painel do EasyPanel ou em arquivo `.env` seguro na VPS:
+
+```env
+# Porta e Host
+PORT=3000
+PUBLIC_HOST=DADO A CONFIGURAR (ex: gateway.seudominio.com)
+
+# Supabase (Banco de Produção)
+SUPABASE_URL=https://wxkgrykduqtsgmjkzlou.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=CONFIGURAR_SOMENTE_NO_EASYPANEL
+
+# Autenticação de Entrada
+GATEWAY_WEBHOOK_SECRET=CONFIGURAR_SOMENTE_NO_EASYPANEL
+MCP_BEARER_TOKEN=CONFIGURAR_SOMENTE_NO_EASYPANEL
+
+# Intervalos Operacionais
+DISPATCH_COOLDOWN_SECONDS=180
+SCHEDULE_TICK_MS=15000
+OUTBOX_TICK_MS=15000
+
+# Evolution API (WhatsApp) — Opcional (ativado somente se as 3 forem preenchidas)
+EVOLUTION_BASE_URL=
+EVOLUTION_API_KEY=
+EVOLUTION_INSTANCE=
+```
+
+---
+
+## 6. Procedimento de Deploy no EasyPanel
+
+O serviço foi estruturado para integração contínua nativa com o GitHub:
+
+1. Acesse o **EasyPanel** na sua VPS.
+2. Selecione o Projeto: `helena-automation`.
+3. Crie ou configure o App: `helena-gateway`.
+4. Defina a Origem (Source):
+   - **Type:** GitHub
+   - **Repository:** `tvmensal2025/financeiromaxnutrition`
+   - **Branch:** `infra/helena-gateway` (durante fase de homologação) / `main` (após merge)
+5. Defina as Configurações de Build:
+   - **Build Context:** `services/helena-gateway`
+   - **Dockerfile Path:** `services/helena-gateway/Dockerfile`
+6. Defina a Porta:
+   - **Port:** `3000`
+7. Preencha as **Environment Variables** com as chaves reais obtidas do Supabase (`SUPABASE_SERVICE_ROLE_KEY`) e gere tokens fortes para `GATEWAY_WEBHOOK_SECRET` e `MCP_BEARER_TOKEN`.
+8. Configure os Domínios (Domains):
+   - **Domínio:** `DADO A CONFIGURAR` (Recomendação: `gateway.<dominio-do-fundador>`).
+   - Habilite certificado SSL automático (Let's Encrypt).
+
+---
+
+## 7. Homologação e Critérios de Ativação
+
+> **IMPORTANTE:** Conforme a governança do Sistema Helena, a integração `INT-0005 Helena Gateway` **não deve ser marcada como OPERACIONAL** apenas pela criação do código.
+
+O status transiciona de `PLANEJADA` para `OPERACIONAL` apenas após o cumprimento do seguinte checklist em produção:
+
+- [ ] Deploy concluído no EasyPanel.
+- [ ] Endpoint `/health` retornando HTTP 200 `{ "ok": true, "supabase": true }`.
+- [ ] Database Webhook do Supabase enviando evento para `/webhooks/supabase/agent-job` e gerando `WAKE_SIGNAL`.
+- [ ] Chamada MCP autenticada com Bearer Token via `/mcp` executando `list_ready_jobs`.
+- [ ] Marina despachando tarefa via `record_dispatch` respeitando cooldown.
+- [ ] Bot Especialista executando `claim_job` com sucesso no Supabase.
+- [ ] Bot Especialista concluindo com `complete_job` anexando evidência formal.
+- [ ] Handoff automático executado com `enqueue_job`.
