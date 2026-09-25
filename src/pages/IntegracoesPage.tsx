@@ -250,15 +250,20 @@ export default function IntegracoesPage() {
 
   const handleOriginateCall = async () => {
     if (!callPhone) return;
+    let clean = callPhone.replace(/\D/g, "");
+    if ((clean.length === 10 || clean.length === 11) && !clean.startsWith("55")) {
+      clean = `55${clean}`;
+    }
+
     try {
       setCalling(true);
-      setMeowcallerFeedback(`Originando chamada para ${callPhone}...`);
-      const res = await makeMeowcallerCall(callPhone, layaBusinessId, selectedVoiceId);
+      setMeowcallerFeedback(`Originando chamada para +${clean}...`);
+      const res = await makeMeowcallerCall(clean, layaBusinessId, selectedVoiceId);
       setActiveCallId(res.call_id);
       setMeowcallerFeedback(`Chamada iniciada com sucesso (ID: ${res.call_id}).`);
       loadAll();
     } catch (err: any) {
-      setMeowcallerFeedback(`Falha na chamada: ${err.message}`);
+      setMeowcallerFeedback(`Aviso Meowcaller: ${err.message}`);
     } finally {
       setCalling(false);
     }

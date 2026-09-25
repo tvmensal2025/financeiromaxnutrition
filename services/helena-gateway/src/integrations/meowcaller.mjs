@@ -173,9 +173,22 @@ export async function originateCall({ phone, business_id = 'BIZ-001', voice_prof
     throw new Error('MEOWCALLER_TOKEN não configurado no backend');
   }
 
-  const sanitizedPhone = String(phone).replace(/\D/g, '');
+  let sanitizedPhone = String(phone).replace(/\D/g, '');
   if (!sanitizedPhone || sanitizedPhone.length < 10) {
-    throw new Error('Número de telefone inválido para chamada');
+    throw new Error('Número de telefone inválido para chamada. Mínimo 10 dígitos.');
+  }
+
+  // Se tiver 10 ou 11 dígitos (DDD + número no Brasil) e não começar com 55, adiciona o DDI do Brasil automaticamente
+  if ((sanitizedPhone.length === 10 || sanitizedPhone.length === 11) && !sanitizedPhone.startsWith('55')) {
+    sanitizedPhone = `55${sanitizedPhone}`;
+  }
+
+  // Verifica o status real da conexão antes de prometer a chamada
+  const health = await getMeowcallerHealth();
+  if (health.whatsapp_status !== 'CONNECTED') {
+    throw new Error(
+      `Sessão Meowcaller em prontidão (${health.whatsapp_status || 'DISCONNECTED'}). É necessário conectar uma linha de voz WhatsApp dedicada ao Meowcaller para originar chamadas reais.`
+    );
   }
 
   const targetJid = sanitizedPhone.includes('@') ? sanitizedPhone : `${sanitizedPhone}@s.whatsapp.net`;
