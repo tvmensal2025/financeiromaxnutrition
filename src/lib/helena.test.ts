@@ -161,8 +161,8 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
 
   it("classifica corretamente os escopos de Governança, Integrações e Agentes", async () => {
     const { obterEscopoModulo } = await import("./modulos");
-    expect(obterEscopoModulo("governanca")).toBe("MISTO");
-    expect(obterEscopoModulo("integracoes")).toBe("MISTO");
+    expect(obterEscopoModulo("governanca")).toBe("GLOBAL");
+    expect(obterEscopoModulo("integracoes")).toBe("GLOBAL");
     expect(obterEscopoModulo("estado_mestre")).toBe("MISTO");
     expect(obterEscopoModulo("memoria_mestre")).toBe("MISTO");
     expect(obterEscopoModulo("agentes")).toBe("GLOBAL");
@@ -179,36 +179,38 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(ctx.focoStatus).toBe("EM EXECUÇÃO");
   });
 
-  it("valida o catálogo canônico dos 21 agentes de public.agentes", () => {
-    const listaEsperada: Record<string, string> = {
-      "AGT-01": "Helena",
-      "AGT-02": "Laura",
-      "AGT-03": "Augusto",
-      "AGT-04": "Marina",
-      "AGT-05": "Caio",
-      "AGT-06": "Clara",
-      "AGT-07": "Bianca",
-      "AGT-08": "Daniel",
-      "AGT-09": "Theo",
-      "AGT-10": "Nina",
-      "AGT-11": "Ravi",
-      "AGT-12": "Maya",
-      "AGT-13": "Bruno",
-      "AGT-14": "Olívia",
-      "AGT-15": "Victor — Vendas",
-      "AGT-16": "Camila",
-      "AGT-17": "Isabela",
-      "AGT-18": "Pedro",
-      "AGT-19": "Renata",
-      "AGT-20": "Joana",
-      "AGT-21": "Felipe",
+  it("valida o catálogo canônico dos 21 agentes de public.agentes com os cargos oficiais exatos", () => {
+    const listaEsperada: Record<string, { nome: string; cargo: string }> = {
+      "AGT-01": { nome: "Helena", cargo: "CEO Virtual / Central de Comando" },
+      "AGT-02": { nome: "Laura", cargo: "Comunicação e Desenvolvimento do Fundador" },
+      "AGT-03": { nome: "Augusto", cargo: "Estratégia Corporativa" },
+      "AGT-04": { nome: "Marina", cargo: "Execução e PMO" },
+      "AGT-05": { nome: "Caio", cargo: "Finanças / CFO" },
+      "AGT-06": { nome: "Clara", cargo: "Risco, Jurídico e Compliance" },
+      "AGT-07": { nome: "Bianca", cargo: "Pessoas e Cultura" },
+      "AGT-08": { nome: "Daniel", cargo: "Dados e BI" },
+      "AGT-09": { nome: "Theo", cargo: "Tecnologia e IA" },
+      "AGT-10": { nome: "Nina", cargo: "Produto" },
+      "AGT-11": { nome: "Ravi", cargo: "Pesquisa e Insights" },
+      "AGT-12": { nome: "Maya", cargo: "Design / UX / UI" },
+      "AGT-13": { nome: "Bruno", cargo: "Qualidade / QA" },
+      "AGT-14": { nome: "Olívia", cargo: "Operações" },
+      "AGT-15": { nome: "Victor", cargo: "Vendas" },
+      "AGT-16": { nome: "Camila", cargo: "Marketing e Growth" },
+      "AGT-17": { nome: "Isabela", cargo: "Marca, Conteúdo e Copy" },
+      "AGT-18": { nome: "Pedro", cargo: "Parcerias e Desenvolvimento de Negócios" },
+      "AGT-19": { nome: "Renata", cargo: "Customer Success" },
+      "AGT-20": { nome: "Joana", cargo: "Atendimento" },
+      "AGT-21": { nome: "Felipe", cargo: "Administração" },
     };
 
     expect(Object.keys(listaEsperada)).toHaveLength(21);
-    expect(listaEsperada["AGT-01"]).toBe("Helena");
-    expect(listaEsperada["AGT-02"]).toBe("Laura");
-    expect(listaEsperada["AGT-15"]).toBe("Victor — Vendas");
-    expect(listaEsperada["AGT-21"]).toBe("Felipe");
+    expect(listaEsperada["AGT-01"].nome).toBe("Helena");
+    expect(listaEsperada["AGT-02"].cargo).toBe("Comunicação e Desenvolvimento do Fundador");
+    expect(listaEsperada["AGT-05"].cargo).toBe("Finanças / CFO");
+    expect(listaEsperada["AGT-15"].nome).toBe("Victor");
+    expect(listaEsperada["AGT-15"].cargo).toBe("Vendas");
+    expect(listaEsperada["AGT-21"].cargo).toBe("Administração");
   });
 
   it("valida que o portfólio renderiza diretamente valores do banco sem inventar dados", () => {

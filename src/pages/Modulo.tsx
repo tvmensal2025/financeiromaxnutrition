@@ -107,19 +107,18 @@ export default function Modulo() {
 
     let consulta = supabase.from(tabela).select("*").limit(200);
     // Filtragem automática por escopo (GLOBAL x MISTO x BUSINESS)
-    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna || "business_id";
+    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
     const escopo = meta.escopo;
 
-    if (tabela !== "portfolio") {
-      if (escopo === "GLOBAL") {
-        // Módulos globais: nunca filtra por business_id (traz visão completa do sistema)
-      } else if (escopo === "MISTO") {
-        // Módulos mistos (governanca, integracoes, estado_mestre, memoria_mestre, handoffs, decisoes, etc.):
+    // Regra: Módulos globais, governanca e integracoes NUNCA aplicam filtro de business_id
+    if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "governanca" && tabela !== "integracoes") {
+      if (escopo === "MISTO") {
+        // Módulos mistos (estado_mestre, memoria_mestre, handoffs, decisoes, etc.):
         // Registros globais (sem business_id, vazio, GLOBAL ou GRUPO) permanecem sempre visíveis, mais os da empresa ativa
         if (!isConsolidated && currentBusinessId) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.${currentBusinessId}`);
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.eq.${currentBusinessId}`);
         } else if (isConsolidated && selecionadas.length > 0) {
-          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.in.(${selecionadas.join(",")})`);
+          consulta = consulta.or(`${colEmpresa}.is.null,${colEmpresa}.eq.,${colEmpresa}.eq.GLOBAL,${colEmpresa}.eq.GRUPO,${colEmpresa}.eq.DADO A COLETAR,${colEmpresa}.in.(${selecionadas.join(",")})`);
         }
       } else {
         // Módulos puramente BUSINESS (crm, financeiro, tarefas, riscos, etc.)

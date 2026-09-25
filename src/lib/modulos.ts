@@ -48,7 +48,7 @@ export const MODULOS: Modulo[] = [
 
   // RISCO & GOVERNANÇA
   { grupo: "Risco & Governança", tabela: "riscos", titulo: "Matriz de Riscos", escopo: "BUSINESS", descricao: "Identificação, impacto, probabilidade e mitigação" },
-  { grupo: "Risco & Governança", tabela: "governanca", titulo: "Rituais de Governança", escopo: "MISTO", descricao: "Rituais executivos diários, semanais e mensais" },
+  { grupo: "Risco & Governança", tabela: "governanca", titulo: "Rituais de Governança", escopo: "GLOBAL", descricao: "Rituais executivos diários, semanais e mensais" },
   { grupo: "Risco & Governança", tabela: "incidentes", titulo: "Incidentes", escopo: "BUSINESS", descricao: "Registro de anomalias operacionais e RCA" },
   { grupo: "Risco & Governança", tabela: "contratos", titulo: "Contratos", escopo: "BUSINESS", descricao: "Instrumentos jurídicos e acordos formais" },
   { grupo: "Risco & Governança", tabela: "consentimentos", titulo: "Consentimentos & LGPD", escopo: "BUSINESS", descricao: "Bases legais e privacidade de dados" },
@@ -63,7 +63,7 @@ export const MODULOS: Modulo[] = [
   { grupo: "Equipe", tabela: "fundador", titulo: "Fundador", escopo: "GLOBAL", descricao: "Diretrizes e preferências executivas do fundador" },
 
   // SISTEMA
-  { grupo: "Sistema", tabela: "integracoes", titulo: "Integrações", escopo: "MISTO", descricao: "Conexões externas: Evolution, Supabase, Grok, etc." },
+  { grupo: "Sistema", tabela: "integracoes", titulo: "Integrações", escopo: "GLOBAL", descricao: "Conexões externas: Evolution, Supabase, Grok, etc." },
   { grupo: "Sistema", tabela: "automacoes", titulo: "Automações", escopo: "MISTO", descricao: "Gatilhos, regras e fluxos automatizados" },
   { grupo: "Sistema", tabela: "agent_jobs", titulo: "Fila de Tarefas dos Agentes", escopo: "GLOBAL", descricao: "Fila técnica de execução dos especialistas" },
   { grupo: "Sistema", tabela: "agent_connections", titulo: "Conexões dos Agentes", escopo: "GLOBAL", descricao: "Status real dos providers (ChatGPT, Grok Bot, etc.)" },

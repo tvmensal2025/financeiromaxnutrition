@@ -30,23 +30,29 @@ export type AgenteCompleto = {
   approval_policy?: string | null;
 };
 
-// Mapeamento automático de macroárea organizacional com base no prefixo/função
+// Mapeamento de macroárea organizacional com base no cargo canônico
 function obterAreaDoCargo(cargo: string, id: string): string {
   if (id === "AGT-01") return "Comando";
-  const c = (cargo || "").toLowerCase();
-  if (c.includes("financeir") || c.includes("caixa") || c.includes("dre") || c.includes("controladoria")) return "Finanças";
-  if (c.includes("vendas") || c.includes("crm") || c.includes("sdr") || c.includes("comercial") || c.includes("pré-vendas")) return "Vendas";
-  if (c.includes("marketing") || c.includes("tráfego") || c.includes("copy") || c.includes("conteúdo")) return "Marketing";
-  if (c.includes("suporte") || c.includes("atendimento") || c.includes("sucesso") || c.includes("cliente")) return "Atendimento";
-  if (c.includes("produto") || c.includes("ux") || c.includes("ui") || c.includes("experiência")) return "Produto";
-  if (c.includes("software") || c.includes("dados") || c.includes("qa") || c.includes("testes") || c.includes("automaç") || c.includes("integraç")) return "Tecnologia";
-  if (c.includes("governança") || c.includes("risco") || c.includes("compliance") || c.includes("jurídic") || c.includes("contrato")) return "Governança";
-  if (c.includes("projetos") || c.includes("prazos")) return "Execução";
-  if (c.includes("suprimentos") || c.includes("fornecedor")) return "Operação";
-  if (c.includes("inteligência") || c.includes("mercado")) return "Estratégia";
-  if (c.includes("parcerias") || c.includes("afiliados")) return "Crescimento";
-  if (c.includes("segurança") || c.includes("lgpd")) return "Segurança";
-  return "Geral";
+  if (id === "AGT-02") return "Fundador";
+  if (id === "AGT-03") return "Estratégia";
+  if (id === "AGT-04") return "Execução";
+  if (id === "AGT-05") return "Finanças";
+  if (id === "AGT-06") return "Governança & Risco";
+  if (id === "AGT-07") return "Pessoas & Cultura";
+  if (id === "AGT-08") return "Dados & BI";
+  if (id === "AGT-09") return "Tecnologia & IA";
+  if (id === "AGT-10") return "Produto";
+  if (id === "AGT-11") return "Pesquisa & Insights";
+  if (id === "AGT-12") return "Design & UX";
+  if (id === "AGT-13") return "Qualidade & QA";
+  if (id === "AGT-14") return "Operações";
+  if (id === "AGT-15") return "Vendas";
+  if (id === "AGT-16" || id === "AGT-17") return "Marketing & Marca";
+  if (id === "AGT-18") return "Parcerias & Negócios";
+  if (id === "AGT-19") return "Customer Success";
+  if (id === "AGT-20") return "Atendimento";
+  if (id === "AGT-21") return "Administração";
+  return "Corporativo";
 }
 
 export default function EquipePage() {

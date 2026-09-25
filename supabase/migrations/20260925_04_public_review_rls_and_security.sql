@@ -167,31 +167,37 @@ CREATE POLICY "anon_select_handoffs" ON public.handoffs FOR SELECT TO anon USING
 -- Concessão explícita de SELECT para as tabelas auditadas
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
 
--- 4. ALINHAMENTO CANÔNICO DA TABELA public.agentes COM OS NOMES E CARGOS OFICIAIS
--- Garante que public.agentes possua exatamente a identidade canônica requerida pelo fundador
+-- 4. NORMALIZAÇÃO OPERACIONAL DE INTEGRAÇÕES (conforme solicitado pelo fundador)
+-- Registros com scope_type = 'GLOBAL' e business_id legado 'DADO A COLETAR' são normalizados para NULL
+UPDATE public.integracoes 
+SET business_id = NULL 
+WHERE business_id = 'DADO A COLETAR' OR business_id = 'GLOBAL';
+
+-- 5. ALINHAMENTO CANÔNICO DA TABELA public.agentes COM OS CARGOS OFICIAIS EXATOS
+-- Garante que public.agentes possua rigorosamente a identidade e funções corporativas requeridas
 INSERT INTO public.agentes (agent_id, agente, cargo_funcao, quando_ativar, missao, status)
 VALUES
     ('AGT-01', 'Helena', 'CEO Virtual / Central de Comando', 'Sempre ativa como central do ecossistema', 'Direção operacional, coordenação dos 20 especialistas, foco executivo e proteção de WIP=1', 'ATIVO'),
-    ('AGT-02', 'Laura', 'Gestão Financeira & Caixa', 'Lançamentos, conciliação e fluxo de caixa', 'Controle rigoroso do fluxo de caixa e gestão financeira das 3 empresas', 'ATIVO'),
-    ('AGT-03', 'Augusto', 'Controladoria & DRE', 'Fechamento de competência e análise de margem', 'Estruturação da DRE, auditoria de lançamentos e controladoria geral', 'ATIVO'),
-    ('AGT-04', 'Marina', 'Contratos & Jurídico', 'Assinatura de contratos e conformidade jurídica', 'Gestão de instrumentos jurídicos, termos de adesão e compliance legal', 'ATIVO'),
-    ('AGT-05', 'Caio', 'CRM & Vendas', 'Novas oportunidades comerciais e negociações', 'Gestão do pipeline de vendas e avanço de negociações no CRM', 'ATIVO'),
-    ('AGT-06', 'Clara', 'Pré-Vendas & Qualificação (SDR)', 'Entrada de novos leads comerciais', 'Qualificação ágil de leads e preparação de oportunidades comerciais', 'ATIVO'),
-    ('AGT-07', 'Bianca', 'Sucesso do Cliente (CS) & Retenção', 'Ativação e retenção de clientes ativos', 'Onboarding de novos clientes, combate ao churn e expansão de conta', 'ATIVO'),
-    ('AGT-08', 'Daniel', 'Atendimento & Suporte Técnico', 'Abertura de chamados e dúvidas de clientes', 'Resolução rápida de tickets com cumprimento de SLA e diagnóstico de causa raiz', 'ATIVO'),
-    ('AGT-09', 'Theo', 'Tráfego Pago & Performance', 'Campanhas de tráfego e mídia paga', 'Otimização de CAC, testes de criativos e gestão de orçamento em anúncios', 'ATIVO'),
-    ('AGT-10', 'Nina', 'Conteúdo, Copywriting & Comunicação', 'Criação de mensagens, copies e postagens', 'Comunicação persuasiva alinhada à proposta de valor de cada negócio', 'ATIVO'),
-    ('AGT-11', 'Ravi', 'Gestão de Produto & Backlog', 'Definição de escopo, releases e hipóteses', 'Priorização do backlog de produto com foco no gargalo de cada negócio', 'ATIVO'),
-    ('AGT-12', 'Maya', 'UI/UX & Experiência Digital', 'Interface, usabilidade e fluxos de telas', 'Design de interfaces modernas, consistência visual e usabilidade premium', 'ATIVO'),
-    ('AGT-13', 'Bruno', 'Arquitetura de Software & Dados', 'Engenharia de dados, tabelas e backend', 'Manutenção da integridade relacional, RLS e performance no Supabase', 'ATIVO'),
-    ('AGT-14', 'Olívia', 'QA, Testes & Homologação', 'Validação de releases e integridade de telas', 'Garantia de qualidade, testes automatizados e homologação rigorosa', 'ATIVO'),
-    ('AGT-15', 'Victor — Vendas', 'Automações & Integrações Técnicas', 'Conexão de APIs, webhooks e esteiras', 'Configuração de webhooks, mensageria via Evolution e integrações de esteira', 'ATIVO'),
-    ('AGT-16', 'Camila', 'Governança, Risco & Auditoria', 'Rituais de governança e monitoramento de riscos', 'Acompanhamento de rituais executivos e mitigação da matriz de riscos', 'ATIVO'),
-    ('AGT-17', 'Isabela', 'Gestão de Projetos & Prazos', 'Controle de marcos, sprints e entregas', 'Monitoramento rigoroso de cronogramas, impedimentos e datas limites', 'ATIVO'),
-    ('AGT-18', 'Pedro', 'Suprimentos & Fornecedores', 'Cotações, compras e gestão de parceiros', 'Negociação com parceiros terceirizados e homologação de insumos', 'ATIVO'),
-    ('AGT-19', 'Renata', 'Inteligência Competitiva & Mercado', 'Benchmarking e monitoramento de concorrentes', 'Pesquisa de mercado, diferenciais competitivos e posicionamento estratégico', 'ATIVO'),
-    ('AGT-20', 'Joana', 'Parcerias & Afiliados (Humano Digital)', 'Jornada e comissionamento de afiliados', 'Ativação e esteira de rastreamento para o modelo Humano Digital', 'ATIVO'),
-    ('AGT-21', 'Felipe', 'Segurança da Informação & LGPD', 'Políticas de privacidade, acessos e auditoria', 'Proteção de credenciais, blindagem de acessos e conformidade com LGPD', 'ATIVO')
+    ('AGT-02', 'Laura', 'Comunicação e Desenvolvimento do Fundador', 'Alinhamento direto, direcionamento e comunicação com o fundador', 'Facilitar a comunicação estratégica e desenvolvimento contínuo do fundador', 'ATIVO'),
+    ('AGT-03', 'Augusto', 'Estratégia Corporativa', 'Definição de modelo de negócios, expansão e posicionamento', 'Estruturação estratégica e alinhamento de longo prazo do ecossistema', 'ATIVO'),
+    ('AGT-04', 'Marina', 'Execução e PMO', 'Acompanhamento de entregas, iniciativas e marcos dos projetos', 'Garantir a execução disciplinada dos projetos e marcos estratégicos', 'ATIVO'),
+    ('AGT-05', 'Caio', 'Finanças / CFO', 'Gestão financeira global, fluxo de caixa e controladoria', 'Gestão financeira rigorosa, auditoria de caixa e governança fiscal', 'ATIVO'),
+    ('AGT-06', 'Clara', 'Risco, Jurídico e Compliance', 'Contratos, blindagem legal, conformidade e riscos corporativos', 'Mitigação de riscos jurídicos, compliance regulatório e matriz de riscos', 'ATIVO'),
+    ('AGT-07', 'Bianca', 'Pessoas e Cultura', 'Gestão de pessoas, cultura organizacional e contratações', 'Fortalecimento da cultura de alta performance e suporte a pessoas', 'ATIVO'),
+    ('AGT-08', 'Daniel', 'Dados e BI', 'Métricas, relatórios executivos, KPIs e inteligência de dados', 'Centralização e análise de dados para tomadas de decisão embasadas', 'ATIVO'),
+    ('AGT-09', 'Theo', 'Tecnologia e IA', 'Infraestrutura técnica, arquitetura de sistemas e modelos de IA', 'Sustentação tecnológica, automações avançadas e inteligência artificial', 'ATIVO'),
+    ('AGT-10', 'Nina', 'Produto', 'Visão de produto, proposta de valor e ciclo de vida', 'Definição estratégica e evolução contínua dos produtos do ecossistema', 'ATIVO'),
+    ('AGT-11', 'Ravi', 'Pesquisa e Insights', 'Pesquisa de mercado, benchmarking e análise de tendências', 'Geração de inteligência competitiva e validação de hipóteses de negócio', 'ATIVO'),
+    ('AGT-12', 'Maya', 'Design / UX / UI', 'Experiência do usuário, interfaces e consistência visual', 'Construção de interfaces elegantes, modernas e de altíssima usabilidade', 'ATIVO'),
+    ('AGT-13', 'Bruno', 'Qualidade / QA', 'Auditoria de qualidade, testes e homologação rigorosa', 'Garantia de qualidade contínua em código, processos e entregas', 'ATIVO'),
+    ('AGT-14', 'Olívia', 'Operações', 'Processos operacionais, eficiência e esteiras do dia a dia', 'Otimização e padronização das operações das unidades de negócio', 'ATIVO'),
+    ('AGT-15', 'Victor', 'Vendas', 'Pipeline comercial, conversão de negócios e fechamento', 'Aceleração de receitas, negociação ativa e tração de novos clientes', 'ATIVO'),
+    ('AGT-16', 'Camila', 'Marketing e Growth', 'Estratégias de aquisição, crescimento e tração de mercado', 'Geração de demanda qualificada e expansão escalável do portfólio', 'ATIVO'),
+    ('AGT-17', 'Isabela', 'Marca, Conteúdo e Copy', 'Branding, copywriting persuasivo e comunicação de marca', 'Posicionamento magnético da marca e narrativa estratégica de vendas', 'ATIVO'),
+    ('AGT-18', 'Pedro', 'Parcerias e Desenvolvimento de Negócios', 'Alianças comerciais, canais de distribuição e parcerias', 'Construção de parcerias estratégicas e novos canais de distribuição', 'ATIVO'),
+    ('AGT-19', 'Renata', 'Customer Success', 'Sucesso do cliente, retenção, onboarding e combate ao churn', 'Maximização do valor entregue ao cliente e aumento de LTV', 'ATIVO'),
+    ('AGT-20', 'Joana', 'Atendimento', 'Suporte ágil, resolução de chamados e experiência do cliente', 'Atendimento resolutivo com alto padrão de satisfação e cumprimento de SLA', 'ATIVO'),
+    ('AGT-21', 'Felipe', 'Administração', 'Gestão administrativa, patrimonial e suporte corporativo', 'Organização administrativa e suporte transversal a todas as frentes', 'ATIVO')
 ON CONFLICT (agent_id) DO UPDATE SET
     agente = EXCLUDED.agente,
     cargo_funcao = EXCLUDED.cargo_funcao,

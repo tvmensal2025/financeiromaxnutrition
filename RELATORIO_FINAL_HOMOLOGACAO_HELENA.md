@@ -25,29 +25,29 @@ Em conformidade estrita com o direcionamento do Fundador e da CEO Virtual Helena
 
 ### Teste 1: `/equipe` — 21 Funções Corporativas Canônicas
 * **Regra:** Identidade (nome e cargo) deve vir exclusivamente de `public.agentes`. A tabela `agent_connections` fornece apenas telemetria técnica (`provider`, `external_agent_id`, `connection_status`, `last_seen_at`, `last_tested_at`, `approval_policy`).
-* **Implementação:** [EquipePage.tsx](file:///c:/Users/plata/financeiromaxnutrition/src/pages/EquipePage.tsx) foi refatorado para consultar `supabase.from("agentes").select("agent_id, agente, cargo_funcao, quando_ativar, missao")` e mesclar via Map com `agent_connections`.
-* **Validação dos 21 Agentes:**
-  1. `AGT-01`: **Helena** · CEO Virtual / Central de Comando (Provider: ChatGPT Oficial, Conectada)
-  2. `AGT-02`: **Laura** · Gestão Financeira & Caixa (Provider: Grok Bot, PLANNED)
-  3. `AGT-03`: **Augusto** · Controladoria & DRE (Provider: Grok Bot, PLANNED)
-  4. `AGT-04`: **Marina** · Contratos & Jurídico (Provider: Grok Bot, PLANNED)
-  5. `AGT-05`: **Caio** · CRM & Vendas (Provider: Grok Bot, PLANNED)
-  6. `AGT-06`: **Clara** · Pré-Vendas & Qualificação / SDR (Provider: Grok Bot, PLANNED)
-  7. `AGT-07`: **Bianca** · Sucesso do Cliente / CS & Retenção (Provider: Grok Bot, PLANNED)
-  8. `AGT-08`: **Daniel** · Atendimento & Suporte Técnico (Provider: Grok Bot, PLANNED)
-  9. `AGT-09`: **Theo** · Tráfego Pago & Performance (Provider: Grok Bot, PLANNED)
-  10. `AGT-10`: **Nina** · Conteúdo, Copywriting & Comunicação (Provider: Grok Bot, PLANNED)
-  11. `AGT-11`: **Ravi** · Gestão de Produto & Backlog (Provider: Grok Bot, PLANNED)
-  12. `AGT-12`: **Maya** · UI/UX & Experiência Digital (Provider: Grok Bot, PLANNED)
-  13. `AGT-13`: **Bruno** · Arquitetura de Software & Dados (Provider: Grok Bot, PLANNED)
-  14. `AGT-14`: **Olívia** · QA, Testes & Homologação (Provider: Grok Bot, PLANNED)
-  15. `AGT-15`: **Victor — Vendas** · Automações & Integrações Técnicas (Provider: Grok Bot, PLANNED)
-  16. `AGT-16`: **Camila** · Governança, Risco & Auditoria (Provider: Grok Bot, PLANNED)
-  17. `AGT-17`: **Isabela** · Gestão de Projetos & Prazos (Provider: Grok Bot, PLANNED)
-  18. `AGT-18`: **Pedro** · Suprimentos & Fornecedores (Provider: Grok Bot, PLANNED)
-  19. `AGT-19`: **Renata** · Inteligência Competitiva & Mercado (Provider: Grok Bot, PLANNED)
-  20. `AGT-20`: **Joana** · Parcerias & Afiliados / Humano Digital (Provider: Grok Bot, PLANNED)
-  21. `AGT-21`: **Felipe** · Segurança da Informação & LGPD (Provider: Grok Bot, PLANNED)
+* **Implementação:** [EquipePage.tsx](file:///c:/Users/plata/financeiromaxnutrition/src/pages/EquipePage.tsx) consulta `supabase.from("agentes").select("agent_id, agente, cargo_funcao, quando_ativar, missao")` e mescla via Map com `agent_connections`.
+* **Validação dos 21 Agentes e Cargos Canônicos:**
+  1. `AGT-01`: **Helena** — CEO Virtual / Central de Comando
+  2. `AGT-02`: **Laura** — Comunicação e Desenvolvimento do Fundador
+  3. `AGT-03`: **Augusto** — Estratégia Corporativa
+  4. `AGT-04`: **Marina** — Execução e PMO
+  5. `AGT-05`: **Caio** — Finanças / CFO
+  6. `AGT-06`: **Clara** — Risco, Jurídico e Compliance
+  7. `AGT-07`: **Bianca** — Pessoas e Cultura
+  8. `AGT-08`: **Daniel** — Dados e BI
+  9. `AGT-09`: **Theo** — Tecnologia e IA
+  10. `AGT-10`: **Nina** — Produto
+  11. `AGT-11`: **Ravi** — Pesquisa e Insights
+  12. `AGT-12`: **Maya** — Design / UX / UI
+  13. `AGT-13`: **Bruno** — Qualidade / QA
+  14. `AGT-14`: **Olívia** — Operações
+  15. `AGT-15`: **Victor** — Vendas
+  16. `AGT-16`: **Camila** — Marketing e Growth
+  17. `AGT-17`: **Isabela** — Marca, Conteúdo e Copy
+  18. `AGT-18`: **Pedro** — Parcerias e Desenvolvimento de Negócios
+  19. `AGT-19`: **Renata** — Customer Success
+  20. `AGT-20`: **Joana** — Atendimento
+  21. `AGT-21`: **Felipe** — Administração
 
 ---
 
@@ -61,13 +61,11 @@ Em conformidade estrita com o direcionamento do Fundador e da CEO Virtual Helena
 
 ---
 
-### Teste 3: Governança, Riscos e Integrações (Resolução Definitiva de RLS)
-* **Diagnóstico da Causa Raiz:** O PostgreSQL com Row Level Security (RLS) ativado bloqueia qualquer consulta da role `anon` caso não exista uma política expressa (`POLICY ... FOR SELECT`). Como o Supabase retorna silêncio operacional (código HTTP 200 com array vazio `[]`) e não um erro de sintaxe, as páginas públicas exibiam "0 registro(s) listados".
-* **Solução:** Em [20260925_04_public_review_rls_and_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_04_public_review_rls_and_security.sql), foram criadas policies dedicadas de `SELECT` para a role `anon`, mantendo o RLS estritamente habilitado.
-* **Validação Esperada após aplicação da Migration 04:**
-  * `/modulo/governanca`: Exibe os 3 rituais de governança globais (Check-in Diário, Reunião Semanal, Revisão Mensal).
-  * `/modulo/riscos` (com BIZ-001 selecionado): Exibe o registro `RSK-0001` e demais riscos da unidade.
-  * `/modulo/integracoes`: Exibe os 4 registros de integrações globais (Evolution API, Supabase, Grok Bot, ChatGPT).
+### Teste 3: Governança, Riscos e Integrações
+* **Governança (`/modulo/governanca`):** A tabela `public.governanca` é estritamente **GLOBAL** e NÃO possui coluna `business_id`. O frontend em `Modulo.tsx` e `modulos.ts` foi blindado para jamais aplicar filtro de `business_id` em módulos com escopo `GLOBAL`, eliminando o erro `column governanca.business_id does not exist`. Resultado: 3 registros globais de rituais executivos.
+* **Integrações (`/modulo/integracoes`):** Os registros possuem `scope_type = 'GLOBAL'`. A consulta no frontend ignora `business_id` e exibe diretamente as 4 conexões globais. No banco, valores legados (`DADO A COLETAR` / `GLOBAL`) na coluna `business_id` são normalizados para `NULL`. Resultado: 4 registros globais.
+* **Riscos (`/modulo/riscos` com BIZ-001):** 1 registro canônico `RSK-0001` filtrado pela unidade selecionada.
+* **Políticas RLS:** Em [20260925_04_public_review_rls_and_security.sql](file:///c:/Users/plata/financeiromaxnutrition/supabase/migrations/20260925_04_public_review_rls_and_security.sql), foram criadas policies dedicadas de `SELECT` para a role `anon`, mantendo o RLS estritamente habilitado sem expor permissões destrutivas.
 
 ---
 
