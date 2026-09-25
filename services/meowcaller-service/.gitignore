@@ -1,0 +1,41 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.txt
+
+# Session files and WhatsApp credentials (CRÍTICO: NUNCA COMMITAR)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+sessions/
+*.session
+qr/
+*.qr.png
+whatsapp-session/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

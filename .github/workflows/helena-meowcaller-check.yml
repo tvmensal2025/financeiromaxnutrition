@@ -1,0 +1,42 @@
+name: Helena Meowcaller Check
+
+on:
+  push:
+    paths:
+      - 'services/meowcaller-service/**'
+      - '.github/workflows/helena-meowcaller-check.yml'
+  pull_request:
+    paths:
+      - 'services/meowcaller-service/**'
+      - '.github/workflows/helena-meowcaller-check.yml'
+
+jobs:
+  check-and-build:
+    name: Go Vet, Tests & Container Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go 1.24
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: 'services/meowcaller-service/go.sum'
+
+      - name: Download Go Dependencies
+        working-directory: services/meowcaller-service
+        run: go mod download
+
+      - name: Run Go Vet
+        working-directory: services/meowcaller-service
+        run: go vet ./...
+
+      - name: Run Go Unit Tests
+        working-directory: services/meowcaller-service
+        run: go test -v ./...
+
+      - name: Docker Build Test
+        working-directory: services/meowcaller-service
+        run: docker build -t meowcaller-service:ci .
