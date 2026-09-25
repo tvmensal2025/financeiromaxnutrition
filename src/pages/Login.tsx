@@ -1,19 +1,34 @@
 import React, { FormEvent, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth";
 import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
-import { AlertCircle, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { AlertCircle, Lock, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+
+/**
+ * Validação de segurança para URLs de retorno pós-login (proteção contra Open Redirect).
+ */
+function getSafeRedirect(target: string | null): string {
+  if (!target) return "/";
+  if (target.startsWith("/") && !target.startsWith("//") && !target.includes("://")) {
+    return target;
+  }
+  return "/";
+}
 
 export default function Login() {
   const { user, appAccess, loading, entrar } = useAuth();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  // Se já estiver autenticado e autorizado com app_access ativo, vai para o Painel
+  const rawRedirect = searchParams.get("redirect");
+  const destino = getSafeRedirect(rawRedirect);
+
+  // Se já estiver autenticado e autorizado com app_access ativo, segue para o destino solicitado
   if (!loading && user && appAccess?.active) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={destino} replace />;
   }
 
   async function onSubmit(event: FormEvent) {
@@ -53,16 +68,28 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Aviso Contextual de Redirecionamento */}
+          {rawRedirect && (
+            <div className="mt-4 flex items-center gap-2.5 rounded-lg border border-[#007A3D]/25 bg-[#007A3D]/5 p-3 text-xs text-[#007A3D] dark:text-[#4ade80]">
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span className="leading-snug">
+                {rawRedirect.includes("oauth")
+                  ? "Autenticação necessária para autorizar a conexão ao Helena Gateway."
+                  : "Autenticação necessária para prosseguir à página solicitada."}
+              </span>
+            </div>
+          )}
+
           {/* Mensagem de Erro */}
           {erro && (
-            <div className="mt-5 flex items-start gap-2.5 rounded-lg border border-[#B91C1C]/25 bg-[#B91C1C]/5 p-3 text-xs text-[#B91C1C] dark:text-[#f87171]">
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#B91C1C]/25 bg-[#B91C1C]/5 p-3 text-xs text-[#B91C1C] dark:text-[#f87171]">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="leading-snug">{erro}</span>
             </div>
           )}
 
           {/* Formulário de Acesso */}
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+          <form onSubmit={onSubmit} className="mt-5 space-y-4">
             <div className="space-y-1.5">
               <label
                 htmlFor="email"

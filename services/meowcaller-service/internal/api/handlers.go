@@ -36,6 +36,7 @@ func (s *Server) Routes() http.Handler {
 	// Rotas autenticadas — Sessão WhatsApp
 	mux.HandleFunc("GET /v1/session", s.auth(s.handleGetSession))
 	mux.HandleFunc("POST /v1/session/start", s.auth(s.handleStartSession))
+	mux.HandleFunc("POST /v1/session/pair-phone", s.auth(s.handlePairPhone))
 	mux.HandleFunc("DELETE /v1/session", s.auth(s.handleDisconnectSession))
 
 	// Rotas autenticadas — Chamadas
@@ -58,6 +59,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		key := r.Header.Get("X-API-Key")
 		if key == "" {
 			key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		}
+		if strings.Contains(key, ",") {
+			parts := strings.Split(key, ",")
+			key = strings.TrimSpace(parts[0])
 		}
 		if key != s.cfg.InternalAPIKey {
 			s.fail(w, "Não autorizado. Chave de API inválida.", http.StatusUnauthorized)
@@ -110,11 +115,24 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	status, jid, qr := s.engine.GetStatus()
+
+	// Se está aguardando pareamento e o QR code está vazio (expirou), força renovação automática
+	if status == voice.StatusPairingRequired && qr == "" {
+		s.engine.RestartSession()
+		for i := 0; i < 30; i++ {
+			time.Sleep(100 * time.Millisecond)
+			status, jid, qr = s.engine.GetStatus()
+			if qr != "" {
+				break
+			}
+		}
+	}
+
 	s.ok(w, map[string]interface{}{
 		"status":          string(status),
 		"connected_jid":   jid,
 		"has_qr_code":     qr != "",
-		"qrcode":          qr, // base64 PNG ou string vazia
+		"qrcode":          qr, // base64 PNG fresco ou string vazia
 		"whatsapp_status": string(status),
 	}, http.StatusOK)
 }
@@ -122,8 +140,7 @@ func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
 	status, jid, qr := s.engine.GetStatus()
 
-	switch status {
-	case voice.StatusConnected:
+	if status == voice.StatusConnected {
 		s.ok(w, map[string]interface{}{
 			"ok":              true,
 			"status":          string(status),
@@ -131,30 +148,55 @@ func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
 			"connected_jid":   jid,
 			"message":         "Sessão WhatsApp já está conectada e pronta para chamadas.",
 		}, http.StatusOK)
-	case voice.StatusPairingRequired:
-		s.ok(w, map[string]interface{}{
-			"ok":              true,
-			"status":          string(status),
-			"whatsapp_status": string(status),
-			"qrcode":          qr,
-			"message":         "QR Code disponível. Escaneie com o WhatsApp do chip de ligações.",
-		}, http.StatusOK)
-	case voice.StatusConnecting:
-		s.ok(w, map[string]interface{}{
-			"ok":              true,
-			"status":          string(status),
-			"whatsapp_status": string(status),
-			"message":         "Conexão em andamento. Aguarde o QR Code aparecer em alguns segundos.",
-		}, http.StatusAccepted)
-	default:
-		// DISCONNECTED — engine reconecta automaticamente, apenas informa
-		s.ok(w, map[string]interface{}{
-			"ok":              true,
-			"status":          string(status),
-			"whatsapp_status": string(status),
-			"message":         "Engine de voz em prontidão. Aguardando geração do QR Code...",
-		}, http.StatusAccepted)
+		return
 	}
+
+	// Força reinício para gerar um QR Code 100% novo e fresco
+	s.engine.RestartSession()
+	for i := 0; i < 35; i++ {
+		time.Sleep(100 * time.Millisecond)
+		st, _, newQr := s.engine.GetStatus()
+		if newQr != "" {
+			qr = newQr
+			status = st
+			break
+		}
+	}
+
+	s.ok(w, map[string]interface{}{
+		"ok":              true,
+		"status":          string(status),
+		"whatsapp_status": string(status),
+		"qrcode":          qr,
+		"message":         "QR Code renovado com sucesso! Escaneie nos próximos 20 segundos.",
+	}, http.StatusOK)
+}
+
+func (s *Server) handlePairPhone(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Phone string `json:"phone"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		s.err(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+	if body.Phone == "" {
+		s.err(w, "phone é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	code, err := s.engine.PairPhone(r.Context(), body.Phone)
+	if err != nil {
+		s.err(w, fmt.Sprintf("Erro ao gerar pairing code: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	s.ok(w, map[string]interface{}{
+		"ok":           true,
+		"pairing_code": code,
+		"phone":        body.Phone,
+		"message":      "Código gerado! Digite este código de 8 dígitos no WhatsApp do seu celular em Aparelhos Conectados > Conectar com número de telefone.",
+	}, http.StatusOK)
 }
 
 func (s *Server) handleDisconnectSession(w http.ResponseWriter, r *http.Request) {

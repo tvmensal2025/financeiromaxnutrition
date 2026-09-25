@@ -1,9 +1,10 @@
 import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import { BusinessProvider } from "@/contexts/BusinessContext";
 import { Layout } from "@/components/Layout";
 import Login from "@/pages/Login";
+import OAuthConsent from "@/pages/OAuthConsent";
 import Painel from "@/pages/Painel";
 import Modulo from "@/pages/Modulo";
 import CrmPage from "@/pages/CrmPage";
@@ -14,6 +15,7 @@ import EquipePage from "@/pages/EquipePage";
 import HelenaInboxPage from "@/pages/HelenaInboxPage";
 import SistemaPage from "@/pages/SistemaPage";
 import ExecucaoPage from "@/pages/ExecucaoPage";
+import IntegracoesPage from "@/pages/IntegracoesPage";
 import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -24,6 +26,7 @@ export const EXIGIR_AUTENTICACAO = true;
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { user, appAccess, loading, sair } = useAuth();
+  const location = useLocation();
 
   // Caso autenticação esteja ativada
   if (loading) {
@@ -39,9 +42,10 @@ function Protegida({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Visitante não autenticado -> redireciona para /login
+  // Visitante não autenticado -> redireciona para /login preservando rota de destino
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const returnTarget = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${returnTarget}`} replace />;
   }
 
   // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
@@ -81,9 +85,17 @@ function Protegida({ children }: { children: React.ReactNode }) {
 function Rotas() {
   return (
     <Routes>
-      {/* Rotas Públicas de Login */}
+      {/* Rotas de Autenticação e Consentimento OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/entrar" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/oauth/consent"
+        element={
+          <Protegida>
+            <OAuthConsent />
+          </Protegida>
+        }
+      />
 
       {/* Aplicação Administrativa Protegida */}
       <Route
@@ -102,11 +114,14 @@ function Rotas() {
         <Route path="/equipe" element={<EquipePage />} />
         <Route path="/inbox" element={<HelenaInboxPage />} />
         <Route path="/sistema" element={<SistemaPage />} />
+        <Route path="/integracoes" element={<IntegracoesPage />} />
 
         {/* Redirecionamentos de conveniência */}
         <Route path="/central-execucao" element={<Navigate to="/execucao" replace />} />
+        <Route path="/central-integracoes" element={<Navigate to="/integracoes" replace />} />
         <Route path="/caixa-entrada" element={<Navigate to="/inbox" replace />} />
         <Route path="/helena" element={<Navigate to="/" replace />} />
+        <Route path="/modulo/integracoes" element={<Navigate to="/integracoes" replace />} />
         <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
         <Route path="/modulo/calendario" element={<Navigate to="/calendario" replace />} />
         <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />

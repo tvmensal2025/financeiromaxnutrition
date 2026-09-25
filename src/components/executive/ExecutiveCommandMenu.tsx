@@ -23,6 +23,7 @@ import {
   Layers,
   Activity,
   Search,
+  Zap,
 } from "lucide-react";
 
 interface ExecutiveCommandMenuProps {
@@ -92,6 +93,13 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
           >
             <Users className="h-4 w-4 text-muted-foreground" />
             <span>Equipe Digital (21 Especialistas)</span>
+          </CommandItem>
+          <CommandItem
+            onSelect={() => runCommand(() => navigate("/integracoes"))}
+            className="flex items-center gap-2.5 px-3 py-2 text-xs"
+          >
+            <Zap className="h-4 w-4 text-amber-500" />
+            <span>Central de Canais, Voz & Integrações</span>
           </CommandItem>
         </CommandGroup>
 

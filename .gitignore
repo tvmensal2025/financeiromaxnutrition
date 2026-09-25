@@ -27,3 +27,11 @@ dist-ssr
 *.sw?
 .playwright-mcp
 supabase/.temp/
+
+# Python / Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
