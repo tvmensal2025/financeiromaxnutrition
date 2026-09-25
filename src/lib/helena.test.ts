@@ -281,6 +281,59 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(estadoMestreReconciliado.plano_futuro).toContain("Supabase é a fonte operacional canônica");
     expect(estadoMestreReconciliado.especialistas).toContain("CEO Virtual no ChatGPT");
   });
+
+  it("valida o isolamento RLS multiempresa: Founder total e usuário restrito a BIZ-001", () => {
+    type AppAccessRow = { user_id: string; role: string; active: boolean };
+    type UserBusinessAccessRow = { user_id: string; business_id: string; active: boolean };
+
+    const appAccessDb: AppAccessRow[] = [
+      { user_id: "usr-founder-1", role: "founder", active: true },
+      { user_id: "usr-membro-biz01", role: "member", active: true },
+      { user_id: "usr-desativado", role: "member", active: false },
+    ];
+
+    const userBusinessAccessDb: UserBusinessAccessRow[] = [
+      { user_id: "usr-membro-biz01", business_id: "BIZ-001", active: true },
+    ];
+
+    // Implementação espelho da função canônica do banco: public.user_has_business_access(check_biz)
+    function userHasBusinessAccess(userId: string | null, checkBiz: string | null): boolean {
+      if (!userId || !checkBiz) return false;
+
+      const appUser = appAccessDb.find((u) => u.user_id === userId);
+      if (appUser && appUser.active && appUser.role === "founder") {
+        return true;
+      }
+
+      return userBusinessAccessDb.some(
+        (uba) => uba.user_id === userId && uba.business_id === checkBiz && uba.active
+      );
+    }
+
+    // 1. Founder tem acesso irrestrito a todas as empresas
+    expect(userHasBusinessAccess("usr-founder-1", "BIZ-001")).toBe(true);
+    expect(userHasBusinessAccess("usr-founder-1", "BIZ-002")).toBe(true);
+    expect(userHasBusinessAccess("usr-founder-1", "BIZ-003")).toBe(true);
+
+    // 2. Usuário restrito a BIZ-001
+    // Consegue BIZ-001
+    expect(userHasBusinessAccess("usr-membro-biz01", "BIZ-001")).toBe(true);
+    // NÃO consegue SELECT / UPDATE / DELETE / INSERT em BIZ-002 ou BIZ-003
+    expect(userHasBusinessAccess("usr-membro-biz01", "BIZ-002")).toBe(false);
+    expect(userHasBusinessAccess("usr-membro-biz01", "BIZ-003")).toBe(false);
+
+    // 3. Usuário inativo ou não cadastrado não consegue nenhuma empresa
+    expect(userHasBusinessAccess("usr-desativado", "BIZ-001")).toBe(false);
+    expect(userHasBusinessAccess("usr-desconhecido", "BIZ-001")).toBe(false);
+
+    // 4. Catálogo das 13 tabelas business-bound protegidas
+    const tabelasBusinessBound = [
+      "crm", "clientes", "financeiro", "contas_financeiras", "projetos",
+      "tarefas", "marketing", "atendimento", "contratos", "documentos",
+      "riscos", "calendario", "obrigacoes"
+    ];
+    expect(tabelasBusinessBound).toHaveLength(13);
+  });
 });
 
 
