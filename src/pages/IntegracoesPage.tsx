@@ -144,6 +144,32 @@ export default function IntegracoesPage() {
     loadAll();
   }, []);
 
+  // Polling automático para atualizar o status e QR code em tempo real
+  useEffect(() => {
+    const isMeowPairing =
+      health?.meowcaller?.whatsapp_status === "PAIRING_REQUIRED" ||
+      meowcallerStatus?.whatsapp_status === "PAIRING_REQUIRED" ||
+      meowcallerStatus?.status === "PAIRING_REQUIRED";
+
+    if (!isMeowPairing) return;
+
+    const interval = setInterval(() => {
+      fetchMeowcallerStatus().then((mc) => {
+        if (mc?.session) {
+          setMeowcallerStatus(mc.session);
+          if (mc.session.qrcode) {
+            setMeowcallerQr(mc.session.qrcode);
+          }
+          if (mc.session.status === "CONNECTED" || mc.session.whatsapp_status === "CONNECTED") {
+            loadAll();
+          }
+        }
+      }).catch(() => {});
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [health?.meowcaller?.whatsapp_status, meowcallerStatus?.whatsapp_status, meowcallerStatus?.status]);
+
   // Carrega vozes ElevenLabs sob demanda
   useEffect(() => {
     if (activeTab === "voices" && voices.length === 0) {
@@ -345,10 +371,41 @@ export default function IntegracoesPage() {
     return <ExecutiveLoadingState message="Carregando Central de Canais e Integrações..." />;
   }
 
-  const tabs: { id: TabId; label: string; icon: any }[] = [
+  const isMeowConnected =
+    (typeof meowcallerStatus === "string" ? meowcallerStatus : meowcallerStatus?.whatsapp_status || meowcallerStatus?.status) === "CONNECTED" ||
+    health?.meowcaller?.whatsapp_status === "CONNECTED";
+
+  const isEvolutionConnected =
+    (typeof evolutionStatus === "string" ? evolutionStatus : evolutionStatus?.status) === "OPEN" ||
+    Boolean(health?.evolution?.connected);
+
+  const activeMeowQr = meowcallerQr || (typeof meowcallerStatus === "object" ? meowcallerStatus?.qrcode : null);
+
+  const tabs: {
+    id: TabId;
+    label: string;
+    icon: any;
+    badge?: { text: string; variant: "success" | "warning" | "default" };
+  }[] = [
     { id: "overview", label: "Visão Geral", icon: Layers },
-    { id: "whatsapp", label: "WhatsApp (Evolution)", icon: MessageSquare },
-    { id: "calls", label: "Ligações (Meowcaller)", icon: PhoneCall },
+    {
+      id: "whatsapp",
+      label: "WhatsApp Mensagens (Evolution)",
+      icon: MessageSquare,
+      badge: {
+        text: isEvolutionConnected ? "Conectado" : "Desconectado",
+        variant: isEvolutionConnected ? "success" : "warning",
+      },
+    },
+    {
+      id: "calls",
+      label: "Ligações VoIP (Meowcaller)",
+      icon: PhoneCall,
+      badge: {
+        text: isMeowConnected ? "Conectado" : "Escanear QR",
+        variant: isMeowConnected ? "success" : "warning",
+      },
+    },
     { id: "voices", label: "Vozes (ElevenLabs)", icon: Mic },
     { id: "routing", label: "Roteamento (Laya)", icon: GitFork },
     { id: "events", label: "Eventos & Testes", icon: Activity },
@@ -373,7 +430,7 @@ export default function IntegracoesPage() {
         }
       />
 
-      {/* Navegação por Abas Executivas */}
+      {/* Navegação por Abas Executivas com Badges */}
       <div className="flex border-b border-border overflow-x-auto no-scrollbar gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -390,6 +447,17 @@ export default function IntegracoesPage() {
             >
               <Icon className="h-4 w-4" />
               <span>{tab.label}</span>
+              {tab.badge && (
+                <span
+                  className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                    tab.badge.variant === "success"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse"
+                  }`}
+                >
+                  {tab.badge.text}
+                </span>
+              )}
             </button>
           );
         })}
@@ -400,6 +468,74 @@ export default function IntegracoesPage() {
           ====================================================================== */}
       {activeTab === "overview" && (
         <div className="space-y-6">
+          {/* BANNER / HERO CARD DE PAREAMENTO DO QR CODE (SE NÃO CONECTADO) */}
+          {!isMeowConnected && (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+              <div className="space-y-2 text-center md:text-left flex-1">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold">
+                  <QrCode className="h-3.5 w-3.5" />
+                  <span>Pareamento Pendente — Linha de Voz WhatsApp (VoIP)</span>
+                </div>
+                <h3 className="text-base font-bold text-foreground">
+                  Escaneie o QR Code para Habilitar as Ligações da Helena
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
+                  Para que a Helena consiga realizar chamadas ativas ou atender ligações em tempo real com voz da ElevenLabs, conecte seu chip WhatsApp pelo QR Code ao lado. Não afeta o WhatsApp de mensagens (Evolution API).
+                </p>
+                <div className="flex flex-wrap gap-2.5 pt-2 justify-center md:justify-start">
+                  <button
+                    type="button"
+                    onClick={handleConnectMeowcaller}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#007A3D]/90"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    <span>Recarregar QR Code</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("calls")}
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                  >
+                    <PhoneCall className="h-3.5 w-3.5 text-sky-600" />
+                    <span>Abrir Discador de Chamadas</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* QR Code Renderizado */}
+              <div className="shrink-0 flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-border shadow-md">
+                {activeMeowQr ? (
+                  <>
+                    <img
+                      src={
+                        activeMeowQr.startsWith("data:")
+                          ? activeMeowQr
+                          : `data:image/png;base64,${activeMeowQr}`
+                      }
+                      alt="QR Code WhatsApp Ligações"
+                      className="w-48 h-48 object-contain"
+                    />
+                    <span className="text-[11px] font-mono text-zinc-600 font-semibold mt-2">
+                      WhatsApp &gt; Dispositivos Conectados
+                    </span>
+                  </>
+                ) : (
+                  <div className="w-48 h-48 flex flex-col items-center justify-center text-center p-4 space-y-2">
+                    <QrCode className="h-10 w-10 text-muted-foreground/40 animate-pulse" />
+                    <span className="text-xs text-muted-foreground font-medium">Carregando QR Code...</span>
+                    <button
+                      type="button"
+                      onClick={handleConnectMeowcaller}
+                      className="text-xs text-[#007A3D] underline font-semibold"
+                    >
+                      Clique para gerar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* HELENA GATEWAY */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -428,56 +564,80 @@ export default function IntegracoesPage() {
             </div>
 
             {/* EVOLUTION API */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <MessageSquare className="h-5 w-5 text-emerald-600" />
-                  <span className="text-sm font-semibold text-foreground">Evolution API</span>
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <MessageSquare className="h-5 w-5 text-emerald-600" />
+                    <span className="text-sm font-semibold text-foreground">Evolution API</span>
+                  </div>
+                  <ExecutiveBadge variant={isEvolutionConnected ? "success" : "warning"}>
+                    {isEvolutionConnected ? "CONECTADA" : health?.evolution?.status || "CONFIGURADA"}
+                  </ExecutiveBadge>
                 </div>
-                <ExecutiveBadge variant={health?.evolution?.connected ? "success" : "warning"}>
-                  {health?.evolution?.status || "CONFIGURADA"}
-                </ExecutiveBadge>
+                <p className="text-xs text-muted-foreground">
+                  Sessão dedicada para WhatsApp de texto, URA automática (1, 2, 3...) e atendimento inbound.
+                </p>
+                <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Instância:</span>
+                    <span className="font-mono text-foreground">{health?.evolution?.instance || "helena_mensagens"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Conectado:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{isEvolutionConnected ? "SIM (Online)" : "NÃO"}</span>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Sessão dedicada para WhatsApp de texto, notificações transacionais e atendimento inbound.
-              </p>
-              <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Instância:</span>
-                  <span className="font-mono text-foreground">{health?.evolution?.instance || "helena-default"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Conectado:</span>
-                  <span className="text-foreground">{health?.evolution?.connected ? "SIM" : "NÃO"}</span>
-                </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("whatsapp")}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Ver Auto-Atendimento & Mensagens</span>
+                </button>
               </div>
             </div>
 
             {/* MEOWCALLER */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <PhoneCall className="h-5 w-5 text-sky-600" />
-                  <span className="text-sm font-semibold text-foreground">Meowcaller Service</span>
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3 flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <PhoneCall className="h-5 w-5 text-sky-600" />
+                    <span className="text-sm font-semibold text-foreground">Meowcaller Service</span>
+                  </div>
+                  <ExecutiveBadge variant={isMeowConnected ? "success" : "warning"}>
+                    {isMeowConnected ? "CONECTADO" : "QR CODE PENDENTE"}
+                  </ExecutiveBadge>
                 </div>
-                <ExecutiveBadge variant={health?.meowcaller?.whatsapp_status === "CONNECTED" ? "success" : "default"}>
-                  {health?.meowcaller?.whatsapp_status || "DISCONNECTED"}
-                </ExecutiveBadge>
+                <p className="text-xs text-muted-foreground">
+                  Sessão exclusiva para transporte de chamadas de voz WhatsApp e ponte bidirecional com a IA.
+                </p>
+                <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Chamadas Ativas:</span>
+                    <span className="font-mono text-foreground">{health?.meowcaller?.active_calls ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">JID Conectado:</span>
+                    <span className="font-mono text-foreground truncate max-w-[150px]">
+                      {health?.meowcaller?.connected_jid || "Aguardando pareamento"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Sessão exclusiva para transporte de chamadas de voz WhatsApp e ponte bidirecional com a IA.
-              </p>
-              <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Chamadas Ativas:</span>
-                  <span className="font-mono text-foreground">{health?.meowcaller?.active_calls ?? 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">JID Conectado:</span>
-                  <span className="font-mono text-foreground truncate max-w-[150px]">
-                    {health?.meowcaller?.connected_jid || "Nenhum"}
-                  </span>
-                </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("calls")}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#007A3D] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  <span>{isMeowConnected ? "Abrir Discador VoIP" : "Escanear QR Code de Voz"}</span>
+                </button>
               </div>
             </div>
 
@@ -678,6 +838,31 @@ export default function IntegracoesPage() {
                     {evolutionPairingCode}
                   </div>
                   <p className="text-[11px] text-muted-foreground">Insira este código na notificação do WhatsApp.</p>
+                </div>
+              ) : isEvolutionConnected ? (
+                <div className="p-6 text-center space-y-3 max-w-xs">
+                  <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-[#007A3D] flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground">WhatsApp de Mensagens Conectado!</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      A instância <strong className="text-foreground">{evolutionStatus?.instance || "helena_mensagens"}</strong> já está online e respondendo mensagens automaticamente com URA (1, 2, 3...) e IA Laya.
+                    </p>
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium pt-1">
+                      O QR Code pendente é o de <strong>ligações de voz VoIP</strong>.
+                    </p>
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("calls")}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#007A3D] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
+                      >
+                        <PhoneCall className="h-3.5 w-3.5" />
+                        <span>Abrir QR Code de Ligações</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 text-center space-y-2">
