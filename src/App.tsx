@@ -16,9 +16,9 @@ import HelenaInboxPage from "@/pages/HelenaInboxPage";
 
 /**
  * CONTROLE DE ACESSO:
- * Modo de autenticação padrão ativo do Sistema Helena.
+ * Deixe `false` para o sistema ficar totalmente público sem tela de login nem senha.
  */
-export const EXIGIR_AUTENTICACAO = true;
+export const EXIGIR_AUTENTICACAO = false;
 
 function Protegida({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
