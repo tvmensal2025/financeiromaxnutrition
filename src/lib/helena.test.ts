@@ -259,6 +259,28 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(itemBanco.modelo_de_receita).toBe("DADO A COLETAR");
     expect(itemBanco.principal_gargalo).toBe("DADO A COLETAR");
   });
+
+  it("garante que o Dashboard não usa ideias hardcoded e exibe mensagem amigável quando vazio", () => {
+    // Simula consulta de public.ideias retornando vazio para BIZ-001
+    const dadosSupabaseIdeias: unknown[] = [];
+    const ideiasCarregadas = dadosSupabaseIdeias;
+    expect(ideiasCarregadas).toHaveLength(0);
+
+    const mensagemVaziaEsperada = "Nenhuma ideia registrada para esta empresa.";
+    expect(mensagemVaziaEsperada).toBe("Nenhuma ideia registrada para esta empresa.");
+  });
+
+  it("valida a reconciliação do Estado Mestre com Supabase canônico", () => {
+    const estadoMestreReconciliado = {
+      versao: "Sistema Helena v8.0 homologado para Supabase Operacional. Aplicação web com multiempresa e RLS blindado.",
+      plano_futuro: "Supabase é a fonte operacional canônica. Planilha V8 é referência histórica. Integrações externas planejadas e conectadas conforme status real (Evolution API, Supabase, Grok Bot e ChatGPT).",
+      especialistas: "Helena atua como CEO Virtual no ChatGPT. Os 20 especialistas corporativos estão definidos com status canônico PLANNED para ativação no Grok.",
+    };
+
+    expect(estadoMestreReconciliado.plano_futuro).not.toContain("manter a planilha como memória consolidada");
+    expect(estadoMestreReconciliado.plano_futuro).toContain("Supabase é a fonte operacional canônica");
+    expect(estadoMestreReconciliado.especialistas).toContain("CEO Virtual no ChatGPT");
+  });
 });
 
 

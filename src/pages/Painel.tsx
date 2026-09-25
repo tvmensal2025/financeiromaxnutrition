@@ -180,29 +180,6 @@ export default function Painel() {
     ];
   }, []);
 
-  const IDEIAS_PADRAO: Ideia[] = useMemo(() => {
-    return [
-      {
-        id: "IDE-01",
-        ideia: "Automação de qualificação de leads via WhatsApp e IA",
-        decisao: "AGORA",
-        business_id: "BIZ-001",
-      },
-      {
-        id: "IDE-02",
-        ideia: "Lançamento de combo de suplementos & plano alimentar",
-        decisao: "DEPOIS",
-        business_id: "BIZ-002",
-      },
-      {
-        id: "IDE-03",
-        ideia: "Treinamento do agente de vendas e onboarding Humano Digital",
-        decisao: "PRECISA VALIDAR",
-        business_id: "BIZ-003",
-      },
-    ];
-  }, []);
-
   // EFEITO COM ISOLAMENTO DE EMPRESA:
   // Ao trocar de empresa, limpa imediatamente os dados anteriores e busca com filtro estrito
   useEffect(() => {
@@ -244,7 +221,7 @@ export default function Painel() {
 
         setFoco((f.data && f.data.length ? f.data : FOCO_PADRAO) as Foco[]);
         setNegocios((p.data && p.data.length ? p.data : NEGOCIOS_PADRAO) as Negocio[]);
-        setIdeias((i.data && i.data.length ? i.data : IDEIAS_PADRAO) as Ideia[]);
+        setIdeias((i.data || []) as Ideia[]);
         setLancamentos((fin.data || []) as Lancamento[]);
         setOportunidades((crm.data || []) as Oportunidade[]);
       })
@@ -884,9 +861,9 @@ export default function Painel() {
           {ideiasVisiveis.length === 0 && (
             <div className="col-span-full py-10 text-center rounded-2xl border border-dashed border-border/60 bg-muted/20">
               <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-bold text-foreground">Nenhuma sugestão encontrada</p>
+              <p className="text-sm font-bold text-foreground">Nenhuma ideia registrada para esta empresa.</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Não há ideias com o filtro selecionado para esta empresa.
+                Ideias validadas cadastradas em public.ideias aparecerão aqui automaticamente.
               </p>
             </div>
           )}
