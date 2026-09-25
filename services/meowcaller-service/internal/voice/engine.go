@@ -1,0 +1,414 @@
+// Package voice implementa o engine real de WhatsApp VoIP usando
+// hypermeow (cliente WhatsApp Web) + meowcaller (stack VoIP).
+// Responsabilidades:
+//   - Gerenciar sessão WhatsApp (QR Code via channel, pareamento, reconexão)
+//   - Controlar o ciclo de vida de chamadas (Originar, Atender, Encerrar)
+//   - Expor estado via GetStatus() para a camada HTTP
+package voice
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	waClient "github.com/polymorfa/hypermeow"
+	"github.com/polymorfa/hypermeow/proto/waCompanionReg"
+	"github.com/polymorfa/hypermeow/store"
+	"github.com/polymorfa/hypermeow/store/sqlstore"
+	"github.com/polymorfa/hypermeow/types"
+	"github.com/polymorfa/hypermeow/types/events"
+	waLog "github.com/polymorfa/hypermeow/util/log"
+	"github.com/purpshell/meowcaller"
+	"github.com/rs/zerolog/log"
+	"github.com/skip2/go-qrcode"
+	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/config"
+	"google.golang.org/protobuf/proto"
+
+	_ "modernc.org/sqlite"
+)
+
+// SessionStatus representa o estado de conexão WhatsApp
+type SessionStatus string
+
+const (
+	StatusDisconnected    SessionStatus = "DISCONNECTED"
+	StatusConnecting      SessionStatus = "CONNECTING"
+	StatusPairingRequired SessionStatus = "PAIRING_REQUIRED"
+	StatusConnected       SessionStatus = "CONNECTED"
+)
+
+// CallSnapshot representa o estado atual de uma chamada
+type CallSnapshot struct {
+	CallID       string    `json:"call_id"`
+	Direction    string    `json:"direction"`
+	RemoteNumber string    `json:"remote_number"`
+	Status       string    `json:"status"`
+	StartedAt    time.Time `json:"started_at"`
+}
+
+// Engine gerencia a sessão WhatsApp e o engine de chamadas VoIP
+type Engine struct {
+	cfg       *config.Config
+	mu        sync.RWMutex
+	status    SessionStatus
+	jid       string
+	qrCodeB64 string // QR Code em base64 PNG com prefixo data:image/png;base64,...
+
+	wa        *waClient.Client
+	meo       *meowcaller.Client
+	cancelCtx context.CancelFunc
+
+	activeCalls map[string]*CallSnapshot
+	callsMu     sync.RWMutex
+}
+
+// NewEngine inicializa o engine de voz WhatsApp real
+func NewEngine(cfg *config.Config) (*Engine, error) {
+	e := &Engine{
+		cfg:         cfg,
+		status:      StatusDisconnected,
+		activeCalls: make(map[string]*CallSnapshot),
+	}
+
+	// Garante que o diretório de sessão existe
+	dir := filepath.Dir(cfg.WhatsAppSessionPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		log.Warn().Err(err).Str("dir", dir).Msg("Não foi possível criar diretório de sessão")
+	}
+
+	// Inicia o loop de conexão em background
+	go e.connectLoop()
+
+	return e, nil
+}
+
+// connectLoop tenta conectar/reconectar continuamente
+func (e *Engine) connectLoop() {
+	for {
+		ctx, cancel := context.WithCancel(context.Background())
+		e.mu.Lock()
+		e.cancelCtx = cancel
+		e.mu.Unlock()
+
+		err := e.runSession(ctx)
+		cancel()
+
+		if ctx.Err() != nil {
+			// Shutdown intencional
+			return
+		}
+		if err != nil {
+			log.Warn().Err(err).Msg("Sessão WhatsApp encerrada. Reconectando em 10s...")
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// runSession cria e gerencia uma sessão WhatsApp completa
+func (e *Engine) runSession(ctx context.Context) error {
+	e.setStatus(StatusConnecting, "", "")
+
+	// Configura o device como Chrome (aparece como "Google Chrome" nos dispositivos vinculados)
+	store.DeviceProps.Os = proto.String("Mac OS")
+	store.DeviceProps.PlatformType = waCompanionReg.DeviceProps_CHROME.Enum()
+
+	// Abre o store SQLite (persiste sessão entre reinicializações)
+	dbPath := "file:" + e.cfg.WhatsAppSessionPath + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
+	container, err := sqlstore.New(ctx, "sqlite", dbPath, waLog.Zerolog(log.Logger).Sub("wa-db"))
+	if err != nil {
+		return fmt.Errorf("erro ao abrir SQLite de sessão WhatsApp: %w", err)
+	}
+
+	device, err := container.GetFirstDevice(ctx)
+	if err != nil {
+		return fmt.Errorf("erro ao carregar dispositivo WhatsApp: %w", err)
+	}
+
+	// Cria o cliente WhatsApp
+	wa := waClient.NewClient(device, waLog.Zerolog(log.Logger).Sub("wa"))
+
+	// Instala o meowcaller ANTES de conectar (obrigatório para interceptar chamadas)
+	meo := meowcaller.NewClient(wa)
+
+	e.mu.Lock()
+	e.wa = wa
+	e.meo = meo
+	e.mu.Unlock()
+
+	// Handler de chamadas recebidas (Inbound)
+	meo.OnIncomingCall(func(call *meowcaller.Call) {
+		callID := call.ID()
+		peer := call.Peer().String()
+		snap := &CallSnapshot{
+			CallID:       callID,
+			Direction:    "INBOUND",
+			RemoteNumber: peer,
+			Status:       "RINGING",
+			StartedAt:    time.Now(),
+		}
+		e.callsMu.Lock()
+		e.activeCalls[callID] = snap
+		e.callsMu.Unlock()
+
+		log.Info().Str("caller", peer).Str("call_id", callID).Msg("📞 Chamada VoIP recebida!")
+
+		// Atender automaticamente
+		if err := call.Answer(); err != nil {
+			log.Error().Err(err).Str("call_id", callID).Msg("Erro ao atender chamada")
+			snap.Status = "FAILED"
+			return
+		}
+		snap.Status = "CONNECTED"
+
+		// Finaliza ao encerrar a chamada
+		call.OnEnd(func(reason string) {
+			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada encerrada")
+			snap.Status = "ENDED"
+			time.AfterFunc(10*time.Second, func() {
+				e.callsMu.Lock()
+				delete(e.activeCalls, callID)
+				e.callsMu.Unlock()
+			})
+		})
+
+		log.Info().Str("call_id", callID).Msg("✅ Chamada atendida com sucesso!")
+	})
+
+	// Conecta ao WhatsApp
+	if device.ID == nil {
+		// Novo dispositivo — precisa escanear QR Code
+		return e.connectWithQR(ctx, wa)
+	}
+
+	// Dispositivo já pareado — conecta direto
+	if err := wa.Connect(); err != nil {
+		return fmt.Errorf("erro ao conectar WhatsApp: %w", err)
+	}
+	if err := waitUntilConnected(ctx, wa, 60*time.Second); err != nil {
+		return fmt.Errorf("timeout aguardando conexão WhatsApp: %w", err)
+	}
+
+	jid := wa.Store.GetJID().String()
+	log.Info().Str("jid", jid).Msg("✅ WhatsApp de Voz conectado com sucesso!")
+	e.setStatus(StatusConnected, jid, "")
+
+	// Anuncia presença para receber chamadas
+	if wa.Store.PushName == "" {
+		wa.Store.PushName = "Helena VoIP"
+	}
+	if err := wa.SendPresence(ctx, types.PresenceAvailable); err != nil {
+		log.Warn().Err(err).Msg("Falha ao enviar presença (não crítico)")
+	}
+
+	// Aguarda o contexto ser cancelado (shutdown ou reconexão)
+	<-ctx.Done()
+	wa.Disconnect()
+	return nil
+}
+
+// connectWithQR gerencia o fluxo de primeiro pareamento via QR Code
+func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
+	log.Info().Msg("Novo dispositivo detectado. Gerando QR Code de Ligações...")
+	e.setStatus(StatusPairingRequired, "", "")
+
+	qrChan, err := wa.GetQRChannel(ctx)
+	if err != nil {
+		return fmt.Errorf("erro ao obter canal QR: %w", err)
+	}
+
+	if err := wa.Connect(); err != nil {
+		return fmt.Errorf("erro ao conectar para QR: %w", err)
+	}
+
+	// Processa eventos do canal QR
+	for evt := range qrChan {
+		if evt.Event == "code" {
+			// Gera imagem PNG do QR Code
+			png, err := qrcode.Encode(evt.Code, qrcode.Medium, 256)
+			if err != nil {
+				log.Error().Err(err).Msg("Erro ao gerar imagem QR Code")
+				// Usa texto puro como fallback
+				e.mu.Lock()
+				e.qrCodeB64 = "data:text/plain;base64," + base64.StdEncoding.EncodeToString([]byte(evt.Code))
+				e.mu.Unlock()
+			} else {
+				b64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
+				e.mu.Lock()
+				e.qrCodeB64 = b64
+				e.mu.Unlock()
+				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie com o WhatsApp do chip de voz.")
+			}
+		} else {
+			log.Info().Str("event", evt.Event).Msg("Evento de login WhatsApp")
+		}
+	}
+
+	// QR Channel fechado → pareamento concluído (ou falhou)
+	if err := waitUntilConnected(ctx, wa, 60*time.Second); err != nil {
+		return fmt.Errorf("timeout após pareamento QR: %w", err)
+	}
+
+	jid := wa.Store.GetJID().String()
+	log.Info().Str("jid", jid).Msg("✅ WhatsApp de Voz pareado e conectado!")
+	e.setStatus(StatusConnected, jid, "")
+
+	// Anuncia presença
+	if wa.Store.PushName == "" {
+		wa.Store.PushName = "Helena VoIP"
+	}
+	if err := wa.SendPresence(ctx, types.PresenceAvailable); err != nil {
+		log.Warn().Err(err).Msg("Falha ao enviar presença (não crítico)")
+	}
+
+	// Aguarda shutdown
+	<-ctx.Done()
+	wa.Disconnect()
+	return nil
+}
+
+// waitUntilConnected aguarda até o cliente estar conectado e autenticado
+func waitUntilConnected(ctx context.Context, wa *waClient.Client, timeout time.Duration) error {
+	ready := make(chan struct{}, 8)
+	id := wa.AddEventHandler(func(evt any) {
+		if _, ok := evt.(*events.Connected); ok {
+			select {
+			case ready <- struct{}{}:
+			default:
+			}
+		}
+	})
+	defer wa.RemoveEventHandler(id)
+
+	deadline := time.After(timeout)
+	for !(wa.IsConnected() && wa.IsLoggedIn()) {
+		select {
+		case <-ready:
+		case <-deadline:
+			return fmt.Errorf("timeout aguardando conexão WhatsApp (%s)", timeout)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+// setStatus atualiza o estado de forma thread-safe
+func (e *Engine) setStatus(s SessionStatus, jid, qr string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.status = s
+	if jid != "" {
+		e.jid = jid
+	}
+	if s == StatusConnected {
+		e.qrCodeB64 = "" // Limpa QR Code ao conectar
+	}
+	if qr != "" {
+		e.qrCodeB64 = qr
+	}
+}
+
+// GetStatus retorna o estado atual da sessão (thread-safe)
+func (e *Engine) GetStatus() (SessionStatus, string, string) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.status, e.jid, e.qrCodeB64
+}
+
+// OriginateCall inicia uma chamada de saída via meowcaller
+func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapshot, error) {
+	e.mu.RLock()
+	status := e.status
+	meo := e.meo
+	e.mu.RUnlock()
+
+	if status != StatusConnected {
+		return nil, fmt.Errorf(
+			"sessão WhatsApp não conectada (status: %s). Escaneie o QR Code de Ligações para conectar o chip de voz",
+			status,
+		)
+	}
+	if meo == nil {
+		return nil, fmt.Errorf("engine de voz não inicializado")
+	}
+
+	log.Info().Str("target", target).Msg("🔔 Originando chamada WhatsApp VoIP...")
+
+	call, err := meo.Call(ctx, target)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao originar chamada para %s: %w", target, err)
+	}
+
+	callID := uuid.New().String()
+	snap := &CallSnapshot{
+		CallID:       callID,
+		Direction:    "OUTBOUND",
+		RemoteNumber: target,
+		Status:       "RINGING",
+		StartedAt:    time.Now(),
+	}
+
+	e.callsMu.Lock()
+	e.activeCalls[callID] = snap
+	e.callsMu.Unlock()
+
+	// Monitora a chamada em background
+	go func() {
+		call.OnReady(func() {
+			snap.Status = "CONNECTED"
+			log.Info().Str("call_id", callID).Msg("📞 Chamada conectada — mídia fluindo!")
+		})
+		call.OnEnd(func(reason string) {
+			snap.Status = "ENDED"
+			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada encerrada")
+			time.AfterFunc(10*time.Second, func() {
+				e.callsMu.Lock()
+				delete(e.activeCalls, callID)
+				e.callsMu.Unlock()
+			})
+		})
+
+		// Timeout máximo de segurança
+		select {
+		case <-time.After(time.Duration(e.cfg.CallMaxDurationSeconds) * time.Second):
+			if snap.Status == "RINGING" || snap.Status == "CONNECTED" {
+				snap.Status = "ENDED"
+				log.Warn().Str("call_id", callID).Msg("Chamada encerrada por timeout máximo")
+			}
+		}
+	}()
+
+	return snap, nil
+}
+
+// ListActiveCalls retorna lista de chamadas ativas
+func (e *Engine) ListActiveCalls() []CallSnapshot {
+	e.callsMu.RLock()
+	defer e.callsMu.RUnlock()
+	calls := make([]CallSnapshot, 0, len(e.activeCalls))
+	for _, c := range e.activeCalls {
+		calls = append(calls, *c)
+	}
+	return calls
+}
+
+// Shutdown encerra o engine graciosamente
+func (e *Engine) Shutdown() {
+	e.mu.Lock()
+	cancel := e.cancelCtx
+	wa := e.wa
+	e.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if wa != nil {
+		wa.Disconnect()
+	}
+	log.Info().Msg("Engine de voz WhatsApp encerrado.")
+}
