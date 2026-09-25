@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { SignJWT, generateKeyPair } from 'jose';
 
-const PORT = 3999;
+const PORT = parseInt(process.env.TEST_PORT || '3997', 10);
 process.env.PORT = String(PORT);
 process.env.PUBLIC_HOST = 'helena-automation-helena-gateway.d9v63q.easypanel.host';
 process.env.MCP_BEARER_TOKEN = 'test-mcp-token-xyz';
