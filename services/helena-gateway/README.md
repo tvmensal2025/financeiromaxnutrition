@@ -81,11 +81,31 @@ O Gateway implementa estritamente os princípios do **Protocolo V9 (PAG-V9-001 a
 
 | Método | Endpoint | Autenticação | Descrição |
 |---|---|---|---|
-| `GET` | `/health` | Pública | Teste de prontidão operacional e conectividade com o Supabase. Retorna HTTP 200 `{ "ok": true, "supabase": true }` ou HTTP 503 `{ "ok": false, "supabase": false }`. |
-| `POST` | `/webhooks/supabase/agent-job` | Header `x-helena-webhook-secret` | Recebe webhook de novos jobs cadastrados no Supabase e registra evento `WAKE_SIGNAL`. Não executa o job de forma síncrona. |
-| `GET` | `/mcp` | `Authorization: Bearer <TOKEN>` | Metadados do servidor MCP e lista de ferramentas disponíveis. |
-| `POST` | `/mcp` | `Authorization: Bearer <TOKEN>` | Canal JSON-RPC 2.0 para execução de ferramentas (`tools/call`), listagem (`tools/list`) e handshake (`initialize`). |
-| `POST` | `/api/tools/:toolName` | `Authorization: Bearer <TOKEN>` | Endpoint REST alternativo para chamada direta de qualquer uma das 10 ferramentas. |
+| `GET` | `/.well-known/oauth-protected-resource` | Pública | RFC 9728 Protected Resource Metadata. Anuncia o Supabase Auth como Authorization Server oficial para clientes MCP (ex: Grok). |
+| `GET` | `/.well-known/oauth-protected-resource/mcp` | Pública | Endpoint canônico de metadata anunciado no header `WWW-Authenticate` quando `/mcp` é chamado sem token. |
+| `GET` | `/health` | Pública | Teste de conectividade com o Supabase e Supabase JWKS. Retorna `{ "ok": true, "supabase": true, "oauth": true, "mcp": true }`. |
+| `POST` | `/webhooks/supabase/agent-job` | Header `x-helena-webhook-secret` | Recebe webhook de novos jobs cadastrados no Supabase e registra evento `WAKE_SIGNAL`. |
+| `GET` | `/mcp` | Bearer OAuth 2.1 / Fallback | Metadados do servidor MCP e lista de ferramentas disponíveis. |
+| `POST` | `/mcp` | Bearer OAuth 2.1 / Fallback | Canal JSON-RPC 2.0 para execução (`tools/call`), listagem (`tools/list`) e handshake (`initialize`). Sem token retorna 401 com `WWW-Authenticate`. |
+| `POST` | `/api/tools/:toolName` | Bearer OAuth 2.1 / Fallback | Endpoint REST alternativo para chamada direta de qualquer uma das 10 ferramentas. |
+
+---
+
+## 3.1 Arquitetura OAuth 2.1 com Supabase Auth
+
+O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticação ao Supabase Auth:
+
+1. **Authorization Server / Issuer:** `https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1`
+2. **Discovery Endpoint:** `https://wxkgrykduqtsgmjkzlou.supabase.co/.well-known/oauth-authorization-server/auth/v1`
+3. **Dynamic Client Registration (DCR):** `https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1/oauth/clients/register`
+4. **JWKS Remoto para Validação de Tokens:** `https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1/.well-known/jwks.json`
+5. **Fluxo do Grok / Cliente MCP:**
+   - Grok chama `/mcp` sem token.
+   - Gateway responde com `HTTP 401` e header `WWW-Authenticate: Bearer resource_metadata="https://.../.well-known/oauth-protected-resource/mcp"`.
+   - Grok lê o metadata, descobre o endpoint DCR do Supabase e registra-se dinamicamente (cliente público com PKCE).
+   - Usuário autoriza no Supabase Auth e o Grok obtém o Access Token JWT.
+   - Grok envia requisição ao `/mcp` com `Authorization: Bearer <token>`.
+   - Gateway valida a assinatura via JWKS (`jose`), confere `iss`, `sub`, `exp` e expõe a identidade (`user_id`, `client_id`, `scopes`) nas ferramentas MCP.
 
 ---
 

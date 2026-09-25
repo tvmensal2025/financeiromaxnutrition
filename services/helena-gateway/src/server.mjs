@@ -10,16 +10,25 @@ import express from 'express';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/server';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
 // ======================================================================
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const PUBLIC_HOST = process.env.PUBLIC_HOST || 'gateway.seudominio.com';
+const PUBLIC_HOST = process.env.PUBLIC_HOST || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co').replace(/\/$/, '');
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const SUPABASE_AUTH_ISSUER = 'https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1';
+const SUPABASE_JWKS_URL = 'https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1/.well-known/jwks.json';
+
+const jwksClient = createRemoteJWKSet(new URL(SUPABASE_JWKS_URL), {
+  cooldownDuration: 30000,
+  cacheMaxAge: 600000
+});
 
 const GATEWAY_WEBHOOK_SECRET = process.env.GATEWAY_WEBHOOK_SECRET || '';
 const MCP_BEARER_TOKEN = process.env.MCP_BEARER_TOKEN || '';
@@ -845,10 +854,11 @@ app.use(express.json({ limit: '1mb' }));
 // Desabilita header X-Powered-By
 app.disable('x-powered-by');
 
-// CORS seguro
+// CORS seguro com suporte a WWW-Authenticate
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-helena-webhook-secret');
+  res.header('Access-Control-Expose-Headers', 'WWW-Authenticate, Authorization');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -856,22 +866,87 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware de autenticação MCP
-function authenticateMcp(req, res, next) {
+// Helpers de OAuth 2.1 Protected Resource Metadata
+function getResourceHost(req) {
+  return process.env.PUBLIC_HOST || req.headers.host || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
+}
+
+function getProtectedResourceMetadata(req) {
+  const host = getResourceHost(req);
+  return {
+    resource: `https://${host}/mcp`,
+    authorization_servers: [
+      SUPABASE_AUTH_ISSUER
+    ],
+    scopes_supported: [
+      'openid',
+      'profile',
+      'email',
+      'offline_access'
+    ],
+    bearer_methods_supported: ['header']
+  };
+}
+
+// Publicação do Protected Resource Metadata (RFC 9728)
+app.get(['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp'], (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  return res.json(getProtectedResourceMetadata(req));
+});
+
+// Middleware de autenticação MCP (OAuth 2.1 via Supabase Auth + Fallback Administrativo)
+async function authenticateMcp(req, res, next) {
+  const host = getResourceHost(req);
+  const resourceMetadataUrl = `https://${host}/.well-known/oauth-protected-resource/mcp`;
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 
-  if (!MCP_BEARER_TOKEN || !token || !safeCompare(token, MCP_BEARER_TOKEN)) {
+  if (!token) {
+    res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}"`);
     return res.status(401).json({
-      jsonrpc: '2.0',
-      error: {
-        code: -32001,
-        message: 'Unauthorized: Invalid or missing MCP bearer token'
-      },
-      id: req.body?.id || null
+      error: 'invalid_token',
+      error_description: 'Authorization required'
     });
   }
-  next();
+
+  // 1. Fallback administrativo temporário (MCP_BEARER_TOKEN estático mantido sem divulgar ao Grok)
+  if (MCP_BEARER_TOKEN && safeCompare(token, MCP_BEARER_TOKEN)) {
+    req.identity = {
+      userId: 'admin',
+      role: 'service-admin',
+      type: 'static_fallback'
+    };
+    return next();
+  }
+
+  // 2. Validação obrigatória de Access Token OAuth 2.1 emitido pelo Supabase Auth via JWKS
+  try {
+    const { payload } = await jwtVerify(token, jwksClient, {
+      issuer: SUPABASE_AUTH_ISSUER
+    });
+
+    if (!payload.sub) {
+      throw new Error('Claim sub ausente no token JWT');
+    }
+
+    req.identity = {
+      userId: payload.sub,
+      clientId: payload.client_id || null,
+      email: payload.email || null,
+      role: payload.role || 'authenticated',
+      scopes: typeof payload.scope === 'string' ? payload.scope.split(' ') : (payload.scopes || []),
+      type: 'oauth2'
+    };
+
+    return next();
+  } catch (err) {
+    const safeErrorMsg = (err.message || 'Invalid or expired access token').replace(/"/g, "'");
+    res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${resourceMetadataUrl}", error="invalid_token", error_description="${safeErrorMsg}"`);
+    return res.status(401).json({
+      error: 'invalid_token',
+      error_description: err.message || 'Invalid or expired access token'
+    });
+  }
 }
 
 // Middleware de autenticação Webhook Supabase
@@ -893,11 +968,13 @@ function authenticateWebhook(req, res, next) {
 
 /**
  * 7 — GET /health
- * Testa conectividade real com o Supabase. Não retorna segredos em erro.
+ * Testa conectividade real com o Supabase e Supabase OAuth JWKS.
  */
 app.get('/health', async (req, res) => {
   let supabaseOk = false;
+  let oauthOk = false;
 
+  // 1. Testa conectividade com PostgREST Supabase
   if (SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const pingUrl = `${SUPABASE_URL}/rest/v1/agent_jobs?select=job_id&limit=1`;
@@ -915,21 +992,28 @@ app.get('/health', async (req, res) => {
     }
   }
 
-  if (supabaseOk) {
-    return res.status(200).json({
-      ok: true,
-      service: 'helena-gateway',
-      version: '0.1.0',
-      supabase: true
+  // 2. Testa conectividade com Supabase OAuth JWKS
+  try {
+    const jwksRes = await fetch(SUPABASE_JWKS_URL, {
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
     });
-  } else {
-    return res.status(503).json({
-      ok: false,
-      service: 'helena-gateway',
-      version: '0.1.0',
-      supabase: false
-    });
+    oauthOk = jwksRes.ok;
+  } catch {
+    oauthOk = false;
   }
+
+  const isHealthy = supabaseOk && oauthOk;
+  const status = isHealthy ? 200 : 503;
+
+  return res.status(status).json({
+    ok: isHealthy,
+    service: 'helena-gateway',
+    version: '0.1.0',
+    supabase: supabaseOk,
+    oauth: oauthOk,
+    mcp: true
+  });
 });
 
 /**
