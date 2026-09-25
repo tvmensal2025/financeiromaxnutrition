@@ -208,26 +208,31 @@ EVOLUTION_INSTANCE=
 
 ---
 
-## 6. Procedimento de Deploy no EasyPanel
+## 6. Procedimento de Deploy no EasyPanel (STATUS: IMPLANTADO & ATIVO)
 
-O serviço foi estruturado para integração contínua nativa com o GitHub:
+O serviço está **100% implantado e ativo na VPS** através do EasyPanel:
 
-1. Acesse o **EasyPanel** na sua VPS.
-2. Selecione o Projeto: `helena-automation`.
-3. Crie ou configure o App: `helena-gateway`.
-4. Defina a Origem (Source):
-   - **Type:** GitHub
-   - **Repository:** `tvmensal2025/financeiromaxnutrition`
-   - **Branch:** `infra/helena-gateway` (durante fase de homologação) / `main` (após merge)
-5. Defina as Configurações de Build:
-   - **Build Context:** `services/helena-gateway`
-   - **Dockerfile Path:** `services/helena-gateway/Dockerfile`
-6. Defina a Porta:
-   - **Port:** `3000`
-7. Preencha as **Environment Variables** com as chaves reais obtidas do Supabase (`SUPABASE_SERVICE_ROLE_KEY`) e gere tokens fortes para `GATEWAY_WEBHOOK_SECRET` e `MCP_BEARER_TOKEN`.
-8. Configure os Domínios (Domains):
-   - **Domínio:** `DADO A CONFIGURAR` (Recomendação: `gateway.<dominio-do-fundador>`).
-   - Habilite certificado SSL automático (Let's Encrypt).
+* **Ambiente EasyPanel:** `http://72.60.159.48:3000`
+* **Projeto:** `helena-automation`
+* **Aplicativo:** `helena-gateway`
+* **Domínio Público com SSL Ativo:** `https://helena-automation-helena-gateway.d9v63q.easypanel.host`
+* **Endpoint MCP:** `https://helena-automation-helena-gateway.d9v63q.easypanel.host/mcp`
+* **Endpoint Health:** `https://helena-automation-helena-gateway.d9v63q.easypanel.host/health`
+* **Endpoint Webhook:** `https://helena-automation-helena-gateway.d9v63q.easypanel.host/webhooks/supabase/agent-job`
+
+### Configuração Aplicada no EasyPanel:
+
+* **Source Type:** GitHub
+* **Repository:** `tvmensal2025/financeiromaxnutrition`
+* **Branch:** `main`
+* **Build Context:** `services/helena-gateway`
+* **Build Type:** Dockerfile
+* **Porta:** `3000`
+* **Primary Domain:** `helena-automation-helena-gateway.d9v63q.easypanel.host` (HTTPS automático via Traefik / Let's Encrypt)
+* **Tokens Gerados para Autenticação:**
+  * `MCP_BEARER_TOKEN`: `helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f`
+  * `GATEWAY_WEBHOOK_SECRET`: `helena_wh_sec_a8f9c2d1e4b7063852ef71940bcad58234671e`
+
 
 ---
 
