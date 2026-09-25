@@ -123,7 +123,12 @@ export default function IntegracoesPage() {
 
       if (h) setHealth(h);
       if (ev) setEvolutionStatus(ev.status);
-      if (mc) setMeowcallerStatus(mc.session);
+      if (mc) {
+        setMeowcallerStatus(mc.session);
+        if (mc.session?.qrcode) {
+          setMeowcallerQr(mc.session.qrcode);
+        }
+      }
       setVoiceProfiles(vc);
       setEvents(evts);
       setCallHistory(calls);
@@ -219,18 +224,19 @@ export default function IntegracoesPage() {
     try {
       setMeowcallerFeedback("Consultando sessão VoIP Meowcaller...");
       const res = await connectMeowcallerSession();
-      if (res.result?.qrcode) {
-        setMeowcallerQr(res.result.qrcode);
-        setMeowcallerFeedback("QR Code de chamadas gerado. Aponte a câmera do WhatsApp para conectar.");
+      const qr = res?.result?.qrcode || res?.session?.qrcode || (res as any)?.qrcode;
+      if (qr) {
+        setMeowcallerQr(qr);
+        setMeowcallerFeedback("QR Code de chamadas gerado com sucesso. Aponte a câmera do WhatsApp para conectar.");
       } else {
-        const st = res.result?.status || (typeof res === "object" ? (res as any).status : "DISCONNECTED");
+        const st = res?.result?.status || res?.session?.status || (typeof res === "object" ? (res as any).status : "DISCONNECTED");
         setMeowcallerFeedback(
           st === "CONNECTED"
             ? "Canal Meowcaller conectado e pronto para ligações."
-            : "Canal VoIP Meowcaller em prontidão (DISCONNECTED). Aguardando ativação de chip de voz dedicado."
+            : `Canal VoIP Meowcaller em prontidão (${st}). Aguardando ativação de chip de voz dedicado.`
         );
       }
-      loadAll();
+      await loadAll();
     } catch (err: any) {
       setMeowcallerFeedback(`Aviso Meowcaller: ${err.message}`);
     }
@@ -839,26 +845,79 @@ export default function IntegracoesPage() {
 
             {/* QR Code de Ligações */}
             <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center justify-center text-center space-y-4">
-              <h3 className="text-sm font-semibold text-foreground">QR Code para Ligações</h3>
-              {meowcallerQr ? (
-                <div className="p-3 bg-white rounded-xl border border-border shadow-sm inline-block">
-                  <img
-                    src={meowcallerQr.startsWith("data:") ? meowcallerQr : `data:image/png;base64,${meowcallerQr}`}
-                    alt="Meowcaller QR"
-                    className="w-52 h-52 object-contain"
-                  />
+              <h3 className="text-sm font-semibold text-foreground">Pareamento VoIP de Ligações</h3>
+              {(meowcallerQr || (typeof meowcallerStatus === "object" ? meowcallerStatus?.qrcode : null)) ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-white rounded-xl border border-border shadow-sm inline-block">
+                    <img
+                      src={
+                        (meowcallerQr || meowcallerStatus?.qrcode).startsWith("data:")
+                          ? (meowcallerQr || meowcallerStatus?.qrcode)
+                          : `data:image/png;base64,${meowcallerQr || meowcallerStatus?.qrcode}`
+                      }
+                      alt="Meowcaller QR Code"
+                      className="w-52 h-52 object-contain"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground">
+                      Escaneie com o WhatsApp do Chip de Ligações
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Abra o WhatsApp &gt; Dispositivos conectados &gt; Conectar um dispositivo.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnectMeowcaller}
+                    className="inline-flex items-center gap-1.5 text-xs text-[#007A3D] hover:underline pt-1 font-medium"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    <span>Recarregar QR Code</span>
+                  </button>
+                </div>
+              ) : ((typeof meowcallerStatus === "string" ? meowcallerStatus : meowcallerStatus?.whatsapp_status) === "CONNECTED") ? (
+                <div className="p-6 text-center space-y-3 max-w-xs">
+                  <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-[#007A3D] flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-foreground">Linha VoIP Conectada!</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      O WhatsApp exclusivo de voz está online e pronto para originar chamadas ativas ou receber ligações.
+                    </p>
+                    {meowcallerStatus?.connected_jid && (
+                      <p className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                        {meowcallerStatus.connected_jid}
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="p-6 text-center space-y-3 max-w-xs">
-                  <PhoneCall className="h-10 w-10 text-[#007A3D]/70 mx-auto" />
+                  <PhoneCall className="h-10 w-10 text-muted-foreground/40 mx-auto" />
                   <div className="space-y-1">
-                    <p className="text-xs font-semibold text-foreground">Canal de Voz Separado (VoIP)</p>
+                    <p className="text-xs font-semibold text-foreground">Sessão VoIP em Espera</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      O Meowcaller gerencia o tráfego de voz em uma sessão independente. Para escanear o QR Code de mensagens e notificações, utilize a aba <strong>WhatsApp (Evolution)</strong>.
+                      Clique em <strong>&ldquo;Conectar WhatsApp de Ligações&rdquo;</strong> acima para gerar o QR Code de pareamento do canal de voz.
                     </p>
                   </div>
                 </div>
               )}
+
+              {/* Guia Didático de Ligações */}
+              <div className="w-full text-left rounded-lg border border-border/80 bg-muted/20 p-4 space-y-2 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-[#007A3D]" />
+                  Como funcionam as Ligações de Voz Helena:
+                </span>
+                <ul className="space-y-1.5 text-muted-foreground list-disc list-inside">
+                  <li><strong className="text-foreground">Canal Dedicado:</strong> O Meowcaller estabelece o áudio em tempo real via WhatsApp VoIP.</li>
+                  <li><strong className="text-foreground">Voz da Helena:</strong> A fala é gerada com sintetização ElevenLabs ultra-realista.</li>
+                  <li><strong className="text-foreground">Discagem Direta:</strong> Digite o DDD + Número (ex: 11971254913) e clique em &ldquo;Disparar Ligação&rdquo;.</li>
+                  <li><strong className="text-foreground">Independência:</strong> Não interfere nas mensagens da Evolution API.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
