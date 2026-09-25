@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Leaf } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/auth";
+import { EXIGIR_AUTENTICACAO } from "@/App";
 
 export default function Entrar() {
   const { user, loading, entrar } = useAuth();
@@ -10,6 +11,7 @@ export default function Entrar() {
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  if (!EXIGIR_AUTENTICACAO) return <Navigate to="/" replace />;
   if (!loading && user) return <Navigate to="/" replace />;
 
   async function onSubmit(event: FormEvent) {

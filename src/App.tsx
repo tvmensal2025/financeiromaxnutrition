@@ -10,8 +10,21 @@ import CrmPage from "@/pages/CrmPage";
 import FinanceiroPage from "@/pages/FinanceiroPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 
+/**
+ * CONTROLE DE ACESSO:
+ * Deixe `false` para o sistema ficar totalmente público sem tela de login nem senha.
+ * Para reativar a autenticação com senha no futuro ("depois voltamos"), altere para `true`.
+ */
+export const EXIGIR_AUTENTICACAO = false;
+
 function Protegida({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
+  // Quando desativada a autenticação, libera acesso irrestrito
+  if (!EXIGIR_AUTENTICACAO) {
+    return <>{children}</>;
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-background text-foreground">
@@ -29,7 +42,10 @@ function Protegida({ children }: { children: React.ReactNode }) {
 function Rotas() {
   return (
     <Routes>
-      <Route path="/entrar" element={<Entrar />} />
+      <Route
+        path="/entrar"
+        element={!EXIGIR_AUTENTICACAO ? <Navigate to="/" replace /> : <Entrar />}
+      />
       <Route
         element={
           <Protegida>

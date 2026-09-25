@@ -15,14 +15,16 @@ export function Header() {
   return (
     <div className="flex w-full items-center justify-end gap-2">
       <span className="mr-auto hidden truncate text-xs text-[var(--pe-text-muted)] md:inline">
-        {user?.email}
+        {user?.email || "Modo Público"}
       </span>
       <button type="button" className="pe-icone" onClick={alternarTema} aria-label="Alternar tema">
         {temaEscuro ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </button>
-      <button type="button" className="pe-icone" onClick={() => sair()} aria-label="Sair">
-        <LogOut className="h-4 w-4" />
-      </button>
+      {user && (
+        <button type="button" className="pe-icone" onClick={() => sair()} aria-label="Sair">
+          <LogOut className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
