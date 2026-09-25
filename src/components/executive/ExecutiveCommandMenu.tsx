@@ -66,6 +66,13 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
             <span>Painel Executivo</span>
           </CommandItem>
           <CommandItem
+            onSelect={() => runCommand(() => navigate("/execucao"))}
+            className="flex items-center gap-2.5 px-3 py-2 text-xs"
+          >
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <span>Central de Execução (Agentes, Tarefas & Handoffs)</span>
+          </CommandItem>
+          <CommandItem
             onSelect={() => runCommand(() => navigate("/inbox"))}
             className="flex items-center gap-2.5 px-3 py-2 text-xs"
           >

@@ -43,6 +43,7 @@ type NavItemConfig = {
 
 const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/", label: "Painel", icon: LayoutDashboard, end: true },
+  { to: "/execucao", label: "Central de Execução", icon: Activity },
   { to: "/inbox", label: "Inbox", icon: Inbox },
   { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
 ];
@@ -123,6 +124,7 @@ export function Layout() {
   const getBreadcrumb = () => {
     const empresaNome = isConsolidated ? "Grupo Consolidado" : (currentBusiness?.nome || "iGreen");
     if (pathname === "/") return `${empresaNome} / Painel`;
+    if (pathname === "/execucao") return `${empresaNome} / Central de Execução`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
     if (pathname === "/equipe") return `Sistema Helena / Equipe Digital`;
@@ -255,7 +257,7 @@ export function Layout() {
             </button>
 
             {/* Breadcrumb curto */}
-            <div className="hidden sm:flex items-center text-xs font-medium text-muted-foreground mr-2 truncate">
+            <div className="hidden lg:flex items-center text-xs font-medium text-muted-foreground mr-2 truncate">
               <span>{getBreadcrumb()}</span>
             </div>
 
