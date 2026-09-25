@@ -150,40 +150,32 @@ WITH CHECK (public.is_founder());
 
 DO $$
 DECLARE
+  r RECORD;
   tab text;
-  pol text;
   tabelas text[] := ARRAY[
     'crm', 'clientes', 'financeiro', 'contas_financeiras', 'projetos',
     'tarefas', 'marketing', 'atendimento', 'contratos', 'documentos',
     'riscos', 'calendario', 'obrigacoes', 'ideias'
   ];
 BEGIN
+  -- 1. Remove globalmente todas as 42 ocorrências de fundador_autenticado
+  FOR r IN (
+    SELECT schemaname, tablename, policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'public' 
+      AND policyname ILIKE '%fundador_autenticado%'
+  ) LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I;', r.policyname, r.schemaname, r.tablename);
+  END LOOP;
+
+  -- 2. Mantém EXCLUSIVAMENTE a policy canônica de isolamento por business_id
   FOREACH tab IN ARRAY tabelas LOOP
     EXECUTE format('ALTER TABLE IF EXISTS public.%I ENABLE ROW LEVEL SECURITY;', tab);
-
-    -- 1. Remove a policy legada permissiva que anulava o isolamento multiempresa
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'fundador_autenticado', tab);
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'fundador_autenticado_' || tab, tab);
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'fundador_autenticado_select', tab);
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'fundador_autenticado_all', tab);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', tab || '_business_isolation', tab);
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', tab || '_authenticated_policy', tab);
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', tab || '_authenticated_all', tab);
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'authenticated_all_' || tab, tab);
     EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', 'anon_select_' || tab, tab);
-
-    -- Remove dinamicamente qualquer variante de fundador_autenticado
-    FOR pol IN (
-      SELECT policyname 
-      FROM pg_policies 
-      WHERE schemaname = 'public' 
-        AND tablename = tab 
-        AND policyname ILIKE '%fundador_autenticado%'
-    ) LOOP
-      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', pol, tab);
-    END LOOP;
-
-    -- 2. Mantém EXCLUSIVAMENTE a policy canônica de isolamento por business_id
-    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I;', tab || '_business_isolation', tab);
     EXECUTE format('
       CREATE POLICY %I ON public.%I
       FOR ALL TO authenticated
