@@ -10,11 +10,12 @@ const IS_LOCAL = typeof window !== "undefined" && (window.location.hostname === 
 
 export const PRIMARY_GATEWAY_URL = (
   import.meta.env.VITE_HELENA_GATEWAY_URL ||
-  (IS_LOCAL ? "http://localhost:3999" : "https://helena-automation-helena-gateway.d9v63q.easypanel.host")
+  "https://helena-automation-helena-gateway.d9v63q.easypanel.host"
 ).replace(/\/$/, "");
 
 export const FALLBACK_GATEWAY_URL = (
-  IS_LOCAL ? "https://helena-automation-helena-gateway.d9v63q.easypanel.host" : "http://localhost:3999"
+  import.meta.env.VITE_HELENA_GATEWAY_FALLBACK_URL ||
+  "http://localhost:3999"
 ).replace(/\/$/, "");
 
 export let GATEWAY_URL = PRIMARY_GATEWAY_URL;

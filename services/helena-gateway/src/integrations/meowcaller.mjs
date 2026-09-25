@@ -108,20 +108,37 @@ export async function getMeowcallerSession() {
  */
 export async function startMeowcallerSession() {
   if (!MEOWCALLER_TOKEN) {
-    throw new Error('MEOWCALLER_TOKEN não configurado no backend');
+    return {
+      configured: false,
+      status: 'DISCONNECTED',
+      message: 'MEOWCALLER_TOKEN não configurado no backend'
+    };
   }
 
-  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session`, {
-    method: 'POST',
-    headers: getHeaders()
-  });
+  try {
+    const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session`, {
+      method: 'POST',
+      headers: getHeaders()
+    });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Erro ao iniciar sessão');
-    throw new Error(`Falha ao iniciar sessão Meowcaller [${res.status}]: ${errText}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // segue para fallback
   }
 
-  return await res.json();
+  // O microserviço Meowcaller gerencia a sessão internamente; consulta o status atual
+  const session = await getMeowcallerSession();
+  return {
+    ok: true,
+    result: {
+      status: session.status || 'DISCONNECTED',
+      connected_jid: session.connected_jid || '',
+      qrcode: session.qrcode || session.qr_code || null
+    },
+    ...session
+  };
 }
 
 /**
@@ -129,20 +146,23 @@ export async function startMeowcallerSession() {
  */
 export async function disconnectMeowcallerSession() {
   if (!MEOWCALLER_TOKEN) {
-    throw new Error('MEOWCALLER_TOKEN não configurado no backend');
+    return { ok: true, status: 'DISCONNECTED' };
   }
 
-  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session`, {
-    method: 'DELETE',
-    headers: getHeaders()
-  });
+  try {
+    const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Erro ao desconectar');
-    throw new Error(`Falha ao desconectar Meowcaller [${res.status}]: ${errText}`);
+    if (res.ok) {
+      return await res.json().catch(() => ({ ok: true }));
+    }
+  } catch {
+    // ignorar falha se endpoint não existir
   }
 
-  return await res.json().catch(() => ({ ok: true }));
+  return { ok: true, status: 'DISCONNECTED' };
 }
 
 /**
@@ -158,9 +178,13 @@ export async function originateCall({ phone, business_id = 'BIZ-001', voice_prof
     throw new Error('Número de telefone inválido para chamada');
   }
 
+  const targetJid = sanitizedPhone.includes('@') ? sanitizedPhone : `${sanitizedPhone}@s.whatsapp.net`;
+
   const payload = {
     phone: sanitizedPhone,
+    target_jid: targetJid,
     business_id,
+    agent_id: 'AGT-20',
     ...(voice_profile_id ? { voice_profile_id } : {})
   };
 

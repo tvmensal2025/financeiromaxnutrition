@@ -77,6 +77,7 @@ export default function IntegracoesPage() {
   // Meowcaller
   const [meowcallerStatus, setMeowcallerStatus] = useState<any>(null);
   const [meowcallerQr, setMeowcallerQr] = useState<string | null>(null);
+  const [meowcallerFeedback, setMeowcallerFeedback] = useState<string | null>(null);
   const [callPhone, setCallPhone] = useState("");
   const [calling, setCalling] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
@@ -216,23 +217,30 @@ export default function IntegracoesPage() {
   // Ações Meowcaller
   const handleConnectMeowcaller = async () => {
     try {
+      setMeowcallerFeedback("Consultando sessão VoIP Meowcaller...");
       const res = await connectMeowcallerSession();
       if (res.result?.qrcode) {
         setMeowcallerQr(res.result.qrcode);
+        setMeowcallerFeedback("QR Code gerado. Aponte a câmera do WhatsApp para conectar.");
+      } else {
+        const st = res.result?.status || (typeof res === "object" ? (res as any).status : "DISCONNECTED");
+        setMeowcallerFeedback(`Sessão Meowcaller: ${st}`);
       }
       loadAll();
     } catch (err: any) {
-      alert(`Erro Meowcaller: ${err.message}`);
+      setMeowcallerFeedback(`Aviso Meowcaller: ${err.message}`);
     }
   };
 
   const handleDisconnectMeowcaller = async () => {
     try {
+      setMeowcallerFeedback("Desconectando sessão VoIP...");
       await disconnectMeowcallerSession();
       setMeowcallerQr(null);
+      setMeowcallerFeedback("Sessão Meowcaller desconectada.");
       loadAll();
     } catch (err: any) {
-      alert(`Erro ao desconectar: ${err.message}`);
+      setMeowcallerFeedback(`Falha ao desconectar: ${err.message}`);
     }
   };
 
@@ -240,11 +248,13 @@ export default function IntegracoesPage() {
     if (!callPhone) return;
     try {
       setCalling(true);
+      setMeowcallerFeedback(`Originando chamada para ${callPhone}...`);
       const res = await makeMeowcallerCall(callPhone, layaBusinessId, selectedVoiceId);
       setActiveCallId(res.call_id);
+      setMeowcallerFeedback(`Chamada iniciada com sucesso (ID: ${res.call_id}).`);
       loadAll();
     } catch (err: any) {
-      alert(`Erro ao ligar: ${err.message}`);
+      setMeowcallerFeedback(`Falha na chamada: ${err.message}`);
     } finally {
       setCalling(false);
     }
@@ -255,9 +265,10 @@ export default function IntegracoesPage() {
     try {
       await hangupMeowcallerCall(activeCallId);
       setActiveCallId(null);
+      setMeowcallerFeedback("Chamada encerrada.");
       loadAll();
     } catch (err: any) {
-      alert(`Erro ao encerrar: ${err.message}`);
+      setMeowcallerFeedback(`Falha ao encerrar: ${err.message}`);
     }
   };
 
@@ -724,6 +735,12 @@ export default function IntegracoesPage() {
                     <span>Desconectar Sessão</span>
                   </button>
                 </div>
+
+                {meowcallerFeedback && (
+                  <div className="p-3 text-xs rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
+                    {meowcallerFeedback}
+                  </div>
+                )}
 
                 <div className="pt-4 border-t border-border/60 space-y-3">
                   <h4 className="text-xs font-semibold text-foreground">Fazer Ligação de Teste</h4>
