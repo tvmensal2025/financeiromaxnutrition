@@ -10,6 +10,7 @@ import {
   sendEvolutionTestMessage,
   fetchMeowcallerStatus,
   connectMeowcallerSession,
+  pairMeowcallerPhone,
   disconnectMeowcallerSession,
   makeMeowcallerCall,
   hangupMeowcallerCall,
@@ -78,6 +79,10 @@ export default function IntegracoesPage() {
   const [meowcallerStatus, setMeowcallerStatus] = useState<any>(null);
   const [meowcallerQr, setMeowcallerQr] = useState<string | null>(null);
   const [meowcallerFeedback, setMeowcallerFeedback] = useState<string | null>(null);
+  const [meowPairPhone, setMeowPairPhone] = useState("11971254913");
+  const [meowPairCode, setMeowPairCode] = useState<string | null>(null);
+  const [pairingLoading, setPairingLoading] = useState(false);
+  const [pairingMode, setPairingMode] = useState<"phone" | "qrcode">("phone");
   const [callPhone, setCallPhone] = useState("");
   const [calling, setCalling] = useState(false);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
@@ -285,6 +290,24 @@ export default function IntegracoesPage() {
     }
   };
 
+  const handlePairMeowPhone = async () => {
+    if (!meowPairPhone) return;
+    try {
+      setPairingLoading(true);
+      setMeowcallerFeedback("Gerando código de 8 dígitos para o WhatsApp...");
+      const res = await pairMeowcallerPhone(meowPairPhone);
+      const code = res?.result?.pairing_code || (res as any)?.pairing_code;
+      if (code) {
+        setMeowPairCode(code);
+        setMeowcallerFeedback(`Código gerado: ${code}. Digite no seu celular.`);
+      }
+    } catch (err: any) {
+      setMeowcallerFeedback(`Erro ao gerar código por telefone: ${err.message}`);
+    } finally {
+      setPairingLoading(false);
+    }
+  };
+
   const handleDisconnectMeowcaller = async () => {
     try {
       setMeowcallerFeedback("Desconectando sessão VoIP...");
@@ -402,6 +425,131 @@ export default function IntegracoesPage() {
     health?.meowcaller?.qrcode ||
     null;
 
+  const renderMeowcallerPairingWidget = (isCompact = false) => (
+    <div className={`space-y-4 w-full ${isCompact ? "max-w-md" : "max-w-xl"}`}>
+      {/* Seletor de Modo: Código de Telefone vs QR Code */}
+      <div className="flex rounded-xl bg-muted/60 p-1 gap-1 text-xs font-semibold border border-border">
+        <button
+          type="button"
+          onClick={() => setPairingMode("phone")}
+          className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            pairingMode === "phone"
+              ? "bg-[#007A3D] text-white shadow-sm font-bold"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <span>📲 Código no WhatsApp</span>
+          <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-normal">Recomendado</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPairingMode("qrcode");
+            handleConnectMeowcaller();
+          }}
+          className={`flex-1 py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+            pairingMode === "qrcode"
+              ? "bg-[#007A3D] text-white shadow-sm font-bold"
+              : "text-muted-foreground hover:text-foreground hover:bg-card/50"
+          }`}
+        >
+          <QrCode className="h-3.5 w-3.5" />
+          <span>Escanear QR Code</span>
+        </button>
+      </div>
+
+      {pairingMode === "phone" ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-3">
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-foreground">
+              Conectar sem Câmera (Código de 8 Dígitos)
+            </h4>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Insira o número do chip de ligações para receber o código e digitar no WhatsApp:
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={meowPairPhone}
+              onChange={(e) => setMeowPairPhone(e.target.value)}
+              placeholder="DDD + Número (ex: 11971254913)"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+            />
+            <button
+              type="button"
+              onClick={handlePairMeowPhone}
+              disabled={pairingLoading || !meowPairPhone}
+              className="rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 disabled:opacity-50 whitespace-nowrap"
+            >
+              {pairingLoading ? "Gerando..." : "Gerar Código"}
+            </button>
+          </div>
+
+          {meowPairCode && (
+            <div className="rounded-xl border-2 border-emerald-500 bg-card p-4 text-center space-y-2.5 shadow-sm">
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                Seu código de pareamento:
+              </span>
+              <div className="text-3xl font-mono font-black text-emerald-600 dark:text-emerald-400 tracking-widest py-1 select-all">
+                {meowPairCode}
+              </div>
+              <div className="text-[11px] text-muted-foreground text-left space-y-1.5 bg-muted/40 p-3 rounded-lg border border-border">
+                <p><strong>1.</strong> No celular com chip <strong>{meowPairPhone}</strong>, abra o WhatsApp.</p>
+                <p><strong>2.</strong> Toque em <strong>Aparelhos Conectados &gt; Conectar um Aparelho</strong>.</p>
+                <p><strong>3.</strong> Na tela onde a câmera abre, toque na opção <strong>&ldquo;Conectar com número de telefone&rdquo;</strong> (fica na parte inferior).</p>
+                <p><strong>4.</strong> Digite o código <strong>{meowPairCode}</strong> acima e confirme!</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center space-y-3 flex flex-col items-center">
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-foreground">
+              Escanear QR Code com a Câmera do WhatsApp
+            </h4>
+            <p className="text-[11px] text-muted-foreground max-w-sm">
+              O QR Code do WhatsApp expira em 20 segundos por segurança. Aponte a câmera imediatamente após gerar:
+            </p>
+          </div>
+
+          <div className="p-3 bg-white rounded-xl border border-border shadow-md inline-block">
+            {activeMeowQr ? (
+              <img
+                src={
+                  activeMeowQr.startsWith("data:")
+                    ? activeMeowQr
+                    : `data:image/png;base64,${activeMeowQr}`
+                }
+                alt="QR Code WhatsApp Ligações"
+                className="w-48 h-48 object-contain"
+              />
+            ) : (
+              <div className="w-48 h-48 flex flex-col items-center justify-center text-center p-4 space-y-2">
+                <QrCode className="h-8 w-8 text-muted-foreground/40 animate-pulse" />
+                <span className="text-xs text-muted-foreground font-medium">Carregando QR Code...</span>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleConnectMeowcaller}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#007A3D] px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
+          >
+            <RotateCw className="h-3.5 w-3.5" />
+            <span>🔄 Gerar QR Code Fresco Agora</span>
+          </button>
+          <span className="text-[10px] font-mono text-zinc-500">
+            WhatsApp &gt; Aparelhos Conectados &gt; Conectar Dispositivo
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
   const tabs: {
     id: TabId;
     label: string;
@@ -491,31 +639,23 @@ export default function IntegracoesPage() {
         <div className="space-y-6">
           {/* BANNER / HERO CARD DE PAREAMENTO DO QR CODE (SE NÃO CONECTADO) */}
           {!isMeowConnected && (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-              <div className="space-y-2 text-center md:text-left flex-1">
-                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold">
-                  <QrCode className="h-3.5 w-3.5" />
+            <div className="rounded-2xl border border-emerald-500/30 bg-card p-6 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-sm">
+              <div className="space-y-3 text-center lg:text-left flex-1">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+                  <PhoneCall className="h-3.5 w-3.5" />
                   <span>Pareamento Pendente — Linha de Voz WhatsApp (VoIP)</span>
                 </div>
                 <h3 className="text-base font-bold text-foreground">
-                  Escaneie o QR Code para Habilitar as Ligações da Helena
+                  Habilite as Ligações da Helena (Discador & Atendimento por Voz)
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed max-w-xl">
-                  Para que a Helena consiga realizar chamadas ativas ou atender ligações em tempo real com voz da ElevenLabs, conecte seu chip WhatsApp pelo QR Code ao lado. Não afeta o WhatsApp de mensagens (Evolution API).
+                  Conecte seu WhatsApp de ligações diretamente usando o <strong>Código de 8 Dígitos</strong> (sem precisar de câmera) ou escaneando o <strong>QR Code</strong> atualizado em tempo real. Esta conexão é exclusiva para voz e não interfere no WhatsApp de mensagens.
                 </p>
-                <div className="flex flex-wrap gap-2.5 pt-2 justify-center md:justify-start">
-                  <button
-                    type="button"
-                    onClick={handleConnectMeowcaller}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#007A3D]/90"
-                  >
-                    <RotateCw className="h-3.5 w-3.5" />
-                    <span>Recarregar QR Code</span>
-                  </button>
+                <div className="flex flex-wrap gap-2.5 pt-1 justify-center lg:justify-start">
                   <button
                     type="button"
                     onClick={() => setActiveTab("calls")}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3.5 py-2 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
                   >
                     <PhoneCall className="h-3.5 w-3.5 text-sky-600" />
                     <span>Abrir Discador de Chamadas</span>
@@ -523,36 +663,9 @@ export default function IntegracoesPage() {
                 </div>
               </div>
 
-              {/* QR Code Renderizado */}
-              <div className="shrink-0 flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-border shadow-md">
-                {activeMeowQr ? (
-                  <>
-                    <img
-                      src={
-                        activeMeowQr.startsWith("data:")
-                          ? activeMeowQr
-                          : `data:image/png;base64,${activeMeowQr}`
-                      }
-                      alt="QR Code WhatsApp Ligações"
-                      className="w-48 h-48 object-contain"
-                    />
-                    <span className="text-[11px] font-mono text-zinc-600 font-semibold mt-2">
-                      WhatsApp &gt; Dispositivos Conectados
-                    </span>
-                  </>
-                ) : (
-                  <div className="w-48 h-48 flex flex-col items-center justify-center text-center p-4 space-y-2">
-                    <QrCode className="h-10 w-10 text-muted-foreground/40 animate-pulse" />
-                    <span className="text-xs text-muted-foreground font-medium">Carregando QR Code...</span>
-                    <button
-                      type="button"
-                      onClick={handleConnectMeowcaller}
-                      className="text-xs text-[#007A3D] underline font-semibold"
-                    >
-                      Clique para gerar
-                    </button>
-                  </div>
-                )}
+              {/* Widget de Pareamento Completo */}
+              <div className="shrink-0 w-full lg:w-[420px]">
+                {renderMeowcallerPairingWidget(true)}
               </div>
             </div>
           )}
@@ -1086,37 +1199,7 @@ export default function IntegracoesPage() {
             {/* QR Code de Ligações */}
             <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center justify-center text-center space-y-4">
               <h3 className="text-sm font-semibold text-foreground">Pareamento VoIP de Ligações</h3>
-              {(meowcallerQr || (typeof meowcallerStatus === "object" ? meowcallerStatus?.qrcode : null)) ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-white rounded-xl border border-border shadow-sm inline-block">
-                    <img
-                      src={
-                        (meowcallerQr || meowcallerStatus?.qrcode).startsWith("data:")
-                          ? (meowcallerQr || meowcallerStatus?.qrcode)
-                          : `data:image/png;base64,${meowcallerQr || meowcallerStatus?.qrcode}`
-                      }
-                      alt="Meowcaller QR Code"
-                      className="w-52 h-52 object-contain"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-foreground">
-                      Escaneie com o WhatsApp do Chip de Ligações
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Abra o WhatsApp &gt; Dispositivos conectados &gt; Conectar um dispositivo.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleConnectMeowcaller}
-                    className="inline-flex items-center gap-1.5 text-xs text-[#007A3D] hover:underline pt-1 font-medium"
-                  >
-                    <RotateCw className="h-3.5 w-3.5" />
-                    <span>Recarregar QR Code</span>
-                  </button>
-                </div>
-              ) : ((typeof meowcallerStatus === "string" ? meowcallerStatus : meowcallerStatus?.whatsapp_status) === "CONNECTED") ? (
+              {isMeowConnected ? (
                 <div className="p-6 text-center space-y-3 max-w-xs">
                   <div className="h-12 w-12 rounded-full bg-emerald-500/10 text-[#007A3D] flex items-center justify-center mx-auto">
                     <CheckCircle2 className="h-6 w-6" />
@@ -1134,14 +1217,8 @@ export default function IntegracoesPage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-6 text-center space-y-3 max-w-xs">
-                  <PhoneCall className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-foreground">Sessão VoIP em Espera</p>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Clique em <strong>&ldquo;Conectar WhatsApp de Ligações&rdquo;</strong> acima para gerar o QR Code de pareamento do canal de voz.
-                    </p>
-                  </div>
+                <div className="w-full flex justify-center">
+                  {renderMeowcallerPairingWidget(false)}
                 </div>
               )}
 

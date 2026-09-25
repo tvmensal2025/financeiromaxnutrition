@@ -58,6 +58,7 @@ type Engine struct {
 	status    SessionStatus
 	jid       string
 	qrCodeB64 string // QR Code em base64 PNG com prefixo data:image/png;base64,...
+	qrGeneratedAt time.Time
 
 	wa        *waClient.Client
 	meo       *meowcaller.Client
@@ -93,6 +94,7 @@ func (e *Engine) connectLoop() {
 		ctx, cancel := context.WithCancel(context.Background())
 		e.mu.Lock()
 		e.cancelCtx = cancel
+		e.qrCodeB64 = ""
 		e.mu.Unlock()
 
 		err := e.runSession(ctx)
@@ -103,9 +105,9 @@ func (e *Engine) connectLoop() {
 			return
 		}
 		if err != nil {
-			log.Warn().Err(err).Msg("Sessão WhatsApp encerrada. Reconectando em 10s...")
+			log.Warn().Err(err).Msg("Sessão WhatsApp encerrada. Reconectando em 5s...")
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -240,15 +242,21 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 				b64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
 				e.mu.Lock()
 				e.qrCodeB64 = b64
+				e.qrGeneratedAt = time.Now()
 				e.mu.Unlock()
-				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie com o WhatsApp do chip de voz.")
+				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie nos próximos 20 segundos.")
 			}
 		} else {
 			log.Info().Str("event", evt.Event).Msg("Evento de login WhatsApp")
 		}
 	}
 
-	// QR Channel fechado → pareamento concluído (ou falhou)
+	// QR Channel fechado (timeout ou pareamento falhou)
+	e.mu.Lock()
+	e.qrCodeB64 = "" // Limpa QR Code expirado imediatamente
+	e.mu.Unlock()
+
+	// Pareamento concluído (ou falhou)
 	if err := waitUntilConnected(ctx, wa, 60*time.Second); err != nil {
 		return fmt.Errorf("timeout após pareamento QR: %w", err)
 	}
@@ -318,6 +326,60 @@ func (e *Engine) GetStatus() (SessionStatus, string, string) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.status, e.jid, e.qrCodeB64
+}
+
+// RestartSession força uma reconexão imediata gerando um QR Code 100% fresco
+func (e *Engine) RestartSession() {
+	e.mu.Lock()
+	e.qrCodeB64 = ""
+	e.status = StatusConnecting
+	cancel := e.cancelCtx
+	wa := e.wa
+	e.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if wa != nil {
+		wa.Disconnect()
+	}
+	log.Info().Msg("🔄 Sessão WhatsApp reiniciada sob demanda. Gerando QR Code fresco...")
+}
+
+// PairPhone solicita código de pareamento por número de telefone (8 dígitos)
+func (e *Engine) PairPhone(ctx context.Context, phone string) (string, error) {
+	cleaned := ""
+	for _, ch := range phone {
+		if ch >= '0' && ch <= '9' {
+			cleaned += string(ch)
+		}
+	}
+	if len(cleaned) < 10 {
+		return "", fmt.Errorf("número de telefone inválido: %s", phone)
+	}
+	if len(cleaned) == 10 || len(cleaned) == 11 {
+		cleaned = "55" + cleaned
+	}
+
+	e.mu.RLock()
+	wa := e.wa
+	status := e.status
+	e.mu.RUnlock()
+
+	if wa == nil {
+		return "", fmt.Errorf("cliente WhatsApp ainda não inicializado. Aguarde alguns segundos e tente novamente")
+	}
+	if status == StatusConnected {
+		return "", fmt.Errorf("dispositivo já está conectado")
+	}
+
+	code, err := wa.PairPhone(ctx, cleaned, true, waClient.PairClientChrome, "Chrome (Linux)")
+	if err != nil {
+		return "", fmt.Errorf("erro ao gerar código de pareamento: %w", err)
+	}
+
+	log.Info().Str("phone", cleaned).Str("code", code).Msg("📲 Código de pareamento WhatsApp gerado!")
+	return code, nil
 }
 
 // OriginateCall inicia uma chamada de saída via meowcaller

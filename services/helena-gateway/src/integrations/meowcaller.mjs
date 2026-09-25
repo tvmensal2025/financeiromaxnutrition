@@ -141,6 +141,28 @@ export async function startMeowcallerSession() {
 }
 
 /**
+ * Solicita código de pareamento por número de telefone (Pairing Code de 8 dígitos)
+ */
+export async function pairMeowcallerPhone(phone) {
+  if (!phone) {
+    throw new Error('phone é obrigatório');
+  }
+
+  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/session/pair-phone`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ phone })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Erro desconhecido');
+    throw new Error(`Falha ao gerar código de pareamento: ${errText}`);
+  }
+
+  return await res.json();
+}
+
+/**
  * Desconecta a sessão de ligações WhatsApp
  */
 export async function disconnectMeowcallerSession() {

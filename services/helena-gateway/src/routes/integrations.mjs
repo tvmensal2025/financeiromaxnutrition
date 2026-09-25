@@ -20,6 +20,7 @@ import {
   getMeowcallerHealth,
   getMeowcallerSession,
   startMeowcallerSession,
+  pairMeowcallerPhone,
   disconnectMeowcallerSession,
   originateCall,
   hangupCall,
@@ -405,6 +406,19 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   router.post('/api/integrations/meowcaller/connect', optionalAuth, async (req, res) => {
     try {
       const result = await startMeowcallerSession();
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/meowcaller/pair-phone', optionalAuth, async (req, res) => {
+    try {
+      const { phone } = req.body || {};
+      if (!phone) {
+        return res.status(400).json({ ok: false, error: 'phone é obrigatório' });
+      }
+      const result = await pairMeowcallerPhone(phone);
       return res.json({ ok: true, result });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });

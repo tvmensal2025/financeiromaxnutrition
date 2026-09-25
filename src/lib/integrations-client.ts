@@ -181,6 +181,16 @@ export async function connectMeowcallerSession() {
   });
 }
 
+export async function pairMeowcallerPhone(phone: string) {
+  return gatewayFetch<{ ok: boolean; result: { pairing_code: string; phone: string; message: string } }>(
+    "/api/integrations/meowcaller/pair-phone",
+    {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    }
+  );
+}
+
 export async function disconnectMeowcallerSession() {
   return gatewayFetch<{ ok: boolean; result: any }>("/api/integrations/meowcaller/disconnect", {
     method: "POST",
