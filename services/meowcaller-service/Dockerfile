@@ -6,13 +6,13 @@ WORKDIR /build
 # Instalar git e certificados
 RUN apk add --no-cache git ca-certificates
 
-# Copiar go.mod e go.sum
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copiar código-fonte
+# Copiar go.mod e código-fonte
+COPY go.mod ./
 COPY cmd/ cmd/
 COPY internal/ internal/
+
+# Gerar go.sum oficial e baixar dependências
+RUN go mod tidy && go mod download
 
 # Compilação estática sem CGO
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /build/meowcaller-server ./cmd/server
