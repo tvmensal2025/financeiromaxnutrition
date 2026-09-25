@@ -36,7 +36,60 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
   let needs_helena = false;
   let needs_founder = false;
 
-  if (lower.includes('fatura') || lower.includes('pagamento') || lower.includes('boleto') || lower.includes('financeiro') || lower.includes('pix')) {
+  const trimmed = (message || '').trim();
+
+  // 1. Suporte a menu de opções (URA / Numérico) e palavras-chave de Vendas
+  if (
+    trimmed === '1' ||
+    lower.startsWith('1 ') ||
+    lower.includes('opcao 1') ||
+    lower.includes('opção 1') ||
+    lower.includes('comprar') ||
+    lower.includes('quanto custa') ||
+    lower.includes('ganhar') ||
+    lower.includes('plano') ||
+    lower.includes('preco') ||
+    lower.includes('vendas')
+  ) {
+    area = 'VENDAS';
+    intent = 'interesse_comercial';
+    suggested_agent_id = 'AGT-15';
+    suggested_agent_name = 'Victor';
+    urgency = 3;
+    commercial_opportunity = true;
+  }
+  // 2. Suporte a menu de opções (URA / Numérico) e palavras-chave de Atendimento / Suporte
+  else if (
+    trimmed === '2' ||
+    lower.startsWith('2 ') ||
+    lower.includes('opcao 2') ||
+    lower.includes('opção 2') ||
+    lower.includes('cadastro') ||
+    lower.includes('acesso') ||
+    lower.includes('entrar') ||
+    lower.includes('senha') ||
+    lower.includes('login') ||
+    lower.includes('suporte') ||
+    lower.includes('atendimento')
+  ) {
+    area = 'ATENDIMENTO';
+    intent = 'problema_acesso';
+    suggested_agent_id = 'AGT-20';
+    suggested_agent_name = 'Joana';
+    urgency = 3;
+  }
+  // 3. Suporte a menu de opções (URA / Numérico) e palavras-chave Financeiras
+  else if (
+    trimmed === '3' ||
+    lower.startsWith('3 ') ||
+    lower.includes('opcao 3') ||
+    lower.includes('opção 3') ||
+    lower.includes('fatura') ||
+    lower.includes('pagamento') ||
+    lower.includes('boleto') ||
+    lower.includes('financeiro') ||
+    lower.includes('pix')
+  ) {
     area = 'FINANCEIRO';
     intent = 'cobranca_fatura';
     suggested_agent_id = 'AGT-04';
@@ -47,20 +100,14 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
       churn_risk = true;
       urgency = 5;
     }
-  } else if (lower.includes('comprar') || lower.includes('quanto custa') || lower.includes('ganhar') || lower.includes('plano') || lower.includes('preco')) {
-    area = 'VENDAS';
-    intent = 'interesse_comercial';
-    suggested_agent_id = 'AGT-15';
-    suggested_agent_name = 'Victor';
-    urgency = 3;
-    commercial_opportunity = true;
-  } else if (lower.includes('cadastro') || lower.includes('acesso') || lower.includes('entrar') || lower.includes('senha') || lower.includes('login')) {
-    area = 'ATENDIMENTO';
-    intent = 'problema_acesso';
-    suggested_agent_id = 'AGT-20';
-    suggested_agent_name = 'Joana';
-    urgency = 3;
-  } else if (lower.includes('processo') || lower.includes('advogado') || lower.includes('juridico') || lower.includes('procon')) {
+  }
+  // 4. Suporte a Casos Críticos e Jurídico
+  else if (
+    lower.includes('processo') ||
+    lower.includes('advogado') ||
+    lower.includes('juridico') ||
+    lower.includes('procon')
+  ) {
     area = 'JURIDICO';
     intent = 'risco_juridico';
     suggested_agent_id = 'AGT-01';

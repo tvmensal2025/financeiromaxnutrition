@@ -558,12 +558,12 @@ export default function IntegracoesPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   <div className="rounded-lg border border-border/70 p-3 text-xs space-y-1 bg-muted/20">
-                    <span className="text-muted-foreground">Instância</span>
-                    <p className="font-mono font-medium text-foreground">helena-default</p>
+                    <span className="text-muted-foreground">Instância WhatsApp</span>
+                    <p className="font-mono font-medium text-foreground">{evolutionStatus?.instance || "helena_mensagens"}</p>
                   </div>
                   <div className="rounded-lg border border-border/70 p-3 text-xs space-y-1 bg-muted/20">
-                    <span className="text-muted-foreground">Webhook de Entrada</span>
-                    <p className="font-mono font-medium text-foreground">/webhooks/evolution</p>
+                    <span className="text-muted-foreground">Auto-Atendimento & Webhook</span>
+                    <p className="font-mono font-medium text-emerald-600 dark:text-emerald-400">ATIVO (Menu URA 1, 2, 3 + Laya IA)</p>
                   </div>
                 </div>
 
@@ -676,6 +676,28 @@ export default function IntegracoesPage() {
                   </p>
                 </div>
               )}
+
+              {/* Guia Didático de Auto-Atendimento */}
+              <div className="w-full text-left rounded-lg border border-border/80 bg-muted/20 p-4 space-y-2 text-xs">
+                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5 text-[#007A3D]" />
+                  Como funciona o Auto-Atendimento Helena:
+                </span>
+                <ul className="space-y-1.5 text-muted-foreground list-disc list-inside">
+                  <li><strong className="text-foreground">Conexão:</strong> Aponte seu WhatsApp para o QR Code acima.</li>
+                  <li><strong className="text-foreground">Atendimento 24/7:</strong> Quando o cliente envia mensagem, a Helena atende sozinha.</li>
+                  <li><strong className="text-foreground">Menu de Opções (URA):</strong>
+                    <div className="ml-4 mt-1 space-y-0.5 font-mono text-[11px] text-foreground">
+                      <div>1️⃣ Vendas & Comercial (Victor)</div>
+                      <div>2️⃣ Suporte & Acessos (Joana)</div>
+                      <div>3️⃣ Financeiro & Boletos (Analista)</div>
+                      <div>4️⃣ Diretoria Executiva (Helena)</div>
+                    </div>
+                  </li>
+                  <li><strong className="text-foreground">Inteligência Laya:</strong> O cliente também pode digitar normalmente (&ldquo;quero 2ª via&rdquo;) que a IA entende e encaminha.</li>
+                  <li><strong className="text-foreground">Registro:</strong> Tudo é salvo no Supabase e na esteira de atendimento.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

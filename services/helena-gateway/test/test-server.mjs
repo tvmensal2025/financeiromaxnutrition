@@ -173,8 +173,38 @@ try {
   assert.ok(bodyIntStatus.elevenlabs, 'Deve conter status da ElevenLabs');
   console.log('OK: /api/integrations/status retornou status seguro dos 5 provedores.');
 
+  console.log('--- TESTE 11: Auto-Atendimento & Menu URA (1, 2, 3, 4) ---');
+  const { buildAutoReplyMessage } = await import('../src/routes/integrations.mjs');
+  
+  // Saudação inicial
+  const replyGreeting = buildAutoReplyMessage({ text: 'Olá', pushName: 'Carlos' });
+  assert.ok(replyGreeting.includes('Max Nutrition'), 'Menu deve conter nome da empresa');
+  assert.ok(replyGreeting.includes('1️⃣'), 'Menu deve conter opção 1');
+  assert.ok(replyGreeting.includes('2️⃣'), 'Menu deve conter opção 2');
+  assert.ok(replyGreeting.includes('3️⃣'), 'Menu deve conter opção 3');
+  assert.ok(replyGreeting.includes('Carlos'), 'Menu deve saudar pelo nome');
+
+  // Opção 1: Vendas (Victor)
+  const replyOpt1 = buildAutoReplyMessage({ text: '1' });
+  assert.ok(replyOpt1.includes('Victor'), 'Opção 1 deve direcionar para Victor');
+  assert.ok(replyOpt1.includes('Comercial'), 'Opção 1 deve ser Comercial/Vendas');
+
+  // Opção 2: Suporte (Joana)
+  const replyOpt2 = buildAutoReplyMessage({ text: '2' });
+  assert.ok(replyOpt2.includes('Joana'), 'Opção 2 deve direcionar para Joana');
+
+  // Opção 3: Financeiro
+  const replyOpt3 = buildAutoReplyMessage({ text: '3' });
+  assert.ok(replyOpt3.includes('Analista Financeiro'), 'Opção 3 deve direcionar para Financeiro');
+
+  // Opção 4: Executivo
+  const replyOpt4 = buildAutoReplyMessage({ text: '4' });
+  assert.ok(replyOpt4.includes('Helena'), 'Opção 4 deve direcionar para Helena');
+
+  console.log('OK: Auto-atendimento e Menu URA (1, 2, 3, 4) validados com sucesso.');
+
   console.log('\n========================================');
-  console.log('TODOS OS 10 TESTES OBRIGATÓRIOS PASSARAM!');
+  console.log('TODOS OS 11 TESTES OBRIGATÓRIOS PASSARAM!');
   console.log('========================================');
 } finally {
   server.close();
