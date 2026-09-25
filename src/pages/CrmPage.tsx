@@ -70,7 +70,7 @@ function moeda(valor: number) {
 }
 
 export default function CrmPage() {
-  const { empresas, selecionadas, rotulo } = useBusiness();
+  const { empresas, currentBusiness, currentBusinessId, isConsolidated, selecionadas, rotulo } = useBusiness();
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [termoBusca, setTermoBusca] = useState("");
@@ -91,12 +91,15 @@ export default function CrmPage() {
   const carregarOportunidades = async () => {
     setCarregando(true);
     setErro("");
-    if (selecionadas.length === 0) {
-      setOportunidades([]);
-      setCarregando(false);
-      return;
+    setOportunidades([]);
+
+    let query = supabase.from("crm").select("*");
+    if (!isConsolidated && currentBusinessId) {
+      query = query.eq("business_id", currentBusinessId);
+    } else if (isConsolidated && selecionadas.length > 0) {
+      query = query.in("business_id", selecionadas);
     }
-    let query = supabase.from("crm").select("*").in("business_id", selecionadas);
+
     const { data, error } = await query;
     if (error) {
       if (/permission denied|jwt|unauthorized|not allowed/i.test(error.message)) {
@@ -113,7 +116,7 @@ export default function CrmPage() {
 
   useEffect(() => {
     carregarOportunidades();
-  }, [selecionadas.join("|")]);
+  }, [currentBusinessId, isConsolidated]);
 
   // Filtragem local por busca
   const filtradas = useMemo(() => {
@@ -151,7 +154,7 @@ export default function CrmPage() {
   const abrirModalNovo = (etapaInicial = "PROSPECCAO") => {
     setEditando(null);
     setForm({
-      business_id: selecionadas[0] || empresas[0]?.id || "",
+      business_id: !isConsolidated ? currentBusinessId : (selecionadas[0] || empresas[0]?.id || "BIZ-001"),
       etapa: etapaInicial,
       status: "ATIVO",
       probabilidade: 30,
@@ -166,6 +169,10 @@ export default function CrmPage() {
   };
 
   const abrirModalEditar = (op: Oportunidade) => {
+    if (!isConsolidated && op.business_id && op.business_id !== currentBusinessId) {
+      alert("Operação bloqueada: Esta oportunidade pertence a outra empresa.");
+      return;
+    }
     setEditando(op);
     setForm({ ...op });
     setModalAberto(true);
@@ -179,21 +186,28 @@ export default function CrmPage() {
     }
     setSalvando(true);
 
+    const businessIdAtivo = !isConsolidated ? currentBusinessId : (form.business_id || selecionadas[0] || "BIZ-001");
+
     const payload = {
       ...form,
+      business_id: businessIdAtivo,
       valor_potencial: Number(form.valor_potencial || 0),
       probabilidade: Number(form.probabilidade || 0),
     };
 
     const oppId = editando?.opportunity_id || `OPP-${Date.now().toString().slice(-6)}`;
     if (editando) {
-      const { error } = await supabase.from("crm").update(payload).eq("opportunity_id", editando.opportunity_id);
+      let updateQuery = supabase.from("crm").update(payload).eq("opportunity_id", editando.opportunity_id);
+      if (!isConsolidated) {
+        updateQuery = updateQuery.eq("business_id", currentBusinessId);
+      }
+      const { error } = await updateQuery;
       if (error) alert("Erro ao atualizar: " + error.message);
       else {
         await sincronizarEventosCrm({
           ...payload,
           opportunity_id: oppId,
-          business_id: String(payload.business_id || selecionadas[0] || ""),
+          business_id: businessIdAtivo,
           empresa_lead: form.empresa_lead || "",
         });
         setModalAberto(false);
@@ -206,7 +220,7 @@ export default function CrmPage() {
         await sincronizarEventosCrm({
           ...payload,
           opportunity_id: oppId,
-          business_id: String(payload.business_id || selecionadas[0] || ""),
+          business_id: businessIdAtivo,
           empresa_lead: form.empresa_lead || "",
         });
         setModalAberto(false);
@@ -516,17 +530,25 @@ export default function CrmPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-foreground">Unidade / Empresa</label>
-                  <select
-                    className="mt-1 w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                    value={form.business_id || selecionadas[0] || ""}
-                    onChange={(e) => setForm({ ...form, business_id: e.target.value })}
-                  >
-                    {empresas.map((empresa) => (
-                      <option key={empresa.id} value={empresa.id}>
-                        {empresa.nome}
-                      </option>
-                    ))}
-                  </select>
+                  {!isConsolidated ? (
+                    <div className="mt-1 flex items-center gap-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-bold text-foreground">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: currentBusiness?.cor || "#007A3D" }} />
+                      <span className="truncate">{currentBusiness?.nome || currentBusinessId}</span>
+                      <span className="ml-auto text-[10px] font-normal text-muted-foreground uppercase">(Fixada)</span>
+                    </div>
+                  ) : (
+                    <select
+                      className="mt-1 w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                      value={form.business_id || selecionadas[0] || ""}
+                      onChange={(e) => setForm({ ...form, business_id: e.target.value })}
+                    >
+                      {empresas.map((empresa) => (
+                        <option key={empresa.id} value={empresa.id}>
+                          {empresa.nome}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div>

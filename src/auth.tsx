@@ -2,8 +2,22 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
+export type AppRole = "founder" | "admin" | "member";
+
+export type AppAccess = {
+  user_id: string;
+  role: AppRole;
+  active: boolean;
+};
+
 type AuthState = {
   user: User | null;
+  session: Session | null;
+  appAccess: AppAccess | null;
+  role: AppRole | null;
+  isFounder: boolean;
+  isAdmin: boolean;
+  isMember: boolean;
   loading: boolean;
   entrar: (email: string, senha: string) => Promise<string | null>;
   sair: () => Promise<void>;
@@ -13,31 +27,85 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [appAccess, setAppAccess] = useState<AppAccess | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const carregarAppAccess = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("app_access")
+        .select("user_id,role,active")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (!error && data) {
+        setAppAccess(data as AppAccess);
+      } else {
+        setAppAccess(null);
+      }
+    } catch {
+      setAppAccess(null);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      setLoading(false);
+      if (data.session?.user) {
+        carregarAppAccess(data.session.user.id).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
     });
+
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      setLoading(false);
+      if (next?.user) {
+        carregarAppAccess(next.user.id).finally(() => setLoading(false));
+      } else {
+        setAppAccess(null);
+        setLoading(false);
+      }
     });
+
     return () => data.subscription.unsubscribe();
   }, []);
 
   async function entrar(email: string, senha: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-    return error ? error.message : null;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
+    if (error) return error.message;
+    if (data.user) {
+      await carregarAppAccess(data.user.id);
+    }
+    return null;
   }
 
   async function sair() {
     await supabase.auth.signOut();
+    setSession(null);
+    setAppAccess(null);
   }
 
+  const role = appAccess?.role || null;
+  const isFounder = role === "founder";
+  const isAdmin = isFounder || role === "admin";
+  const isMember = Boolean(appAccess?.active);
+
   return (
-    <AuthContext.Provider value={{ user: session?.user ?? null, loading, entrar, sair }}>
+    <AuthContext.Provider
+      value={{
+        user: session?.user ?? null,
+        session,
+        appAccess,
+        role,
+        isFounder,
+        isAdmin,
+        isMember,
+        loading,
+        entrar,
+        sair,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

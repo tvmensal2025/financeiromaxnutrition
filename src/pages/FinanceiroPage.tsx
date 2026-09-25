@@ -36,7 +36,7 @@ function num(v: string | number | null | undefined) {
 }
 
 export default function FinanceiroPage() {
-  const { selecionadas, todasLigadas, rotulo, nomeDe } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, rotulo, nomeDe } = useBusiness();
   const [aba, setAba] = useState<"resumo" | "lancamentos" | "recorrencias">("resumo");
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [recorrencias, setRecorrencias] = useState<Recorrencia[]>([]);
@@ -48,14 +48,25 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     setCarregando(true);
+    setErro("");
+    setLancamentos([]);
+    setRecorrencias([]);
+    setFluxos([]);
+
     let qFin = supabase.from("financeiro").select("*").order("vencimento", { ascending: false }).limit(200);
     let qRec = supabase.from("recorrencias").select("*").order("proxima_ocorrencia");
     let qFluxo = supabase.from("fluxo_caixa").select("*").order("periodo_inicio", { ascending: false }).limit(12);
-    if (!todasLigadas && selecionadas.length) {
+
+    if (!isConsolidated && currentBusinessId) {
+      qFin = qFin.eq("business_id", currentBusinessId);
+      qRec = qRec.eq("business_id", currentBusinessId);
+      qFluxo = qFluxo.eq("business_id", currentBusinessId);
+    } else if (isConsolidated && selecionadas.length) {
       qFin = qFin.in("business_id", selecionadas);
       qRec = qRec.in("business_id", selecionadas);
       qFluxo = qFluxo.in("business_id", selecionadas);
     }
+
     Promise.all([qFin, qRec, qFluxo]).then(([fin, rec, flux]) => {
       const falha = fin.error || rec.error || flux.error;
       if (falha && !/permission denied|jwt|unauthorized|not allowed/i.test(falha.message)) {
@@ -68,7 +79,7 @@ export default function FinanceiroPage() {
       setFluxos((flux.data || []) as Fluxo[]);
       setCarregando(false);
     });
-  }, [selecionadas.join("|"), todasLigadas]);
+  }, [currentBusinessId, isConsolidated]);
 
   const caixa = useMemo(() => lerCaixa(lancamentos, filtro), [lancamentos, filtro]);
   const dre = useMemo(() => lerDre(lancamentos, filtro), [lancamentos, filtro]);

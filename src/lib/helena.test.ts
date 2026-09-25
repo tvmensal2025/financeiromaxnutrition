@@ -109,3 +109,44 @@ describe("caixa e DRE", () => {
     expect(dre.resultado).toBe(200);
   });
 });
+
+describe("Isolamento Multiempresa", () => {
+  it("não mistura caixa de BIZ-001 com lançamentos de BIZ-002 ou BIZ-003", () => {
+    const todosLancamentos = [
+      { business_id: "BIZ-001", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 5000, conta_id: "ACC-01" },
+      { business_id: "BIZ-002", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 12000, conta_id: "ACC-02" },
+      { business_id: "BIZ-003", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 3000, conta_id: "ACC-03" },
+    ];
+
+    const caixaBiz1 = lerCaixa(todosLancamentos, ["BIZ-001"]);
+    const caixaBiz2 = lerCaixa(todosLancamentos, ["BIZ-002"]);
+    const caixaBiz3 = lerCaixa(todosLancamentos, ["BIZ-003"]);
+    const caixaGrupo = lerCaixa(todosLancamentos, undefined);
+
+    expect(caixaBiz1.saldo).toBe(5000);
+    expect(caixaBiz2.saldo).toBe(12000);
+    expect(caixaBiz3.saldo).toBe(3000);
+    expect(caixaGrupo.saldo).toBe(20000);
+  });
+
+  it("não mistura resultado de DRE entre empresas distintas", () => {
+    const lancamentos = [
+      { business_id: "BIZ-001", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 1000, competencia: "2026-09" },
+      { business_id: "BIZ-001", fluxo: "SAÍDA", status: "PAGO", moeda: "BRL", valor_original: 300, competencia: "2026-09" },
+      { business_id: "BIZ-002", fluxo: "ENTRADA", status: "RECEBIDO", moeda: "BRL", valor_original: 5000, competencia: "2026-09" },
+    ];
+
+    const dreBiz1 = lerDre(lancamentos, ["BIZ-001"]);
+    const dreBiz2 = lerDre(lancamentos, ["BIZ-002"]);
+
+    expect(dreBiz1.resultado).toBe(700);
+    expect(dreBiz2.resultado).toBe(5000);
+  });
+
+  it("recusa cruzamento financeiro entre empresas diferentes", () => {
+    const plano = classificar("transferir R$ 500,00 da conta ACC-01 da igreen para conta ACC-02 da saude", ctx, agora);
+    expect(plano.conclusao).toContain("não foi gravado");
+    expect(plano.escritas.some((e) => e.tabela === "financeiro")).toBe(false);
+  });
+});
+

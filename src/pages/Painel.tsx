@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Package,
+  Layers,
+  Flame,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { format, subMonths } from "date-fns";
@@ -71,6 +73,9 @@ function moeda(valor: number) {
 export default function Painel() {
   const {
     empresas,
+    currentBusiness,
+    currentBusinessId,
+    isConsolidated,
     selecionadas,
     todasLigadas,
     rotulo,
@@ -91,97 +96,209 @@ export default function Painel() {
   // Filtro amigável para ideias
   const [filtroDecisao, setFiltroDecisao] = useState<string>("TODAS");
 
-  const empresasLigadas = empresas.map((e) => e.id).join("|");
+  // Fallbacks contextualizados por empresa ativa conforme especificação Helena
+  const FOCO_PADRAO: Foco[] = useMemo(() => {
+    if (currentBusinessId === "BIZ-001") {
+      return [
+        {
+          id: "FOC-01",
+          frente: "Expansão Comercial iGreen Energy",
+          status: "EM EXECUÇÃO",
+          objetivo: "Aquisição de novos clientes e expansão da carteira de energia por assinatura",
+          ordem: 1,
+          responsavel: "Helena & Comercial",
+          criterio_de_saida: "Atingir meta mensal de contratos ativos com faturamento recorrente",
+        },
+      ];
+    }
+    if (currentBusinessId === "BIZ-002") {
+      return [
+        {
+          id: "FOC-02",
+          frente: "Consolidação de Escopo do Ecossistema de Saúde",
+          status: "EM EXECUÇÃO",
+          objetivo: "Definição de portfólio de produtos e experiência digital do aplicativo",
+          ordem: 1,
+          responsavel: "Helena & Produto",
+          criterio_de_saida: "Escopo consolidado com esteira de produção e vendas pronta",
+        },
+      ];
+    }
+    if (currentBusinessId === "BIZ-003") {
+      return [
+        {
+          id: "FOC-03",
+          frente: "Validação do Modelo Humano Digital",
+          status: "EM EXECUÇÃO",
+          objetivo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão",
+          ordem: 1,
+          responsavel: "Helena & Validação",
+          criterio_de_saida: "Ciclo de aquisição e comissionamento testado e comprovado",
+        },
+      ];
+    }
+    return [
+      {
+        id: "FOC-00",
+        frente: "Operação Integrada Helena (iGreen, Ecossistema de Saúde e Humano Digital)",
+        status: "EM EXECUÇÃO",
+        objetivo: "Centralização e governança executiva unificada das frentes de negócio",
+        ordem: 1,
+        responsavel: "Helena (Chief of Staff)",
+        criterio_de_saida: "Todas as frentes com CRM, fluxo e métricas sincronizadas",
+      },
+    ];
+  }, [currentBusinessId]);
 
-const FOCO_PADRAO: Foco[] = [
-  {
-    id: "FOC-01",
-    frente: "Operação Integrada Helena (iGreen, Max Nutrition e Humano Digital)",
-    status: "EM EXECUÇÃO",
-    objetivo: "Centralização e governança executiva unificada das frentes de negócio",
-    ordem: 1,
-    responsavel: "Helena (Sua IA)",
-    criterio_de_saida: "Todas as frentes com CRM, fluxo e métricas sincronizadas",
-  },
-];
+  const NEGOCIOS_PADRAO: Negocio[] = useMemo(() => {
+    return [
+      {
+        business_id: "BIZ-001",
+        negocio: "iGreen Energy",
+        estagio: "VENDAS",
+        principal_gargalo: "Comercial / conseguir clientes.",
+      },
+      {
+        business_id: "BIZ-002",
+        negocio: "Ecossistema de Saúde",
+        estagio: "PRODUTO",
+        principal_gargalo: "Escopo amplo ainda não consolidado.",
+      },
+      {
+        business_id: "BIZ-003",
+        negocio: "Humano Digital",
+        estagio: "VALIDAÇÃO",
+        principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
+      },
+    ];
+  }, []);
 
-const NEGOCIOS_PADRAO: Negocio[] = [
-  {
-    business_id: "BIZ-001",
-    negocio: "iGreen Energy",
-    estagio: "ESCALA",
-    principal_gargalo: "Expansão de carteira e novos parceiros",
-  },
-  {
-    business_id: "BIZ-002",
-    negocio: "Max Nutrition & Refit",
-    estagio: "OPERAÇÃO",
-    principal_gargalo: "Otimização de giro e novos produtos",
-  },
-  {
-    business_id: "BIZ-003",
-    negocio: "Humano Digital",
-    estagio: "VALIDAÇÃO",
-    principal_gargalo: "Conversão de leads e posicionamento",
-  },
-];
+  const IDEIAS_PADRAO: Ideia[] = useMemo(() => {
+    return [
+      {
+        id: "IDE-01",
+        ideia: "Automação de qualificação de leads via WhatsApp e IA",
+        decisao: "AGORA",
+        business_id: "BIZ-001",
+      },
+      {
+        id: "IDE-02",
+        ideia: "Lançamento de combo de suplementos & plano alimentar",
+        decisao: "DEPOIS",
+        business_id: "BIZ-002",
+      },
+      {
+        id: "IDE-03",
+        ideia: "Treinamento do agente de vendas e onboarding Humano Digital",
+        decisao: "PRECISA VALIDAR",
+        business_id: "BIZ-003",
+      },
+    ];
+  }, []);
 
-const IDEIAS_PADRAO: Ideia[] = [
-  {
-    id: "IDE-01",
-    ideia: "Automação de qualificação de leads via WhatsApp e IA",
-    decisao: "AGORA",
-    business_id: "BIZ-001",
-  },
-  {
-    id: "IDE-02",
-    ideia: "Lançamento de combo promocional Max Nutrition",
-    decisao: "DEPOIS",
-    business_id: "BIZ-002",
-  },
-  {
-    id: "IDE-03",
-    ideia: "Treinamento do agente de vendas Humano Digital",
-    decisao: "PRECISA VALIDAR",
-    business_id: "BIZ-003",
-  },
-];
-
+  // EFEITO COM ISOLAMENTO DE EMPRESA:
+  // Ao trocar de empresa, limpa imediatamente os dados anteriores e busca com filtro estrito
   useEffect(() => {
-    Promise.all([
-      supabase.from("foco_executivo").select("*").order("ordem"),
-      supabase.from("portfolio").select("business_id,negocio,estagio,principal_gargalo").order("business_id"),
-      supabase.from("ideias").select("id,ideia,decisao,business_id").order("id", { ascending: false }).limit(12),
-      supabase
-        .from("financeiro")
-        .select("business_id,fluxo,status,moeda,valor_original,valor_liquidado_informado_brl,conta_id,competencia,liquidacao"),
-      supabase.from("crm").select("opportunity_id,business_id,etapa,valor_potencial,probabilidade"),
-    ]).then(([f, p, i, fin, crm]) => {
-      const falha = f.error || p.error || i.error || fin.error || crm.error;
-      const ehPermissao = falha && /permission denied|jwt|unauthorized|not allowed/i.test(falha.message);
-      if (falha && !ehPermissao) {
-        setErro(falha.message);
-      } else {
-        setErro("");
-      }
+    setCarregando(true);
+    setErro("");
+    // Limpa dados imediatamente para evitar contaminação visual durante o carregamento
+    setLancamentos([]);
+    setOportunidades([]);
+    setIdeias([]);
 
-      setFoco((f.data && f.data.length ? f.data : FOCO_PADRAO) as Foco[]);
-      setNegocios((p.data && p.data.length ? p.data : NEGOCIOS_PADRAO) as Negocio[]);
-      setIdeias((i.data && i.data.length ? i.data : IDEIAS_PADRAO) as Ideia[]);
-      setLancamentos((fin.data || []) as Lancamento[]);
-      setOportunidades((crm.data || []) as Oportunidade[]);
-      setCarregando(false);
-    });
-  }, [empresasLigadas]);
+    // Consultas estritamente filtradas por business_id
+    let qFoco = supabase.from("foco_executivo").select("*").order("ordem");
+    let qPort = supabase.from("portfolio").select("business_id,negocio,estagio,principal_gargalo,ativo,publico").order("business_id");
+    let qIdeias = supabase.from("ideias").select("id,ideia,decisao,business_id").order("id", { ascending: false }).limit(20);
+    let qFin = supabase
+      .from("financeiro")
+      .select("business_id,fluxo,status,moeda,valor_original,valor_liquidado_informado_brl,conta_id,competencia,liquidacao");
+    let qCrm = supabase.from("crm").select("opportunity_id,business_id,etapa,valor_potencial,probabilidade");
+
+    if (!isConsolidated && currentBusinessId) {
+      qIdeias = qIdeias.eq("business_id", currentBusinessId);
+      qFin = qFin.eq("business_id", currentBusinessId);
+      qCrm = qCrm.eq("business_id", currentBusinessId);
+    } else if (isConsolidated && selecionadas.length > 0) {
+      qIdeias = qIdeias.in("business_id", selecionadas);
+      qFin = qFin.in("business_id", selecionadas);
+      qCrm = qCrm.in("business_id", selecionadas);
+    }
+
+    Promise.all([qFoco, qPort, qIdeias, qFin, qCrm])
+      .then(([f, p, i, fin, crm]) => {
+        const falha = f.error || p.error || i.error || fin.error || crm.error;
+        const ehPermissao = falha && /permission denied|jwt|unauthorized|not allowed/i.test(falha.message);
+        if (falha && !ehPermissao) {
+          setErro(falha.message);
+        } else {
+          setErro("");
+        }
+
+        setFoco((f.data && f.data.length ? f.data : FOCO_PADRAO) as Foco[]);
+        setNegocios((p.data && p.data.length ? p.data : NEGOCIOS_PADRAO) as Negocio[]);
+        setIdeias((i.data && i.data.length ? i.data : IDEIAS_PADRAO) as Ideia[]);
+        setLancamentos((fin.data || []) as Lancamento[]);
+        setOportunidades((crm.data || []) as Oportunidade[]);
+      })
+      .catch((err) => {
+        setErro(err?.message || "Erro na consulta");
+      })
+      .finally(() => {
+        setCarregando(false);
+      });
+  }, [currentBusinessId, isConsolidated]);
 
   // Filtros usando o BusinessContext
   const filtro = todasLigadas ? undefined : selecionadas;
   const caixa = useMemo(() => lerCaixa(lancamentos, filtro), [lancamentos, filtro]);
   const ativo = foco.find((item) => item.status === "EM EXECUÇÃO") || foco[0];
 
+  // Negócio ativo com dados canônicos de portfolio
+  const dadosNegocioAtivo = useMemo(() => {
+    if (isConsolidated) {
+      return {
+        negocio: "Todas as Empresas (Grupo Helena)",
+        estagio: "CONSOLIDADO",
+        principal_gargalo: "Sinergia, caixa integrado e foco de prioridades entre unidades.",
+      };
+    }
+    const encontrado = negocios.find((n) => n.business_id === currentBusinessId);
+    if (encontrado) return encontrado;
+    const base = EMPRESAS_PADRAO_MAP[currentBusinessId];
+    if (base) return base;
+    return {
+      negocio: currentBusiness?.nome || "Empresa Selecionada",
+      estagio: currentBusiness?.estagio || "EM OPERAÇÃO",
+      principal_gargalo: currentBusiness?.principal_gargalo || "Acompanhamento executivo contínuo.",
+    };
+  }, [isConsolidated, negocios, currentBusinessId, currentBusiness]);
+
+  const EMPRESAS_PADRAO_MAP: Record<string, Negocio> = {
+    "BIZ-001": {
+      business_id: "BIZ-001",
+      negocio: "iGreen Energy",
+      estagio: "VENDAS",
+      principal_gargalo: "Comercial / conseguir clientes.",
+    },
+    "BIZ-002": {
+      business_id: "BIZ-002",
+      negocio: "Ecossistema de Saúde",
+      estagio: "PRODUTO",
+      principal_gargalo: "Escopo amplo ainda não consolidado.",
+    },
+    "BIZ-003": {
+      business_id: "BIZ-003",
+      negocio: "Humano Digital",
+      estagio: "VALIDAÇÃO",
+      principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
+    },
+  };
+
   const negociosVisiveis = useMemo(() => {
-    return negocios.filter((item) => selecionadas.includes(item.business_id));
-  }, [negocios, selecionadas]);
+    if (isConsolidated) return negocios;
+    return negocios.filter((item) => item.business_id === currentBusinessId);
+  }, [negocios, isConsolidated, currentBusinessId]);
 
   const ideiasVisiveis = useMemo(() => {
     let lista = ideias.filter((item) => pertence(item.business_id));
@@ -224,7 +341,7 @@ const IDEIAS_PADRAO: Ideia[] = [
     return { atual, change };
   }, [lancamentos, filtro]);
 
-  // Helpers para nome do produto e ícone sem códigos de banco de dados
+  // Informações visuais amigáveis da marca
   const getProdutoInfo = (businessId: string) => {
     const emp = empresas.find((e) => e.id === businessId);
     if (businessId === "BIZ-001" || /igreen/i.test(emp?.nome || "")) {
@@ -236,10 +353,10 @@ const IDEIAS_PADRAO: Ideia[] = [
         badgeCor: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
       };
     }
-    if (businessId === "BIZ-002" || /max|nutrition|refit|sa[uú]de/i.test(emp?.nome || "")) {
+    if (businessId === "BIZ-002" || /sa[uú]de|max|nutrition|refit/i.test(emp?.nome || "")) {
       return {
-        nome: "Max Nutrition & Refit",
-        categoria: "Suplementos & Aplicativo de Treino",
+        nome: "Ecossistema de Saúde",
+        categoria: "Suplementação & Saúde Integrada",
         icone: Activity,
         cor: "#3b82f6",
         badgeCor: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
@@ -248,7 +365,7 @@ const IDEIAS_PADRAO: Ideia[] = [
     if (businessId === "BIZ-003" || /humano/i.test(emp?.nome || "")) {
       return {
         nome: "Humano Digital",
-        categoria: "Agentes & Inteligência Artificial",
+        categoria: "Agentes de Inteligência Artificial",
         icone: Bot,
         cor: "#8b5cf6",
         badgeCor: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
@@ -295,23 +412,21 @@ const IDEIAS_PADRAO: Ideia[] = [
     };
   };
 
-  // 1. StatsGrid Cards com design e linguagem simples
+  // 1. StatsGrid Cards
   const statsGridData = useMemo(() => {
     const dreMesAtual = comparativoDreMes.atual;
-    const resultadoMesLabel = dreMesAtual.vazio
-      ? "R$ 0,00"
-      : moeda(dreMesAtual.resultado);
+    const resultadoMesLabel = dreMesAtual.vazio ? "—" : moeda(dreMesAtual.resultado);
 
     return [
       {
-        label: "Dinheiro no Caixa",
-        value: caixa.vazio ? "R$ 0,00" : moeda(caixa.saldo),
+        label: isConsolidated ? "Saldo em Caixa (Grupo)" : `Caixa Disponível (${currentBusiness?.sigla || "Empresa"})`,
+        value: caixa.vazio ? "—" : moeda(caixa.saldo),
         change: undefined,
         icon: DollarSign,
         color: "success" as const,
         description: caixa.vazio
-          ? "Sem lançamentos liquidados nas contas"
-          : `Baseado em ${caixa.usados} lançamento(s) no financeiro`,
+          ? "Sem lançamentos liquidados no período"
+          : `Baseado em ${caixa.usados} lançamento(s) registrados`,
       },
       {
         label: "Resultado do Mês",
@@ -320,8 +435,8 @@ const IDEIAS_PADRAO: Ideia[] = [
         icon: TrendingUp,
         color: "primary" as const,
         description: dreMesAtual.vazio
-          ? "Sem competência no mês atual — só mostramos dados reais"
-          : "Entradas menos saídas (competência do mês)",
+          ? "Sem lançamentos no mês atual"
+          : "Entradas menos saídas com base em competência",
       },
       {
         label: "Vendas em Negociação",
@@ -331,8 +446,8 @@ const IDEIAS_PADRAO: Ideia[] = [
         color: "warning" as const,
         description:
           pipelineCrm.ativas === 0
-            ? "Nenhuma oportunidade ativa no CRM"
-            : `${pipelineCrm.ativas} oportunidade(s) · soma de valor_potencial`,
+            ? "Nenhuma oportunidade em andamento"
+            : `${pipelineCrm.ativas} oportunidade(s) no pipeline`,
       },
       {
         label: "Foco Principal de Hoje",
@@ -340,10 +455,10 @@ const IDEIAS_PADRAO: Ideia[] = [
         change: undefined,
         icon: Crown,
         color: "primary" as const,
-        description: ativo ? "Vindo do foco executivo" : "Nenhuma frente em execução cadastrada",
+        description: ativo ? "WIP = 1 (Foco Executivo)" : "Nenhuma prioridade em andamento",
       },
     ];
-  }, [caixa, comparativoDreMes, pipelineCrm, ativo]);
+  }, [caixa, comparativoDreMes, pipelineCrm, ativo, isConsolidated, currentBusiness]);
 
   // 2. Gráfico de Entradas vs Saídas
   const revenueChartData = useMemo(() => {
@@ -352,18 +467,9 @@ const IDEIAS_PADRAO: Ideia[] = [
     const mesCurto = (yyyyMm: string) => {
       const m = yyyyMm.slice(5, 7);
       const nomes: Record<string, string> = {
-        "01": "Jan",
-        "02": "Fev",
-        "03": "Mar",
-        "04": "Abr",
-        "05": "Mai",
-        "06": "Jun",
-        "07": "Jul",
-        "08": "Ago",
-        "09": "Set",
-        "10": "Out",
-        "11": "Nov",
-        "12": "Dez",
+        "01": "Jan", "02": "Fev", "03": "Mar", "04": "Abr",
+        "05": "Mai", "06": "Jun", "07": "Jul", "08": "Ago",
+        "09": "Set", "10": "Out", "11": "Nov", "12": "Dez",
       };
       return nomes[m] || m;
     };
@@ -420,7 +526,7 @@ const IDEIAS_PADRAO: Ideia[] = [
       .filter((item) => item.value > 0);
   }, [lancamentos, empresas, pertence]);
 
-  // 4. Funil de Vendas Humanizado
+  // 4. Funil de Vendas
   const funnelData = useMemo(() => {
     const etapas: { id: string; label: string; color: string }[] = [
       { id: "PROSPECCAO", label: "Prospecção", color: "#3b82f6" },
@@ -439,14 +545,17 @@ const IDEIAS_PADRAO: Ideia[] = [
 
   if (carregando) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center space-y-3">
+      <div className="flex min-h-[50vh] flex-col items-center justify-center space-y-4">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         <p className="text-xs uppercase font-bold tracking-widest text-muted-foreground animate-pulse">
-          Carregando informações das suas empresas…
+          Carregando dados de {rotulo}…
         </p>
       </div>
     );
   }
+
+  const infoAtual = getProdutoInfo(currentBusinessId);
+  const IconeEmpresa = isConsolidated ? Layers : infoAtual.icone;
 
   return (
     <div className="space-y-8 animate-fade-in pb-16">
@@ -457,14 +566,65 @@ const IDEIAS_PADRAO: Ideia[] = [
         </div>
       )}
 
-      {/* 🎯 2. HERO CARD: PRIORIDADE NÚMERO 1 DE HOJE */}
+      {/* 🏢 1. BANNER OBRIGATÓRIO DO CONTEXTO DE EMPRESA (Item 26 Helena) */}
+      <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card/90 to-background p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start md:items-center gap-4">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-sm border"
+              style={{
+                backgroundColor: isConsolidated ? "#4F46E518" : `${infoAtual.cor}18`,
+                borderColor: isConsolidated ? "#4F46E535" : `${infoAtual.cor}35`,
+              }}
+            >
+              <IconeEmpresa
+                className="h-7 w-7"
+                style={{ color: isConsolidated ? "#4F46E5" : infoAtual.cor }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Empresa Selecionada:
+                </span>
+                <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-[11px] font-black uppercase text-primary">
+                  {currentBusinessId}
+                </span>
+                <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25">
+                  Estágio: {dadosNegocioAtivo.estagio || "EM OPERAÇÃO"}
+                </span>
+              </div>
+
+              <h1 className="text-xl md:text-2xl font-black tracking-tight text-foreground">
+                {dadosNegocioAtivo.negocio}
+              </h1>
+            </div>
+          </div>
+
+          {/* Gargalo Principal da Empresa Selecionada */}
+          <div className="md:max-w-md w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-1">
+            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+              <Flame className="h-4 w-4 shrink-0" />
+              <p className="text-[11px] font-black uppercase tracking-wider">
+                Principal Gargalo da Empresa
+              </p>
+            </div>
+            <p className="text-xs font-semibold text-foreground/90 leading-snug">
+              {dadosNegocioAtivo.principal_gargalo || "Nenhum gargalo crítico registrado."}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* 🎯 2. HERO CARD: PRIORIDADE NÚMERO 1 DE HOJE (WIP = 1) */}
       <section className="relative overflow-hidden rounded-3xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-background p-6 shadow-sm backdrop-blur-md">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2 max-w-3xl">
             <div className="flex items-center gap-2">
               <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <p className="text-[11px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                🎯 Prioridade Número 1 do Momento
+                🎯 Prioridade Número 1 da Helena (WIP = 1)
               </p>
             </div>
 
@@ -482,7 +642,7 @@ const IDEIAS_PADRAO: Ideia[] = [
                     <p className="pt-0.5 text-foreground/90 flex items-center gap-2 font-medium">
                       <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                       <span>
-                        <strong>Como saber que concluímos: </strong>
+                        <strong>Critério de saída: </strong>
                         {ativo.criterio_de_saida}
                       </span>
                     </p>
@@ -497,14 +657,14 @@ const IDEIAS_PADRAO: Ideia[] = [
           <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                EM ANDAMENTO
+                EM EXECUÇÃO
               </span>
               <span className="text-[11px] text-muted-foreground">
-                Cuidado por: <strong className="text-foreground">Helena (Sua IA)</strong>
+                Orquestrado por: <strong className="text-foreground">Helena (Sua IA)</strong>
               </span>
             </div>
 
-            <span className="text-xs text-muted-foreground">Meta acompanhada no painel e no ChatGPT oficial.</span>
+            <span className="text-xs text-muted-foreground">Acompanhado em tempo real no painel do fundador.</span>
           </div>
         </div>
       </section>
@@ -518,23 +678,23 @@ const IDEIAS_PADRAO: Ideia[] = [
         <SalesDonutChart data={salesDonutData} />
       </div>
 
-      {/* 🏢 5. PRODUTOS & UNIDADES DE NEGÓCIO (Sem BIZ-00X) */}
+      {/* 🏢 5. PRODUTOS & UNIDADES DE NEGÓCIO */}
       <section className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/40 pb-3">
           <div>
             <h2 className="text-lg font-black text-foreground flex items-center gap-2">
               <Building2 className="h-5 w-5 text-primary" />
-              Seus Produtos & Unidades de Negócio
+              Unidades de Negócio & Portfólio
             </h2>
             <p className="text-xs text-muted-foreground">
-              Acompanhamento de cada marca e o que precisa ser destravado para acelerar o faturamento.
+              Acompanhamento de cada empresa do ecossistema e o que precisa ser destravado para faturar.
             </p>
           </div>
           <Link
             to="/modulo/portfolio"
             className="text-xs font-semibold text-primary hover:underline self-start sm:self-auto"
           >
-            Ver Tabela de Negócios →
+            Ver Cadastro no Portfólio →
           </Link>
         </div>
 
@@ -542,12 +702,16 @@ const IDEIAS_PADRAO: Ideia[] = [
           {negociosVisiveis.map((item) => {
             const info = getProdutoInfo(item.business_id);
             const Icone = info.icone;
-            const selecionada = selecionadas.includes(item.business_id);
+            const selecionadaAtiva = currentBusinessId === item.business_id;
 
             return (
               <div
                 key={item.business_id}
-                className="rounded-3xl border border-border/60 bg-card/90 p-6 shadow-sm hover:border-primary/40 hover:shadow-md transition-all flex flex-col justify-between border-t-4"
+                className={`rounded-3xl border bg-card/90 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between border-t-4 ${
+                  selecionadaAtiva
+                    ? "border-primary ring-2 ring-primary/20 shadow-md"
+                    : "border-border/60 hover:border-primary/40"
+                }`}
                 style={{ borderTopColor: info.cor }}
               >
                 <div className="space-y-4">
@@ -561,24 +725,24 @@ const IDEIAS_PADRAO: Ideia[] = [
                       </div>
                       <div>
                         <h3 className="text-base font-bold text-foreground">
-                          {info.nome}
+                          {item.negocio || info.nome}
                         </h3>
-                        <p className="text-[11px] text-muted-foreground">{info.categoria}</p>
+                        <p className="text-[11px] text-muted-foreground">{item.business_id} · {info.categoria}</p>
                       </div>
                     </div>
 
                     <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${info.badgeCor}`}>
-                      {item.estagio || "Em Crescimento"}
+                      {item.estagio || "EM OPERAÇÃO"}
                     </span>
                   </div>
 
                   {/* O que precisa destravar */}
                   <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 space-y-1.5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                      O que precisa destravar hoje:
+                      O que precisa destravar:
                     </p>
                     <p className="text-xs text-foreground font-medium leading-relaxed">
-                      {item.principal_gargalo || "Tudo fluindo normalmente nesta marca."}
+                      {item.principal_gargalo || "Operação fluindo normalmente."}
                     </p>
                   </div>
                 </div>
@@ -589,7 +753,7 @@ const IDEIAS_PADRAO: Ideia[] = [
                     onClick={() => alternar(item.business_id)}
                     className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    <span>Focar nesta Marca</span>
+                    <span>{selecionadaAtiva ? "Empresa Atual" : "Focar nesta Empresa"}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
 
@@ -606,7 +770,7 @@ const IDEIAS_PADRAO: Ideia[] = [
         </div>
       </section>
 
-      {/* 💡 6. SUGESTÕES & OPORTUNIDADES DA HELENA (Sem IDE-00X, sem BIZ-00X, sem 'PRECISA VALIDAR') */}
+      {/* 💡 6. SUGESTÕES & OPORTUNIDADES DA HELENA */}
       <section className="rounded-3xl border border-border/60 bg-card p-6 shadow-sm space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/40 pb-4">
           <div>
@@ -619,7 +783,7 @@ const IDEIAS_PADRAO: Ideia[] = [
               </h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Ideias analisadas pela sua inteligência para acelerar as vendas e organizar seus negócios.
+              Ideias analisadas pela sua inteligência com foco na empresa selecionada ({rotulo}).
             </p>
           </div>
 
@@ -697,7 +861,7 @@ const IDEIAS_PADRAO: Ideia[] = [
               <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-40" />
               <p className="text-sm font-bold text-foreground">Nenhuma sugestão encontrada</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Não há ideias com o filtro selecionado para esta marca.
+                Não há ideias com o filtro selecionado para esta empresa.
               </p>
             </div>
           )}
@@ -719,7 +883,7 @@ const IDEIAS_PADRAO: Ideia[] = [
                   Ações Rápidas
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Atalhos para o seu dia a dia
+                  Atalhos para a empresa {rotulo}
                 </p>
               </div>
               <span className="text-[10px] bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full border border-primary/20">
@@ -762,7 +926,7 @@ const IDEIAS_PADRAO: Ideia[] = [
               Sistema Helena Sincronizado
             </p>
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Informações salvas e protegidas em tempo real
+              Isolamento multiempresa ativo ({currentBusinessId})
             </p>
           </div>
         </div>

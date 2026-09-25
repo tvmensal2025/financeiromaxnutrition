@@ -47,7 +47,7 @@ interface MensagemChat {
 }
 
 export default function Conversa() {
-  const { selecionadas, todasLigadas, rotulo } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, rotulo } = useBusiness();
   const [texto, setTexto] = useState("");
   const [mensagens, setMensagens] = useState<MensagemChat[]>([
     {
@@ -69,7 +69,9 @@ export default function Conversa() {
       .order("data_hora", { ascending: false })
       .limit(10);
 
-    if (!todasLigadas && selecionadas.length > 0) {
+    if (!isConsolidated && currentBusinessId) {
+      query = query.eq("business_id_area", currentBusinessId);
+    } else if (isConsolidated && selecionadas.length > 0) {
       query = query.in("business_id_area", [...selecionadas]);
     }
 
@@ -81,7 +83,7 @@ export default function Conversa() {
 
   useEffect(() => {
     carregarMemoria();
-  }, [selecionadas.join("|"), todasLigadas]);
+  }, [currentBusinessId, isConsolidated]);
 
   const atalhosComando = [
     {

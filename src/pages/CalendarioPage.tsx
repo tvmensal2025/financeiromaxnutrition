@@ -31,7 +31,7 @@ function idTarefaDeEvento(ev: EventoAgenda) {
 }
 
 export default function CalendarioPage() {
-  const { selecionadas, todasLigadas, nomeDe } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, nomeDe } = useBusiness();
   const [mes, setMes] = useState(() => startOfMonth(new Date()));
   const [diaSel, setDiaSel] = useState<Date>(new Date());
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
@@ -62,6 +62,8 @@ export default function CalendarioPage() {
 
   const recarregar = async () => {
     setCarregando(true);
+    setEventos([]);
+    setSemData([]);
     await sincronizarTodasTarefasNoCalendario(selecionadas, todasLigadas);
     const { eventos: lista, semData: pendentes, erro: msg } = await carregarAgenda(selecionadas, todasLigadas);
     setErro(msg);
@@ -72,7 +74,7 @@ export default function CalendarioPage() {
 
   useEffect(() => {
     recarregar();
-  }, [selecionadas.join("|"), todasLigadas]);
+  }, [currentBusinessId, isConsolidated]);
 
   const eventosComData = useMemo(() => {
     return eventos

@@ -60,7 +60,7 @@ export function TarefaAgendaModal({
   dataPrazoSugerida = null,
   onAtualizado,
 }: Props) {
-  const { selecionadas, todasLigadas, nomeDe, empresas } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, nomeDe, empresas } = useBusiness();
   const [lista, setLista] = useState<TarefaCompleta[]>([]);
   const [selId, setSelId] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
@@ -77,7 +77,11 @@ export function TarefaAgendaModal({
     setCarregando(true);
     setErro("");
     let q = supabase.from("tarefas").select("*").order("task_id");
-    if (!todasLigadas && selecionadas.length) q = q.in("business_id", selecionadas);
+    if (!isConsolidated && currentBusinessId) {
+      q = q.eq("business_id", currentBusinessId);
+    } else if (isConsolidated && selecionadas.length) {
+      q = q.in("business_id", selecionadas);
+    }
     const { data, error } = await q;
     if (error) setErro(error.message);
     else setLista((data || []) as TarefaCompleta[]);
@@ -97,7 +101,7 @@ export function TarefaAgendaModal({
         responsavel: "",
       });
     }
-  }, [aberto, taskIdInicial, acaoInicial, dataPrazoSugerida, selecionadas.join("|"), todasLigadas]);
+  }, [aberto, taskIdInicial, acaoInicial, dataPrazoSugerida, currentBusinessId, isConsolidated]);
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -135,7 +139,11 @@ export function TarefaAgendaModal({
       bloqueio: form.bloqueio || null,
       definicao_de_pronto: form.definicao_de_pronto || null,
     };
-    const { error } = await supabase.from("tarefas").update(payload).eq("task_id", selecionada.task_id);
+    let updateQuery = supabase.from("tarefas").update(payload).eq("task_id", selecionada.task_id);
+    if (!isConsolidated && currentBusinessId) {
+      updateQuery = updateQuery.eq("business_id", currentBusinessId);
+    }
+    const { error } = await updateQuery;
     if (error) {
       setErro(error.message);
       setSalvando(false);
@@ -179,10 +187,9 @@ export function TarefaAgendaModal({
   }
 
   async function acaoAdicionar() {
-    const business_id =
-      selecionadas[0] || empresas[0]?.id || selecionada?.business_id || "";
+    const business_id = !isConsolidated ? currentBusinessId : (selecionadas[0] || empresas[0]?.id || "BIZ-001");
     if (!business_id) {
-      setErro("Ligue uma empresa na barra lateral para criar tarefa.");
+      setErro("Selecione uma empresa na barra lateral para criar tarefa.");
       return;
     }
     setSalvando(true);

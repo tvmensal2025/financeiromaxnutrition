@@ -32,7 +32,7 @@ const STATUS_BLOQUEADO = new Set(["ATIVA", "ATIVO", "OPERACIONAL", "SINCRONIZADA
 export default function Modulo() {
   const { tabela = "" } = useParams();
   const meta = MODULOS.find((item) => item.tabela === tabela);
-  const { selecionadas, todasLigadas, rotulo } = useBusiness();
+  const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, todasLigadas, rotulo, empresas } = useBusiness();
   const [campos, setCampos] = useState<Campo[]>([]);
   const [linhas, setLinhas] = useState<Record<string, unknown>[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -106,16 +106,14 @@ export default function Modulo() {
     setCampos(lista);
 
     let consulta = supabase.from(tabela).select("*").limit(100);
-    // Filtragem automática caso a tabela tenha business_id e não seja GRUPO
-    if (
-      !todasLigadas &&
-      selecionadas.length > 0 &&
-      lista.some((c) => c.coluna === "business_id" || c.coluna === "business_id_area")
-    ) {
-      const col = lista.some((c) => c.coluna === "business_id")
-        ? "business_id"
-        : "business_id_area";
-      consulta = consulta.in(col, [...selecionadas]);
+    // Filtragem automática caso a tabela possua coluna de business_id
+    const colEmpresa = lista.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
+    if (colEmpresa) {
+      if (!isConsolidated && currentBusinessId) {
+        consulta = consulta.eq(colEmpresa, currentBusinessId);
+      } else if (isConsolidated && selecionadas.length > 0) {
+        consulta = consulta.in(colEmpresa, [...selecionadas]);
+      }
     }
 
     const { data, error } = await consulta;
@@ -138,7 +136,7 @@ export default function Modulo() {
     setTermoBusca("");
     setModalAberto(false);
     if (tabela) carregar();
-  }, [tabela, selecionadas.join("|"), todasLigadas]);
+  }, [tabela, currentBusinessId, isConsolidated]);
 
   // Busca instantânea
   const linhasFiltradas = useMemo(() => {
@@ -200,12 +198,13 @@ export default function Modulo() {
       }
     }
     if (campos.some((campo) => campo.coluna === "source_system")) row.source_system = "HELENA";
-    if (
-      !row.business_id &&
-      campos.some((campo) => campo.coluna === "business_id") &&
-      selecionadas.length === 1
-    ) {
-      row.business_id = selecionadas[0];
+    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    if (colEmpresa) {
+      if (!isConsolidated) {
+        row[colEmpresa] = currentBusinessId;
+      } else if (!row[colEmpresa]) {
+        row[colEmpresa] = form[colEmpresa] || selecionadas[0] || "BIZ-001";
+      }
     }
 
     if (!editando && chave !== "registro_id" && !row[chave]) {
@@ -213,9 +212,14 @@ export default function Modulo() {
       return;
     }
 
-    const consulta = editando
+    let consulta = editando
       ? supabase.from(tabela).update(row).eq(chave, editando)
       : supabase.from(tabela).insert(row);
+
+    if (editando && colEmpresa && !isConsolidated) {
+      consulta = consulta.eq(colEmpresa, currentBusinessId);
+    }
+
     const { error } = await consulta;
     if (error) {
       setErro(error.message);
@@ -243,15 +247,35 @@ export default function Modulo() {
     await carregar();
   }
 
-  async function excluir(id: string) {
+  async function excluir(id: string, linha?: Record<string, unknown>) {
     if (SEM_EXCLUSAO.has(tabela)) return;
+    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    if (colEmpresa && !isConsolidated && linha) {
+      const rowBiz = linha[colEmpresa];
+      if (rowBiz && rowBiz !== currentBusinessId) {
+        alert("Operação bloqueada: Não é permitido excluir registro de outra empresa.");
+        return;
+      }
+    }
     if (!confirm(`Deseja excluir o registro ${id}?`)) return;
-    const { error } = await supabase.from(tabela).delete().eq(chave, id);
+    let qDel = supabase.from(tabela).delete().eq(chave, id);
+    if (colEmpresa && !isConsolidated) {
+      qDel = qDel.eq(colEmpresa, currentBusinessId);
+    }
+    const { error } = await qDel;
     if (error) setErro(error.message);
     else await carregar();
   }
 
   function editar(linha: Record<string, unknown>) {
+    const colEmpresa = campos.find((campo) => campo.coluna === "business_id" || campo.coluna === "business_id_area")?.coluna;
+    if (colEmpresa && !isConsolidated) {
+      const rowBiz = linha[colEmpresa];
+      if (rowBiz && rowBiz !== currentBusinessId) {
+        alert("Operação bloqueada: Este registro pertence a outra empresa.");
+        return;
+      }
+    }
     const next: Record<string, string> = {};
     for (const campo of editaveis) {
       const valor = linha[campo.coluna];
@@ -265,11 +289,9 @@ export default function Modulo() {
   function abrirNovo() {
     setEditando(null);
     const inicial: Record<string, string> = {};
-    if (
-      campos.some((c) => c.coluna === "business_id") &&
-      selecionadas.length === 1
-    ) {
-      inicial.business_id = selecionadas[0];
+    const colEmpresa = campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna;
+    if (colEmpresa) {
+      inicial[colEmpresa] = !isConsolidated ? currentBusinessId : (selecionadas[0] || "BIZ-001");
     }
     setForm(inicial);
     setModalAberto(true);
@@ -424,7 +446,7 @@ export default function Modulo() {
                       </button>
                       {!SEM_EXCLUSAO.has(tabela) && (
                         <button
-                          onClick={() => excluir(id)}
+                          onClick={() => excluir(id, linha)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
                           title="Excluir registro"
                         >
@@ -470,22 +492,59 @@ export default function Modulo() {
 
             <form onSubmit={salvar} className="mt-4 space-y-4">
               <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 max-h-[60vh] overflow-y-auto p-1 scrollbar-thin">
-                {editaveis.map((campo) => (
-                  <div key={campo.coluna} className="space-y-1">
-                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
-                      <span>{campo.nome_na_planilha || campo.coluna}</span>
-                      {campo.chave === "SIM" && (
-                        <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
-                      )}
-                    </label>
-                    <input
-                      className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                      value={form[campo.coluna] || ""}
-                      onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
-                      placeholder={`Informe ${campo.coluna}…`}
-                    />
-                  </div>
-                ))}
+                {editaveis.map((campo) => {
+                  const isBusinessCol = campo.coluna === "business_id" || campo.coluna === "business_id_area";
+                  if (isBusinessCol && !isConsolidated) {
+                    return (
+                      <div key={campo.coluna} className="space-y-1">
+                        <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                          <span>{campo.nome_na_planilha || campo.coluna}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold">(Empresa Ativa)</span>
+                        </label>
+                        <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/40 px-3 py-2 text-xs font-bold text-foreground">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: currentBusiness?.cor || "#007A3D" }} />
+                          <span className="truncate">{currentBusiness?.nome || currentBusinessId}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground font-mono">{currentBusinessId}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (isBusinessCol && isConsolidated) {
+                    return (
+                      <div key={campo.coluna} className="space-y-1">
+                        <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                          <span>{campo.nome_na_planilha || campo.coluna}</span>
+                          <span className="text-[10px] text-primary font-mono font-bold">EMPRESA</span>
+                        </label>
+                        <select
+                          className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                          value={form[campo.coluna] || selecionadas[0] || ""}
+                          onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
+                        >
+                          {empresas.map((emp) => (
+                            <option key={emp.id} value={emp.id}>{emp.nome} ({emp.id})</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={campo.coluna} className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                        <span>{campo.nome_na_planilha || campo.coluna}</span>
+                        {campo.chave === "SIM" && (
+                          <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
+                        )}
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                        value={form[campo.coluna] || ""}
+                        onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
+                        placeholder={`Informe ${campo.coluna}…`}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex justify-end gap-2.5 border-t border-border/40 pt-4">

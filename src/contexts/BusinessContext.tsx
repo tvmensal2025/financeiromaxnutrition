@@ -1,43 +1,104 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export type Empresa = {
-  id: string;
+  id: string; // chave canônica business_id: BIZ-001, BIZ-002, BIZ-003, etc.
+  business_id: string;
   nome: string;
+  negocio: string;
   sigla: string;
   cor: string;
+  estagio?: string;
+  principal_gargalo?: string;
+  ativo?: string;
+  publico?: string;
 };
 
 const CORES: Record<string, string> = {
   "BIZ-001": "#007A3D",
   "BIZ-002": "#2563EB",
   "BIZ-003": "#B45309",
+  "GRUPO": "#4F46E5",
 };
 
-const CORES_EXTRA = ["#0F766E", "#7C3AED", "#BE123C", "#0369A1"];
-const CHAVE = "helena_empresas_ligadas";
+const CORES_EXTRA = ["#0F766E", "#7C3AED", "#BE123C", "#0369A1", "#D97706"];
+const CHAVE_STORAGE = "helena_active_business_id";
+const CHAVE_LEGADA = "helena_empresas_ligadas";
 
-const TABELAS_COM_EMPRESA: Array<[string, string]> = [
-  ["ideias", "business_id"],
-  ["crm", "business_id"],
-  ["financeiro", "business_id"],
-  ["clientes", "business_id"],
-  ["contratos", "business_id"],
+export const TABELAS_COM_BUSINESS_ID: Array<[string, string]> = [
+  ["atendimento", "business_id"],
+  ["ativos", "business_id"],
+  ["automacoes", "business_id"],
   ["calendario", "business_id"],
+  ["clientes", "business_id"],
+  ["comunicacoes", "business_id"],
+  ["consentimentos", "business_id"],
+  ["contas_financeiras", "business_id"],
+  ["contratos", "business_id"],
+  ["crm", "business_id"],
+  ["decisoes", "business_id"],
+  ["documentos", "business_id"],
+  ["dre_mensal", "business_id"],
+  ["financeiro", "business_id"],
+  ["fluxo_caixa", "business_id"],
+  ["fornecedores", "business_id"],
+  ["ideias", "business_id"],
+  ["incidentes", "business_id"],
+  ["integracoes", "business_id"],
+  ["marcos", "business_id"],
+  ["marketing", "business_id"],
+  ["metas_kpis", "business_id"],
+  ["obrigacoes", "business_id"],
+  ["orcamento", "business_id"],
+  ["portfolio", "business_id"],
+  ["processos", "business_id"],
+  ["produto", "business_id"],
+  ["projetos", "business_id"],
+  ["recorrencias", "business_id"],
+  ["riscos", "business_id"],
+  ["sync_log", "business_id"],
   ["tarefas", "business_id"],
   ["memoria_mestre", "business_id_area"],
-  ["atendimento", "business_id"],
-  ["marketing", "business_id"],
-  ["recorrencias", "business_id"],
   ["handoffs", "business_id"],
-  ["projetos", "business_id"],
-  ["contas_financeiras", "business_id"],
+];
+
+export const EMPRESAS_BASE: Empresa[] = [
+  {
+    id: "BIZ-001",
+    business_id: "BIZ-001",
+    nome: "iGreen Energy",
+    negocio: "iGreen Energy",
+    sigla: "iGreen",
+    cor: "#007A3D",
+    estagio: "VENDAS",
+    principal_gargalo: "Comercial / conseguir clientes.",
+  },
+  {
+    id: "BIZ-002",
+    business_id: "BIZ-002",
+    nome: "Ecossistema de Saúde",
+    negocio: "Ecossistema de Saúde",
+    sigla: "Saúde & Nutrição",
+    cor: "#2563EB",
+    estagio: "PRODUTO",
+    principal_gargalo: "Escopo amplo ainda não consolidado.",
+  },
+  {
+    id: "BIZ-003",
+    business_id: "BIZ-003",
+    nome: "Humano Digital",
+    negocio: "Humano Digital",
+    sigla: "Humano Digital",
+    cor: "#B45309",
+    estagio: "VALIDAÇÃO",
+    principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
+  },
 ];
 
 function siglaDe(nome: string) {
   const texto = nome.trim();
-  if (/igreen/i.test(texto)) return "iGreen Energy";
-  if (/sa[uú]de|max|nutrition|refit/i.test(texto)) return "Max Nutrition & Refit";
+  if (/igreen/i.test(texto)) return "iGreen";
+  if (/sa[uú]de|max|nutrition|refit/i.test(texto)) return "Saúde & Nutrição";
   if (/humano/i.test(texto)) return "Humano Digital";
   if (texto.length <= 25) return texto;
   return `${texto.slice(0, 22)}…`;
@@ -47,32 +108,23 @@ function corDe(id: string, indice: number) {
   return CORES[id] || CORES_EXTRA[indice % CORES_EXTRA.length];
 }
 
-function rotuloDe(empresas: Empresa[], selecionadas: string[]) {
-  const nomes = empresas.filter((empresa) => selecionadas.includes(empresa.id)).map((empresa) => empresa.sigla);
-  if (nomes.length === 0) return "Nenhuma empresa";
-  if (nomes.length === empresas.length && empresas.length > 1) return "Todas as empresas";
-  if (nomes.length === 1) return nomes[0];
-  if (nomes.length === 2) return `${nomes[0]} e ${nomes[1]}`;
-  return `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
-}
+export type BusinessContextType = {
+  // Canônico conforme especificação Helena
+  currentBusiness: Empresa | null;
+  currentBusinessId: string;
+  businesses: Empresa[];
+  empresas: Empresa[]; // alias retrocompatível
+  setCurrentBusiness: (businessId: string) => void;
+  selecionarEmpresa: (businessId: string) => void; // alias
+  loading: boolean;
+  carregandoEmpresas: boolean; // alias retrocompatível
+  error: string | null;
+  isConsolidated: boolean;
 
-function lerSalvas(ids: string[]) {
-  try {
-    const bruto = JSON.parse(localStorage.getItem(CHAVE) || "null");
-    if (!Array.isArray(bruto)) return ids;
-    const validas = bruto.filter((id) => ids.includes(String(id)));
-    return validas.length ? validas : ids;
-  } catch {
-    return ids;
-  }
-}
-
-type Contexto = {
-  empresas: Empresa[];
+  // Propriedades retrocompatíveis para componentes existentes
   selecionadas: string[];
   todasLigadas: boolean;
   rotulo: string;
-  carregandoEmpresas: boolean;
   alternar: (id: string) => void;
   ligarTodas: () => void;
   incluirEmpresa: (nome: string) => Promise<string>;
@@ -81,75 +133,156 @@ type Contexto = {
   nomeDe: (id?: string | null) => string;
 };
 
-const BusinessContext = createContext<Contexto | undefined>(undefined);
+const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>(EMPRESAS_BASE);
+  const [currentBusinessId, setCurrentBusinessIdState] = useState<string>("BIZ-001");
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const gravar = (ids: string[]) => {
-    setSelecionadas(ids);
-    localStorage.setItem(CHAVE, JSON.stringify(ids));
+  // Valida o id salvo no localStorage contra a lista permitida
+  const validarSalva = (idCandidato: string | null, lista: Empresa[]): string => {
+    if (!idCandidato) return lista[0]?.id || "BIZ-001";
+    if (idCandidato === "GRUPO") return "GRUPO";
+    const existe = lista.some((e) => e.id === idCandidato || e.business_id === idCandidato);
+    return existe ? idCandidato : (lista[0]?.id || "BIZ-001");
   };
 
-const EMPRESAS_BASE: Empresa[] = [
-  { id: "BIZ-001", nome: "iGreen Energy", sigla: "iGreen Energy", cor: "#007A3D" },
-  { id: "BIZ-002", nome: "Max Nutrition & Refit", sigla: "Max Nutrition & Refit", cor: "#2563EB" },
-  { id: "BIZ-003", nome: "Humano Digital", sigla: "Humano Digital", cor: "#B45309" },
-];
+  const carregarEmpresas = async (selecionarAposCarga?: string) => {
+    setCarregandoEmpresas(true);
+    setError(null);
 
-  const carregar = async (ligarId?: string) => {
-    const { data, error } = await supabase
-      .from("portfolio")
-      .select("business_id,negocio")
-      .order("business_id");
-    if (error) {
+    try {
+      const { data, error: err } = await supabase
+        .from("portfolio")
+        .select("business_id,negocio,estagio,principal_gargalo,ativo,publico")
+        .order("business_id");
+
+      let listaMapeada: Empresa[] = [];
+
+      if (!err && data && data.length > 0) {
+        listaMapeada = (data as Array<{
+          business_id: string;
+          negocio: string | null;
+          estagio?: string | null;
+          principal_gargalo?: string | null;
+          ativo?: string | null;
+          publico?: string | null;
+        }>)
+          .filter((item) => item.business_id && item.business_id !== "GRUPO")
+          .map((item, indice) => ({
+            id: item.business_id,
+            business_id: item.business_id,
+            nome: (item.negocio || item.business_id).trim(),
+            negocio: (item.negocio || item.business_id).trim(),
+            sigla: siglaDe(item.negocio || item.business_id),
+            cor: corDe(item.business_id, indice),
+            estagio: item.estagio || undefined,
+            principal_gargalo: item.principal_gargalo || undefined,
+            ativo: item.ativo || undefined,
+            publico: item.publico || undefined,
+          }));
+      }
+
+      // Se banco não tiver ou deu erro de permissão (modo anon), usa EMPRESAS_BASE
+      const listaFinal = listaMapeada.length ? listaMapeada : EMPRESAS_BASE;
+      setEmpresas(listaFinal);
+
+      // Recuperar última empresa selecionada válida
+      let idInicial: string | null = selecionarAposCarga || null;
+      if (!idInicial) {
+        try {
+          idInicial = localStorage.getItem(CHAVE_STORAGE);
+          if (!idInicial) {
+            // Tenta migrar do formato antigo se existir
+            const antigo = JSON.parse(localStorage.getItem(CHAVE_LEGADA) || "null");
+            if (Array.isArray(antigo) && antigo.length === 1) {
+              idInicial = antigo[0];
+            } else if (Array.isArray(antigo) && antigo.length > 1) {
+              idInicial = "GRUPO";
+            }
+          }
+        } catch {
+          idInicial = null;
+        }
+      }
+
+      const idValidado = validarSalva(idInicial, listaFinal);
+      setCurrentBusinessIdState(idValidado);
+      localStorage.setItem(CHAVE_STORAGE, idValidado);
+    } catch (e: any) {
+      setError(e?.message || "Erro ao carregar empresas");
       setEmpresas(EMPRESAS_BASE);
-      const ids = EMPRESAS_BASE.map((item) => item.id);
-      setSelecionadas((atual) => (atual.length ? atual : ids));
+      setCurrentBusinessIdState("BIZ-001");
+    } finally {
       setCarregandoEmpresas(false);
-      return;
     }
-    const lista = ((data || []) as Array<{ business_id: string; negocio: string | null }>)
-      .filter((item) => item.business_id && item.business_id !== "GRUPO")
-      .map((item, indice) => ({
-        id: item.business_id,
-        nome: (item.negocio || item.business_id).trim(),
-        sigla: siglaDe(item.negocio || item.business_id),
-        cor: corDe(item.business_id, indice),
-      }));
-    const listaFinal = lista.length ? lista : EMPRESAS_BASE;
-    setEmpresas(listaFinal);
-    const ids = listaFinal.map((item) => item.id);
-    setSelecionadas((atual) => {
-      const base = atual.length ? atual.filter((item) => ids.includes(item)) : lerSalvas(ids);
-      const comNova = ligarId && ids.includes(ligarId) && !base.includes(ligarId) ? [...base, ligarId] : base;
-      const proximas = comNova.length ? comNova : ids;
-      localStorage.setItem(CHAVE, JSON.stringify(proximas));
-      return proximas;
-    });
-    setCarregandoEmpresas(false);
   };
 
   useEffect(() => {
-    carregar();
+    carregarEmpresas();
   }, []);
 
-  const todasLigadas = empresas.length > 0 && selecionadas.length === empresas.length;
-  const rotulo = rotuloDe(empresas, selecionadas);
-
-  const alternar = (id: string) => {
-    if (!empresas.some((empresa) => empresa.id === id)) return;
-    if (selecionadas.includes(id)) {
-      if (selecionadas.length === 1) return;
-      gravar(selecionadas.filter((item) => item !== id));
-      return;
+  const setCurrentBusiness = (id: string) => {
+    const idValidado = validarSalva(id, empresas);
+    setCurrentBusinessIdState(idValidado);
+    try {
+      localStorage.setItem(CHAVE_STORAGE, idValidado);
+      // Mantém retrocompatibilidade para componentes que leiam CHAVE_LEGADA
+      if (idValidado === "GRUPO") {
+        localStorage.setItem(CHAVE_LEGADA, JSON.stringify(empresas.map((e) => e.id)));
+      } else {
+        localStorage.setItem(CHAVE_LEGADA, JSON.stringify([idValidado]));
+      }
+    } catch {
+      // Ignora erro de storage restrito
     }
-    gravar([...selecionadas, id]);
   };
 
-  const ligarTodas = () => gravar(empresas.map((empresa) => empresa.id));
+  const isConsolidated = currentBusinessId === "GRUPO";
+  const todasLigadas = isConsolidated;
+
+  const currentBusiness = useMemo(() => {
+    if (isConsolidated) {
+      return {
+        id: "GRUPO",
+        business_id: "GRUPO",
+        nome: "Todas as Empresas (Grupo)",
+        negocio: "Todas as Empresas (Grupo)",
+        sigla: "Grupo Consolidado",
+        cor: "#4F46E5",
+        estagio: "CONSOLIDADO",
+        principal_gargalo: "Alinhamento e sinergia entre operações",
+      };
+    }
+    return empresas.find((e) => e.id === currentBusinessId) || empresas[0] || null;
+  }, [currentBusinessId, empresas, isConsolidated]);
+
+  const selecionadas = useMemo(() => {
+    if (isConsolidated) {
+      return empresas.map((e) => e.id);
+    }
+    return [currentBusinessId];
+  }, [isConsolidated, currentBusinessId, empresas]);
+
+  const rotulo = useMemo(() => {
+    if (isConsolidated) return "Todas as empresas (Grupo)";
+    return currentBusiness?.sigla || currentBusiness?.nome || "Empresa selecionada";
+  }, [isConsolidated, currentBusiness]);
+
+  const alternar = (id: string) => {
+    // Ao alternar em modelo multiempresa, define a empresa clicada como ativa
+    if (currentBusinessId === id) {
+      // Já está selecionada, não faz nada
+      return;
+    }
+    setCurrentBusiness(id);
+  };
+
+  const ligarTodas = () => {
+    setCurrentBusiness("GRUPO");
+  };
 
   const incluirEmpresa = async (nome: string) => {
     const negocio = nome.trim();
@@ -159,41 +292,41 @@ const EMPRESAS_BASE: Empresa[] = [
       .filter((numero) => Number.isFinite(numero) && numero > 0);
     const proximo = Math.max(0, ...numeros) + 1;
     const id = `BIZ-${String(proximo).padStart(3, "0")}`;
-    const { error } = await supabase.from("portfolio").insert({
+    const { error: insertError } = await supabase.from("portfolio").insert({
       business_id: id,
       negocio,
-      estagio: "DADO A COLETAR",
+      estagio: "VALIDAÇÃO",
       source_system: "HELENA",
     });
-    if (error) return error.message;
-    await carregar(id);
+    if (insertError) return insertError.message;
+    await carregarEmpresas(id);
     return "";
   };
 
   const tirarEmpresa = async (id: string) => {
     if (empresas.length <= 1) return "Deixe ao menos uma empresa no cadastro.";
-    for (const [tabela, coluna] of TABELAS_COM_EMPRESA) {
-      const { count, error } = await supabase
+    for (const [tabela, coluna] of TABELAS_COM_BUSINESS_ID) {
+      const { count, error: countErr } = await supabase
         .from(tabela)
         .select(coluna, { count: "exact", head: true })
         .eq(coluna, id);
-      if (error) continue;
+      if (countErr) continue;
       if ((count || 0) > 0) {
-        return "Esta empresa já tem registros. Ela sai da visão se você desligar o botão, e o cadastro fica.";
+        return "Esta empresa já possui registros associados. Exclusão bloqueada para proteção de dados.";
       }
     }
-    const { error } = await supabase.from("portfolio").delete().eq("business_id", id);
-    if (error) return error.message;
+    const { error: delErr } = await supabase.from("portfolio").delete().eq("business_id", id);
+    if (delErr) return delErr.message;
     const restantes = empresas.filter((empresa) => empresa.id !== id).map((empresa) => empresa.id);
-    const proximas = selecionadas.filter((item) => item !== id);
-    gravar(proximas.length ? proximas : restantes.slice(0, 1));
-    await carregar();
+    setCurrentBusiness(restantes[0] || "BIZ-001");
+    await carregarEmpresas();
     return "";
   };
 
   const pertence = (businessId?: string | null) => {
-    if (!businessId || businessId === "GRUPO") return todasLigadas;
-    return selecionadas.includes(businessId);
+    if (!businessId || businessId === "GRUPO") return isConsolidated;
+    if (isConsolidated) return true;
+    return businessId === currentBusinessId;
   };
 
   const nomeDe = (id?: string | null) => {
@@ -201,7 +334,7 @@ const EMPRESAS_BASE: Empresa[] = [
     const encontrada = empresas.find((empresa) => empresa.id === id);
     if (encontrada) return encontrada.sigla || encontrada.nome;
     if (id === "BIZ-001") return "iGreen Energy";
-    if (id === "BIZ-002") return "Max Nutrition & Refit";
+    if (id === "BIZ-002") return "Ecossistema de Saúde";
     if (id === "BIZ-003") return "Humano Digital";
     return id || "Geral";
   };
@@ -209,11 +342,19 @@ const EMPRESAS_BASE: Empresa[] = [
   return (
     <BusinessContext.Provider
       value={{
+        currentBusiness,
+        currentBusinessId,
+        businesses: empresas,
         empresas,
+        setCurrentBusiness,
+        selecionarEmpresa: setCurrentBusiness,
+        loading: carregandoEmpresas,
+        carregandoEmpresas,
+        error,
+        isConsolidated,
         selecionadas,
         todasLigadas,
         rotulo,
-        carregandoEmpresas,
         alternar,
         ligarTodas,
         incluirEmpresa,
