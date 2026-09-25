@@ -5,7 +5,7 @@
  */
 
 const LAYA_BASE_URL = (process.env.LAYA_BASE_URL || 'https://helena-automation-laya-service.d9v63q.easypanel.host').replace(/\/$/, '');
-const LAYA_API_KEY = process.env.LAYA_API_KEY || '';
+const LAYA_API_KEY = process.env.LAYA_API_KEY || process.env.LAYA_KEY || process.env.X_API_KEY || '';
 
 function getLayaHeaders() {
   const headers = {

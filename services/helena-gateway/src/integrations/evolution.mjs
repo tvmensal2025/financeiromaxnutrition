@@ -3,9 +3,13 @@
  * Cliente seguro para comunicação com a Evolution API (WhatsApp Mensagens)
  */
 
-const EVOLUTION_BASE_URL = (process.env.EVOLUTION_BASE_URL || '').replace(/\/$/, '');
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || '';
+const EVOLUTION_BASE_URL = (
+  process.env.EVOLUTION_BASE_URL ||
+  process.env.EVOLUTION_URL ||
+  'https://helena-automation-evolution-api.d9v63q.easypanel.host'
+).replace(/\/$/, '');
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY || '';
+const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || process.env.EVOLUTION_INSTANCE_NAME || 'helena_messages';
 
 /**
  * Retorna true se as credenciais mínimas da Evolution estiverem preenchidas
