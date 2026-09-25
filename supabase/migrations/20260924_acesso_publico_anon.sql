@@ -1,0 +1,33 @@
+-- Script para liberar acesso público (sem login/senha) no Supabase
+-- Caso deseje que o painel funcione 100% público sem exigir login, execute este script no SQL Editor do Supabase:
+
+-- 1. Permite que a role 'anon' (não autenticada) acesse o schema public
+GRANT USAGE ON SCHEMA public TO anon;
+
+-- 2. Concede permissão de SELECT, INSERT, UPDATE, DELETE para 'anon' em todas as tabelas
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon;
+
+-- 3. Desativa RLS para acesso público direto nas tabelas operacionais do ecossistema
+ALTER TABLE IF EXISTS public.foco_executivo DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.portfolio DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.ideias DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.crm DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.financeiro DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.contas_financeiras DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.calendario DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.tarefas DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.clientes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.contratos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.memoria_mestre DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.atendimento DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.marketing DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recorrencias DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.handoffs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.projetos DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.fluxo_caixa DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.integracoes DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.automacoes DISABLE ROW LEVEL SECURITY;
