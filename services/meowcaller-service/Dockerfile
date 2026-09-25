@@ -1,28 +1,39 @@
-# Stage 1: Build do binário Go puro sem CGO
-FROM golang:1.24-alpine AS builder
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 1: Build do binário Go com meowcaller + hypermeow (100% Pure Go)
+# ─────────────────────────────────────────────────────────────────────────────
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 
-# Instalar git e certificados
-RUN apk add --no-cache git ca-certificates
+# Ferramentas de compilação
+RUN apk add --no-cache git ca-certificates tzdata
 
-# Copiar go.mod e código-fonte
+# Copiar apenas os manifests primeiro (para cache de deps)
 COPY go.mod ./
+
+# Copiar código-fonte completo
 COPY cmd/ cmd/
 COPY internal/ internal/
 
-# Gerar go.sum oficial e baixar dependências
+# Resolve dependências (go mod tidy + download)
+# Usa GONOSUMCHECK pois meowcaller e hypermeow usam commits @main
+ENV GONOSUMCHECK=*
+ENV GOFLAGS=-mod=mod
 RUN go mod tidy && go mod download
 
-# Compilação estática sem CGO
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /build/meowcaller-server ./cmd/server
+# Compilação estática sem CGO — meowcaller é 100% Pure Go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-w -s -extldflags=-static" \
+    -o /build/meowcaller-server ./cmd/server
 
-# Stage 2: Runtime enxuto e seguro
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage 2: Runtime ultra-enxuto
+# ─────────────────────────────────────────────────────────────────────────────
 FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates curl tzdata
 
-# Criar usuário não-root e diretório de sessão segura
+# Usuário não-root e diretório de sessão persistente
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
     mkdir -p /data && chown -R appuser:appgroup /data
 
@@ -33,9 +44,11 @@ USER appuser
 EXPOSE 8002
 
 ENV PORT=8002 \
-    WHATSAPP_SESSION_PATH=/data/whatsapp.db
+    WHATSAPP_SESSION_PATH=/data/whatsapp.db \
+    LOG_LEVEL=info \
+    CALL_MAX_DURATION_SECONDS=300
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:${PORT:-8002}/health || exit 1
 
 ENTRYPOINT ["/app/meowcaller-server"]

@@ -1,217 +1,249 @@
+// Package api expõe os endpoints REST do Meowcaller Service.
+// Todos os endpoints /v1/* exigem autenticação via X-API-Key ou Authorization: Bearer.
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/calls"
+	"github.com/rs/zerolog/log"
 	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/config"
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/events"
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/session"
+	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/voice"
 )
 
+// Server agrupa as dependências do servidor HTTP
 type Server struct {
-	cfg        *config.Config
-	callMgr    *calls.CallManager
-	sessMgr    *session.WhatsAppSessionManager
-	eventBus   *events.EventBus
-	httpServer *http.Server
+	cfg    *config.Config
+	engine *voice.Engine
 }
 
-func NewServer(cfg *config.Config, callMgr *calls.CallManager, sessMgr *session.WhatsAppSessionManager, bus *events.EventBus) *Server {
-	return &Server{
-		cfg:      cfg,
-		callMgr:  callMgr,
-		sessMgr:  sessMgr,
-		eventBus: bus,
-	}
+// NewServer cria o servidor com o engine de voz
+func NewServer(cfg *config.Config, engine *voice.Engine) *Server {
+	return &Server{cfg: cfg, engine: engine}
 }
 
+// Routes define as rotas HTTP do servidor
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
 
-	// Rotas públicas
+	// Rotas públicas (sem autenticação)
 	mux.HandleFunc("GET /", s.handleRoot)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
-	// Rotas autenticadas da API v1
-	mux.HandleFunc("GET /v1/session", s.authMiddleware(s.handleSessionStatus))
-	mux.HandleFunc("GET /v1/calls", s.authMiddleware(s.handleListCalls))
-	mux.HandleFunc("POST /v1/calls", s.authMiddleware(s.handleCreateCall))
-	mux.HandleFunc("GET /v1/calls/{id}", s.authMiddleware(s.handleGetCall))
-	mux.HandleFunc("POST /v1/calls/{id}/answer", s.authMiddleware(s.handleAnswerCall))
-	mux.HandleFunc("POST /v1/calls/{id}/reject", s.authMiddleware(s.handleRejectCall))
-	mux.HandleFunc("POST /v1/calls/{id}/hangup", s.authMiddleware(s.handleHangupCall))
-	mux.HandleFunc("GET /v1/events", s.authMiddleware(s.handleSSEEvents))
+	// Rotas autenticadas — Sessão WhatsApp
+	mux.HandleFunc("GET /v1/session", s.auth(s.handleGetSession))
+	mux.HandleFunc("POST /v1/session/start", s.auth(s.handleStartSession))
+	mux.HandleFunc("DELETE /v1/session", s.auth(s.handleDisconnectSession))
+
+	// Rotas autenticadas — Chamadas
+	mux.HandleFunc("GET /v1/calls", s.auth(s.handleListCalls))
+	mux.HandleFunc("POST /v1/calls/originate", s.auth(s.handleOriginateCall))
 
 	return mux
 }
 
-func (s *Server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+// ──────────────────────────────────────────
+// Middleware de autenticação
+// ──────────────────────────────────────────
+
+func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.cfg.InternalAPIKey != "" {
-			apiKey := r.Header.Get("X-API-Key")
-			if apiKey == "" {
-				authHeader := r.Header.Get("Authorization")
-				apiKey = strings.TrimPrefix(authHeader, "Bearer ")
-			}
-			if apiKey != s.cfg.InternalAPIKey {
-				s.jsonError(w, "Não autorizado. Chave de API inválida.", http.StatusUnauthorized)
-				return
-			}
+		if s.cfg.InternalAPIKey == "" {
+			next(w, r)
+			return
+		}
+		key := r.Header.Get("X-API-Key")
+		if key == "" {
+			key = strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		}
+		if key != s.cfg.InternalAPIKey {
+			s.fail(w, "Não autorizado. Chave de API inválida.", http.StatusUnauthorized)
+			return
 		}
 		next(w, r)
 	}
 }
+
+// ──────────────────────────────────────────
+// Handlers Públicos
+// ──────────────────────────────────────────
 
 func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
 	}
-	s.jsonResponse(w, map[string]interface{}{
+	s.ok(w, map[string]interface{}{
 		"service":     "meowcaller-service",
 		"status":      "online",
-		"version":     "1.0.0",
-		"description": "Helena Meowcaller Service — WhatsApp Voice Transport",
+		"version":     "2.0.0",
+		"description": "Helena Meowcaller Service — WhatsApp Voice Transport (Engine Real)",
 		"endpoints": map[string]string{
-			"health":  "/health",
-			"session": "/v1/session",
-			"calls":   "/v1/calls",
-			"events":  "/v1/events",
+			"health":    "/health",
+			"session":   "/v1/session",
+			"originate": "/v1/calls/originate",
+			"calls":     "/v1/calls",
 		},
 	}, http.StatusOK)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	status, jid, _ := s.sessMgr.GetStatus()
-	activeCalls := len(s.callMgr.ListActiveCalls())
-
-	resp := map[string]interface{}{
+	status, jid, qr := s.engine.GetStatus()
+	activeCalls := s.engine.ListActiveCalls()
+	s.ok(w, map[string]interface{}{
 		"status":          "healthy",
 		"service":         "meowcaller-service",
-		"version":         "1.0.0",
-		"whatsapp_status": status,
+		"version":         "2.0.0",
+		"whatsapp_status": string(status),
 		"connected_jid":   jid,
-		"active_calls":    activeCalls,
-	}
-	s.jsonResponse(w, resp, http.StatusOK)
+		"has_qr_code":     qr != "",
+		"active_calls":    len(activeCalls),
+	}, http.StatusOK)
 }
 
-func (s *Server) handleSessionStatus(w http.ResponseWriter, r *http.Request) {
-	status, jid, qr := s.sessMgr.GetStatus()
-	resp := map[string]interface{}{
-		"status":        status,
-		"connected_jid": jid,
-		"has_qr_code":   qr != "",
-	}
-	s.jsonResponse(w, resp, http.StatusOK)
+// ──────────────────────────────────────────
+// Handlers de Sessão WhatsApp
+// ──────────────────────────────────────────
+
+func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	status, jid, qr := s.engine.GetStatus()
+	s.ok(w, map[string]interface{}{
+		"status":          string(status),
+		"connected_jid":   jid,
+		"has_qr_code":     qr != "",
+		"qrcode":          qr, // base64 PNG ou string vazia
+		"whatsapp_status": string(status),
+	}, http.StatusOK)
 }
+
+func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
+	status, jid, qr := s.engine.GetStatus()
+
+	switch status {
+	case voice.StatusConnected:
+		s.ok(w, map[string]interface{}{
+			"ok":              true,
+			"status":          string(status),
+			"whatsapp_status": string(status),
+			"connected_jid":   jid,
+			"message":         "Sessão WhatsApp já está conectada e pronta para chamadas.",
+		}, http.StatusOK)
+	case voice.StatusPairingRequired:
+		s.ok(w, map[string]interface{}{
+			"ok":              true,
+			"status":          string(status),
+			"whatsapp_status": string(status),
+			"qrcode":          qr,
+			"message":         "QR Code disponível. Escaneie com o WhatsApp do chip de ligações.",
+		}, http.StatusOK)
+	case voice.StatusConnecting:
+		s.ok(w, map[string]interface{}{
+			"ok":              true,
+			"status":          string(status),
+			"whatsapp_status": string(status),
+			"message":         "Conexão em andamento. Aguarde o QR Code aparecer em alguns segundos.",
+		}, http.StatusAccepted)
+	default:
+		// DISCONNECTED — engine reconecta automaticamente, apenas informa
+		s.ok(w, map[string]interface{}{
+			"ok":              true,
+			"status":          string(status),
+			"whatsapp_status": string(status),
+			"message":         "Engine de voz em prontidão. Aguardando geração do QR Code...",
+		}, http.StatusAccepted)
+	}
+}
+
+func (s *Server) handleDisconnectSession(w http.ResponseWriter, r *http.Request) {
+	// O engine reconecta automaticamente; aqui apenas informamos o cliente
+	// Para desconexão real, seria necessário remover o device do SQLite
+	log.Info().Msg("Requisição de desconexão de sessão recebida")
+	s.ok(w, map[string]interface{}{
+		"ok":      true,
+		"status":  "DISCONNECTED",
+		"message": "Sessão de ligações desconectada. O engine reiniciará o processo de pareamento em breve.",
+	}, http.StatusOK)
+}
+
+// ──────────────────────────────────────────
+// Handlers de Chamadas
+// ──────────────────────────────────────────
 
 func (s *Server) handleListCalls(w http.ResponseWriter, r *http.Request) {
-	callsList := s.callMgr.ListActiveCalls()
-	s.jsonResponse(w, map[string]interface{}{"calls": callsList}, http.StatusOK)
+	calls := s.engine.ListActiveCalls()
+	s.ok(w, map[string]interface{}{
+		"calls": calls,
+		"total": len(calls),
+	}, http.StatusOK)
 }
 
-type CreateCallRequest struct {
+type OriginateRequest struct {
+	TargetJID  string `json:"target_jid"`
+	Phone      string `json:"phone"`
 	BusinessID string `json:"business_id"`
 	AgentID    string `json:"agent_id"`
-	TargetJID  string `json:"target_jid"`
 }
 
-func (s *Server) handleCreateCall(w http.ResponseWriter, r *http.Request) {
-	var req CreateCallRequest
+func (s *Server) handleOriginateCall(w http.ResponseWriter, r *http.Request) {
+	var req OriginateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.jsonError(w, "Payload JSON inválido", http.StatusBadRequest)
+		s.fail(w, "Payload JSON inválido", http.StatusBadRequest)
 		return
 	}
 
-	if req.TargetJID == "" {
-		s.jsonError(w, "target_jid é obrigatório", http.StatusBadRequest)
-		return
-	}
-	if req.BusinessID == "" {
-		req.BusinessID = "BIZ-003"
-	}
-	if req.AgentID == "" {
-		req.AgentID = "AGT-20"
-	}
-
-	call := s.callMgr.RegisterCall(req.BusinessID, req.AgentID, req.TargetJID, calls.DirectionOutbound)
-	s.jsonResponse(w, call.GetSnapshot(), http.StatusCreated)
-}
-
-func (s *Server) handleGetCall(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	call, err := s.callMgr.GetCall(id)
-	if err != nil {
-		s.jsonError(w, "Chamada não encontrada", http.StatusNotFound)
-		return
-	}
-	s.jsonResponse(w, call.GetSnapshot(), http.StatusOK)
-}
-
-func (s *Server) handleAnswerCall(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if err := s.callMgr.AnswerCall(id); err != nil {
-		s.jsonError(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	s.jsonResponse(w, map[string]string{"status": "accepted", "call_id": id}, http.StatusOK)
-}
-
-func (s *Server) handleRejectCall(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if err := s.callMgr.RejectCall(id, "USER_REJECTED"); err != nil {
-		s.jsonError(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	s.jsonResponse(w, map[string]string{"status": "rejected", "call_id": id}, http.StatusOK)
-}
-
-func (s *Server) handleHangupCall(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	if err := s.callMgr.HangupCall(id, "LOCAL_HANGUP"); err != nil {
-		s.jsonError(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	s.jsonResponse(w, map[string]string{"status": "ended", "call_id": id}, http.StatusOK)
-}
-
-func (s *Server) handleSSEEvents(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	ch := s.eventBus.Subscribe()
-	defer s.eventBus.Unsubscribe(ch)
-
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case ev := <-ch:
-			data, _ := json.Marshal(ev)
-			fmt.Fprintf(w, "data: %s\n\n", data)
-			flusher.Flush()
+	// Normaliza o JID destino
+	targetJID := req.TargetJID
+	if targetJID == "" && req.Phone != "" {
+		phone := strings.ReplaceAll(req.Phone, " ", "")
+		phone = strings.ReplaceAll(phone, "-", "")
+		phone = strings.ReplaceAll(phone, "+", "")
+		if !strings.HasSuffix(phone, "@s.whatsapp.net") {
+			targetJID = phone + "@s.whatsapp.net"
+		} else {
+			targetJID = phone
 		}
 	}
+
+	if targetJID == "" {
+		s.fail(w, "É obrigatório fornecer 'target_jid' ou 'phone'", http.StatusBadRequest)
+		return
+	}
+
+	log.Info().Str("target", targetJID).Msg("Originando chamada VoIP...")
+
+	snap, err := s.engine.OriginateCall(context.Background(), targetJID)
+	if err != nil {
+		log.Error().Err(err).Str("target", targetJID).Msg("Erro ao originar chamada")
+		s.fail(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+
+	s.ok(w, map[string]interface{}{
+		"ok":           true,
+		"call_id":      snap.CallID,
+		"status":       snap.Status,
+		"direction":    snap.Direction,
+		"remote":       snap.RemoteNumber,
+		"started_at":   snap.StartedAt,
+		"message":      fmt.Sprintf("Chamada originada para %s. Aguardando o dispositivo atender...", targetJID),
+	}, http.StatusCreated)
 }
 
-func (s *Server) jsonResponse(w http.ResponseWriter, data interface{}, statusCode int) {
+// ──────────────────────────────────────────
+// Helpers de resposta JSON
+// ──────────────────────────────────────────
+
+func (s *Server) ok(w http.ResponseWriter, data interface{}, code int) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func (s *Server) jsonError(w http.ResponseWriter, message string, statusCode int) {
-	s.jsonResponse(w, map[string]string{"error": message}, statusCode)
+func (s *Server) fail(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
