@@ -162,8 +162,19 @@ try {
   assert.strictEqual(bodyHealth.mcp, true, 'MCP deve estar ativo');
   console.log('OK: /health validando conectividade do JWKS OAuth com sucesso.');
 
+  console.log('--- TESTE 10: GET /api/integrations/status (Central de Integrações) ---');
+  const resIntStatus = await fetch(`http://127.0.0.1:${PORT}/api/integrations/status`);
+  const bodyIntStatus = await resIntStatus.json();
+  assert.strictEqual(bodyIntStatus.ok, true, 'Integrations status deve retornar ok: true');
+  assert.ok(bodyIntStatus.gateway, 'Deve conter status do gateway');
+  assert.ok(bodyIntStatus.laya, 'Deve conter status da Laya');
+  assert.ok(bodyIntStatus.evolution, 'Deve conter status da Evolution');
+  assert.ok(bodyIntStatus.meowcaller, 'Deve conter status do Meowcaller');
+  assert.ok(bodyIntStatus.elevenlabs, 'Deve conter status da ElevenLabs');
+  console.log('OK: /api/integrations/status retornou status seguro dos 5 provedores.');
+
   console.log('\n========================================');
-  console.log('TODOS OS 9 TESTES OBRIGATÓRIOS PASSARAM!');
+  console.log('TODOS OS 10 TESTES OBRIGATÓRIOS PASSARAM!');
   console.log('========================================');
 } finally {
   server.close();

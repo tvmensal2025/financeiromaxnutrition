@@ -75,7 +75,7 @@ const BLOCO_GOVERNANCA: NavItemConfig[] = [
   { to: "/modulo/riscos", label: "Riscos", icon: Shield },
   { to: "/modulo/decisoes", label: "Decisões", icon: FileText },
   { to: "/modulo/governanca", label: "Governança", icon: Shield },
-  { to: "/modulo/integracoes", label: "Integrações", icon: Zap },
+  { to: "/integracoes", label: "Central de Integrações", icon: Zap },
 ];
 
 const BLOCO_ADMINISTRACAO: NavItemConfig[] = [
@@ -132,6 +132,7 @@ export function Layout() {
     if (pathname === "/financeiro") return `${empresaNome} / Financeiro`;
     if (pathname === "/calendario") return `${empresaNome} / Calendário`;
     if (pathname === "/sistema") return `Sistema Helena / Saúde do Sistema`;
+    if (pathname === "/integracoes" || pathname === "/central-integracoes") return `Sistema Helena / Central de Canais e Voz`;
 
     if (pathname.startsWith("/modulo/")) {
       const tabela = pathname.replace("/modulo/", "");
