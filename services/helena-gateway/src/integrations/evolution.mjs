@@ -11,11 +11,76 @@ const EVOLUTION_BASE_URL = (
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY || '';
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || process.env.EVOLUTION_INSTANCE_NAME || 'helena_messages';
 
+const WEBHOOK_SECRET_QUERY_PARAM = 'secret';
+const WEBHOOK_SECRET_HEADER = 'x-evolution-webhook-secret';
+
 /**
  * Retorna true se as credenciais mínimas da Evolution estiverem preenchidas
  */
 export function isEvolutionConfigured() {
   return Boolean(EVOLUTION_BASE_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE);
+}
+
+/**
+ * Segredo compartilhado do webhook (lido em tempo de chamada, nunca cacheado).
+ * Não logar o valor retornado.
+ */
+export function getEvolutionWebhookSecret() {
+  const raw = process.env.EVOLUTION_WEBHOOK_SECRET;
+  if (typeof raw !== 'string') return '';
+  return raw.trim();
+}
+
+export function isEvolutionWebhookSecretConfigured() {
+  return Boolean(getEvolutionWebhookSecret());
+}
+
+function redactWebhookUrl(targetUrl) {
+  if (typeof targetUrl !== 'string' || !targetUrl) return targetUrl;
+  try {
+    const url = new URL(targetUrl);
+    if (url.searchParams.has(WEBHOOK_SECRET_QUERY_PARAM)) {
+      url.searchParams.set(WEBHOOK_SECRET_QUERY_PARAM, '***');
+    }
+    return url.toString();
+  } catch {
+    return targetUrl.replace(new RegExp(`${WEBHOOK_SECRET_QUERY_PARAM}=[^&]*`, 'gi'), `${WEBHOOK_SECRET_QUERY_PARAM}=***`);
+  }
+}
+
+/**
+ * Monta a URL pública do webhook incluindo o segredo como query param.
+ * A Evolution API v2 dispara POST nessa URL completa; o query param funciona
+ * mesmo quando a instância não encaminha headers customizados.
+ */
+export function buildEvolutionWebhookUrl(customWebhookUrl) {
+  const host = process.env.PUBLIC_HOST || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
+  const targetUrl = customWebhookUrl || `https://${host}/webhooks/evolution`;
+  const secret = getEvolutionWebhookSecret();
+  if (!secret) {
+    return targetUrl;
+  }
+
+  try {
+    const url = new URL(targetUrl);
+    url.searchParams.set(WEBHOOK_SECRET_QUERY_PARAM, secret);
+    return url.toString();
+  } catch {
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    return `${targetUrl}${separator}${WEBHOOK_SECRET_QUERY_PARAM}=${encodeURIComponent(secret)}`;
+  }
+}
+
+/**
+ * Headers customizados suportados pelo webhook/set da Evolution API v2.
+ * Complementa o query param para o caso de a URL ser truncada ou reescrita.
+ */
+export function buildEvolutionWebhookHeaders() {
+  const secret = getEvolutionWebhookSecret();
+  if (!secret) return undefined;
+  return {
+    [WEBHOOK_SECRET_HEADER]: secret
+  };
 }
 
 function getHeaders() {
@@ -335,15 +400,25 @@ export function normalizeEvolutionWebhookEvent(body) {
 }
 
 /**
- * Configura o webhook na Evolution API v2 para a instância ativa
+ * Configura o webhook na Evolution API v2 para a instância ativa.
+ * Fail-closed: recusa registrar URL sem EVOLUTION_WEBHOOK_SECRET, para não
+ * deixar a Evolution apontando para um endpoint que o gateway rejeitaria.
+ *
+ * Entrega o segredo de duas formas (Evolution API v2):
+ * 1. query param `secret` na URL (compatível mesmo sem suporte a headers)
+ * 2. header `x-evolution-webhook-secret` no campo webhook.headers
  */
 export async function setEvolutionWebhook(customWebhookUrl) {
   if (!isEvolutionConfigured()) {
     throw new Error('Evolution API não configurada');
   }
 
-  const host = process.env.PUBLIC_HOST || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
-  const targetUrl = customWebhookUrl || `https://${host}/webhooks/evolution`;
+  if (!isEvolutionWebhookSecretConfigured()) {
+    throw new Error('EVOLUTION_WEBHOOK_SECRET não definido — recusando registrar webhook sem autenticação (fail-closed)');
+  }
+
+  const targetUrl = buildEvolutionWebhookUrl(customWebhookUrl);
+  const webhookHeaders = buildEvolutionWebhookHeaders();
 
   const payload = {
     webhook: {
@@ -351,6 +426,7 @@ export async function setEvolutionWebhook(customWebhookUrl) {
       url: targetUrl,
       byEvents: false,
       base64: false,
+      ...(webhookHeaders ? { headers: webhookHeaders } : {}),
       events: [
         'MESSAGES_UPSERT',
         'MESSAGES_UPDATE',
@@ -372,7 +448,16 @@ export async function setEvolutionWebhook(customWebhookUrl) {
     }
 
     const data = await res.json().catch(() => ({ ok: true }));
-    return { success: true, url: targetUrl, instance: EVOLUTION_INSTANCE, data };
+    return {
+      success: true,
+      url: redactWebhookUrl(targetUrl),
+      instance: EVOLUTION_INSTANCE,
+      secret_delivery: {
+        query_param: WEBHOOK_SECRET_QUERY_PARAM,
+        header: WEBHOOK_SECRET_HEADER
+      },
+      data
+    };
   } catch (err) {
     return { success: false, error: err.message };
   }
