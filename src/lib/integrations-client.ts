@@ -124,6 +124,19 @@ export interface AggregatedHealth {
     configured: boolean;
     reachable: boolean;
     voices_count: number;
+    is_official?: boolean;
+    status?: string;
+    error?: string;
+  };
+  kokoro?: {
+    configured: boolean;
+    is_official: boolean;
+    provider: string;
+    default_voice: string;
+    default_profile_id: string;
+    official_agent: string;
+    voices_count: number;
+    status: string;
     error?: string;
   };
 }
@@ -249,6 +262,70 @@ export async function fetchElevenLabsSignedUrl(agentId?: string) {
 }
 
 // ======================================================================
+// KOKORO NEURAL TTS (Motor Oficial de Voz do Sistema Helena)
+// ======================================================================
+
+export interface KokoroVoice {
+  voice_id: string;
+  profile_id?: string;
+  name: string;
+  gender: "male" | "female";
+  lang: string;
+  is_official?: boolean;
+  is_default?: boolean;
+  agent_id?: string;
+}
+
+export interface KokoroVoicesResponse {
+  configured: boolean;
+  is_official_engine: boolean;
+  provider: string;
+  baseUrl: string;
+  default_model: string;
+  default_voice_id: string;
+  default_profile_id: string;
+  official_voice: KokoroVoice;
+  voices_pt_br: KokoroVoice[];
+  voices_en: KokoroVoice[];
+}
+
+export async function fetchKokoroVoices() {
+  return gatewayFetch<{ ok: boolean; data: KokoroVoicesResponse }>("/api/integrations/kokoro/voices");
+}
+
+export async function testKokoroVoice(voiceId: string, text?: string) {
+  return gatewayFetch<{
+    ok: boolean;
+    sample: {
+      voice_id: string;
+      mime_type: string;
+      audio_base64: string;
+      duration_ms: number;
+      size_bytes: number;
+    };
+  }>("/api/integrations/kokoro/test-voice", {
+    method: "POST",
+    body: JSON.stringify({ voice_id: voiceId, text }),
+  });
+}
+
+export async function synthesizeVoiceSpeech(text: string, voiceId?: string) {
+  return gatewayFetch<{
+    ok: boolean;
+    engine: string;
+    official: boolean;
+    voice_id: string;
+    duration_ms: number;
+    size_bytes: number;
+    mime_type: string;
+    audio_base64: string;
+  }>("/api/integrations/voice/speak", {
+    method: "POST",
+    body: JSON.stringify({ text, voice_id: voiceId }),
+  });
+}
+
+// ======================================================================
 // LAYA SERVICE (Classificação, Score & Roteamento)
 // ======================================================================
 
@@ -362,3 +439,120 @@ export async function fetchCallSessions(limit = 20) {
   if (error) return [];
   return data || [];
 }
+
+export interface VoiceAgentConfig {
+  agent_name: string;
+  persona: string;
+  knowledge_base: string;
+  inbound_greeting: string;
+  outbound_greeting: string;
+  voice_profile_id?: string;
+  kokoro_voice?: string;
+  ai_provider?: string;
+  ai_model?: string;
+  ai_api_key?: string;
+  is_active: boolean;
+  updated_at?: string;
+}
+
+export async function fetchVoiceAgentSettings(): Promise<VoiceAgentConfig> {
+  const res = await gatewayFetch<{ ok: boolean; config: VoiceAgentConfig }>("/api/integrations/voice-agent/settings");
+  return res.config;
+}
+
+export async function updateVoiceAgentSettings(settings: Partial<VoiceAgentConfig>): Promise<VoiceAgentConfig> {
+  const res = await gatewayFetch<{ ok: boolean; result: { ok: boolean; config: VoiceAgentConfig } }>(
+    "/api/integrations/voice-agent/settings",
+    {
+      method: "POST",
+      body: JSON.stringify(settings),
+    }
+  );
+  return res.result.config;
+}
+
+export async function testVoiceAgentDialogue(prompt: string, voice?: string): Promise<{
+  ok: boolean;
+  prompt: string;
+  response_text: string;
+  audio_url: string;
+  voice_id: string;
+}> {
+  return await gatewayFetch("/api/integrations/voice-agent/test-dialogue", {
+    method: "POST",
+    body: JSON.stringify({ prompt, voice }),
+  });
+}
+
+export async function playVoiceAgentGreeting(callId: string, text?: string, voice?: string) {
+  return await gatewayFetch("/api/integrations/voice-agent/play-greeting", {
+    method: "POST",
+    body: JSON.stringify({ call_id: callId, text, voice }),
+  });
+}
+
+export const DEFAULT_MAX_KNOWLEDGE_BASE = `===============================================================================
+CATÁLOGO OFICIAL DE PRODUTOS, SERVIÇOS & REGRAS COMERCIAIS — MAX NUTRITION
+===============================================================================
+
+1. PROTEÍNAS E CONSTRUÇÃO MUSCULAR:
+- 100% Whey Protein Concentrado (900g e 1.8kg):
+  * 24g de proteína de alto valor biológico e 5.4g de BCAAs por dose.
+  * Sabores: Chocolate Belga, Baunilha Bourbon, Morango Silvestre, Cookies & Cream, Banana Flambada e Doce de Leite.
+  * Indicação: Ganho de massa muscular magra, recuperação pós-treino e suporte proteico diário.
+- Iso Whey 100% Isolado (900g):
+  * Microfiltrado por fluxo cruzado (CFM), zero lactose, zero açúcar, zero gordura e zero glúten.
+  * 27g de proteína pura por dose.
+  * Sabores: Chocolate Puro, Baunilha Suave e Morango.
+  * Indicação: Definição muscular, perda de gordura e intolerância severa à lactose.
+- 3W Whey Protein Blend (900g):
+  * Mistura sinérgica de Concentrado, Isolado e Hidrolisado para absorção gradual.
+
+2. FORÇA, POTÊNCIA & PERFORMANCE MÁXIMA:
+- Creatina Monohidratada 100% Pura Micronizada (300g e 500g):
+  * 100% pura, grau farmacêutico, sem sabor, dissolução instantânea.
+  * Benefícios: Aumento de força explosiva, resistência em treinos intensos, volume muscular e melhora cognitiva.
+  * Como tomar: 3g a 5g ao dia, todos os dias, de preferência com uma fonte de carboidrato.
+- Creatina Creapure (300g):
+  * Matéria-prima com selo Creapure importada da Alemanha, máxima pureza e rastreabilidade mundial.
+- Pré-Treino Hórus (300g):
+  * Fórmula completa: 2000mg Beta-Alanina, 200mg Cafeína, 1000mg Arginina e 1000mg Taurina.
+  * Efeito: Foco mental afiado, vasodilatação e redução de fadiga. Sabores: Frutas Vermelhas, Citrus Ice, Algodão Doce.
+- Pré-Treino Panic Extreme (300g):
+  * Alta dosagem para atletas avançados (400mg cafeína por dose).
+
+3. RECUPERAÇÃO, IMUNIDADE & SAÚDE INTEGRAL:
+- Glutamina Pura 100% (300g): Imunidade e recuperação da mucosa intestinal.
+- BCAA 2:1:1 e 8:1:1 (Pó 300g e cápsulas): Recuperação muscular anti-catabólica.
+- Multivitamínico Mega Vita A-Z (90 cápsulas): 23 vitaminas e minerais essenciais.
+- Ômega 3 Ultra Concentrado (120 cápsulas): Rico em EPA e DHA, ação anti-inflamatória e saúde cardiovascular.
+
+4. SNACKS, PASTAS & ALIMENTAÇÃO SAUDÁVEL:
+- Pasta de Amendoim Integral 1kg (Tradicional, Chocowhey, Cookies & Cream, Crocante): Zero adição de açúcar.
+- Protein Crisp Bar (Caixa com 12 barras): 15g de proteína por barra, deliciosa e prática.
+
+5. POLÍTICAS COMERCIAIS, PAGAMENTO & FRETE:
+- Formas de Pagamento:
+  * Pix com 5% de desconto imediato à vista.
+  * Cartão de Crédito em até 12x sem juros.
+  * Boleto Bancário à vista.
+- Frete e Prazos de Entrega:
+  * FRETE GRÁTIS para todo o Brasil em compras acima de R$ 199,00.
+  * Despacho em até 24 horas úteis com código de rastreamento enviado via WhatsApp.
+- Garantia & Políticas de Troca:
+  * 7 dias corridos para devolução ou troca por arrependimento incondicional.
+  * 30 dias para qualquer defeito de fabricação ou avaria de transporte.
+- Programa de Assinatura (Clube Max):
+  * 15% de desconto perpétuo em todos os suplementos da assinatura mensal com entrega programada.`;
+
+export const DEFAULT_AGENT_PERSONA = `Você é o Pedro, o consultor e atendente oficial de voz e vendas da Max Nutrition pelo WhatsApp VoIP.
+Você está conversando por TELEFONE/VOZ em tempo real com o cliente.
+
+DIRETRIZES DE PERSONALIDADE & VOZ:
+1. Tom de Voz: Jovem, dinâmico, enérgico, seguro, prestativo e cordial. Fale com naturalidade brasileira ("Olá!", "Com certeza!", "Perfeito!", "Excelente escolha!").
+2. Objetividade Telefônica: NUNCA faça respostas longas. Fale no MÁXIMO 2 ou 3 frases por intervenção (entre 15 e 40 palavras). Em ligações, o cliente quer respostas rápidas e diretas ao ponto.
+3. Formato Limpo para Fala (TTS): NUNCA utilize asteriscos (* ou **), hashtags (#), travessões, listas pontuadas ou emojis no texto, pois o texto será falado pelo sintetizador neural de voz.
+4. Condução da Conversa: Sempre responda à dúvida do cliente usando a Base de Conhecimento e termine convidando o cliente a avançar (ex: "Quer que eu separe o seu pedido agora?", "Qual sabor você prefere no Whey?").
+5. Confiança e Precisão: Forneça informações exatas de preços, frete grátis acima de R$ 199 e pagamento via Pix com 5% de desconto.`;
+
+

@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server.mjs",
     "check": "node --check src/server.mjs",
-    "test": "node --test test/record-dispatch.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
+    "test": "node --test test/record-dispatch.test.mjs && node --test test/kokoro.test.mjs && node --test test/voice-agent.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/express": "^2.0.1",

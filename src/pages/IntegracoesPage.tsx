@@ -16,6 +16,10 @@ import {
   hangupMeowcallerCall,
   fetchElevenLabsVoices,
   testElevenLabsVoice,
+  fetchKokoroVoices,
+  testKokoroVoice,
+  KokoroVoice,
+  KokoroVoicesResponse,
   testLayaClassify,
   testLayaScore,
   testLayaRoute,
@@ -23,6 +27,12 @@ import {
   fetchCallSessions,
   fetchVoiceProfiles,
   saveVoiceProfile,
+  fetchVoiceAgentSettings,
+  updateVoiceAgentSettings,
+  testVoiceAgentDialogue,
+  VoiceAgentConfig,
+  DEFAULT_MAX_KNOWLEDGE_BASE,
+  DEFAULT_AGENT_PERSONA,
   AggregatedHealth,
   ElevenLabsVoice,
   LayaClassifyResponse,
@@ -115,13 +125,34 @@ export default function IntegracoesPage() {
   });
   const [voiceSavedFeedback, setVoiceSavedFeedback] = useState<boolean>(false);
 
-  // ElevenLabs
+  // ElevenLabs (Standby)
   const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
   const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
   const [audioSampleUrl, setAudioSampleUrl] = useState<string | null>(null);
   const [generatingSample, setGeneratingSample] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
+
+  // Kokoro TTS (Motor Oficial)
+  const [kokoroVoices, setKokoroVoices] = useState<KokoroVoice[]>([]);
+  const [kokoroConfig, setKokoroConfig] = useState<KokoroVoicesResponse | null>(null);
+  const [loadingKokoro, setLoadingKokoro] = useState<boolean>(false);
+  const [selectedKokoroVoiceId, setSelectedKokoroVoiceId] = useState<string>("pm_alex*0.7+am_liam*0.3");
+  const [kokoroSampleUrl, setKokoroSampleUrl] = useState<string | null>(null);
+  const [generatingKokoroSample, setGeneratingKokoroSample] = useState<boolean>(false);
+  const [kokoroTestPhrase, setKokoroTestPhrase] = useState<string>(
+    "Olá! Eu sou o Pedro. Estou aqui para trazer uma comunicação muito mais ágil, dinâmica e conectada para o seu atendimento."
+  );
+
+  // Voice Agent & Base de Conhecimento ("Comando Gigante")
+  const [voiceAgentConfig, setVoiceAgentConfig] = useState<VoiceAgentConfig | null>(null);
+  const [loadingVoiceAgent, setLoadingVoiceAgent] = useState<boolean>(false);
+  const [savingVoiceAgent, setSavingVoiceAgent] = useState<boolean>(false);
+  const [voiceAgentSavedToast, setVoiceAgentSavedToast] = useState<boolean>(false);
+  const [testPrompt, setTestPrompt] = useState<string>("Qual a diferença entre a creatina monohidratada e a creapure?");
+  const [testingDialogue, setTestingDialogue] = useState<boolean>(false);
+  const [dialogueResponse, setDialogueResponse] = useState<string | null>(null);
+  const [dialogueAudioUrl, setDialogueAudioUrl] = useState<string | null>(null);
 
   // Laya
   const [layaMessage, setLayaMessage] = useState("Preciso de ajuda urgente com a fatura da iGreen!");
@@ -143,13 +174,14 @@ export default function IntegracoesPage() {
   const loadAll = async () => {
     try {
       setRefreshing(true);
-      const [h, ev, mc, vc, evts, calls] = await Promise.all([
+      const [h, ev, mc, vc, evts, calls, va] = await Promise.all([
         fetchIntegrationsStatus().catch(() => null),
         fetchEvolutionStatus().catch(() => null),
         fetchMeowcallerStatus().catch(() => null),
         fetchVoiceProfiles().catch(() => []),
         fetchIntegrationEvents().catch(() => []),
         fetchCallSessions().catch(() => []),
+        fetchVoiceAgentSettings().catch(() => null),
       ]);
 
       if (h) {
@@ -164,6 +196,9 @@ export default function IntegracoesPage() {
         if (mc.session?.qrcode) {
           setMeowcallerQr(mc.session.qrcode);
         }
+      }
+      if (va) {
+        setVoiceAgentConfig(va);
       }
       // Se a engine Meowcaller requer pareamento e o QR Code ainda não está em tela, requisita automaticamente
       const currentQr = mc?.session?.qrcode || h?.meowcaller?.qrcode;
@@ -218,21 +253,39 @@ export default function IntegracoesPage() {
     return () => clearInterval(interval);
   }, [health?.meowcaller?.whatsapp_status, meowcallerStatus?.whatsapp_status, meowcallerStatus?.status]);
 
-  // Carrega vozes ElevenLabs sob demanda
+  // Carrega vozes Kokoro (Oficial) e ElevenLabs (Standby) sob demanda
   useEffect(() => {
-    if (activeTab === "voices" && voices.length === 0) {
-      setLoadingVoices(true);
-      fetchElevenLabsVoices()
-        .then((res) => {
-          if (res.data?.voices) {
-            setVoices(res.data.voices);
-            if (res.data.voices.length > 0 && !selectedVoiceId) {
-              setSelectedVoiceId(res.data.default_voice_id || res.data.voices[0].voice_id);
+    if (activeTab === "voices") {
+      if (kokoroVoices.length === 0) {
+        setLoadingKokoro(true);
+        fetchKokoroVoices()
+          .then((res) => {
+            if (res.data?.voices_pt_br) {
+              setKokoroVoices(res.data.voices_pt_br);
+              setKokoroConfig(res.data);
+              if (res.data.default_voice_id) {
+                setSelectedKokoroVoiceId(res.data.default_voice_id);
+              }
             }
-          }
-        })
-        .catch((err) => console.error("Erro vozes ElevenLabs:", err))
-        .finally(() => setLoadingVoices(false));
+          })
+          .catch((err) => console.error("Erro vozes Kokoro:", err))
+          .finally(() => setLoadingKokoro(false));
+      }
+
+      if (voices.length === 0) {
+        setLoadingVoices(true);
+        fetchElevenLabsVoices()
+          .then((res) => {
+            if (res.data?.voices) {
+              setVoices(res.data.voices);
+              if (res.data.voices.length > 0 && !selectedVoiceId) {
+                setSelectedVoiceId(res.data.default_voice_id || res.data.voices[0].voice_id);
+              }
+            }
+          })
+          .catch((err) => console.error("Erro vozes ElevenLabs:", err))
+          .finally(() => setLoadingVoices(false));
+      }
     }
   }, [activeTab]);
 
@@ -406,7 +459,82 @@ export default function IntegracoesPage() {
     }
   };
 
-  // Ações ElevenLabs
+  // Ações Kokoro TTS (Motor Oficial)
+  const handleTestKokoroVoice = async (voiceIdToTest?: string) => {
+    const targetVoice = voiceIdToTest || selectedKokoroVoiceId || "pm_alex*0.7+am_liam*0.3";
+    try {
+      setGeneratingKokoroSample(true);
+      setKokoroSampleUrl(null);
+      const res = await testKokoroVoice(targetVoice, kokoroTestPhrase);
+      if (res.sample?.audio_base64) {
+        setKokoroSampleUrl(res.sample.audio_base64);
+        try {
+          const snd = new Audio(res.sample.audio_base64);
+          snd.play().catch(() => {});
+        } catch {}
+      }
+    } catch (err: any) {
+      alert(`Erro ao sintetizar voz no Kokoro: ${err.message}`);
+    } finally {
+      setGeneratingKokoroSample(false);
+    }
+  };
+
+  // Ações Voice Agent & Base de Conhecimento ("Comando Gigante")
+  const handleSaveVoiceAgent = async () => {
+    if (!voiceAgentConfig) return;
+    try {
+      setSavingVoiceAgent(true);
+      const updated = await updateVoiceAgentSettings(voiceAgentConfig);
+      setVoiceAgentConfig(updated);
+      setVoiceAgentSavedToast(true);
+      setTimeout(() => setVoiceAgentSavedToast(false), 4000);
+    } catch (err: any) {
+      alert(`Erro ao salvar configurações do Atendente de Voz: ${err.message}`);
+    } finally {
+      setSavingVoiceAgent(false);
+    }
+  };
+
+  const handleTestVoiceDialogue = async () => {
+    if (!testPrompt.trim()) return;
+    try {
+      setTestingDialogue(true);
+      setDialogueResponse(null);
+      setDialogueAudioUrl(null);
+      const res = await testVoiceAgentDialogue(testPrompt, voiceAgentConfig?.kokoro_voice || selectedKokoroVoiceId);
+      setDialogueResponse(res.response_text);
+      if (res.audio_url) {
+        setDialogueAudioUrl(res.audio_url);
+        try {
+          const snd = new Audio(res.audio_url);
+          snd.play().catch(() => {});
+        } catch {}
+      }
+    } catch (err: any) {
+      alert(`Erro ao testar diálogo com a IA: ${err.message}`);
+    } finally {
+      setTestingDialogue(false);
+    }
+  };
+
+  const handleResetCatalogPrompt = () => {
+    if (!voiceAgentConfig) return;
+    setVoiceAgentConfig({
+      ...voiceAgentConfig,
+      knowledge_base: DEFAULT_MAX_KNOWLEDGE_BASE
+    });
+  };
+
+  const handleResetPersonaPrompt = () => {
+    if (!voiceAgentConfig) return;
+    setVoiceAgentConfig({
+      ...voiceAgentConfig,
+      persona: DEFAULT_AGENT_PERSONA
+    });
+  };
+
+  // Ações ElevenLabs (Standby)
   const handleTestVoiceSample = async () => {
     if (!selectedVoiceId) return;
     try {
@@ -628,7 +756,12 @@ export default function IntegracoesPage() {
         variant: isMeowConnected ? "success" : "warning",
       },
     },
-    { id: "voices", label: "Vozes (ElevenLabs)", icon: Mic },
+    {
+      id: "voices",
+      label: "Vozes Neurais (Kokoro Oficial)",
+      icon: Mic,
+      badge: { text: "Oficial", variant: "success" }
+    },
     { id: "routing", label: "Roteamento (Laya)", icon: GitFork },
     { id: "events", label: "Eventos & Testes", icon: Activity },
   ];
@@ -828,28 +961,67 @@ export default function IntegracoesPage() {
               </div>
             </div>
 
-            {/* ELEVENLABS */}
-            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+            {/* KOKORO TTS (MOTOR OFICIAL) */}
+            <div className="rounded-xl border-2 border-[#007A3D]/40 bg-[#007A3D]/5 p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <Mic className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-semibold text-foreground">ElevenLabs</span>
+                  <Mic className="h-5 w-5 text-[#007A3D]" />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Kokoro TTS (VPS)</span>
+                    <span className="ml-2 text-[10px] font-bold text-[#007A3D] bg-[#007A3D]/10 px-1.5 py-0.5 rounded">OFICIAL</span>
+                  </div>
                 </div>
-                <ExecutiveBadge variant={health?.elevenlabs?.reachable ? "success" : "default"}>
-                  {health?.elevenlabs?.reachable ? "CONECTADO" : "CONFIGURADA"}
-                </ExecutiveBadge>
+                <ExecutiveBadge variant="success">OFICIAL ATIVO</ExecutiveBadge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Síntese de voz neural multilíngue, agentes conversacionais em tempo real e perfis de personas.
+                Motor primário de síntese neural open-source na VPS. Sem custo de tokens, ultra-rápido para ligações Meowcaller e áudios.
               </p>
               <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Vozes Carregadas:</span>
-                  <span className="font-mono text-foreground">{health?.elevenlabs?.voices_count ?? 0}</span>
+                  <span className="text-muted-foreground">Voz Oficial Padrão:</span>
+                  <span className="font-semibold text-[#007A3D]">Pedro (Jovem / Parcerias)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Autenticação:</span>
-                  <span className="text-foreground">Protegida no Backend</span>
+                  <span className="text-muted-foreground">Fórmula Homologada:</span>
+                  <span className="font-mono text-xs text-foreground">pm_alex*0.7 + am_liam*0.3</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Assistentes Ativos:</span>
+                  <span className="text-foreground">4 perfis (Pedro, Vital, Sirlene, Alex)</span>
+                </div>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("voices")}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#007A3D] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
+                >
+                  <Mic className="h-3.5 w-3.5" />
+                  <span>Ouvir e Testar Vozes Oficiais</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ELEVENLABS (STANDBY) */}
+            <div className="rounded-xl border border-border bg-card/60 p-5 space-y-3 opacity-80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Mic className="h-5 w-5 text-zinc-400" />
+                  <span className="text-sm font-semibold text-muted-foreground">ElevenLabs</span>
+                </div>
+                <ExecutiveBadge variant="default">STANDBY (RESERVA)</ExecutiveBadge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Motor secundário em modo de reserva/contingência. O Kokoro TTS VPS assumiu a operação oficial do sistema.
+              </p>
+              <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status no Sistema:</span>
+                  <span className="font-mono text-xs text-muted-foreground">Reserva / Fallback</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Prioridade de Voz:</span>
+                  <span className="text-muted-foreground">Secundária</span>
                 </div>
               </div>
             </div>
@@ -1394,6 +1566,270 @@ export default function IntegracoesPage() {
                 </div>
               </div>
 
+              {/* CÉREBRO DO ATENDENTE & BASE DE CONHECIMENTO ("COMANDO GIGANTE") */}
+              <div className="rounded-xl border border-border bg-card p-6 space-y-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border/60">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#007A3D] to-emerald-600 text-white flex items-center justify-center shadow-sm">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-foreground">
+                          🧠 Cérebro do Atendente & Memória de Produtos
+                        </h3>
+                        <ExecutiveBadge variant="success">Kokoro Neural Ativo</ExecutiveBadge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Defina a personalidade da IA, saudações automáticas e abasteça o catálogo completo da Max Nutrition ("Comando Gigante") para fala em chamadas VoIP.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {voiceAgentSavedToast && (
+                      <div className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30 animate-pulse">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Conhecimento Salvo!</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleSaveVoiceAgent}
+                      disabled={savingVoiceAgent}
+                      className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 transition-colors disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>{savingVoiceAgent ? "Salvando..." : "Salvar Conhecimento do Atendente"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Linha de Identidade do Atendente e Voz Neural */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Bot className="h-3.5 w-3.5 text-[#007A3D]" />
+                      Nome do Atendente de Voz:
+                    </label>
+                    <input
+                      type="text"
+                      value={voiceAgentConfig?.agent_name || "Pedro (Consultor Oficial Max Nutrition)"}
+                      onChange={(e) =>
+                        setVoiceAgentConfig(prev => prev ? { ...prev, agent_name: e.target.value } : null)
+                      }
+                      placeholder="Ex: Pedro (Consultor Oficial Max Nutrition)"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Volume2 className="h-3.5 w-3.5 text-purple-600" />
+                      Voz Neural Oficial (Kokoro VPS):
+                    </label>
+                    <select
+                      value={voiceAgentConfig?.kokoro_voice || selectedKokoroVoiceId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedKokoroVoiceId(val);
+                        setVoiceAgentConfig(prev => prev ? { ...prev, kokoro_voice: val } : null);
+                      }}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+                    >
+                      <option value="pm_alex*0.7+am_liam*0.3">⭐ Pedro Oficial (Alex + Liam - Jovem & Conectado)</option>
+                      <option value="pm_alex*0.7+pm_santa*0.3">Pedro Suave (Alex + Santa - Blend Equilibrado)</option>
+                      <option value="pm_alex">Pedro Puro (Alex Nativo PT-BR)</option>
+                      <option value="pm_santa*0.7+pm_alex*0.3">Alex Executivo (Suporte Técnico & Relatórios)</option>
+                      <option value="pm_santa">Dr. Vital (Tom Maduro e Seguro)</option>
+                      <option value="pf_dora*0.7+af_heart*0.3">Sirlene (Feminina Acolhedora)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Activity className="h-3.5 w-3.5 text-blue-600" />
+                      Status do Atendente nas Chamadas:
+                    </label>
+                    <div className="flex items-center gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVoiceAgentConfig(prev => prev ? { ...prev, is_active: !prev.is_active } : null)
+                        }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          voiceAgentConfig?.is_active
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
+                            : "bg-muted/30 border-border text-muted-foreground"
+                        }`}
+                      >
+                        {voiceAgentConfig?.is_active ? "● FALA ATIVA NAS LIGAÇÕES" : "○ MUDO / DESATIVADO"}
+                      </button>
+                      <span className="text-[11px] text-muted-foreground">
+                        {voiceAgentConfig?.is_active ? "Responde e saúda ativamente" : "Aguardando ativação"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Saudações Rápidas Inbound & Outbound */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <PhoneCall className="h-3.5 w-3.5 text-emerald-600" />
+                        Saudação ao Receber Ligação (Inbound):
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {(voiceAgentConfig?.inbound_greeting || "").length} carac.
+                      </span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={voiceAgentConfig?.inbound_greeting || ""}
+                      onChange={(e) =>
+                        setVoiceAgentConfig(prev => prev ? { ...prev, inbound_greeting: e.target.value } : null)
+                      }
+                      placeholder="Frase falada imediatamente quando o cliente ligar para este WhatsApp..."
+                      className="w-full rounded-lg border border-border bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <PhoneForwarded className="h-3.5 w-3.5 text-sky-600" />
+                        Saudação ao Disparar Ligação (Outbound):
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {(voiceAgentConfig?.outbound_greeting || "").length} carac.
+                      </span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={voiceAgentConfig?.outbound_greeting || ""}
+                      onChange={(e) =>
+                        setVoiceAgentConfig(prev => prev ? { ...prev, outbound_greeting: e.target.value } : null)
+                      }
+                      placeholder="Frase falada assim que o cliente atender a ligação originada..."
+                      className="w-full rounded-lg border border-border bg-background p-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed"
+                    />
+                  </div>
+                </div>
+
+                {/* TEXTAREA DO COMANDO GIGANTE: BASE DE CONHECIMENTO & CATÁLOGO */}
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-[#007A3D]" />
+                      <span>Base de Conhecimento e Memória de Produtos / Serviços ("Comando Gigante"):</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {(voiceAgentConfig?.knowledge_base || "").length} caracteres abastecidos
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleResetCatalogPrompt}
+                        className="text-[11px] font-medium text-emerald-600 hover:text-emerald-500 hover:underline"
+                      >
+                        Recarregar Catálogo Completo Max Nutrition
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Cole aqui todo o conhecimento sobre produtos (Whey, Creatina, Pré-Treinos, Glutamina), kits, regras de Frete Grátis acima de R$ 199, formas de pagamento (Pix 5% off, Cartão em até 12x), políticas de troca e SAC. A IA utiliza essa memória para responder em tempo real ao cliente na chamada telefônica.
+                  </p>
+                  <textarea
+                    rows={8}
+                    value={voiceAgentConfig?.knowledge_base || ""}
+                    onChange={(e) =>
+                      setVoiceAgentConfig(prev => prev ? { ...prev, knowledge_base: e.target.value } : null)
+                    }
+                    placeholder="Abasteça aqui todo o catálogo, suplementos, regras de frete e garantia da Max Nutrition..."
+                    className="w-full rounded-lg border border-border bg-background p-3 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed resize-y"
+                  />
+                </div>
+
+                {/* DIRETRIZES DE PERSONALIDADE & VOZ */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-purple-600" />
+                      <span>Instruções de Personalidade & Comportamento em Ligações Telefônicas:</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleResetPersonaPrompt}
+                      className="text-[11px] font-medium text-purple-600 hover:text-purple-500 hover:underline"
+                    >
+                      Restaurar Persona Padrão do Pedro
+                    </button>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={voiceAgentConfig?.persona || ""}
+                    onChange={(e) =>
+                      setVoiceAgentConfig(prev => prev ? { ...prev, persona: e.target.value } : null)
+                    }
+                    placeholder="Diretrizes de como o atendente fala (brevidade, tom cordial, passar a palavra ao cliente)..."
+                    className="w-full rounded-lg border border-border bg-background p-3 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed"
+                  />
+                </div>
+
+                {/* PLAYGROUND DE TESTE: SIMULAÇÃO DE DIÁLOGO & SÍNTESE KOKORO */}
+                <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
+                        <Play className="h-3.5 w-3.5 text-[#007A3D]" />
+                        <span>Simulador de Diálogo Inteligente & Síntese em Tempo Real</span>
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground">
+                        Faça uma pergunta como se fosse o cliente ao telefone e ouça a resposta gerada com base no catálogo da Max Nutrition na voz do Pedro.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={testPrompt}
+                      onChange={(e) => setTestPrompt(e.target.value)}
+                      placeholder="Ex: Qual a diferença entre a creatina monohidratada e a creapure?"
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleTestVoiceDialogue}
+                      disabled={testingDialogue}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 disabled:opacity-50 shrink-0"
+                    >
+                      <RotateCw className={`h-3.5 w-3.5 ${testingDialogue ? "animate-spin" : ""}`} />
+                      <span>{testingDialogue ? "Gerando & Sintetizando..." : "Testar Resposta & Ouvir Voz"}</span>
+                    </button>
+                  </div>
+
+                  {/* Resposta do Atendente */}
+                  {dialogueResponse && (
+                    <div className="rounded-lg border border-[#007A3D]/40 bg-[#007A3D]/5 p-3 space-y-2 mt-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#007A3D] flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Resposta do Pedro (Max Nutrition):
+                        </span>
+                        {dialogueAudioUrl && (
+                          <audio controls autoPlay src={dialogueAudioUrl} className="h-7 max-w-xs" />
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground leading-relaxed italic bg-background/60 p-2.5 rounded border border-border/50">
+                        "{dialogueResponse}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Histórico Recente de Chamadas */}
               <div className="rounded-xl border border-border bg-card p-6 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Histórico de Chamadas Recentes</h3>
@@ -1453,7 +1889,7 @@ export default function IntegracoesPage() {
                 </span>
                 <ul className="space-y-1.5 text-muted-foreground list-disc list-inside">
                   <li><strong className="text-foreground">Canal Dedicado:</strong> O Meowcaller estabelece o áudio em tempo real via WhatsApp VoIP.</li>
-                  <li><strong className="text-foreground">Voz da Helena:</strong> A fala é gerada com sintetização ElevenLabs ultra-realista.</li>
+                  <li><strong className="text-foreground">Voz Oficial:</strong> A fala é gerada com o motor Kokoro Neural TTS na VPS (Voz oficial padrão do Pedro - Jovem e Dinâmico).</li>
                   <li><strong className="text-foreground">Discagem Direta:</strong> Digite o DDD + Número (ex: 11971254913) e clique em &ldquo;Disparar Ligação&rdquo;.</li>
                   <li><strong className="text-foreground">Independência:</strong> Não interfere nas mensagens da Evolution API.</li>
                 </ul>
@@ -1464,98 +1900,255 @@ export default function IntegracoesPage() {
       )}
 
       {/* ======================================================================
-          ABA 4: VOZES (ELEVENLABS)
+          ABA 4: VOZES NEURAIS (KOKORO TTS VPS · MOTOR OFICIAL)
           ====================================================================== */}
       {activeTab === "voices" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Biblioteca de Vozes da Conta</h3>
+          {/* Cabeçalho Oficial */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-xl border-2 border-[#007A3D]/40 bg-[#007A3D]/5">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Mic className="h-5 w-5 text-[#007A3D]" />
+                <h3 className="text-base font-bold text-foreground">Central de Vozes Neurais (Kokoro TTS VPS)</h3>
+                <span className="text-[10px] font-bold tracking-wider uppercase bg-[#007A3D] text-white px-2 py-0.5 rounded-full">
+                  Motor Oficial do Sistema
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Vozes e agentes conversacionais sincronizados via API oficial da ElevenLabs com chave protegida no servidor.
+                Motor primário de síntese neural open-source na VPS. Latência ultra-baixa, zero custo de tokens e qualidade cinematográfica para <strong>ligações VoIP (Meowcaller)</strong> e <strong>mensagens de voz WhatsApp</strong>.
               </p>
             </div>
-            {selectedVoiceId && (
-              <button
-                type="button"
-                onClick={handleSaveVoiceProfile}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90"
-              >
-                <span>Associar Voz à Empresa</span>
-              </button>
+            <a
+              href="/audios/player.html"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 shrink-0"
+            >
+              <Volume2 className="h-4 w-4" />
+              <span>Abrir Player de Demonstração</span>
+            </a>
+          </div>
+
+          {/* CARD DESTAQUE: VOZ OFICIAL PADRÃO (PEDRO) */}
+          <div className="rounded-xl border-2 border-[#007A3D] bg-card p-6 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-lg font-bold text-foreground">Pedro (AGT-18) · Homem Jovem Dinâmico</h4>
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    ⭐ VOZ OFICIAL PADRÃO (MEOWCALLER & LIGAÇÕES)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Fórmula Homologada: <code className="font-mono text-[#007A3D] font-bold">pm_alex*0.7 + am_liam*0.3</code> · Blend Alex + Liam (Jovem, articulado e direto ao ponto)
+                </p>
+              </div>
+              <ExecutiveBadge variant="success">HOMOLOGADO</ExecutiveBadge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs bg-muted/30 p-3 rounded-lg border border-border/60">
+              <div>
+                <span className="text-muted-foreground">Papel Principal:</span>
+                <p className="font-semibold text-foreground">Parcerias, Novos Negócios & Atendimento Ágil</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Tempo Médio de Síntese:</span>
+                <p className="font-mono font-semibold text-[#007A3D]">~13.0s (VPS Kokoro Neural)</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Uso no Sistema:</span>
+                <p className="font-semibold text-foreground">Ligações Ativas/Receptivas Meowcaller & Áudios WhatsApp</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Mensagem Oficial Homologada do Pedro:</span>
+              <p className="text-xs italic text-foreground bg-muted/20 p-3 rounded-lg border border-border/60">
+                &ldquo;Olá a todos! Eu sou o Pedro. Estou aqui para trazer uma comunicação muito mais ágil, dinâmica e conectada para o seu dia a dia. Este é o meu teste de voz no sistema Kokoro, mostrando que você pode contar comigo para tirar dúvidas, acompanhar novidades e ter um atendimento super rápido e direto ao ponto!&rdquo;
+              </p>
+              <div className="flex items-center justify-between pt-2">
+                <audio controls src="/audios/pedro_oficial.mp3" className="w-full max-w-md h-9" />
+                <button
+                  type="button"
+                  onClick={() => handleTestKokoroVoice("pm_alex*0.7+am_liam*0.3")}
+                  disabled={generatingKokoroSample}
+                  className="ml-3 inline-flex items-center gap-1.5 rounded-lg border border-[#007A3D] bg-[#007A3D]/10 px-3 py-1.5 text-xs font-semibold text-[#007A3D] hover:bg-[#007A3D]/20 transition-all shrink-0"
+                >
+                  <RotateCw className={`h-3.5 w-3.5 ${generatingKokoroSample ? "animate-spin" : ""}`} />
+                  <span>{generatingKokoroSample ? "Sintetizando..." : "Testar ao Vivo na VPS"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* GRID DOS DEMAIS ASSISTENTES HOMOLOGADOS */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span>Elenco Homologado de Assistentes (Padrão Vital & Acolhimento)</span>
+            </h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Assistente Dr. Vital */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h5 className="text-sm font-bold text-foreground">👨‍⚕️ Assistente do Dr. Vital</h5>
+                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">Voz: pm_santa</span>
+                  </div>
+                  <ExecutiveBadge variant="default">Masculino</ExecutiveBadge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tom maduro, confiável e acolhedor para acompanhamento nutricional, orientações e planos de saúde.
+                </p>
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <audio controls src="/audios/assistente_dr_vital.mp3" className="w-full h-8" />
+                  <button
+                    type="button"
+                    onClick={() => handleTestKokoroVoice("pm_santa")}
+                    disabled={generatingKokoroSample}
+                    className="w-full rounded border border-border bg-muted/40 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
+                  >
+                    Testar Voz Dr. Vital
+                  </button>
+                </div>
+              </div>
+
+              {/* Assistente da Sirlene */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h5 className="text-sm font-bold text-foreground">👩‍💼 Assistente da Sirlene</h5>
+                    <span className="text-[11px] font-mono text-pink-600 dark:text-pink-400">pf_dora*0.7 + af_heart*0.3</span>
+                  </div>
+                  <ExecutiveBadge variant="default">Feminino</ExecutiveBadge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Tom suave, caloroso e paciente para suporte ao cliente, acolhimento de chamadas e triagem.
+                </p>
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <audio controls src="/audios/assistente_sirlene.mp3" className="w-full h-8" />
+                  <button
+                    type="button"
+                    onClick={() => handleTestKokoroVoice("pf_dora*0.7+af_heart*0.3")}
+                    disabled={generatingKokoroSample}
+                    className="w-full rounded border border-border bg-muted/40 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
+                  >
+                    Testar Voz Sirlene
+                  </button>
+                </div>
+              </div>
+
+              {/* Alex Assistente Executivo */}
+              <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h5 className="text-sm font-bold text-foreground">👨‍💼 Alex (Assistente Executivo)</h5>
+                    <span className="text-[11px] font-mono text-purple-600 dark:text-purple-400">pm_santa*0.7 + pm_alex*0.3</span>
+                  </div>
+                  <ExecutiveBadge variant="default">Executivo</ExecutiveBadge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Voz masculina ágil e resolutiva para operações internas, relatórios rápidos e suporte técnico.
+                </p>
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <audio controls src="/audios/alex_assistente_geral.mp3" className="w-full h-8" />
+                  <button
+                    type="button"
+                    onClick={() => handleTestKokoroVoice("pm_santa*0.7+pm_alex*0.3")}
+                    disabled={generatingKokoroSample}
+                    className="w-full rounded border border-border bg-muted/40 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
+                  >
+                    Testar Voz Alex
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* PLAYGROUND: TESTE DE SÍNTESE AO VIVO NA VPS */}
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Play className="h-4 w-4 text-[#007A3D]" />
+                  <span>Sintetizador Neural em Tempo Real (Kokoro Web VPS)</span>
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Gera fala instantânea a partir de qualquer texto para validação acústica antes de discagens Meowcaller.
+                </p>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                Host: helena-automation-kokoro.d9v63q.easypanel.host
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1.5 md:col-span-1">
+                <label className="text-xs font-medium text-foreground">Assistente / Voz:</label>
+                <select
+                  value={selectedKokoroVoiceId}
+                  onChange={(e) => setSelectedKokoroVoiceId(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#007A3D]"
+                >
+                  <option value="pm_alex*0.7+am_liam*0.3">⭐ Pedro (Oficial - Jovem Dinâmico)</option>
+                  <option value="pm_santa">👨‍⚕️ Assistente Dr. Vital (Santa)</option>
+                  <option value="pf_dora*0.7+af_heart*0.3">👩‍💼 Assistente Sirlene (Dora+Heart)</option>
+                  <option value="pm_santa*0.7+pm_alex*0.3">👨‍💼 Alex (Santa+Alex Executivo)</option>
+                  <option value="pm_alex">Alex / Pedro Puro (Português)</option>
+                  <option value="pf_dora">Dora Pura (Português)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5 md:col-span-3">
+                <label className="text-xs font-medium text-foreground">Texto para Síntese:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={kokoroTestPhrase}
+                    onChange={(e) => setKokoroTestPhrase(e.target.value)}
+                    placeholder="Digite a frase para síntese..."
+                    className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#007A3D]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleTestKokoroVoice(selectedKokoroVoiceId)}
+                    disabled={generatingKokoroSample}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 disabled:opacity-50 shrink-0"
+                  >
+                    <RotateCw className={`h-3.5 w-3.5 ${generatingKokoroSample ? "animate-spin" : ""}`} />
+                    <span>{generatingKokoroSample ? "Sintetizando..." : "Sintetizar na VPS"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {kokoroSampleUrl && (
+              <div className="rounded-xl border border-[#007A3D]/40 bg-[#007A3D]/5 p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#007A3D]">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Áudio sintetizado com sucesso no Kokoro TTS VPS!</span>
+                </div>
+                <audio controls autoPlay src={kokoroSampleUrl} className="h-8 max-w-sm" />
+              </div>
             )}
           </div>
 
-          {loadingVoices ? (
-            <ExecutiveLoadingState message="Buscando vozes na ElevenLabs..." />
-          ) : voices.length === 0 ? (
-            <ExecutiveEmptyState
-              title="Nenhuma voz encontrada ou chave não configurada"
-              description="Configure a variável ELEVENLABS_API_KEY no EasyPanel para sincronizar a biblioteca."
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {voices.map((v) => {
-                const isSelected = selectedVoiceId === v.voice_id;
-                return (
-                  <div
-                    key={v.voice_id}
-                    onClick={() => setSelectedVoiceId(v.voice_id)}
-                    className={`rounded-xl border p-4 space-y-3 cursor-pointer transition-all ${
-                      isSelected
-                        ? "border-[#007A3D] bg-[#007A3D]/5 shadow-sm"
-                        : "border-border bg-card hover:border-border/80"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="text-sm font-semibold text-foreground">{v.name}</h4>
-                        <span className="text-[11px] font-mono text-muted-foreground">
-                          {v.voice_id.slice(0, 10)}...
-                        </span>
-                      </div>
-                      <ExecutiveBadge variant="default">{v.category}</ExecutiveBadge>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {v.description || "Voz neural multilíngue de alta fidelidade."}
-                    </p>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs">
-                      {v.preview_url ? (
-                        <audio controls src={v.preview_url} className="h-7 w-40" />
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground">Sem áudio prévio</span>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedVoiceId(v.voice_id);
-                          handleTestVoiceSample();
-                        }}
-                        className="rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-muted"
-                      >
-                        {generatingSample && isSelected ? "Gerando..." : "Testar Fala"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Player do teste customizado */}
-          {audioSampleUrl && (
-            <div className="rounded-xl border border-[#007A3D]/30 bg-[#007A3D]/5 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Volume2 className="h-5 w-5 text-[#007A3D]" />
-                <span className="text-xs font-semibold text-foreground">Prévia Gerada com Sucesso</span>
+          {/* SEÇÃO SECUNDÁRIA: ELEVENLABS EM MODO STANDBY */}
+          <div className="rounded-xl border border-border/60 bg-muted/10 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mic className="h-4 w-4 text-zinc-400" />
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  ElevenLabs · Modo Standby (Reserva Técnica)
+                </h4>
               </div>
-              <audio controls autoPlay src={audioSampleUrl} className="h-8" />
+              <ExecutiveBadge variant="default">STANDBY / CONTINGÊNCIA</ExecutiveBadge>
             </div>
-          )}
+            <p className="text-xs text-muted-foreground">
+              A ElevenLabs foi retirada da operação primária do sistema e colocada em modo reserva de contingência. Toda a síntese oficial de ligações e áudios é executada de forma autônoma pelo Kokoro TTS VPS com zero custo operacional de tokens.
+            </p>
+          </div>
         </div>
       )}
 

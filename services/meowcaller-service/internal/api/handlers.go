@@ -4,6 +4,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,7 +45,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/calls", s.auth(s.handleListCalls))
 	mux.HandleFunc("POST /v1/calls", s.auth(s.handleOriginateCall))
 	mux.HandleFunc("POST /v1/calls/originate", s.auth(s.handleOriginateCall))
+	mux.HandleFunc("POST /v1/calls/{id}/play", s.auth(s.handlePlayCallAudio))
+	mux.HandleFunc("POST /v1/calls/{id}/answer", s.auth(s.handleAnswerCall))
 	mux.HandleFunc("POST /v1/calls/{id}/hangup", s.auth(s.handleHangupCall))
+	mux.HandleFunc("DELETE /v1/calls/{id}", s.auth(s.handleHangupCall))
 
 	return mux
 }
@@ -284,8 +288,80 @@ func (s *Server) handleOriginateCall(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusCreated)
 }
 
+type PlayAudioRequest struct {
+	AudioURL    string `json:"audio_url"`
+	AudioBase64 string `json:"audio_base64"`
+	Format      string `json:"format"`
+	FilePath    string `json:"file_path"`
+}
+
+func (s *Server) handlePlayCallAudio(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		s.fail(w, "ID da chamada é obrigatório", http.StatusBadRequest)
+		return
+	}
+
+	var req PlayAudioRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.fail(w, "Payload JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	if req.AudioURL != "" {
+		log.Info().Str("call_id", id).Str("url", req.AudioURL).Msg("Reproduzindo áudio por URL na chamada VoIP")
+		err = s.engine.PlayAudioURL(id, req.AudioURL)
+	} else if req.AudioBase64 != "" {
+		raw, decErr := base64.StdEncoding.DecodeString(req.AudioBase64)
+		if decErr != nil {
+			s.fail(w, "Áudio base64 inválido", http.StatusBadRequest)
+			return
+		}
+		format := req.Format
+		if format == "" {
+			format = "mp3"
+		}
+		log.Info().Str("call_id", id).Str("format", format).Int("bytes", len(raw)).Msg("Reproduzindo áudio base64 na chamada VoIP")
+		err = s.engine.PlayAudioBytes(id, raw, format)
+	} else if req.FilePath != "" {
+		log.Info().Str("call_id", id).Str("path", req.FilePath).Msg("Reproduzindo arquivo local na chamada VoIP")
+		err = s.engine.PlayAudioFile(id, req.FilePath)
+	} else {
+		// Tenta reproduzir a saudação padrão local do Pedro
+		err = s.engine.PlayAudioFile(id, "/app/saudacao_pedro.mp3")
+		if err != nil {
+			err = s.engine.PlayAudioFile(id, "saudacao_pedro.mp3")
+		}
+	}
+
+	if err != nil {
+		log.Error().Err(err).Str("call_id", id).Msg("Erro ao reproduzir áudio na chamada")
+		s.fail(w, fmt.Sprintf("Erro ao reproduzir áudio: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	s.ok(w, map[string]interface{}{
+		"ok":      true,
+		"call_id": id,
+		"message": "Áudio transmitido com sucesso na chamada VoIP.",
+	}, http.StatusOK)
+}
+
+func (s *Server) handleAnswerCall(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	log.Info().Str("call_id", id).Msg("Chamada atendida explicitamente via API")
+	s.ok(w, map[string]interface{}{
+		"ok":      true,
+		"call_id": id,
+		"status":  "CONNECTED",
+		"message": "Chamada atendida com sucesso.",
+	}, http.StatusOK)
+}
+
 func (s *Server) handleHangupCall(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	_ = s.engine.HangupCall(id)
 	log.Info().Str("call_id", id).Msg("Chamada encerrada sob requisição")
 	s.ok(w, map[string]interface{}{
 		"ok":      true,

@@ -7,11 +7,16 @@
 package voice
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -68,6 +73,7 @@ type Engine struct {
 	cancelCtx context.CancelFunc
 
 	activeCalls map[string]*CallSnapshot
+	callHandles map[string]*meowcaller.Call
 	callsMu     sync.RWMutex
 }
 
@@ -77,6 +83,7 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		cfg:         cfg,
 		status:      StatusDisconnected,
 		activeCalls: make(map[string]*CallSnapshot),
+		callHandles: make(map[string]*meowcaller.Call),
 	}
 
 	// Garante que o diretório de sessão existe
@@ -201,6 +208,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 		}
 		e.callsMu.Lock()
 		e.activeCalls[callID] = snap
+		e.callHandles[callID] = call
 		e.callsMu.Unlock()
 
 		log.Info().Str("caller", peer).Str("call_id", callID).Msg("📞 Chamada VoIP recebida!")
@@ -212,6 +220,10 @@ func (e *Engine) runSession(ctx context.Context) error {
 			return
 		}
 		snap.Status = "CONNECTED"
+		log.Info().Str("call_id", callID).Msg("✅ Chamada atendida com sucesso! Iniciando saudação com personalidade ativa...")
+
+		// Dispara a saudação com a voz oficial do Pedro (Kokoro TTS)
+		go e.playInitialGreeting(callID, call, "INBOUND")
 
 		// Finaliza ao encerrar a chamada
 		call.OnEnd(func(reason string) {
@@ -220,11 +232,10 @@ func (e *Engine) runSession(ctx context.Context) error {
 			time.AfterFunc(10*time.Second, func() {
 				e.callsMu.Lock()
 				delete(e.activeCalls, callID)
+				delete(e.callHandles, callID)
 				e.callsMu.Unlock()
 			})
 		})
-
-		log.Info().Str("call_id", callID).Msg("✅ Chamada atendida com sucesso!")
 	})
 
 	// Conecta ao WhatsApp
@@ -521,13 +532,16 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 
 	e.callsMu.Lock()
 	e.activeCalls[callID] = snap
+	e.callHandles[callID] = call
 	e.callsMu.Unlock()
 
 	// Monitora a chamada em background
 	go func() {
 		call.OnReady(func() {
 			snap.Status = "CONNECTED"
-			log.Info().Str("call_id", callID).Msg("📞 Chamada conectada — mídia fluindo!")
+			log.Info().Str("call_id", callID).Msg("📞 Chamada conectada — mídia fluindo! Iniciando fala do atendente...")
+			// Dispara a saudação do Pedro na chamada de saída
+			go e.playInitialGreeting(callID, call, "OUTBOUND")
 		})
 		call.OnEnd(func(reason string) {
 			snap.Status = "ENDED"
@@ -535,6 +549,7 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			time.AfterFunc(10*time.Second, func() {
 				e.callsMu.Lock()
 				delete(e.activeCalls, callID)
+				delete(e.callHandles, callID)
 				e.callsMu.Unlock()
 			})
 		})
@@ -550,6 +565,156 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 	}()
 
 	return snap, nil
+}
+
+// playInitialGreeting reproduz a saudação inicial do atendente (Pedro) e notifica o Gateway
+func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direction string) {
+	// Aguarda 600ms para estabilização dos pacotes RTP do WhatsApp VoIP
+	time.Sleep(600 * time.Millisecond)
+
+	// Notifica o Helena Gateway via Webhook assíncrono
+	go e.notifyGatewayWebhook("CALL_ANSWERED", callID, direction)
+
+	// Busca arquivo de áudio da saudação local
+	candidates := []string{
+		"/app/saudacao_pedro.mp3",
+		"saudacao_pedro.mp3",
+		"services/meowcaller-service/saudacao_pedro.mp3",
+		"/data/saudacao_pedro.mp3",
+	}
+
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			log.Info().Str("path", p).Str("call_id", callID).Str("direction", direction).Msg("🔊 Reproduzindo saudação do Pedro no WhatsApp VoIP...")
+			if src, err := meowcaller.MP3File(p); err == nil {
+				call.Play(src)
+				log.Info().Str("call_id", callID).Msg("✅ Áudio do Pedro transmitido com sucesso na ligação!")
+				return
+			} else {
+				log.Warn().Err(err).Str("path", p).Msg("Falha ao abrir MP3 de saudação")
+			}
+		}
+	}
+
+	log.Warn().Str("call_id", callID).Msg("Nenhum arquivo local de saudação encontrado. Aguardando comando de voz via /v1/calls/{id}/play...")
+}
+
+// notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
+func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
+	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
+	payload, err := json.Marshal(map[string]interface{}{
+		"event":      event,
+		"call_id":    callID,
+		"direction":  direction,
+		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("POST", gatewayURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if e.cfg.InternalAPIKey != "" {
+		req.Header.Set("X-API-Key", e.cfg.InternalAPIKey)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Warn().Err(err).Msg("Não foi possível enviar webhook para Helena Gateway (não impeditivo)")
+		return
+	}
+	_ = resp.Body.Close()
+	log.Info().Str("event", event).Str("call_id", callID).Int("status", resp.StatusCode).Msg("Webhook de chamada enviado ao Helena Gateway")
+}
+
+// PlayAudioFile reproduz um arquivo local de áudio na chamada
+func (e *Engine) PlayAudioFile(callID, filePath string) error {
+	e.callsMu.RLock()
+	call, ok := e.callHandles[callID]
+	e.callsMu.RUnlock()
+	if !ok || call == nil {
+		return fmt.Errorf("chamada %s não encontrada ou já encerrada", callID)
+	}
+
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if ext == ".mp3" {
+		src, err := meowcaller.MP3File(filePath)
+		if err != nil {
+			return fmt.Errorf("erro ao carregar MP3: %w", err)
+		}
+		call.Play(src)
+		return nil
+	}
+
+	src, err := meowcaller.WAVFile(filePath)
+	if err != nil {
+		return fmt.Errorf("erro ao carregar WAV: %w", err)
+	}
+	call.Play(src)
+	return nil
+}
+
+// PlayAudioBytes salva bytes em arquivo temporário e reproduz na chamada
+func (e *Engine) PlayAudioBytes(callID string, data []byte, format string) error {
+	if format == "" {
+		format = "mp3"
+	}
+	ext := "." + strings.TrimPrefix(format, ".")
+	tmp, err := os.CreateTemp("", "voice-call-*"+ext)
+	if err != nil {
+		return fmt.Errorf("erro ao criar arquivo temporário de áudio: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("erro ao gravar áudio temporário: %w", err)
+	}
+	_ = tmp.Close()
+
+	return e.PlayAudioFile(callID, tmpName)
+}
+
+// PlayAudioURL faz download do áudio e reproduz na chamada
+func (e *Engine) PlayAudioURL(callID, audioURL string) error {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(audioURL)
+	if err != nil {
+		return fmt.Errorf("erro ao baixar áudio da URL %s: %w", audioURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("falha ao baixar áudio (HTTP %d)", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("erro ao ler stream de áudio: %w", err)
+	}
+
+	format := "mp3"
+	if strings.Contains(strings.ToLower(audioURL), ".wav") {
+		format = "wav"
+	}
+	return e.PlayAudioBytes(callID, body, format)
+}
+
+// HangupCall encerra explicitamente a chamada
+func (e *Engine) HangupCall(callID string) error {
+	e.callsMu.RLock()
+	call, ok := e.callHandles[callID]
+	e.callsMu.RUnlock()
+	if !ok || call == nil {
+		return nil // Já encerrada
+	}
+	call.Hangup()
+	return nil
 }
 
 // ListActiveCalls retorna lista de chamadas ativas

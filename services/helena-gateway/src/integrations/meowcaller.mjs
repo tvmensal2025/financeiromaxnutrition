@@ -4,6 +4,8 @@
  * Endpoint oficial: https://helena-automation-meowcaller-service.d9v63q.easypanel.host
  */
 
+import { KOKORO_DEFAULT_PROFILE_ID } from './kokoro.mjs';
+
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || process.env.MEOWCALLER_KEY || 'helena_meow_sec_8a3c1f9d2e';
 
@@ -189,7 +191,7 @@ export async function disconnectMeowcallerSession() {
 /**
  * Origina uma chamada de saída (Outbound Call) via Meowcaller
  */
-export async function originateCall({ phone, business_id = 'BIZ-001', voice_profile_id = null }) {
+export async function originateCall({ phone, business_id = 'BIZ-001', voice_profile_id = KOKORO_DEFAULT_PROFILE_ID }) {
   if (!MEOWCALLER_TOKEN) {
     throw new Error('MEOWCALLER_TOKEN não configurado no backend');
   }
@@ -303,4 +305,37 @@ export async function getMeowcallerEvents() {
   } catch {
     return [];
   }
+}
+
+/**
+ * Transmite áudio em uma chamada ativa (via URL ou Base64)
+ */
+export async function playCallAudio(callId, { audioUrl = '', audioBase64 = '', format = 'mp3', filePath = '' } = {}) {
+  if (!MEOWCALLER_TOKEN) {
+    throw new Error('MEOWCALLER_TOKEN não configurado no backend');
+  }
+  if (!callId) {
+    throw new Error('callId é obrigatório para reproduzir áudio');
+  }
+
+  const payload = {};
+  if (audioUrl) payload.audio_url = audioUrl;
+  if (audioBase64) {
+    payload.audio_base64 = audioBase64;
+    payload.format = format;
+  }
+  if (filePath) payload.file_path = filePath;
+
+  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/calls/${encodeURIComponent(callId)}/play`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Erro ao tocar áudio');
+    throw new Error(`Falha ao tocar áudio na chamada [${res.status}]: ${errText}`);
+  }
+
+  return await res.json();
 }

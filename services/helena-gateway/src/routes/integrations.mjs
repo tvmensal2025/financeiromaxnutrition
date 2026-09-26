@@ -34,7 +34,24 @@ import {
   generateVoiceSample,
   isElevenLabsConfigured
 } from '../integrations/elevenlabs.mjs';
-import { MeowcallerElevenBridge } from '../integrations/bridge.mjs';
+import {
+  getKokoroVoices,
+  generateKokoroSample,
+  generateKokoroSpeech,
+  isKokoroConfigured,
+  KOKORO_OFFICIAL_VOICE_ID,
+  KOKORO_DEFAULT_PROFILE_ID
+} from '../integrations/kokoro.mjs';
+
+import {
+  getVoiceAgentConfig,
+  updateVoiceAgentConfig,
+  generateAgentSpeechText,
+  speakInCall,
+  handleCallConnectedWebhook
+} from '../integrations/voice-agent.mjs';
+
+import { MeowcallerElevenBridge, MeowcallerKokoroBridge } from '../integrations/bridge.mjs';
 
 // ======================================================================
 // Helper para construção de auto-resposta inteligente / Menu URA (1, 2, 3...)
@@ -230,11 +247,12 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
 
   router.get('/api/integrations/status', async (req, res) => {
     try {
-      const [laya, evolution, meowcaller, elevenlabs] = await Promise.all([
+      const [laya, evolution, meowcaller, elevenlabs, kokoro] = await Promise.all([
         getLayaHealth().catch((err) => ({ healthy: false, error: err.message })),
         getEvolutionStatus().catch((err) => ({ configured: false, error: err.message })),
         getMeowcallerSession().catch((err) => ({ healthy: false, error: err.message })),
-        getElevenLabsVoices().catch((err) => ({ configured: false, error: err.message }))
+        getElevenLabsVoices().catch((err) => ({ configured: false, error: err.message })),
+        getKokoroVoices().catch((err) => ({ configured: false, error: err.message }))
       ]);
 
       return res.json({
@@ -248,10 +266,22 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         laya,
         evolution,
         meowcaller,
+        kokoro: {
+          configured: kokoro.configured ?? false,
+          is_official: true,
+          provider: 'KOKORO',
+          default_voice: kokoro.default_voice_id || KOKORO_OFFICIAL_VOICE_ID,
+          default_profile_id: kokoro.default_profile_id || KOKORO_DEFAULT_PROFILE_ID,
+          official_agent: 'Pedro (AGT-18)',
+          voices_count: kokoro.voices_pt_br?.length || 0,
+          status: 'OFICIAL'
+        },
         elevenlabs: {
-          configured: elevenlabs.configured,
+          configured: elevenlabs.configured ?? false,
           reachable: elevenlabs.reachable ?? false,
-          voices_count: elevenlabs.voices_count || 0
+          voices_count: elevenlabs.voices_count || 0,
+          is_official: false,
+          status: 'STANDBY'
         }
       });
     } catch (err) {
@@ -496,12 +526,12 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
 
   router.post('/api/integrations/meowcaller/call', authenticateUser, async (req, res) => {
     try {
-      const { phone, business_id, voice_profile_id } = req.body || {};
+      const { phone, business_id, voice_profile_id = KOKORO_DEFAULT_PROFILE_ID } = req.body || {};
       if (!phone) {
         return res.status(400).json({ ok: false, error: 'phone é obrigatório' });
       }
 
-      // Inicia chamada no Meowcaller
+      // Inicia chamada no Meowcaller com voz oficial do Kokoro
       const callResult = await originateCall({ phone, business_id, voice_profile_id });
       const callId = callResult?.call_id || `CALL-${Date.now()}`;
 
@@ -587,7 +617,89 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   });
 
   // ======================================================================
-  // 5. LAYA SERVICE (Classificação, Score & Roteamento)
+  // 5. KOKORO TTS (Vozes Neurais Open-Source na VPS)
+  // ======================================================================
+
+  router.get('/api/integrations/kokoro/voices', optionalAuth, async (req, res) => {
+    try {
+      const data = await getKokoroVoices();
+      return res.json({ ok: true, data });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/kokoro/test-voice', authenticateUser, async (req, res) => {
+    try {
+      const { voice_id, text } = req.body || {};
+      if (!voice_id) {
+        return res.status(400).json({ ok: false, error: 'voice_id é obrigatório' });
+      }
+      const sample = await generateKokoroSample(voice_id, text);
+      return res.json({ ok: true, sample });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/kokoro/speech', authenticateUser, async (req, res) => {
+    try {
+      const { input, voice, model } = req.body || {};
+      if (!input) {
+        return res.status(400).json({ ok: false, error: 'input é obrigatório' });
+      }
+      const speech = await generateKokoroSpeech({ input, voice, model });
+      res.setHeader('Content-Type', speech.mimeType);
+      res.setHeader('Content-Length', speech.sizeBytes);
+      res.setHeader('X-Kokoro-Duration-Ms', speech.durationMs);
+      return res.send(speech.buffer);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Endpoint Oficial de Voz do Sistema Helena (Kokoro Neural TTS)
+   * Sintetiza áudio para Meowcaller (ligações), WhatsApp (áudios) ou download
+   */
+  router.post('/api/integrations/voice/speak', authenticateUser, async (req, res) => {
+    try {
+      const { text, voice_id = KOKORO_OFFICIAL_VOICE_ID, format = 'json' } = req.body || {};
+      if (!text || !text.trim()) {
+        return res.status(400).json({ ok: false, error: 'text é obrigatório' });
+      }
+
+      const speech = await generateKokoroSpeech({
+        input: text.trim(),
+        voice: voice_id
+      });
+
+      if (format === 'audio') {
+        res.setHeader('Content-Type', speech.mimeType);
+        res.setHeader('Content-Length', speech.sizeBytes);
+        res.setHeader('X-Kokoro-Duration-Ms', speech.durationMs);
+        return res.send(speech.buffer);
+      }
+
+      const base64 = speech.buffer.toString('base64');
+      return res.json({
+        ok: true,
+        engine: 'KOKORO_NEURAL_TTS',
+        official: true,
+        voice_id,
+        duration_ms: speech.durationMs,
+        size_bytes: speech.sizeBytes,
+        mime_type: 'audio/mpeg',
+        audio_base64: `data:audio/mpeg;base64,${base64}`
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  // ======================================================================
+  // 6. LAYA SERVICE (Classificação, Score & Roteamento)
+
   // ======================================================================
 
   router.post('/api/integrations/laya/classify', authenticateUser, async (req, res) => {
@@ -628,6 +740,100 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       }
       const events = await supabaseFetch('/rest/v1/integration_events?select=*&order=created_at.desc&limit=50');
       return res.json({ ok: true, events: Array.isArray(events) ? events : [] });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // ======================================================================
+  // 7. CÉREBRO DO ATENDENTE & MEMÓRIA DE PRODUTOS ("COMANDO GIGANTE")
+  // ======================================================================
+
+  router.get('/api/integrations/voice-agent/settings', optionalAuth, async (req, res) => {
+    try {
+      const config = await getVoiceAgentConfig();
+      return res.json({ ok: true, config });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/voice-agent/settings', authenticateUser, async (req, res) => {
+    try {
+      const result = await updateVoiceAgentConfig(req.body || {});
+      if (supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([
+              {
+                chave: 'VOICE_AGENT_KNOWLEDGE_BASE',
+                valor: req.body.knowledge_base || '',
+                tipo: 'TEXTO',
+                responsavel: 'Admin',
+                descricao: 'Base de conhecimento e catálogo de produtos Max Nutrition'
+              },
+              {
+                chave: 'VOICE_AGENT_PERSONA',
+                valor: req.body.persona || '',
+                tipo: 'TEXTO',
+                responsavel: 'Admin',
+                descricao: 'Personalidade e regras de atendimento do Pedro'
+              }
+            ])
+          }).catch(() => null);
+        } catch {}
+      }
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/voice-agent/test-dialogue', optionalAuth, async (req, res) => {
+    try {
+      const { prompt = 'Qual a diferença entre a creatina monohidratada e a creapure?', voice = KOKORO_OFFICIAL_VOICE_ID } = req.body || {};
+      const responseText = await generateAgentSpeechText({ prompt });
+      const sample = await generateKokoroSample({
+        text: responseText,
+        voice: voice || KOKORO_OFFICIAL_VOICE_ID
+      });
+      return res.json({
+        ok: true,
+        prompt,
+        response_text: responseText,
+        audio_url: sample.audio_url,
+        voice_id: voice || KOKORO_OFFICIAL_VOICE_ID
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/voice-agent/play-greeting', authenticateUser, async (req, res) => {
+    try {
+      const { call_id, text, voice } = req.body || {};
+      if (!call_id) {
+        return res.status(400).json({ ok: false, error: 'call_id é obrigatório' });
+      }
+      const cfg = await getVoiceAgentConfig();
+      const messageToSpeak = text || cfg.inbound_greeting;
+      const result = await speakInCall({
+        callId: call_id,
+        text: messageToSpeak,
+        voice: voice || cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID
+      });
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/voice-agent/webhook', async (req, res) => {
+    try {
+      const result = await handleCallConnectedWebhook(req.body || {});
+      return res.json({ ok: true, result });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }

@@ -191,8 +191,11 @@ try {
   assert.ok(bodyIntStatus.laya, 'Deve conter status da Laya');
   assert.ok(bodyIntStatus.evolution, 'Deve conter status da Evolution');
   assert.ok(bodyIntStatus.meowcaller, 'Deve conter status do Meowcaller');
+  assert.ok(bodyIntStatus.kokoro, 'Deve conter status do Kokoro TTS');
+  assert.strictEqual(bodyIntStatus.kokoro.is_official, true, 'Kokoro deve ser motor oficial');
+  assert.strictEqual(bodyIntStatus.kokoro.default_profile_id, 'VP-KOKORO-MASC-03', 'Pedro deve ser o perfil padrão oficial');
   assert.ok(bodyIntStatus.elevenlabs, 'Deve conter status da ElevenLabs');
-  console.log('OK: /api/integrations/status retornou status seguro dos 5 provedores.');
+  console.log('OK: /api/integrations/status retornou status seguro com Kokoro como motor oficial.');
 
   console.log('--- TESTE 11: Auto-Atendimento & Menu URA (1, 2, 3, 4) ---');
   const { buildAutoReplyMessage } = await import('../src/routes/integrations.mjs');
