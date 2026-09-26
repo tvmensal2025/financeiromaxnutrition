@@ -253,11 +253,11 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash'
             }
           });
           parts.push({
-            text: `${systemInstruction}\n\nO áudio acima é a fala do cliente na ligação WhatsApp VoIP. Responda imediatamente como Pedro, atendente e consultor da Max Nutrition, em no máximo 2 ou 3 frases faladas diretas (sem usar markdown nem emojis).`
+            text: 'O áudio acima é a fala do cliente na ligação WhatsApp VoIP. Responda imediatamente ao que o cliente perguntou ou falou, com simpatia e naturalidade como Pedro da Max Nutrition (máximo de 2 a 3 frases faladas diretas para telefone).'
           });
         } else {
           parts.push({
-            text: `${systemInstruction}\n\nCliente disse: "${userPrompt}". Responda em no máximo 2 a 3 frases faladas naturais para telefone:`
+            text: userPrompt
           });
         }
 
@@ -265,10 +265,13 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash'
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemInstruction }]
+            },
             contents: [{ role: 'user', parts }],
             generationConfig: {
               temperature: 0.4,
-              maxOutputTokens: 120
+              maxOutputTokens: 600
             }
           })
         });
