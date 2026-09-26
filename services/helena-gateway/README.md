@@ -85,6 +85,14 @@ O Gateway implementa estritamente os princípios do **Protocolo V9 (PAG-V9-001 a
 | `GET` | `/.well-known/oauth-protected-resource/mcp` | Pública | Endpoint canônico de metadata anunciado no header `WWW-Authenticate` quando `/mcp` é chamado sem token. |
 | `GET` | `/health` | Pública | Teste de conectividade com o Supabase e Supabase JWKS. Retorna `{ "ok": true, "supabase": true, "oauth": true, "mcp": true }`. |
 | `POST` | `/webhooks/supabase/agent-job` | Header `x-helena-webhook-secret` | Recebe webhook de novos jobs cadastrados no Supabase e registra evento `WAKE_SIGNAL`. |
+| `POST` | `/webhooks/evolution` | Segredo `EVOLUTION_WEBHOOK_SECRET` (header `x-evolution-webhook-secret` e/ou query `secret`) | Recebe eventos da Evolution API. Sem segredo ou segredo errado: HTTP 401, sem gravar, sem job, sem WhatsApp. |
+| `POST` | `/api/integrations/evolution/connect` | Bearer OAuth 2.1 / Fallback | Inicia conexão WhatsApp (QR). Sem auth: 401. |
+| `POST` | `/api/integrations/evolution/pair` | Bearer OAuth 2.1 / Fallback | Pareamento por telefone. Sem auth: 401. |
+| `POST` | `/api/integrations/evolution/webhook/setup` | Bearer OAuth 2.1 / Fallback | Re-registra o webhook na Evolution já incluindo o segredo. |
+| `POST` | `/api/integrations/meowcaller/connect` | Bearer OAuth 2.1 / Fallback | Inicia sessão de ligações WhatsApp. Sem auth: 401. |
+| `POST` | `/api/integrations/meowcaller/pair-phone` | Bearer OAuth 2.1 / Fallback | Código de pareamento de 8 dígitos. Sem auth: 401. |
+| `GET` | `/api/integrations/evolution/status` | Opcional | Status de leitura; dashboard pode consultar sem login. |
+| `GET` | `/api/integrations/meowcaller/status` | Opcional | Status de leitura; dashboard pode consultar sem login. |
 | `GET` | `/mcp` | Bearer OAuth 2.1 / Fallback | Metadados do servidor MCP e lista de ferramentas disponíveis. |
 | `POST` | `/mcp` | Bearer OAuth 2.1 / Fallback | Canal JSON-RPC 2.0 para execução (`tools/call`), listagem (`tools/list`) e handshake (`initialize`). Sem token retorna 401 com `WWW-Authenticate`. |
 | `POST` | `/api/tools/:toolName` | Bearer OAuth 2.1 / Fallback | Endpoint REST alternativo para chamada direta de qualquer uma das 10 ferramentas. |
@@ -224,7 +232,34 @@ OUTBOX_TICK_MS=15000
 EVOLUTION_BASE_URL=
 EVOLUTION_API_KEY=
 EVOLUTION_INSTANCE=
+
+# Segredo compartilhado do webhook Evolution (obrigatório em produção; fail-closed se vazio)
+# Preencher somente no EasyPanel. Sem valor no repositório.
+EVOLUTION_WEBHOOK_SECRET=
 ```
+
+### 5.1 Webhook Evolution — fail-closed e ordem segura de publicação
+
+`POST /webhooks/evolution` exige `EVOLUTION_WEBHOOK_SECRET` **antes** de gravar comunicação, criar job ou enviar WhatsApp.
+
+- **Header:** `x-evolution-webhook-secret` (aliases aceitos: `x-webhook-secret`, `x-helena-webhook-secret`)
+- **Query:** `?secret=`
+- Comparação em tempo constante. O valor nunca é logado.
+- **Se a variável NÃO estiver definida:** o gateway responde **401** (fail-closed). Mensagens reais da Evolution deixam de ser processadas até o segredo existir e o webhook ser re-registrado.
+- `setEvolutionWebhook` / `POST /api/integrations/evolution/webhook/setup` recusam registrar URL sem o segredo. Com o segredo definido, a Evolution API v2 é configurada com:
+  1. query param `secret` na URL (funciona mesmo se a instância não enviar headers customizados);
+  2. header `x-evolution-webhook-secret` no campo `webhook.headers` da Evolution v2.
+
+**Ordem segura de publicação (não inverter):**
+
+1. Definir `EVOLUTION_WEBHOOK_SECRET` no EasyPanel (ainda sem merge desta mudança, se possível).
+2. Publicar / fazer merge em `main` (o EasyPanel pode publicar sozinho).
+3. Re-registrar o webhook pela rota autenticada `POST /api/integrations/evolution/webhook/setup` (Bearer válido).
+4. Enviar uma mensagem de teste no WhatsApp e confirmar auto-resposta + registro em `comunicacoes`.
+
+Há uma janela entre os passos 2 e 3 em que a Evolution ainda aponta para a URL antiga (sem segredo) e o gateway já recusa com 401. Minimize essa janela executando o passo 3 imediatamente após o deploy.
+
+Rotas de **conectar/parear** WhatsApp (`/api/integrations/evolution/connect`, `/api/integrations/evolution/pair`, `/api/integrations/meowcaller/connect`, `/api/integrations/meowcaller/pair-phone`) passam a exigir o mesmo `authenticateUser` já usado no MCP. Rotas só de leitura de status continuam com auth opcional.
 
 ---
 
@@ -249,9 +284,10 @@ O serviço está **100% implantado e ativo na VPS** através do EasyPanel:
 * **Build Type:** Dockerfile
 * **Porta:** `3000`
 * **Primary Domain:** `helena-automation-helena-gateway.d9v63q.easypanel.host` (HTTPS automático via Traefik / Let's Encrypt)
-* **Tokens Gerados para Autenticação:**
+* **Tokens de autenticação:** devem ser gerados e gravados **somente no EasyPanel**. Nunca versionar os valores.
   * `MCP_BEARER_TOKEN`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
   * `GATEWAY_WEBHOOK_SECRET`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
+  * `EVOLUTION_WEBHOOK_SECRET`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
 
 
 ---
