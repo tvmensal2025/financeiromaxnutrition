@@ -61,6 +61,7 @@ type Engine struct {
 	qrGeneratedAt time.Time
 	lastRestart   time.Time
 	stopped       bool
+	forceReset    bool
 
 	wa        *waClient.Client
 	meo       *meowcaller.Client
@@ -135,9 +136,32 @@ func (e *Engine) runSession(ctx context.Context) error {
 	dbPath := "file:" + e.cfg.WhatsAppSessionPath + "?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 	container, err := sqlstore.New(ctx, "sqlite", dbPath, waLog.Zerolog(log.Logger).Sub("wa-db"))
 	if err != nil {
-		return fmt.Errorf("erro ao abrir SQLite de sessão WhatsApp: %w", err)
+		log.Warn().Err(err).Msg("Erro ao abrir SQLite de sessão. Tentando recriar banco...")
+		_ = os.Remove(e.cfg.WhatsAppSessionPath)
+		_ = os.Remove(e.cfg.WhatsAppSessionPath + "-shm")
+		_ = os.Remove(e.cfg.WhatsAppSessionPath + "-wal")
+		container, err = sqlstore.New(ctx, "sqlite", dbPath, waLog.Zerolog(log.Logger).Sub("wa-db"))
+		if err != nil {
+			return fmt.Errorf("erro fatal ao abrir SQLite de sessão WhatsApp: %w", err)
+		}
 	}
 	defer container.Close()
+
+	// Se houve requisição de reset explícito, limpa todos os devices do banco
+	e.mu.Lock()
+	forceReset := e.forceReset
+	e.forceReset = false
+	e.mu.Unlock()
+
+	if forceReset {
+		log.Info().Msg("Reset explícito solicitado: deletando dispositivos anteriores do banco...")
+		devices, err := container.GetAllDevices(ctx)
+		if err == nil {
+			for _, d := range devices {
+				_ = d.Delete(ctx)
+			}
+		}
+	}
 
 	device, err := container.GetFirstDevice(ctx)
 	if err != nil {
@@ -219,8 +243,16 @@ func (e *Engine) runSession(ctx context.Context) error {
 	if err := waitUntilConnected(ctx, wa, 8*time.Second); err != nil {
 		log.Warn().Err(err).Msg("Sessão salva expirada ou inválida. Limpando credenciais antigas para gerar novo QR Code...")
 		_ = device.Delete(context.Background())
-		// Inicia imediatamente o fluxo de QR Code
-		return e.connectWithQR(ctx, wa)
+		newDevice := container.NewDevice()
+		newWa := waClient.NewClient(newDevice, waLog.Zerolog(log.Logger).Sub("wa"))
+		newMeo := meowcaller.NewClient(newWa)
+
+		e.mu.Lock()
+		e.wa = newWa
+		e.meo = newMeo
+		e.mu.Unlock()
+
+		return e.connectWithQR(ctx, newWa)
 	}
 
 	jid := wa.Store.GetJID().String()
@@ -245,6 +277,10 @@ func (e *Engine) runSession(ctx context.Context) error {
 func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 	log.Info().Msg("Novo dispositivo detectado. Gerando QR Code de Ligações...")
 	e.setStatus(StatusPairingRequired, "", "")
+
+	if wa.IsConnected() {
+		wa.Disconnect()
+	}
 
 	qrChan, err := wa.GetQRChannel(ctx)
 	if err != nil {
@@ -295,7 +331,7 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 
 	// Se não logou e não teve sucesso explícito, retorna erro para reiniciar o ciclo
 	if !wa.IsLoggedIn() && lastEvent != "success" {
-		return fmt.Errorf("sessão QR finalizada sem pareamento (lastEvent: %s)", lastEvent)
+		return fmt.Errorf("sessão QR finalizada sem login (evento: %s)", lastEvent)
 	}
 
 	// Pareamento concluído (ou em finalização)
@@ -398,6 +434,7 @@ func (e *Engine) ResetSession(ctx context.Context) error {
 	e.qrCodeB64 = ""
 	e.jid = ""
 	e.status = StatusConnecting
+	e.forceReset = true
 	cancel := e.cancelCtx
 	wa := e.wa
 	e.mu.Unlock()
@@ -409,15 +446,7 @@ func (e *Engine) ResetSession(ctx context.Context) error {
 		cancel()
 	}
 
-	// Remove arquivos do SQLite da sessão para forçar novo pareamento limpo
-	dbPath := e.cfg.WhatsAppSessionPath
-	if dbPath != "" {
-		_ = os.Remove(dbPath)
-		_ = os.Remove(dbPath + "-shm")
-		_ = os.Remove(dbPath + "-wal")
-		log.Info().Str("path", dbPath).Msg("Credenciais salvas e banco WhatsApp removidos com sucesso.")
-	}
-
+	log.Info().Msg("Sinal de reset de sessão enviado. Dispositivos serão removidos com segurança.")
 	return nil
 }
 

@@ -141,9 +141,21 @@ func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Se já temos um QR code ativo e válido, retorna imediatamente sem reiniciar conexão
+	if qr != "" {
+		s.ok(w, map[string]interface{}{
+			"ok":              true,
+			"status":          string(status),
+			"whatsapp_status": string(status),
+			"qrcode":          qr,
+			"message":         "QR Code ativo disponível! Escaneie nos próximos 20 segundos.",
+		}, http.StatusOK)
+		return
+	}
+
 	// Força reinício limpo (limpa qualquer sessão antiga e inicia ciclo de QR fresco)
 	_ = s.engine.ResetSession(r.Context())
-	for i := 0; i < 40; i++ {
+	for i := 0; i < 50; i++ {
 		time.Sleep(100 * time.Millisecond)
 		st, _, newQr := s.engine.GetStatus()
 		if newQr != "" {
