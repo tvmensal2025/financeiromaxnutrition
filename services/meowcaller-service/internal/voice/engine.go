@@ -314,6 +314,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 		// Hook de encerramento da chamada recebida
 		call.OnEnd(func(reason string) {
 			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada recebida encerrada")
+			e.recordDiagEvent(fmt.Sprintf("Chamada encerrada. Motivo: %s", reason))
 			snap.Status = "ENDED"
 			e.callsMu.Lock()
 			if s, ok := e.callSinks[callID]; ok {
@@ -334,6 +335,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 		// Quando a mídia RTP estiver fluindo, dispara a saudação inicial
 		call.OnReady(func() {
 			log.Info().Str("call_id", callID).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação...")
+			e.recordDiagEvent("Mídia RTP conectada com sucesso (OnReady)")
 			go e.playInitialGreeting(callID, call, "INBOUND")
 		})
 
@@ -726,9 +728,11 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 			if src, err := meowcaller.MP3File(p); err == nil {
 				player := call.Play(src)
 				e.setActivePlayer(callID, player)
+				e.recordDiagEvent(fmt.Sprintf("Saudação inicial em reprodução (arquivo: %s)", p))
 				log.Info().Str("call_id", callID).Msg("✅ Áudio do Pedro transmitido com sucesso na ligação!")
 				return
 			} else {
+				e.recordDiagEvent(fmt.Sprintf("Falha ao abrir MP3 de saudação %s: %v", p, err))
 				log.Warn().Err(err).Str("path", p).Msg("Falha ao abrir MP3 de saudação")
 			}
 		}
