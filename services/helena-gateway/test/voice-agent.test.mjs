@@ -51,4 +51,18 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
     assert.ok(updated.knowledge_base.includes('Barra de Proteína Vegan'));
     assert.strictEqual(updated.inbound_greeting, 'Olá! Sou o Pedro da Max Nutrition, como posso te ajudar?');
   });
+
+  it('getCallHistory retorna histórico vazio inicial e persiste diálogos', async () => {
+    const { getCallHistory } = await import('../src/integrations/voice-agent.mjs');
+    const callId = 'test-call-' + Date.now();
+    const history = getCallHistory(callId);
+    assert.ok(Array.isArray(history));
+    assert.strictEqual(history.length, 0);
+
+    history.push({ role: 'user', text: 'Oi Pedro' });
+    const check = getCallHistory(callId);
+    assert.strictEqual(check.length, 1);
+    assert.strictEqual(check[0].text, 'Oi Pedro');
+  });
 });
+

@@ -48,7 +48,9 @@ import {
   updateVoiceAgentConfig,
   generateAgentSpeechText,
   speakInCall,
-  handleCallConnectedWebhook
+  handleCallConnectedWebhook,
+  processUserSpeech,
+  getCallHistory
 } from '../integrations/voice-agent.mjs';
 
 import { MeowcallerElevenBridge, MeowcallerKokoroBridge } from '../integrations/bridge.mjs';
@@ -751,6 +753,30 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }
+  });
+
+  router.post('/api/integrations/voice-agent/user-speech', async (req, res) => {
+    try {
+      const { call_id, audio_base64, format, sample_rate } = req.body || {};
+      if (!call_id || !audio_base64) {
+        return res.status(400).json({ ok: false, error: 'call_id e audio_base64 são obrigatórios' });
+      }
+      const result = await processUserSpeech({
+        callId: call_id,
+        audioBase64: audio_base64,
+        format: format || 'wav',
+        sampleRate: sample_rate || 16000
+      });
+      return res.json({ ok: true, result });
+    } catch (err) {
+      console.error('[VOICE_AGENT] Erro ao processar fala do usuário:', err.message);
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/api/integrations/voice-agent/call-history/:call_id', optionalAuth, (req, res) => {
+    const history = getCallHistory(req.params.call_id);
+    return res.json({ ok: true, call_id: req.params.call_id, history });
   });
 
   return router;
