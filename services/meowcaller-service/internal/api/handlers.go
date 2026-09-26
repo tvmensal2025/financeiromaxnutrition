@@ -141,9 +141,9 @@ func (s *Server) handleStartSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Força reinício para gerar um QR Code 100% novo e fresco
-	s.engine.RestartSession()
-	for i := 0; i < 35; i++ {
+	// Força reinício limpo (limpa qualquer sessão antiga e inicia ciclo de QR fresco)
+	_ = s.engine.ResetSession(r.Context())
+	for i := 0; i < 40; i++ {
 		time.Sleep(100 * time.Millisecond)
 		st, _, newQr := s.engine.GetStatus()
 		if newQr != "" {
@@ -175,6 +175,15 @@ func (s *Server) handlePairPhone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Aguarda até 3 segundos se o cliente estiver conectando o socket
+	for i := 0; i < 15; i++ {
+		st, _, _ := s.engine.GetStatus()
+		if st != voice.StatusConnecting {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+
 	code, err := s.engine.PairPhone(r.Context(), body.Phone)
 	if err != nil {
 		s.err(w, fmt.Sprintf("Erro ao gerar pairing code: %v", err), http.StatusBadRequest)
@@ -190,13 +199,12 @@ func (s *Server) handlePairPhone(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDisconnectSession(w http.ResponseWriter, r *http.Request) {
-	// O engine reconecta automaticamente; aqui apenas informamos o cliente
-	// Para desconexão real, seria necessário remover o device do SQLite
-	log.Info().Msg("Requisição de desconexão de sessão recebida")
+	log.Info().Msg("Requisição de desconexão de sessão recebida. Limpando credenciais...")
+	_ = s.engine.ResetSession(r.Context())
 	s.ok(w, map[string]interface{}{
 		"ok":      true,
 		"status":  "DISCONNECTED",
-		"message": "Sessão de ligações desconectada. O engine reiniciará o processo de pareamento em breve.",
+		"message": "Sessão de ligações desconectada e credenciais removidas com sucesso.",
 	}, http.StatusOK)
 }
 

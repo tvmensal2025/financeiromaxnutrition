@@ -1,7 +1,7 @@
 // Package voice implementa o engine real de WhatsApp VoIP usando
 // hypermeow (cliente WhatsApp Web) + meowcaller (stack VoIP).
 // Responsabilidades:
-//   - Gerenciar sessão WhatsApp (QR Code via channel, pareamento, reconexão)
+//   - Gerenciar sessão WhatsApp (QR Code via channel, pareamento, reconexão contínua)
 //   - Controlar o ciclo de vida de chamadas (Originar, Atender, Encerrar)
 //   - Expor estado via GetStatus() para a camada HTTP
 package voice
@@ -117,9 +117,9 @@ func (e *Engine) connectLoop() {
 		}
 
 		if err != nil {
-			log.Warn().Err(err).Msg("Sessão WhatsApp finalizada. Reiniciando ciclo de conexão em 3s...")
+			log.Warn().Err(err).Msg("Ciclo de sessão WhatsApp finalizado. Reiniciando ciclo em 2s para manter QR Code fresco...")
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
 
@@ -127,7 +127,7 @@ func (e *Engine) connectLoop() {
 func (e *Engine) runSession(ctx context.Context) error {
 	e.setStatus(StatusConnecting, "", "")
 
-	// Configura o device como Chrome (aparece como "Google Chrome" nos dispositivos vinculados)
+	// Configura o device como Mac OS / Chrome
 	store.DeviceProps.Os = proto.String("Mac OS")
 	store.DeviceProps.PlatformType = waCompanionReg.DeviceProps_CHROME.Enum()
 
@@ -147,7 +147,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 	// Cria o cliente WhatsApp
 	wa := waClient.NewClient(device, waLog.Zerolog(log.Logger).Sub("wa"))
 
-	// Instala o meowcaller ANTES de conectar (obrigatório para interceptar chamadas)
+	// Instala o meowcaller ANTES de conectar (obrigatório para interceptar chamadas VoIP)
 	meo := meowcaller.NewClient(wa)
 
 	e.mu.Lock()
@@ -155,7 +155,16 @@ func (e *Engine) runSession(ctx context.Context) error {
 	e.meo = meo
 	e.mu.Unlock()
 
-	// Handler de chamadas recebidas (Inbound)
+	// Handler de logout remoto
+	wa.AddEventHandler(func(evt any) {
+		if _, ok := evt.(*events.LoggedOut); ok {
+			log.Warn().Msg("WhatsApp desconectado pelo celular (LoggedOut). Limpando credenciais antigas...")
+			_ = device.Delete(context.Background())
+			e.RestartSession()
+		}
+	})
+
+	// Handler de chamadas recebidas (Inbound VoIP)
 	meo.OnIncomingCall(func(call *meowcaller.Call) {
 		callID := call.ID()
 		peer := call.Peer().String()
@@ -200,12 +209,18 @@ func (e *Engine) runSession(ctx context.Context) error {
 		return e.connectWithQR(ctx, wa)
 	}
 
-	// Dispositivo já pareado — conecta direto
+	// Dispositivo com credenciais salvas — tenta restabelecer conexão
+	log.Info().Str("jid", device.ID.String()).Msg("Tentando reconectar sessão salva...")
 	if err := wa.Connect(); err != nil {
-		return fmt.Errorf("erro ao conectar WhatsApp: %w", err)
+		log.Warn().Err(err).Msg("Falha ao discar conexão com sessão salva")
 	}
-	if err := waitUntilConnected(ctx, wa, 60*time.Second); err != nil {
-		return fmt.Errorf("timeout aguardando conexão WhatsApp: %w", err)
+
+	// Aguarda conexão autenticada por no máximo 8s
+	if err := waitUntilConnected(ctx, wa, 8*time.Second); err != nil {
+		log.Warn().Err(err).Msg("Sessão salva expirada ou inválida. Limpando credenciais antigas para gerar novo QR Code...")
+		_ = device.Delete(context.Background())
+		// Inicia imediatamente o fluxo de QR Code
+		return e.connectWithQR(ctx, wa)
 	}
 
 	jid := wa.Store.GetJID().String()
@@ -241,7 +256,7 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 	}
 
 	var lastEvent string
-	// Processa eventos do canal QR
+	// Processa eventos do canal QR emitidos pelo WhatsApp Web
 	for evt := range qrChan {
 		lastEvent = evt.Event
 		if evt.Event == "code" {
@@ -260,13 +275,13 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 				e.qrCodeB64 = b64
 				e.qrGeneratedAt = time.Now()
 				e.mu.Unlock()
-				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie nos próximos 20 segundos.")
+				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie no WhatsApp: Aparelhos Conectados.")
 			}
 		} else if evt.Event == "success" {
 			log.Info().Msg("✅ Pareamento via QR Code concluído com sucesso!")
 			break
 		} else if evt.Event == "timeout" {
-			log.Warn().Msg("⏰ QR Code expirou por inatividade.")
+			log.Warn().Msg("⏰ QR Code expirou por inatividade. O canal será reciclado automaticamente.")
 			break
 		} else {
 			log.Info().Str("event", evt.Event).Msg("Evento de login WhatsApp")
@@ -280,7 +295,7 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 
 	// Se não logou e não teve sucesso explícito, retorna erro para reiniciar o ciclo
 	if !wa.IsLoggedIn() && lastEvent != "success" {
-		return fmt.Errorf("sessão QR expirou sem pareamento (lastEvent: %s)", lastEvent)
+		return fmt.Errorf("sessão QR finalizada sem pareamento (lastEvent: %s)", lastEvent)
 	}
 
 	// Pareamento concluído (ou em finalização)
@@ -306,30 +321,27 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 	return nil
 }
 
-// waitUntilConnected aguarda até o cliente estar conectado e autenticado
+// waitUntilConnected aguarda com ticker até o cliente estar conectado e autenticado
 func waitUntilConnected(ctx context.Context, wa *waClient.Client, timeout time.Duration) error {
-	ready := make(chan struct{}, 8)
-	id := wa.AddEventHandler(func(evt any) {
-		if _, ok := evt.(*events.Connected); ok {
-			select {
-			case ready <- struct{}{}:
-			default:
-			}
-		}
-	})
-	defer wa.RemoveEventHandler(id)
-
 	deadline := time.After(timeout)
-	for !(wa.IsConnected() && wa.IsLoggedIn()) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if wa.IsConnected() && wa.IsLoggedIn() {
+			return nil
+		}
 		select {
-		case <-ready:
+		case <-ticker.C:
+			if wa.IsConnected() && wa.IsLoggedIn() {
+				return nil
+			}
 		case <-deadline:
 			return fmt.Errorf("timeout aguardando conexão WhatsApp (%s)", timeout)
 		case <-ctx.Done():
 			return ctx.Err()
 		}
 	}
-	return nil
 }
 
 // setStatus atualiza o estado de forma thread-safe
@@ -377,6 +389,36 @@ func (e *Engine) RestartSession() {
 		cancel()
 	}
 	log.Info().Msg("🔄 Sessão WhatsApp reiniciada sob demanda. Gerando QR Code fresco...")
+}
+
+// ResetSession limpa completamente o banco SQLite de sessão e força geração de QR Code do zero
+func (e *Engine) ResetSession(ctx context.Context) error {
+	e.mu.Lock()
+	e.lastRestart = time.Now()
+	e.qrCodeB64 = ""
+	e.jid = ""
+	e.status = StatusConnecting
+	cancel := e.cancelCtx
+	wa := e.wa
+	e.mu.Unlock()
+
+	if wa != nil {
+		wa.Disconnect()
+	}
+	if cancel != nil {
+		cancel()
+	}
+
+	// Remove arquivos do SQLite da sessão para forçar novo pareamento limpo
+	dbPath := e.cfg.WhatsAppSessionPath
+	if dbPath != "" {
+		_ = os.Remove(dbPath)
+		_ = os.Remove(dbPath + "-shm")
+		_ = os.Remove(dbPath + "-wal")
+		log.Info().Str("path", dbPath).Msg("Credenciais salvas e banco WhatsApp removidos com sucesso.")
+	}
+
+	return nil
 }
 
 // PairPhone solicita código de pareamento por número de telefone (8 dígitos)
