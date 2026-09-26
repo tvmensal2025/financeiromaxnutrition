@@ -8,17 +8,18 @@ WORKDIR /build
 # Ferramentas de compilação
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copiar os manifests para download de deps
-COPY go.mod go.sum ./
+# Copiar os manifests
+COPY go.mod ./
 
 # Copiar código-fonte completo
 COPY cmd/ cmd/
 COPY internal/ internal/
 
 # Resolve dependências
-ENV GONOSUMCHECK=*
+ENV GOSUMDB=off
+ENV GONOSUMDB=*
 ENV GOFLAGS=-mod=mod
-RUN go mod download
+RUN go mod tidy && go mod download
 
 # Compilação estática sem CGO — meowcaller é 100% Pure Go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \

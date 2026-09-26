@@ -1,5 +1,5 @@
 github.com/google/uuid v1.6.0 h1:NIvaJDKgcr6hEO3TXjXT3JExhgqkiq4Od6G8-y+YXQU=
-github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOAmEwW7DT8VWRE=
+github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gorilla/websocket v1.5.3 h1:saDtPlTtznNm4xctstVvNeEK5nUa2ZDXWC/zdU70ua4=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+UMtzCclGEftW9g=
 github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvU=
