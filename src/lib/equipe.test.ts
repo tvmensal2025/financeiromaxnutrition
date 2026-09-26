@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import "@testing-library/jest-dom/vitest";
 import {
   areaDoAgente,
@@ -60,5 +62,12 @@ describe("Equipe — mescla de dados", () => {
     expect(mesclado.agent_id).toBe("AGT-05");
     expect(mesclado.connection_status).toBe("PLANNED");
     expect(statusVisualDoAgente(mesclado)).toBe("planejado");
+  });
+
+  it("não usa src/lib/agentes.json como fonte na Equipe", () => {
+    const pagina = readFileSync(resolve(__dirname, "../pages/EquipePage.tsx"), "utf8");
+    const mescla = readFileSync(resolve(__dirname, "./equipe.ts"), "utf8");
+    expect(pagina).not.toMatch(/agentes\.json/);
+    expect(mescla).not.toMatch(/agentes\.json/);
   });
 });

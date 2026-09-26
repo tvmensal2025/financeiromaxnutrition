@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import "@testing-library/jest-dom/vitest";
 import {
   AGENT_VISUALS,
   AREA_VISUALS,
+  STATUS_VISUALS,
   getAgentVisual,
   getAreaVisual,
   statusVisualFromDb,
+  type AgentStatusVisual,
 } from "./agentVisuals";
 
 describe("agentVisuals", () => {
@@ -18,19 +19,94 @@ describe("agentVisuals", () => {
     expect(getAreaVisual("AGT-99")).toBeUndefined();
     expect(getAgentVisual(null)).toBeUndefined();
   });
+});
 
-  it("não assume CONNECTED quando falta linha de conexão", () => {
-    expect(statusVisualFromDb("ATIVO", null)).toBe("desconhecido");
-    expect(statusVisualFromDb("ATIVO", undefined)).toBe("desconhecido");
-    expect(statusVisualFromDb("ATIVO", "")).toBe("desconhecido");
+describe("statusVisualFromDb", () => {
+  const casos: Array<{
+    nome: string;
+    agent: string | null | undefined;
+    conn: string | null | undefined;
+    visual: AgentStatusVisual;
+    rotulo: string;
+  }> = [
+    {
+      nome: "agente DESATIVADO vence CONNECTED",
+      agent: "DESATIVADO",
+      conn: "CONNECTED",
+      visual: "desativado",
+      rotulo: "Desativado",
+    },
+    {
+      nome: "agente PAUSADO vence CONNECTED",
+      agent: "PAUSADO",
+      conn: "CONNECTED",
+      visual: "pausado",
+      rotulo: "Pausado",
+    },
+    {
+      nome: "ATIVO + CONNECTED",
+      agent: "ATIVO",
+      conn: "CONNECTED",
+      visual: "conectado",
+      rotulo: "Conectado",
+    },
+    {
+      nome: "ATIVO + PLANNED",
+      agent: "ATIVO",
+      conn: "PLANNED",
+      visual: "planejado",
+      rotulo: "Planejado",
+    },
+    {
+      nome: "ATIVO + NOT_CONNECTED",
+      agent: "ATIVO",
+      conn: "NOT_CONNECTED",
+      visual: "nao_conectado",
+      rotulo: "Não conectado",
+    },
+    {
+      nome: "ATIVO + ERROR",
+      agent: "ATIVO",
+      conn: "ERROR",
+      visual: "erro",
+      rotulo: "Erro de conexão",
+    },
+    {
+      nome: "sem linha em agent_connections (null)",
+      agent: "ATIVO",
+      conn: null,
+      visual: "desconhecido",
+      rotulo: "Sem registro",
+    },
+    {
+      nome: "sem linha em agent_connections (undefined)",
+      agent: "ATIVO",
+      conn: undefined,
+      visual: "desconhecido",
+      rotulo: "Sem registro",
+    },
+    {
+      nome: "sem connection_status (string vazia)",
+      agent: "ATIVO",
+      conn: "",
+      visual: "desconhecido",
+      rotulo: "Sem registro",
+    },
+  ];
+
+  it.each(casos)("$nome → $rotulo", ({ agent, conn, visual, rotulo }) => {
+    const obtido = statusVisualFromDb(agent, conn);
+    expect(obtido).toBe(visual);
+    expect(STATUS_VISUALS[obtido].label).toBe(rotulo);
   });
 
-  it("deriva o estado visual com precedência do status do agente", () => {
-    expect(statusVisualFromDb("DESATIVADO", "CONNECTED")).toBe("desativado");
-    expect(statusVisualFromDb("PAUSADO", "CONNECTED")).toBe("pausado");
-    expect(statusVisualFromDb("ATIVO", "CONNECTED")).toBe("conectado");
-    expect(statusVisualFromDb("ATIVO", "PLANNED")).toBe("planejado");
-    expect(statusVisualFromDb("ATIVO", "NOT_CONNECTED")).toBe("nao_conectado");
-    expect(statusVisualFromDb("ATIVO", "ERROR")).toBe("erro");
+  it("sem linha em agent_connections é Sem registro e nunca Conectado", () => {
+    for (const conn of [null, undefined, ""] as const) {
+      const visual = statusVisualFromDb("ATIVO", conn);
+      expect(visual).toBe("desconhecido");
+      expect(visual).not.toBe("conectado");
+      expect(STATUS_VISUALS[visual].label).toBe("Sem registro");
+      expect(STATUS_VISUALS[visual].label).not.toBe("Conectado");
+    }
   });
 });
