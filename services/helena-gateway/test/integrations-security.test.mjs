@@ -1,0 +1,362 @@
+import assert from 'node:assert';
+import express from 'express';
+
+process.env.PUBLIC_HOST = 'gateway.test';
+process.env.EVOLUTION_BASE_URL = 'http://evolution.test';
+process.env.EVOLUTION_API_KEY = 'test-evo-key';
+process.env.EVOLUTION_INSTANCE = 'test-instance';
+process.env.EVOLUTION_WEBHOOK_SECRET = 'test-evo-webhook-secret';
+process.env.MEOWCALLER_BASE_URL = 'http://meowcaller.test';
+process.env.MEOWCALLER_TOKEN = 'test-meow-token';
+process.env.LAYA_BASE_URL = 'http://laya.test';
+
+const originalFetch = globalThis.fetch;
+const fetchCalls = [];
+const sentMessages = [];
+const webhookSetPayloads = [];
+
+globalThis.fetch = async (url, options = {}) => {
+  const target = String(url);
+  if (target.startsWith('http://127.0.0.1:') || target.startsWith('http://localhost:')) {
+    return originalFetch(url, options);
+  }
+
+  fetchCalls.push({ url: target, method: options.method || 'GET', body: options.body || null });
+
+  if (target.includes('/v1/classify')) {
+    return {
+      ok: true,
+      json: async () => ({
+        area: 'ATENDIMENTO',
+        intent: 'saudacao',
+        suggested_agent_id: 'AGT-20',
+        suggested_agent_name: 'Joana',
+        urgency: 1,
+        business_id: 'BIZ-001'
+      })
+    };
+  }
+
+  if (target.includes('/message/sendText')) {
+    sentMessages.push(JSON.parse(options.body || '{}'));
+    return {
+      ok: true,
+      json: async () => ({ key: { id: 'OUT-MOCK-1' } })
+    };
+  }
+
+  if (target.includes('/webhook/set/')) {
+    webhookSetPayloads.push(JSON.parse(options.body || '{}'));
+    return { ok: true, json: async () => ({ ok: true }) };
+  }
+
+  if (target.includes('/instance/connect/')) {
+    return {
+      ok: true,
+      json: async () => ({ base64: 'qr-mock', pairingCode: null, status: 'CONNECTING' })
+    };
+  }
+
+  if (target.includes('/v1/session/start')) {
+    return { ok: true, json: async () => ({ status: 'CONNECTING', qrcode: 'qr-meow-mock' }) };
+  }
+
+  if (target.includes('/v1/session/pair-phone')) {
+    return {
+      ok: true,
+      json: async () => ({ pairing_code: '12345678', phone: '5511999999999' })
+    };
+  }
+
+  if (target.includes('/health') || target.includes('/v1/session')) {
+    return {
+      ok: true,
+      json: async () => ({
+        status: 'healthy',
+        whatsapp_status: 'DISCONNECTED',
+        connected_jid: '',
+        active_calls: 0
+      })
+    };
+  }
+
+  return {
+    ok: false,
+    status: 404,
+    json: async () => ({}),
+    text: async () => 'not-mocked'
+  };
+};
+
+const {
+  createIntegrationsRouter,
+  safeCompareSecrets
+} = await import('../src/routes/integrations.mjs');
+const {
+  setEvolutionWebhook,
+  buildEvolutionWebhookUrl,
+  buildEvolutionWebhookHeaders
+} = await import('../src/integrations/evolution.mjs');
+
+const AUTH_TOKEN = 'test-user-token';
+const WEBHOOK_SECRET = 'test-evo-webhook-secret';
+
+function authenticateUser(req, res, next) {
+  const header = req.headers.authorization || '';
+  if (header === `Bearer ${AUTH_TOKEN}`) {
+    req.identity = { userId: 'test-user', type: 'test' };
+    return next();
+  }
+  return res.status(401).json({
+    error: 'invalid_token',
+    error_description: 'Authorization required'
+  });
+}
+
+const supabaseCalls = [];
+async function supabaseFetch(path, options = {}) {
+  supabaseCalls.push({
+    path,
+    method: options.method || 'GET',
+    body: options.body ? JSON.parse(options.body) : null
+  });
+  return [];
+}
+
+function inboundMessagePayload(text = 'oi') {
+  return {
+    event: 'messages.upsert',
+    instance: 'test-instance',
+    data: {
+      key: {
+        remoteJid: '5511999999999@s.whatsapp.net',
+        fromMe: false,
+        id: 'MSG-TEST-1'
+      },
+      pushName: 'Teste',
+      message: { conversation: text }
+    }
+  };
+}
+
+function startApp() {
+  const app = express();
+  app.use(express.json({ limit: '1mb' }));
+  app.use(createIntegrationsRouter({ supabaseFetch, authenticateUser }));
+  return new Promise((resolve) => {
+    const server = app.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      resolve({ server, baseUrl: `http://127.0.0.1:${port}` });
+    });
+  });
+}
+
+function resetSideEffects() {
+  supabaseCalls.length = 0;
+  sentMessages.length = 0;
+  webhookSetPayloads.length = 0;
+  fetchCalls.length = 0;
+}
+
+let passed = 0;
+async function test(name, fn) {
+  resetSideEffects();
+  process.env.EVOLUTION_WEBHOOK_SECRET = WEBHOOK_SECRET;
+  await fn();
+  passed += 1;
+  console.log(`OK: ${name}`);
+}
+
+const { server, baseUrl } = await startApp();
+
+try {
+  console.log('--- Segurança Evolution webhook e rotas de conexão ---');
+
+  await test('safeCompareSecrets rejeita tamanhos diferentes e aceita iguais', () => {
+    assert.strictEqual(safeCompareSecrets('abc', 'abc'), true);
+    assert.strictEqual(safeCompareSecrets('abc', 'abd'), false);
+    assert.strictEqual(safeCompareSecrets('abc', 'abcd'), false);
+    assert.strictEqual(safeCompareSecrets('', 'abc'), false);
+    assert.strictEqual(safeCompareSecrets('abc', ''), false);
+  });
+
+  await test('webhook sem segredo rejeita 401 e não grava', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(inboundMessagePayload())
+    });
+    assert.strictEqual(res.status, 401);
+    const body = await res.json();
+    assert.strictEqual(body.ok, false);
+    assert.strictEqual(supabaseCalls.length, 0);
+    assert.strictEqual(sentMessages.length, 0);
+  });
+
+  await test('webhook com segredo errado no header rejeita 401', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': 'segredo-errado'
+      },
+      body: JSON.stringify(inboundMessagePayload())
+    });
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(supabaseCalls.length, 0);
+    assert.strictEqual(sentMessages.length, 0);
+  });
+
+  await test('webhook com query secret errado rejeita 401', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution?secret=segredo-errado`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(inboundMessagePayload())
+    });
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(supabaseCalls.length, 0);
+    assert.strictEqual(sentMessages.length, 0);
+  });
+
+  await test('webhook com header correto aceita e segue o fluxo (mocks)', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload('oi'))
+    });
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.strictEqual(body.processed, true);
+    assert.ok(supabaseCalls.some((call) => call.path.includes('/comunicacoes')));
+    assert.ok(supabaseCalls.some((call) => call.path.includes('/agent_jobs')));
+    assert.ok(sentMessages.length >= 1, 'auto-resposta deve ser enviada via mock da Evolution');
+  });
+
+  await test('webhook com query secret correto aceita', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution?secret=${encodeURIComponent(WEBHOOK_SECRET)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(inboundMessagePayload('menu'))
+    });
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.ok(supabaseCalls.length > 0);
+  });
+
+  await test('sem EVOLUTION_WEBHOOK_SECRET definido: fail-closed 401 mesmo com valor enviado', async () => {
+    delete process.env.EVOLUTION_WEBHOOK_SECRET;
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload())
+    });
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(supabaseCalls.length, 0);
+    assert.strictEqual(sentMessages.length, 0);
+  });
+
+  await test('setEvolutionWebhook inclui secret na URL e no header, sem devolver o valor', async () => {
+    const result = await setEvolutionWebhook();
+    assert.strictEqual(result.success, true);
+    assert.ok(result.url.includes('/webhooks/evolution'));
+    assert.ok(result.url.includes('secret=***'), 'URL devolvida deve estar redigida');
+    assert.ok(!result.url.includes(WEBHOOK_SECRET), 'resposta não pode conter o segredo');
+    assert.strictEqual(webhookSetPayloads.length, 1);
+    const payload = webhookSetPayloads[0].webhook;
+    assert.ok(payload.url.includes(`secret=${encodeURIComponent(WEBHOOK_SECRET)}`) || payload.url.includes(`secret=${WEBHOOK_SECRET}`));
+    assert.strictEqual(payload.headers['x-evolution-webhook-secret'], WEBHOOK_SECRET);
+  });
+
+  await test('setEvolutionWebhook recusa registrar sem EVOLUTION_WEBHOOK_SECRET', async () => {
+    delete process.env.EVOLUTION_WEBHOOK_SECRET;
+    await assert.rejects(
+      () => setEvolutionWebhook(),
+      /EVOLUTION_WEBHOOK_SECRET não definido/
+    );
+    assert.strictEqual(webhookSetPayloads.length, 0);
+  });
+
+  await test('buildEvolutionWebhookUrl e headers respeitam a variável de ambiente', () => {
+    const url = buildEvolutionWebhookUrl();
+    assert.ok(url.startsWith('https://gateway.test/webhooks/evolution'));
+    assert.ok(url.includes('secret='));
+    const headers = buildEvolutionWebhookHeaders();
+    assert.strictEqual(headers['x-evolution-webhook-secret'], WEBHOOK_SECRET);
+  });
+
+  await test('POST evolution/connect sem auth rejeita 401', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/evolution/connect`, { method: 'POST' });
+    assert.strictEqual(res.status, 401);
+  });
+
+  await test('POST evolution/connect com auth aceita', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/evolution/connect`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${AUTH_TOKEN}` }
+    });
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+    assert.ok(body.result);
+  });
+
+  await test('POST meowcaller/connect sem auth rejeita 401', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/meowcaller/connect`, { method: 'POST' });
+    assert.strictEqual(res.status, 401);
+  });
+
+  await test('POST meowcaller/connect com auth aceita', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/meowcaller/connect`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${AUTH_TOKEN}` }
+    });
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+  });
+
+  await test('POST meowcaller/pair-phone sem auth rejeita 401', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/meowcaller/pair-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '11999999999' })
+    });
+    assert.strictEqual(res.status, 401);
+  });
+
+  await test('POST meowcaller/pair-phone com auth aceita', async () => {
+    const res = await fetch(`${baseUrl}/api/integrations/meowcaller/pair-phone`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${AUTH_TOKEN}`
+      },
+      body: JSON.stringify({ phone: '11999999999' })
+    });
+    assert.strictEqual(res.status, 200);
+    const body = await res.json();
+    assert.strictEqual(body.ok, true);
+  });
+
+  await test('GET status de leitura continua acessível sem auth', async () => {
+    const evo = await fetch(`${baseUrl}/api/integrations/evolution/status`);
+    assert.strictEqual(evo.status, 200);
+    const meow = await fetch(`${baseUrl}/api/integrations/meowcaller/status`);
+    assert.strictEqual(meow.status, 200);
+  });
+
+  console.log('\n========================================');
+  console.log(`TESTES DE SEGURANÇA: ${passed} executados, ${passed} passados, 0 falhos`);
+  console.log('========================================');
+} finally {
+  globalThis.fetch = originalFetch;
+  await new Promise((resolve) => server.close(resolve));
+}

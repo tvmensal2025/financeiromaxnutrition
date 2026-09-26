@@ -3,6 +3,7 @@
  * Endpoints REST administrativos e webhooks para Central de Canais, Voz e Roteamento
  */
 
+import crypto from 'node:crypto';
 import express from 'express';
 import { getLayaHealth, classifyMessage, scoreMessage, routeMessage } from '../integrations/laya.mjs';
 import {
@@ -14,7 +15,8 @@ import {
   normalizeEvolutionWebhookEvent,
   isEvolutionConfigured,
   setEvolutionWebhook,
-  getEvolutionWebhook
+  getEvolutionWebhook,
+  getEvolutionWebhookSecret
 } from '../integrations/evolution.mjs';
 import {
   getMeowcallerHealth,
@@ -148,6 +150,64 @@ export function buildAutoReplyMessage({ text = '', classification = null, pushNa
   );
 }
 
+/**
+ * Comparação em tempo constante (com padding) para evitar timing attacks.
+ * Nunca logar os valores comparados.
+ */
+export function safeCompareSecrets(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string') {
+    return false;
+  }
+  if (!provided || !expected) {
+    return false;
+  }
+  const bufA = Buffer.from(provided);
+  const bufB = Buffer.from(expected);
+  const maxLen = Math.max(bufA.length, bufB.length, 1);
+  const paddedA = Buffer.alloc(maxLen);
+  const paddedB = Buffer.alloc(maxLen);
+  bufA.copy(paddedA);
+  bufB.copy(paddedB);
+  const sameContent = crypto.timingSafeEqual(paddedA, paddedB);
+  return sameContent && bufA.length === bufB.length;
+}
+
+function firstHeaderOrQueryValue(value) {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  return '';
+}
+
+/**
+ * Autentica POST /webhooks/evolution com EVOLUTION_WEBHOOK_SECRET.
+ * Aceita header `x-evolution-webhook-secret` (ou aliases) e/ou query `secret`.
+ * Fail-closed: sem variável definida, ou sem/segredo errado → 401, sem processar.
+ */
+export function authenticateEvolutionWebhook(req, res, next) {
+  const expected = getEvolutionWebhookSecret();
+  if (!expected) {
+    console.error('[EVOLUTION_WEBHOOK] EVOLUTION_WEBHOOK_SECRET não configurado (fail-closed)');
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+
+  const headerVal = firstHeaderOrQueryValue(
+    req.headers['x-evolution-webhook-secret'] ||
+    req.headers['x-webhook-secret'] ||
+    req.headers['x-helena-webhook-secret']
+  );
+  const queryVal = firstHeaderOrQueryValue(req.query?.secret);
+
+  const headerOk = safeCompareSecrets(headerVal, expected);
+  const queryOk = safeCompareSecrets(queryVal, expected);
+
+  if (!headerOk && !queryOk) {
+    console.warn('[EVOLUTION_WEBHOOK] Rejeitado: segredo ausente ou inválido');
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+
+  return next();
+}
+
 export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   const router = express.Router();
   const bridge = new MeowcallerElevenBridge(supabaseFetch);
@@ -212,7 +272,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/evolution/connect', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/evolution/connect', authenticateUser, async (req, res) => {
     try {
       const result = await connectEvolution();
       return res.json({ ok: true, result });
@@ -275,8 +335,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  // Webhook público da Evolution API
-  router.post('/webhooks/evolution', async (req, res) => {
+  // Webhook da Evolution API — público na rede, autenticado por segredo compartilhado
+  router.post('/webhooks/evolution', authenticateEvolutionWebhook, async (req, res) => {
     try {
       const event = normalizeEvolutionWebhookEvent(req.body);
       if (!event) {
@@ -403,7 +463,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/meowcaller/connect', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/meowcaller/connect', authenticateUser, async (req, res) => {
     try {
       const result = await startMeowcallerSession();
       return res.json({ ok: true, result });
@@ -412,7 +472,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/meowcaller/pair-phone', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/meowcaller/pair-phone', authenticateUser, async (req, res) => {
     try {
       const { phone } = req.body || {};
       if (!phone) {
