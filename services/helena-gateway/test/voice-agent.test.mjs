@@ -64,5 +64,27 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
     assert.strictEqual(check.length, 1);
     assert.strictEqual(check[0].text, 'Oi Pedro');
   });
+
+  it('Configuração padrão adota DEEPSEEK e modelo DeepSeek-V4.1-Flash', async () => {
+    const cfg = await getVoiceAgentConfig();
+    assert.strictEqual(cfg.ai_provider, 'DEEPSEEK');
+    assert.strictEqual(cfg.ai_model, 'DeepSeek-V4.1-Flash');
+  });
+
+  it('resolveAiApiKey prioriza chave explícita e respeita variáveis de ambiente', async () => {
+    const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
+    const keyCustom = await resolveAiApiKey({ ai_api_key: 'sk-custom-test-123' });
+    assert.strictEqual(keyCustom, 'sk-custom-test-123');
+
+    const origEnv = process.env.DEEPSEEK_API_KEY;
+    process.env.DEEPSEEK_API_KEY = 'sk-env-deepseek-test';
+    const keyEnv = await resolveAiApiKey({});
+    assert.strictEqual(keyEnv, 'sk-env-deepseek-test');
+    if (origEnv !== undefined) {
+      process.env.DEEPSEEK_API_KEY = origEnv;
+    } else {
+      delete process.env.DEEPSEEK_API_KEY;
+    }
+  });
 });
 

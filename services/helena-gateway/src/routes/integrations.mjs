@@ -671,6 +671,25 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   router.get('/api/integrations/voice-agent/settings', optionalAuth, async (req, res) => {
     try {
       const config = await getVoiceAgentConfig();
+      if (supabaseFetch) {
+        try {
+          const remoteConfigs = await supabaseFetch('/rest/v1/configuracao?chave=in.(DEEPSEEK_API_KEY,VOICE_AGENT_AI_PROVIDER,VOICE_AGENT_AI_MODEL)&select=*').catch(() => []);
+          if (Array.isArray(remoteConfigs)) {
+            for (const item of remoteConfigs) {
+              if (item.chave === 'DEEPSEEK_API_KEY' && item.valor) {
+                config.ai_api_key = item.valor;
+                config.has_deepseek_key = true;
+              }
+              if (item.chave === 'VOICE_AGENT_AI_PROVIDER' && item.valor) {
+                config.ai_provider = item.valor;
+              }
+              if (item.chave === 'VOICE_AGENT_AI_MODEL' && item.valor) {
+                config.ai_model = item.valor;
+              }
+            }
+          }
+        } catch {}
+      }
       return res.json({ ok: true, config });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
@@ -682,26 +701,59 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       const result = await updateVoiceAgentConfig(req.body || {});
       if (supabaseFetch) {
         try {
-          await supabaseFetch('/rest/v1/configuracao', {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify([
-              {
-                chave: 'VOICE_AGENT_KNOWLEDGE_BASE',
-                valor: req.body.knowledge_base || '',
-                tipo: 'TEXTO',
-                responsavel: 'Admin',
-                descricao: 'Base de conhecimento e catálogo de produtos Max Nutrition'
-              },
-              {
-                chave: 'VOICE_AGENT_PERSONA',
-                valor: req.body.persona || '',
-                tipo: 'TEXTO',
-                responsavel: 'Admin',
-                descricao: 'Personalidade e regras de atendimento do Pedro'
-              }
-            ])
-          }).catch(() => null);
+          const configItems = [];
+          if (req.body.knowledge_base !== undefined) {
+            configItems.push({
+              chave: 'VOICE_AGENT_KNOWLEDGE_BASE',
+              valor: req.body.knowledge_base || '',
+              tipo: 'TEXTO',
+              responsavel: 'Admin',
+              descricao: 'Base de conhecimento e catálogo de produtos Max Nutrition'
+            });
+          }
+          if (req.body.persona !== undefined) {
+            configItems.push({
+              chave: 'VOICE_AGENT_PERSONA',
+              valor: req.body.persona || '',
+              tipo: 'TEXTO',
+              responsavel: 'Admin',
+              descricao: 'Personalidade e regras de atendimento do Pedro'
+            });
+          }
+          if (req.body.ai_provider) {
+            configItems.push({
+              chave: 'VOICE_AGENT_AI_PROVIDER',
+              valor: req.body.ai_provider,
+              tipo: 'CONFIG',
+              responsavel: 'Admin',
+              descricao: 'Provedor de IA do Voice Agent'
+            });
+          }
+          if (req.body.ai_model) {
+            configItems.push({
+              chave: 'VOICE_AGENT_AI_MODEL',
+              valor: req.body.ai_model,
+              tipo: 'CONFIG',
+              responsavel: 'Admin',
+              descricao: 'Modelo de IA do Voice Agent'
+            });
+          }
+          if (req.body.ai_api_key) {
+            configItems.push({
+              chave: 'DEEPSEEK_API_KEY',
+              valor: req.body.ai_api_key,
+              tipo: 'SEGREDO',
+              responsavel: 'Admin',
+              descricao: 'Chave de API DeepSeek para inteligência do Voice Agent'
+            });
+          }
+          if (configItems.length > 0) {
+            await supabaseFetch('/rest/v1/configuracao', {
+              method: 'POST',
+              headers: { 'Prefer': 'resolution=merge-duplicates' },
+              body: JSON.stringify(configItems)
+            }).catch(() => null);
+          }
         } catch {}
       }
       return res.json({ ok: true, result });

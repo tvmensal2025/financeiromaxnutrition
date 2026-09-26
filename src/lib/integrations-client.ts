@@ -451,6 +451,7 @@ export interface VoiceAgentConfig {
   ai_provider?: string;
   ai_model?: string;
   ai_api_key?: string;
+  has_deepseek_key?: boolean;
   is_active: boolean;
   updated_at?: string;
 }

@@ -107,12 +107,71 @@ let cachedConfig = {
   voice_profile_id: 'VP-ELEVEN-MASC-01',
   elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
   kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
-  ai_provider: 'GEMINI',
-  ai_model: 'gemini-3.8-flash',
-  ai_api_key: '',
+  ai_provider: 'DEEPSEEK',
+  ai_model: 'DeepSeek-V4.1-Flash',
+  ai_api_key: process.env.DEEPSEEK_API_KEY || '',
   is_active: true,
   updated_at: new Date().toISOString()
 };
+
+let resolvedSupabaseDeepSeekKey = '';
+let lastKeyFetchTime = 0;
+
+/**
+ * Resolve a API key de inteligência (prioriza DeepSeek configurada no Supabase ou env)
+ */
+export async function resolveAiApiKey(cfg = {}) {
+  // 1. Chave explícita em cfg
+  if (cfg.ai_api_key && cfg.ai_api_key.trim().length > 0) {
+    return cfg.ai_api_key.trim();
+  }
+
+  // 2. Variável de ambiente DEEPSEEK_API_KEY
+  if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
+    return process.env.DEEPSEEK_API_KEY.trim();
+  }
+
+  // 3. Cache recente de chave do Supabase (1 minuto)
+  const now = Date.now();
+  if (resolvedSupabaseDeepSeekKey && (now - lastKeyFetchTime) < 60000) {
+    return resolvedSupabaseDeepSeekKey;
+  }
+
+  // 4. Consulta dinâmica no Supabase configuracao
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co';
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (serviceKey) {
+      const url = `${supabaseUrl}/rest/v1/configuracao?chave=eq.DEEPSEEK_API_KEY&select=valor`;
+      const res = await fetch(url, {
+        headers: {
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0 && rows[0]?.valor) {
+          resolvedSupabaseDeepSeekKey = rows[0].valor.trim();
+          lastKeyFetchTime = now;
+          return resolvedSupabaseDeepSeekKey;
+        }
+      }
+    }
+  } catch (err) {
+    // Silencioso em caso de falha de conexão
+  }
+
+  // 5. Fallbacks para outros provedores caso DeepSeek ainda não tenha chave
+  return (
+    process.env.GOOGLE_AI_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    process.env.GROK_API_KEY ||
+    ''
+  );
+}
 
 /**
  * Retorna as configurações do Agente de Voz e Memória de Produtos
@@ -146,7 +205,7 @@ export async function generateAgentSpeechText({ prompt = '', history = [], callC
 
   // 1. Tenta invocar IA externa se API key estiver configurada e não estiver em ambiente de teste unitário
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
-  const apiKey = isTest ? '' : (cfg.ai_api_key || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.GROK_API_KEY);
+  const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
       const systemInstruction = `${cfg.persona}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
@@ -289,6 +348,66 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-late
         }
       } catch (err) {
         console.warn(`[VOICE_AGENT] Erro/timeout no modelo ${m}: ${err.message}`);
+      }
+    }
+  }
+
+  // Provedor DeepSeek Oficial (Compatível OpenAI v1)
+  if (userPrompt && (provider === 'DEEPSEEK' || provider.includes('DEEPSEEK'))) {
+    const candidateModels = [
+      model || 'DeepSeek-V4.1-Flash',
+      'DeepSeek-V4.1-Flash',
+      'deepseek-chat'
+    ];
+    const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
+
+    const messages = [
+      { role: 'system', content: systemInstruction }
+    ];
+
+    if (Array.isArray(history) && history.length > 0) {
+      for (const h of history.slice(-6)) {
+        if (h && (h.text || h.content)) {
+          messages.push({
+            role: h.role === 'assistant' ? 'assistant' : 'user',
+            content: String(h.text || h.content || '').trim()
+          });
+        }
+      }
+    }
+
+    messages.push({ role: 'user', content: userPrompt });
+
+    for (const m of uniqueModels) {
+      try {
+        const res = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          signal: AbortSignal.timeout(6000), // Timeout de 6s para chamadas telefônicas
+          body: JSON.stringify({
+            model: m,
+            messages,
+            max_tokens: 150,
+            temperature: 0.3
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const reply = data?.choices?.[0]?.message?.content?.trim();
+          if (reply && reply.length > 0) {
+            console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
+            return reply;
+          }
+        } else {
+          const errText = await res.text().catch(() => '');
+          console.warn(`[VOICE_AGENT] DeepSeek modelo ${m} retornou status ${res.status}: ${errText.slice(0, 120)}`);
+        }
+      } catch (err) {
+        console.warn(`[VOICE_AGENT] Falha na chamada DeepSeek com modelo ${m}: ${err.message}`);
       }
     }
   }
