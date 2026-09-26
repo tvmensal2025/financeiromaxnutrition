@@ -49,6 +49,7 @@ import {
   generateAgentSpeechText,
   speakInCall,
   handleCallConnectedWebhook,
+  handleUserSilence,
   processUserSpeech,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
@@ -770,6 +771,20 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       return res.json({ ok: true, result });
     } catch (err) {
       console.error('[VOICE_AGENT] Erro ao processar fala do usuário:', err.message);
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/voice-agent/user-silence', async (req, res) => {
+    try {
+      const { call_id } = req.body || {};
+      if (!call_id) {
+        return res.status(400).json({ ok: false, error: 'call_id é obrigatório' });
+      }
+      const result = await handleUserSilence({ callId: call_id });
+      return res.json({ ok: true, result });
+    } catch (err) {
+      console.error('[VOICE_AGENT] Erro ao tratar silêncio do usuário:', err.message);
       return res.status(500).json({ ok: false, error: err.message });
     }
   });

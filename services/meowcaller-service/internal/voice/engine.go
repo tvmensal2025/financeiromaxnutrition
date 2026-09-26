@@ -332,11 +332,21 @@ func (e *Engine) runSession(ctx context.Context) error {
 			})
 		})
 
+		// Disparador de saudação idempotente (garante execução única via OnReady ou Fallback)
+		var onceGreeting sync.Once
+		startGreetingAndMedia := func(trigger string) {
+			onceGreeting.Do(func() {
+				log.Info().Str("call_id", callID).Str("trigger", trigger).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação do Pedro...")
+				e.recordDiagEvent(fmt.Sprintf("Mídia conectada via %s: disparando saudação", trigger))
+				// Re-garante que o sink de áudio esteja atrelado à chamada ativa
+				call.Receive(sink)
+				go e.playInitialGreeting(callID, call, "INBOUND")
+			})
+		}
+
 		// Quando a mídia RTP estiver fluindo, dispara a saudação inicial
 		call.OnReady(func() {
-			log.Info().Str("call_id", callID).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação...")
-			e.recordDiagEvent("Mídia RTP conectada com sucesso (OnReady)")
-			go e.playInitialGreeting(callID, call, "INBOUND")
+			startGreetingAndMedia("OnReady")
 		})
 
 		// ATENDIMENTO IMEDIATO OBRIGATÓRIO (Handshake VoIP WhatsApp):
@@ -351,6 +361,11 @@ func (e *Engine) runSession(ctx context.Context) error {
 		snap.Status = "CONNECTED"
 		log.Info().Str("caller", peer).Str("call_id", callID).Msg("✅ Chamada VoIP atendida imediatamente! Fluxo de áudio RTP bidirecional liberado.")
 		e.recordDiagEvent("Chamada atendida com sucesso (RTP upstream e downstream ativos)")
+
+		// Fallback de segurança: Se OnReady demorar ou não disparar em 1.2 segundos, inicia a saudação
+		time.AfterFunc(1200*time.Millisecond, func() {
+			startGreetingAndMedia("FallbackTimer")
+		})
 	})
 
 	// Conecta ao WhatsApp
@@ -745,10 +760,11 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
 	payload, err := json.Marshal(map[string]interface{}{
-		"event":      event,
-		"call_id":    callID,
-		"direction":  direction,
-		"timestamp":  time.Now().UTC().Format(time.RFC3339),
+		"event":                   event,
+		"call_id":                 callID,
+		"direction":               direction,
+		"greeting_already_played": true,
+		"timestamp":               time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return
@@ -771,6 +787,37 @@ func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 	}
 	_ = resp.Body.Close()
 	log.Info().Str("event", event).Str("call_id", callID).Int("status", resp.StatusCode).Msg("Webhook de chamada enviado ao Helena Gateway")
+}
+
+// notifyUserSilence aciona o Gateway quando o usuário permanece em silêncio prolongado
+func (e *Engine) notifyUserSilence(callID string) {
+	e.recordDiagEvent("Silêncio do cliente detectado: solicitando verificação ao Gateway")
+	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/user-silence"
+	payload, err := json.Marshal(map[string]interface{}{
+		"call_id":   callID,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	req, err := http.NewRequest("POST", gatewayURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if e.cfg.InternalAPIKey != "" {
+		req.Header.Set("X-API-Key", e.cfg.InternalAPIKey)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Warn().Err(err).Msg("Falha ao notificar silêncio do usuário ao Helena Gateway")
+		return
+	}
+	_ = resp.Body.Close()
+	log.Info().Str("call_id", callID).Int("status", resp.StatusCode).Msg("Notificação de silêncio enviada com sucesso ao Helena Gateway")
 }
 
 // PlayAudioFile reproduz um arquivo local de áudio na chamada
@@ -902,30 +949,32 @@ func (e *Engine) Shutdown() {
 // Implementa Voice Activity Detection (VAD) de alta sensibilidade adaptativa, interrupção natural instantânea (barge-in),
 // buffer circular de pré-fala (para não perder o início da palavra), telemetria ativa e despacho de áudio WAV.
 type ConversationalSink struct {
-	callID            string
-	engine            *Engine
-	mu                sync.Mutex
-	isSpeaking        bool
-	speechSamples     []int16
-	preSpeechRing     [][]int16 // Buffer circular de pré-fala (últimos 6 frames = 360ms)
-	silenceFrames     int
-	totalFrames       int
-	consecutiveSpeech int       // Frames consecutivos de voz para validar início de fala
-	noiseFloor        float64
-	rmsThreshold      float64
-	silenceThreshold  int       // 18 frames * 60ms = ~1080ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
-	minSpeechSamples  int       // Mínimo de 300ms de fala (4800 amostras a 16kHz)
-	closed            bool
+	callID               string
+	engine               *Engine
+	mu                   sync.Mutex
+	isSpeaking           bool
+	speechSamples        []int16
+	preSpeechRing        [][]int16 // Buffer circular de pré-fala (últimos 6 frames = 360ms)
+	silenceFrames        int
+	totalFrames          int
+	consecutiveSpeech    int       // Frames consecutivos de voz para validar início de fala
+	noiseFloor           float64
+	rmsThreshold         float64
+	silenceThreshold     int       // 15 frames * 60ms = ~900ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
+	minSpeechSamples     int       // Mínimo de 200ms de fala (3200 amostras a 16kHz)
+	initialSilenceFrames int       // Contador de frames em silêncio antes da primeira fala
+	nudgeSent            bool      // Flag para cutucada cortês enviada uma única vez
+	closed               bool
 }
 
 func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call) *ConversationalSink {
 	sink := &ConversationalSink{
 		callID:           callID,
 		engine:           e,
-		noiseFloor:       0.0005,
-		rmsThreshold:     0.0018, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 18,     // 18 frames * 60ms = ~1080ms de silêncio pós-fala (pausa humana natural)
-		minSpeechSamples: 4800,   // Mínimo de 300ms de fala sustentada (rejeita cliques e respirações curtas)
+		noiseFloor:       0.0004,
+		rmsThreshold:     0.0010, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
+		silenceThreshold: 15,     // 15 frames * 60ms = ~900ms de silêncio pós-fala (pausa humana natural)
+		minSpeechSamples: 3200,   // Mínimo de 200ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
@@ -992,6 +1041,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// 3. Classificação de voz
 	if rms >= effectiveThreshold {
 		s.consecutiveSpeech++
+		s.initialSilenceFrames = 0 // Reseta silêncio inicial já que detectou voz
 
 		// BARGE-IN INSTANTÂNEO: Interrompe a fala do Pedro assim que houver voz do cliente
 		s.engine.stopActivePlayer(s.callID)
@@ -1043,7 +1093,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			// Mantém as amostras do silêncio para preservar a cauda natural das palavras
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
 
-			// Silêncio suficiente detectado (fim do turno do usuário: ~1080ms)
+			// Silêncio suficiente detectado (fim do turno do usuário: ~900ms)
 			if s.silenceFrames >= s.silenceThreshold {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
@@ -1072,6 +1122,18 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				s.preSpeechRing = s.preSpeechRing[1:]
 			}
 			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
+
+			// Detecção de Silêncio Inicial (Cliente conectado mas calado após saudação)
+			// ~85 frames * 60ms = ~5.1s de silêncio contínuo pós-saudação
+			if !s.nudgeSent && s.totalFrames >= 70 {
+				s.initialSilenceFrames++
+				if s.initialSilenceFrames >= 85 {
+					s.nudgeSent = true
+					callID := s.callID
+					log.Info().Str("call_id", callID).Msg("⏳ Silêncio inicial prolongado (>5s). Notificando Gateway para cutucada cortês...")
+					go s.engine.notifyUserSilence(callID)
+				}
+			}
 		}
 	}
 

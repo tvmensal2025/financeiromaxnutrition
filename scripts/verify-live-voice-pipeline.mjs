@@ -27,13 +27,13 @@ async function test() {
     headers: { Authorization: `Bearer ${GATEWAY_KEY}` }
   }).then(r => r.json()).catch(e => ({ error: e.message }));
   console.log('Voice Agent Settings:');
-  console.log('  Nome:', agentSettings.settings?.agent_name);
-  console.log('  Provedor de Voz:', agentSettings.settings?.voice_provider);
-  console.log('  Voice ID ElevenLabs:', agentSettings.settings?.elevenlabs_voice);
-  console.log('  Voice ID Kokoro:', agentSettings.settings?.kokoro_voice);
-  console.log('  Saudação Inbound:', agentSettings.settings?.inbound_greeting);
-  console.log('  Saudação Outbound:', agentSettings.settings?.outbound_greeting);
-  console.log('  Tamanho do Conhecimento Oficial:', agentSettings.settings?.knowledge_base?.length, 'caracteres');
+  console.log('  Nome:', agentSettings.config?.agent_name);
+  console.log('  Provedor de Voz:', agentSettings.config?.voice_provider);
+  console.log('  Voice ID ElevenLabs:', agentSettings.config?.elevenlabs_voice);
+  console.log('  Voice ID Kokoro:', agentSettings.config?.kokoro_voice);
+  console.log('  Saudação Inbound:', agentSettings.config?.inbound_greeting);
+  console.log('  Saudação Outbound:', agentSettings.config?.outbound_greeting);
+  console.log('  Tamanho do Conhecimento Oficial:', agentSettings.config?.knowledge_base?.length, 'caracteres');
 
   console.log('\n=== TESTE 4: Simulação de Fala do Cliente (Pergunta Comercial) com Raciocínio & ElevenLabs Flash ===');
   const t0 = Date.now();
@@ -50,7 +50,7 @@ async function test() {
   const latency = Date.now() - t0;
 
   console.log(`Resposta da IA recebida em ${latency} ms (${(latency/1000).toFixed(2)}s):`);
-  console.log('Texto falado pelo Pedro:\n', testDialogue.speechText);
+  console.log('Texto falado pelo Pedro:\n', testDialogue.response_text);
   console.log('Áudio Gerado:', Boolean(testDialogue.audioBase64));
   if (testDialogue.audioBase64) {
     console.log('Tamanho do Áudio Base64:', testDialogue.audioBase64.length, 'caracteres');

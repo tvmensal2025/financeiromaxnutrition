@@ -495,16 +495,32 @@ export async function speakInCall({ callId, text, voice = null }) {
  * Trata o webhook disparado pelo Meowcaller quando a chamada é atendida
  */
 export async function handleCallConnectedWebhook(payload = {}) {
-  const { call_id, direction, remote_number } = payload;
-  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}`);
+  const { call_id, direction, remote_number, greeting_already_played } = payload;
+  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}, greeting_played=${greeting_already_played}`);
 
   const cfg = await getVoiceAgentConfig();
+  const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
+
+  // Inicializa histórico com a saudação transmitida
+  const callHistory = getCallHistory(call_id);
+  if (callHistory.length === 0) {
+    callHistory.push({
+      role: 'assistant',
+      text: greeting,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Se a saudação já foi transmitida pelo Meowcaller (MP3 local de 0ms), evita duplicidade
+  if (greeting_already_played) {
+    console.log(`[VOICE_AGENT] ℹ️ Saudação da chamada ${call_id} já reproduzida pelo Meowcaller. Histórico sincronizado.`);
+    return { ok: true, handled: true, call_id, greeting, duplicate_skipped: true };
+  }
+
   if (!cfg.is_active) {
     console.log('[VOICE_AGENT] Atendente de voz desativado nas configurações.');
     return { ok: true, handled: false, reason: 'agent_disabled' };
   }
-
-  const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
 
   try {
     const res = await speakInCall({
@@ -516,6 +532,25 @@ export async function handleCallConnectedWebhook(payload = {}) {
     console.error(`[VOICE_AGENT] Erro ao disparar saudação na chamada ${call_id}:`, err.message);
     return { ok: false, handled: false, error: err.message };
   }
+}
+
+/**
+ * Trata detecção de silêncio prolongado (nudge conversacional)
+ */
+export async function handleUserSilence({ callId }) {
+  if (!callId) throw new Error('callId é obrigatório');
+  console.log(`[VOICE_AGENT] ⏳ Silêncio do cliente na chamada ${callId}. Disparando cutucada cortês...`);
+  const text = "Olá! Você consegue me ouvir? Pode falar, estou aqui para te ajudar!";
+  const callHistory = getCallHistory(callId);
+  callHistory.push({
+    role: 'assistant',
+    text,
+    timestamp: new Date().toISOString()
+  });
+  return await speakInCall({
+    callId,
+    text
+  });
 }
 
 // ======================================================================
