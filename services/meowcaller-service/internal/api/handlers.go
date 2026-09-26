@@ -418,7 +418,7 @@ func (s *Server) handleMeowcallerDiag(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(diagDir)
 	if err != nil {
 		result["error"] = fmt.Sprintf("Diretório de diagnóstico não acessível: %v", err)
-		s.ok(w, result)
+		s.ok(w, result, http.StatusOK)
 		return
 	}
 
@@ -475,6 +475,6 @@ func (s *Server) handleMeowcallerDiag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result["stream_count"] = len(streams)
-	s.ok(w, result)
+	s.ok(w, result, http.StatusOK)
 }
 
