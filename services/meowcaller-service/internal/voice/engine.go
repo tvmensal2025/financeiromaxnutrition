@@ -305,10 +305,6 @@ func (e *Engine) runSession(ctx context.Context) error {
 		e.callHandles[callID] = call
 		e.callsMu.Unlock()
 
-		// Conecta o sink conversacional contínuo IMEDIATAMENTE para escuta e barge-in
-		sink := e.registerConversationalSink(callID, call)
-		call.Receive(sink)
-
 		e.updateDiagCallStart(callID, peer, "INBOUND")
 
 		// Hook de encerramento da chamada recebida
@@ -332,17 +328,23 @@ func (e *Engine) runSession(ctx context.Context) error {
 			})
 		})
 
-		// Disparador de saudação idempotente (garante execução única via OnReady ou Fallback)
+		// Disparador de mídia e saudação idempotente (garante execução única via OnReady ou Fallback)
 		var onceGreeting sync.Once
 		startGreetingAndMedia := func(trigger string) {
 			onceGreeting.Do(func() {
-				log.Info().Str("call_id", callID).Str("trigger", trigger).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação do Pedro...")
-				e.recordDiagEvent(fmt.Sprintf("Mídia conectada via %s: disparando saudação", trigger))
+				log.Info().Str("call_id", callID).Str("trigger", trigger).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Registrando sink conversacional e disparando saudação do Pedro...")
+				e.recordDiagEvent(fmt.Sprintf("Mídia conectada via %s: registrando sink e disparando saudação", trigger))
+
+				// Garante que o sink conversacional contínuo esteja atrelado à chamada ativa com mídia pronta
+				sink := e.registerConversationalSink(callID, call)
+				call.Receive(sink)
+
+				// Dispara a saudação do Pedro em goroutine desacoplada (não bloqueia pipeline de escuta)
 				go e.playInitialGreeting(callID, call, "INBOUND")
 			})
 		}
 
-		// Quando a mídia RTP estiver fluindo, dispara a saudação inicial
+		// Quando a mídia RTP estiver fluindo (após primeiro RTP recebido), dispara o fluxo de mídia e saudação
 		call.OnReady(func() {
 			startGreetingAndMedia("OnReady")
 		})
@@ -357,8 +359,12 @@ func (e *Engine) runSession(ctx context.Context) error {
 			return
 		}
 		snap.Status = "CONNECTED"
-		log.Info().Str("caller", peer).Str("call_id", callID).Msg("✅ Chamada VoIP atendida imediatamente! Fluxo de áudio RTP bidirecional liberado.")
-		e.recordDiagEvent("Chamada atendida com sucesso (RTP upstream e downstream ativos)")
+		log.Info().Str("caller", peer).Str("call_id", callID).Msg("✅ Chamada VoIP atendida imediatamente! Registrando sink conversacional...")
+		e.recordDiagEvent("Chamada atendida com sucesso (Answer executado, aguardando pacotes RTP)")
+
+		// Conecta o sink conversacional contínuo IMEDIATAMENTE pós-atendimento para capturar primeiros frames
+		sink := e.registerConversationalSink(callID, call)
+		call.Receive(sink)
 
 		// Fallback de segurança: Se OnReady demorar ou não disparar em 1.2 segundos, inicia a saudação
 		time.AfterFunc(1200*time.Millisecond, func() {
@@ -966,19 +972,22 @@ type ConversationalSink struct {
 }
 
 func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call) *ConversationalSink {
+	e.callsMu.Lock()
+	defer e.callsMu.Unlock()
+	if existing, ok := e.callSinks[callID]; ok && existing != nil && !existing.closed {
+		return existing
+	}
 	sink := &ConversationalSink{
 		callID:           callID,
 		engine:           e,
 		noiseFloor:       0.0004,
-		rmsThreshold:     0.0010, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
+		rmsThreshold:     0.0008, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
 		silenceThreshold: 15,     // 15 frames * 60ms = ~900ms de silêncio pós-fala (pausa humana natural)
 		minSpeechSamples: 3200,   // Mínimo de 200ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
-	e.callsMu.Lock()
 	e.callSinks[callID] = sink
-	e.callsMu.Unlock()
 	return sink
 }
 
@@ -1023,6 +1032,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 
 	// Registra telemetria contínua
 	s.engine.updateDiagAudio(s.callID, s.totalFrames, rms, s.noiseFloor, effectiveThreshold)
+
+	// Evento de diagnóstico imediato no primeiro frame para auditoria em tempo real
+	if s.totalFrames == 1 {
+		s.engine.recordDiagEvent(fmt.Sprintf("Primeiro frame RTP recebido pelo ConversationalSink (rms=%.6f)", rms))
+		log.Info().Str("call_id", s.callID).Float64("rms", rms).Msg("📥 Primeiro frame RTP recebido pelo ConversationalSink!")
+	} else if s.totalFrames == 10 {
+		s.engine.recordDiagEvent(fmt.Sprintf("Fluxo RTP estabelecido (10 frames recebidos, rms=%.6f)", rms))
+	}
 
 	// Telemetria periódica a cada 50 frames (~3 segundos) para monitorar áudio recebido
 	if s.totalFrames%50 == 0 {
