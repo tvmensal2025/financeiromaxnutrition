@@ -199,31 +199,44 @@ try {
 
   console.log('--- TESTE 11: Auto-Atendimento & Menu URA (1, 2, 3, 4) ---');
   const { buildAutoReplyMessage } = await import('../src/routes/integrations.mjs');
-  
-  // Saudação inicial
+
+  delete process.env.WHATSAPP_BUSINESS_ID;
+  delete process.env.WHATSAPP_BRAND_NAME;
+
   const replyGreeting = buildAutoReplyMessage({ text: 'Olá', pushName: 'Carlos' });
-  assert.ok(replyGreeting.includes('Max Nutrition'), 'Menu deve conter nome da empresa');
+  assert.ok(!replyGreeting.includes('Max Nutrition'), 'Sem config, menu NÃO deve afirmar Max Nutrition');
   assert.ok(replyGreeting.includes('1️⃣'), 'Menu deve conter opção 1');
   assert.ok(replyGreeting.includes('2️⃣'), 'Menu deve conter opção 2');
   assert.ok(replyGreeting.includes('3️⃣'), 'Menu deve conter opção 3');
   assert.ok(replyGreeting.includes('Carlos'), 'Menu deve saudar pelo nome');
 
-  // Opção 1: Vendas (Victor)
+  process.env.WHATSAPP_BUSINESS_ID = 'BIZ-002';
+  process.env.WHATSAPP_BRAND_NAME = 'Max Nutrition';
+  const replyBranded = buildAutoReplyMessage({ text: 'Olá' });
+  assert.ok(replyBranded.includes('Max Nutrition'), 'Par configurado deve exibir a marca');
+  delete process.env.WHATSAPP_BUSINESS_ID;
+  delete process.env.WHATSAPP_BRAND_NAME;
+
   const replyOpt1 = buildAutoReplyMessage({ text: '1' });
   assert.ok(replyOpt1.includes('Victor'), 'Opção 1 deve direcionar para Victor');
+  assert.ok(replyOpt1.includes('AGT-15'), 'Opção 1 deve citar AGT-15');
   assert.ok(replyOpt1.includes('Comercial'), 'Opção 1 deve ser Comercial/Vendas');
 
-  // Opção 2: Suporte (Joana)
   const replyOpt2 = buildAutoReplyMessage({ text: '2' });
   assert.ok(replyOpt2.includes('Joana'), 'Opção 2 deve direcionar para Joana');
+  assert.ok(replyOpt2.includes('AGT-20'), 'Opção 2 deve citar AGT-20');
 
-  // Opção 3: Financeiro
   const replyOpt3 = buildAutoReplyMessage({ text: '3' });
-  assert.ok(replyOpt3.includes('Analista Financeiro'), 'Opção 3 deve direcionar para Financeiro');
+  assert.ok(replyOpt3.includes('Caio'), 'Opção 3 deve direcionar para Caio');
+  assert.ok(replyOpt3.includes('AGT-05'), 'Opção 3 deve citar AGT-05');
+  assert.ok(!replyOpt3.includes('AGT-04'), 'Opção 3 não deve citar AGT-04');
 
-  // Opção 4: Executivo
   const replyOpt4 = buildAutoReplyMessage({ text: '4' });
-  assert.ok(replyOpt4.includes('Helena'), 'Opção 4 deve direcionar para Helena');
+  assert.ok(replyOpt4.includes('Marina'), 'Opção 4 deve direcionar para Marina');
+  assert.ok(replyOpt4.includes('AGT-04'), 'Opção 4 deve citar AGT-04');
+  assert.ok(!replyOpt4.includes('AGT-01'), 'Opção 4 não deve criar destino Helena AGT-01');
+
+  assert.ok(!replyOpt1.toLowerCase().includes('em instantes'), 'Não prometer retorno em instantes');
 
   console.log('OK: Auto-atendimento e Menu URA (1, 2, 3, 4) validados com sucesso.');
 
