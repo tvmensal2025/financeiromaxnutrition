@@ -14,6 +14,7 @@ import { getAreaVisual } from "@/lib/agentVisuals";
 import {
   AREAS_OFICIAIS,
   FILTROS_AREAS,
+  contarAgentesConectados,
   mesclarAgenteComConexao,
   statusVisualDoAgente,
   type AgenteCompleto,
@@ -115,7 +116,7 @@ export default function EquipePage() {
     setDrawerAberto(true);
   };
 
-  const conectados = equipe.filter((m) => m.connection_status === "CONNECTED").length;
+  const conectados = contarAgentesConectados(equipe);
   const descricao = carregando
     ? "Helena e os especialistas do Sistema Helena"
     : `${equipe.length} agentes · ${conectados} conectados · status real da conexão`;

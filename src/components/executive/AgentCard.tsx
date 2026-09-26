@@ -162,7 +162,7 @@ export function AgentStatusBadge({ status, className }: { status: AgentStatusVis
       )}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <span className="truncate" title={s.label}>{s.label}</span>
+      <span title={s.label}>{s.label}</span>
     </span>
   );
 }
@@ -237,20 +237,17 @@ export function AgentCard({
 
   if (variante === "compacto") {
     return (
-      <Root {...rootProps} className={cn(base, "flex min-h-[56px] items-center gap-3 rounded-xl px-3 py-2")}>
+      <Root {...rootProps} className={cn(base, "flex min-h-[56px] items-start gap-3 rounded-xl px-3 py-2")}>
         {avatar}
-        <span className="flex min-w-[35%] flex-1 flex-col sm:min-w-0">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-sm font-semibold tracking-tight text-foreground">{nome}</span>
-            <span className="hidden sm:inline-flex">{idChip}</span>
-          </span>
-          <span className="truncate text-xs leading-5 text-muted-foreground">
-            <span className="font-medium tabular-nums sm:hidden">{agentId} · </span>
-            {cargo}
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="line-clamp-2 break-words text-sm font-semibold tracking-tight text-foreground">{nome}</span>
+          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-muted-foreground">
+            {idChip}
+            <span className="min-w-0 truncate">{cargo}</span>
           </span>
         </span>
-        <span className="hidden shrink-0 md:inline-flex">{areaLabel}</span>
-        {status && <AgentStatusBadge status={status} className="min-w-0 shrink" />}
+        <span className="hidden shrink-0 self-center md:inline-flex">{areaLabel}</span>
+        {status && <AgentStatusBadge status={status} className="shrink-0 self-center" />}
       </Root>
     );
   }
@@ -260,8 +257,10 @@ export function AgentCard({
       <span className="flex items-start gap-4">
         {avatar}
         <span className="flex min-w-0 flex-1 flex-col pt-0.5">
-          <span className="flex min-w-0 items-center justify-between gap-2">
-            <span className="truncate text-base font-semibold leading-6 tracking-tight text-foreground">{nome}</span>
+          <span className="flex min-w-0 items-start justify-between gap-2">
+            <span className="min-w-0 flex-1 line-clamp-2 break-words text-base font-semibold leading-6 tracking-tight text-foreground">
+              {nome}
+            </span>
             {idChip}
           </span>
           <span className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-muted-foreground">{cargo}</span>
@@ -269,7 +268,7 @@ export function AgentCard({
       </span>
       <span className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-3">
         {areaLabel}
-        {status && <AgentStatusBadge status={status} />}
+        {status && <AgentStatusBadge status={status} className="shrink-0" />}
       </span>
     </Root>
   );

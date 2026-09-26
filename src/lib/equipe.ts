@@ -99,3 +99,7 @@ export function mesclarAgenteComConexao(
 export function statusVisualDoAgente(membro: AgenteCompleto): AgentStatusVisual {
   return statusVisualFromDb(membro.status, membro.connection_status);
 }
+
+export function contarAgentesConectados(agentes: readonly AgenteCompleto[]): number {
+  return agentes.filter((m) => statusVisualDoAgente(m) === "conectado").length;
+}

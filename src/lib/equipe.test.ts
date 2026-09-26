@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import "@testing-library/jest-dom/vitest";
 import {
   areaDoAgente,
+  contarAgentesConectados,
   mesclarAgenteComConexao,
   statusVisualDoAgente,
   type AgenteRow,
@@ -69,5 +70,44 @@ describe("Equipe — mescla de dados", () => {
     const mescla = readFileSync(resolve(__dirname, "./equipe.ts"), "utf8");
     expect(pagina).not.toMatch(/agentes\.json/);
     expect(mescla).not.toMatch(/agentes\.json/);
+  });
+
+  it("conta conectados pelo selo visual, não só por connection_status", () => {
+    const ativoConectado = mesclarAgenteComConexao(
+      { ...helena, agent_id: "AGT-01", status: "ATIVO" },
+      { agent_id: "AGT-01", connection_status: "CONNECTED" },
+    );
+    const pausadoConectado = mesclarAgenteComConexao(
+      { agent_id: "AGT-09", agente: "Theo", cargo_funcao: "Tecnologia e IA", status: "PAUSADO" },
+      { agent_id: "AGT-09", connection_status: "CONNECTED" },
+    );
+    const desativadoConectado = mesclarAgenteComConexao(
+      { agent_id: "AGT-21", agente: "Felipe", cargo_funcao: "Administração", status: "DESATIVADO" },
+      { agent_id: "AGT-21", connection_status: "CONNECTED" },
+    );
+    const ativoSemRegistro = mesclarAgenteComConexao({
+      agent_id: "AGT-03",
+      agente: "Augusto",
+      cargo_funcao: "Estratégia Corporativa",
+      status: "ATIVO",
+    });
+
+    expect(statusVisualDoAgente(ativoConectado)).toBe("conectado");
+    expect(statusVisualDoAgente(pausadoConectado)).toBe("pausado");
+    expect(statusVisualDoAgente(desativadoConectado)).toBe("desativado");
+    expect(statusVisualDoAgente(ativoSemRegistro)).toBe("desconhecido");
+
+    expect(contarAgentesConectados([ativoConectado])).toBe(1);
+    expect(contarAgentesConectados([pausadoConectado])).toBe(0);
+    expect(contarAgentesConectados([desativadoConectado])).toBe(0);
+    expect(contarAgentesConectados([ativoSemRegistro])).toBe(0);
+    expect(
+      contarAgentesConectados([
+        ativoConectado,
+        pausadoConectado,
+        desativadoConectado,
+        ativoSemRegistro,
+      ]),
+    ).toBe(1);
   });
 });

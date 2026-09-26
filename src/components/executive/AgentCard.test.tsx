@@ -57,4 +57,41 @@ describe("AgentCard", () => {
     expect(screen.getByText("Área não mapeada")).toBeTruthy();
     expect(screen.getByText("AN")).toBeTruthy();
   });
+
+  it.each(["padrao", "compacto"] as const)(
+    "não usa truncate no nome na variante %s (quebra em até 2 linhas)",
+    (variante) => {
+      const nome = "Augusto Nome Comprido Para Garantir Quebra";
+      render(
+        <AgentCard
+          agentId="AGT-03"
+          nome={nome}
+          cargo="Estratégia Corporativa"
+          status="conectado"
+          variante={variante}
+        />,
+      );
+      const el = screen.getByText(nome);
+      expect(el.className).not.toMatch(/\btruncate\b/);
+      expect(el.className).toMatch(/line-clamp-2/);
+      expect(el.className).toMatch(/break-words/);
+      expect(screen.getByText("Conectado")).toBeTruthy();
+    },
+  );
+
+  it("na lista o chip AGT-NN fica na linha do cargo, não ao lado do nome", () => {
+    render(
+      <AgentCard
+        agentId="AGT-03"
+        nome="Augusto"
+        cargo="Estratégia Corporativa"
+        status="conectado"
+        variante="compacto"
+      />,
+    );
+    const nome = screen.getByText("Augusto");
+    expect(nome.textContent).toBe("Augusto");
+    expect(nome.nextElementSibling?.textContent).toMatch(/AGT-03/);
+    expect(nome.nextElementSibling?.textContent).toMatch(/Estratégia Corporativa/);
+  });
 });
