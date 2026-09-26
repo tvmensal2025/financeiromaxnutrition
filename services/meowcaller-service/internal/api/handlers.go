@@ -118,24 +118,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	status, jid, qr := s.engine.GetStatus()
-
-	// Se está aguardando pareamento e o QR code está vazio (expirou), força renovação automática
-	if status == voice.StatusPairingRequired && qr == "" {
-		s.engine.RestartSession()
-		for i := 0; i < 30; i++ {
-			time.Sleep(100 * time.Millisecond)
-			status, jid, qr = s.engine.GetStatus()
-			if qr != "" {
-				break
-			}
-		}
-	}
-
 	s.ok(w, map[string]interface{}{
 		"status":          string(status),
 		"connected_jid":   jid,
 		"has_qr_code":     qr != "",
-		"qrcode":          qr, // base64 PNG fresco ou string vazia
+		"qrcode":          qr,
 		"whatsapp_status": string(status),
 	}, http.StatusOK)
 }
