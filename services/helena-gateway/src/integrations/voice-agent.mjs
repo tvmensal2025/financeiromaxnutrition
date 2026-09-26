@@ -106,7 +106,7 @@ let cachedConfig = {
   voice_profile_id: 'VP-KOKORO-MASC-03',
   kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
   ai_provider: 'GEMINI',
-  ai_model: 'gemini-3.5-flash',
+  ai_model: 'gemini-3.5-flash-lite',
   ai_api_key: '',
   is_active: true,
   updated_at: new Date().toISOString()
@@ -231,14 +231,12 @@ function sanitizeSpeechText(text) {
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash-lite', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
-    const candidateModels = [
-      'gemini-3.5-flash',
-      'gemini-3.8-flash',
-      'gemini-flash-latest',
-      model
-    ].filter((m, i, arr) => m && arr.indexOf(m) === i && !['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'].includes(m));
+    // Modelos com suporte comprovado a áudio WAV e baixíssima latência (1-2s)
+    const candidateModels = audioBase64
+      ? ['gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest']
+      : ['gemini-3.5-flash-lite', 'gemini-flash-latest', model].filter(Boolean);
 
     for (const m of candidateModels) {
       try {
@@ -264,6 +262,7 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash'
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(6000), // Timeout estrito de 6s para não congelar chamada telefônica
           body: JSON.stringify({
             system_instruction: {
               parts: [{ text: systemInstruction }]
@@ -271,7 +270,7 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash'
             contents: [{ role: 'user', parts }],
             generationConfig: {
               temperature: 0.4,
-              maxOutputTokens: 600
+              maxOutputTokens: 250
             }
           })
         });
@@ -282,9 +281,11 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash'
           if (reply && reply.trim().length > 0) {
             return reply;
           }
+        } else {
+          console.warn(`[VOICE_AGENT] Gemini modelo ${m} retornou status ${res.status}`);
         }
       } catch (err) {
-        // Tenta o próximo modelo
+        console.warn(`[VOICE_AGENT] Erro/timeout no modelo ${m}: ${err.message}`);
       }
     }
   }

@@ -857,8 +857,9 @@ async function handleOutboxFailure(item, errorMsg) {
 
 const app = express();
 
-// Limite estrito de body para segurança
-app.use(express.json({ limit: '1mb' }));
+// Limite expandido para suportar áudios de voz WAV base64 do VoIP
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Desabilita header X-Powered-By
 app.disable('x-powered-by');
