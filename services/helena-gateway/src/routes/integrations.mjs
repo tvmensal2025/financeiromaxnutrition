@@ -711,15 +711,13 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     try {
       const { prompt = 'Qual a diferença entre a creatina monohidratada e a creapure?', voice = KOKORO_OFFICIAL_VOICE_ID } = req.body || {};
       const responseText = await generateAgentSpeechText({ prompt });
-      const sample = await generateKokoroSample({
-        text: responseText,
-        voice: voice || KOKORO_OFFICIAL_VOICE_ID
-      });
+      const sample = await generateKokoroSample(voice || KOKORO_OFFICIAL_VOICE_ID, responseText);
       return res.json({
         ok: true,
         prompt,
         response_text: responseText,
-        audio_url: sample.audio_url,
+        audio_url: sample.audio_url || sample.audio_base64,
+        audio_base64: sample.audio_base64,
         voice_id: voice || KOKORO_OFFICIAL_VOICE_ID
       });
     } catch (err) {

@@ -124,10 +124,20 @@ export async function generateKokoroSpeech({ input, voice = KOKORO_OFFICIAL_VOIC
 
 export const synthesizeKokoroSpeech = generateKokoroSpeech;
 
-/**
- * Gera amostra em formato base64 para reprodução no painel/navegador
- */
-export async function generateKokoroSample(voiceId, text = 'Olá! Este é um teste de voz neural.') {
+export async function generateKokoroSample(voiceIdOrOptions, maybeText) {
+  let voiceId = KOKORO_OFFICIAL_VOICE_ID;
+  let text = 'Olá! Este é um teste de voz neural.';
+
+  if (typeof voiceIdOrOptions === 'object' && voiceIdOrOptions !== null) {
+    voiceId = voiceIdOrOptions.voice || voiceIdOrOptions.voice_id || voiceIdOrOptions.voiceId || KOKORO_OFFICIAL_VOICE_ID;
+    text = voiceIdOrOptions.text || voiceIdOrOptions.input || text;
+  } else if (typeof voiceIdOrOptions === 'string') {
+    voiceId = voiceIdOrOptions;
+    if (typeof maybeText === 'string') {
+      text = maybeText;
+    }
+  }
+
   const result = await generateKokoroSpeech({
     voice: voiceId,
     input: text
@@ -138,6 +148,7 @@ export async function generateKokoroSample(voiceId, text = 'Olá! Este é um tes
     voice_id: voiceId,
     mime_type: 'audio/mpeg',
     audio_base64: `data:audio/mpeg;base64,${base64}`,
+    audio_url: `data:audio/mpeg;base64,${base64}`,
     duration_ms: result.durationMs,
     size_bytes: result.sizeBytes
   };
