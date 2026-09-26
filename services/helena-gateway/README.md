@@ -236,6 +236,15 @@ EVOLUTION_INSTANCE=
 # Segredo compartilhado do webhook Evolution (obrigatório em produção; fail-closed se vazio)
 # Preencher somente no EasyPanel. Sem valor no repositório.
 EVOLUTION_WEBHOOK_SECRET=
+
+# Identidade do canal WhatsApp (URA + registros). Configurar o PAR completo.
+# Sem os dois valores reais, o texto é neutro e o business_id gravado é UNASSIGNED.
+# Nunca afirmar uma marca que não corresponda ao business_id.
+WHATSAPP_BUSINESS_ID=CONFIGURAR_SOMENTE_NO_EASYPANEL
+WHATSAPP_BRAND_NAME=CONFIGURAR_SOMENTE_NO_EASYPANEL
+
+# Não repetir a mesma auto-resposta ao mesmo número nesta janela (ms). Padrão 60000.
+WHATSAPP_AUTOREPLY_DEBOUNCE_MS=60000
 ```
 
 ### 5.1 Webhook Evolution — fail-closed e ordem segura de publicação
@@ -260,6 +269,27 @@ EVOLUTION_WEBHOOK_SECRET=
 Há uma janela entre os passos 2 e 3 em que a Evolution ainda aponta para a URL antiga (sem segredo) e o gateway já recusa com 401. Minimize essa janela executando o passo 3 imediatamente após o deploy.
 
 Rotas de **conectar/parear** WhatsApp (`/api/integrations/evolution/connect`, `/api/integrations/evolution/pair`, `/api/integrations/meowcaller/connect`, `/api/integrations/meowcaller/pair-phone`) passam a exigir o mesmo `authenticateUser` já usado no MCP. Rotas só de leitura de status continuam com auth opcional.
+
+### 5.2 Identidade do canal WhatsApp (empresa × texto da URA)
+
+O webhook `POST /webhooks/evolution` grava `business_id` e monta a auto-resposta a partir da **mesma identidade**. Não há marca hardcoded (o texto antigo "Max Nutrition" com `BIZ-001` misturava MaxNutrition e iGreen).
+
+| Variável | Papel | Valor no repositório |
+|---|---|---|
+| `WHATSAPP_BUSINESS_ID` | `business_id` de `comunicacoes` e `agent_jobs` | `CONFIGURAR_SOMENTE_NO_EASYPANEL` |
+| `WHATSAPP_BRAND_NAME` | Nome de marca no texto da URA | `CONFIGURAR_SOMENTE_NO_EASYPANEL` |
+| `WHATSAPP_AUTOREPLY_DEBOUNCE_MS` | Janela para não repetir a mesma auto-resposta ao mesmo número | `60000` (exemplo neutro) |
+
+Regras:
+
+- Só se **os dois** (`WHATSAPP_BUSINESS_ID` e `WHATSAPP_BRAND_NAME`) estiverem preenchidos com valores reais o canal afirma a marca e grava o id correspondente.
+- Placeholder `CONFIGURAR_SOMENTE_NO_EASYPANEL` (ou vazio) conta como **não configurado**.
+- Padrão seguro: texto genérico ("nosso canal de atendimento") e `business_id = UNASSIGNED`. Nunca se afirma "Max Nutrition", "iGreen" ou outra marca que não bata com o id.
+- Decisão do fundador (EasyPanel, sem mudar código): qual empresa este número atende (`BIZ-001` iGreen, `BIZ-002` Ecossistema de Saúde / MaxNutrition, ou outra) e o texto final da marca.
+
+O menu URA (opções 1–4) e o `agent_id` do job vêm da **mesma tabela** em `src/whatsapp-ura.mjs`: Victor AGT-15, Joana AGT-20, Caio AGT-05, Marina AGT-04 (triagem executiva). A opção 4 não cria job para Helena (AGT-01), que opera fora desta fila.
+
+A auto-resposta **não promete prazo** ("em instantes"). Criar o `agent_job` com status `READY` **não aciona** o especialista: no Protocolo V9 os bots só agem após despacho da Marina (`record_dispatch`, AGT-04) e `claim_job`. Não há caminho sanctioned no webhook para disparar o agente sem gravar em `agent_job_events` (proibido neste fluxo).
 
 ---
 

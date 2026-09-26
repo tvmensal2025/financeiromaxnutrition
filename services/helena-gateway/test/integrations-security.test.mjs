@@ -97,6 +97,10 @@ const {
   buildEvolutionWebhookUrl,
   buildEvolutionWebhookHeaders
 } = await import('../src/integrations/evolution.mjs');
+const {
+  resetWhatsappAutoReplyDebounce,
+  NEUTRAL_BUSINESS_ID
+} = await import('../src/whatsapp-ura.mjs');
 
 const AUTH_TOKEN = 'test-user-token';
 const WEBHOOK_SECRET = 'test-evo-webhook-secret';
@@ -123,15 +127,15 @@ async function supabaseFetch(path, options = {}) {
   return [];
 }
 
-function inboundMessagePayload(text = 'oi') {
+function inboundMessagePayload(text = 'oi', { id = 'MSG-TEST-1', remoteJid = '5511999999999@s.whatsapp.net' } = {}) {
   return {
     event: 'messages.upsert',
     instance: 'test-instance',
     data: {
       key: {
-        remoteJid: '5511999999999@s.whatsapp.net',
+        remoteJid,
         fromMe: false,
-        id: 'MSG-TEST-1'
+        id
       },
       pushName: 'Teste',
       message: { conversation: text }
@@ -156,6 +160,10 @@ function resetSideEffects() {
   sentMessages.length = 0;
   webhookSetPayloads.length = 0;
   fetchCalls.length = 0;
+  resetWhatsappAutoReplyDebounce();
+  delete process.env.WHATSAPP_BUSINESS_ID;
+  delete process.env.WHATSAPP_BRAND_NAME;
+  delete process.env.WHATSAPP_AUTOREPLY_DEBOUNCE_MS;
 }
 
 let passed = 0;
@@ -351,6 +359,104 @@ try {
     assert.strictEqual(evo.status, 200);
     const meow = await fetch(`${baseUrl}/api/integrations/meowcaller/status`);
     assert.strictEqual(meow.status, 200);
+  });
+
+  await test('(a)(b) opção 1: job e texto usam Victor/AGT-15 mesmo se Laya sugerir AGT-20; business_id neutro', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload('1', { id: 'MSG-OPT-1' }))
+    });
+    assert.strictEqual(res.status, 200);
+    const jobCall = supabaseCalls.find((call) => call.path.includes('/agent_jobs'));
+    assert.ok(jobCall, 'deve criar agent_job');
+    assert.strictEqual(jobCall.body.agent_id, 'AGT-15');
+    assert.strictEqual(jobCall.body.business_id, NEUTRAL_BUSINESS_ID);
+    const inbound = supabaseCalls.find((call) => call.path.includes('/comunicacoes') && call.body?.direction === 'ENTRADA');
+    assert.strictEqual(inbound.body.business_id, NEUTRAL_BUSINESS_ID);
+    assert.strictEqual(inbound.body.responsavel, 'Victor');
+    assert.ok(sentMessages.length >= 1);
+    const reply = sentMessages[0].text || sentMessages[0].textMessage?.text || '';
+    assert.ok(reply.includes('Victor'));
+    assert.ok(reply.includes('AGT-15'));
+    assert.ok(!reply.includes('Max Nutrition'));
+    assert.ok(!/em instantes/i.test(reply));
+  });
+
+  await test('(a) par configurado: marca no texto e business_id nos registros coincidem', async () => {
+    process.env.WHATSAPP_BUSINESS_ID = 'BIZ-002';
+    process.env.WHATSAPP_BRAND_NAME = 'Max Nutrition';
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload('oi', { id: 'MSG-BRAND-1' }))
+    });
+    assert.strictEqual(res.status, 200);
+    const jobCall = supabaseCalls.find((call) => call.path.includes('/agent_jobs'));
+    assert.strictEqual(jobCall.body.business_id, 'BIZ-002');
+    const comms = supabaseCalls.filter((call) => call.path.includes('/comunicacoes'));
+    assert.ok(comms.every((call) => call.body.business_id === 'BIZ-002'));
+    const reply = sentMessages[0].text || '';
+    assert.ok(reply.includes('Max Nutrition'));
+  });
+
+  await test('(b) opção 3 cria job para Caio/AGT-05 e o texto cita o mesmo agente', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload('3', { id: 'MSG-OPT-3' }))
+    });
+    assert.strictEqual(res.status, 200);
+    const jobCall = supabaseCalls.find((call) => call.path.includes('/agent_jobs'));
+    assert.strictEqual(jobCall.body.agent_id, 'AGT-05');
+    const reply = sentMessages[0].text || '';
+    assert.ok(reply.includes('Caio'));
+    assert.ok(reply.includes('AGT-05'));
+    assert.ok(!reply.includes('AGT-04'));
+  });
+
+  await test('(b) opção 4 cria job para Marina/AGT-04 (não Helena)', async () => {
+    const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-evolution-webhook-secret': WEBHOOK_SECRET
+      },
+      body: JSON.stringify(inboundMessagePayload('4', { id: 'MSG-OPT-4' }))
+    });
+    assert.strictEqual(res.status, 200);
+    const jobCall = supabaseCalls.find((call) => call.path.includes('/agent_jobs'));
+    assert.strictEqual(jobCall.body.agent_id, 'AGT-04');
+    const reply = sentMessages[0].text || '';
+    assert.ok(reply.includes('Marina'));
+    assert.ok(!reply.includes('AGT-01'));
+  });
+
+  await test('(c) três mensagens iguais em janela curta: uma só auto-resposta', async () => {
+    process.env.WHATSAPP_AUTOREPLY_DEBOUNCE_MS = '60000';
+    for (let i = 1; i <= 3; i += 1) {
+      const res = await fetch(`${baseUrl}/webhooks/evolution`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-evolution-webhook-secret': WEBHOOK_SECRET
+        },
+        body: JSON.stringify(inboundMessagePayload('oi', { id: `MSG-DEBOUNCE-${i}` }))
+      });
+      assert.strictEqual(res.status, 200);
+    }
+    assert.strictEqual(sentMessages.length, 1, 'debounce deve enviar uma única auto-resposta');
+    const jobs = supabaseCalls.filter((call) => call.path.includes('/agent_jobs'));
+    assert.strictEqual(jobs.length, 3, 'mensagens inbound ainda geram jobs');
   });
 
   console.log('\n========================================');
