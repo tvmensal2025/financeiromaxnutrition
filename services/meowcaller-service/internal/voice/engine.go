@@ -58,6 +58,26 @@ type CallSnapshot struct {
 	StartedAt    time.Time `json:"started_at"`
 }
 
+// VoiceDiagnostics armazena métricas e telemetria da última chamada para diagnóstico em tempo real
+type VoiceDiagnostics struct {
+	LastCallID          string    `json:"last_call_id"`
+	LastPeer            string    `json:"last_peer"`
+	LastCallDirection   string    `json:"last_call_direction"`
+	LastCallStartedAt   time.Time `json:"last_call_started_at"`
+	TotalFramesReceived int       `json:"total_frames_received"`
+	LastRMS             float64   `json:"last_rms"`
+	MaxRMS              float64   `json:"max_rms"`
+	NoiseFloor          float64   `json:"noise_floor"`
+	EffectiveThreshold  float64   `json:"effective_threshold"`
+	SpeechEventsCount   int       `json:"speech_events_count"`
+	WavsDispatchedCount int       `json:"wavs_dispatched_count"`
+	LastDispatchedBytes int       `json:"last_dispatched_bytes"`
+	LastGatewayStatus   int       `json:"last_gateway_status"`
+	LastGatewayResponse string    `json:"last_gateway_response"`
+	LastBargeInAt       time.Time `json:"last_barge_in_at"`
+	RecentEvents        []string  `json:"recent_events"`
+}
+
 // Engine gerencia a sessão WhatsApp e o engine de chamadas VoIP
 type Engine struct {
 	cfg           *config.Config
@@ -79,6 +99,67 @@ type Engine struct {
 	callSinks   map[string]*ConversationalSink
 	callPlayers map[string]*meowcaller.Player
 	callsMu     sync.RWMutex
+
+	diag   VoiceDiagnostics
+	diagMu sync.RWMutex
+}
+
+func (e *Engine) recordDiagEvent(event string) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	entry := fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), event)
+	e.diag.RecentEvents = append(e.diag.RecentEvents, entry)
+	if len(e.diag.RecentEvents) > 50 {
+		e.diag.RecentEvents = e.diag.RecentEvents[len(e.diag.RecentEvents)-50:]
+	}
+}
+
+func (e *Engine) updateDiagCallStart(callID, peer, direction string) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	e.diag.LastCallID = callID
+	e.diag.LastPeer = peer
+	e.diag.LastCallDirection = direction
+	e.diag.LastCallStartedAt = time.Now()
+	e.diag.TotalFramesReceived = 0
+	e.diag.LastRMS = 0
+	e.diag.MaxRMS = 0
+	e.diag.NoiseFloor = 0
+	e.diag.SpeechEventsCount = 0
+	e.diag.WavsDispatchedCount = 0
+	e.recordDiagEvent(fmt.Sprintf("Chamada iniciada: id=%s, peer=%s, dir=%s", callID, peer, direction))
+}
+
+func (e *Engine) updateDiagAudio(callID string, frames int, rms, floor, threshold float64) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	e.diag.TotalFramesReceived = frames
+	e.diag.LastRMS = rms
+	e.diag.NoiseFloor = floor
+	e.diag.EffectiveThreshold = threshold
+	if rms > e.diag.MaxRMS {
+		e.diag.MaxRMS = rms
+	}
+}
+
+func (e *Engine) updateDiagDispatch(bytes int) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	e.diag.WavsDispatchedCount++
+	e.diag.LastDispatchedBytes = bytes
+}
+
+func (e *Engine) updateDiagGatewayResponse(status int, body string) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	e.diag.LastGatewayStatus = status
+	e.diag.LastGatewayResponse = body
+}
+
+func (e *Engine) GetDiagnostics() VoiceDiagnostics {
+	e.diagMu.RLock()
+	defer e.diagMu.RUnlock()
+	return e.diag
 }
 
 // NewEngine inicializa o engine de voz WhatsApp real
@@ -90,6 +171,9 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 		callHandles: make(map[string]*meowcaller.Call),
 		callSinks:   make(map[string]*ConversationalSink),
 		callPlayers: make(map[string]*meowcaller.Player),
+		diag: VoiceDiagnostics{
+			RecentEvents: make([]string, 0, 50),
+		},
 	}
 
 	// Garante que o diretório de sessão existe
@@ -221,27 +305,34 @@ func (e *Engine) runSession(ctx context.Context) error {
 		sink := e.registerConversationalSink(callID, call)
 		call.Receive(sink)
 
-		log.Info().Str("caller", peer).Str("call_id", callID).Msg("📞 Chamada VoIP recebida! Sink conversacional conectado. Aguardando 4s de toque (ringtone) para atendimento humanizado...")
+		e.updateDiagCallStart(callID, peer, "INBOUND")
 
-		// Atendimento humanizado: aguarda 4 segundos de toque de telefone antes de atender
+		// ATENDIMENTO IMEDIATO OBRIGATÓRIO (Handshake VoIP WhatsApp):
+		// O WhatsApp envia o stanza "mute_v2" (com chaves de mídia) nos primeiros milissegundos.
+		// O meowcaller precisa que call.Answer() já tenha setado acceptPending = true para enviar <accept>.
+		// Sem isso, o meowcaller descarta o mute_v2 e o celular do cliente NUNCA transmite os pacotes RTP
+		// do microfone do usuário para o servidor!
+		if err := call.Answer(); err != nil {
+			log.Error().Err(err).Str("call_id", callID).Msg("Erro ao atender chamada VoIP")
+			snap.Status = "FAILED"
+			e.recordDiagEvent(fmt.Sprintf("Falha ao atender chamada: %v", err))
+			return
+		}
+		snap.Status = "CONNECTED"
+		log.Info().Str("caller", peer).Str("call_id", callID).Msg("✅ Chamada VoIP atendida imediatamente! Fluxo de áudio RTP bidirecional liberado.")
+		e.recordDiagEvent("Chamada atendida com sucesso (RTP upstream e downstream ativos)")
+
+		// Pausa humanizada natural antes de iniciar a fala do Pedro (1.5 segundos após atender)
 		go func() {
-			time.Sleep(4 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 
 			e.callsMu.RLock()
 			currentSnap, exists := e.activeCalls[callID]
 			e.callsMu.RUnlock()
-			if !exists || currentSnap.Status != "RINGING" {
-				log.Info().Str("call_id", callID).Msg("Chamada não está mais aguardando atendimento (cliente desligou antes de 4s)")
+			if !exists || currentSnap.Status != "CONNECTED" {
+				log.Info().Str("call_id", callID).Msg("Chamada não está mais conectada antes da saudação")
 				return
 			}
-
-			if err := call.Answer(); err != nil {
-				log.Error().Err(err).Str("call_id", callID).Msg("Erro ao atender chamada")
-				currentSnap.Status = "FAILED"
-				return
-			}
-			currentSnap.Status = "CONNECTED"
-			log.Info().Str("call_id", callID).Msg("✅ Chamada atendida após 4s de toque! Escuta ativa e reproduzindo saudação do Pedro...")
 
 			// Dispara a saudação com a voz oficial do Pedro (Kokoro TTS)
 			e.playInitialGreeting(callID, call, "INBOUND")
@@ -573,6 +664,7 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			// Conecta o sink conversacional contínuo para ouvir o cliente
 			sink := e.registerConversationalSink(callID, call)
 			call.Receive(sink)
+			e.updateDiagCallStart(callID, target, "OUTBOUND")
 			// Dispara a saudação do Pedro na chamada de saída
 			go e.playInitialGreeting(callID, call, "OUTBOUND")
 		})
@@ -798,7 +890,7 @@ func (e *Engine) Shutdown() {
 // ======================================================================
 
 // ConversationalSink consome o áudio decodificado do WhatsApp VoIP (16 kHz mono float32, 60ms por frame).
-// Implementa Voice Activity Detection (VAD) de alta sensibilidade, interrupção natural instantânea (barge-in),
+// Implementa Voice Activity Detection (VAD) de alta sensibilidade adaptativa, interrupção natural instantânea (barge-in),
 // buffer circular de pré-fala (para não perder o início da palavra), telemetria ativa e despacho de áudio WAV.
 type ConversationalSink struct {
 	callID           string
@@ -810,6 +902,7 @@ type ConversationalSink struct {
 	silenceFrames    int
 	totalFrames      int
 	speechFrameCount int
+	noiseFloor       float64
 	rmsThreshold     float64
 	silenceThreshold int
 	minSpeechSamples int
@@ -820,9 +913,10 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 	sink := &ConversationalSink{
 		callID:           callID,
 		engine:           e,
-		rmsThreshold:     0.0018, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 10,     // 10 frames * 60ms = 600ms de silêncio pós-fala (padrão ElevenLabs)
-		minSpeechSamples: 3200,   // Mínimo de 200ms de fala (3200 amostras a 16kHz)
+		noiseFloor:       0.0005,
+		rmsThreshold:     0.0012, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
+		silenceThreshold: 10,     // 10 frames * 60ms = 600ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
+		minSpeechSamples: 2400,   // Mínimo de 150ms de fala (2400 amostras a 16kHz) para capturar "oi", "sim", "olá"
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 5),
 	}
@@ -861,22 +955,36 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// 2. Calcula energia RMS do frame de 60ms (960 amostras a 16kHz)
 	rms := math.Sqrt(sum / float64(len(frame)))
 
+	// Atualiza piso de ruído adaptativo quando não está falando
+	if s.noiseFloor == 0 {
+		s.noiseFloor = rms
+	} else if !s.isSpeaking {
+		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
+	}
+
+	// Limiar adaptativo dinâmico (no mínimo rmsThreshold ou 1.8x o ruído ambiente)
+	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.8)
+
+	// Registra telemetria contínua
+	s.engine.updateDiagAudio(s.callID, s.totalFrames, rms, s.noiseFloor, effectiveThreshold)
+
 	// Telemetria periódica a cada 50 frames (~3 segundos) para monitorar áudio recebido
 	if s.totalFrames%50 == 0 {
 		log.Info().
 			Str("call_id", s.callID).
 			Int("total_frames", s.totalFrames).
 			Float64("current_rms", rms).
-			Float64("threshold", s.rmsThreshold).
+			Float64("noise_floor", s.noiseFloor).
+			Float64("threshold", effectiveThreshold).
 			Bool("is_speaking", s.isSpeaking).
 			Msg("📡 Telemetria de áudio WhatsApp VoIP (frames recebidos e processados)")
 	}
 
 	// 3. Classificação de voz
-	if rms >= s.rmsThreshold {
+	if rms >= effectiveThreshold {
 		s.speechFrameCount++
 
-		// Interrompe a fala do Pedro assim que houver voz do cliente
+		// BARGE-IN INSTANTÂNEO: Interrompe a fala do Pedro assim que houver voz do cliente
 		s.engine.stopActivePlayer(s.callID)
 
 		if !s.isSpeaking {
@@ -885,8 +993,10 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			log.Info().
 				Str("call_id", s.callID).
 				Float64("rms", rms).
+				Float64("threshold", effectiveThreshold).
 				Int("frame", s.totalFrames).
 				Msg("🎙️ Voz do cliente detectada no WhatsApp VoIP (cortando playback e gravando pergunta)!")
+			s.engine.recordDiagEvent(fmt.Sprintf("Voz detectada: rms=%.4f (limiar=%.4f)", rms, effectiveThreshold))
 
 			// Incorpora o buffer de pré-fala para preservar a primeira sílaba ("Oi", "Qual", "Pedro")
 			for _, preFrame := range s.preSpeechRing {
@@ -897,6 +1007,21 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 
 		s.speechSamples = append(s.speechSamples, pcmFrame...)
 		s.silenceFrames = 0
+
+		// Guardrail de duração máxima: 12 segundos contínuos de fala para despachar sem travar
+		if len(s.speechSamples) >= 16000*12 {
+			samplesToDispatch := s.speechSamples
+			callID := s.callID
+			s.speechSamples = make([]int16, 0, 16000*5)
+			s.isSpeaking = false
+			s.silenceFrames = 0
+			s.mu.Unlock()
+
+			log.Info().Str("call_id", callID).Msg("🗣️ Turno de fala atingiu limite máximo (12s). Despachando áudio...")
+			wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
+			go s.engine.notifyUserSpeech(callID, wavBytes)
+			return nil
+		}
 	} else {
 		s.speechFrameCount = 0
 
@@ -956,6 +1081,7 @@ func (e *Engine) stopActivePlayer(callID string) {
 	if ok && player != nil && player.State() == meowcaller.PlayerPlaying {
 		log.Info().Str("call_id", callID).Msg("🛑 Interrompendo fala do Pedro imediatamente (barge-in do cliente)!")
 		player.Stop()
+		e.recordDiagEvent("Barge-in: fala do atendente interrompida pelo usuário")
 	}
 }
 
@@ -1001,6 +1127,9 @@ func encodePCMToWAV(samples []int16, sampleRate uint32) []byte {
 
 // notifyUserSpeech envia o áudio da fala do cliente (WAV 16kHz) para o Helena Gateway
 func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
+	e.updateDiagDispatch(len(wavBytes))
+	e.recordDiagEvent(fmt.Sprintf("Turno finalizado: despachando WAV (%d bytes)", len(wavBytes)))
+
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/user-speech"
 	b64 := base64.StdEncoding.EncodeToString(wavBytes)
 	payload, err := json.Marshal(map[string]interface{}{
@@ -1012,6 +1141,7 @@ func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("Erro ao serializar payload de voz do cliente")
+		e.updateDiagGatewayResponse(500, err.Error())
 		return
 	}
 
@@ -1025,6 +1155,7 @@ func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
 	req, err := http.NewRequest("POST", gatewayURL, bytes.NewBuffer(payload))
 	if err != nil {
 		log.Error().Err(err).Msg("Erro ao criar requisição HTTP para o Helena Gateway")
+		e.updateDiagGatewayResponse(500, err.Error())
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -1035,11 +1166,13 @@ func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Err(err).Str("call_id", callID).Msg("Erro ao enviar fala do usuário para Helena Gateway")
+		e.updateDiagGatewayResponse(500, err.Error())
 		return
 	}
 	defer resp.Body.Close()
 
 	respBody, _ := io.ReadAll(resp.Body)
+	e.updateDiagGatewayResponse(resp.StatusCode, string(respBody))
 	log.Info().
 		Str("call_id", callID).
 		Int("status", resp.StatusCode).

@@ -43,6 +43,8 @@ func (s *Server) Routes() http.Handler {
 
 	// Rotas autenticadas — Chamadas (compatibilidade plena)
 	mux.HandleFunc("GET /v1/calls", s.auth(s.handleListCalls))
+	mux.HandleFunc("GET /v1/calls/diagnostics", s.auth(s.handleDiagnostics))
+	mux.HandleFunc("GET /v1/diagnostics", s.auth(s.handleDiagnostics))
 	mux.HandleFunc("POST /v1/calls", s.auth(s.handleOriginateCall))
 	mux.HandleFunc("POST /v1/calls/originate", s.auth(s.handleOriginateCall))
 	mux.HandleFunc("POST /v1/calls/{id}/play", s.auth(s.handlePlayCallAudio))
@@ -368,6 +370,14 @@ func (s *Server) handleHangupCall(w http.ResponseWriter, r *http.Request) {
 		"call_id": id,
 		"status":  "ENDED",
 		"message": "Chamada encerrada com sucesso.",
+	}, http.StatusOK)
+}
+
+func (s *Server) handleDiagnostics(w http.ResponseWriter, r *http.Request) {
+	diag := s.engine.GetDiagnostics()
+	s.ok(w, map[string]interface{}{
+		"ok":   true,
+		"diag": diag,
 	}, http.StatusOK)
 }
 

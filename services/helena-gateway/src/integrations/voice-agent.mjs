@@ -222,6 +222,7 @@ function generateLocalResponse(query, cfg) {
 function sanitizeSpeechText(text) {
   if (!text) return '';
   return text
+    .replace(/<[^>]*>/g, '') // remove tags HTML se houver
     .replace(/[*#_~`]/g, '') // remove markdown
     .replace(/[^\w\s\d.,!?;:áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ-]/gi, '') // remove emojis e símbolos estranhos
     .replace(/\s+/g, ' ')
@@ -231,12 +232,12 @@ function sanitizeSpeechText(text) {
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash-lite', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
-    // Modelos com suporte comprovado a áudio WAV e baixíssima latência (1-2s)
+    // Modelos com suporte comprovado a áudio WAV e inteligência conversacional rápida
     const candidateModels = audioBase64
-      ? ['gemini-3.5-flash-lite', 'gemini-flash-latest', 'gemini-flash-lite-latest']
-      : ['gemini-3.5-flash-lite', 'gemini-flash-latest', model].filter(Boolean);
+      ? ['gemini-flash-latest', 'gemini-3.5-flash-lite']
+      : ['gemini-flash-latest', 'gemini-3.5-flash-lite', model].filter(Boolean);
 
     for (const m of candidateModels) {
       try {
@@ -262,7 +263,7 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash-
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(6000), // Timeout estrito de 6s para não congelar chamada telefônica
+          signal: AbortSignal.timeout(8000), // Timeout de 8s para voz
           body: JSON.stringify({
             system_instruction: {
               parts: [{ text: systemInstruction }]
