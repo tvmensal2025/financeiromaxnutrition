@@ -338,8 +338,6 @@ func (e *Engine) runSession(ctx context.Context) error {
 			onceGreeting.Do(func() {
 				log.Info().Str("call_id", callID).Str("trigger", trigger).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação do Pedro...")
 				e.recordDiagEvent(fmt.Sprintf("Mídia conectada via %s: disparando saudação", trigger))
-				// Re-garante que o sink de áudio esteja atrelado à chamada ativa
-				call.Receive(sink)
 				go e.playInitialGreeting(callID, call, "INBOUND")
 			})
 		}
@@ -1123,14 +1121,18 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			}
 			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
 
-			// Detecção de Silêncio Inicial (Cliente conectado mas calado após saudação)
-			// ~85 frames * 60ms = ~5.1s de silêncio contínuo pós-saudação
-			if !s.nudgeSent && s.totalFrames >= 70 {
+			// Detecção de Silêncio do Cliente pós-saudação
+			// Enquanto o Pedro estiver falando (tocando saudação ou resposta), reseta o silêncio do cliente
+			if s.engine.isPlayerActive(s.callID) {
+				s.initialSilenceFrames = 0
+			} else if !s.nudgeSent {
+				// Pedro já terminou de falar: conta silêncio real do cliente
 				s.initialSilenceFrames++
-				if s.initialSilenceFrames >= 85 {
+				// ~130 frames * 60ms = ~7.8 segundos de silêncio contínuo após a fala do Pedro
+				if s.initialSilenceFrames >= 130 {
 					s.nudgeSent = true
 					callID := s.callID
-					log.Info().Str("call_id", callID).Msg("⏳ Silêncio inicial prolongado (>5s). Notificando Gateway para cutucada cortês...")
+					log.Info().Str("call_id", callID).Msg("⏳ Silêncio do cliente detectado (>7s após término da fala). Notificando Gateway para cutucada cortês...")
 					go s.engine.notifyUserSilence(callID)
 				}
 			}
@@ -1147,6 +1149,15 @@ func (s *ConversationalSink) Close() error {
 	s.closed = true
 	s.speechSamples = nil
 	return nil
+}
+
+func (e *Engine) isPlayerActive(callID string) bool {
+	e.callsMu.RLock()
+	defer e.callsMu.RUnlock()
+	if player, ok := e.callPlayers[callID]; ok && player != nil {
+		return player.State() == meowcaller.PlayerPlaying
+	}
+	return false
 }
 
 func (e *Engine) stopActivePlayer(callID string) {

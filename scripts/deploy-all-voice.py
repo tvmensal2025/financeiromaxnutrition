@@ -31,7 +31,7 @@ def deploy_service(token, service_name):
         headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as res:
+        with urllib.request.urlopen(req, timeout=180) as res:
             return {'status': res.status, 'data': json.loads(res.read().decode('utf-8'))}
     except Exception as e:
         return {'error': str(e)}

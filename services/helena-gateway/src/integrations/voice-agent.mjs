@@ -511,9 +511,9 @@ export async function handleCallConnectedWebhook(payload = {}) {
     });
   }
 
-  // Se a saudação já foi transmitida pelo Meowcaller (MP3 local de 0ms), evita duplicidade
-  if (greeting_already_played) {
-    console.log(`[VOICE_AGENT] ℹ️ Saudação da chamada ${call_id} já reproduzida pelo Meowcaller. Histórico sincronizado.`);
+  // Se a saudação já foi transmitida pelo Meowcaller (MP3 local de 0ms) ou em qualquer chamada INBOUND, evita duplicidade
+  if (greeting_already_played || direction === 'INBOUND') {
+    console.log(`[VOICE_AGENT] ℹ️ Saudação da chamada ${call_id} (${direction}) já gerenciada pelo Meowcaller. Histórico sincronizado sem duplicar áudio.`);
     return { ok: true, handled: true, call_id, greeting, duplicate_skipped: true };
   }
 
