@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Moon, Sun, LogOut, Search, User } from "lucide-react";
+import { Moon, Sun, LogOut, Search, KeyRound } from "lucide-react";
 import { useAuth } from "@/auth";
+import { TrocarSenhaDialog } from "@/components/TrocarSenhaDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ export function Header({ onOpenSearch }: HeaderProps) {
   const [temaEscuro, setTemaEscuro] = useState(() =>
     document.documentElement.classList.contains("dark")
   );
+  const [trocarSenhaAberto, setTrocarSenhaAberto] = useState(false);
 
   const alternarTema = () => {
     const proximo = !temaEscuro;
@@ -88,6 +90,13 @@ export function Header({ onOpenSearch }: HeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="my-1 bg-border/60" />
             <DropdownMenuItem
+              onSelect={() => setTrocarSenhaAberto(true)}
+              className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-foreground cursor-pointer hover:bg-muted transition-colors"
+            >
+              <KeyRound className="h-3.5 w-3.5" />
+              <span>Trocar senha</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
               onClick={() => sair()}
               className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-[#B91C1C] cursor-pointer hover:bg-[#B91C1C]/10 transition-colors"
             >
@@ -97,6 +106,7 @@ export function Header({ onOpenSearch }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
+      <TrocarSenhaDialog open={trocarSenhaAberto} onOpenChange={setTrocarSenhaAberto} />
     </div>
   );
 }

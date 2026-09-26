@@ -4,7 +4,9 @@ import { AuthProvider, useAuth } from "@/auth";
 import { BusinessProvider } from "@/contexts/BusinessContext";
 import { Layout } from "@/components/Layout";
 import Login from "@/pages/Login";
+import RedefinirSenha from "@/pages/RedefinirSenha";
 import OAuthConsent from "@/pages/OAuthConsent";
+import { pareceLinkRecuperacaoSenha, ROTA_REDEFINIR_SENHA } from "@/lib/auth-senha";
 import Painel from "@/pages/Painel";
 import Modulo from "@/pages/Modulo";
 import CrmPage from "@/pages/CrmPage";
@@ -82,12 +84,29 @@ function Protegida({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Rotas() {
+export function Rotas() {
+  const { passwordRecovery } = useAuth();
+  const location = useLocation();
+  const precisaRedefinir =
+    location.pathname !== ROTA_REDEFINIR_SENHA &&
+    (passwordRecovery || pareceLinkRecuperacaoSenha(location.search, location.hash));
+
+  // A rota de redefinição precisa processar o token ANTES do guard de /login e de app_access.
+  if (precisaRedefinir) {
+    return (
+      <Navigate
+        to={{ pathname: ROTA_REDEFINIR_SENHA, search: location.search, hash: location.hash }}
+        replace
+      />
+    );
+  }
+
   return (
     <Routes>
       {/* Rotas de Autenticação e Consentimento OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/entrar" element={<Navigate to="/login" replace />} />
+      <Route path={ROTA_REDEFINIR_SENHA} element={<RedefinirSenha />} />
       <Route
         path="/oauth/consent"
         element={

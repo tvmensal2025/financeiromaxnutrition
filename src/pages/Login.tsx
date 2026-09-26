@@ -1,8 +1,9 @@
 import React, { FormEvent, useState } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/auth";
-import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
-import { AlertCircle, Lock, Mail, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, ArrowRight, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { solicitarRedefinicaoSenha } from "@/lib/auth-senha";
 
 /**
  * Validação de segurança para URLs de retorno pós-login (proteção contra Open Redirect).
@@ -16,18 +17,21 @@ function getSafeRedirect(target: string | null): string {
 }
 
 export default function Login() {
-  const { user, appAccess, loading, entrar } = useAuth();
+  const { user, appAccess, loading, entrar, passwordRecovery } = useAuth();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [modo, setModo] = useState<"login" | "esqueci">("login");
 
   const rawRedirect = searchParams.get("redirect");
   const destino = getSafeRedirect(rawRedirect);
+  const senhaRedefinida = searchParams.get("senha") === "redefinida";
 
-  // Se já estiver autenticado e autorizado com app_access ativo, segue para o destino solicitado
-  if (!loading && user && appAccess?.active) {
+  // Recuperação de senha não pode ir ao app antes de escolher a senha nova.
+  if (!loading && user && appAccess?.active && !passwordRecovery) {
     return <Navigate to={destino} replace />;
   }
 
@@ -37,10 +41,29 @@ export default function Login() {
 
     setEnviando(true);
     setErro("");
+    setAviso("");
 
     const msgErro = await entrar(email.trim(), senha);
     if (msgErro) {
       setErro(msgErro);
+    }
+    setEnviando(false);
+  }
+
+  async function onEsqueciSenha(event: FormEvent) {
+    event.preventDefault();
+    setEnviando(true);
+    setErro("");
+    setAviso("");
+    const resultado = await solicitarRedefinicaoSenha(
+      supabase.auth,
+      email,
+      window.location.origin,
+    );
+    if (resultado.ok) {
+      setAviso(resultado.mensagem);
+    } else {
+      setErro(resultado.mensagem);
     }
     setEnviando(false);
   }
@@ -60,10 +83,12 @@ export default function Login() {
             </div>
             <div className="space-y-1">
               <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                Acesso à Central Executiva
+                {modo === "esqueci" ? "Redefinir senha" : "Acesso à Central Executiva"}
               </h1>
               <p className="text-xs text-muted-foreground">
-                Sistema Helena · Ambiente de Gestão do Fundador
+                {modo === "esqueci"
+                  ? "Informe o e-mail da conta para receber o link de redefinição."
+                  : "Sistema Helena · Ambiente de Gestão do Fundador"}
               </p>
             </div>
           </div>
@@ -80,6 +105,20 @@ export default function Login() {
             </div>
           )}
 
+          {senhaRedefinida && !erro && modo === "login" && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#007A3D]/25 bg-[#007A3D]/5 p-3 text-xs text-[#007A3D] dark:text-[#4ade80]">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="leading-snug">Senha atualizada. Entre com a nova senha.</span>
+            </div>
+          )}
+
+          {aviso && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#007A3D]/25 bg-[#007A3D]/5 p-3 text-xs text-[#007A3D] dark:text-[#4ade80]">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="leading-snug">{aviso}</span>
+            </div>
+          )}
+
           {/* Mensagem de Erro */}
           {erro && (
             <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#B91C1C]/25 bg-[#B91C1C]/5 p-3 text-xs text-[#B91C1C] dark:text-[#f87171]">
@@ -88,7 +127,53 @@ export default function Login() {
             </div>
           )}
 
-          {/* Formulário de Acesso */}
+          {modo === "esqueci" ? (
+          <form onSubmit={onEsqueciSenha} className="mt-5 space-y-4">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="email-recuperacao"
+                className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+              >
+                E-mail Corporativo
+              </label>
+              <input
+                id="email-recuperacao"
+                type="email"
+                required
+                placeholder="fundador@empresa.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={enviando}
+                className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-colors focus:border-[#007A3D] focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={enviando}
+              className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-[#007A3D] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#006030] focus:outline-none focus:ring-2 focus:ring-[#007A3D] focus:ring-offset-2 disabled:opacity-60 cursor-pointer"
+            >
+              {enviando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Enviando…</span>
+                </>
+              ) : (
+                <span>Enviar link de redefinição</span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setModo("login");
+                setErro("");
+                setAviso("");
+              }}
+              className="w-full text-xs font-medium text-[#007A3D] hover:underline"
+            >
+              Voltar ao login
+            </button>
+          </form>
+          ) : (
           <form onSubmit={onSubmit} className="mt-5 space-y-4">
             <div className="space-y-1.5">
               <label
@@ -119,6 +204,17 @@ export default function Login() {
                 >
                   Senha de Acesso
                 </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModo("esqueci");
+                    setErro("");
+                    setAviso("");
+                  }}
+                  className="text-[11px] font-medium text-[#007A3D] hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
               </div>
               <div className="relative">
                 <input
@@ -152,6 +248,7 @@ export default function Login() {
               )}
             </button>
           </form>
+          )}
 
           {/* Rodapé Seguro */}
           <div className="mt-8 pt-5 border-t border-border/60 text-center">
