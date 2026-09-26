@@ -103,10 +103,12 @@ let cachedConfig = {
   knowledge_base: DEFAULT_MAX_KNOWLEDGE_BASE,
   inbound_greeting: DEFAULT_INBOUND_GREETING,
   outbound_greeting: DEFAULT_OUTBOUND_GREETING,
-  voice_profile_id: 'VP-KOKORO-MASC-03',
+  voice_provider: 'ELEVENLABS',
+  voice_profile_id: 'VP-ELEVEN-MASC-01',
+  elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
   kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
   ai_provider: 'GEMINI',
-  ai_model: 'gemini-3.5-flash-lite',
+  ai_model: 'gemini-3.8-flash',
   ai_api_key: '',
   is_active: true,
   updated_at: new Date().toISOString()
@@ -321,31 +323,144 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-late
 }
 
 // ======================================================================
-// DISPARO DE VOZ NA CHAMADA VIA MEOWCALLER & KOKORO TTS
+// MOTOR DE VOZ & CONVERSAÇÃO TELEFÔNICA (ELEVENLABS + KOKORO + MEOWCALLER)
 // ======================================================================
 
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || 'helena_meow_sec_8a3c1f9d2e';
+export const ELEVENLABS_OFFICIAL_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ'; // Pedro / Max Alex
 
 /**
- * Sintetiza o texto com Kokoro e envia o áudio imediatamente para a chamada VoIP
+ * Transcreve áudio do microfone do usuário usando ElevenLabs Scribe STT (ultra-rápido ~400ms)
  */
-export async function speakInCall({ callId, text, voice = KOKORO_OFFICIAL_VOICE_ID }) {
+export async function transcribeAudio(audioBuffer) {
+  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
+  if (!elevenKey || !audioBuffer || audioBuffer.length < 500) {
+    return null;
+  }
+
+  try {
+    const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+    const formData = new FormData();
+    formData.append('file', blob, 'speech.wav');
+    formData.append('model_id', 'scribe_v1');
+    formData.append('language_code', 'por');
+
+    const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+      method: 'POST',
+      headers: { 'xi-api-key': elevenKey },
+      body: formData,
+      signal: AbortSignal.timeout(3500)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const text = data?.text?.trim() || '';
+      if (text.length > 0) {
+        console.log(`[VOICE_AGENT] 🎙️ ElevenLabs Scribe STT (${text.length} chars): "${text}"`);
+        return text;
+      }
+    } else {
+      console.warn(`[VOICE_AGENT] ElevenLabs Scribe retornou status ${res.status}`);
+    }
+  } catch (err) {
+    console.warn('[VOICE_AGENT] Falha na transcrição STT:', err.message);
+  }
+
+  return null;
+}
+
+/**
+ * Sintetiza voz conversacional rápida (prioriza ElevenLabs Flash v2.5 com fallback para Kokoro)
+ */
+export async function synthesizeSpeechFast({ text, voice, cfg = {} }) {
+  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
+  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
+
+  // 1. Prioridade: ElevenLabs Flash v2.5 (latência ~650ms, voz 100% humana)
+  if (elevenKey && !isTest && cfg.voice_provider !== 'KOKORO') {
+    try {
+      const voiceId = voice || cfg.elevenlabs_voice || ELEVENLABS_OFFICIAL_VOICE_ID;
+      const startTime = performance.now();
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_22050_32`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': elevenKey,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(4000),
+        body: JSON.stringify({
+          text: sanitizeSpeechText(text),
+          model_id: 'eleven_flash_v2_5',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.8
+          }
+        })
+      });
+
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuf);
+        const durationMs = Math.round(performance.now() - startTime);
+        console.log(`[VOICE_AGENT] ⚡ ElevenLabs Flash v2.5 gerado em ${durationMs}ms (${buffer.length} bytes)`);
+        return {
+          buffer,
+          durationMs,
+          sizeBytes: buffer.length,
+          format: 'mp3',
+          provider: 'ELEVENLABS',
+          voice_id: voiceId
+        };
+      } else {
+        console.warn(`[VOICE_AGENT] ElevenLabs TTS retornou status ${res.status}, acionando Kokoro fallback...`);
+      }
+    } catch (err) {
+      console.warn('[VOICE_AGENT] Falha ElevenLabs TTS, acionando Kokoro fallback:', err.message);
+    }
+  }
+
+  // 2. Fallback: Kokoro TTS VPS
+  try {
+    const kokoroVoice = voice && voice.includes('*') ? voice : (cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID);
+    const speechRes = await synthesizeKokoroSpeech({
+      input: sanitizeSpeechText(text),
+      voice: kokoroVoice
+    });
+    return {
+      buffer: speechRes.buffer,
+      durationMs: speechRes.durationMs,
+      sizeBytes: speechRes.sizeBytes,
+      format: 'mp3',
+      provider: 'KOKORO',
+      voice_id: kokoroVoice
+    };
+  } catch (err) {
+    console.error('[VOICE_AGENT] Erro em ambos os provedores de TTS:', err.message);
+    throw err;
+  }
+}
+
+/**
+ * Sintetiza o texto e envia o áudio imediatamente para a chamada VoIP
+ */
+export async function speakInCall({ callId, text, voice = null }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!text) throw new Error('text é obrigatório');
 
-  console.log(`[VOICE_AGENT] Sintetizando voz do Pedro (${voice}) para chamada ${callId}: "${text}"`);
+  const cfg = await getVoiceAgentConfig();
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId}: "${text}"`);
 
-  // 1. Sintetiza no Kokoro TTS VPS
-  const speechRes = await synthesizeKokoroSpeech({
-    input: text,
-    voice: voice || KOKORO_OFFICIAL_VOICE_ID
+  // Sintetiza via ElevenLabs Flash / Kokoro
+  const speechRes = await synthesizeSpeechFast({
+    text,
+    voice: voice || (cfg.voice_provider === 'ELEVENLABS' ? cfg.elevenlabs_voice : cfg.kokoro_voice),
+    cfg
   });
 
-  const audioBuffer = speechRes.buffer;
-  const base64Audio = audioBuffer.toString('base64');
+  const base64Audio = speechRes.buffer.toString('base64');
 
-  // 2. Envia áudio para o Meowcaller reproduzir na chamada ativa
+  // Envia áudio para o Meowcaller reproduzir na chamada ativa
   const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/calls/${encodeURIComponent(callId)}/play`, {
     method: 'POST',
     headers: {
@@ -354,7 +469,7 @@ export async function speakInCall({ callId, text, voice = KOKORO_OFFICIAL_VOICE_
     },
     body: JSON.stringify({
       audio_base64: base64Audio,
-      format: 'mp3'
+      format: speechRes.format || 'mp3'
     })
   });
 
@@ -364,13 +479,14 @@ export async function speakInCall({ callId, text, voice = KOKORO_OFFICIAL_VOICE_
   }
 
   const result = await res.json().catch(() => ({ ok: true }));
-  console.log(`[VOICE_AGENT] ✅ Áudio do Pedro transmitido na chamada ${callId}!`);
+  console.log(`[VOICE_AGENT] ✅ Áudio do Pedro (${speechRes.provider}) transmitido na chamada ${callId}!`);
 
   return {
     ok: true,
     call_id: callId,
     text,
-    audio_size_bytes: audioBuffer.length,
+    provider: speechRes.provider,
+    audio_size_bytes: speechRes.sizeBytes,
     ...result
   };
 }
@@ -391,11 +507,9 @@ export async function handleCallConnectedWebhook(payload = {}) {
   const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
 
   try {
-    // Dispara a fala do Pedro na chamada
     const res = await speakInCall({
       callId: call_id,
-      text: greeting,
-      voice: cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID
+      text: greeting
     });
     return { ok: true, handled: true, call_id, greeting, ...res };
   } catch (err) {
@@ -423,16 +537,17 @@ export function getCallHistory(callId) {
 
 /**
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
- * 1. Passa o áudio para o Google Gemini multimodal (usando a mesma IA de OCR/visão)
- * 2. Raciocina com a Base de Conhecimento ("Comando Gigante") e gera resposta falada do Pedro
- * 3. Sintetiza a resposta com a voz neural oficial do Pedro no Kokoro TTS VPS
- * 4. Transmite o áudio de volta na chamada em andamento
+ * 1. Transcreve a fala do cliente em alta velocidade (~400ms) via ElevenLabs Scribe STT
+ * 2. Raciocina com IA (Gemini ou Catálogo Inteligente Max Nutrition em 0ms)
+ * 3. Sintetiza a resposta na voz oficial com ElevenLabs Flash v2.5 (~650ms) ou Kokoro
+ * 4. Transmite o áudio diretamente na chamada em andamento (latência total ~1.2s!)
  */
 export async function processUserSpeech({ callId, audioBase64, format = 'wav', sampleRate = 16000 }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64) throw new Error('audioBase64 é obrigatório');
 
-  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBase64.length * 0.75 / 1024)} KB)`);
+  const audioBuffer = Buffer.from(audioBase64, 'base64');
+  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBuffer.length / 1024)} KB)`);
 
   const cfg = await getVoiceAgentConfig();
   if (!cfg.is_active) {
@@ -441,46 +556,39 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
   }
 
   const callHistory = getCallHistory(callId);
-  const apiKey = cfg.ai_api_key || process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
 
-  const systemInstruction = `${cfg.persona}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION ("COMANDO GIGANTE"):\n${cfg.knowledge_base}`;
+  // 1. Transcreve fala do cliente via ElevenLabs Scribe STT
+  const userText = await transcribeAudio(audioBuffer);
 
   let replyText = '';
 
-  // 1. Raciocínio direto via Google Gemini Multimodal sobre o áudio do cliente
-  if (apiKey) {
-    try {
-      const response = await callLlmProvider({
-        provider: cfg.ai_provider || 'GEMINI',
-        model: cfg.ai_model || 'gemini-flash-latest',
-        apiKey,
-        systemInstruction,
-        audioBase64,
-        mimeType: `audio/${format || 'wav'}`,
-        history: callHistory
-      });
+  if (userText && userText.trim().length > 0) {
+    console.log(`[VOICE_AGENT] 🗣️ Cliente disse na chamada ${callId}: "${userText}"`);
 
-      if (response && response.trim().length > 0) {
-        replyText = sanitizeSpeechText(response);
-      }
-    } catch (err) {
-      console.warn(`[VOICE_AGENT] Falha na análise direta do áudio com Gemini: ${err.message}`);
-    }
+    // Atualiza histórico com a fala do cliente
+    callHistory.push({
+      role: 'user',
+      text: userText,
+      timestamp: new Date().toISOString()
+    });
+
+    // 2. Raciocínio rápido (Gemini com timeout estrito de 2.5s ou motor local instantâneo)
+    replyText = await generateAgentSpeechText({
+      prompt: userText,
+      history: callHistory,
+      callContext: { callId }
+    });
+  } else {
+    // Caso o áudio seja muito curto ou não haja palavras identificáveis
+    console.log(`[VOICE_AGENT] ℹ️ Áudio sem transcrição de fala clara ou silêncio na chamada ${callId}.`);
+    replyText = "Olá! Aqui é o Pedro da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?";
   }
 
-  // 2. Fallback inteligente: se a LLM demorar ou falhar, responde com segurança e acolhimento
-  if (!replyText || replyText.length < 4) {
-    replyText = "Perfeito, compreendi! Só um instante enquanto verifico isso para você...";
-  }
-
+  // Sanitiza texto para pronúncia limpa
+  replyText = sanitizeSpeechText(replyText);
   console.log(`[VOICE_AGENT] 💬 Pedro responderá na chamada ${callId}: "${replyText}"`);
 
-  // 3. Atualiza histórico da chamada
-  callHistory.push({
-    role: 'user',
-    type: 'audio',
-    timestamp: new Date().toISOString()
-  });
+  // Atualiza histórico com a resposta do atendente
   callHistory.push({
     role: 'assistant',
     text: replyText,
@@ -490,17 +598,17 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     callHistory.splice(0, callHistory.length - 20);
   }
 
-  // 4. Sintetiza a resposta com a voz neural do Pedro no Kokoro TTS e reproduz na chamada
+  // 3. Sintetiza a resposta falada e reproduz na chamada
   try {
     const playResult = await speakInCall({
       callId,
-      text: replyText,
-      voice: cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID
+      text: replyText
     });
 
     return {
       ok: true,
       call_id: callId,
+      user_text: userText || '',
       reply_text: replyText,
       play_result: playResult
     };
@@ -509,6 +617,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     return {
       ok: false,
       call_id: callId,
+      user_text: userText || '',
       reply_text: replyText,
       error: err.message
     };

@@ -104,14 +104,18 @@ type Engine struct {
 	diagMu sync.RWMutex
 }
 
-func (e *Engine) recordDiagEvent(event string) {
-	e.diagMu.Lock()
-	defer e.diagMu.Unlock()
+func (e *Engine) recordDiagEventLocked(event string) {
 	entry := fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05.000"), event)
 	e.diag.RecentEvents = append(e.diag.RecentEvents, entry)
 	if len(e.diag.RecentEvents) > 50 {
 		e.diag.RecentEvents = e.diag.RecentEvents[len(e.diag.RecentEvents)-50:]
 	}
+}
+
+func (e *Engine) recordDiagEvent(event string) {
+	e.diagMu.Lock()
+	defer e.diagMu.Unlock()
+	e.recordDiagEventLocked(event)
 }
 
 func (e *Engine) updateDiagCallStart(callID, peer, direction string) {
@@ -127,7 +131,7 @@ func (e *Engine) updateDiagCallStart(callID, peer, direction string) {
 	e.diag.NoiseFloor = 0
 	e.diag.SpeechEventsCount = 0
 	e.diag.WavsDispatchedCount = 0
-	e.recordDiagEvent(fmt.Sprintf("Chamada iniciada: id=%s, peer=%s, dir=%s", callID, peer, direction))
+	e.recordDiagEventLocked(fmt.Sprintf("Chamada iniciada: id=%s, peer=%s, dir=%s", callID, peer, direction))
 }
 
 func (e *Engine) updateDiagAudio(callID string, frames int, rms, floor, threshold float64) {
@@ -301,17 +305,41 @@ func (e *Engine) runSession(ctx context.Context) error {
 		e.callHandles[callID] = call
 		e.callsMu.Unlock()
 
-		// Conecta o sink conversacional contínuo IMEDIATAMENTE para não perder frames
+		// Conecta o sink conversacional contínuo IMEDIATAMENTE para escuta e barge-in
 		sink := e.registerConversationalSink(callID, call)
 		call.Receive(sink)
 
 		e.updateDiagCallStart(callID, peer, "INBOUND")
 
+		// Hook de encerramento da chamada recebida
+		call.OnEnd(func(reason string) {
+			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada recebida encerrada")
+			snap.Status = "ENDED"
+			e.callsMu.Lock()
+			if s, ok := e.callSinks[callID]; ok {
+				_ = s.Close()
+				delete(e.callSinks, callID)
+			}
+			delete(e.callPlayers, callID)
+			e.callsMu.Unlock()
+
+			time.AfterFunc(5*time.Second, func() {
+				e.callsMu.Lock()
+				delete(e.activeCalls, callID)
+				delete(e.callHandles, callID)
+				e.callsMu.Unlock()
+			})
+		})
+
+		// Quando a mídia RTP estiver fluindo, dispara a saudação inicial
+		call.OnReady(func() {
+			log.Info().Str("call_id", callID).Msg("📞 Mídia RTP pronta e fluindo na chamada inbound! Disparando saudação...")
+			go e.playInitialGreeting(callID, call, "INBOUND")
+		})
+
 		// ATENDIMENTO IMEDIATO OBRIGATÓRIO (Handshake VoIP WhatsApp):
 		// O WhatsApp envia o stanza "mute_v2" (com chaves de mídia) nos primeiros milissegundos.
 		// O meowcaller precisa que call.Answer() já tenha setado acceptPending = true para enviar <accept>.
-		// Sem isso, o meowcaller descarta o mute_v2 e o celular do cliente NUNCA transmite os pacotes RTP
-		// do microfone do usuário para o servidor!
 		if err := call.Answer(); err != nil {
 			log.Error().Err(err).Str("call_id", callID).Msg("Erro ao atender chamada VoIP")
 			snap.Status = "FAILED"
@@ -321,42 +349,6 @@ func (e *Engine) runSession(ctx context.Context) error {
 		snap.Status = "CONNECTED"
 		log.Info().Str("caller", peer).Str("call_id", callID).Msg("✅ Chamada VoIP atendida imediatamente! Fluxo de áudio RTP bidirecional liberado.")
 		e.recordDiagEvent("Chamada atendida com sucesso (RTP upstream e downstream ativos)")
-
-		// Pausa humanizada natural antes de iniciar a fala do Pedro (1.5 segundos após atender)
-		go func() {
-			time.Sleep(1500 * time.Millisecond)
-
-			e.callsMu.RLock()
-			currentSnap, exists := e.activeCalls[callID]
-			e.callsMu.RUnlock()
-			if !exists || currentSnap.Status != "CONNECTED" {
-				log.Info().Str("call_id", callID).Msg("Chamada não está mais conectada antes da saudação")
-				return
-			}
-
-			// Dispara a saudação com a voz oficial do Pedro (Kokoro TTS)
-			e.playInitialGreeting(callID, call, "INBOUND")
-		}()
-
-		// Finaliza ao encerrar a chamada
-		call.OnEnd(func(reason string) {
-			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada encerrada")
-			snap.Status = "ENDED"
-			e.callsMu.Lock()
-			if sink, ok := e.callSinks[callID]; ok {
-				_ = sink.Close()
-				delete(e.callSinks, callID)
-			}
-			delete(e.callPlayers, callID)
-			e.callsMu.Unlock()
-
-			time.AfterFunc(10*time.Second, func() {
-				e.callsMu.Lock()
-				delete(e.activeCalls, callID)
-				delete(e.callHandles, callID)
-				e.callsMu.Unlock()
-			})
-		})
 	})
 
 	// Conecta ao WhatsApp
@@ -656,8 +648,16 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 	e.callHandles[callID] = call
 	e.callsMu.Unlock()
 
-	// Monitora a chamada em background
+	// Monitora a chamada em background com encerramento limpo
 	go func() {
+		doneChan := make(chan struct{})
+		var onceClose sync.Once
+		closeDone := func() {
+			onceClose.Do(func() {
+				close(doneChan)
+			})
+		}
+
 		call.OnReady(func() {
 			snap.Status = "CONNECTED"
 			log.Info().Str("call_id", callID).Msg("📞 Chamada conectada — mídia fluindo! Iniciando escuta conversacional e fala do Pedro...")
@@ -668,8 +668,10 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			// Dispara a saudação do Pedro na chamada de saída
 			go e.playInitialGreeting(callID, call, "OUTBOUND")
 		})
+
 		call.OnEnd(func(reason string) {
 			snap.Status = "ENDED"
+			closeDone()
 			e.callsMu.Lock()
 			if sink, ok := e.callSinks[callID]; ok {
 				_ = sink.Close()
@@ -677,8 +679,8 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			}
 			delete(e.callPlayers, callID)
 			e.callsMu.Unlock()
-			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada encerrada")
-			time.AfterFunc(10*time.Second, func() {
+			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada discada encerrada")
+			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
 				delete(e.activeCalls, callID)
 				delete(e.callHandles, callID)
@@ -688,10 +690,13 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 
 		// Timeout máximo de segurança
 		select {
+		case <-doneChan:
+			return
 		case <-time.After(time.Duration(e.cfg.CallMaxDurationSeconds) * time.Second):
 			if snap.Status == "RINGING" || snap.Status == "CONNECTED" {
 				snap.Status = "ENDED"
 				log.Warn().Str("call_id", callID).Msg("Chamada encerrada por timeout máximo")
+				_ = call.Hangup()
 			}
 		}
 	}()
@@ -893,20 +898,20 @@ func (e *Engine) Shutdown() {
 // Implementa Voice Activity Detection (VAD) de alta sensibilidade adaptativa, interrupção natural instantânea (barge-in),
 // buffer circular de pré-fala (para não perder o início da palavra), telemetria ativa e despacho de áudio WAV.
 type ConversationalSink struct {
-	callID           string
-	engine           *Engine
-	mu               sync.Mutex
-	isSpeaking       bool
-	speechSamples    []int16
-	preSpeechRing    [][]int16 // Buffer circular de pré-fala (últimos 5 frames = 300ms)
-	silenceFrames    int
-	totalFrames      int
-	speechFrameCount int
-	noiseFloor       float64
-	rmsThreshold     float64
-	silenceThreshold int
-	minSpeechSamples int
-	closed           bool
+	callID            string
+	engine            *Engine
+	mu                sync.Mutex
+	isSpeaking        bool
+	speechSamples     []int16
+	preSpeechRing     [][]int16 // Buffer circular de pré-fala (últimos 6 frames = 360ms)
+	silenceFrames     int
+	totalFrames       int
+	consecutiveSpeech int       // Frames consecutivos de voz para validar início de fala
+	noiseFloor        float64
+	rmsThreshold      float64
+	silenceThreshold  int       // 18 frames * 60ms = ~1080ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
+	minSpeechSamples  int       // Mínimo de 300ms de fala (4800 amostras a 16kHz)
+	closed            bool
 }
 
 func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call) *ConversationalSink {
@@ -914,11 +919,11 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 		callID:           callID,
 		engine:           e,
 		noiseFloor:       0.0005,
-		rmsThreshold:     0.0012, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 10,     // 10 frames * 60ms = 600ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
-		minSpeechSamples: 2400,   // Mínimo de 150ms de fala (2400 amostras a 16kHz) para capturar "oi", "sim", "olá"
+		rmsThreshold:     0.0018, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
+		silenceThreshold: 18,     // 18 frames * 60ms = ~1080ms de silêncio pós-fala (pausa humana natural)
+		minSpeechSamples: 4800,   // Mínimo de 300ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
-		preSpeechRing:    make([][]int16, 0, 5),
+		preSpeechRing:    make([][]int16, 0, 6),
 	}
 	e.callsMu.Lock()
 	e.callSinks[callID] = sink
@@ -982,12 +987,13 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 
 	// 3. Classificação de voz
 	if rms >= effectiveThreshold {
-		s.speechFrameCount++
+		s.consecutiveSpeech++
 
 		// BARGE-IN INSTANTÂNEO: Interrompe a fala do Pedro assim que houver voz do cliente
 		s.engine.stopActivePlayer(s.callID)
 
-		if !s.isSpeaking {
+		// Confirma início da fala com 2 frames consecutivos (>120ms) de energia
+		if !s.isSpeaking && s.consecutiveSpeech >= 2 {
 			s.isSpeaking = true
 			s.silenceFrames = 0
 			log.Info().
@@ -1005,46 +1011,51 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			s.preSpeechRing = s.preSpeechRing[:0]
 		}
 
-		s.speechSamples = append(s.speechSamples, pcmFrame...)
-		s.silenceFrames = 0
-
-		// Guardrail de duração máxima: 12 segundos contínuos de fala para despachar sem travar
-		if len(s.speechSamples) >= 16000*12 {
-			samplesToDispatch := s.speechSamples
-			callID := s.callID
-			s.speechSamples = make([]int16, 0, 16000*5)
-			s.isSpeaking = false
+		if s.isSpeaking {
+			s.speechSamples = append(s.speechSamples, pcmFrame...)
 			s.silenceFrames = 0
-			s.mu.Unlock()
 
-			log.Info().Str("call_id", callID).Msg("🗣️ Turno de fala atingiu limite máximo (12s). Despachando áudio...")
-			wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
-			go s.engine.notifyUserSpeech(callID, wavBytes)
-			return nil
+			// Guardrail de duração máxima: 12 segundos contínuos de fala para despachar sem travar
+			if len(s.speechSamples) >= 16000*12 {
+				samplesToDispatch := s.speechSamples
+				callID := s.callID
+				s.speechSamples = make([]int16, 0, 16000*5)
+				s.isSpeaking = false
+				s.silenceFrames = 0
+				s.consecutiveSpeech = 0
+				s.mu.Unlock()
+
+				log.Info().Str("call_id", callID).Msg("🗣️ Turno de fala atingiu limite máximo (12s). Despachando áudio...")
+				wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
+				go s.engine.notifyUserSpeech(callID, wavBytes)
+				return nil
+			}
 		}
 	} else {
-		s.speechFrameCount = 0
+		s.consecutiveSpeech = 0
 
 		if s.isSpeaking {
 			s.silenceFrames++
 			// Mantém as amostras do silêncio para preservar a cauda natural das palavras
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
 
-			// Silêncio suficiente detectado (fim do turno do usuário: ~600ms)
+			// Silêncio suficiente detectado (fim do turno do usuário: ~1080ms)
 			if s.silenceFrames >= s.silenceThreshold {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
 				s.speechSamples = make([]int16, 0, 16000*5)
 				s.isSpeaking = false
 				s.silenceFrames = 0
+				s.consecutiveSpeech = 0
 
 				s.mu.Unlock()
 
 				if len(samplesToDispatch) >= s.minSpeechSamples {
+					durationMs := len(samplesToDispatch) * 1000 / 16000
 					log.Info().
 						Str("call_id", callID).
 						Int("samples", len(samplesToDispatch)).
-						Int("duration_ms", len(samplesToDispatch)*1000/16000).
+						Int("duration_ms", durationMs).
 						Msg("🗣️ Turno de fala do cliente finalizado. Gerando WAV e enviando para Helena Gateway...")
 					wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
 					go s.engine.notifyUserSpeech(callID, wavBytes)
@@ -1052,8 +1063,8 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				return nil
 			}
 		} else {
-			// Não está falando: mantém os últimos 5 frames no buffer circular de pré-fala (300ms)
-			if len(s.preSpeechRing) >= 5 {
+			// Não está falando: mantém os últimos 6 frames no buffer circular de pré-fala (360ms)
+			if len(s.preSpeechRing) >= 6 {
 				s.preSpeechRing = s.preSpeechRing[1:]
 			}
 			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
