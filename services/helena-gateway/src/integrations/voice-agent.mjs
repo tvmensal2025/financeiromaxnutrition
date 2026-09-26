@@ -106,7 +106,7 @@ let cachedConfig = {
   voice_profile_id: 'VP-KOKORO-MASC-03',
   kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
   ai_provider: 'GEMINI',
-  ai_model: 'gemini-1.5-flash',
+  ai_model: 'gemini-3.5-flash',
   ai_api_key: '',
   is_active: true,
   updated_at: new Date().toISOString()
@@ -231,16 +231,14 @@ function sanitizeSpeechText(text) {
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-1.5-flash', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-3.5-flash', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
     const candidateModels = [
-      model,
-      'gemini-flash-latest',
-      'gemini-3.5-transcribe',
+      'gemini-3.5-flash',
       'gemini-3.8-flash',
-      'gemini-2.5-flash',
-      'gemini-1.5-flash'
-    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+      'gemini-flash-latest',
+      model
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i && !['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'].includes(m));
 
     for (const m of candidateModels) {
       try {

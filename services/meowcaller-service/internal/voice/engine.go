@@ -712,10 +712,15 @@ func (e *Engine) PlayAudioBytes(callID string, data []byte, format string) error
 		return fmt.Errorf("erro ao criar arquivo temporário de áudio: %w", err)
 	}
 	tmpName := tmp.Name()
-	defer os.Remove(tmpName)
+
+	// O arquivo só deve ser removido após a reprodução assíncrona terminar (10 minutos de segurança)
+	time.AfterFunc(10*time.Minute, func() {
+		_ = os.Remove(tmpName)
+	})
 
 	if _, err := tmp.Write(data); err != nil {
 		_ = tmp.Close()
+		_ = os.Remove(tmpName)
 		return fmt.Errorf("erro ao gravar áudio temporário: %w", err)
 	}
 	_ = tmp.Close()
@@ -793,15 +798,16 @@ func (e *Engine) Shutdown() {
 // ======================================================================
 
 // ConversationalSink consome o áudio decodificado do WhatsApp VoIP (16 kHz mono float32, 60ms por frame).
-// Implementa Voice Activity Detection (VAD), interrupção natural (barge-in) e despacho de áudio do usuário.
+// Implementa Voice Activity Detection (VAD) de alta sensibilidade, interrupção natural instantânea (barge-in),
+// buffer circular de pré-fala (para não perder o início da palavra) e despacho de áudio do usuário.
 type ConversationalSink struct {
 	callID           string
 	engine           *Engine
 	mu               sync.Mutex
 	isSpeaking       bool
 	speechSamples    []int16
+	preSpeechRing    [][]int16 // Buffer circular de pré-fala (últimos 4 frames = 240ms)
 	silenceFrames    int
-	consecutiveVoice int
 	rmsThreshold     float64
 	silenceThreshold int
 	minSpeechSamples int
@@ -812,10 +818,11 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 	sink := &ConversationalSink{
 		callID:           callID,
 		engine:           e,
-		rmsThreshold:     0.012, // Limiar de energia RMS de voz humana
-		silenceThreshold: 14,    // 14 frames * 60ms ≈ 840ms de silêncio para fechar o turno
-		minSpeechSamples: 4800,  // Mínimo de 300ms de fala (4800 amostras a 16kHz) para evitar ruídos curtos
+		rmsThreshold:     0.0035, // Limiar RMS calibrado para voz no WhatsApp VoIP
+		silenceThreshold: 10,     // 10 frames * 60ms = 600ms de silêncio pós-fala (padrão ElevenLabs)
+		minSpeechSamples: 3200,   // Mínimo de 200ms de fala (3200 amostras a 16kHz)
 		speechSamples:    make([]int16, 0, 16000*5),
+		preSpeechRing:    make([][]int16, 0, 4),
 	}
 	e.callsMu.Lock()
 	e.callSinks[callID] = sink
@@ -834,56 +841,50 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 		return nil
 	}
 
-	// 1. Calcula energia RMS do frame de 60ms (960 amostras a 16kHz)
+	// 1. Converte frame float32 para PCM int16
+	pcmFrame := make([]int16, len(frame))
 	var sum float64
-	for _, sample := range frame {
+	for i, sample := range frame {
 		sum += float64(sample * sample)
+		v := sample * 32768.0
+		if v > 32767 {
+			v = 32767
+		} else if v < -32768 {
+			v = -32768
+		}
+		pcmFrame[i] = int16(v)
 	}
+
+	// 2. Calcula energia RMS do frame de 60ms (960 amostras a 16kHz)
 	rms := math.Sqrt(sum / float64(len(frame)))
 
-	// 2. Classifica presença de fala ou silêncio
+	// 3. Classificação de voz
 	if rms >= s.rmsThreshold {
-		s.consecutiveVoice++
+		// CORTE IMEDIATO (Barge-in no 1º frame, estilo ElevenLabs):
+		// Se o atendente estava falando, interrompe a fala no mesmo milissegundo!
+		s.engine.stopActivePlayer(s.callID)
+
+		if !s.isSpeaking {
+			s.isSpeaking = true
+			s.silenceFrames = 0
+			log.Info().Str("call_id", s.callID).Float64("rms", rms).Msg("🎙️ Voz do cliente detectada na chamada (cortando playback e escutando)!")
+
+			// Incorpora o buffer de pré-fala para preservar a primeira sílaba ("Oi", "Qual", "Pedro")
+			for _, preFrame := range s.preSpeechRing {
+				s.speechSamples = append(s.speechSamples, preFrame...)
+			}
+			s.preSpeechRing = s.preSpeechRing[:0]
+		}
+
+		s.speechSamples = append(s.speechSamples, pcmFrame...)
 		s.silenceFrames = 0
-
-		// Se o cliente falou por pelo menos 2 frames consecutivos (120ms):
-		if s.consecutiveVoice >= 2 {
-			if !s.isSpeaking {
-				s.isSpeaking = true
-				log.Info().Str("call_id", s.callID).Float64("rms", rms).Msg("🎙️ Voz do cliente detectada na chamada!")
-			}
-
-			// Interrupção natural (Barge-in): se o atendente estava falando, interrompe a fala imediatamente
-			s.engine.stopActivePlayer(s.callID)
-		}
-
-		if s.isSpeaking {
-			for _, sample := range frame {
-				v := sample * 32768.0
-				if v > 32767 {
-					v = 32767
-				} else if v < -32768 {
-					v = -32768
-				}
-				s.speechSamples = append(s.speechSamples, int16(v))
-			}
-		}
 	} else {
-		s.consecutiveVoice = 0
 		if s.isSpeaking {
 			s.silenceFrames++
-			// Mantém as amostras do silêncio para preservar o final suave das palavras
-			for _, sample := range frame {
-				v := sample * 32768.0
-				if v > 32767 {
-					v = 32767
-				} else if v < -32768 {
-					v = -32768
-				}
-				s.speechSamples = append(s.speechSamples, int16(v))
-			}
+			// Mantém as amostras do silêncio para preservar a cauda natural das palavras
+			s.speechSamples = append(s.speechSamples, pcmFrame...)
 
-			// Silêncio suficiente detectado (fim do turno de fala do usuário)
+			// Silêncio suficiente detectado (fim do turno do usuário: ~600ms)
 			if s.silenceFrames >= s.silenceThreshold {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
@@ -894,12 +895,18 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				s.mu.Unlock()
 
 				if len(samplesToDispatch) >= s.minSpeechSamples {
-					log.Info().Str("call_id", callID).Int("samples", len(samplesToDispatch)).Msg("🗣️ Turno de fala do cliente finalizado. Codificando WAV e despachando para Helena Gateway...")
+					log.Info().Str("call_id", callID).Int("samples", len(samplesToDispatch)).Msg("🗣️ Turno de fala do cliente finalizado. Enviando WAV para o cérebro do Pedro...")
 					wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
 					go s.engine.notifyUserSpeech(callID, wavBytes)
 				}
 				return nil
 			}
+		} else {
+			// Não está falando: mantém os últimos 4 frames no buffer circular de pré-fala
+			if len(s.preSpeechRing) >= 4 {
+				s.preSpeechRing = s.preSpeechRing[1:]
+			}
+			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
 		}
 	}
 
