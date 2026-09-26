@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -51,6 +53,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/calls/{id}/answer", s.auth(s.handleAnswerCall))
 	mux.HandleFunc("POST /v1/calls/{id}/hangup", s.auth(s.handleHangupCall))
 	mux.HandleFunc("DELETE /v1/calls/{id}", s.auth(s.handleHangupCall))
+
+	// Diagnóstico profundo do meowcaller (lê JSONL interno do stack VoIP)
+	mux.HandleFunc("GET /v1/diag/meowcaller", s.auth(s.handleMeowcallerDiag))
 
 	return mux
 }
@@ -399,5 +404,77 @@ func (s *Server) fail(w http.ResponseWriter, msg string, code int) {
 
 func (s *Server) err(w http.ResponseWriter, msg string, code int) {
 	s.fail(w, msg, code)
+}
+
+// handleMeowcallerDiag lê os arquivos JSONL de diagnóstico interno do meowcaller
+// e retorna as últimas linhas de cada stream (srtp, rtp, relay, media_in, meta, etc.)
+func (s *Server) handleMeowcallerDiag(w http.ResponseWriter, r *http.Request) {
+	diagDir := filepath.Join(os.TempDir(), "meowcaller-diag")
+	result := map[string]interface{}{
+		"diag_dir": diagDir,
+		"streams":  map[string]interface{}{},
+	}
+
+	entries, err := os.ReadDir(diagDir)
+	if err != nil {
+		result["error"] = fmt.Sprintf("Diretório de diagnóstico não acessível: %v", err)
+		s.ok(w, result)
+		return
+	}
+
+	streams := result["streams"].(map[string]interface{})
+	maxLines := 50 // últimas 50 linhas por stream
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
+			continue
+		}
+		streamName := strings.TrimSuffix(entry.Name(), ".jsonl")
+		fpath := filepath.Join(diagDir, entry.Name())
+
+		data, readErr := os.ReadFile(fpath)
+		if readErr != nil {
+			streams[streamName] = map[string]interface{}{
+				"error": readErr.Error(),
+			}
+			continue
+		}
+
+		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+		totalLines := len(lines)
+
+		// Pega apenas as últimas N linhas
+		start := 0
+		if totalLines > maxLines {
+			start = totalLines - maxLines
+		}
+		tail := lines[start:]
+
+		// Parse cada linha como JSON
+		var events []interface{}
+		for _, line := range tail {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			var obj interface{}
+			if jsonErr := json.Unmarshal([]byte(line), &obj); jsonErr == nil {
+				events = append(events, obj)
+			} else {
+				events = append(events, line)
+			}
+		}
+
+		info, _ := entry.Info()
+		streams[streamName] = map[string]interface{}{
+			"total_lines": totalLines,
+			"shown":       len(events),
+			"file_bytes":  info.Size(),
+			"events":      events,
+		}
+	}
+
+	result["stream_count"] = len(streams)
+	s.ok(w, result)
 }
 

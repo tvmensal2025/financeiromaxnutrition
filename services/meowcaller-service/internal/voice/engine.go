@@ -31,6 +31,7 @@ import (
 	"github.com/polymorfa/hypermeow/types/events"
 	waLog "github.com/polymorfa/hypermeow/util/log"
 	"github.com/purpshell/meowcaller"
+	"github.com/purpshell/meowcaller/diag"
 	"github.com/rs/zerolog/log"
 	"github.com/skip2/go-qrcode"
 	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/config"
@@ -273,7 +274,23 @@ func (e *Engine) runSession(ctx context.Context) error {
 	wa := waClient.NewClient(device, waLog.Zerolog(log.Logger).Sub("wa"))
 
 	// Instala o meowcaller ANTES de conectar (obrigatório para interceptar chamadas VoIP)
-	meo := meowcaller.NewClient(wa)
+	// WithLogger: surfaça logs internos do stack VoIP (SRTP, relay, RTP, codec) para zerolog
+	// WithDiagnostics: grava JSONL detalhado por categoria (srtp, rtp, relay, media_in, media_out)
+	meowLogger := log.Logger.With().Str("component", "meowcaller").Logger()
+	var diagRec *diag.Recorder
+	diagDir := filepath.Join(os.TempDir(), "meowcaller-diag")
+	if rec, err := diag.NewRecorder(diagDir); err == nil {
+		diagRec = rec
+		log.Info().Str("diag_dir", diagDir).Msg("Diagnóstico meowcaller habilitado (JSONL por categoria)")
+	} else {
+		log.Warn().Err(err).Msg("Não foi possível habilitar diagnóstico meowcaller")
+	}
+	var meowOpts []meowcaller.Option
+	meowOpts = append(meowOpts, meowcaller.WithLogger(meowLogger))
+	if diagRec != nil {
+		meowOpts = append(meowOpts, meowcaller.WithDiagnostics(diagRec))
+	}
+	meo := meowcaller.NewClient(wa, meowOpts...)
 
 	e.mu.Lock()
 	e.wa = wa
@@ -390,7 +407,8 @@ func (e *Engine) runSession(ctx context.Context) error {
 		_ = device.Delete(context.Background())
 		newDevice := container.NewDevice()
 		newWa := waClient.NewClient(newDevice, waLog.Zerolog(log.Logger).Sub("wa"))
-		newMeo := meowcaller.NewClient(newWa)
+		newMeowLogger := log.Logger.With().Str("component", "meowcaller").Logger()
+		newMeo := meowcaller.NewClient(newWa, meowcaller.WithLogger(newMeowLogger))
 
 		e.mu.Lock()
 		e.wa = newWa
