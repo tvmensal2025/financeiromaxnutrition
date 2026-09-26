@@ -8,6 +8,27 @@ process.env.MCP_BEARER_TOKEN = 'test-mcp-token-xyz';
 process.env.GATEWAY_WEBHOOK_SECRET = 'test-webhook-secret-abc';
 process.env.SUPABASE_SERVICE_ROLE_KEY = ''; // intencionalmente vazio para testar healthcheck offline
 
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (url, options) => {
+  const urlStr = typeof url === 'string' ? url : (url?.url || String(url));
+  if (urlStr.includes('127.0.0.1') || urlStr.includes('localhost')) {
+    return originalFetch(url, options);
+  }
+  if (urlStr.includes('/auth/v1/oauth/clients/register')) {
+    return new Response(JSON.stringify({ client_id: 'test-dcr-client-id' }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' }
+    });
+  }
+  if (urlStr.includes('/auth/v1/.well-known/jwks.json')) {
+    return new Response(JSON.stringify({ keys: [] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' }
+    });
+  }
+  throw new Error(`chamada de rede bloqueada nos testes: ${urlStr}`);
+};
+
 const { server } = await import('../src/server.mjs');
 
 // Aguarda 200ms para o servidor subir

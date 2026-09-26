@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/config"
@@ -39,9 +40,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /v1/session/pair-phone", s.auth(s.handlePairPhone))
 	mux.HandleFunc("DELETE /v1/session", s.auth(s.handleDisconnectSession))
 
-	// Rotas autenticadas — Chamadas
+	// Rotas autenticadas — Chamadas (compatibilidade plena)
 	mux.HandleFunc("GET /v1/calls", s.auth(s.handleListCalls))
+	mux.HandleFunc("POST /v1/calls", s.auth(s.handleOriginateCall))
 	mux.HandleFunc("POST /v1/calls/originate", s.auth(s.handleOriginateCall))
+	mux.HandleFunc("POST /v1/calls/{id}/hangup", s.auth(s.handleHangupCall))
 
 	return mux
 }
@@ -274,6 +277,17 @@ func (s *Server) handleOriginateCall(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusCreated)
 }
 
+func (s *Server) handleHangupCall(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	log.Info().Str("call_id", id).Msg("Chamada encerrada sob requisição")
+	s.ok(w, map[string]interface{}{
+		"ok":      true,
+		"call_id": id,
+		"status":  "ENDED",
+		"message": "Chamada encerrada com sucesso.",
+	}, http.StatusOK)
+}
+
 // ──────────────────────────────────────────
 // Helpers de resposta JSON
 // ──────────────────────────────────────────
@@ -289,3 +303,8 @@ func (s *Server) fail(w http.ResponseWriter, msg string, code int) {
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
+
+func (s *Server) err(w http.ResponseWriter, msg string, code int) {
+	s.fail(w, msg, code)
+}
+

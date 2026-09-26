@@ -8,16 +8,16 @@ WORKDIR /build
 # Ferramentas de compilação
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copiar apenas os manifests primeiro (para cache de deps)
+# Copiar os manifests
 COPY go.mod ./
 
 # Copiar código-fonte completo
 COPY cmd/ cmd/
 COPY internal/ internal/
 
-# Resolve dependências (go mod tidy + download)
-# Usa GONOSUMCHECK pois meowcaller e hypermeow usam commits @main
-ENV GONOSUMCHECK=*
+# Resolve dependências
+ENV GOSUMDB=off
+ENV GONOSUMDB=*
 ENV GOFLAGS=-mod=mod
 RUN go mod tidy && go mod download
 

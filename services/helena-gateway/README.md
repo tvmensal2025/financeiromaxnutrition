@@ -52,7 +52,7 @@ Este serviço foi construído de forma desacoplada, **sem alterar o aplicativo f
 ┌───────────────┴────────────────────────────────────────────────────────┐
 │                       Grok Bots / Especialistas                        │
 │                                                                        │
-│  - AGT-17 Marina (PMO): list_ready_jobs, record_dispatch               │
+│  - AGT-04 Marina (PMO): list_ready_jobs, record_dispatch               │
 │  - Especialistas (AGT-02 a AGT-21):                                    │
 │      claim_job -> start_job -> executar -> complete_job (com evidência)│
 │  - Handoffs automáticos entre agentes: enqueue_job                     │
@@ -133,7 +133,7 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
 - **Cooldown:** Bloqueia despachos repetidos para o mesmo job em um intervalo de 180 segundos.
 - **Parâmetros:**
   - `job_id` (obrigatório)
-  - `dispatcher_agent_id` (opcional, padrão `AGT-17`)
+  - `dispatcher_agent_id` (obrigatório — AGT-04 para Marina/PMO)
   - `target_agent_id` (opcional)
   - `target_external_agent_id` (opcional)
   - `notes` (opcional)
@@ -284,7 +284,10 @@ O serviço está **100% implantado e ativo na VPS** através do EasyPanel:
 * **Build Type:** Dockerfile
 * **Porta:** `3000`
 * **Primary Domain:** `helena-automation-helena-gateway.d9v63q.easypanel.host` (HTTPS automático via Traefik / Let's Encrypt)
-* **Tokens de autenticação:** `MCP_BEARER_TOKEN`, `GATEWAY_WEBHOOK_SECRET` e `EVOLUTION_WEBHOOK_SECRET` devem ser gerados e gravados **somente no EasyPanel**. Nunca versionar os valores.
+* **Tokens de autenticação:** devem ser gerados e gravados **somente no EasyPanel**. Nunca versionar os valores.
+  * `MCP_BEARER_TOKEN`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
+  * `GATEWAY_WEBHOOK_SECRET`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
+  * `EVOLUTION_WEBHOOK_SECRET`: `CONFIGURAR_SOMENTE_NO_EASYPANEL`
 
 
 ---
