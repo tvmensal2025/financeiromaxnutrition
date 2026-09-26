@@ -52,6 +52,11 @@ import {
   Volume2,
   ExternalLink,
   Info,
+  Settings,
+  Clock,
+  Users,
+  Bot,
+  Sparkles,
 } from "lucide-react";
 
 type TabId = "overview" | "whatsapp" | "calls" | "voices" | "routing" | "events";
@@ -88,6 +93,27 @@ export default function IntegracoesPage() {
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const [autoAnswer, setAutoAnswer] = useState(false);
   const [callHistory, setCallHistory] = useState<any[]>([]);
+
+  // Configurações do Administrador para URA de Voz (Meowcaller + Helena Voice)
+  const [voiceAutoAnswer, setVoiceAutoAnswer] = useState<boolean>(() => {
+    return localStorage.getItem("helena_voice_auto_answer") !== "false";
+  });
+  const [voiceGreeting, setVoiceGreeting] = useState<string>(() => {
+    return (
+      localStorage.getItem("helena_voice_greeting") ||
+      "Olá! Você ligou para a Oficial Max Nutrition. Eu sou a Helena, sua assistente executiva de inteligência artificial. Como posso ajudar com seus pedidos, assinaturas ou dúvidas?"
+    );
+  });
+  const [voiceFilter, setVoiceFilter] = useState<"all" | "registered" | "leads">(() => {
+    return (localStorage.getItem("helena_voice_filter") as any) || "all";
+  });
+  const [voiceSchedule, setVoiceSchedule] = useState<"24h" | "commercial">(() => {
+    return (localStorage.getItem("helena_voice_schedule") as any) || "24h";
+  });
+  const [voiceTransferPhone, setVoiceTransferPhone] = useState<string>(() => {
+    return localStorage.getItem("helena_voice_transfer_phone") || "11971254913";
+  });
+  const [voiceSavedFeedback, setVoiceSavedFeedback] = useState<boolean>(false);
 
   // ElevenLabs
   const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
@@ -350,6 +376,33 @@ export default function IntegracoesPage() {
       loadAll();
     } catch (err: any) {
       setMeowcallerFeedback(`Falha ao encerrar: ${err.message}`);
+    }
+  };
+
+  const handleSaveUraConfig = async () => {
+    try {
+      localStorage.setItem("helena_voice_auto_answer", String(voiceAutoAnswer));
+      localStorage.setItem("helena_voice_greeting", voiceGreeting);
+      localStorage.setItem("helena_voice_filter", voiceFilter);
+      localStorage.setItem("helena_voice_schedule", voiceSchedule);
+      localStorage.setItem("helena_voice_transfer_phone", voiceTransferPhone);
+
+      // Sincroniza também no Supabase se houver perfil ou voz selecionada
+      if (selectedVoiceId) {
+        await saveVoiceProfile({
+          profile_id: `VP-${selectedVoiceId.slice(0, 8).toUpperCase()}`,
+          nome: "Helena URA de Voz Oficial",
+          business_id: layaBusinessId,
+          voice_id: selectedVoiceId,
+          first_message: voiceGreeting,
+          is_default: true,
+        }).catch(() => null);
+      }
+
+      setVoiceSavedFeedback(true);
+      setTimeout(() => setVoiceSavedFeedback(false), 4000);
+    } catch (err: any) {
+      alert(`Erro ao salvar configurações da URA: ${err.message}`);
     }
   };
 
@@ -1168,6 +1221,176 @@ export default function IntegracoesPage() {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* PAINEL DO ADMINISTRADOR: URA DE VOZ & ATENDIMENTO INBOUND */}
+              <div className="rounded-xl border border-border bg-card p-6 space-y-5 shadow-sm">
+                <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-lg bg-[#007A3D]/10 text-[#007A3D] flex items-center justify-center">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">Painel do Administrador — URA de Voz Inteligente</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Defina como a Helena atende chamadas recebidas neste WhatsApp, saudações e regras de transbordo.
+                      </p>
+                    </div>
+                  </div>
+                  <ExecutiveBadge variant={voiceAutoAnswer ? "success" : "default"}>
+                    {voiceAutoAnswer ? "ATENDIMENTO ATIVO" : "DESATIVADO"}
+                  </ExecutiveBadge>
+                </div>
+
+                {/* 1. Atendimento Automático Inbound (Toggle) */}
+                <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <PhoneCall className="h-3.5 w-3.5 text-[#007A3D]" />
+                      Atender Chamadas Recebidas Automaticamente com IA
+                    </span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Quando um cliente ligar para este WhatsApp ({meowcallerStatus?.connected_jid ? `+${meowcallerStatus.connected_jid.split(':')[0]}` : "chip de voz"}), a Helena atende e inicia a conversa.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVoiceAutoAnswer(!voiceAutoAnswer)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      voiceAutoAnswer ? "bg-[#007A3D]" : "bg-zinc-300 dark:bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        voiceAutoAnswer ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* 2. Mensagem de Saudação da Helena (Boas-Vindas) */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Volume2 className="h-3.5 w-3.5 text-purple-600" />
+                      Saudação Inicial da Helena (Texto falado ao atender):
+                    </label>
+                    <span className="text-[10px] text-muted-foreground font-mono">{voiceGreeting.length} caracteres</span>
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={voiceGreeting}
+                    onChange={(e) => setVoiceGreeting(e.target.value)}
+                    placeholder="Ex: Olá! Você ligou para a Oficial Max Nutrition. Sou a Helena..."
+                    className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Esta frase será sintetizada com voz ultra-realista no momento exato em que a ligação for iniciada.
+                  </p>
+                </div>
+
+                {/* 3. Quem a Helena Atende (Filtro de Público) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-blue-600" />
+                    Público Autorizado para Atendimento Telefônico:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setVoiceFilter("all")}
+                      className={`p-2.5 rounded-lg border text-left transition-all text-xs ${
+                        voiceFilter === "all"
+                          ? "border-[#007A3D] bg-[#007A3D]/5 font-semibold text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className="font-semibold text-foreground">Todos os Números</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Recepção aberta para qualquer pessoa que ligar.</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setVoiceFilter("registered")}
+                      className={`p-2.5 rounded-lg border text-left transition-all text-xs ${
+                        voiceFilter === "registered"
+                          ? "border-[#007A3D] bg-[#007A3D]/5 font-semibold text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className="font-semibold text-foreground">Apenas Clientes</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Atende apenas números cadastrados no sistema.</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setVoiceFilter("leads")}
+                      className={`p-2.5 rounded-lg border text-left transition-all text-xs ${
+                        voiceFilter === "leads"
+                          ? "border-[#007A3D] bg-[#007A3D]/5 font-semibold text-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className="font-semibold text-foreground">Apenas Leads</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5">Foco comercial em oportunidades e vendas.</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Horário e Transbordo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-amber-600" />
+                      Horário de Funcionamento da URA:
+                    </label>
+                    <select
+                      value={voiceSchedule}
+                      onChange={(e) => setVoiceSchedule(e.target.value as any)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+                    >
+                      <option value="24h">24 Horas por Dia (IA Contínua)</option>
+                      <option value="commercial">Comercial (Seg a Sex das 08:00 às 18:00)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                      WhatsApp para Transbordo Humano:
+                    </label>
+                    <input
+                      type="text"
+                      value={voiceTransferPhone}
+                      onChange={(e) => setVoiceTransferPhone(e.target.value)}
+                      placeholder="DDD + Número (ex: 11971254913)"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
+                    />
+                  </div>
+                </div>
+
+                {/* Botão de Salvar Configurações */}
+                <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+                  {voiceSavedFeedback ? (
+                    <div className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30 animate-pulse">
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>Configurações da URA salvas com sucesso!</span>
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      As alterações entram em vigor imediatamente para a próxima ligação.
+                    </span>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSaveUraConfig}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 transition-colors"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Salvar Configurações da URA</span>
+                  </button>
                 </div>
               </div>
 
