@@ -14,6 +14,7 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  CircleOff,
   Clock3,
   HelpCircle,
   PauseCircle,
@@ -62,6 +63,7 @@ const STATUS_ICON: Record<AgentStatusVisual, LucideIcon> = {
   pausado: PauseCircle,
   desativado: Power,
   desconhecido: HelpCircle,
+  indisponivel: CircleOff,
 };
 
 const FOCUS =
@@ -188,7 +190,7 @@ export function AgentCard({
   const desativado = status === "desativado";
   const statusLabel = status ? STATUS_VISUALS[status].label : undefined;
 
-  const ariaLabel = [nome, cargo, agentId, area?.nome, statusLabel ? `status: ${statusLabel}` : null]
+  const ariaLabel = [nome, cargo, agentId, area?.nome ?? "Área não mapeada", statusLabel ? `status: ${statusLabel}` : null]
     .filter(Boolean)
     .join(", ") + (onClick ? ". Abrir detalhes" : "");
 
@@ -240,7 +242,12 @@ export function AgentCard({
       <Root {...rootProps} className={cn(base, "flex min-h-[56px] items-start gap-3 rounded-xl px-3 py-2")}>
         {avatar}
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="line-clamp-2 break-words text-sm font-semibold tracking-tight text-foreground">{nome}</span>
+          <span
+            title={nome}
+            className="line-clamp-2 break-words text-sm font-semibold tracking-tight text-foreground"
+          >
+            {nome}
+          </span>
           <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs leading-5 text-muted-foreground">
             {idChip}
             <span className="min-w-0 truncate">{cargo}</span>
@@ -258,7 +265,10 @@ export function AgentCard({
         {avatar}
         <span className="flex min-w-0 flex-1 flex-col pt-0.5">
           <span className="flex min-w-0 items-start justify-between gap-2">
-            <span className="min-w-0 flex-1 line-clamp-2 break-words text-base font-semibold leading-6 tracking-tight text-foreground">
+            <span
+              title={nome}
+              className="min-w-0 flex-1 line-clamp-2 break-words text-base font-semibold leading-6 tracking-tight text-foreground"
+            >
               {nome}
             </span>
             {idChip}

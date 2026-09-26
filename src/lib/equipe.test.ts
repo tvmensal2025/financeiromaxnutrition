@@ -5,6 +5,7 @@ import "@testing-library/jest-dom/vitest";
 import {
   areaDoAgente,
   contarAgentesConectados,
+  descricaoCabecalhoEquipe,
   mesclarAgenteComConexao,
   statusVisualDoAgente,
   type AgenteRow,
@@ -109,5 +110,41 @@ describe("Equipe — mescla de dados", () => {
         ativoSemRegistro,
       ]),
     ).toBe(1);
+  });
+
+  it("com agent_connections indisponível, ATIVO fica Status indisponível e o contador some", () => {
+    const ativo = mesclarAgenteComConexao(helena, {
+      agent_id: "AGT-01",
+      connection_status: "CONNECTED",
+    });
+    const pausado = mesclarAgenteComConexao({
+      agent_id: "AGT-02",
+      agente: "Laura",
+      cargo_funcao: "Comunicação e Desenvolvimento do Fundador",
+      status: "PAUSADO",
+    });
+    const desativado = mesclarAgenteComConexao({
+      agent_id: "AGT-06",
+      agente: "Clara",
+      cargo_funcao: "Risco, Jurídico e Compliance",
+      status: "DESATIVADO",
+    });
+
+    expect(statusVisualDoAgente(ativo, true)).toBe("indisponivel");
+    expect(statusVisualDoAgente(pausado, true)).toBe("pausado");
+    expect(statusVisualDoAgente(desativado, true)).toBe("desativado");
+    expect(contarAgentesConectados([ativo, pausado, desativado], true)).toBe(0);
+    expect(descricaoCabecalhoEquipe({ erroConexoes: true, total: 21, conectados: 0 })).toBe(
+      "21 agentes · status de conexão indisponível",
+    );
+    expect(descricaoCabecalhoEquipe({ erroConexoes: true, total: 21, conectados: 0 })).not.toMatch(
+      /conectados/i,
+    );
+  });
+
+  it("erro na consulta agentes não mostra números no cabeçalho", () => {
+    const texto = descricaoCabecalhoEquipe({ erroAgentes: true, total: 0, conectados: 0 });
+    expect(texto).not.toMatch(/\d+\s+agentes/);
+    expect(texto).not.toMatch(/conectados/i);
   });
 });

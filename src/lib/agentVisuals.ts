@@ -191,6 +191,7 @@ export function getAreaVisual(agentId: string | null | undefined): AreaVisual | 
  *  - public.agentes.status            (lista "Status Agente": ATIVO | PAUSADO | DESATIVADO)
  *  - public.agent_connections.connection_status (CHECK: CONNECTED | PLANNED | NOT_CONNECTED | ERROR)
  * "desconhecido" (rótulo "Sem registro") = sem linha em agent_connections — não assumir CONNECTED.
+ * "indisponivel" (rótulo "Status indisponível") = a consulta de agent_connections falhou.
  */
 export type AgentStatusVisual =
   | "conectado"
@@ -199,28 +200,33 @@ export type AgentStatusVisual =
   | "erro"
   | "pausado"
   | "desativado"
-  | "desconhecido";
+  | "desconhecido"
+  | "indisponivel";
 
 export const STATUS_VISUALS: Record<AgentStatusVisual, { label: string; className: string }> = {
-  conectado:     { label: "Conectado",       className: "text-[#006B35] bg-[#007A3D]/10 border-[#007A3D]/25 dark:text-[#4ADE80] dark:bg-[#4ADE80]/10 dark:border-[#4ADE80]/25" },
-  planejado:     { label: "Planejado",       className: "text-[#1E40AF] bg-[#1D4ED8]/10 border-[#1D4ED8]/25 dark:text-[#93B4FF] dark:bg-[#93B4FF]/10 dark:border-[#93B4FF]/25" },
-  nao_conectado: { label: "Não conectado",   className: "text-[#4B524F] bg-[#5E6662]/10 border-[#5E6662]/25 dark:text-[#B4BDB8] dark:bg-[#B4BDB8]/10 dark:border-[#B4BDB8]/25" },
-  erro:          { label: "Erro de conexão", className: "text-[#B91C1C] bg-[#B91C1C]/10 border-[#B91C1C]/25 dark:text-[#F87171] dark:bg-[#F87171]/10 dark:border-[#F87171]/25" },
-  pausado:       { label: "Pausado",         className: "text-[#92400E] bg-[#B45309]/10 border-[#B45309]/25 dark:text-[#FBBF24] dark:bg-[#FBBF24]/10 dark:border-[#FBBF24]/25" },
-  desativado:    { label: "Desativado",      className: "text-[#4B524F] bg-[#5E6662]/10 border-[#5E6662]/25 dark:text-[#B4BDB8] dark:bg-[#B4BDB8]/10 dark:border-[#B4BDB8]/25" },
-  desconhecido:  { label: "Sem registro", className: "text-[#4B524F] bg-transparent border-dashed border-[#5E6662]/40 dark:text-[#B4BDB8] dark:border-[#B4BDB8]/40" },
+  conectado:     { label: "Conectado",          className: "text-[#006B35] bg-[#007A3D]/10 border-[#007A3D]/25 dark:text-[#4ADE80] dark:bg-[#4ADE80]/10 dark:border-[#4ADE80]/25" },
+  planejado:     { label: "Planejado",          className: "text-[#1E40AF] bg-[#1D4ED8]/10 border-[#1D4ED8]/25 dark:text-[#93B4FF] dark:bg-[#93B4FF]/10 dark:border-[#93B4FF]/25" },
+  nao_conectado: { label: "Não conectado",      className: "text-[#4B524F] bg-[#5E6662]/10 border-[#5E6662]/25 dark:text-[#B4BDB8] dark:bg-[#B4BDB8]/10 dark:border-[#B4BDB8]/25" },
+  erro:          { label: "Erro de conexão",    className: "text-[#B91C1C] bg-[#B91C1C]/10 border-[#B91C1C]/25 dark:text-[#F87171] dark:bg-[#F87171]/10 dark:border-[#F87171]/25" },
+  pausado:       { label: "Pausado",            className: "text-[#92400E] bg-[#B45309]/10 border-[#B45309]/25 dark:text-[#FBBF24] dark:bg-[#FBBF24]/10 dark:border-[#FBBF24]/25" },
+  desativado:    { label: "Desativado",         className: "text-[#4B524F] bg-[#5E6662]/10 border-[#5E6662]/25 dark:text-[#B4BDB8] dark:bg-[#B4BDB8]/10 dark:border-[#B4BDB8]/25" },
+  desconhecido:  { label: "Sem registro",       className: "text-[#4B524F] bg-transparent border-dashed border-[#5E6662]/40 dark:text-[#B4BDB8] dark:border-[#B4BDB8]/40" },
+  indisponivel:  { label: "Status indisponível", className: "text-[#4B524F] bg-[#5E6662]/10 border-[#5E6662]/25 dark:text-[#B4BDB8] dark:bg-[#B4BDB8]/10 dark:border-[#B4BDB8]/25" },
 };
 
 /**
  * Precedência (proposta de design): status do agente (DESATIVADO/PAUSADO) vence o da conexão.
+ * conexoesIndisponiveis = a consulta agent_connections falhou (não confundir com ausência de linha).
  */
 export function statusVisualFromDb(
   agentStatus?: string | null,
   connectionStatus?: string | null,
+  conexoesIndisponiveis = false,
 ): AgentStatusVisual {
   const a = (agentStatus ?? "").trim().toUpperCase();
   if (a === "DESATIVADO") return "desativado";
   if (a === "PAUSADO") return "pausado";
+  if (conexoesIndisponiveis) return "indisponivel";
   switch ((connectionStatus ?? "").trim().toUpperCase()) {
     case "CONNECTED": return "conectado";
     case "PLANNED": return "planejado";

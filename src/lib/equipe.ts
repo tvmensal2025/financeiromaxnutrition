@@ -96,10 +96,33 @@ export function mesclarAgenteComConexao(
   };
 }
 
-export function statusVisualDoAgente(membro: AgenteCompleto): AgentStatusVisual {
-  return statusVisualFromDb(membro.status, membro.connection_status);
+export function statusVisualDoAgente(
+  membro: AgenteCompleto,
+  conexoesIndisponiveis = false,
+): AgentStatusVisual {
+  return statusVisualFromDb(membro.status, membro.connection_status, conexoesIndisponiveis);
 }
 
-export function contarAgentesConectados(agentes: readonly AgenteCompleto[]): number {
+export function contarAgentesConectados(
+  agentes: readonly AgenteCompleto[],
+  conexoesIndisponiveis = false,
+): number {
+  if (conexoesIndisponiveis) return 0;
   return agentes.filter((m) => statusVisualDoAgente(m) === "conectado").length;
+}
+
+export function descricaoCabecalhoEquipe(opts: {
+  carregando?: boolean;
+  erroAgentes?: boolean;
+  erroConexoes?: boolean;
+  total: number;
+  conectados: number;
+}): string {
+  if (opts.carregando || opts.erroAgentes) {
+    return "Helena e os especialistas do Sistema Helena";
+  }
+  if (opts.erroConexoes) {
+    return `${opts.total} agentes · status de conexão indisponível`;
+  }
+  return `${opts.total} agentes · ${opts.conectados} conectados · status real da conexão`;
 }

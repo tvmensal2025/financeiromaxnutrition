@@ -109,4 +109,13 @@ describe("statusVisualFromDb", () => {
       expect(STATUS_VISUALS[visual].label).not.toBe("Conectado");
     }
   });
+
+  it("consulta agent_connections indisponível: ATIVO vira Status indisponível; PAUSADO/DESATIVADO prevalecem", () => {
+    expect(statusVisualFromDb("ATIVO", "CONNECTED", true)).toBe("indisponivel");
+    expect(statusVisualFromDb("ATIVO", null, true)).toBe("indisponivel");
+    expect(STATUS_VISUALS.indisponivel.label).toBe("Status indisponível");
+    expect(STATUS_VISUALS.indisponivel.label).not.toBe("Sem registro");
+    expect(statusVisualFromDb("PAUSADO", "CONNECTED", true)).toBe("pausado");
+    expect(statusVisualFromDb("DESATIVADO", null, true)).toBe("desativado");
+  });
 });

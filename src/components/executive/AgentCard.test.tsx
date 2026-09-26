@@ -56,6 +56,7 @@ describe("AgentCard", () => {
     );
     expect(screen.getByText("Área não mapeada")).toBeTruthy();
     expect(screen.getByText("AN")).toBeTruthy();
+    expect(screen.getByRole("article").getAttribute("aria-label")).toContain("Área não mapeada");
   });
 
   it.each(["padrao", "compacto"] as const)(
@@ -75,6 +76,7 @@ describe("AgentCard", () => {
       expect(el.className).not.toMatch(/\btruncate\b/);
       expect(el.className).toMatch(/line-clamp-2/);
       expect(el.className).toMatch(/break-words/);
+      expect(el.getAttribute("title")).toBe(nome);
       expect(screen.getByText("Conectado")).toBeTruthy();
     },
   );
