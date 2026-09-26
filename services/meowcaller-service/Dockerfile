@@ -1,25 +1,24 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1: Build do binário Go com meowcaller + hypermeow (100% Pure Go)
 # ─────────────────────────────────────────────────────────────────────────────
-FROM golang:1.25-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
 # Ferramentas de compilação
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copiar apenas os manifests primeiro (para cache de deps)
-COPY go.mod ./
+# Copiar os manifests para download de deps
+COPY go.mod go.sum ./
 
 # Copiar código-fonte completo
 COPY cmd/ cmd/
 COPY internal/ internal/
 
-# Resolve dependências (go mod tidy + download)
-# Usa GONOSUMCHECK pois meowcaller e hypermeow usam commits @main
+# Resolve dependências
 ENV GONOSUMCHECK=*
 ENV GOFLAGS=-mod=mod
-RUN go mod tidy && go mod download
+RUN go mod download
 
 # Compilação estática sem CGO — meowcaller é 100% Pure Go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \

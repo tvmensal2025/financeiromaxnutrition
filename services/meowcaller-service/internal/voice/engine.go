@@ -53,12 +53,13 @@ type CallSnapshot struct {
 
 // Engine gerencia a sessão WhatsApp e o engine de chamadas VoIP
 type Engine struct {
-	cfg       *config.Config
-	mu        sync.RWMutex
-	status    SessionStatus
-	jid       string
-	qrCodeB64 string // QR Code em base64 PNG com prefixo data:image/png;base64,...
+	cfg           *config.Config
+	mu            sync.RWMutex
+	status        SessionStatus
+	jid           string
+	qrCodeB64     string // QR Code em base64 PNG com prefixo data:image/png;base64,...
 	qrGeneratedAt time.Time
+	stopped       bool
 
 	wa        *waClient.Client
 	meo       *meowcaller.Client
@@ -88,26 +89,36 @@ func NewEngine(cfg *config.Config) (*Engine, error) {
 	return e, nil
 }
 
-// connectLoop tenta conectar/reconectar continuamente
+// connectLoop tenta conectar/reconectar continuamente mantendo o WhatsApp online e QR Code ativo
 func (e *Engine) connectLoop() {
 	for {
+		e.mu.RLock()
+		isStopped := e.stopped
+		e.mu.RUnlock()
+		if isStopped {
+			log.Info().Msg("Loop de conexão WhatsApp encerrado (serviço parado).")
+			return
+		}
+
 		ctx, cancel := context.WithCancel(context.Background())
 		e.mu.Lock()
 		e.cancelCtx = cancel
-		e.qrCodeB64 = ""
 		e.mu.Unlock()
 
 		err := e.runSession(ctx)
 		cancel()
 
-		if ctx.Err() != nil {
-			// Shutdown intencional
+		e.mu.RLock()
+		isStopped = e.stopped
+		e.mu.RUnlock()
+		if isStopped {
 			return
 		}
+
 		if err != nil {
-			log.Warn().Err(err).Msg("Sessão WhatsApp encerrada. Reconectando em 5s...")
+			log.Warn().Err(err).Msg("Sessão WhatsApp finalizada. Reiniciando ciclo de conexão em 3s...")
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -125,6 +136,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("erro ao abrir SQLite de sessão WhatsApp: %w", err)
 	}
+	defer container.Close()
 
 	device, err := container.GetFirstDevice(ctx)
 	if err != nil {
@@ -227,8 +239,10 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 		return fmt.Errorf("erro ao conectar para QR: %w", err)
 	}
 
+	var lastEvent string
 	// Processa eventos do canal QR
 	for evt := range qrChan {
+		lastEvent = evt.Event
 		if evt.Event == "code" {
 			// Gera imagem PNG do QR Code
 			png, err := qrcode.Encode(evt.Code, qrcode.Medium, 256)
@@ -237,6 +251,7 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 				// Usa texto puro como fallback
 				e.mu.Lock()
 				e.qrCodeB64 = "data:text/plain;base64," + base64.StdEncoding.EncodeToString([]byte(evt.Code))
+				e.qrGeneratedAt = time.Now()
 				e.mu.Unlock()
 			} else {
 				b64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
@@ -246,6 +261,12 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 				e.mu.Unlock()
 				log.Info().Msg("📱 QR Code de Ligações gerado! Escaneie nos próximos 20 segundos.")
 			}
+		} else if evt.Event == "success" {
+			log.Info().Msg("✅ Pareamento via QR Code concluído com sucesso!")
+			break
+		} else if evt.Event == "timeout" {
+			log.Warn().Msg("⏰ QR Code expirou por inatividade.")
+			break
 		} else {
 			log.Info().Str("event", evt.Event).Msg("Evento de login WhatsApp")
 		}
@@ -256,8 +277,13 @@ func (e *Engine) connectWithQR(ctx context.Context, wa *waClient.Client) error {
 	e.qrCodeB64 = "" // Limpa QR Code expirado imediatamente
 	e.mu.Unlock()
 
-	// Pareamento concluído (ou falhou)
-	if err := waitUntilConnected(ctx, wa, 60*time.Second); err != nil {
+	// Se não logou e não teve sucesso explícito, retorna erro para reiniciar o ciclo
+	if !wa.IsLoggedIn() && lastEvent != "success" {
+		return fmt.Errorf("sessão QR expirou sem pareamento (lastEvent: %s)", lastEvent)
+	}
+
+	// Pareamento concluído (ou em finalização)
+	if err := waitUntilConnected(ctx, wa, 30*time.Second); err != nil {
 		return fmt.Errorf("timeout após pareamento QR: %w", err)
 	}
 
@@ -325,7 +351,13 @@ func (e *Engine) setStatus(s SessionStatus, jid, qr string) {
 func (e *Engine) GetStatus() (SessionStatus, string, string) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.status, e.jid, e.qrCodeB64
+
+	qr := e.qrCodeB64
+	// Invalida QR code se gerado há mais de 25 segundos para evitar envio de QR expirado no WhatsApp
+	if qr != "" && time.Since(e.qrGeneratedAt) > 25*time.Second {
+		qr = ""
+	}
+	return e.status, e.jid, qr
 }
 
 // RestartSession força uma reconexão imediata gerando um QR Code 100% fresco
@@ -337,11 +369,11 @@ func (e *Engine) RestartSession() {
 	wa := e.wa
 	e.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
-	}
 	if wa != nil {
 		wa.Disconnect()
+	}
+	if cancel != nil {
+		cancel()
 	}
 	log.Info().Msg("🔄 Sessão WhatsApp reiniciada sob demanda. Gerando QR Code fresco...")
 }
@@ -462,15 +494,16 @@ func (e *Engine) ListActiveCalls() []CallSnapshot {
 // Shutdown encerra o engine graciosamente
 func (e *Engine) Shutdown() {
 	e.mu.Lock()
+	e.stopped = true
 	cancel := e.cancelCtx
 	wa := e.wa
 	e.mu.Unlock()
 
-	if cancel != nil {
-		cancel()
-	}
 	if wa != nil {
 		wa.Disconnect()
+	}
+	if cancel != nil {
+		cancel()
 	}
 	log.Info().Msg("Engine de voz WhatsApp encerrado.")
 }
