@@ -59,6 +59,7 @@ type Engine struct {
 	jid           string
 	qrCodeB64     string // QR Code em base64 PNG com prefixo data:image/png;base64,...
 	qrGeneratedAt time.Time
+	lastRestart   time.Time
 	stopped       bool
 
 	wa        *waClient.Client
@@ -351,18 +352,18 @@ func (e *Engine) setStatus(s SessionStatus, jid, qr string) {
 func (e *Engine) GetStatus() (SessionStatus, string, string) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-
-	qr := e.qrCodeB64
-	// Invalida QR code se gerado há mais de 25 segundos para evitar envio de QR expirado no WhatsApp
-	if qr != "" && time.Since(e.qrGeneratedAt) > 25*time.Second {
-		qr = ""
-	}
-	return e.status, e.jid, qr
+	return e.status, e.jid, e.qrCodeB64
 }
 
 // RestartSession força uma reconexão imediata gerando um QR Code 100% fresco
 func (e *Engine) RestartSession() {
 	e.mu.Lock()
+	if time.Since(e.lastRestart) < 8*time.Second {
+		e.mu.Unlock()
+		log.Info().Msg("RestartSession ignorado: reinício recente já em andamento")
+		return
+	}
+	e.lastRestart = time.Now()
 	e.qrCodeB64 = ""
 	e.status = StatusConnecting
 	cancel := e.cancelCtx
