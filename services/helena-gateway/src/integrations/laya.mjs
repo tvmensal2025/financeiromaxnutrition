@@ -4,6 +4,8 @@
  * Endpoint oficial: https://helena-automation-laya-service.d9v63q.easypanel.host
  */
 
+import { matchUraMenuOption, URA_DEFAULT_ROUTE, URA_MENU_OPTIONS } from '../whatsapp-ura.mjs';
+
 const LAYA_BASE_URL = (process.env.LAYA_BASE_URL || 'https://helena-automation-laya-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const LAYA_API_KEY = process.env.LAYA_API_KEY || process.env.LAYA_KEY || process.env.X_API_KEY || '';
 
@@ -20,14 +22,15 @@ function getLayaHeaders() {
 }
 
 /**
- * Motor determinístico de contingência da Laya (Diretiva: Laya nunca para o sistema)
+ * Motor determinístico de contingência da Laya (Diretiva: Laya nunca para o sistema).
+ * Agentes sugeridos vêm da mesma tabela URA do webhook WhatsApp.
  */
 function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
   const lower = (message || '').toLowerCase();
-  let area = 'ATENDIMENTO';
+  let area = URA_DEFAULT_ROUTE.area;
   let intent = 'duvida_geral';
-  let suggested_agent_id = 'AGT-20';
-  let suggested_agent_name = 'Joana';
+  let suggested_agent_id = URA_DEFAULT_ROUTE.agent_id;
+  let suggested_agent_name = URA_DEFAULT_ROUTE.agent_name;
   let urgency = 2;
   let risk_score = 1;
   let commercial_opportunity = false;
@@ -36,14 +39,26 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
   let needs_helena = false;
   let needs_founder = false;
 
-  const trimmed = (message || '').trim();
+  const menu = matchUraMenuOption(message);
+  const sales = URA_MENU_OPTIONS.find((item) => item.option === '1');
+  const support = URA_MENU_OPTIONS.find((item) => item.option === '2');
+  const finance = URA_MENU_OPTIONS.find((item) => item.option === '3');
+  const exec = URA_MENU_OPTIONS.find((item) => item.option === '4');
 
-  // 1. Suporte a menu de opções (URA / Numérico) e palavras-chave de Vendas
-  if (
-    trimmed === '1' ||
-    lower.startsWith('1 ') ||
-    lower.includes('opcao 1') ||
-    lower.includes('opção 1') ||
+  if (menu) {
+    area = menu.area;
+    suggested_agent_id = menu.agent_id;
+    suggested_agent_name = menu.agent_name;
+    intent = menu.option === '1'
+      ? 'interesse_comercial'
+      : menu.option === '2'
+        ? 'problema_acesso'
+        : menu.option === '3'
+          ? 'cobranca_fatura'
+          : 'triagem_executiva';
+    urgency = menu.option === '3' ? 4 : 3;
+    commercial_opportunity = menu.option === '1';
+  } else if (
     lower.includes('comprar') ||
     lower.includes('quanto custa') ||
     lower.includes('ganhar') ||
@@ -51,19 +66,13 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
     lower.includes('preco') ||
     lower.includes('vendas')
   ) {
-    area = 'VENDAS';
+    area = sales.area;
+    suggested_agent_id = sales.agent_id;
+    suggested_agent_name = sales.agent_name;
     intent = 'interesse_comercial';
-    suggested_agent_id = 'AGT-15';
-    suggested_agent_name = 'Victor';
     urgency = 3;
     commercial_opportunity = true;
-  }
-  // 2. Suporte a menu de opções (URA / Numérico) e palavras-chave de Atendimento / Suporte
-  else if (
-    trimmed === '2' ||
-    lower.startsWith('2 ') ||
-    lower.includes('opcao 2') ||
-    lower.includes('opção 2') ||
+  } else if (
     lower.includes('cadastro') ||
     lower.includes('acesso') ||
     lower.includes('entrar') ||
@@ -72,37 +81,29 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
     lower.includes('suporte') ||
     lower.includes('atendimento')
   ) {
-    area = 'ATENDIMENTO';
+    area = support.area;
+    suggested_agent_id = support.agent_id;
+    suggested_agent_name = support.agent_name;
     intent = 'problema_acesso';
-    suggested_agent_id = 'AGT-20';
-    suggested_agent_name = 'Joana';
     urgency = 3;
-  }
-  // 3. Suporte a menu de opções (URA / Numérico) e palavras-chave Financeiras
-  else if (
-    trimmed === '3' ||
-    lower.startsWith('3 ') ||
-    lower.includes('opcao 3') ||
-    lower.includes('opção 3') ||
+  } else if (
     lower.includes('fatura') ||
     lower.includes('pagamento') ||
     lower.includes('boleto') ||
     lower.includes('financeiro') ||
     lower.includes('pix')
   ) {
-    area = 'FINANCEIRO';
+    area = finance.area;
+    suggested_agent_id = finance.agent_id;
+    suggested_agent_name = finance.agent_name;
     intent = 'cobranca_fatura';
-    suggested_agent_id = 'AGT-04';
-    suggested_agent_name = 'Analista Financeiro';
     urgency = 4;
     risk_score = 3;
     if (lower.includes('urgente') || lower.includes('cancelar')) {
       churn_risk = true;
       urgency = 5;
     }
-  }
-  // 4. Suporte a Casos Críticos e Jurídico
-  else if (
+  } else if (
     lower.includes('processo') ||
     lower.includes('advogado') ||
     lower.includes('juridico') ||
@@ -110,8 +111,8 @@ function deterministicFallbackClassify({ message, business_id = 'BIZ-001' }) {
   ) {
     area = 'JURIDICO';
     intent = 'risco_juridico';
-    suggested_agent_id = 'AGT-01';
-    suggested_agent_name = 'Helena Diretora';
+    suggested_agent_id = exec.agent_id;
+    suggested_agent_name = exec.agent_name;
     urgency = 5;
     risk_score = 5;
     needs_founder = true;
