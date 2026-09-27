@@ -138,6 +138,25 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(result["exit_code"], 125)
         self.assertEqual(self.calls[-1][1]["error_code"], "HERMES_PROCESS_FAILED")
 
+    def test_model_process_receives_only_helena_mcp_and_bounded_turns(self):
+        case = self
+
+        class FinishedProcess:
+            def wait(self, timeout):
+                case.assertEqual(timeout, 180)
+                return 0
+
+        def spawn(args, **kwargs):
+            self.assertEqual(args[:4], ["/usr/bin/hermes", "-p", PROFILE, "chat"])
+            self.assertEqual(args[4], "--query-file")
+            self.assertTrue(Path(args[5]).is_file())
+            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "mcp-helena_operacao", "--max-turns", "12"])
+            self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
+            return FinishedProcess()
+
+        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
+            self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

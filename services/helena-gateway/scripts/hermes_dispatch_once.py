@@ -66,7 +66,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> int:
         "Use somente helena_operacao.get_work_context e get_job para verificar que o job esta RUNNING, e siga a instrucao registrada na tarefa. "
         "Registre marcos reais em record_progress, memoria e fonte em record_memory e entregue com submit_delivery "
         "usando a row_version atual e evidencia. Se impedido, use waiting_helena ou fail_job. "
-        "Nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "
+        "Nao delegue, nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
     )
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="helena-job-", suffix=".txt", delete=False) as handle:
@@ -75,7 +75,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> int:
         handle.write(prompt)
     try:
         process = subprocess.Popen(
-            [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot", "--max-turns", "12"],
+            [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
+             "--toolsets", "mcp-helena_operacao", "--max-turns", "12"],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
