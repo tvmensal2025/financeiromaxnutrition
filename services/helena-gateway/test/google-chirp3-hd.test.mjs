@@ -171,33 +171,33 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
   });
 
   // ======================================================================
-  // TESTE F — GOOGLE OFF / ROLLBACK: GOOGLE_CALL_TTS_ENABLED=false
+  // TESTE F — REMOÇÃO DE FALLBACK PARA KOKORO EM CALL (DIRETIVA MANDATÓRIA)
   // ======================================================================
-  it('TESTE F — GOOGLE OFF / ROLLBACK: Reverte imediatamente para o provedor legado da chamada', async () => {
-    process.env.GOOGLE_CALL_TTS_ENABLED = 'false';
-
-    let googleCalled = false;
-    let legacyCalled = false;
+  it('TESTE F — REMOÇÃO DE KOKORO EM CALL: Falha do Google gera erro claro e NUNCA faz fallback silencioso para Kokoro', async () => {
+    let kokoroCalled = false;
 
     setGoogleTTSClientForTesting({
       synthesizeSpeech: async () => {
-        googleCalled = true;
-        return [{ audioContent: Buffer.from('DATA') }];
+        throw new Error('Google Cloud TTS indisponível no momento');
       }
     });
 
-    const result = await routeCallAudio({
-      text: 'Mensagem de teste de rollback',
-      callId: 'call-rollback-test',
-      legacyCallSynthesizer: () => {
-        legacyCalled = true;
-        return { buffer: Buffer.from('LEGACY_KOKORO_OR_ELEVEN'), provider: 'KOKORO', format: 'mp3' };
-      }
-    });
+    await assert.rejects(
+      async () => {
+        await routeCallAudio({
+          text: 'Mensagem de teste de falha controlada',
+          callId: 'call-fail-test',
+          legacyCallSynthesizer: () => {
+            kokoroCalled = true;
+            return { buffer: Buffer.from('KOKORO'), provider: 'KOKORO', format: 'mp3' };
+          }
+        });
+      },
+      /Google Cloud TTS indisponível|Falha crítica no Google Chirp 3 HD/,
+      'Erro deve ser propagado com clareza'
+    );
 
-    assert.strictEqual(googleCalled, false, 'Google NÃO deve ser chamado quando GOOGLE_CALL_TTS_ENABLED=false');
-    assert.strictEqual(legacyCalled, true, 'Sintetizador legado DEVE ser chamado no rollback');
-    assert.strictEqual(result.provider, 'KOKORO');
+    assert.strictEqual(kokoroCalled, false, 'Kokoro NUNCA deve ser chamado em falha de CALL');
   });
 
   // ======================================================================

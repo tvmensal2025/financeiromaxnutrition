@@ -26,7 +26,16 @@ import {
   endCallSession,
   getCallsHistoryMetrics,
   getCallDetailById,
-  DEFAULT_PERSONALITIES
+  DEFAULT_PERSONALITIES,
+  getAllProfiles12,
+  getProfile,
+  updateProfile,
+  resetProfileToDefault,
+  getActiveGlobalProfile,
+  setActiveGlobalProfile,
+  getActiveGlobalProfileKey,
+  CHARACTERS_MAP,
+  MODES_MAP
 } from '../src/integrations/call-engine.mjs';
 
 import { routeCallAudio } from '../src/integrations/audio-router.mjs';
@@ -215,5 +224,165 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.strictEqual(typeof metrics.total_calls, 'number');
     assert.strictEqual(typeof metrics.total_tokens.total, 'number');
     assert.strictEqual(typeof metrics.total_tts_chars, 'number');
+  });
+
+  it('9. Matriz Oficial de 4 Personagens x 3 Modos = 12 Perfis Independentes', () => {
+    const allProfiles = getAllProfiles12();
+    const keys = Object.keys(allProfiles);
+    assert.strictEqual(keys.length, 12, 'Devem existir exatamente 12 perfis independentes');
+
+    const expectedCharacters = ['rafael', 'sirlene', 'vital', 'alex'];
+    const expectedModes = ['normal', 'firm', 'intense'];
+
+    for (const charId of expectedCharacters) {
+      assert.ok(CHARACTERS_MAP[charId], `Personagem ${charId} deve estar registrado no mapa`);
+      for (const modeId of expectedModes) {
+        assert.ok(MODES_MAP[modeId], `Modo ${modeId} deve estar registrado no mapa`);
+        const profile = getProfile(charId, modeId);
+        assert.ok(profile, `Perfil ${charId}/${modeId} deve existir`);
+        assert.strictEqual(profile.character_id, charId);
+        assert.strictEqual(profile.mode, modeId);
+        assert.ok(profile.voice_id.startsWith('pt-BR-Chirp3-HD-'), `Voz deve ser Google Chirp 3 HD pt-BR para ${charId}/${modeId}`);
+        assert.ok(profile.opening_message.length > 10, `Abertura deve estar configurada para ${charId}/${modeId}`);
+        assert.ok(profile.system_script.length > 50, `Script completo deve estar configurado para ${charId}/${modeId}`);
+      }
+    }
+  });
+
+  it('10. Cada perfil permite atualizar e salvar voz, abertura e script de forma 100% isolada', () => {
+    // Atualiza Vital / Normal
+    const updatedVital = updateProfile('vital', 'normal', {
+      voice_id: 'pt-BR-Chirp3-HD-Fenrir',
+      opening_message: 'Mensagem de abertura personalizada do Dr. Vital para exames.',
+      system_script: 'INSTRUCAO_TESTE_VITAL_NORMAL: Você é o Dr. Vital em atendimento exclusivo.'
+    }, 'AdminDr');
+
+    assert.strictEqual(updatedVital.voice_id, 'pt-BR-Chirp3-HD-Fenrir');
+    assert.strictEqual(updatedVital.opening_message, 'Mensagem de abertura personalizada do Dr. Vital para exames.');
+    assert.strictEqual(updatedVital.system_script, 'INSTRUCAO_TESTE_VITAL_NORMAL: Você é o Dr. Vital em atendimento exclusivo.');
+
+    // Confirma que Vital / Firme e Alex / Normal NÃO foram afetados (isolamento total)
+    const vitalFirm = getProfile('vital', 'firm');
+    const alexNormal = getProfile('alex', 'normal');
+    assert.notStrictEqual(vitalFirm.voice_id, 'pt-BR-Chirp3-HD-Fenrir');
+    assert.notStrictEqual(alexNormal.system_script, updatedVital.system_script);
+
+    // Restaura Vital / Normal
+    const resetVital = resetProfileToDefault('vital', 'normal');
+    assert.strictEqual(resetVital.voice_id, 'pt-BR-Chirp3-HD-Charon');
+  });
+
+  it('11. HOT-SWAP DOS 12 PERFIS NA MESMA LIGAÇÃO: Mantém conexão, preserva contexto e atualiza script e voz', () => {
+    const callId = 'test-call-12-profiles-live';
+    const session = registerCallSession({
+      callId,
+      remoteNumber: '+5511977776666',
+      direction: 'OUTBOUND',
+      profileKey: 'rafael_normal'
+    });
+
+    assert.ok(session);
+    assert.strictEqual(session.status, 'ACTIVE');
+    assert.strictEqual(session.activeProfileKey, 'rafael_normal');
+    assert.strictEqual(session.activeCharacterName, 'Rafael');
+    assert.strictEqual(session.activeModeName, 'Normal');
+
+    // Simula que a saudação inicial tocou no primeiro turno
+    session.greetingPlayed = true;
+
+    // Lista dos 12 perfis para testar a transição ao vivo sequencial
+    const profilesSequence = [
+      { char: 'rafael', mode: 'normal' },
+      { char: 'rafael', mode: 'firm' },
+      { char: 'rafael', mode: 'intense' },
+      { char: 'sirlene', mode: 'normal' },
+      { char: 'sirlene', mode: 'firm' },
+      { char: 'sirlene', mode: 'intense' },
+      { char: 'vital', mode: 'normal' },
+      { char: 'vital', mode: 'firm' },
+      { char: 'vital', mode: 'intense' },
+      { char: 'alex', mode: 'normal' },
+      { char: 'alex', mode: 'firm' },
+      { char: 'alex', mode: 'intense' }
+    ];
+
+    let currentTurn = 1;
+    for (const step of profilesSequence) {
+      // Executa o Hot-Swap ao vivo durante a mesma chamada
+      const swap = switchCallRuntime({
+        callId,
+        characterId: step.char,
+        mode: step.mode,
+        updatedBy: 'TestRunner'
+      });
+
+      assert.strictEqual(swap.success, true);
+      assert.strictEqual(swap.next_turn_ready, true);
+      assert.ok(swap.feedback.includes('será aplicado na próxima resposta'));
+
+      // Verifica estado em memória imediato
+      const liveCall = getCallSession(callId);
+      assert.strictEqual(liveCall.status, 'ACTIVE', 'Chamada DEVE continuar ativa');
+      assert.strictEqual(liveCall.activeCharacterId, step.char);
+      assert.strictEqual(liveCall.activeMode, step.mode);
+      assert.ok(liveCall.activeVoice.startsWith('pt-BR-Chirp3-HD-'), 'Voz do perfil deve ser Google Chirp 3 HD');
+      assert.ok(liveCall.activeSystemScript.length > 50, 'System script do perfil ativo deve ser carregado no motor');
+
+      // Simula turno de fala da pessoa com o perfil ativo
+      recordTurnTelemetry({
+        callId,
+        userText: `Pergunta turno ${currentTurn}`,
+        replyText: `Resposta turno ${currentTurn} com ${liveCall.activeCharacterName} modo ${liveCall.activeModeName}`,
+        sttMs: 250,
+        llmFirstTokenMs: 180,
+        llmTotalMs: 400,
+        ttsMs: 290,
+        turnLatencyMs: 940,
+        usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 },
+        characterId: step.char,
+        mode: step.mode,
+        voice: liveCall.activeVoice
+      });
+
+      // Abertura NÃO deve ter sido resetada para tocar novamente
+      assert.strictEqual(liveCall.greetingPlayed, true, 'Greeting NÃO se repete no hot-swap');
+      currentTurn++;
+    }
+
+    // Ao fim de todas as trocas, a chamada continua viva com todo o histórico
+    const finalCall = getCallSession(callId);
+    assert.strictEqual(finalCall.status, 'ACTIVE');
+    assert.strictEqual(finalCall.turns.length, 12, 'Deve conter os 12 turnos registrados');
+    assert.strictEqual(finalCall.activeProfileKey, 'alex_intense');
+  });
+
+  it('12. VALIDAR SYSTEM SCRIPT: Marcadores de teste comprovam alteração do System Prompt no DeepSeek', () => {
+    // Configura marcadores temporários para teste de prompt conforme Seção 20
+    updateProfile('rafael', 'normal', { system_script: 'Comece sua próxima resposta com NORMAL_TEST.' });
+    updateProfile('rafael', 'firm', { system_script: 'Comece sua próxima resposta com FIRME_TEST.' });
+    updateProfile('rafael', 'intense', { system_script: 'Comece sua próxima resposta com INTENSO_TEST.' });
+
+    const callId = 'test-call-prompt-markers';
+    registerCallSession({ callId, profileKey: 'rafael_normal' });
+
+    let call = getCallSession(callId);
+    assert.ok(call.activeSystemScript.includes('NORMAL_TEST'));
+
+    // Troca para Firme
+    switchCallRuntime({ callId, mode: 'firm' });
+    call = getCallSession(callId);
+    assert.ok(call.activeSystemScript.includes('FIRME_TEST'));
+    assert.strictEqual(call.activeSystemScript.includes('NORMAL_TEST'), false);
+
+    // Troca para Intenso
+    switchCallRuntime({ callId, mode: 'intense' });
+    call = getCallSession(callId);
+    assert.ok(call.activeSystemScript.includes('INTENSO_TEST'));
+    assert.strictEqual(call.activeSystemScript.includes('FIRME_TEST'), false);
+
+    // Restaura scripts originais
+    resetProfileToDefault('rafael', 'normal');
+    resetProfileToDefault('rafael', 'firm');
+    resetProfileToDefault('rafael', 'intense');
   });
 });

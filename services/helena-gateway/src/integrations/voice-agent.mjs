@@ -1,10 +1,9 @@
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
- * Integra: Personalidade do Atendente (Pedro/Helena) + Base de Conhecimento ("Comando Gigante")
- * + Síntese Neural Kokoro TTS VPS + Meowcaller (WhatsApp VoIP)
+ * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + DeepSeek
+ * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
-import { synthesizeKokoroSpeech, KOKORO_DEFAULT_PROFILE_ID, KOKORO_OFFICIAL_VOICE_ID } from './kokoro.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
   registerCallSession,
@@ -12,6 +11,10 @@ import {
   recordTurnTelemetry,
   endCallSession,
   getCallEngineConfig,
+  getActiveGlobalProfile,
+  getActiveGlobalProfileKey,
+  getProfileByKey,
+  switchCallRuntime,
   getActivePersonality
 } from './call-engine.mjs';
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
@@ -116,7 +119,7 @@ let cachedConfig = {
   voice_provider: 'ELEVENLABS',
   voice_profile_id: 'VP-ELEVEN-MASC-01',
   elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
-  kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
+  call_voice: 'pt-BR-Chirp3-HD-Achird',
   ai_provider: 'DEEPSEEK',
   ai_model: 'DeepSeek-V4.1-Flash',
   ai_api_key: process.env.DEEPSEEK_API_KEY || '',
@@ -207,28 +210,32 @@ export async function updateVoiceAgentConfig(newSettings = {}) {
 // ======================================================================
 
 /**
- * Gera texto de resposta do Pedro para uma pergunta ou fala do cliente
- * Suporta as 3 personalidades dinâmicas (Equilíbrio, Firme, Intenso)
+ * Gera texto de resposta para a chamada aplicando com rigor o perfil ativo (4 Personagens x 3 Modos)
+ * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no DeepSeek.
  */
 export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {} }) {
   const cleanPrompt = String(prompt).trim();
   const cfg = await getVoiceAgentConfig();
 
-  // Resolve personalidade da chamada quente ou padrão global
+  // Resolve o perfil ativo da chamada em andamento (Hot-Swap) ou o perfil global
   const call = callContext.callId ? getCallSession(callContext.callId) : null;
-  const personalityId = call?.activePersonalityId || getActivePersonality().id;
-  const personality = getCallEngineConfig().personalities.find(p => p.id === personalityId) || getActivePersonality();
-  const personaPrompt = personality.prompt || cfg.persona;
+  const profileKey = call?.activeProfileKey || getActiveGlobalProfileKey();
+  const profile = getProfileByKey(profileKey);
 
-  // 1. Tenta invocar IA externa se API key estiver configurada e não estiver em ambiente de teste unitário
+  // REQUISITO CRÍTICO: O script selecionado é o System Prompt oficial do DeepSeek sem sobreposição
+  const systemScript = call?.activeSystemScript || profile.system_script;
+  const characterName = call?.activeCharacterName || profile.character_name;
+  const modeName = call?.activeModeName || profile.mode_name;
+
+  // 1. Tenta invocar IA externa (DeepSeek) se API key estiver configurada e não for teste unitário estrito
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
   const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
-      const systemInstruction = `${personaPrompt}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
+      const systemInstruction = `${systemScript}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
       const llmResult = await callLlmProviderDetailed({
-        provider: cfg.ai_provider,
-        model: cfg.ai_model,
+        provider: cfg.ai_provider || 'DEEPSEEK',
+        model: cfg.ai_model || 'DeepSeek-V4.1-Flash',
         apiKey,
         systemInstruction,
         userPrompt: cleanPrompt,
@@ -240,11 +247,16 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
           usage: llmResult.usage || null,
           latencyMs: llmResult.latencyMs || 0,
           model: llmResult.model || cfg.ai_model,
-          personality: personality.id
+          profile_key: profile.profile_key,
+          character_id: profile.character_id,
+          character_name: characterName,
+          mode: profile.mode,
+          mode_name: modeName,
+          personality: `${characterName} / ${modeName}`
         };
       }
     } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na chamada da IA externa, acionando motor inteligente local:', err.message);
+      console.warn('[VOICE_AGENT] Falha na chamada do DeepSeek, acionando motor inteligente local:', err.message);
     }
   }
 
@@ -254,7 +266,12 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
     usage: null,
     latencyMs: 0,
     model: 'heuristic-local',
-    personality: personality.id
+    profile_key: profile.profile_key,
+    character_id: profile.character_id,
+    character_name: characterName,
+    mode: profile.mode,
+    mode_name: modeName,
+    personality: `${characterName} / ${modeName}`
   };
 }
 
@@ -598,48 +615,35 @@ export async function synthesizeSpeechFast({ text, voice, cfg = {} }) {
           voice_id: voiceId
         };
       } else {
-        console.warn(`[VOICE_AGENT] ElevenLabs TTS retornou status ${res.status}, acionando Kokoro fallback...`);
+        console.warn(`[VOICE_AGENT] ElevenLabs TTS retornou status ${res.status}`);
       }
     } catch (err) {
-      console.warn('[VOICE_AGENT] Falha ElevenLabs TTS, acionando Kokoro fallback:', err.message);
+      console.warn('[VOICE_AGENT] Falha ElevenLabs TTS:', err.message);
     }
   }
 
-  // 2. Fallback: Kokoro TTS VPS
-  try {
-    const kokoroVoice = voice && voice.includes('*') ? voice : (cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID);
-    const speechRes = await synthesizeKokoroSpeech({
-      input: sanitizeSpeechText(text),
-      voice: kokoroVoice
-    });
-    return {
-      buffer: speechRes.buffer,
-      durationMs: speechRes.durationMs,
-      sizeBytes: speechRes.sizeBytes,
-      format: 'mp3',
-      provider: 'KOKORO',
-      voice_id: kokoroVoice
-    };
-  } catch (err) {
-    console.error('[VOICE_AGENT] Erro em ambos os provedores de TTS:', err.message);
-    throw err;
-  }
+  // Em chamadas (CALL), o único TTS permitido é Google Cloud Chirp 3 HD (através de routeCallAudio).
+  throw new Error('[VOICE_AGENT] Provedor de TTS indisponível fora do contexto de chamada telefônica.');
 }
 
 /**
  * Sintetiza o texto e envia o áudio imediatamente para a chamada VoIP
+ * EXCLUSIVO: Google Cloud Chirp 3 HD
  */
 export async function speakInCall({ callId, text, voice = null }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!text) throw new Error('text é obrigatório');
 
-  // Resolve voz da chamada ativa (hot-swap) ou voz configurada
+  // Resolve o perfil ativo da chamada em andamento (Hot-Swap) ou perfil global
   const call = getCallSession(callId);
-  const activeVoice = voice || call?.activeVoiceId || getActiveCallVoice();
+  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  const activeVoice = voice || call?.activeVoice || profile.voice_id || getActiveCallVoice();
+  const characterName = call?.activeCharacterName || profile.character_name;
+  const modeName = call?.activeModeName || profile.mode_name;
 
-  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (voz: ${activeVoice}): "${text}"`);
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala no Google Chirp 3 HD para chamada ${callId} (${characterName} / ${modeName} | voz: ${activeVoice}): "${text}"`);
 
-  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Chirp 3 HD)
+  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Google Cloud Chirp 3 HD)
   const speechRes = await routeCallAudio({
     text,
     callId,
@@ -667,13 +671,15 @@ export async function speakInCall({ callId, text, voice = null }) {
   }
 
   const result = await res.json().catch(() => ({ ok: true }));
-  console.log(`[VOICE_AGENT] ✅ Áudio do Pedro (${speechRes.provider}) transmitido na chamada ${callId}!`);
+  console.log(`[VOICE_AGENT] ✅ Áudio (${speechRes.provider} - ${characterName} / ${modeName}) transmitido com sucesso na chamada ${callId}!`);
 
   return {
     ok: true,
     call_id: callId,
     text,
     voice: activeVoice,
+    character: characterName,
+    mode: modeName,
     provider: speechRes.provider,
     audio_size_bytes: speechRes.sizeBytes,
     ...result
@@ -684,20 +690,23 @@ export async function speakInCall({ callId, text, voice = null }) {
  * Trata o webhook disparado pelo Meowcaller quando a chamada é atendida
  */
 export async function handleCallConnectedWebhook(payload = {}) {
-  const { call_id, direction, remote_number, greeting_already_played } = payload;
-  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}, greeting_played=${greeting_already_played}`);
+  const { call_id, direction, remote_number } = payload;
+  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}`);
 
   // Registra no call-engine em memória com sincronização
-  registerCallSession({
-    callId: call_id,
-    remoteNumber: remote_number,
-    direction: direction || 'OUTBOUND'
-  });
+  let call = getCallSession(call_id);
+  if (!call) {
+    call = registerCallSession({
+      callId: call_id,
+      remoteNumber: remote_number,
+      direction: direction || 'OUTBOUND'
+    });
+  }
 
-  const cfg = await getVoiceAgentConfig();
-  const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
+  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  const greeting = profile.opening_message;
 
-  // Inicializa histórico com a saudação transmitida
+  // Inicializa histórico com a abertura oficial do perfil ativo
   const callHistory = getCallHistory(call_id);
   if (callHistory.length === 0) {
     callHistory.push({
@@ -707,27 +716,23 @@ export async function handleCallConnectedWebhook(payload = {}) {
     });
   }
 
-  // Se a saudação já foi transmitida pelo Meowcaller (MP3 local de 0ms) ou em qualquer chamada INBOUND, evita duplicidade
-  if (greeting_already_played || direction === 'INBOUND') {
-    console.log(`[VOICE_AGENT] ℹ️ Saudação da chamada ${call_id} (${direction}) já gerenciada pelo Meowcaller. Histórico sincronizado sem duplicar áudio.`);
-    return { ok: true, handled: true, call_id, greeting, duplicate_skipped: true };
+  // Dispara a fala de abertura do perfil ativo no Google Chirp 3 HD se ainda não foi tocada nesta chamada
+  if (!call.greetingPlayed) {
+    call.greetingPlayed = true;
+    try {
+      const res = await speakInCall({
+        callId: call_id,
+        text: greeting,
+        voice: profile.voice_id
+      });
+      return { ok: true, handled: true, call_id, greeting, character: profile.character_name, mode: profile.mode_name, ...res };
+    } catch (err) {
+      console.error(`[VOICE_AGENT] Erro ao disparar abertura na chamada ${call_id}:`, err.message);
+      return { ok: false, handled: false, error: err.message };
+    }
   }
 
-  if (!cfg.is_active) {
-    console.log('[VOICE_AGENT] Atendente de voz desativado nas configurações.');
-    return { ok: true, handled: false, reason: 'agent_disabled' };
-  }
-
-  try {
-    const res = await speakInCall({
-      callId: call_id,
-      text: greeting
-    });
-    return { ok: true, handled: true, call_id, greeting, ...res };
-  } catch (err) {
-    console.error(`[VOICE_AGENT] Erro ao disparar saudação na chamada ${call_id}:`, err.message);
-    return { ok: false, handled: false, error: err.message };
-  }
+  return { ok: true, handled: true, call_id, greeting_already_played: true };
 }
 
 /**
@@ -840,13 +845,15 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     usedPersonality = llmResult.personality || usedPersonality;
   } else {
     // Caso o áudio seja muito curto ou não haja palavras identificáveis
+    const curProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
     console.log(`[VOICE_AGENT] ℹ️ Áudio sem transcrição de fala clara ou silêncio na chamada ${callId}.`);
-    replyText = "Olá! Aqui é o Pedro da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?";
+    replyText = `Olá! Aqui é o ${curProfile.character_name} da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?`;
   }
 
   // Sanitiza texto para pronúncia limpa
   replyText = sanitizeSpeechText(replyText);
-  console.log(`[VOICE_AGENT] 💬 Pedro responderá na chamada ${callId} (${usedPersonality}): "${replyText}"`);
+  const activeProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  console.log(`[VOICE_AGENT] 💬 ${activeProfile.character_name} (${activeProfile.mode_name}) responderá na chamada ${callId}: "${replyText}"`);
 
   // Atualiza histórico com a resposta do atendente
   callHistory.push({
@@ -870,7 +877,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
 
     // Registra métricas detalhadas do turno no call-engine
     const turnNumber = (call?.turnCount || 0) + 1;
-    const currentVoice = call?.activeVoiceId || getActiveCallVoice();
+    const currentVoice = call?.activeVoice || activeProfile.voice_id || getActiveCallVoice();
     recordTurnTelemetry({
       callId,
       turnNumber,
@@ -882,6 +889,11 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       userText: userText || '',
       replyText,
       voice: currentVoice,
+      characterId: activeProfile.character_id,
+      characterName: activeProfile.character_name,
+      mode: activeProfile.mode,
+      modeName: activeProfile.mode_name,
+      profileKey: activeProfile.profile_key,
       personality: usedPersonality,
       usage: llmUsage,
       charactersSynthesized: replyText.length,
@@ -894,6 +906,9 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       turn_number: turnNumber,
       user_text: userText || '',
       reply_text: replyText,
+      character: activeProfile.character_name,
+      mode: activeProfile.mode_name,
+      voice: currentVoice,
       metrics: {
         stt_ms: sttMs,
         llm_ms: llmMs,
@@ -909,7 +924,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     console.error(`[VOICE_AGENT] Erro ao reproduzir resposta na chamada ${callId}:`, err.message);
 
     const turnNumber = (call?.turnCount || 0) + 1;
-    const currentVoice = call?.activeVoiceId || getActiveCallVoice();
+    const currentVoice = call?.activeVoice || activeProfile.voice_id || getActiveCallVoice();
     recordTurnTelemetry({
       callId,
       turnNumber,
@@ -921,6 +936,11 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       userText: userText || '',
       replyText,
       voice: currentVoice,
+      characterId: activeProfile.character_id,
+      characterName: activeProfile.character_name,
+      mode: activeProfile.mode,
+      modeName: activeProfile.mode_name,
+      profileKey: activeProfile.profile_key,
       personality: usedPersonality,
       usage: llmUsage,
       charactersSynthesized: replyText.length,

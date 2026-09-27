@@ -4,9 +4,16 @@
  * REGRAS ARQUITETURAIS:
  * 1. Exclusivo para LIGAÇÕES / CALL.
  * 2. TTS ÚNICO: Google Cloud Chirp 3 HD (sem Kokoro, sem Chatterbox em CALL).
- * 3. 3 Vozes Favoritas configuráveis pelo Admin.
- * 4. 3 Personalidades Dinâmicas (Equilíbrio, Firme, Intenso).
- * 5. Troca de Voz e Personalidade DURANTE chamada ativa aplicada no PRÓXIMO turno.
+ * 3. 4 Personagens (Rafael, Sirlene, Vital, Alex) × 3 Modos (Normal, Firme, Intenso) = 12 Perfis Independentes.
+ * 4. Cada perfil possui:
+ *    - character_id, character_name, mode, mode_name, profile_key
+ *    - voice_id (Google Cloud Chirp 3 HD)
+ *    - opening_message (abertura falada SOMENTE no início da ligação caso este perfil inicie a chamada)
+ *    - system_script (o SYSTEM PROMPT COMPLETO do DeepSeek — aplicado rigorosamente sem misturar personas)
+ * 5. Troca de Personagem e/ou Modo DURANTE chamada ativa (Hot-Swap) aplicada IMEDIATAMENTE no PRÓXIMO turno:
+ *    - Sem desligar, sem reiniciar, sem reconectar, sem nova chamada.
+ *    - Sem repetir opening_message.
+ *    - Preservando histórico factual e dados do usuário.
  * 6. Telemetria fiel por chamada e por turno (STT, LLM tokens reais, TTS chars, latências).
  */
 
@@ -18,89 +25,298 @@ import {
 } from './google-chirp3-hd.mjs';
 
 // ======================================================================
-// 1. AS 3 PERSONALIDADES OFICIAIS DE ATENDIMENTO TELEFÔNICO
+// 1. OS 4 PERSONAGENS CANÔNICOS DE ATENDIMENTO
 // ======================================================================
 
-export const DEFAULT_PERSONALITIES = Object.freeze({
-  equilibrio: {
-    id: 'equilibrio',
-    name: 'Equilíbrio',
-    description: 'Acolhedor, positivo, motivador, respeitoso e tranquilo.',
-    tone: 'Calmo, cordial e encorajador',
-    intensity: 'Moderada',
-    prompt: `Você é o consultor oficial de voz da Max Nutrition na ligação telefônica.
-DIRETRIZES DE PERSONALIDADE — EQUILÍBRIO:
-1. Tom de Voz: Acolhedor, positivo, motivador, respeitoso e tranquilo. Fale como um parceiro atencioso ("Com certeza!", "Estou aqui para te ajudar!", "Vamos juntos conquistar essa meta!").
-2. Estilo Conversacional: Escute com empatia e calma. Valide as dúvidas e desafios da pessoa antes de sugerir soluções.
-3. Objetividade Telefônica: Fale no MÁXIMO 2 ou 3 frases por turno (entre 15 e 35 palavras). Respostas diretas e naturais.
-4. Pronúncia Limpa (TTS): NUNCA use emojis, asteriscos, hashtags, travessões ou listas pontuadas, pois o texto será lido em voz alta na ligação.
-5. Foco: Nutrição, hábitos saudáveis, suplementação de qualidade e incentivo diário com muita empatia.`
+export const CHARACTERS_MAP = Object.freeze({
+  rafael: {
+    id: 'rafael',
+    name: 'Rafael',
+    role: 'Liderança Estratégica, Visão & Atendimento Max Nutrition',
+    gender: 'MALE',
+    defaultVoice: 'pt-BR-Chirp3-HD-Achird'
   },
-  firme: {
-    id: 'firme',
-    name: 'Firme',
-    description: 'Mais direto, cobra ação, confronta desculpas de forma respeitosa, aumenta responsabilidade e energia.',
-    tone: 'Direto, seguro e focado em metas',
-    intensity: 'Alta',
-    prompt: `Você é o consultor oficial de voz da Max Nutrition na ligação telefônica.
-DIRETRIZES DE PERSONALIDADE — FIRME:
-1. Tom de Voz: Direto, seguro, enérgico e objetivo. Confronte desculpas com respeito e firmeza ("Entendi seu ponto, mas qual é o nosso compromisso hoje?", "Sem adiar, vamos fazer o que precisa ser feito agora!").
-2. Responsabilidade: Estimule a pessoa a assumir o controle dos seus resultados. Não passe a mão na cabeça para desculpas fáceis ou falta de constância.
-3. Respeito Inegociável: Firmeza NÃO é agressão. Nunca seja rude, sarcástico ou desrespeitoso.
-4. Objetividade Telefônica: Respostas enérgicas e curtas de no máximo 2 frases diretas (entre 12 e 30 palavras). Em ligação, clareza direta tem impacto imediato.
-5. Pronúncia Limpa (TTS): NUNCA use emojis, asteriscos, hashtags ou tópicos no texto.
-6. Foco: Ação imediata, cumprimento do plano de treinos e dieta, e consistência nos resultados.`
+  sirlene: {
+    id: 'sirlene',
+    name: 'Sirlene',
+    role: 'Nutrição, Emagrecimento, Fome/Saciedade & Comportamento Alimentar',
+    gender: 'FEMALE',
+    defaultVoice: 'pt-BR-Chirp3-HD-Achernar'
   },
-  intenso: {
-    id: 'intenso',
-    name: 'Intenso',
-    description: 'Coach de alta cobrança, muito direto, insiste em execução, desafia acomodação e pressiona para continuar.',
-    tone: 'Incisivo, vibrante e desafiador',
-    intensity: 'Máxima',
-    prompt: `Você é o coach de alta performance e consultor oficial de voz da Max Nutrition na ligação telefônica.
-DIRETRIZES DE PERSONALIDADE — INTENSO:
-1. Tom de Voz: Incisivo, vibrante, desafiador e focado em superação ("Você quer resultado de verdade ou vai inventar desculpa?", "O seu objetivo tá na mesa: foco total na execução!").
-2. Cobrança de Alto Nível: Pressione a pessoa a não parar, não desistir e romper com a zona de conforto.
-3. SEGURANÇA E LIMITAÇÕES FÍSICAS (REGRA ABSOLUTA E VITAL):
-   - SEM insultos, SEM humilhação, SEM palavrões, SEM bullying, SEM ridicularização.
-   - Respeite limitações físicas relatadas pela pessoa.
-   - SE A PESSOA RELATAR DOR FORTE, TONTURA, FALTA DE AR ANORMAL, DESMAIO OU QUALQUER EMERGÊNCIA: INTERROMPA A COBRANÇA IMEDIATAMENTE, oriente a pausar a atividade e buscar avaliação médica com serenidade.
-4. Objetividade Telefônica: No máximo 2 frases curtas, impactantes e energéticas (entre 10 e 25 palavras).
-5. Pronúncia Limpa (TTS): NUNCA use emojis, asteriscos, hashtags ou tópicos.
-6. Foco: Máxima disciplina e compromisso incondicional com a transformação física.`
+  vital: {
+    id: 'vital',
+    name: 'Vital',
+    role: 'Saúde Integrativa, Exames Clínicos, Prevenção & Bem-Estar',
+    gender: 'MALE',
+    defaultVoice: 'pt-BR-Chirp3-HD-Charon'
+  },
+  alex: {
+    id: 'alex',
+    name: 'Alex',
+    role: 'Personal Trainer, Treino de Força, Hipertrofia & Disciplina',
+    gender: 'MALE',
+    defaultVoice: 'pt-BR-Chirp3-HD-Alkaid'
   }
 });
 
 // ======================================================================
-// 2. AS 3 VOZES FAVORITAS DO GOOGLE CHIRP 3 HD
+// 2. OS 3 MODOS DE INTENSIDADE POR PERSONAGEM
 // ======================================================================
 
-export const DEFAULT_FAVORITE_VOICES = Object.freeze([
-  {
-    slot: 1,
-    label: 'Voz Principal',
-    voice_id: 'pt-BR-Chirp3-HD-Achernar',
-    gender: 'FEMALE',
-    description: 'Feminina natural, expressiva e clara para telefonia'
+export const MODES_MAP = Object.freeze({
+  normal: {
+    id: 'normal',
+    name: 'Normal',
+    label: 'Normal',
+    intensity: 'Acolhedor & Cordial'
   },
-  {
-    slot: 2,
-    label: 'Voz Alternativa',
-    voice_id: 'pt-BR-Chirp3-HD-Aoede',
-    gender: 'FEMALE',
-    description: 'Feminina suave e cordial'
+  firm: {
+    id: 'firm',
+    name: 'Firme',
+    label: 'Firme',
+    intensity: 'Direto & Focado em Ação'
   },
-  {
-    slot: 3,
-    label: 'Voz Especial',
-    voice_id: 'pt-BR-Chirp3-HD-Achird',
-    gender: 'MALE',
-    description: 'Masculina natural e segura'
+  intense: {
+    id: 'intense',
+    name: 'Intenso',
+    label: 'Intenso',
+    intensity: 'Alta Cobrança & Superação'
   }
-]);
+});
 
 // ======================================================================
-// 3. PARÂMETROS DE CUSTO ESTIMADO
+// 3. MATRIZ OFICIAL: 12 PERFIS INDEPENDENTES
+// ======================================================================
+
+export const DEFAULT_PROFILES_12 = Object.freeze({
+  // --------------------------------------------------------------------
+  // RAFAEL (3 MODOS)
+  // --------------------------------------------------------------------
+  rafael_normal: {
+    profile_key: 'rafael_normal',
+    character_id: 'rafael',
+    character_name: 'Rafael',
+    mode: 'normal',
+    mode_name: 'Normal',
+    voice_id: 'pt-BR-Chirp3-HD-Achird',
+    opening_message: 'Olá! Tudo bem? Aqui é o Rafael da Max Nutrition. Estou entrando em contato para saber como estão seus objetivos e tirar qualquer dúvida!',
+    system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
+MODO ATIVO: RAFAEL / NORMAL
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Acolhedor, positivo, parceiro e cordial. Fale com naturalidade brasileira e entusiasmo genuíno.
+2. Estilo Conversacional: Escute com empatia e tranquilidade. Valide o momento da pessoa antes de orientar soluções e suplementos.
+3. Objetividade Telefônica: Fale no MÁXIMO 2 ou 3 frases por turno (entre 15 e 35 palavras). Respostas diretas ao ponto para telefone.
+4. Formato Limpo para Fala (TTS): NUNCA utilize asteriscos (* ou **), hashtags (#), travessões, listas pontuadas ou emojis no texto.
+5. Foco: Ajudar a pessoa a alcançar suas metas de saúde, nutrição e performance com clareza e respeito.`
+  },
+  rafael_firm: {
+    profile_key: 'rafael_firm',
+    character_id: 'rafael',
+    character_name: 'Rafael',
+    mode: 'firm',
+    mode_name: 'Firme',
+    voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    opening_message: 'Olá! Aqui é o Rafael da Max Nutrition. Vamos direto ao ponto: como está o seu compromisso com suas metas hoje?',
+    system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
+MODO ATIVO: RAFAEL / FIRME
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Direto, seguro, enérgico e focado em metas. Confronte desculpas com respeito e firmeza ("Entendi seu ponto, mas qual é o nosso compromisso hoje?", "Sem adiar, vamos fazer o que precisa ser feito agora!").
+2. Responsabilidade: Estimule a pessoa a assumir o controle dos seus resultados. Não passe a mão na cabeça para desculpas fáceis ou falta de constância.
+3. Respeito Inegociável: Firmeza NÃO é agressão. Nunca seja rude, sarcástico ou desrespeitoso.
+4. Objetividade Telefônica: No MÁXIMO 2 frases enérgicas e curtas (entre 12 e 30 palavras). Em ligação, clareza direta tem impacto imediato.
+5. Formato Limpo para Fala (TTS): NUNCA utilize asteriscos, hashtags ou emojis.
+6. Foco: Ação imediata, disciplina nos hábitos e cumprimento dos objetivos estabelecidos.`
+  },
+  rafael_intense: {
+    profile_key: 'rafael_intense',
+    character_id: 'rafael',
+    character_name: 'Rafael',
+    mode: 'intense',
+    mode_name: 'Intenso',
+    voice_id: 'pt-BR-Chirp3-HD-Fenrir',
+    opening_message: 'Aqui é o Rafael da Max Nutrition. Foco total: sem enrolação, o que você já fez hoje pelos seus resultados?',
+    system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
+MODO ATIVO: RAFAEL / INTENSO
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Incisivo, vibrante, desafiador e focado em superação ("Você quer resultado de verdade ou vai inventar desculpa?", "O seu objetivo tá na mesa: foco total na execução!").
+2. Cobrança de Alto Nível: Pressione a pessoa a não parar, não desistir e romper com a zona de conforto.
+3. SEGURANÇA E LIMITAÇÕES FÍSICAS (REGRA ABSOLUTA E VITAL):
+   - SEM insultos, SEM humilhação, SEM palavrões, SEM ridicularização.
+   - Se a pessoa relatar dor intensa, emergência ou limitação física: interrompa a cobrança e oriente serenamente.
+4. Objetividade Telefônica: No máximo 2 frases curtas, impactantes e energéticas (entre 10 e 25 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use emojis, asteriscos ou hashtags.`
+  },
+
+  // --------------------------------------------------------------------
+  // SIRLENE (3 MODOS)
+  // --------------------------------------------------------------------
+  sirlene_normal: {
+    profile_key: 'sirlene_normal',
+    character_id: 'sirlene',
+    character_name: 'Sirlene',
+    mode: 'normal',
+    mode_name: 'Normal',
+    voice_id: 'pt-BR-Chirp3-HD-Achernar',
+    opening_message: 'Olá! Seja muito bem-vindo, aqui é a Sirlene da Max Nutrition. Me conta com calma: como você tem se sentido com sua alimentação?',
+    system_script: `Você é a Sirlene, especialista em nutrição, reeducação alimentar e emagrecimento da Max Nutrition na ligação telefônica.
+MODO ATIVO: SIRLENE / NORMAL
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Claro, acolhedor, prático, inteligente e fácil de entender. Converse como uma mentora nutricional calorosa.
+2. Escuta Ativa: Valide as dificuldades alimentares, horários de refeição, água e proteínas com empatia e tranquilidade.
+3. Orientação Prática: Dê dicas simples de trocas alimentares sustentáveis sem dietas malucas nem terrorismo nutricional.
+4. Objetividade Telefônica: Fale no MÁXIMO 2 ou 3 frases por turno (entre 15 e 35 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use asteriscos, hashtags ou emojis.
+6. Segurança: Nunca prescreva medicamentos nem altere dosagens médicas.`
+  },
+  sirlene_firm: {
+    profile_key: 'sirlene_firm',
+    character_id: 'sirlene',
+    character_name: 'Sirlene',
+    mode: 'firm',
+    mode_name: 'Firme',
+    voice_id: 'pt-BR-Chirp3-HD-Aoede',
+    opening_message: 'Olá, aqui é a Sirlene da Max Nutrition. Vim checar como está a disciplina do seu plano alimentar. Como você está seguindo?',
+    system_script: `Você é a Sirlene, especialista em nutrição da Max Nutrition na ligação telefônica.
+MODO ATIVO: SIRLENE / FIRME
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Direto, seguro, profissional e focado em consistência alimentar.
+2. Cobrança de Adesão: Se a pessoa estiver pulando refeições ou descuidando de água e proteínas, aponte a importância da disciplina sem rodeios.
+3. Respeito e Clareza: Firmeza na rotina alimentar sem desrespeitar ou causar culpa excessiva.
+4. Objetividade Telefônica: No MÁXIMO 2 frases diretas (entre 12 e 30 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use asteriscos, hashtags ou emojis.`
+  },
+  sirlene_intense: {
+    profile_key: 'sirlene_intense',
+    character_id: 'sirlene',
+    character_name: 'Sirlene',
+    mode: 'intense',
+    mode_name: 'Intenso',
+    voice_id: 'pt-BR-Chirp3-HD-Autonoe',
+    opening_message: 'Oi, aqui é a Sirlene da Max Nutrition. Sem desculpas para a alimentação hoje: seguiu o protocolo ou furou a dieta?',
+    system_script: `Você é a Sirlene, especialista em nutrição da Max Nutrition na ligação telefônica.
+MODO ATIVO: SIRLENE / INTENSO
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Incisivo, exigente e focado em disciplina máxima contra deslizes alimentares.
+2. Confronto Construtivo: "Você quer atingir seu peso e saúde ou vai continuar cedendo para vontades passageiras?" Pressione para manter a constância.
+3. Segurança em Saúde: Sem apoiar jejuns extremos perigosos ou sintomas de desnutrição.
+4. Objetividade Telefônica: No máximo 2 frases curtas e firmes (entre 10 e 25 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use emojis, asteriscos ou hashtags.`
+  },
+
+  // --------------------------------------------------------------------
+  // VITAL (3 MODOS)
+  // --------------------------------------------------------------------
+  vital_normal: {
+    profile_key: 'vital_normal',
+    character_id: 'vital',
+    character_name: 'Vital',
+    mode: 'normal',
+    mode_name: 'Normal',
+    voice_id: 'pt-BR-Chirp3-HD-Charon',
+    opening_message: 'O Vital saiu para resolver algumas coisas. Eu vou ficar aqui com você agora. Como você tem passado ultimamente?',
+    system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde integrativa da Max Nutrition na ligação telefônica.
+MODO ATIVO: VITAL / NORMAL
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Humano, profissional, calmo e seguro. Fale como numa consulta atenciosa.
+2. Contexto Clínico: Explique para que servem exames, a importância da hidratação, sono e exames periódicos com serenidade.
+3. Exames vs Resultados: Nunca invente resultados de exames. Se o exame foi feito mas não tem resultado na ficha, peça o laudo ou valores com naturalidade.
+4. Objetividade Telefônica: Fale no MÁXIMO 2 ou 3 frases por turno (entre 15 e 35 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA utilize asteriscos, hashtags ou emojis.
+6. Segurança Máxima: Em caso de dor no peito, falta de ar severa ou emergência, oriente pronto atendimento imediatamente.`
+  },
+  vital_firm: {
+    profile_key: 'vital_firm',
+    character_id: 'vital',
+    character_name: 'Vital',
+    mode: 'firm',
+    mode_name: 'Firme',
+    voice_id: 'pt-BR-Chirp3-HD-Gaspra',
+    opening_message: 'Aqui é o Vital. Vim verificar sua saúde e seus exames. Você tem cuidado da sua rotina clínica e hidratação como combinamos?',
+    system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde da Max Nutrition na ligação telefônica.
+MODO ATIVO: VITAL / FIRME
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Sério, direto, responsável e vigilante com a integridade da saúde.
+2. Cobrança de Exames e Cuidados: Não tolere negligência com exames atrasados ou medicamentos prescritos. Seja firme uma vez: explique o risco da omissão.
+3. Foco em Dados Reais: Não invente laudos. Exija os dados para poder avaliar com responsabilidade.
+4. Objetividade Telefônica: No MÁXIMO 2 frases assertivas (entre 12 e 30 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use asteriscos, hashtags ou emojis.`
+  },
+  vital_intense: {
+    profile_key: 'vital_intense',
+    character_id: 'vital',
+    character_name: 'Vital',
+    mode: 'intense',
+    mode_name: 'Intenso',
+    voice_id: 'pt-BR-Chirp3-HD-Iapetus',
+    opening_message: 'Aqui é o Vital. Foco na sua integridade física: sem negligenciar exames e cuidados médicos. O que foi feito hoje pela sua saúde?',
+    system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde da Max Nutrition na ligação telefônica.
+MODO ATIVO: VITAL / INTENSO
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Incisivo, severo com a negligência e protetor da vida. "Sua saúde não é brincadeira: pare de adiar o que é prioritário!"
+2. Cobrança Máxima de Responsabilidade Clínica: Não aceite desculpas para não fazer exames de rotina ou não beber água.
+3. SEGURANÇA ABSOLUTA: Se houver relato de dor aguda, desmaio ou mal-estar grave, pare imediatamente qualquer pressão e comande busca por socorro médico.
+4. Objetividade Telefônica: No máximo 2 frases curtas e contundentes (entre 10 e 25 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use emojis, asteriscos ou hashtags.`
+  },
+
+  // --------------------------------------------------------------------
+  // ALEX (3 MODOS)
+  // --------------------------------------------------------------------
+  alex_normal: {
+    profile_key: 'alex_normal',
+    character_id: 'alex',
+    character_name: 'Alex',
+    mode: 'normal',
+    mode_name: 'Normal',
+    voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    opening_message: 'Fala campeão, aqui é o Alex! Tô passando pra gente bater um papo rápido sobre sua rotina de treinos. Treinou hoje?',
+    system_script: `Você é o Alex, personal trainer virtual e especialista em treinos e performance da Max Nutrition na ligação telefônica.
+MODO ATIVO: ALEX / NORMAL
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Enérgico, motivador, parceiro e profissional. Fale como um treinador que incentiva o aluno a progredir.
+2. Ajuste de Rotina: Valide se o treino coube no dia, se o descanso foi respeitado e oriente sobre constância antes de aumentar carga.
+3. Segurança em Treino: Respeite dores e lesões relatadas.
+4. Objetividade Telefônica: Fale no MÁXIMO 2 ou 3 frases por turno (entre 15 e 35 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use asteriscos, hashtags ou emojis.`
+  },
+  alex_firm: {
+    profile_key: 'alex_firm',
+    character_id: 'alex',
+    character_name: 'Alex',
+    mode: 'firm',
+    mode_name: 'Firme',
+    voice_id: 'pt-BR-Chirp3-HD-Fenrir',
+    opening_message: 'Aqui é o Alex, seu personal. Vim cobrar o treino de hoje: o que foi planejado já foi executado ou você tá adiando?',
+    system_script: `Você é o Alex, personal trainer da Max Nutrition na ligação telefônica.
+MODO ATIVO: ALEX / FIRME
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Direto, disciplinado, sem rodeios e cobrador de execução.
+2. Cobrança de Faltas: Se faltou ao treino sem justificativa física real, cobre a volta imediata: "Quem quer resultado cumpre o plano, sem desculpas!"
+3. Respeito e Segurança: Firmeza sem ofensa. Se houver lesão confirmada, adapte o exercício.
+4. Objetividade Telefônica: No MÁXIMO 2 frases curtas e energéticas (entre 12 e 30 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use asteriscos, hashtags ou emojis.`
+  },
+  alex_intense: {
+    profile_key: 'alex_intense',
+    character_id: 'alex',
+    character_name: 'Alex',
+    mode: 'intense',
+    mode_name: 'Intenso',
+    voice_id: 'pt-BR-Chirp3-HD-Achird',
+    opening_message: 'Alex na área! Sem moleza e sem mimimi: treinou hoje com carga de verdade ou vai inventar desculpa pra descansar?',
+    system_script: `Você é o Alex, personal trainer de alta cobrança da Max Nutrition na ligação telefônica.
+MODO ATIVO: ALEX / INTENSO
+DIRETRIZES DE ATENDIMENTO:
+1. Tom de Voz: Coach militar, vibrante, incisivo e intolerante com a preguiça. "Você quer músculo e definição ou quer conforto no sofá?"
+2. Desafio à Zona de Conforto: Pressione para o aluno treinar forte e manter disciplina inegociável.
+3. SEGURANÇA FÍSICA OBRIGATÓRIA: Em caso de tontura, dor articular aguda, falta de ar anormal ou mal-estar súbito: interrompa o estímulo e oriente descanso com atendimento.
+4. Objetividade Telefônica: No máximo 2 frases impactantes e secas (entre 10 e 25 palavras).
+5. Formato Limpo para Fala (TTS): NUNCA use emojis, asteriscos ou hashtags.`
+  }
+});
+
+// ======================================================================
+// 4. PARÂMETROS DE CUSTO ESTIMADO
 // ======================================================================
 
 export const DEFAULT_PRICING = Object.freeze({
@@ -112,12 +328,11 @@ export const DEFAULT_PRICING = Object.freeze({
 });
 
 // ======================================================================
-// 4. ESTADO GLOBAL EM MEMÓRIA (CACHE QUENTE PARA LATÊNCIA ZERO)
+// 5. ESTADO GLOBAL EM MEMÓRIA (CACHE QUENTE PARA LATÊNCIA ZERO)
 // ======================================================================
 
-let activePersonalityId = 'equilibrio';
-let personalitiesState = JSON.parse(JSON.stringify(DEFAULT_PERSONALITIES));
-let favoriteVoicesState = JSON.parse(JSON.stringify(DEFAULT_FAVORITE_VOICES));
+let activeGlobalProfileKey = 'rafael_normal';
+let profiles12State = JSON.parse(JSON.stringify(DEFAULT_PROFILES_12));
 let pricingConfig = { ...DEFAULT_PRICING };
 
 /**
@@ -133,153 +348,215 @@ const completedCallsBuffer = [];
 const MAX_COMPLETED_CALLS = 100;
 
 // ======================================================================
-// 5. MÉTODOS DE CONFIGURAÇÃO GLOBAL
+// 6. MÉTODOS DE GERENCIAMENTO DOS 12 PERFIS
 // ======================================================================
 
-export function getCallEngineConfig() {
-  return {
-    active_voice: getActiveCallVoice(),
-    active_personality: activePersonalityId,
-    favorite_voices: favoriteVoicesState,
-    personalities: Object.values(personalitiesState),
-    pricing: pricingConfig
-  };
+export function getAllProfiles12() {
+  return Object.values(profiles12State);
 }
 
-export function setActivePersonality(personalityId, updatedBy = 'Admin') {
-  if (!personalitiesState[personalityId]) {
-    throw new Error(`Personalidade inválida: '${personalityId}'. Opções válidas: equilibrio, firme, intenso.`);
-  }
-  const previous = activePersonalityId;
-  activePersonalityId = personalityId;
-  console.log(`[CALL_ENGINE] 🎭 Personalidade padrão de chamadas alterada de '${previous}' para '${personalityId}' por ${updatedBy}`);
-  return {
-    success: true,
-    active_personality: personalityId,
-    previous_personality: previous,
-    updated_at: new Date().toISOString()
-  };
+export function getProfiles12Map() {
+  return profiles12State;
 }
 
-export function getActivePersonality() {
-  return personalitiesState[activePersonalityId] || DEFAULT_PERSONALITIES.equilibrio;
+export function getProfileByKey(profileKey) {
+  if (!profileKey) return profiles12State[activeGlobalProfileKey] || profiles12State.rafael_normal;
+  return profiles12State[profileKey] || profiles12State.rafael_normal;
 }
 
-export function updatePersonalityScript(id, { name, description, prompt, tone, intensity }, updatedBy = 'Admin') {
-  if (!personalitiesState[id]) {
-    throw new Error(`Personalidade '${id}' não encontrada.`);
-  }
-  if (!prompt || typeof prompt !== 'string' || prompt.trim().length < 20) {
-    throw new Error('O prompt da personalidade deve ter pelo menos 20 caracteres.');
+export function getProfile(characterId, mode) {
+  const cId = String(characterId || '').toLowerCase().trim();
+  const mId = String(mode || '').toLowerCase().trim();
+  const key = `${cId}_${mId}`;
+  return profiles12State[key] || getProfileByKey(activeGlobalProfileKey);
+}
+
+export function updateProfile(characterId, mode, updates = {}, updatedBy = 'Admin') {
+  const cId = String(characterId || '').toLowerCase().trim();
+  const mId = String(mode || '').toLowerCase().trim();
+  const key = `${cId}_${mId}`;
+
+  if (!profiles12State[key]) {
+    throw new Error(`Perfil '${key}' não encontrado na matriz de 12 perfis.`);
   }
 
-  personalitiesState[id] = {
-    ...personalitiesState[id],
-    name: name?.trim() || personalitiesState[id].name,
-    description: description?.trim() || personalitiesState[id].description,
-    prompt: prompt.trim(),
-    tone: tone?.trim() || personalitiesState[id].tone,
-    intensity: intensity?.trim() || personalitiesState[id].intensity,
+  const current = profiles12State[key];
+  const updated = {
+    ...current,
+    voice_id: updates.voice_id?.trim() || current.voice_id,
+    opening_message: updates.opening_message !== undefined ? String(updates.opening_message).trim() : current.opening_message,
+    system_script: updates.system_script !== undefined ? String(updates.system_script).trim() : current.system_script,
     updated_at: new Date().toISOString(),
     updated_by: updatedBy
   };
 
-  console.log(`[CALL_ENGINE] 📝 Script da personalidade '${id}' atualizado por ${updatedBy}`);
+  profiles12State[key] = updated;
+  console.log(`[CALL_ENGINE] 💾 Perfil '${key}' (${updated.character_name} / ${updated.mode_name}) atualizado por ${updatedBy}`);
   return {
     success: true,
-    personality: personalitiesState[id]
+    profile: updated
   };
 }
 
-export function resetPersonalityScript(id) {
-  if (!DEFAULT_PERSONALITIES[id]) {
-    throw new Error(`Personalidade padrão '${id}' não existe.`);
+export function resetProfileToDefault(characterId, mode) {
+  const cId = String(characterId || '').toLowerCase().trim();
+  const mId = String(mode || '').toLowerCase().trim();
+  const key = `${cId}_${mId}`;
+
+  if (!DEFAULT_PROFILES_12[key]) {
+    throw new Error(`Perfil padrão '${key}' não existe.`);
   }
-  personalitiesState[id] = JSON.parse(JSON.stringify(DEFAULT_PERSONALITIES[id]));
-  console.log(`[CALL_ENGINE] 🔄 Script da personalidade '${id}' restaurado para o padrão oficial.`);
+
+  profiles12State[key] = JSON.parse(JSON.stringify(DEFAULT_PROFILES_12[key]));
+  console.log(`[CALL_ENGINE] 🔄 Perfil '${key}' restaurado para o padrão oficial.`);
   return {
     success: true,
-    personality: personalitiesState[id]
+    profile: profiles12State[key]
   };
 }
 
-export function updateFavoriteVoices(newFavorites, updatedBy = 'Admin') {
-  if (!Array.isArray(newFavorites) || newFavorites.length !== 3) {
-    throw new Error('Devem ser fornecidas exatamente 3 vozes favoritas.');
+export function getActiveGlobalProfileKey() {
+  return activeGlobalProfileKey;
+}
+
+export function getActiveGlobalProfile() {
+  return profiles12State[activeGlobalProfileKey] || profiles12State.rafael_normal;
+}
+
+export function setActiveGlobalProfile(characterId, mode, updatedBy = 'Admin') {
+  const cId = String(characterId || '').toLowerCase().trim();
+  const mId = String(mode || '').toLowerCase().trim();
+  const key = `${cId}_${mId}`;
+
+  if (!profiles12State[key]) {
+    throw new Error(`Perfil '${key}' inválido. Escolha um dos 12 perfis.`);
   }
 
-  const updated = newFavorites.map((fav, index) => {
-    const slot = index + 1;
-    const voiceId = fav.voice_id?.trim() || DEFAULT_CHIRP3_HD_VOICE;
-    const label = fav.label?.trim() || `Voz ${slot}`;
-    const gender = fav.gender === 'MALE' ? 'MALE' : 'FEMALE';
-    return {
-      slot,
-      label,
-      voice_id: voiceId,
-      gender,
-      description: fav.description || (gender === 'FEMALE' ? 'Feminina Google Chirp 3 HD' : 'Masculina Google Chirp 3 HD')
-    };
-  });
+  const prev = activeGlobalProfileKey;
+  activeGlobalProfileKey = key;
+  const p = profiles12State[key];
 
-  favoriteVoicesState = updated;
-  console.log(`[CALL_ENGINE] ⭐ 3 Vozes favoritas atualizadas por ${updatedBy}`);
+  // Sincroniza a voz ativa global do Google Chirp 3 HD
+  setActiveCallVoice(p.voice_id, updatedBy);
+
+  console.log(`[CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de '${prev}' para '${key}' (${p.character_name} / ${p.mode_name}) por ${updatedBy}`);
   return {
     success: true,
-    favorite_voices: favoriteVoicesState
+    active_profile_key: key,
+    previous_profile_key: prev,
+    profile: p,
+    updated_at: new Date().toISOString()
+  };
+}
+
+// ======================================================================
+// 7. COMPATIBILIDADE RETROATIVA (GETTERS LEGADOS)
+// ======================================================================
+
+export const DEFAULT_PERSONALITIES = Object.freeze({
+  equilibrio: {
+    id: 'equilibrio',
+    name: 'Equilíbrio',
+    description: 'Acolhedor, positivo, motivador, respeitoso e tranquilo.',
+    tone: 'Calmo, cordial e encorajador',
+    intensity: 'Moderada',
+    prompt: DEFAULT_PROFILES_12.rafael_normal.system_script
+  },
+  firme: {
+    id: 'firme',
+    name: 'Firme',
+    description: 'Mais direto, cobra ação, confronta desculpas de forma respeitosa, aumenta responsabilidade e energia.',
+    tone: 'Direto, seguro e focado em metas',
+    intensity: 'Alta',
+    prompt: DEFAULT_PROFILES_12.rafael_firm.system_script
+  },
+  intenso: {
+    id: 'intenso',
+    name: 'Intenso',
+    description: 'Coach de alta cobrança, muito direto, insiste em execução, desafia acomodação e pressiona para continuar.',
+    tone: 'Incisivo, vibrante e desafiador',
+    intensity: 'Máxima',
+    prompt: DEFAULT_PROFILES_12.rafael_intense.system_script
+  }
+});
+
+export function getCallEngineConfig() {
+  const activeProfile = getActiveGlobalProfile();
+  return {
+    active_voice: activeProfile.voice_id || getActiveCallVoice(),
+    active_profile_key: activeGlobalProfileKey,
+    active_character_id: activeProfile.character_id,
+    active_mode: activeProfile.mode,
+    active_profile: activeProfile,
+    characters: Object.values(CHARACTERS_MAP),
+    modes: Object.values(MODES_MAP),
+    profiles_12: getAllProfiles12(),
+    // Campos legados preservados para compatibilidade
+    active_personality: activeProfile.mode,
+    personalities: Object.values(DEFAULT_PERSONALITIES),
+    favorite_voices: [
+      { slot: 1, label: 'Rafael (Voz Oficial)', voice_id: profiles12State.rafael_normal.voice_id, gender: 'MALE' },
+      { slot: 2, label: 'Sirlene (Voz Oficial)', voice_id: profiles12State.sirlene_normal.voice_id, gender: 'FEMALE' },
+      { slot: 3, label: 'Vital (Voz Oficial)', voice_id: profiles12State.vital_normal.voice_id, gender: 'MALE' }
+    ],
+    pricing: pricingConfig
+  };
+}
+
+export function getActivePersonality() {
+  const p = getActiveGlobalProfile();
+  return {
+    id: p.mode,
+    name: `${p.character_name} / ${p.mode_name}`,
+    prompt: p.system_script,
+    voice_id: p.voice_id
   };
 }
 
 export function getPersonalitiesList() {
-  return Object.values(personalitiesState);
+  return getAllProfiles12();
 }
 
-export function updatePersonality(id, data, updatedBy = 'Admin') {
-  const res = updatePersonalityScript(id, data, updatedBy);
-  return res.personality;
-}
-
-export function resetPersonalityToDefault(id) {
-  const res = resetPersonalityScript(id);
-  return res.personality;
-}
-
-export function updateCallEngineConfig({ activeVoice, activePersonalityId }, updatedBy = 'Admin') {
+export function updateCallEngineConfig({ activeVoice, activePersonalityId, characterId, mode, profileKey }, updatedBy = 'Admin') {
+  if (profileKey) {
+    const parts = profileKey.split('_');
+    if (parts.length === 2) {
+      setActiveGlobalProfile(parts[0], parts[1], updatedBy);
+    }
+  } else if (characterId && mode) {
+    setActiveGlobalProfile(characterId, mode, updatedBy);
+  } else if (activePersonalityId) {
+    // Mapeamento legado: se passar 'firme' ou 'intenso', mantém o personagem atual
+    const cur = getActiveGlobalProfile();
+    const targetMode = activePersonalityId === 'equilibrio' ? 'normal' : activePersonalityId;
+    setActiveGlobalProfile(cur.character_id, targetMode, updatedBy);
+  }
   if (activeVoice) {
     setActiveCallVoice(activeVoice, updatedBy);
-  }
-  if (activePersonalityId) {
-    setActivePersonality(activePersonalityId, updatedBy);
   }
   return getCallEngineConfig();
 }
 
-export function updateFavoriteVoiceSlot(slotNum, { name, voice_id, gender }) {
-  const slot = Number(slotNum);
-  const existingIndex = favoriteVoicesState.findIndex(f => f.slot === slot);
-  const current = existingIndex >= 0 ? favoriteVoicesState[existingIndex] : { slot };
-
-  const updatedItem = {
-    ...current,
-    slot,
-    label: name || current.label || `Voz ${slot}`,
-    name: name || current.name || current.label || `Voz ${slot}`,
-    voice_id: voice_id || current.voice_id || DEFAULT_CHIRP3_HD_VOICE,
-    gender: gender || current.gender || 'FEMALE',
-    description: (gender || current.gender) === 'MALE' ? 'Masculina Google Chirp 3 HD' : 'Feminina Google Chirp 3 HD'
-  };
-
-  if (existingIndex >= 0) {
-    favoriteVoicesState[existingIndex] = updatedItem;
-  } else {
-    favoriteVoicesState.push(updatedItem);
+export function updateFavoriteVoiceSlot(slotNum, { voice_id }) {
+  if (voice_id) {
+    setActiveCallVoice(voice_id);
   }
+  return { slot: slotNum, voice_id };
+}
 
-  return updatedItem;
+export function updatePersonality(id, data, updatedBy = 'Admin') {
+  // Mapeia para perfil ativo correspondente
+  const cur = getActiveGlobalProfile();
+  return updateProfile(cur.character_id, cur.mode, { system_script: data.prompt }, updatedBy);
+}
+
+export function resetPersonalityToDefault(id) {
+  const cur = getActiveGlobalProfile();
+  return resetProfileToDefault(cur.character_id, cur.mode);
 }
 
 // ======================================================================
-// 6. GESTÃO DE CHAMADAS EM ANDAMENTO & TROCA DINÂMICA
+// 8. GESTÃO DE CHAMADAS EM ANDAMENTO & HOT-SWAP AO VIVO
 // ======================================================================
 
 function maskPhoneNumber(phone) {
@@ -294,12 +571,15 @@ function maskPhoneNumber(phone) {
 /**
  * Registra o início ou conexão de uma chamada no motor quente
  */
-export function registerCallSession({ callId, remoteNumber = '', direction = 'OUTBOUND', businessId = 'BIZ-001' }) {
+export function registerCallSession({ callId, remoteNumber = '', direction = 'OUTBOUND', businessId = 'BIZ-001', profileKey = null }) {
   if (!callId) return null;
 
   if (activeCallsMap.has(callId)) {
     return activeCallsMap.get(callId);
   }
+
+  const effectiveProfileKey = profileKey && profiles12State[profileKey] ? profileKey : activeGlobalProfileKey;
+  const profile = profiles12State[effectiveProfileKey] || profiles12State.rafael_normal;
 
   const session = {
     callId,
@@ -311,16 +591,25 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     answeredAt: Date.now(),
     endedAt: null,
     status: 'ACTIVE',
-    activeVoice: getActiveCallVoice(),
-    activePersonalityId: activePersonalityId,
+    activeProfileKey: profile.profile_key,
+    activeCharacterId: profile.character_id,
+    activeCharacterName: profile.character_name,
+    activeMode: profile.mode,
+    activeModeName: profile.mode_name,
+    activeVoice: profile.voice_id || getActiveCallVoice(),
+    activeSystemScript: profile.system_script,
+    openingMessage: profile.opening_message,
+    greetingPlayed: false,
     history: [],
     turns: [],
     timeline: [
       {
         time: new Date().toISOString(),
         event: 'CALL_STARTED',
-        voice: getActiveCallVoice(),
-        personality: activePersonalityId
+        profile_key: profile.profile_key,
+        character: profile.character_name,
+        mode: profile.mode_name,
+        voice: profile.voice_id
       }
     ],
     totals: {
@@ -342,7 +631,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
   };
 
   activeCallsMap.set(callId, session);
-  console.log(`[CALL_ENGINE] 🟢 Chamada registrada no runtime quente: ${callId} (${session.maskedNumber}) | Voz: ${session.activeVoice} | Persona: ${session.activePersonalityId}`);
+  console.log(`[CALL_ENGINE] 🟢 Chamada registrada no runtime quente: ${callId} (${session.maskedNumber}) | Perfil: ${profile.character_name} / ${profile.mode_name} | Voz: ${session.activeVoice}`);
   return session;
 }
 
@@ -371,8 +660,12 @@ export function listActiveCalls() {
       status: call.status,
       duration_seconds: durationSeconds,
       started_at: new Date(call.startedAt).toISOString(),
+      active_profile_key: call.activeProfileKey,
+      current_character: call.activeCharacterName || call.activeCharacterId,
+      current_character_id: call.activeCharacterId,
+      current_mode: call.activeModeName || call.activeMode,
+      current_mode_id: call.activeMode,
       current_voice: call.activeVoice,
-      current_personality: call.activePersonalityId,
       turn_count: call.turns.length,
       last_latency_ms: lastTurn?.turn_latency_ms || null,
       tokens_total: call.totals.tokens_total,
@@ -387,61 +680,76 @@ export function listActiveCalls() {
 export const getActiveCallsList = listActiveCalls;
 
 /**
- * REQUISITO CRÍTICO: Troca de Voz e/ou Personalidade durante uma chamada ativa.
- * Aplica IMEDIATAMENTE no próximo turno da conversa sem desligar nem reiniciar.
+ * REQUISITO CRÍTICO — HOT-SWAP EM LIGAÇÃO:
+ * Troca de Personagem e/ou Modo DURANTE a mesma ligação em andamento.
+ * Aplica IMEDIATAMENTE no PRÓXIMO turno da conversa sem desligar, sem reiniciar, sem reconectar e sem repetir a opening_message.
  */
-export function switchCallRuntime({ callId, voice, personalityId, updatedBy = 'Admin' }) {
+export function switchCallRuntime({ callId, characterId, mode, voiceId, profileKey, updatedBy = 'Admin' }) {
   const call = activeCallsMap.get(callId);
   if (!call) {
     throw new Error(`Chamada '${callId}' não encontrada ou já encerrada.`);
   }
 
-  const changes = [];
+  let targetProfile = null;
 
-  if (voice && typeof voice === 'string') {
-    const cleanVoice = voice.trim();
-    if (cleanVoice !== call.activeVoice) {
-      const prevVoice = call.activeVoice;
-      call.activeVoice = cleanVoice;
-      changes.push(`Voz alterada de '${prevVoice}' para '${cleanVoice}'`);
-      call.timeline.push({
-        time: new Date().toISOString(),
-        event: 'VOICE_SWITCH',
-        from: prevVoice,
-        to: cleanVoice,
-        by: updatedBy
-      });
-    }
+  if (profileKey && profiles12State[profileKey]) {
+    targetProfile = profiles12State[profileKey];
+  } else if (characterId && mode) {
+    const key = `${characterId.toLowerCase()}_${mode.toLowerCase()}`;
+    targetProfile = profiles12State[key];
+  } else if (characterId && !mode) {
+    // Mantém o modo atual, troca só o personagem
+    const key = `${characterId.toLowerCase()}_${(call.activeMode || 'normal').toLowerCase()}`;
+    targetProfile = profiles12State[key];
+  } else if (!characterId && mode) {
+    // Mantém o personagem atual, troca só o modo
+    const key = `${(call.activeCharacterId || 'rafael').toLowerCase()}_${mode.toLowerCase()}`;
+    targetProfile = profiles12State[key];
   }
 
-  if (personalityId && typeof personalityId === 'string') {
-    const cleanPersona = personalityId.trim().toLowerCase();
-    if (personalitiesState[cleanPersona] && cleanPersona !== call.activePersonalityId) {
-      const prevPersona = call.activePersonalityId;
-      call.activePersonalityId = cleanPersona;
-      changes.push(`Personalidade alterada de '${prevPersona}' para '${cleanPersona}'`);
-      call.timeline.push({
-        time: new Date().toISOString(),
-        event: 'PERSONALITY_SWITCH',
-        from: prevPersona,
-        to: cleanPersona,
-        by: updatedBy
-      });
-    }
+  if (!targetProfile) {
+    // Fallback para perfil atual
+    targetProfile = profiles12State[call.activeProfileKey] || profiles12State.rafael_normal;
   }
 
-  const message = changes.length > 0
-    ? `Alteração aplicada com sucesso: ${changes.join(' | ')}. O novo comportamento valerá no próximo turno da conversa!`
-    : 'Nenhuma alteração detectada.';
+  const prevCharacter = call.activeCharacterName || 'Rafael';
+  const prevMode = call.activeModeName || 'Normal';
+  const prevVoice = call.activeVoice;
 
-  console.log(`[CALL_ENGINE] ⚡ HOT-SWAP na chamada ${callId} por ${updatedBy}: ${message}`);
+  // Atualiza o estado da chamada em memória imediatamente
+  call.activeProfileKey = targetProfile.profile_key;
+  call.activeCharacterId = targetProfile.character_id;
+  call.activeCharacterName = targetProfile.character_name;
+  call.activeMode = targetProfile.mode;
+  call.activeModeName = targetProfile.mode_name;
+  call.activeVoice = voiceId?.trim() || targetProfile.voice_id;
+  call.activeSystemScript = targetProfile.system_script;
+
+  // Registra o evento de Hot-Swap na timeline da chamada
+  call.timeline.push({
+    time: new Date().toISOString(),
+    event: 'HOT_SWAP_PROFILE',
+    from: `${prevCharacter} / ${prevMode} (${prevVoice})`,
+    to: `${targetProfile.character_name} / ${targetProfile.mode_name} (${call.activeVoice})`,
+    character_id: targetProfile.character_id,
+    mode: targetProfile.mode,
+    voice: call.activeVoice,
+    by: updatedBy
+  });
+
+  const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} será aplicado na próxima resposta.`;
+  console.log(`[CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA ${callId} por ${updatedBy}: ${feedbackMessage} (Voz: ${call.activeVoice})`);
 
   return {
     success: true,
     call_id: callId,
+    active_profile_key: targetProfile.profile_key,
+    active_character_id: targetProfile.character_id,
+    active_character_name: targetProfile.character_name,
+    active_mode: targetProfile.mode,
+    active_mode_name: targetProfile.mode_name,
     active_voice: call.activeVoice,
-    active_personality: call.activePersonalityId,
-    message,
+    message: feedbackMessage,
     next_turn_ready: true
   };
 }
@@ -462,8 +770,11 @@ export function recordTurnTelemetry({
   usage = null,
   ttsVoice = '',
   voice = '',
-  personalityId = '',
-  personality = '',
+  characterId = '',
+  characterName = '',
+  mode = '',
+  modeName = '',
+  profileKey = '',
   charactersSynthesized = null,
   error = null
 }) {
@@ -482,15 +793,19 @@ export function recordTurnTelemetry({
   const cachedTokens = Number(tokenData.cached_tokens || tokenData.prompt_tokens_details?.cached_tokens) || 0;
   const reasoningTokens = Number(tokenData.reasoning_tokens || tokenData.completion_tokens_details?.reasoning_tokens) || 0;
 
-  const resolvedPersona = personality || personalityId || call.activePersonalityId;
+  const resolvedCharacter = characterName || characterId || call.activeCharacterName || 'Rafael';
+  const resolvedMode = modeName || mode || call.activeModeName || 'Normal';
   const resolvedVoice = voice || ttsVoice || call.activeVoice;
+  const resolvedProfileKey = profileKey || call.activeProfileKey || `${call.activeCharacterId}_${call.activeMode}`;
 
   const turnRecord = {
     turn_index: turnIndex,
     timestamp: new Date().toISOString(),
     user_text: userText || '',
     reply_text: replyText || '',
-    personality: resolvedPersona,
+    character: resolvedCharacter,
+    mode: resolvedMode,
+    profile_key: resolvedProfileKey,
     voice: resolvedVoice,
     error: error || null,
     metrics: {
@@ -509,7 +824,8 @@ export function recordTurnTelemetry({
     },
     tts: {
       chars,
-      voice: ttsVoice || call.activeVoice
+      voice: resolvedVoice,
+      provider: 'GOOGLE_CHIRP3_HD'
     }
   };
 
@@ -596,8 +912,10 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     ended_at: new Date(endedAt).toISOString(),
     duration_seconds: durationSeconds,
     end_reason: reason,
+    active_profile_key: call.activeProfileKey,
+    active_character: call.activeCharacterName,
+    active_mode: call.activeModeName,
     active_voice: call.activeVoice,
-    active_personality: call.activePersonalityId,
     turn_count: call.turns.length,
     tokens: {
       input: call.totals.tokens_input,
@@ -608,7 +926,8 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     },
     tts: {
       total_chars: call.totals.tts_chars,
-      requests_count: call.totals.tts_requests
+      requests_count: call.totals.tts_requests,
+      provider: 'GOOGLE_CHIRP3_HD'
     },
     latency: {
       average_ms: avgLat,
@@ -697,8 +1016,10 @@ export function getCallDetailById(callId) {
       phone_masked: active.maskedNumber,
       status: active.status,
       started_at: new Date(active.startedAt).toISOString(),
+      active_profile_key: active.activeProfileKey,
+      current_character: active.activeCharacterName,
+      current_mode: active.activeModeName,
       current_voice: active.activeVoice,
-      current_personality: active.activePersonalityId,
       totals: active.totals,
       turns: active.turns,
       timeline: active.timeline

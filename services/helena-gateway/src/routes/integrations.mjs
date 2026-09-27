@@ -83,10 +83,17 @@ import {
   switchCallRuntime,
   getCallsHistoryMetrics,
   getCallDetailById,
+  getAllProfiles12,
+  getProfile,
+  updateProfile,
+  resetProfileToDefault,
+  getActiveGlobalProfileKey,
+  setActiveGlobalProfile,
+  getProfileByKey,
   DEFAULT_PERSONALITIES
 } from '../integrations/call-engine.mjs';
 
-import { MeowcallerElevenBridge, MeowcallerKokoroBridge } from '../integrations/bridge.mjs';
+import { MeowcallerVoiceBridge } from '../integrations/bridge.mjs';
 import {
   buildAutoReplyMessage,
   getWhatsappChannelIdentity,
@@ -166,7 +173,7 @@ export function authenticateEvolutionWebhook(req, res, next) {
 
 export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   const router = express.Router();
-  const bridge = new MeowcallerElevenBridge(supabaseFetch);
+  const bridge = new MeowcallerVoiceBridge(supabaseFetch);
 
   // Middleware opcional para rotas de telemetria e status visual que não devem bloquear o dashboard
   const optionalAuth = (req, res, next) => {
@@ -684,12 +691,12 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
 
   router.post('/api/integrations/meowcaller/call', authenticateUser, async (req, res) => {
     try {
-      const { phone, business_id, voice_profile_id = KOKORO_DEFAULT_PROFILE_ID } = req.body || {};
+      const { phone, business_id, voice_profile_id = null } = req.body || {};
       if (!phone) {
         return res.status(400).json({ ok: false, error: 'phone é obrigatório' });
       }
 
-      // Inicia chamada no Meowcaller com voz oficial do Kokoro
+      // Inicia chamada no Meowcaller com Google Cloud Chirp 3 HD
       const callResult = await originateCall({ phone, business_id, voice_profile_id });
       const callId = callResult?.call_id || `CALL-${Date.now()}`;
 
@@ -1367,34 +1374,153 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   });
 
   /**
-   * Atualiza o prompt/script e parâmetros de uma personalidade
-   * POST /api/integrations/call-engine/personalities/:id
+   * Retorna os 12 perfis independentes (4 Personagens x 3 Modos)
+   * GET /api/integrations/call-engine/profiles
    */
-  router.post('/api/integrations/call-engine/personalities/:id', authenticateUser, async (req, res) => {
+  router.get('/api/integrations/call-engine/profiles', optionalAuth, async (req, res) => {
     try {
-      const { id } = req.params;
-      const { name, description, tone, intensity, prompt } = req.body || {};
+      const profiles = getAllProfiles12();
+      const activeProfileKey = getActiveGlobalProfileKey();
+      return res.json({
+        ok: true,
+        count: Object.keys(profiles).length,
+        active_profile_key: activeProfileKey,
+        profiles
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Retorna um perfil específico por personagem e modo
+   * GET /api/integrations/call-engine/profiles/:characterId/:mode
+   */
+  router.get('/api/integrations/call-engine/profiles/:characterId/:mode', optionalAuth, async (req, res) => {
+    try {
+      const { characterId, mode } = req.params;
+      const profile = getProfile(characterId, mode);
+      if (!profile) {
+        return res.status(404).json({ ok: false, error: `Perfil '${characterId}/${mode}' não encontrado.` });
+      }
+      return res.json({ ok: true, profile });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Atualiza as configurações de um perfil (voz Google Chirp, abertura ou script)
+   * PUT ou POST /api/integrations/call-engine/profiles/:characterId/:mode
+   */
+  const handleUpdateProfile = async (req, res) => {
+    try {
+      const { characterId, mode } = req.params;
+      const { voice_id, opening_message, system_script, voice, script } = req.body || {};
       const updatedBy = req.user?.email || req.user?.id || 'Admin';
 
-      const updated = updatePersonality(id, { name, description, tone, intensity, prompt }, updatedBy);
+      const updates = {
+        voice_id: voice_id || voice,
+        opening_message,
+        system_script: system_script || script
+      };
 
-      // Persiste no Supabase para não exigir restart nem redeploy
+      const updated = updateProfile(characterId, mode, updates, updatedBy);
+
+      // Persiste no Supabase para integridade duradoura
+      if (supabaseFetch) {
+        try {
+          const configKey = `CALL_PROFILE_${characterId.toUpperCase()}_${mode.toUpperCase()}`;
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              chave: configKey,
+              valor: JSON.stringify(updated),
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: `Perfil completo de ${characterId} no modo ${mode}`
+            }])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json({
+        ok: true,
+        message: `Perfil '${updated.character_name} / ${updated.mode_name}' atualizado com sucesso. Vale imediatamente!`,
+        profile: updated
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  };
+
+  router.put('/api/integrations/call-engine/profiles/:characterId/:mode', authenticateUser, handleUpdateProfile);
+  router.post('/api/integrations/call-engine/profiles/:characterId/:mode', authenticateUser, handleUpdateProfile);
+
+  /**
+   * Torna um perfil ativo como o perfil padrão global para novas chamadas
+   * POST /api/integrations/call-engine/profiles/:characterId/:mode/activate
+   */
+  router.post('/api/integrations/call-engine/profiles/:characterId/:mode/activate', authenticateUser, async (req, res) => {
+    try {
+      const { characterId, mode } = req.params;
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const active = setActiveGlobalProfile(characterId, mode, updatedBy);
+
       if (supabaseFetch) {
         try {
           await supabaseFetch('/rest/v1/configuracao', {
             method: 'POST',
             headers: { 'Prefer': 'resolution=merge-duplicates' },
             body: JSON.stringify([{
-              chave: `CALL_PERSONALITY_PROMPT_${id.toUpperCase()}`,
-              valor: JSON.stringify(updated),
+              chave: 'CALL_ACTIVE_GLOBAL_PROFILE',
+              valor: active.profile_key,
               tipo: 'CONFIG',
               responsavel: updatedBy,
-              descricao: `Script e prompt da personalidade ${id}`
+              descricao: 'Perfil ativo padrão global para novas chamadas'
             }])
           }).catch(() => null);
         } catch {}
       }
 
+      return res.json({
+        ok: true,
+        message: `Perfil '${active.character_name} / ${active.mode_name}' definido como ativo para novas ligações.`,
+        active_profile: active
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Restaura um perfil para os padrões de fábrica
+   * POST /api/integrations/call-engine/profiles/:characterId/:mode/reset
+   */
+  router.post('/api/integrations/call-engine/profiles/:characterId/:mode/reset', authenticateUser, async (req, res) => {
+    try {
+      const { characterId, mode } = req.params;
+      const reset = resetProfileToDefault(characterId, mode);
+      return res.json({
+        ok: true,
+        message: `Perfil '${reset.character_name} / ${reset.mode_name}' restaurado para os padrões originais.`,
+        profile: reset
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Rotas legadas de personalidade (compatibilidade total)
+   */
+  router.post('/api/integrations/call-engine/personalities/:id', authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, tone, intensity, prompt } = req.body || {};
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const updated = updatePersonality(id, { name, description, tone, intensity, prompt }, updatedBy);
       return res.json({
         ok: true,
         message: `Personalidade '${updated.name}' atualizada com sucesso. Vale imediatamente!`,
@@ -1405,17 +1531,13 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  /**
-   * Restaura o script/prompt de uma personalidade para o padrão de fábrica
-   * POST /api/integrations/call-engine/personalities/:id/reset
-   */
   router.post('/api/integrations/call-engine/personalities/:id/reset', authenticateUser, async (req, res) => {
     try {
       const { id } = req.params;
       const reset = resetPersonalityToDefault(id);
       return res.json({
         ok: true,
-        message: `Personalidade '${reset.name}' restaurada para os padrões originais com sucesso.`,
+        message: `Personalidade restaurada para os padrões originais com sucesso.`,
         personality: reset
       });
     } catch (err) {
@@ -1441,18 +1563,22 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   });
 
   /**
-   * REQUISITO CRÍTICO: HOT-SWAP de voz e/ou personalidade DURANTE UMA LIGAÇÃO EM ANDAMENTO!
+   * REQUISITO CRÍTICO: HOT-SWAP de voz e/ou personagem/modo DURANTE UMA LIGAÇÃO EM ANDAMENTO!
    * POST /api/integrations/call-engine/active-calls/:callId/switch
    */
   router.post('/api/integrations/call-engine/active-calls/:callId/switch', authenticateUser, async (req, res) => {
     try {
       const { callId } = req.params;
-      const { voice, personality_id } = req.body || {};
+      const { character_id, characterId, mode, voice_id, voiceId, profile_key, profileKey, voice, personality_id } = req.body || {};
       const updatedBy = req.user?.email || req.user?.id || 'Admin';
 
+      // Suporta tanto o novo formato (12 perfis) quanto o formato legado
       const result = switchCallRuntime({
         callId,
-        voice,
+        characterId: character_id || characterId,
+        mode,
+        voiceId: voice_id || voiceId || voice,
+        profileKey: profile_key || profileKey,
         personalityId: personality_id,
         updatedBy
       });

@@ -1,15 +1,17 @@
 /**
- * Integrations / MeowcallerKokoroBridge (Voice Bridge Oficial)
- * Adaptador de sinalização e ponte de áudio entre Meowcaller (WhatsApp VoIP) e Kokoro Neural TTS VPS
- * Provedor oficial do Sistema Helena para sintetização de fala e áudios
+ * Integrations / Voice Bridge Oficial
+ * Adaptador de sinalização e ponte de áudio entre Meowcaller (WhatsApp VoIP) e Google Cloud Chirp 3 HD
+ * Provedor oficial do Sistema Helena para sintetização de chamadas telefônicas
  */
 
-import { generateKokoroSpeech, isKokoroConfigured, KOKORO_OFFICIAL_VOICE_ID, KOKORO_DEFAULT_PROFILE_ID } from './kokoro.mjs';
+import { routeCallAudio } from './audio-router.mjs';
+import { getActiveCallVoice } from './google-chirp3-hd.mjs';
+import { getCallSession, getActiveGlobalProfile } from './call-engine.mjs';
 import { getSignedConversationUrl } from './elevenlabs.mjs';
 import { classifyMessage } from './laya.mjs';
 
 /**
- * Orquestrador de sessões de chamadas e áudio com IA usando Kokoro Neural TTS
+ * Orquestrador de sessões de chamadas e áudio com IA usando Google Cloud Chirp 3 HD
  */
 export class MeowcallerVoiceBridge {
   constructor(supabaseFetch) {
@@ -18,35 +20,22 @@ export class MeowcallerVoiceBridge {
   }
 
   /**
-   * Inicia o bridge para uma chamada ativa com Kokoro como motor oficial
+   * Inicia o bridge para uma chamada ativa com Google Chirp 3 HD como motor oficial
    */
-  async startBridge({ callId, businessId = 'BIZ-001', voiceProfileId = KOKORO_DEFAULT_PROFILE_ID, remoteNumber = '' }) {
+  async startBridge({ callId, businessId = 'BIZ-001', voiceProfileId = null, remoteNumber = '' }) {
     const startedAt = Date.now();
-    const effectiveProfileId = voiceProfileId || KOKORO_DEFAULT_PROFILE_ID;
-    console.log(`[VOICE_BRIDGE] Iniciando bridge Kokoro Oficial para call_id=${callId} (${remoteNumber}) - Perfil: ${effectiveProfileId}`);
-
-    // Verifica se Kokoro TTS está pronto na VPS
-    const kokoroReady = isKokoroConfigured();
-
-    // Fallback de contingência para ElevenLabs se necessário
-    let signedUrlData = null;
-    if (!kokoroReady) {
-      try {
-        signedUrlData = await getSignedConversationUrl();
-      } catch (err) {
-        console.warn(`[VOICE_BRIDGE] Contingência ElevenLabs indisponível: ${err.message}`);
-      }
-    }
+    const activeProfile = getActiveGlobalProfile();
+    const effectiveVoice = voiceProfileId || activeProfile.voice_id || getActiveCallVoice();
+    console.log(`[VOICE_BRIDGE] Iniciando bridge Google Chirp 3 HD Oficial para call_id=${callId} (${remoteNumber}) - Voz: ${effectiveVoice}`);
 
     const bridgeSession = {
       callId,
       businessId,
-      voiceProfileId: effectiveProfileId,
+      voiceProfileId: effectiveVoice,
       remoteNumber,
       startedAt,
-      engine: kokoroReady ? 'KOKORO_NEURAL_TTS' : 'ELEVENLABS_FALLBACK',
-      voiceId: KOKORO_OFFICIAL_VOICE_ID,
-      signedUrl: signedUrlData?.signed_url || null,
+      engine: 'GOOGLE_CHIRP3_HD',
+      voiceId: effectiveVoice,
       status: 'BRIDGE_ACTIVE',
       transcripts: [],
       audioOutputs: [],
@@ -63,7 +52,7 @@ export class MeowcallerVoiceBridge {
         await this.supabaseFetch('/rest/v1/integration_events', {
           method: 'POST',
           body: JSON.stringify({
-            provider: 'MEOWCALLER_KOKORO_BRIDGE',
+            provider: 'MEOWCALLER_GOOGLE_BRIDGE',
             business_id: businessId,
             event_type: 'BRIDGE_STARTED',
             external_id: callId,
@@ -72,9 +61,9 @@ export class MeowcallerVoiceBridge {
             payload: {
               call_id: callId,
               remote_number: remoteNumber,
-              voice_profile_id: effectiveProfileId,
+              voice_profile_id: effectiveVoice,
               engine: bridgeSession.engine,
-              official_voice: KOKORO_OFFICIAL_VOICE_ID
+              official_voice: effectiveVoice
             }
           })
         });
@@ -87,38 +76,42 @@ export class MeowcallerVoiceBridge {
   }
 
   /**
-   * Sintetiza resposta de voz em tempo real para a chamada usando Kokoro TTS
+   * Sintetiza resposta de voz em tempo real para a chamada usando Google Cloud Chirp 3 HD
    * @param {string} callId
    * @param {string} text Texto que o agente irá falar na chamada
-   * @param {string} [voiceId] Voz opcional (default: Pedro Oficial)
+   * @param {string} [voiceId] Voz opcional
    */
-  async speak(callId, text, voiceId = KOKORO_OFFICIAL_VOICE_ID) {
+  async speak(callId, text, voiceId = null) {
     const bridge = this.activeBridges.get(callId);
     if (!bridge || !text) return null;
 
+    const call = getCallSession(callId);
+    const resolvedVoice = voiceId || call?.activeVoice || bridge.voiceId || getActiveCallVoice();
+
     try {
-      const speech = await generateKokoroSpeech({
-        input: text,
-        voice: voiceId
+      const speech = await routeCallAudio({
+        text,
+        callId,
+        voice: resolvedVoice
       });
 
       bridge.audioOutputs.push({
         text,
-        voice: voiceId,
+        voice: resolvedVoice,
         durationMs: speech.durationMs,
         sizeBytes: speech.sizeBytes,
         timestamp: new Date().toISOString()
       });
 
       bridge.transcripts.push({
-        speaker: 'agent_pedro',
+        speaker: 'agent',
         text,
         timestamp: new Date().toISOString()
       });
 
       return speech;
     } catch (err) {
-      console.error(`[VOICE_BRIDGE] Erro ao sintetizar áudio na chamada ${callId}: ${err.message}`);
+      console.error(`[VOICE_BRIDGE] Erro ao sintetizar áudio no Google Chirp 3 HD para chamada ${callId}: ${err.message}`);
       throw err;
     }
   }
@@ -184,7 +177,7 @@ export class MeowcallerVoiceBridge {
 
     this.activeBridges.delete(callId);
 
-    console.log(`[VOICE_BRIDGE] Bridge Kokoro encerrado para call_id=${callId}. Duração: ${durationSeconds}s`);
+    console.log(`[VOICE_BRIDGE] Bridge Google Chirp 3 HD encerrado para call_id=${callId}. Duração: ${durationSeconds}s`);
 
     // Atualiza registro no Supabase
     if (this.supabaseFetch) {

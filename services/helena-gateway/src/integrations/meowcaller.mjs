@@ -4,8 +4,6 @@
  * Endpoint oficial: https://helena-automation-meowcaller-service.d9v63q.easypanel.host
  */
 
-import { KOKORO_DEFAULT_PROFILE_ID } from './kokoro.mjs';
-
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || process.env.MEOWCALLER_KEY || 'helena_meow_sec_8a3c1f9d2e';
 
@@ -191,7 +189,7 @@ export async function disconnectMeowcallerSession() {
 /**
  * Origina uma chamada de saída (Outbound Call) via Meowcaller
  */
-export async function originateCall({ phone, business_id = 'BIZ-001', voice_profile_id = KOKORO_DEFAULT_PROFILE_ID }) {
+export async function originateCall({ phone, business_id = 'BIZ-001', voice_profile_id = null }) {
   if (!MEOWCALLER_TOKEN) {
     throw new Error('MEOWCALLER_TOKEN não configurado no backend');
   }

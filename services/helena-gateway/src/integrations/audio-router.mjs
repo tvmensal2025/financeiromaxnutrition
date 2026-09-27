@@ -46,10 +46,7 @@ export const AudioContext = Object.freeze({
  *   callId: string
  * }>}
  */
-export async function routeCallAudio({ text, callId = '', voice = null, legacyCallSynthesizer = null }) {
-  if (process.env.GOOGLE_CALL_TTS_ENABLED === 'false' && typeof legacyCallSynthesizer === 'function') {
-    return await legacyCallSynthesizer();
-  }
+export async function routeCallAudio({ text, callId = '', voice = null }) {
 
   try {
     const result = await GoogleChirp3HDCallTTS.synthesizeCallSpeech({
