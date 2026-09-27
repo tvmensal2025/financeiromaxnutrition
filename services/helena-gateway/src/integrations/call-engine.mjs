@@ -395,6 +395,7 @@ export function updateProfile(characterId, mode, updates = {}, updatedBy = 'Admi
   profiles12State[key] = updated;
   console.log(`[CALL_ENGINE] 💾 Perfil '${key}' (${updated.character_name} / ${updated.mode_name}) atualizado por ${updatedBy}`);
   return {
+    ...updated,
     success: true,
     profile: updated
   };
@@ -412,6 +413,7 @@ export function resetProfileToDefault(characterId, mode) {
   profiles12State[key] = JSON.parse(JSON.stringify(DEFAULT_PROFILES_12[key]));
   console.log(`[CALL_ENGINE] 🔄 Perfil '${key}' restaurado para o padrão oficial.`);
   return {
+    ...profiles12State[key],
     success: true,
     profile: profiles12State[key]
   };
@@ -482,10 +484,20 @@ export const DEFAULT_PERSONALITIES = Object.freeze({
   }
 });
 
+let favoriteVoicesState = [
+  { slot: 1, name: 'Rafael (Voz Oficial)', voice_id: 'pt-BR-Chirp3-HD-Achird', gender: 'MALE' },
+  { slot: 2, name: 'Sirlene (Voz Oficial)', voice_id: 'pt-BR-Chirp3-HD-Achernar', gender: 'FEMALE' },
+  { slot: 3, name: 'Vital (Voz Oficial)', voice_id: 'pt-BR-Chirp3-HD-Charon', gender: 'MALE' }
+];
+
 export function getCallEngineConfig() {
   const activeProfile = getActiveGlobalProfile();
+  const legacyPersonality = (activeProfile.mode === 'normal' || activeProfile.mode === 'Normal')
+    ? 'equilibrio'
+    : activeProfile.mode.toLowerCase();
+
   return {
-    active_voice: activeProfile.voice_id || getActiveCallVoice(),
+    active_voice: getActiveCallVoice() || activeProfile.voice_id || DEFAULT_CHIRP3_HD_VOICE,
     active_profile_key: activeGlobalProfileKey,
     active_character_id: activeProfile.character_id,
     active_mode: activeProfile.mode,
@@ -494,13 +506,9 @@ export function getCallEngineConfig() {
     modes: Object.values(MODES_MAP),
     profiles_12: getAllProfiles12(),
     // Campos legados preservados para compatibilidade
-    active_personality: activeProfile.mode,
+    active_personality: legacyPersonality,
     personalities: Object.values(DEFAULT_PERSONALITIES),
-    favorite_voices: [
-      { slot: 1, label: 'Rafael (Voz Oficial)', voice_id: profiles12State.rafael_normal.voice_id, gender: 'MALE' },
-      { slot: 2, label: 'Sirlene (Voz Oficial)', voice_id: profiles12State.sirlene_normal.voice_id, gender: 'FEMALE' },
-      { slot: 3, label: 'Vital (Voz Oficial)', voice_id: profiles12State.vital_normal.voice_id, gender: 'MALE' }
-    ],
+    favorite_voices: favoriteVoicesState,
     pricing: pricingConfig
   };
 }
@@ -516,7 +524,7 @@ export function getActivePersonality() {
 }
 
 export function getPersonalitiesList() {
-  return getAllProfiles12();
+  return Object.values(DEFAULT_PERSONALITIES);
 }
 
 export function updateCallEngineConfig({ activeVoice, activePersonalityId, characterId, mode, profileKey }, updatedBy = 'Admin') {
@@ -539,22 +547,32 @@ export function updateCallEngineConfig({ activeVoice, activePersonalityId, chara
   return getCallEngineConfig();
 }
 
-export function updateFavoriteVoiceSlot(slotNum, { voice_id }) {
+export function updateFavoriteVoiceSlot(slotNum, { voice_id, name, gender } = {}) {
   if (voice_id) {
     setActiveCallVoice(voice_id);
   }
-  return { slot: slotNum, voice_id };
+  const config = getCallEngineConfig();
+  const existing = config.favorite_voices.find(v => v.slot === slotNum);
+  if (existing) {
+    if (voice_id) existing.voice_id = voice_id;
+    if (name) existing.name = name;
+    if (gender) existing.gender = gender;
+  }
+  return { slot: slotNum, voice_id, name, gender, success: true };
 }
 
-export function updatePersonality(id, data, updatedBy = 'Admin') {
-  // Mapeia para perfil ativo correspondente
+export function updatePersonality(id, data = {}, updatedBy = 'Admin') {
+  if (DEFAULT_PERSONALITIES[id]) {
+    DEFAULT_PERSONALITIES[id].prompt = data.prompt;
+  }
   const cur = getActiveGlobalProfile();
-  return updateProfile(cur.character_id, cur.mode, { system_script: data.prompt }, updatedBy);
+  updateProfile(cur.character_id, cur.mode, { system_script: data.prompt }, updatedBy);
+  return { id, prompt: data.prompt, success: true };
 }
 
 export function resetPersonalityToDefault(id) {
-  const cur = getActiveGlobalProfile();
-  return resetProfileToDefault(cur.character_id, cur.mode);
+  const prompt = DEFAULT_PERSONALITIES[id]?.prompt || DEFAULT_PROFILES_12.rafael_normal.system_script;
+  return { id, prompt, success: true };
 }
 
 // ======================================================================
@@ -582,6 +600,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
 
   const effectiveProfileKey = profileKey && profiles12State[profileKey] ? profileKey : activeGlobalProfileKey;
   const profile = profiles12State[effectiveProfileKey] || profiles12State.rafael_normal;
+  const defaultCallVoice = getActiveCallVoice() || profile.voice_id;
 
   const session = {
     callId,
@@ -598,7 +617,8 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     activeCharacterName: profile.character_name,
     activeMode: profile.mode,
     activeModeName: profile.mode_name,
-    activeVoice: profile.voice_id || getActiveCallVoice(),
+    activePersonalityId: (profile.mode === 'normal' || profile.mode === 'Normal') ? 'equilibrio' : profile.mode.toLowerCase(),
+    activeVoice: profileKey ? profile.voice_id : defaultCallVoice,
     activeSystemScript: profile.system_script,
     openingMessage: profile.opening_message,
     greetingPlayed: false,
@@ -607,7 +627,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     timeline: [
       {
         time: new Date().toISOString(),
-        event: 'CALL_STARTED',
+        event: 'CONNECTED',
         profile_key: profile.profile_key,
         character: profile.character_name,
         mode: profile.mode_name,
@@ -686,31 +706,41 @@ export const getActiveCallsList = listActiveCalls;
  * Troca de Personagem e/ou Modo DURANTE a mesma ligação em andamento.
  * Aplica IMEDIATAMENTE no PRÓXIMO turno da conversa sem desligar, sem reiniciar, sem reconectar e sem repetir a opening_message.
  */
-export function switchCallRuntime({ callId, characterId, mode, voiceId, profileKey, updatedBy = 'Admin' }) {
+export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, personalityId, profileKey, updatedBy = 'Admin' }) {
   const call = activeCallsMap.get(callId);
   if (!call) {
     throw new Error(`Chamada '${callId}' não encontrada ou já encerrada.`);
   }
 
+  const effectiveVoice = voice || voiceId;
   let targetProfile = null;
 
   if (profileKey && profiles12State[profileKey]) {
     targetProfile = profiles12State[profileKey];
   } else if (characterId && mode) {
-    const key = `${characterId.toLowerCase()}_${mode.toLowerCase()}`;
+    let m = mode.toLowerCase();
+    if (m === 'firme') m = 'firm';
+    if (m === 'intenso') m = 'intense';
+    const key = `${characterId.toLowerCase()}_${m}`;
     targetProfile = profiles12State[key];
+  } else if (personalityId) {
+    let m = 'normal';
+    if (personalityId === 'firme') m = 'firm';
+    if (personalityId === 'intenso') m = 'intense';
+    const curChar = call.activeCharacterId || 'rafael';
+    targetProfile = profiles12State[`${curChar}_${m}`] || profiles12State.rafael_normal;
   } else if (characterId && !mode) {
-    // Mantém o modo atual, troca só o personagem
     const key = `${characterId.toLowerCase()}_${(call.activeMode || 'normal').toLowerCase()}`;
     targetProfile = profiles12State[key];
   } else if (!characterId && mode) {
-    // Mantém o personagem atual, troca só o modo
-    const key = `${(call.activeCharacterId || 'rafael').toLowerCase()}_${mode.toLowerCase()}`;
+    let m = mode.toLowerCase();
+    if (m === 'firme') m = 'firm';
+    if (m === 'intenso') m = 'intense';
+    const key = `${(call.activeCharacterId || 'rafael').toLowerCase()}_${m}`;
     targetProfile = profiles12State[key];
   }
 
   if (!targetProfile) {
-    // Fallback para perfil atual
     targetProfile = profiles12State[call.activeProfileKey] || profiles12State.rafael_normal;
   }
 
@@ -724,20 +754,25 @@ export function switchCallRuntime({ callId, characterId, mode, voiceId, profileK
   call.activeCharacterName = targetProfile.character_name;
   call.activeMode = targetProfile.mode;
   call.activeModeName = targetProfile.mode_name;
-  call.activeVoice = voiceId?.trim() || targetProfile.voice_id;
+  call.activePersonalityId = personalityId || ((targetProfile.mode === 'normal' || targetProfile.mode === 'Normal') ? 'equilibrio' : targetProfile.mode.toLowerCase());
+  call.activeVoice = effectiveVoice?.trim() || targetProfile.voice_id;
   call.activeSystemScript = targetProfile.system_script;
 
-  // Registra o evento de Hot-Swap na timeline da chamada
-  call.timeline.push({
-    time: new Date().toISOString(),
-    event: 'HOT_SWAP_PROFILE',
-    from: `${prevCharacter} / ${prevMode} (${prevVoice})`,
-    to: `${targetProfile.character_name} / ${targetProfile.mode_name} (${call.activeVoice})`,
-    character_id: targetProfile.character_id,
-    mode: targetProfile.mode,
-    voice: call.activeVoice,
-    by: updatedBy
-  });
+  if (voice && personalityId) {
+    call.timeline.push({ time: new Date().toISOString(), event: 'VOICE_SWITCH', to: call.activeVoice });
+    call.timeline.push({ time: new Date().toISOString(), event: 'PERSONALITY_SWITCH', to: personalityId });
+  } else {
+    call.timeline.push({
+      time: new Date().toISOString(),
+      event: 'HOT_SWAP_PROFILE',
+      from: `${prevCharacter} / ${prevMode} (${prevVoice})`,
+      to: `${targetProfile.character_name} / ${targetProfile.mode_name} (${call.activeVoice})`,
+      character_id: targetProfile.character_id,
+      mode: targetProfile.mode,
+      voice: call.activeVoice,
+      by: updatedBy
+    });
+  }
 
   const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} será aplicado na próxima resposta.`;
   console.log(`[CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA ${callId} por ${updatedBy}: ${feedbackMessage} (Voz: ${call.activeVoice})`);
@@ -750,8 +785,10 @@ export function switchCallRuntime({ callId, characterId, mode, voiceId, profileK
     active_character_name: targetProfile.character_name,
     active_mode: targetProfile.mode,
     active_mode_name: targetProfile.mode_name,
+    active_personality: call.activePersonalityId,
     active_voice: call.activeVoice,
     message: feedbackMessage,
+    feedback: feedbackMessage,
     next_turn_ready: true
   };
 }
@@ -763,6 +800,7 @@ export function recordTurnTelemetry({
   callId,
   userText,
   replyText,
+  personality = '',
   sttMs = 0,
   llmFirstTokenMs = 0,
   llmTotalMs = 0,
@@ -807,6 +845,7 @@ export function recordTurnTelemetry({
     reply_text: replyText || '',
     character: resolvedCharacter,
     mode: resolvedMode,
+    personality: personality || ((resolvedMode === 'Normal' || resolvedMode === 'normal') ? 'equilibrio' : resolvedMode.toLowerCase()),
     profile_key: resolvedProfileKey,
     voice: resolvedVoice,
     error: error || null,

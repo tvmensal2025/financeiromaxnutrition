@@ -139,9 +139,15 @@ export async function resolveAiApiKey(cfg = {}) {
     return cfg.ai_api_key.trim();
   }
 
-  // 2. Variável de ambiente DEEPSEEK_API_KEY
+  // 2. Variável de ambiente DEEPSEEK_API_KEY / GOOGLE_AI_API_KEY / OPENAI_API_KEY
   if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
     return process.env.DEEPSEEK_API_KEY.trim();
+  }
+  if (process.env.GOOGLE_AI_API_KEY && process.env.GOOGLE_AI_API_KEY.trim().length > 0) {
+    return process.env.GOOGLE_AI_API_KEY.trim();
+  }
+  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0) {
+    return process.env.OPENAI_API_KEY.trim();
   }
 
   // 3. Cache recente de chave do Supabase (1 minuto)
@@ -233,9 +239,16 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   if (apiKey) {
     try {
       const systemInstruction = `${systemScript}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
+      let providerToUse = cfg.ai_provider || 'DEEPSEEK';
+      let modelToUse = cfg.ai_model || 'DeepSeek-V4.1-Flash';
+      if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) {
+        providerToUse = 'GEMINI';
+        modelToUse = 'gemini-flash-latest';
+      }
+
       const llmResult = await callLlmProviderDetailed({
-        provider: cfg.ai_provider || 'DEEPSEEK',
-        model: cfg.ai_model || 'DeepSeek-V4.1-Flash',
+        provider: providerToUse,
+        model: modelToUse,
         apiKey,
         systemInstruction,
         userPrompt: cleanPrompt,
