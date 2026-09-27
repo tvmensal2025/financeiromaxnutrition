@@ -4,7 +4,7 @@
  * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
-import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply } from './voice-delivery.mjs';
+import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply, cleanSpeechTranscript } from './voice-delivery.mjs';
 import { buildCallInstruction, loadCallerContext, persistVoiceTurn } from './caller-context.mjs';
 import { streamReplyToCall } from './call-streaming.mjs';
 import { routeCallAudio } from './audio-router.mjs';
@@ -910,9 +910,10 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 
   // 1. Transcreve fala do cliente via ElevenLabs Scribe STT
   const sttStart = Date.now();
-  const userText = await transcribeAudio(audioBuffer);
+  const userText = cleanSpeechTranscript(await transcribeAudio(audioBuffer));
   const sttMs = Date.now() - sttStart;
   signal.throwIfAborted();
+  if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
 
   let replyText = '';
   let llmUsage = null;
