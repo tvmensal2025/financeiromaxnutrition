@@ -104,7 +104,8 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     const session = registerCallSession({
       callId,
       remoteNumber: '+5511999998888',
-      direction: 'INBOUND'
+      direction: 'INBOUND',
+      profileKey: 'sirlene_normal'
     });
 
     assert.ok(session);

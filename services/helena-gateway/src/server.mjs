@@ -1,6 +1,6 @@
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
- * Conecta o ecossistema Helena (ChatGPT / Grok Bots / Supabase / Evolution API)
+ * Conecta o ecossistema Helena (GPT via Hermes / Supabase / Evolution API)
  * 
  * Fonte canônica de dados: Supabase (project: wxkgrykduqtsgmjkzlou)
  * Não utiliza API paga de LLM como executor automático.
@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
+import { authorizeGatewayTool, matchHermesToken } from './runtime-access.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -33,6 +34,7 @@ const jwksClient = createRemoteJWKSet(new URL(SUPABASE_JWKS_URL), {
 
 const GATEWAY_WEBHOOK_SECRET = process.env.GATEWAY_WEBHOOK_SECRET || '';
 const MCP_BEARER_TOKEN = process.env.MCP_BEARER_TOKEN || '';
+const HERMES_PROFILE_TOKEN_HASHES = process.env.HERMES_PROFILE_TOKEN_HASHES || '[]';
 
 const DISPATCH_COOLDOWN_SECONDS = parseInt(process.env.DISPATCH_COOLDOWN_SECONDS || '180', 10);
 const SCHEDULE_TICK_MS = parseInt(process.env.SCHEDULE_TICK_MS || '15000', 10);
@@ -157,7 +159,7 @@ const PRIORITY_ORDER = {
 /**
  * 1. list_ready_jobs
  */
-async function handleListReadyJobs({ limit = 10, agent_id } = {}) {
+async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
   const boundedLimit = Math.min(Math.max(limit, 1), 25);
   const nowIso = new Date().toISOString();
 
@@ -166,6 +168,7 @@ async function handleListReadyJobs({ limit = 10, agent_id } = {}) {
   if (agent_id) {
     url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
   }
+  if (business_id) url += `&business_id=eq.${encodeURIComponent(business_id)}`;
 
   const rawJobs = await supabaseFetch(url);
   if (!Array.isArray(rawJobs)) {
@@ -178,37 +181,46 @@ async function handleListReadyJobs({ limit = 10, agent_id } = {}) {
     return new Date(job.available_at) <= new Date(nowIso);
   });
 
-  // Ordena por prioridade (CRITICA, ALTA, MEDIA, BAIXA) e depois por created_at
-  readyJobs.sort((a, b) => {
+  // O runtime Hermes e vinculado ao par agente/empresa, sem reutilizar a
+  // conexao historica e unica do Grok.
+  let bindings = [];
+  let agentes = [];
+  try {
+    bindings = await supabaseFetch('/rest/v1/agent_runtime_bindings?select=agent_id,business_id,scope_type,provider,profile_slug,status').catch(() => []);
+    agentes = await supabaseFetch('/rest/v1/agentes?select=*').catch(() => []);
+  } catch {
+    // degradação suave se tabelas auxiliares sofrerem lentidão
+  }
+
+  const activeBindings = Array.isArray(bindings) ? bindings.filter(b => b.provider === 'HERMES' && b.status === 'ACTIVE') : [];
+  const bindingFor = job => activeBindings.find(b => b.agent_id === job.agent_id && (
+    b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP')
+  ));
+  const agenteMap = new Map((Array.isArray(agentes) ? agentes : []).map(a => [a.id || a.agent_id, a]));
+
+  // Falha fechada: sem conexao ativa, tarefa e empresa, nao ha despacho.
+  const eligibleJobs = readyJobs.filter(job => {
+    return Boolean(bindingFor(job))
+      && Boolean(job.task_id && job.business_id);
+  });
+
+  eligibleJobs.sort((a, b) => {
     const pA = PRIORITY_ORDER[a.priority] || 99;
     const pB = PRIORITY_ORDER[b.priority] || 99;
     if (pA !== pB) return pA - pB;
     return new Date(a.created_at || 0) - new Date(b.created_at || 0);
   });
 
-  const slicedJobs = readyJobs.slice(0, boundedLimit);
-
-  // Busca metadados de conexões e agentes para enriquecimento
-  let connections = [];
-  let agentes = [];
-  try {
-    connections = await supabaseFetch('/rest/v1/agent_connections?select=*').catch(() => []);
-    agentes = await supabaseFetch('/rest/v1/agentes?select=*').catch(() => []);
-  } catch {
-    // degradação suave se tabelas auxiliares sofrerem lentidão
-  }
-
-  const connMap = new Map((Array.isArray(connections) ? connections : []).map(c => [c.agent_id, c]));
-  const agenteMap = new Map((Array.isArray(agentes) ? agentes : []).map(a => [a.id || a.agent_id, a]));
+  const slicedJobs = eligibleJobs.slice(0, boundedLimit);
 
   const enrichedJobs = slicedJobs.map(job => {
-    const conn = connMap.get(job.agent_id) || {};
+    const binding = bindingFor(job);
     const ag = agenteMap.get(job.agent_id) || {};
-    const agentName = ag.nome || ag.name || job.agent_id;
-    const agentFuncao = ag.funcao || ag.papel || ag.role || 'Especialista Operacional';
-    const provider = conn.provider || 'GROK';
-    const externalAgentId = conn.external_agent_id || null;
-    const connectionStatus = conn.connection_status || 'CONNECTED';
+    const agentName = ag.agente || ag.nome || ag.name || job.agent_id;
+    const agentFuncao = ag.cargo_funcao || ag.funcao || ag.papel || ag.role || 'Especialista Operacional';
+    const provider = binding.provider;
+    const externalAgentId = binding.profile_slug;
+    const connectionStatus = 'CONNECTED';
 
     const dispatchMessage = `[SISTEMA HELENA | ${job.job_id}]
 Destino: ${agentName} (${job.agent_id}) - ${agentFuncao}
@@ -222,7 +234,7 @@ PROTOCOLO OPERACIONAL OBRIGATÓRIO (V9):
 1. claim_job - Bloquear o job atomicamente para você.
 2. start_job - Iniciar execução oficial.
 3. Executar estritamente dentro do seu escopo de especialista.
-4. Registrar progresso e dados operacionais no Supabase.
+4. Em cada marco relevante, usar record_progress: o que foi feito, motivo de negócio, próximo passo e evidência disponível. Não registrar pensamentos internos nem enviar status repetidos.
 5. Fazer handoff se a próxima etapa exigir outro especialista.
 6. complete_job - Concluir com resumo técnico e ao menos 1 evidência formal (evidence_refs).
 7. fail_job - Em caso de bloqueio ou erro, reportar detalhadamente sem omitir falha.
@@ -249,7 +261,7 @@ PROTOCOLO OPERACIONAL OBRIGATÓRIO (V9):
   });
 
   return {
-    total_ready: readyJobs.length,
+    total_ready: eligibleJobs.length,
     returned_count: enrichedJobs.length,
     jobs: enrichedJobs
   };
@@ -283,6 +295,27 @@ async function handleRecordDispatch({
     throw new Error(`Job ${job_id} não encontrado`);
   }
   const job = jobs[0];
+  if (job.status !== 'READY' || !job.task_id || !job.business_id) {
+    throw new Error(`Job ${job_id} nao esta pronto, vinculado a tarefa e empresa`);
+  }
+
+  const finalTargetAgent = target_agent_id || job.agent_id;
+  if (finalTargetAgent !== job.agent_id) {
+    throw new Error('O agente de destino deve corresponder ao responsavel do job');
+  }
+
+  const bindings = await supabaseFetch(
+    `/rest/v1/agent_runtime_bindings?agent_id=eq.${encodeURIComponent(finalTargetAgent)}&status=eq.ACTIVE`
+  );
+  const binding = Array.isArray(bindings) ? bindings.find(b => b.provider === 'HERMES' && (
+    b.business_id === job.business_id || (finalTargetAgent === 'AGT-01' && b.scope_type === 'GROUP')
+  )) : null;
+  if (!binding) {
+    throw new Error(`Agente ${finalTargetAgent} sem runtime ativo permitido`);
+  }
+  if (target_external_agent_id && target_external_agent_id !== binding.profile_slug) {
+    throw new Error('Perfil Hermes de destino nao corresponde ao vinculo ativo');
+  }
 
   // Verifica cooldown de despacho
   const events = await supabaseFetch(
@@ -304,8 +337,6 @@ async function handleRecordDispatch({
     }
   }
 
-  const finalTargetAgent = target_agent_id || job.agent_id;
-
   // Cria evento append-only DISPATCHED em public.agent_job_events
   // Nota: o job permanece com status READY até o especialista fazer claim_job
   await supabaseFetch('/rest/v1/agent_job_events', {
@@ -320,7 +351,7 @@ async function handleRecordDispatch({
       payload: {
         dispatcher_agent_id,
         target_agent_id: finalTargetAgent,
-        target_external_agent_id: target_external_agent_id || null,
+        target_external_agent_id: binding.profile_slug,
         notes: notes || null,
         dispatched_at: new Date().toISOString()
       }
@@ -355,13 +386,22 @@ async function handleGetJob({ job_id }) {
     `/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&order=created_at.desc&limit=20`
   ).catch(() => []);
 
-  const conn = await supabaseFetch(
-    `/rest/v1/agent_connections?agent_id=eq.${encodeURIComponent(job.agent_id)}&limit=1`
+  const bindings = await supabaseFetch(
+    `/rest/v1/agent_runtime_bindings?select=agent_id,business_id,scope_type,profile_slug,provider,status&agent_id=eq.${encodeURIComponent(job.agent_id)}`
   ).catch(() => []);
+  const runtimeBinding = Array.isArray(bindings) ? bindings.find(b =>
+    b.provider === 'HERMES' && (b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP'))
+  ) : null;
 
   return {
     job,
-    connection: Array.isArray(conn) && conn.length > 0 ? conn[0] : null,
+    runtime_binding: runtimeBinding || null,
+    connection: runtimeBinding ? {
+      agent_id: runtimeBinding.agent_id,
+      provider: runtimeBinding.provider,
+      external_agent_id: runtimeBinding.profile_slug,
+      connection_status: runtimeBinding.status === 'ACTIVE' ? 'CONNECTED' : 'NOT_CONNECTED'
+    } : null,
     events: Array.isArray(events) ? events : []
   };
 }
@@ -380,8 +420,8 @@ async function handleClaimJob({ job_id, agent_id }) {
   });
 
   return {
-    success: true,
-    claimed: true,
+    success: Boolean(result && (!Array.isArray(result) || result.length > 0)),
+    claimed: Boolean(result && (!Array.isArray(result) || result.length > 0)),
     job_id,
     agent_id,
     result
@@ -402,8 +442,8 @@ async function handleStartJob({ job_id, agent_id }) {
   });
 
   return {
-    success: true,
-    running: true,
+    success: Boolean(result && (!Array.isArray(result) || result.length > 0)),
+    running: Boolean(result && (!Array.isArray(result) || result.length > 0)),
     job_id,
     agent_id,
     result
@@ -411,7 +451,62 @@ async function handleStartJob({ job_id, agent_id }) {
 }
 
 /**
- * 6. complete_job (RPC gateway_complete_agent_job)
+ * Registra um marco operacional sem nova chamada de IA. O banco valida
+ * estado e vínculo do job e evita duplicação por step_key.
+ */
+async function handleRecordProgress({ job_id, agent_id, step_key, action, reason, next_step, evidence_refs = [] }, context = {}) {
+  const identity = context.identity || {};
+  if (!(identity.type === 'hermes_profile' && identity.bindingVerified)
+      && (identity.type !== 'static_fallback' || identity.role !== 'service-admin')) {
+    if (identity.type !== 'oauth2' || !identity.userId) {
+      throw new Error('Identidade autenticada obrigatória para registrar progresso');
+    }
+    const jobs = await supabaseFetch(`/rest/v1/agent_jobs?select=agent_id,business_id&job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+    const job = Array.isArray(jobs) ? jobs[0] : null;
+    if (!job || job.agent_id !== agent_id) {
+      throw new Error('Job ou agente incompatível');
+    }
+    const access = await supabaseFetch(`/rest/v1/app_access?select=role&user_id=eq.${encodeURIComponent(identity.userId)}&active=eq.true&limit=1`);
+    const role = Array.isArray(access) ? access[0]?.role : null;
+    if (role !== 'founder') {
+      if (!role || !job.business_id) {
+        throw new Error('Acesso à empresa do job não autorizado');
+      }
+      const membership = await supabaseFetch(`/rest/v1/user_business_access?select=business_id&user_id=eq.${encodeURIComponent(identity.userId)}&business_id=eq.${encodeURIComponent(job.business_id)}&active=eq.true&limit=1`);
+      if (!Array.isArray(membership) || membership.length === 0) {
+        throw new Error('Acesso à empresa do job não autorizado');
+      }
+    }
+  }
+  const result = await callSupabaseRpc('gateway_record_agent_progress', {
+    job_id,
+    agent_id,
+    step_key,
+    action: action.trim(),
+    reason: reason.trim(),
+    next_step: next_step.trim(),
+    evidence_refs,
+    actor: {
+      type: identity.type || 'unattributed',
+      user_id: identity.userId || null,
+      client_id: identity.clientId || null
+    }
+  });
+  if (!result?.event_id) {
+    throw new Error('Supabase não confirmou o registro do marco');
+  }
+
+  return {
+    success: true,
+    recorded: true,
+    job_id,
+    agent_id,
+    event_id: result?.event_id || null
+  };
+}
+
+/**
+ * complete_job (RPC gateway_complete_agent_job)
  */
 async function handleCompleteJob({
   job_id,
@@ -439,8 +534,8 @@ async function handleCompleteJob({
   });
 
   return {
-    success: true,
-    completed: true,
+    success: Boolean(result),
+    completed: Boolean(result),
     job_id,
     agent_id,
     evidence_count: evidence_refs.length,
@@ -474,8 +569,8 @@ async function handleFailJob({
   });
 
   return {
-    success: true,
-    failed: true,
+    success: Boolean(result),
+    failed: Boolean(result),
     job_id,
     agent_id,
     error_code,
@@ -493,7 +588,7 @@ async function handleWaitingHelena({
   impacto,
   decisao_necessaria,
   recomendacao
-}) {
+}, context = {}) {
   if (!job_id || !agent_id) {
     throw new Error('job_id e agent_id são obrigatórios para waiting_helena');
   }
@@ -501,14 +596,61 @@ async function handleWaitingHelena({
     throw new Error('contexto, impacto, decisao_necessaria e recomendacao são obrigatórios para waiting_helena');
   }
 
+  const jobs = await supabaseFetch(
+    `/rest/v1/agent_jobs?select=agent_id,business_id,status&job_id=eq.${encodeURIComponent(job_id)}&limit=1`
+  );
+  const job = Array.isArray(jobs) ? jobs[0] : null;
+  if (!job || job.agent_id !== agent_id) {
+    throw new Error('Job ou agente incompatível');
+  }
+  if (!['CLAIMED', 'RUNNING'].includes(job.status)) {
+    throw new Error('Job não está em execução para solicitar revisão da Helena');
+  }
+
+  const identity = context.identity || {};
+  if (!(identity.type === 'hermes_profile' && identity.bindingVerified)
+      && (identity.type !== 'static_fallback' || identity.role !== 'service-admin')) {
+    if (identity.type !== 'oauth2' || !identity.userId) {
+      throw new Error('Identidade autenticada obrigatória para solicitar revisão');
+    }
+    const access = await supabaseFetch(
+      `/rest/v1/app_access?select=role&user_id=eq.${encodeURIComponent(identity.userId)}&active=eq.true&limit=1`
+    );
+    const role = Array.isArray(access) ? access[0]?.role : null;
+    if (role !== 'founder') {
+      if (!role || !job.business_id) {
+        throw new Error('Acesso à empresa do job não autorizado');
+      }
+      const membership = await supabaseFetch(
+        `/rest/v1/user_business_access?select=business_id&user_id=eq.${encodeURIComponent(identity.userId)}&business_id=eq.${encodeURIComponent(job.business_id)}&active=eq.true&limit=1`
+      );
+      if (!Array.isArray(membership) || membership.length === 0) {
+        throw new Error('Acesso à empresa do job não autorizado');
+      }
+    }
+  }
+
   const result = await callSupabaseRpc('gateway_waiting_helena', {
-    job_id,
-    agent_id,
-    contexto,
-    impacto,
-    decisao_necessaria,
-    recomendacao
+    p_job_id: job_id,
+    p_agent_id: agent_id,
+    p_message: `Revisão solicitada à Helena: ${decisao_necessaria.trim()}`,
+    p_payload: {
+      contexto: contexto.trim(),
+      impacto: impacto.trim(),
+      decisao_necessaria: decisao_necessaria.trim(),
+      recomendacao: recomendacao.trim(),
+      motivo: 'Decisão exclusiva da Helena necessária para continuar o job',
+      proximo_passo: 'Helena revisar e registrar a decisão',
+      solicitante: {
+        type: identity.type || 'unattributed',
+        user_id: identity.userId || null,
+        client_id: identity.clientId || null
+      }
+    }
   });
+  if (!result || result.job_id !== job_id || result.status !== 'WAITING_HELENA') {
+    throw new Error('Supabase não confirmou a revisão pendente da Helena');
+  }
 
   return {
     success: true,
@@ -564,11 +706,12 @@ async function handleEnqueueJob({
 /**
  * 10. queue_summary
  */
-async function handleQueueSummary({ business_id } = {}) {
+async function handleQueueSummary({ business_id, agent_id } = {}) {
   let url = '/rest/v1/agent_jobs?select=status,priority,agent_id,business_id';
   if (business_id) {
     url += `&business_id=eq.${encodeURIComponent(business_id)}`;
   }
+  if (agent_id) url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
 
   const jobs = await supabaseFetch(url);
   if (!Array.isArray(jobs)) {
@@ -605,7 +748,8 @@ const TOOLS_CONFIG = {
     description: 'Consulta fila de agent_jobs no Supabase com status READY e available_at <= now, ordenados por prioridade e com dispatch_message estruturada para bots.',
     schema: z.object({
       limit: z.number().int().min(1).max(25).optional().default(10),
-      agent_id: z.string().optional()
+      agent_id: z.string().optional(),
+      business_id: z.string().optional()
     }),
     handler: handleListReadyJobs
   },
@@ -615,7 +759,7 @@ const TOOLS_CONFIG = {
       job_id: z.string().describe('ID do job a ser despachado'),
       dispatcher_agent_id: z.string().min(1).describe('ID do agente despachante. Marina = AGT-04'),
       target_agent_id: z.string().optional().describe('ID do especialista de destino'),
-      target_external_agent_id: z.string().optional().describe('ID externo do Grok Bot'),
+      target_external_agent_id: z.string().optional().describe('ID externo do runtime autorizado'),
       notes: z.string().optional().describe('Notas adicionais de despacho')
     }),
     handler: handleRecordDispatch
@@ -642,6 +786,33 @@ const TOOLS_CONFIG = {
       agent_id: z.string().describe('ID do agente especialista')
     }),
     handler: handleStartJob
+  },
+  record_progress: {
+    description: 'Registra somente marcos relevantes do job no Supabase: ação, motivo de negócio, próximo passo e evidência disponível. Não chama IA nem altera o status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        job_id: { type: 'string', description: 'ID do job em execução' },
+        agent_id: { type: 'string', description: 'ID do especialista responsável pelo job' },
+        step_key: { type: 'string', description: 'Chave estável deste marco para não duplicar em tentativas' },
+        action: { type: 'string', description: 'O que foi feito, em resumo objetivo' },
+        reason: { type: 'string', description: 'Por que isso foi feito para a entrega ou empresa; sem pensamento interno' },
+        next_step: { type: 'string', description: 'O que falta ou quem assume a próxima etapa' },
+        evidence_refs: { type: 'array', items: { type: 'string' }, description: 'IDs ou links de evidência disponíveis' }
+      },
+      required: ['job_id', 'agent_id', 'step_key', 'action', 'reason', 'next_step'],
+      additionalProperties: false
+    },
+    schema: z.object({
+      job_id: z.string().min(1).max(120),
+      agent_id: z.string().min(1).max(80),
+      step_key: z.string().min(1).max(80).regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/).describe('Identificador estável do marco para evitar duplicação em tentativas'),
+      action: z.string().trim().min(1).max(400).describe('O que foi feito, sem dados sensíveis'),
+      reason: z.string().trim().min(1).max(600).describe('Motivo objetivo de negócio; não incluir raciocínio interno'),
+      next_step: z.string().trim().min(1).max(400).describe('Próxima ação ou dependência'),
+      evidence_refs: z.array(z.string().min(1).max(500)).max(10).optional().default([])
+    }),
+    handler: handleRecordProgress
   },
   complete_job: {
     description: 'Conclui o job no Supabase via RPC gateway_complete_agent_job. Exige result_summary e evidence_refs (mínimo 1 evidência) conforme Protocolo V9.',
@@ -697,11 +868,32 @@ const TOOLS_CONFIG = {
   queue_summary: {
     description: 'Retorna panorama consolidado da fila de agent_jobs: status, prioridades e carga por agente.',
     schema: z.object({
-      business_id: z.string().optional().describe('Filtro opcional por empresa')
+      business_id: z.string().optional().describe('Filtro opcional por empresa'),
+      agent_id: z.string().optional().describe('Filtro opcional por agente')
     }),
     handler: handleQueueSummary
   }
 };
+
+// Contrato JSON explicito para clientes remotos. Sem propriedades, o cliente
+// nao consegue descobrir job_id/agent_id e demais argumentos obrigatorios.
+const textFields = names => Object.fromEntries(names.split(' ').map(name => [name, { type: 'string' }]));
+const inputObject = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
+const jobFields = textFields('job_id agent_id');
+const jobRequired = ['job_id', 'agent_id'];
+const mcpInputs = {
+  list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
+  record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),
+  get_job: inputObject(textFields('job_id'), ['job_id']),
+  claim_job: inputObject(jobFields, jobRequired),
+  start_job: inputObject(jobFields, jobRequired),
+  complete_job: inputObject({ ...jobFields, ...textFields('result_summary'), evidence_refs: { type: 'array', items: {}, minItems: 1 }, result_payload: { type: 'object', additionalProperties: true } }, [...jobRequired, 'result_summary', 'evidence_refs']),
+  fail_job: inputObject({ ...jobFields, ...textFields('error_code error_message'), payload: { type: 'object', additionalProperties: true } }, [...jobRequired, 'error_code', 'error_message']),
+  waiting_helena: inputObject({ ...jobFields, ...textFields('contexto impacto decisao_necessaria recomendacao') }, [...jobRequired, 'contexto', 'impacto', 'decisao_necessaria', 'recomendacao']),
+  enqueue_job: inputObject({ ...textFields('agent_id objective instruction business_id task_id scheduled_at available_at idempotency_key correlation_id'), priority: { type: 'string', enum: ['CRITICA', 'ALTA', 'MEDIA', 'BAIXA'] }, approval_required: { type: 'boolean' } }, ['agent_id', 'objective']),
+  queue_summary: inputObject(textFields('business_id agent_id'))
+};
+for (const [name, inputSchema] of Object.entries(mcpInputs)) TOOLS_CONFIG[name].inputSchema = inputSchema;
 
 // Instância oficial do McpServer
 const mcpServer = new McpServer({
@@ -715,7 +907,7 @@ for (const [name, def] of Object.entries(TOOLS_CONFIG)) {
     inputSchema: def.schema
   }, async (args) => {
     try {
-      const result = await def.handler(args);
+      const result = await executeAuthorizedTool(name, args, null);
       return {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
       };
@@ -726,6 +918,11 @@ for (const [name, def] of Object.entries(TOOLS_CONFIG)) {
       };
     }
   });
+}
+
+async function executeAuthorizedTool(name, args, identity) {
+  const authorized = await authorizeGatewayTool(name, args, identity, supabaseFetch);
+  return TOOLS_CONFIG[name].handler(authorized.args, { identity: authorized.identity });
 }
 
 // ======================================================================
@@ -932,6 +1129,12 @@ async function authenticateMcp(req, res, next) {
     return next();
   }
 
+  const hermesIdentity = matchHermesToken(token, HERMES_PROFILE_TOKEN_HASHES);
+  if (hermesIdentity) {
+    req.identity = hermesIdentity;
+    return next();
+  }
+
   // 2. Validação obrigatória de Access Token OAuth 2.1 emitido pelo Supabase Auth via JWKS
   try {
     const { payload } = await jwtVerify(token, jwksClient, {
@@ -1024,6 +1227,7 @@ app.get('/health', async (req, res) => {
     service: 'helena-gateway',
     version: '0.1.0',
     supabase: supabaseOk,
+    runtime_access: 'hermes-scoped-v1',
     oauth: oauthOk,
     mcp: true
   });
@@ -1150,9 +1354,7 @@ app.post('/mcp', authenticateMcp, async (req, res) => {
       return {
         name,
         description: def.description,
-        inputSchema: {
-          type: 'object'
-        }
+        inputSchema: def.inputSchema || { type: 'object' }
       };
     });
 
@@ -1185,7 +1387,7 @@ app.post('/mcp', authenticateMcp, async (req, res) => {
 
     try {
       const validatedArgs = toolDef.schema.parse(toolArgs);
-      const executionResult = await toolDef.handler(validatedArgs);
+      const executionResult = await executeAuthorizedTool(toolName, validatedArgs, req.identity);
 
       return res.json({
         jsonrpc: '2.0',
@@ -1226,7 +1428,7 @@ app.post('/mcp', authenticateMcp, async (req, res) => {
     const toolDef = TOOLS_CONFIG[method];
     try {
       const validatedArgs = toolDef.schema.parse(body.params || {});
-      const executionResult = await toolDef.handler(validatedArgs);
+      const executionResult = await executeAuthorizedTool(method, validatedArgs, req.identity);
 
       return res.json({
         jsonrpc: '2.0',
@@ -1267,7 +1469,7 @@ app.post('/api/tools/:toolName', authenticateMcp, async (req, res) => {
 
   try {
     const validatedArgs = toolDef.schema.parse(req.body || {});
-    const result = await toolDef.handler(validatedArgs);
+    const result = await executeAuthorizedTool(toolName, validatedArgs, req.identity);
     return res.json({ ok: true, result });
   } catch (err) {
     return res.status(400).json({ ok: false, error: err.message });
@@ -1289,8 +1491,12 @@ const server = disableListen
       console.log(`[HELENA_GATEWAY] Evolution API: ${EVOLUTION_BASE_URL ? 'CONFIGURADA' : 'DESATIVADA'}`);
 
       // Inicia loops periódicos
-      setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);
-      setInterval(tickNotificationOutbox, OUTBOX_TICK_MS);
+      const scheduleTimer = setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);
+      const outboxTimer = setInterval(tickNotificationOutbox, OUTBOX_TICK_MS);
+      server.once('close', () => {
+        clearInterval(scheduleTimer);
+        clearInterval(outboxTimer);
+      });
     });
 
 if (!disableListen) {
@@ -1306,4 +1512,4 @@ if (!disableListen) {
   });
 }
 
-export { app, server, TOOLS_CONFIG, handleRecordDispatch };
+export { app, server, TOOLS_CONFIG, handleRecordDispatch, handleRecordProgress, handleWaitingHelena };

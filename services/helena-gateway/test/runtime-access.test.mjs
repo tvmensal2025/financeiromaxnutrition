@@ -1,0 +1,89 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import { authorizeGatewayTool, matchHermesToken } from '../src/runtime-access.mjs';
+
+const token = 'hhs_' + 'a'.repeat(48);
+const entry = { profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256').update(token).digest('hex') };
+const identity = { type: 'hermes_profile', profileSlug: 'pedro--biz003' };
+const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', status: 'ACTIVE' };
+const job = { job_id: 'JOB-TEST', agent_id: 'AGT-18', business_id: 'BIZ-003', task_id: 'TSK-TEST' };
+function reader({ runtime = binding, task = job, role = 'operator' } = {}) {
+  return async url => {
+    if (url.startsWith('/rest/v1/agent_runtime_bindings?')) return runtime ? [runtime] : [];
+    if (url.startsWith('/rest/v1/agent_jobs?')) return task ? [task] : [];
+    if (url.startsWith('/rest/v1/app_access?')) return [{ role }];
+    throw new Error('Consulta inesperada: ' + url);
+  };
+}
+
+test('token individual exige hash unico e formato forte', () => {
+  assert.deepEqual(matchHermesToken(token, JSON.stringify([entry])), identity);
+  assert.equal(matchHermesToken(token, '[]'), null);
+  assert.equal(matchHermesToken(token, JSON.stringify([entry, entry])), null);
+  assert.equal(matchHermesToken(token + 'b', JSON.stringify([entry])), null);
+  assert.equal(matchHermesToken(token, '{'), null);
+  assert.equal(matchHermesToken('short', JSON.stringify([entry])), null);
+});
+
+test('identidade ausente ou OAuth comum nao pode se passar por bot', async () => {
+  await assert.rejects(authorizeGatewayTool('claim_job', {}, null, reader()), /autenticada/);
+  await assert.rejects(authorizeGatewayTool('claim_job', { agent_id: 'AGT-18' }, { type: 'oauth2', userId: 'u1' }, reader()), /exige fundador/);
+});
+
+test('fundador autenticado preserva operacoes administrativas', async () => {
+  const args = { agent_id: 'AGT-18' };
+  const result = await authorizeGatewayTool('get_job', args, { type: 'oauth2', userId: 'u1' }, reader({ role: 'founder' }));
+  assert.equal(result.args, args);
+});
+
+test('perfil configurado mas inativo e recusado', async () => {
+  await assert.rejects(authorizeGatewayTool('get_job', { job_id: 'JOB-TEST' }, identity, reader({ runtime: { ...binding, status: 'CONFIGURED' } })), /nao ativo/);
+});
+
+test('perfil pessoal nao executa fila empresarial', async () => {
+  await assert.rejects(authorizeGatewayTool('queue_summary', {}, identity, reader({ runtime: { ...binding, scope_type: 'PERSONAL', business_id: null } })), /escopo empresarial/);
+});
+
+test('especialista assume apenas seu job na sua empresa', async () => {
+  const result = await authorizeGatewayTool('claim_job', { job_id: job.job_id, agent_id: binding.agent_id }, identity, reader());
+  assert.equal(result.args.agent_id, 'AGT-18');
+  assert.equal(result.identity.bindingVerified, true);
+  await assert.rejects(authorizeGatewayTool('claim_job', { job_id: job.job_id, agent_id: 'AGT-09' }, identity, reader()), /difere/);
+  await assert.rejects(authorizeGatewayTool('claim_job', { job_id: job.job_id }, identity, reader({ task: { ...job, agent_id: 'AGT-09' } })), /outro agente/);
+  await assert.rejects(authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, reader({ task: { ...job, business_id: 'BIZ-001' } })), /outra empresa/);
+  await assert.rejects(authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, reader({ task: { ...job, task_id: null } })), /tarefa e empresa/);
+});
+
+test('consultas de especialista recebem filtro do servidor', async () => {
+  for (const tool of ['list_ready_jobs', 'queue_summary']) {
+    const result = await authorizeGatewayTool(tool, {}, identity, reader());
+    assert.deepEqual(result.args, { business_id: 'BIZ-003', agent_id: 'AGT-18' });
+    await assert.rejects(authorizeGatewayTool(tool, { business_id: 'BIZ-001' }, identity, reader()), /outra empresa/);
+    await assert.rejects(authorizeGatewayTool(tool, { agent_id: 'AGT-09' }, identity, reader()), /outro agente/);
+  }
+});
+
+test('Marina enxerga equipe da propria empresa sem assumir trabalho alheio', async () => {
+  const read = reader({ runtime: { ...binding, agent_id: 'AGT-04' } });
+  const result = await authorizeGatewayTool('list_ready_jobs', {}, identity, read);
+  assert.deepEqual(result.args, { business_id: 'BIZ-003' });
+  await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
+  await assert.rejects(authorizeGatewayTool('claim_job', { job_id: job.job_id, agent_id: 'AGT-18' }, identity, read), /outro agente/);
+  const dispatch = await authorizeGatewayTool('record_dispatch', { job_id: job.job_id, dispatcher_agent_id: 'AGT-04' }, identity, read);
+  assert.equal(dispatch.args.dispatcher_agent_id, 'AGT-04');
+  await assert.rejects(authorizeGatewayTool('record_dispatch', { job_id: job.job_id, dispatcher_agent_id: 'AGT-01' }, identity, read), /Despachante/);
+});
+
+test('especialista nao despacha nem cria fila automatica', async () => {
+  await assert.rejects(authorizeGatewayTool('record_dispatch', { job_id: job.job_id, dispatcher_agent_id: 'AGT-04' }, identity, reader()), /Somente Marina/);
+  await assert.rejects(authorizeGatewayTool('enqueue_job', { agent_id: 'AGT-09', business_id: 'BIZ-003' }, identity, reader()), /nao liberada/);
+});
+
+test('Helena supervisiona empresas sem executar pelo agente especialista', async () => {
+  const read = reader({ runtime: { ...binding, agent_id: 'AGT-01', scope_type: 'GROUP', business_id: null } });
+  await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
+  const result = await authorizeGatewayTool('queue_summary', {}, identity, read);
+  assert.deepEqual(result.args, {});
+  await assert.rejects(authorizeGatewayTool('complete_job', { job_id: job.job_id, agent_id: 'AGT-18' }, identity, read), /outro agente/);
+});

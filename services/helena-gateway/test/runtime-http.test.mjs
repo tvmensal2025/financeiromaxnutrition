@@ -1,0 +1,111 @@
+import { test, before, after } from 'node:test';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+
+// Credenciais ficticias; nenhum acesso ao Supabase ou Hermes real neste arquivo.
+const token = 'hhs_' + 'fixture'.repeat(8);
+process.env.HELENA_GATEWAY_DISABLE_LISTEN = '1';
+process.env.SUPABASE_URL = 'https://example.invalid';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'fixture-only';
+process.env.MCP_BEARER_TOKEN = 'fixture-admin';
+process.env.HERMES_PROFILE_TOKEN_HASHES = JSON.stringify([{
+  profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256').update(token).digest('hex')
+}]);
+const originalFetch = globalThis.fetch;
+const { app } = await import('../src/server.mjs');
+let listener, base;
+before(async () => {
+  await new Promise(resolve => { listener = app.listen(0, '127.0.0.1', resolve); });
+  base = `http://127.0.0.1:${listener.address().port}`;
+});
+after(async () => {
+  globalThis.fetch = originalFetch;
+  await new Promise(resolve => listener.close(resolve));
+});
+
+const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', profile_slug: 'pedro--biz003', status: 'ACTIVE' };
+const job = { job_id: 'JOB-FIXTURE', task_id: 'TSK-FIXTURE', agent_id: 'AGT-18', business_id: 'BIZ-003', status: 'RUNNING' };
+function mock({ runtime = binding, currentJob = job, rpcResult = null } = {}) {
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    const value = new URL(String(url));
+    assert.equal(value.origin, 'https://example.invalid', 'Nenhuma rede externa permitida');
+    calls.push({ url: value, method: options.method || 'GET', body: options.body });
+    let result;
+    if (value.pathname.includes('/rpc/')) result = rpcResult;
+    else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
+    else if (value.pathname.endsWith('/agent_jobs')) result = [currentJob];
+    else if (value.pathname.endsWith('/agent_job_events')) result = [];
+    else throw new Error('Requisicao nao prevista: ' + value.pathname);
+    return new Response(JSON.stringify(result), { headers: { 'content-type': 'application/json' } });
+  };
+  return calls;
+}
+async function invoke(transport, name, args) {
+  let path = '/mcp';
+  let body = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } };
+  if (transport === 'direct') body = { jsonrpc: '2.0', id: 1, method: name, params: args };
+  if (transport === 'rest') { path = '/api/tools/' + name; body = args; }
+  const response = await originalFetch(base + path, {
+    method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+  return response.json();
+}
+function resultOf(response, transport) {
+  return transport === 'mcp' ? JSON.parse(response.result.content[0].text) : response.result;
+}
+
+for (const transport of ['mcp', 'direct', 'rest']) {
+  test(`${transport}: job de outra empresa nao chega a RPC`, async () => {
+    const calls = mock({ currentJob: { ...job, business_id: 'BIZ-001' } });
+    const response = await invoke(transport, 'start_job', { job_id: job.job_id, agent_id: job.agent_id });
+    assert.match(JSON.stringify(response), /outra empresa/);
+    assert.equal(calls.filter(call => call.method !== 'GET').length, 0);
+  });
+  test(`${transport}: escopo vem da credencial e perfil pausado bloqueia`, async () => {
+    const calls = mock();
+    await invoke(transport, 'queue_summary', { identity: { type: 'static_fallback', role: 'service-admin' } });
+    const query = calls.find(call => call.url.pathname.endsWith('/agent_jobs')).url.searchParams;
+    assert.equal(query.get('agent_id'), 'eq.AGT-18');
+    assert.equal(query.get('business_id'), 'eq.BIZ-003');
+    mock({ runtime: { ...binding, status: 'PAUSED' } });
+    const paused = await invoke(transport, 'queue_summary', {});
+    assert.match(JSON.stringify(paused), /nao ativo/);
+  });
+}
+
+test('conclusao e falha nao declaram sucesso se RPC nao mudou registro', async () => {
+  for (const tool of ['complete_job', 'fail_job']) {
+    const args = tool === 'complete_job'
+      ? { job_id: job.job_id, agent_id: job.agent_id, result_summary: 'Fixture', evidence_refs: ['fixture:evidence'] }
+      : { job_id: job.job_id, agent_id: job.agent_id, error_code: 'FIXTURE', error_message: 'Teste' };
+    mock();
+    const refused = resultOf(await invoke('mcp', tool, args), 'mcp');
+    assert.equal(refused.success, false);
+    assert.equal(refused[tool === 'complete_job' ? 'completed' : 'failed'], false);
+    mock({ rpcResult: { ...job, status: tool === 'complete_job' ? 'COMPLETED' : 'FAILED' } });
+    const accepted = resultOf(await invoke('mcp', tool, args), 'mcp');
+    assert.equal(accepted.success, true);
+  }
+});
+
+test('detalhe do job identifica runtime Hermes atual sem consultar conexao Grok', async () => {
+  const calls = mock();
+  const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.equal(result.runtime_binding.profile_slug, 'pedro--biz003');
+  assert.equal(result.connection.provider, 'HERMES');
+  assert.equal(calls.some(call => call.url.pathname.endsWith('/agent_connections')), false);
+});
+
+test('descoberta MCP publica parametros necessarios para cliente Hermes', async () => {
+  const response = await originalFetch(base + '/mcp', {
+    method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
+  });
+  const { result } = await response.json();
+  for (const tool of result.tools) assert.ok(Object.keys(tool.inputSchema.properties).length > 0, tool.name);
+  const claim = result.tools.find(tool => tool.name === 'claim_job');
+  assert.deepEqual(claim.inputSchema.required, ['job_id', 'agent_id']);
+  const complete = result.tools.find(tool => tool.name === 'complete_job');
+  assert.equal(complete.inputSchema.properties.evidence_refs.minItems, 1);
+});
