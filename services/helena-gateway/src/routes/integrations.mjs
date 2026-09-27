@@ -277,7 +277,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.get('/api/integrations/google-chirp3-hd/voices', optionalAuth, async (req, res) => {
+  router.get(['/api/integrations/google-chirp3-hd/voices', '/api/integrations/call-engine/voices'], optionalAuth, async (req, res) => {
     try {
       const forceRefresh = req.query.refresh === 'true';
       const discovered = await listAvailableChirp3Voices(forceRefresh);
