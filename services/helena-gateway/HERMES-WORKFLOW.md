@@ -33,6 +33,12 @@ Piloto real BIZ-003: Helena criou/liberou `JOB-HR-3ebae4abff11a58e457fe779e15705
 
 Gateway `3935f92` publicado no EasyPanel, health OK. Ainda falta o acionador real do Hermes: liberar READY não inicia o modelo; o piloto exigiu abrir manualmente o perfil Pedro. O API server documentado do Hermes estava desativado nesta instalação durante o piloto. Nenhum worker/cron novo foi criado. A página local mostra o aceite da Clara, o motivo e os eventos; a correção do frontend ainda não foi commitada ou publicada. Checkpoint ativo: `CP-20260927-V021`.
 
+## Acionador pontual preparado
+
+`scripts/hermes_dispatch_once.py` foi copiado para `/data/helena-runtime/hermes_dispatch_once.py` no host do Hermes. O arquivo fica **desligado por padrão**: sem `--job-id`, consulta apenas a contagem da fila; com `--job-id`, confere job READY, tarefa, empresa e vínculo ACTIVE sem alterar o banco. `--execute` só funciona com `HELENA_DISPATCH_ENABLED=1`, exige o ID exato, usa lock local, confirma `claim_job` e `start_job` antes de chamar o perfil uma única vez, com máximo de 12 turnos e 180 segundos. Depois relê o estado no Gateway; se não houver entrega confirmada, registra falha em vez de declarar sucesso. Não existe cron, loop contínuo, auto-retry ou execução dos 23 legados.
+
+O código ainda precisa de validação operacional **no host** antes de um job real; os testes Python usaram uma fila simulada e não consumiram modelo. A instalação do arquivo não prova acionamento. O job de Victor continua DRAFT até liberação explícita, e os outros 17 vínculos continuam CONFIGURED. O limite mensal de custo e os contratos de escrita nas tabelas de CRM/financeiro/produto por função ainda não foram definidos.
+
 ## Validação
 
 - Testes Node/HTTP, autenticação e integrações existentes.

@@ -231,16 +231,15 @@ Tarefa: ${job.task_id || 'Não vinculada'}
 Objetivo: ${job.objective}
 Instrução: ${job.instruction || 'Seguir protocolo padrão da função.'}
 
-PROTOCOLO OPERACIONAL OBRIGATÓRIO (V9):
-1. claim_job - Bloquear o job atomicamente para você.
-2. start_job - Iniciar execução oficial.
-3. Executar estritamente dentro do seu escopo de especialista.
-4. Em cada marco relevante, usar record_progress: o que foi feito, motivo de negócio, próximo passo e evidência disponível. Não registrar pensamentos internos nem enviar status repetidos.
-5. Fazer handoff se a próxima etapa exigir outro especialista.
-6. complete_job - Concluir com resumo técnico e ao menos 1 evidência formal (evidence_refs).
-7. fail_job - Em caso de bloqueio ou erro, reportar detalhadamente sem omitir falha.
-8. waiting_helena - Se houver decisão estratégica exclusiva da CEO.
-9. NUNCA declarar conclusão sem evidência cadastrada no Supabase.`;
+PROTOCOLO OPERACIONAL HERMES V2:
+1. Consulte get_work_context e get_job para confirmar perfil, empresa, tarefa e estado atual.
+2. Se o job ainda estiver READY, use claim_job e start_job; confirme RUNNING antes de trabalhar. Se um despachante já fez essas chamadas, não as repita.
+3. Execute só no seu escopo e registre marcos reais em record_progress: ação, motivo, fonte e próximo passo.
+4. Registre a entrega durável em record_memory com fonte e grau de confirmação.
+5. Use submit_delivery com evidence_refs e expected_task_version lida em get_job. Aguarde review_delivery do revisor; o executor não se autoaprova.
+6. Somente após aprovação, handoff_task pode criar a tarefa do próximo responsável em DRAFT; a coordenação a libera separadamente.
+7. Se houver bloqueio, use waiting_helena ou fail_job. Não reinicie o modelo automaticamente.
+8. Não use complete_job no fluxo Hermes. Não afirme conclusão sem gravação, revisão e leitura confirmadas no Supabase.`;
 
     return {
       job_id: job.job_id,

@@ -104,6 +104,19 @@ test('runtime Grok desativado nao aparece na fila e nao aceita despacho', async 
   assert.equal(writes.length, 0);
 });
 
+test('mensagem de despacho Hermes exige entrega e revisao em vez de conclusao legada', async () => {
+  installSupabaseMock();
+  const ready = await TOOLS_CONFIG.list_ready_jobs.handler({});
+  assert.equal(ready.returned_count, 1);
+  const message = ready.jobs[0].dispatch_message;
+  assert.match(message, /HERMES V2/);
+  assert.match(message, /submit_delivery/);
+  assert.match(message, /review_delivery/);
+  assert.match(message, /handoff_task/);
+  assert.match(message, /Não use complete_job/);
+  assert.doesNotMatch(message, /PROTOCOLO OPERACIONAL OBRIGATÓRIO \(V9\)/);
+});
+
 test('perfil Hermes ativo de outra empresa nao recebe job', async () => {
   const writes = installSupabaseMock({
     binding: { agent_id: 'AGT-09', business_id: 'BIZ-001', scope_type: 'BUSINESS', provider: 'HERMES', profile_slug: 'theo--biz001', status: 'ACTIVE' }
