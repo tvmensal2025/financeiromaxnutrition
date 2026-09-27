@@ -1,5 +1,55 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { prepareVoiceHistory, completeVoiceReply } from '../src/integrations/voice-delivery.mjs';
+import { callLlmProviderDetailed } from '../src/integrations/voice-agent.mjs';
+
+describe('Conversational delivery regressions', () => {
+  it('keeps four exchanges and does not repeat the current user message', () => {
+    const history = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', text: `fala ${i}` }));
+    history.push({ role: 'user', text: 'Quanto custa?' });
+    const recent = prepareVoiceHistory(history, 'Quanto custa?');
+    assert.strictEqual(recent.length, 8);
+    assert.strictEqual(recent[0].content, 'fala 2');
+    assert.ok(!recent.some(h => h.content === 'Quanto custa?'));
+    assert.strictEqual(history.length, 11);
+  });
+
+  it('rejects truncated or filtered answers without stripping punctuation', () => {
+    assert.strictEqual(completeVoiceReply('Sim, temos. Mas o valor depende de', 'length'), '');
+    assert.strictEqual(completeVoiceReply('Sim, temos.', 'MAX_TOKENS'), '');
+    assert.strictEqual(completeVoiceReply('Sim, temos.', 'content_filter'), '');
+    assert.strictEqual(completeVoiceReply('Entendo, vamos conferir. Qual sabor você prefere?', 'stop'), 'Entendo, vamos conferir. Qual sabor você prefere?');
+  });
+
+  it('uses the official model, disables thinking and shares one deadline across fallback requests', async (t) => {
+    const requests = [];
+    t.mock.method(globalThis, 'fetch', async (_url, options) => {
+      requests.push({ ...options, body: JSON.parse(options.body) });
+      if (requests.length === 1) return new Response('{}', { status: 404 });
+      return Response.json({ choices: [{ message: { content: 'Claro, vamos conferir. Qual sabor?' }, finish_reason: 'stop' }] });
+    });
+    const result = await callLlmProviderDetailed({ provider: 'DEEPSEEK', model: 'unavailable-model', apiKey: 'test', systemInstruction: 'Você é Helena.', userPrompt: 'Oi', history: [{ role: 'user', text: 'Oi' }] });
+    assert.strictEqual(result.reply, 'Claro, vamos conferir. Qual sabor?');
+    assert.strictEqual(requests[1].body.model, 'deepseek-flash');
+    assert.strictEqual(requests[0].signal, requests[1].signal);
+    assert.deepStrictEqual(requests[1].body.thinking, { type: 'disabled' });
+    assert.strictEqual(requests[1].body.messages.filter(m => m.role === 'user').length, 1);
+    assert.match(requests[1].body.messages[0].content, /Você é Helena/);
+    assert.match(requests[1].body.messages[0].content, /vírgulas/);
+  });
+
+  it('maps the display name directly without a failed request and rejects incomplete speech', async (t) => {
+    let count = 0;
+    t.mock.method(globalThis, 'fetch', async (_url, options) => {
+      count++;
+      assert.strictEqual(JSON.parse(options.body).model, 'deepseek-flash');
+      return Response.json({ choices: [{ message: { content: 'O desconto depende de' }, finish_reason: 'length' }] });
+    });
+    const result = await callLlmProviderDetailed({ provider: 'DEEPSEEK', model: 'DeepSeek-V4.1-Flash', apiKey: 'test', userPrompt: 'Desconto?' });
+    assert.strictEqual(result.reply, '');
+    assert.strictEqual(count, 1);
+  });
+});
 import {
   getVoiceAgentConfig,
   updateVoiceAgentConfig,
@@ -65,20 +115,20 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
     assert.strictEqual(check[0].text, 'Oi Pedro');
   });
 
-  it('Configuração padrão adota DEEPSEEK e modelo DeepSeek-V4.1-Flash', async () => {
+  it('Configuração padrão adota OPENAI e modelo gpt-6-luna', async () => {
     const cfg = await getVoiceAgentConfig();
-    assert.strictEqual(cfg.ai_provider, 'DEEPSEEK');
-    assert.strictEqual(cfg.ai_model, 'DeepSeek-V4.1-Flash');
+    assert.strictEqual(cfg.ai_provider, 'OPENAI');
+    assert.strictEqual(cfg.ai_model, 'gpt-6-luna');
   });
 
   it('resolveAiApiKey prioriza chave explícita e respeita variáveis de ambiente', async () => {
     const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
-    const keyCustom = await resolveAiApiKey({ ai_api_key: 'sk-custom-test-123' });
+    const keyCustom = await resolveAiApiKey({ ai_provider: 'DEEPSEEK', ai_api_key: 'sk-custom-test-123' });
     assert.strictEqual(keyCustom, 'sk-custom-test-123');
 
     const origEnv = process.env.DEEPSEEK_API_KEY;
     process.env.DEEPSEEK_API_KEY = 'sk-env-deepseek-test';
-    const keyEnv = await resolveAiApiKey({});
+    const keyEnv = await resolveAiApiKey({ ai_provider: 'DEEPSEEK' });
     assert.strictEqual(keyEnv, 'sk-env-deepseek-test');
     if (origEnv !== undefined) {
       process.env.DEEPSEEK_API_KEY = origEnv;
@@ -88,3 +138,14 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   });
 });
 
+
+ it('OpenAI uses only OPENAI_API_KEY even when a legacy DeepSeek key is configured', async () => {
+  const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
+  const original = process.env.OPENAI_API_KEY;
+  try {
+   process.env.OPENAI_API_KEY = 'test-openai';
+   assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI', ai_api_key: 'legacy-deepseek' }), 'test-openai');
+   delete process.env.OPENAI_API_KEY;
+   assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI', ai_api_key: 'legacy-deepseek' }), '');
+  } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
+ });

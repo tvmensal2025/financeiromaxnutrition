@@ -8,10 +8,8 @@ import (
 	"testing"
 
 	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/api"
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/calls"
 	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/config"
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/events"
-	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/session"
+	"github.com/tvmensal2025/financeiromaxnutrition/services/meowcaller-service/internal/voice"
 )
 
 func setupTestServer() http.Handler {
@@ -20,11 +18,8 @@ func setupTestServer() http.Handler {
 		InternalAPIKey:         "secret-test-key",
 		CallMaxDurationSeconds: 60,
 	}
-	bus := events.NewEventBus()
-	callMgr := calls.NewCallManager(60, bus)
-	sessMgr := session.NewWhatsAppSessionManager("/tmp/test_wa.db")
-
-	server := api.NewServer(cfg, callMgr, sessMgr, bus)
+	// Disconnected engine: do not start WhatsApp connections in unit tests.
+	server := api.NewServer(cfg, &voice.Engine{})
 	return server.Routes()
 }
 
@@ -48,7 +43,7 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
-func TestCallsAPIAuthAndCreation(t *testing.T) {
+func TestCallsAPIAuthAndDisconnectedSession(t *testing.T) {
 	router := setupTestServer()
 
 	// Tentativa sem autenticação deve retornar 401
@@ -68,26 +63,23 @@ func TestCallsAPIAuthAndCreation(t *testing.T) {
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusCreated {
-		t.Fatalf("Esperado 201 Created, obtido %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("Expected 503 for a disconnected session, got %d: %s", w.Code, w.Body.String())
 	}
-
-	var callData map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &callData); err != nil {
-		t.Fatalf("Erro ao decodificar JSON: %v", err)
+	if !bytes.Contains(w.Body.Bytes(), []byte("não conectada")) {
+		t.Fatal("Expected an explicit disconnected-session error")
 	}
-	callID, ok := callData["call_id"].(string)
-	if !ok || callID == "" {
-		t.Fatal("call_id ausente na resposta")
-	}
-
-	// Consulta a chamada criada
-	getReq := httptest.NewRequest("GET", "/v1/calls/"+callID, nil)
+	getReq := httptest.NewRequest("GET", "/v1/calls", nil)
 	getReq.Header.Set("X-API-Key", "secret-test-key")
 	getW := httptest.NewRecorder()
 	router.ServeHTTP(getW, getReq)
-
-	if getW.Code != http.StatusOK {
-		t.Fatalf("Esperado 200 OK ao buscar chamada, obtido %d", getW.Code)
+	var data struct {
+		Total int `json:"total"`
+	}
+	if err := json.Unmarshal(getW.Body.Bytes(), &data); err != nil {
+		t.Fatal(err)
+	}
+	if getW.Code != http.StatusOK || data.Total != 0 {
+		t.Fatal("Failed origination must not create a phantom call")
 	}
 }

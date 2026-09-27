@@ -49,6 +49,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /v1/diagnostics", s.auth(s.handleDiagnostics))
 	mux.HandleFunc("POST /v1/calls", s.auth(s.handleOriginateCall))
 	mux.HandleFunc("POST /v1/calls/originate", s.auth(s.handleOriginateCall))
+	mux.HandleFunc("POST /v1/calls/{id}/play/stream", s.auth(s.handleStreamCallAudio))
 	mux.HandleFunc("POST /v1/calls/{id}/play", s.auth(s.handlePlayCallAudio))
 	mux.HandleFunc("POST /v1/calls/{id}/answer", s.auth(s.handleAnswerCall))
 	mux.HandleFunc("POST /v1/calls/{id}/hangup", s.auth(s.handleHangupCall))
@@ -120,6 +121,8 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"connected_jid":   jid,
 		"has_qr_code":     qr != "",
 		"active_calls":    len(activeCalls),
+		"pcm_streaming":   true,
+		"stream_protocol": 1,
 	}, http.StatusOK)
 }
 
@@ -285,13 +288,13 @@ func (s *Server) handleOriginateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.ok(w, map[string]interface{}{
-		"ok":           true,
-		"call_id":      snap.CallID,
-		"status":       snap.Status,
-		"direction":    snap.Direction,
-		"remote":       snap.RemoteNumber,
-		"started_at":   snap.StartedAt,
-		"message":      fmt.Sprintf("Chamada originada para %s. Aguardando o dispositivo atender...", targetJID),
+		"ok":         true,
+		"call_id":    snap.CallID,
+		"status":     snap.Status,
+		"direction":  snap.Direction,
+		"remote":     snap.RemoteNumber,
+		"started_at": snap.StartedAt,
+		"message":    fmt.Sprintf("Chamada originada para %s. Aguardando o dispositivo atender...", targetJID),
 	}, http.StatusCreated)
 }
 
@@ -474,4 +477,3 @@ func (s *Server) handleMeowcallerDiag(w http.ResponseWriter, r *http.Request) {
 	result["stream_count"] = len(streams)
 	s.ok(w, result, http.StatusOK)
 }
-

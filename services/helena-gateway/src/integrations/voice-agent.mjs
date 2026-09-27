@@ -4,6 +4,8 @@
  * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
+import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply } from './voice-delivery.mjs';
+import { streamReplyToCall } from './call-streaming.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
   registerCallSession,
@@ -120,9 +122,9 @@ let cachedConfig = {
   voice_profile_id: 'VP-ELEVEN-MASC-01',
   elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
   call_voice: 'pt-BR-Chirp3-HD-Achird',
-  ai_provider: 'DEEPSEEK',
-  ai_model: 'DeepSeek-V4.1-Flash',
-  ai_api_key: process.env.DEEPSEEK_API_KEY || '',
+  ai_provider: 'OPENAI',
+  ai_model: 'gpt-6-luna',
+  ai_api_key: '',
   is_active: true,
   updated_at: new Date().toISOString()
 };
@@ -134,6 +136,7 @@ let lastKeyFetchTime = 0;
  * Resolve a API key de inteligência (prioriza DeepSeek configurada no Supabase ou env)
  */
 export async function resolveAiApiKey(cfg = {}) {
+  if ((cfg.ai_provider || 'OPENAI') === 'OPENAI') return (process.env.OPENAI_API_KEY || '').trim();
   // 1. Chave explícita em cfg
   if (cfg.ai_api_key && cfg.ai_api_key.trim().length > 0) {
     return cfg.ai_api_key.trim();
@@ -239,8 +242,8 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   if (apiKey) {
     try {
       const systemInstruction = `${systemScript}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
-      let providerToUse = cfg.ai_provider || 'DEEPSEEK';
-      let modelToUse = cfg.ai_model || 'DeepSeek-V4.1-Flash';
+      let providerToUse = cfg.ai_provider || 'OPENAI';
+      let modelToUse = cfg.ai_model || 'gpt-6-luna';
       if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) {
         providerToUse = 'GEMINI';
         modelToUse = 'gemini-flash-latest';
@@ -359,6 +362,9 @@ function sanitizeSpeechText(text) {
  */
 export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
   const start = Date.now();
+  const deadline = AbortSignal.timeout(6000); // One shared budget, including model fallbacks.
+  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}`;
+  const recentHistory = prepareVoiceHistory(history, userPrompt);
 
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
     // Modelos com suporte comprovado a áudio WAV e inteligência conversacional rápida
@@ -366,7 +372,8 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
       ? ['gemini-flash-latest', 'gemini-3.5-flash-lite']
       : ['gemini-flash-latest', 'gemini-3.5-flash-lite', model].filter(Boolean);
 
-    for (const m of candidateModels) {
+    for (const m of new Set(candidateModels)) {
+      if (deadline.aborted) break;
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
         const parts = [];
@@ -390,22 +397,24 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(8000), // Timeout de 8s para voz
+          signal: deadline,
           body: JSON.stringify({
             system_instruction: {
               parts: [{ text: systemInstruction }]
             },
-            contents: [{ role: 'user', parts }],
+            contents: [...recentHistory.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })), { role: 'user', parts }],
             generationConfig: {
               temperature: 0.4,
-              maxOutputTokens: 250
+              maxOutputTokens: 160
             }
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const candidate = data?.candidates?.[0];
+          const reply = completeVoiceReply(candidate?.content?.parts?.filter(p => !p.thought).map(p => p.text || '').join(''), candidate?.finishReason);
+          if (!reply) break;
           if (reply && reply.trim().length > 0) {
             const usage = data?.usageMetadata ? {
               prompt_tokens: data.usageMetadata.promptTokenCount || 0,
@@ -430,31 +439,17 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
 
   // Provedor DeepSeek Oficial (Compatível OpenAI v1)
   if (userPrompt && (provider === 'DEEPSEEK' || provider.includes('DEEPSEEK'))) {
-    const candidateModels = [
-      model || 'DeepSeek-V4.1-Flash',
-      'DeepSeek-V4.1-Flash',
-      'deepseek-chat'
-    ];
-    const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
-
+    // The display/version name is not the API model identifier.
+    const requestedModel = !model || /^DeepSeek-V4\.1-Flash$/i.test(model) ? 'deepseek-flash' : model;
+    const uniqueModels = [...new Set([requestedModel, 'deepseek-flash'])];
     const messages = [
-      { role: 'system', content: systemInstruction }
+      { role: 'system', content: systemInstruction },
+      ...recentHistory,
+      { role: 'user', content: userPrompt }
     ];
-
-    if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-6)) {
-        if (h && (h.text || h.content)) {
-          messages.push({
-            role: h.role === 'assistant' ? 'assistant' : 'user',
-            content: String(h.text || h.content || '').trim()
-          });
-        }
-      }
-    }
-
-    messages.push({ role: 'user', content: userPrompt });
 
     for (const m of uniqueModels) {
+      if (deadline.aborted) break;
       try {
         const res = await fetch('https://api.deepseek.com/chat/completions', {
           method: 'POST',
@@ -462,18 +457,21 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          signal: AbortSignal.timeout(6000), // Timeout de 6s para chamadas telefônicas
+          signal: deadline,
           body: JSON.stringify({
             model: m,
             messages,
-            max_tokens: 150,
+            max_tokens: 160, // Brevity comes from the prompt; leave room to finish sentences.
+            thinking: { type: 'disabled' },
             temperature: 0.3
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data?.choices?.[0]?.message?.content?.trim();
+          const choice = data?.choices?.[0];
+          const reply = completeVoiceReply(choice?.message?.content, choice?.finish_reason);
+          if (!reply) break;
           if (reply && reply.length > 0) {
             console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
             return {
@@ -484,6 +482,7 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
             };
           }
         } else {
+          if (![400, 404].includes(res.status)) break;
           const errText = await res.text().catch(() => '');
           console.warn(`[VOICE_AGENT] DeepSeek modelo ${m} retornou status ${res.status}: ${errText.slice(0, 120)}`);
         }
@@ -499,29 +498,31 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
     try {
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
+        signal: deadline,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini'),
+          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-6-luna'),
           messages: [
             { role: 'system', content: systemInstruction },
+            ...recentHistory,
             { role: 'user', content: userPrompt }
           ],
-          max_tokens: 120,
+          ...(provider === 'OPENAI' ? { max_completion_tokens: 200, reasoning_effort: 'none' } : { max_tokens: 120 }),
           temperature: 0.4
         })
       });
 
       if (res.ok) {
         const data = await res.json();
-        const reply = data?.choices?.[0]?.message?.content || '';
+        const reply = completeVoiceReply(data?.choices?.[0]?.message?.content, data?.choices?.[0]?.finish_reason);
         return {
           reply,
           usage: data?.usage || null,
           latencyMs: Date.now() - start,
-          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini')
+          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-6-luna')
         };
       }
     } catch (err) {
@@ -792,6 +793,9 @@ export async function handleCallConnectedWebhook(payload = {}) {
 export async function handleCallEndedWebhook(payload = {}) {
   const { call_id, reason } = payload;
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
+  activeVoiceTurns.get(call_id)?.abort(new Error('Call ended'));
+  activeVoiceTurns.delete(call_id);
+  latestSpeechEpochs.delete(call_id);
   const summary = endCallSession(call_id, reason || 'normal_hangup');
   return { ok: true, call_id, summary };
 }
@@ -800,6 +804,7 @@ export async function handleCallEndedWebhook(payload = {}) {
  * Trata detecção de silêncio prolongado (nudge conversacional)
  */
 export async function handleUserSilence({ callId }) {
+  if (activeVoiceTurns.has(callId)) return { ok: true, ignored: true, reason: 'response_in_progress' };
   if (!callId) throw new Error('callId é obrigatório');
   console.log(`[VOICE_AGENT] ⏳ Silêncio do cliente na chamada ${callId}. Disparando cutucada cortês...`);
   const text = "Olá! Você consegue me ouvir? Pode falar, estou aqui para te ajudar!";
@@ -839,7 +844,30 @@ export function getCallHistory(callId) {
  * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
  * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
  */
-export async function processUserSpeech({ callId, audioBase64, format = 'wav', sampleRate = 16000 }) {
+const activeVoiceTurns = new Map();
+const latestSpeechEpochs = new Map();
+
+export async function processUserSpeech(params) {
+  const { callId, speechEpoch } = params;
+  if (!callId) throw new Error('callId é obrigatório');
+  if (Number.isSafeInteger(speechEpoch)) {
+    if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
+    latestSpeechEpochs.set(callId, speechEpoch);
+  }
+  activeVoiceTurns.get(callId)?.abort(new Error('New customer utterance'));
+  const controller = new AbortController();
+  activeVoiceTurns.set(callId, controller);
+  try {
+    return await processUserSpeechTurn({ ...params, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) return { ok: true, interrupted: true, call_id: callId };
+    throw err;
+  } finally {
+    if (activeVoiceTurns.get(callId) === controller) activeVoiceTurns.delete(callId);
+  }
+}
+
+async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64) throw new Error('audioBase64 é obrigatório');
 
@@ -865,11 +893,12 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
   const sttStart = Date.now();
   const userText = await transcribeAudio(audioBuffer);
   const sttMs = Date.now() - sttStart;
+  signal.throwIfAborted();
 
   let replyText = '';
   let llmUsage = null;
   let llmMs = 0;
-  let llmModel = cfg.ai_model || 'DeepSeek-V4.1-Flash';
+  let llmModel = cfg.ai_model || 'gpt-6-luna';
   let usedPersonality = call?.activePersonalityId || getActivePersonality().id;
 
   if (userText && userText.trim().length > 0) {
@@ -881,6 +910,15 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       text: userText,
       timestamp: new Date().toISOString()
     });
+
+    if (process.env.CALL_VOICE_STREAMING_ENABLED === 'true' &&
+        (cfg.ai_provider || 'OPENAI') === 'OPENAI' && Number.isSafeInteger(speechEpoch)) {
+      const apiKey = await resolveAiApiKey(cfg);
+      signal.throwIfAborted();
+      if (apiKey && !apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
+        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal });
+      }
+    }
 
     // 2. Raciocínio com IA considerando a personalidade ativa da chamada (com hot-swap)
     const llmStart = Date.now();
@@ -901,6 +939,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     replyText = `Olá! Aqui é o ${curProfile.character_name} da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?`;
   }
 
+  signal.throwIfAborted();
   // Sanitiza texto para pronúncia limpa
   replyText = sanitizeSpeechText(replyText);
   const activeProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
@@ -934,7 +973,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       callId,
       turnNumber,
       sttMs,
-      llmFirstTokenMs: Math.round(llmMs * 0.55), // Estimativa de TTFT
+      llmFirstTokenMs: null, // Non-streaming: first-token time is not measured.
       llmTotalMs: llmMs,
       ttsMs,
       turnLatencyMs,
@@ -1010,3 +1049,31 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
 }
 
 
+
+async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal }) {
+  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  const voice = call?.activeVoice || profile.voice_id;
+  const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
+    characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
+  try {
+    const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
+      systemInstruction: `${call?.activeSystemScript || profile.system_script}\n\nBASE DE CONHECIMENTO OFICIAL:\n${cfg.knowledge_base}`,
+      userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
+    signal.throwIfAborted();
+    callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
+    if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
+    const metrics = { ...result.metrics, transport: result.playback.metrics, streaming: true };
+    recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
+      llmFirstTokenMs: metrics.llm_first_token_ms, llmTotalMs: metrics.llm_total_ms,
+      ttsMs: metrics.tts_first_audio_ms || 0, turnLatencyMs: Date.now() - turnStart,
+      streamMetrics: metrics, charactersSynthesized: result.text.length });
+    return { ok: true, streaming: true, call_id: callId, user_text: userText, reply_text: result.text, metrics, play_result: result.playback };
+  } catch (err) {
+    // Never replay a batch response after a partially spoken or interrupted stream.
+    const interrupted = Boolean(err.interrupted || signal.aborted);
+    recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
+      turnLatencyMs: Date.now() - turnStart, streamMetrics: { ...err.streamMetrics, streaming: true, interrupted },
+      error: interrupted ? 'stream_interrupted' : err.message });
+    return { ok: interrupted, streaming: true, interrupted, call_id: callId, error: interrupted ? null : err.message };
+  }
+}

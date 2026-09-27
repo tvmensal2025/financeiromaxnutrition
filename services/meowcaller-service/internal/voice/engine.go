@@ -95,11 +95,13 @@ type Engine struct {
 	meo       *meowcaller.Client
 	cancelCtx context.CancelFunc
 
-	activeCalls map[string]*CallSnapshot
-	callHandles map[string]*meowcaller.Call
-	callSinks   map[string]*ConversationalSink
-	callPlayers map[string]*meowcaller.Player
-	callsMu     sync.RWMutex
+	activeCalls      map[string]*CallSnapshot
+	callHandles      map[string]*meowcaller.Call
+	callSinks        map[string]*ConversationalSink
+	callPlayers      map[string]*meowcaller.Player
+	callStreams      map[string]*pcmStreamSource
+	callSpeechEpochs map[string]uint64
+	callsMu          sync.RWMutex
 
 	diag   VoiceDiagnostics
 	diagMu sync.RWMutex
@@ -329,13 +331,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada recebida encerrada")
 			e.recordDiagEvent(fmt.Sprintf("Chamada encerrada. Motivo: %s", reason))
 			snap.Status = "ENDED"
-			e.callsMu.Lock()
-			if s, ok := e.callSinks[callID]; ok {
-				_ = s.Close()
-				delete(e.callSinks, callID)
-			}
-			delete(e.callPlayers, callID)
-			e.callsMu.Unlock()
+			e.closeCallAudio(callID)
 
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -711,13 +707,7 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 		call.OnEnd(func(reason string) {
 			snap.Status = "ENDED"
 			closeDone()
-			e.callsMu.Lock()
-			if sink, ok := e.callSinks[callID]; ok {
-				_ = sink.Close()
-				delete(e.callSinks, callID)
-			}
-			delete(e.callPlayers, callID)
-			e.callsMu.Unlock()
+			e.closeCallAudio(callID)
 			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada discada encerrada")
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -955,13 +945,14 @@ type ConversationalSink struct {
 	preSpeechRing        [][]int16 // Buffer circular de pré-fala (últimos 6 frames = 360ms)
 	silenceFrames        int
 	totalFrames          int
-	consecutiveSpeech    int       // Frames consecutivos de voz para validar início de fala
+	speechEpoch          uint64
+	consecutiveSpeech    int // Frames consecutivos de voz para validar início de fala
 	noiseFloor           float64
 	rmsThreshold         float64
-	silenceThreshold     int       // 15 frames * 60ms = ~900ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
-	minSpeechSamples     int       // Mínimo de 200ms de fala (3200 amostras a 16kHz)
-	initialSilenceFrames int       // Contador de frames em silêncio antes da primeira fala
-	nudgeSent            bool      // Flag para cutucada cortês enviada uma única vez
+	silenceThreshold     int  // 15 frames * 60ms = ~900ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
+	minSpeechSamples     int  // Mínimo de 200ms de fala (3200 amostras a 16kHz)
+	initialSilenceFrames int  // Contador de frames em silêncio antes da primeira fala
+	nudgeSent            bool // Flag para cutucada cortês enviada uma única vez
 	closed               bool
 }
 
@@ -1014,10 +1005,12 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// 2. Calcula energia RMS do frame de 60ms (960 amostras a 16kHz)
 	rms := math.Sqrt(sum / float64(len(frame)))
 
+	activePlayer := s.engine.isPlayerActive(s.callID)
+	// Do not train the noise floor on the assistant playback.
 	// Atualiza piso de ruído adaptativo quando não está falando
 	if s.noiseFloor == 0 {
 		s.noiseFloor = rms
-	} else if !s.isSpeaking {
+	} else if !s.isSpeaking && !activePlayer {
 		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
 	}
 
@@ -1025,6 +1018,12 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.35)
 	if effectiveThreshold > 0.0005 {
 		effectiveThreshold = 0.0005 // Teto de segurança para jamais ficar surdo mesmo com ruído de fundo
+	}
+
+	requiredFrames := 2
+	if activePlayer {
+		effectiveThreshold *= 2
+		requiredFrames = 3
 	}
 
 	// Registra telemetria contínua
@@ -1055,11 +1054,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 		s.consecutiveSpeech++
 		s.initialSilenceFrames = 0 // Reseta silêncio inicial já que detectou voz
 
-		// BARGE-IN INSTANTÂNEO: Interrompe a fala do Pedro assim que houver voz do cliente
-		s.engine.stopActivePlayer(s.callID)
+		// Require sustained speech before interrupting playback (3 x 60ms).
+		if activePlayer && s.consecutiveSpeech >= requiredFrames {
+			s.engine.stopActivePlayer(s.callID)
+		}
 
 		// Confirma início da fala com 2 frames consecutivos (>120ms) de energia
-		if !s.isSpeaking && s.consecutiveSpeech >= 2 {
+		if !s.isSpeaking && s.consecutiveSpeech >= requiredFrames {
+			s.speechEpoch = s.engine.advanceSpeechEpoch(s.callID)
 			s.isSpeaking = true
 			s.silenceFrames = 0
 			log.Info().
@@ -1077,6 +1079,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			s.preSpeechRing = s.preSpeechRing[:0]
 		}
 
+		// Preserve candidate frames too, including the first syllable during confirmation.
+		if !s.isSpeaking {
+			if len(s.preSpeechRing) >= 6 {
+				s.preSpeechRing = s.preSpeechRing[1:]
+			}
+			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
+		}
+
 		if s.isSpeaking {
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
 			s.silenceFrames = 0
@@ -1085,6 +1095,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			if len(s.speechSamples) >= 16000*12 {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
+				epoch := s.speechEpoch
 				s.speechSamples = make([]int16, 0, 16000*5)
 				s.isSpeaking = false
 				s.silenceFrames = 0
@@ -1093,7 +1104,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 
 				log.Info().Str("call_id", callID).Msg("🗣️ Turno de fala atingiu limite máximo (12s). Despachando áudio...")
 				wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
-				go s.engine.notifyUserSpeech(callID, wavBytes)
+				go s.engine.notifyUserSpeech(callID, wavBytes, epoch)
 				return nil
 			}
 		}
@@ -1109,6 +1120,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			if s.silenceFrames >= s.silenceThreshold {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
+				epoch := s.speechEpoch
 				s.speechSamples = make([]int16, 0, 16000*5)
 				s.isSpeaking = false
 				s.silenceFrames = 0
@@ -1124,7 +1136,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 						Int("duration_ms", durationMs).
 						Msg("🗣️ Turno de fala do cliente finalizado. Gerando WAV e enviando para Helena Gateway...")
 					wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
-					go s.engine.notifyUserSpeech(callID, wavBytes)
+					go s.engine.notifyUserSpeech(callID, wavBytes, epoch)
 				}
 				return nil
 			}
@@ -1228,7 +1240,7 @@ func encodePCMToWAV(samples []int16, sampleRate uint32) []byte {
 }
 
 // notifyUserSpeech envia o áudio da fala do cliente (WAV 16kHz) para o Helena Gateway
-func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
+func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte, epoch uint64) {
 	e.updateDiagDispatch(len(wavBytes))
 	e.recordDiagEvent(fmt.Sprintf("Turno finalizado: despachando WAV (%d bytes)", len(wavBytes)))
 
@@ -1239,6 +1251,7 @@ func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
 		"audio_base64": b64,
 		"format":       "wav",
 		"sample_rate":  16000,
+		"speech_epoch": epoch,
 		"timestamp":    time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
@@ -1280,4 +1293,24 @@ func (e *Engine) notifyUserSpeech(callID string, wavBytes []byte) {
 		Int("status", resp.StatusCode).
 		Str("response", string(respBody)).
 		Msg("📥 Resposta do Helena Gateway para a fala do cliente!")
+}
+
+func (e *Engine) closeCallAudio(callID string) {
+	e.callsMu.Lock()
+	sink, player, source := e.callSinks[callID], e.callPlayers[callID], e.callStreams[callID]
+	delete(e.callSinks, callID)
+	delete(e.callPlayers, callID)
+	delete(e.callStreams, callID)
+	delete(e.callSpeechEpochs, callID)
+	delete(e.callHandles, callID)
+	e.callsMu.Unlock()
+	if source != nil {
+		_ = source.Close()
+	}
+	if player != nil {
+		player.Stop()
+	}
+	if sink != nil {
+		_ = sink.Close()
+	}
 }

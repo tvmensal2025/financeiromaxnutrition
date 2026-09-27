@@ -1058,7 +1058,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
 
   router.post('/api/integrations/voice-agent/user-speech', async (req, res) => {
     try {
-      const { call_id, audio_base64, format, sample_rate } = req.body || {};
+      const { call_id, audio_base64, format, sample_rate, speech_epoch } = req.body || {};
       if (!call_id || !audio_base64) {
         return res.status(400).json({ ok: false, error: 'call_id e audio_base64 são obrigatórios' });
       }
@@ -1066,7 +1066,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         callId: call_id,
         audioBase64: audio_base64,
         format: format || 'wav',
-        sampleRate: sample_rate || 16000
+        sampleRate: sample_rate || 16000,
+        speechEpoch: speech_epoch
       });
       return res.json({ ok: true, result });
     } catch (err) {
