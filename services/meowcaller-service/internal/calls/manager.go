@@ -64,15 +64,16 @@ func (m *CallManager) GetCall(callID string) (*CallSession, error) {
 	return session, nil
 }
 
-func (m *CallManager) ListActiveCalls() []CallSession {
+func (m *CallManager) ListActiveCalls() []*CallSession {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	active := make([]CallSession, 0)
+	active := make([]*CallSession, 0)
 	for _, call := range m.calls {
 		snap := call.GetSnapshot()
 		if snap.Status != StatusEnded && snap.Status != StatusFailed && snap.Status != StatusRejected {
-			active = append(active, snap)
+			// Keep the detached snapshot without copying its embedded mutex.
+			active = append(active, &snap)
 		}
 	}
 	return active
