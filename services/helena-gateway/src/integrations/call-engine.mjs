@@ -850,6 +850,7 @@ export function recordTurnTelemetry({
   personality = '',
   sttMs = 0,
   llmFirstTokenMs = null,
+  streamMetrics = null,
   llmTotalMs = 0,
   ttsMs = 0,
   turnLatencyMs = 0,
@@ -897,6 +898,7 @@ export function recordTurnTelemetry({
     voice: resolvedVoice,
     error: error || null,
     metrics: {
+      ...(streamMetrics ? { stream: streamMetrics } : {}),
       stt_ms: Math.round(sttMs),
       llm_first_token_ms: Number.isFinite(llmFirstTokenMs) ? Math.round(llmFirstTokenMs) : null,
       llm_total_ms: Math.round(llmTotalMs),

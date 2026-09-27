@@ -115,20 +115,20 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
     assert.strictEqual(check[0].text, 'Oi Pedro');
   });
 
-  it('Configuração padrão adota DEEPSEEK e modelo DeepSeek-V4.1-Flash', async () => {
+  it('Configuração padrão adota OPENAI e modelo gpt-6-luna', async () => {
     const cfg = await getVoiceAgentConfig();
-    assert.strictEqual(cfg.ai_provider, 'DEEPSEEK');
-    assert.strictEqual(cfg.ai_model, 'DeepSeek-V4.1-Flash');
+    assert.strictEqual(cfg.ai_provider, 'OPENAI');
+    assert.strictEqual(cfg.ai_model, 'gpt-6-luna');
   });
 
   it('resolveAiApiKey prioriza chave explícita e respeita variáveis de ambiente', async () => {
     const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
-    const keyCustom = await resolveAiApiKey({ ai_api_key: 'sk-custom-test-123' });
+    const keyCustom = await resolveAiApiKey({ ai_provider: 'DEEPSEEK', ai_api_key: 'sk-custom-test-123' });
     assert.strictEqual(keyCustom, 'sk-custom-test-123');
 
     const origEnv = process.env.DEEPSEEK_API_KEY;
     process.env.DEEPSEEK_API_KEY = 'sk-env-deepseek-test';
-    const keyEnv = await resolveAiApiKey({});
+    const keyEnv = await resolveAiApiKey({ ai_provider: 'DEEPSEEK' });
     assert.strictEqual(keyEnv, 'sk-env-deepseek-test');
     if (origEnv !== undefined) {
       process.env.DEEPSEEK_API_KEY = origEnv;
@@ -138,3 +138,14 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   });
 });
 
+
+ it('OpenAI uses only OPENAI_API_KEY even when a legacy DeepSeek key is configured', async () => {
+  const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
+  const original = process.env.OPENAI_API_KEY;
+  try {
+   process.env.OPENAI_API_KEY = 'test-openai';
+   assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI', ai_api_key: 'legacy-deepseek' }), 'test-openai');
+   delete process.env.OPENAI_API_KEY;
+   assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI', ai_api_key: 'legacy-deepseek' }), '');
+  } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
+ });

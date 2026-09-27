@@ -79,6 +79,23 @@ export const CHIRP3_HD_VOICES_PT_BR = Object.freeze({
 
 let cachedClient = null;
 
+/** Bidirectional CALL-only synthesis. Streaming PCM is headerless, unlike LINEAR16/WAV. */
+export function openChirp3CallStream({ voice = null, context = 'CALL', signal } = {}) {
+  if (context !== 'CALL' || !isGoogleChirp3CallEnabled()) throw new Error('Chirp streaming requires enabled CALL context');
+  signal?.throwIfAborted();
+  const stream = getGoogleTTSClient().streamingSynthesize({ timeout: 25000 });
+  const cancel = () => stream.destroy(signal.reason || new Error('Speech cancelled'));
+  signal?.addEventListener('abort', cancel, { once: true });
+  stream.once('close', () => signal?.removeEventListener('abort', cancel));
+  // A reader is attached by the caller in the same tick. Keep cancellation safe as well.
+  stream.on('error', () => {});
+  stream.write({ streamingConfig: {
+    voice: { name: resolveChirp3Voice(voice), languageCode: DEFAULT_LANGUAGE },
+    streamingAudioConfig: { audioEncoding: 'PCM', sampleRateHertz: 16000 }
+  } });
+  return stream;
+}
+
 /**
  * Retorna a instância compartilhada do cliente Google Cloud Text-to-Speech.
  * Reutiliza a conexão TCP/gRPC e credenciais sem instanciar novo cliente por requisição.
