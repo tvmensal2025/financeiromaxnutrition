@@ -1014,10 +1014,12 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// 2. Calcula energia RMS do frame de 60ms (960 amostras a 16kHz)
 	rms := math.Sqrt(sum / float64(len(frame)))
 
+	activePlayer := s.engine.isPlayerActive(s.callID)
+	// Do not train the noise floor on the assistant playback.
 	// Atualiza piso de ruído adaptativo quando não está falando
 	if s.noiseFloor == 0 {
 		s.noiseFloor = rms
-	} else if !s.isSpeaking {
+	} else if !s.isSpeaking && !activePlayer {
 		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
 	}
 
@@ -1025,6 +1027,12 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.35)
 	if effectiveThreshold > 0.0005 {
 		effectiveThreshold = 0.0005 // Teto de segurança para jamais ficar surdo mesmo com ruído de fundo
+	}
+
+	requiredFrames := 2
+	if activePlayer {
+		effectiveThreshold *= 2
+		requiredFrames = 3
 	}
 
 	// Registra telemetria contínua
@@ -1055,11 +1063,13 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 		s.consecutiveSpeech++
 		s.initialSilenceFrames = 0 // Reseta silêncio inicial já que detectou voz
 
-		// BARGE-IN INSTANTÂNEO: Interrompe a fala do Pedro assim que houver voz do cliente
-		s.engine.stopActivePlayer(s.callID)
+		// Require sustained speech before interrupting playback (3 x 60ms).
+		if activePlayer && s.consecutiveSpeech >= requiredFrames {
+			s.engine.stopActivePlayer(s.callID)
+		}
 
 		// Confirma início da fala com 2 frames consecutivos (>120ms) de energia
-		if !s.isSpeaking && s.consecutiveSpeech >= 2 {
+		if !s.isSpeaking && s.consecutiveSpeech >= requiredFrames {
 			s.isSpeaking = true
 			s.silenceFrames = 0
 			log.Info().
@@ -1075,6 +1085,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				s.speechSamples = append(s.speechSamples, preFrame...)
 			}
 			s.preSpeechRing = s.preSpeechRing[:0]
+		}
+
+		// Preserve candidate frames too, including the first syllable during confirmation.
+		if !s.isSpeaking {
+			if len(s.preSpeechRing) >= 6 {
+				s.preSpeechRing = s.preSpeechRing[1:]
+			}
+			s.preSpeechRing = append(s.preSpeechRing, pcmFrame)
 		}
 
 		if s.isSpeaking {

@@ -380,20 +380,22 @@ export function resolveChirp3Voice(overrideVoice = null) {
  * Resolve o formato e codec de áudio apropriado para o pipeline de telefonia
  */
 export function resolveAudioEncoding() {
-  const encoding = (process.env.GOOGLE_CALL_TTS_ENCODING || 'MP3').trim().toUpperCase();
-  if (encoding === 'LINEAR16' || encoding === 'WAV') {
+  const encoding = (process.env.GOOGLE_CALL_TTS_ENCODING || 'LINEAR16').trim().toUpperCase();
+  const configuredRate = Number(process.env.GOOGLE_CALL_TTS_SAMPLE_RATE || 16000);
+  const sampleRate = [8000, 16000, 22050, 24000, 32000, 44100, 48000].includes(configuredRate) ? configuredRate : 16000;
+  if (encoding !== 'MP3') {
     return {
       encodingParam: 'LINEAR16',
       format: 'wav',
       mimeType: 'audio/wav',
-      sampleRate: parseInt(process.env.GOOGLE_CALL_TTS_SAMPLE_RATE || '24000', 10)
+      sampleRate: sampleRate
     };
   }
   return {
     encodingParam: 'MP3',
     format: 'mp3',
     mimeType: 'audio/mpeg',
-    sampleRate: parseInt(process.env.GOOGLE_CALL_TTS_SAMPLE_RATE || '24000', 10)
+    sampleRate: sampleRate
   };
 }
 
@@ -627,7 +629,7 @@ export const GoogleChirp3HDCallTTS = {
     const timeoutMs = parseInt(process.env.GOOGLE_CALL_TTS_TIMEOUT_MS || '5000', 10);
 
     // 2. Consulta de cache isolado em memória
-    const cacheKey = getCacheKey({ voice: voiceName, language: languageCode, encoding: encodingParam, text: cleanText });
+    const cacheKey = getCacheKey({ voice: voiceName, language: languageCode, encoding: `${encodingParam}:${sampleRate}`, text: cleanText });
     const cachedAudio = getFromCache(cacheKey);
     if (cachedAudio) {
       return {

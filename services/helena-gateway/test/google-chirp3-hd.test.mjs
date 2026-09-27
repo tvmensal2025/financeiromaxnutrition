@@ -57,6 +57,32 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
     setGoogleTTSClientForTesting(null);
   });
 
+  it('defaults to WAV 16kHz and rejects invalid sample rates', () => {
+    delete process.env.GOOGLE_CALL_TTS_ENCODING;
+    delete process.env.GOOGLE_CALL_TTS_SAMPLE_RATE;
+    assert.strictEqual(resolveAudioEncoding().encodingParam, 'LINEAR16');
+    assert.strictEqual(resolveAudioEncoding().sampleRate, 16000);
+    process.env.GOOGLE_CALL_TTS_SAMPLE_RATE = 'not-a-rate';
+    assert.strictEqual(resolveAudioEncoding().sampleRate, 16000);
+  });
+
+  it('does not reuse cached audio generated at a different sample rate', async () => {
+    const rates = [];
+    setGoogleTTSClientForTesting({ synthesizeSpeech: async req => {
+      rates.push(req.audioConfig.sampleRateHertz);
+      return [{ audioContent: Buffer.from(`audio-${req.audioConfig.sampleRateHertz}`) }];
+    } });
+    const params = { text: 'Frase exclusiva para testar taxas de áudio.', callId: 'rate-cache', context: 'CALL' };
+    process.env.GOOGLE_CALL_TTS_SAMPLE_RATE = '24000';
+    const first = await GoogleChirp3HDCallTTS.synthesizeCallSpeech(params);
+    process.env.GOOGLE_CALL_TTS_SAMPLE_RATE = '16000';
+    const second = await GoogleChirp3HDCallTTS.synthesizeCallSpeech(params);
+    const cached = await GoogleChirp3HDCallTTS.synthesizeCallSpeech(params);
+    assert.deepStrictEqual(rates, [24000, 16000]);
+    assert.notDeepStrictEqual(first.audio, second.audio);
+    assert.strictEqual(cached.cached, true);
+  });
+
   // ======================================================================
   // TESTE A — CALL: Google Chirp 3 HD chamado, ElevenLabs e Kokoro NÃO chamados
   // ======================================================================
@@ -520,5 +546,4 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
     assert.ok(resFallback.voices.some(v => v.name === 'pt-BR-Chirp3-HD-Achernar'));
   });
 });
-
 

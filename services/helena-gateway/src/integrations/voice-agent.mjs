@@ -4,6 +4,7 @@
  * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
+import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply } from './voice-delivery.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
   registerCallSession,
@@ -359,6 +360,9 @@ function sanitizeSpeechText(text) {
  */
 export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
   const start = Date.now();
+  const deadline = AbortSignal.timeout(6000); // One shared budget, including model fallbacks.
+  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}`;
+  const recentHistory = prepareVoiceHistory(history, userPrompt);
 
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
     // Modelos com suporte comprovado a áudio WAV e inteligência conversacional rápida
@@ -366,7 +370,8 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
       ? ['gemini-flash-latest', 'gemini-3.5-flash-lite']
       : ['gemini-flash-latest', 'gemini-3.5-flash-lite', model].filter(Boolean);
 
-    for (const m of candidateModels) {
+    for (const m of new Set(candidateModels)) {
+      if (deadline.aborted) break;
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
         const parts = [];
@@ -390,22 +395,24 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(8000), // Timeout de 8s para voz
+          signal: deadline,
           body: JSON.stringify({
             system_instruction: {
               parts: [{ text: systemInstruction }]
             },
-            contents: [{ role: 'user', parts }],
+            contents: [...recentHistory.map(h => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] })), { role: 'user', parts }],
             generationConfig: {
               temperature: 0.4,
-              maxOutputTokens: 250
+              maxOutputTokens: 160
             }
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const candidate = data?.candidates?.[0];
+          const reply = completeVoiceReply(candidate?.content?.parts?.filter(p => !p.thought).map(p => p.text || '').join(''), candidate?.finishReason);
+          if (!reply) break;
           if (reply && reply.trim().length > 0) {
             const usage = data?.usageMetadata ? {
               prompt_tokens: data.usageMetadata.promptTokenCount || 0,
@@ -430,31 +437,17 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
 
   // Provedor DeepSeek Oficial (Compatível OpenAI v1)
   if (userPrompt && (provider === 'DEEPSEEK' || provider.includes('DEEPSEEK'))) {
-    const candidateModels = [
-      model || 'DeepSeek-V4.1-Flash',
-      'DeepSeek-V4.1-Flash',
-      'deepseek-chat'
-    ];
-    const uniqueModels = [...new Set(candidateModels.filter(Boolean))];
-
+    // The display/version name is not the API model identifier.
+    const requestedModel = !model || /^DeepSeek-V4\.1-Flash$/i.test(model) ? 'deepseek-flash' : model;
+    const uniqueModels = [...new Set([requestedModel, 'deepseek-flash'])];
     const messages = [
-      { role: 'system', content: systemInstruction }
+      { role: 'system', content: systemInstruction },
+      ...recentHistory,
+      { role: 'user', content: userPrompt }
     ];
-
-    if (Array.isArray(history) && history.length > 0) {
-      for (const h of history.slice(-6)) {
-        if (h && (h.text || h.content)) {
-          messages.push({
-            role: h.role === 'assistant' ? 'assistant' : 'user',
-            content: String(h.text || h.content || '').trim()
-          });
-        }
-      }
-    }
-
-    messages.push({ role: 'user', content: userPrompt });
 
     for (const m of uniqueModels) {
+      if (deadline.aborted) break;
       try {
         const res = await fetch('https://api.deepseek.com/chat/completions', {
           method: 'POST',
@@ -462,18 +455,21 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          signal: AbortSignal.timeout(6000), // Timeout de 6s para chamadas telefônicas
+          signal: deadline,
           body: JSON.stringify({
             model: m,
             messages,
-            max_tokens: 150,
+            max_tokens: 160, // Brevity comes from the prompt; leave room to finish sentences.
+            thinking: { type: 'disabled' },
             temperature: 0.3
           })
         });
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data?.choices?.[0]?.message?.content?.trim();
+          const choice = data?.choices?.[0];
+          const reply = completeVoiceReply(choice?.message?.content, choice?.finish_reason);
+          if (!reply) break;
           if (reply && reply.length > 0) {
             console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
             return {
@@ -484,6 +480,7 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
             };
           }
         } else {
+          if (![400, 404].includes(res.status)) break;
           const errText = await res.text().catch(() => '');
           console.warn(`[VOICE_AGENT] DeepSeek modelo ${m} retornou status ${res.status}: ${errText.slice(0, 120)}`);
         }
@@ -499,6 +496,7 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
     try {
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
+        signal: deadline,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
@@ -507,6 +505,7 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
           model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini'),
           messages: [
             { role: 'system', content: systemInstruction },
+            ...recentHistory,
             { role: 'user', content: userPrompt }
           ],
           max_tokens: 120,
@@ -516,7 +515,7 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
 
       if (res.ok) {
         const data = await res.json();
-        const reply = data?.choices?.[0]?.message?.content || '';
+        const reply = completeVoiceReply(data?.choices?.[0]?.message?.content, data?.choices?.[0]?.finish_reason);
         return {
           reply,
           usage: data?.usage || null,
@@ -934,7 +933,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       callId,
       turnNumber,
       sttMs,
-      llmFirstTokenMs: Math.round(llmMs * 0.55), // Estimativa de TTFT
+      llmFirstTokenMs: null, // Non-streaming: first-token time is not measured.
       llmTotalMs: llmMs,
       ttsMs,
       turnLatencyMs,
