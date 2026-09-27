@@ -394,6 +394,22 @@ async function handleGetJob({ job_id }) {
     b.provider === 'HERMES' && (b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP'))
   ) : null;
 
+  // Reviewers can inspect only submitted memory evidence for this exact job and company.
+  // A missing or unreadable record must be visible, never treated as reviewed evidence.
+  const memoryIds = [...new Set((Array.isArray(job.evidence_refs) ? job.evidence_refs : [])
+    .filter(ref => typeof ref === 'string' && /^MEM-HR-[a-f0-9]{32}$/i.test(ref)))];
+  const requestedMemoryIds = memoryIds.slice(0, 20);
+  let evidenceRecords = [];
+  if (requestedMemoryIds.length > 0) {
+    const records = await supabaseFetch(
+      `/rest/v1/memoria_mestre?select=id,assunto,registro,evidencia_origem,proxima_acao,status,confianca,business_id_area,related_object_id&related_object_id=eq.${encodeURIComponent(job_id)}&business_id_area=eq.${encodeURIComponent(job.business_id)}&id=in.(${requestedMemoryIds.join(',')})&limit=20`
+    );
+    if (!Array.isArray(records)) throw new Error('Consulta de evidencias retornou formato invalido');
+    evidenceRecords = records.filter(record => requestedMemoryIds.includes(record.id)
+      && record.business_id_area === job.business_id && record.related_object_id === job_id);
+  }
+  const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
+
   return {
     job,
     task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
@@ -404,7 +420,9 @@ async function handleGetJob({ job_id }) {
       external_agent_id: runtimeBinding.profile_slug,
       connection_status: runtimeBinding.status === 'ACTIVE' ? 'CONNECTED' : 'NOT_CONNECTED'
     } : null,
-    events: Array.isArray(events) ? events : []
+    events: Array.isArray(events) ? events : [],
+    evidence_records: evidenceRecords,
+    evidence_missing: evidenceMissing
   };
 }
 
@@ -769,7 +787,7 @@ const TOOLS_CONFIG = {
     handler: handleRecordDispatch
   },
   get_job: {
-    description: 'Recupera detalhes completos de um agent_job pelo job_id, incluindo histórico recente de eventos e metadados de conexão.',
+    description: 'Recupera detalhes do agent_job, eventos e conteudo das memorias submetidas como evidencia para esse job e empresa. Verifique evidence_missing antes de revisar.',
     schema: z.object({
       job_id: z.string().describe('ID do agent_job')
     }),
