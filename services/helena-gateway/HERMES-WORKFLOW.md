@@ -31,7 +31,7 @@ Operador executou o instalador em 27/09/2026. Backup: `/data/helena-runtime/back
 
 Piloto real BIZ-003: Helena criou/liberou `JOB-HR-3ebae4abff11a58e457fe779e15705ab`; Pedro assumiu manualmente, registrou progresso e a memória `MEM-HR-6d4c9666d8b09fa03a1162edf949d6ce`, e submeteu. Clara leu o conteúdo pelo MCP, encontrou `evidence_missing` vazio e aprovou **somente o modelo interno de checklist**, sem validar termos de parceiros. Pedro fez `handoff_task` para Victor, criando `JOB-HR-0e91cf1982fa751ce1e4cf93e7af48d7` em DRAFT; Victor confirmou leitura no próprio perfil. O Supabase confirmou job pai COMPLETED/tarefa CONCLUÍDA e filho DRAFT/tarefa NÃO INICIADA. Nenhuma campanha ou contato externo foi feito.
 
-Gateway `3935f92` publicado no EasyPanel, health OK. Ainda falta o acionador real do Hermes: liberar READY não inicia o modelo; o piloto exigiu abrir manualmente o perfil Pedro. O API server documentado do Hermes estava desativado nesta instalação durante o piloto. Nenhum worker/cron novo foi criado. Checkpoint ativo: `CP-20260927-V020`.
+Gateway `3935f92` publicado no EasyPanel, health OK. Ainda falta o acionador real do Hermes: liberar READY não inicia o modelo; o piloto exigiu abrir manualmente o perfil Pedro. O API server documentado do Hermes estava desativado nesta instalação durante o piloto. Nenhum worker/cron novo foi criado. A página local mostra o aceite da Clara, o motivo e os eventos; a correção do frontend ainda não foi commitada ou publicada. Checkpoint ativo: `CP-20260927-V021`.
 
 ## Validação
 
