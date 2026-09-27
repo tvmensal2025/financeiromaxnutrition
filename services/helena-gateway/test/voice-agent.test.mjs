@@ -162,3 +162,11 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   assert.equal((await handleCallEndedWebhook({ call_id })).summary, null);
   assert.equal((await handleCallConnectedWebhook({ call_id })).reason, 'already_ended');
  });
+
+it('removes every alias of an ended session', async () => {
+ const { registerCallSession, getActiveCallsList, endCallSession } = await import('../src/integrations/call-engine.mjs');
+ registerCallSession({callId:'ALIAS-FIRST',remoteNumber:'5511000000000'});
+ registerCallSession({callId:'ALIAS-SECOND',remoteNumber:'5511000000000'});
+ endCallSession({callId:'ALIAS-SECOND'});
+ assert.ok(!getActiveCallsList().some(c=>c.call_id.startsWith('ALIAS-')));
+});

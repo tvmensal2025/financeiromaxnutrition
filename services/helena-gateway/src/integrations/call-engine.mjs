@@ -1062,8 +1062,10 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     completedCallsBuffer.pop();
   }
 
-  activeCallsMap.delete(normalizeCallId(callId));
-  if (call.normId) activeCallsMap.delete(call.normId);
+  // The same session may be indexed by transport and phone aliases.
+  for (const [key, session] of activeCallsMap) {
+    if (session === call) activeCallsMap.delete(key);
+  }
   const cleanPhone = normalizePhone(call.remoteNumber);
   if (cleanPhone) activeCallsByPhoneMap.delete(cleanPhone);
 
