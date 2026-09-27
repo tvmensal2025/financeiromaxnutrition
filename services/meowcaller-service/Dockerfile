@@ -39,7 +39,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
 
 WORKDIR /app
 COPY --from=builder /build/meowcaller-server /app/meowcaller-server
-COPY saudacao_pedro.mp3 /app/saudacao_pedro.mp3
 
 USER appuser
 EXPOSE 8002

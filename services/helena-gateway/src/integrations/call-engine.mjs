@@ -340,6 +340,17 @@ let pricingConfig = { ...DEFAULT_PRICING };
  * Mantém o estado quente para alteração de voz/persona sem quebrar a chamada.
  */
 const activeCallsMap = new Map();
+const activeCallsByPhoneMap = new Map();
+
+export function normalizeCallId(id) {
+  if (!id) return '';
+  return String(id).trim().toUpperCase();
+}
+
+export function normalizePhone(phone) {
+  if (!phone) return '';
+  return String(phone).replace(/\D/g, '');
+}
 
 /**
  * Buffer em memória de histórico recente de chamadas finalizadas
@@ -594,16 +605,39 @@ function maskPhoneNumber(phone) {
 export function registerCallSession({ callId, remoteNumber = '', direction = 'OUTBOUND', businessId = 'BIZ-001', profileKey = null }) {
   if (!callId) return null;
 
-  if (activeCallsMap.has(callId)) {
-    return activeCallsMap.get(callId);
+  const normId = normalizeCallId(callId);
+  const normPhone = normalizePhone(remoteNumber);
+
+  // 1. Se já existe por ID normalizado (case-insensitive)
+  if (activeCallsMap.has(normId)) {
+    const existing = activeCallsMap.get(normId);
+    if (profileKey && profiles12State[profileKey] && existing.activeProfileKey !== profileKey) {
+      const p = profiles12State[profileKey];
+      existing.activeProfileKey = p.profile_key;
+      existing.activeCharacterId = p.character_id;
+      existing.activeCharacterName = p.character_name;
+      existing.activeMode = p.mode;
+      existing.activeModeName = p.mode_name;
+      existing.activeVoice = p.voice_id;
+      existing.activeSystemScript = p.system_script;
+      existing.openingMessage = p.opening_message;
+    }
+    return existing;
+  }
+
+  // 2. Se já existe sessão recente pelo número de telefone
+  if (normPhone && normPhone.length >= 8 && activeCallsByPhoneMap.has(normPhone)) {
+    const existing = activeCallsByPhoneMap.get(normPhone);
+    activeCallsMap.set(normId, existing);
+    return existing;
   }
 
   const effectiveProfileKey = profileKey && profiles12State[profileKey] ? profileKey : activeGlobalProfileKey;
   const profile = profiles12State[effectiveProfileKey] || profiles12State.rafael_normal;
-  const defaultCallVoice = getActiveCallVoice() || profile.voice_id;
 
   const session = {
     callId,
+    normId,
     businessId,
     direction,
     remoteNumber,
@@ -618,7 +652,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     activeMode: profile.mode,
     activeModeName: profile.mode_name,
     activePersonalityId: (profile.mode === 'normal' || profile.mode === 'Normal') ? 'equilibrio' : profile.mode.toLowerCase(),
-    activeVoice: profileKey ? profile.voice_id : defaultCallVoice,
+    activeVoice: profile.voice_id, // VOZ AMARRADA 100% AO PERFIL DO PERSONAGEM (SEM DESVIO)
     activeSystemScript: profile.system_script,
     openingMessage: profile.opening_message,
     greetingPlayed: false,
@@ -652,16 +686,29 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     }
   };
 
-  activeCallsMap.set(callId, session);
+  activeCallsMap.set(normId, session);
+  if (normPhone && normPhone.length >= 8) {
+    activeCallsByPhoneMap.set(normPhone, session);
+  }
+
   console.log(`[CALL_ENGINE] 🟢 Chamada registrada no runtime quente: ${callId} (${session.maskedNumber}) | Perfil: ${profile.character_name} / ${profile.mode_name} | Voz: ${session.activeVoice}`);
   return session;
 }
 
 /**
- * Obtém a sessão quente de uma chamada ativa
+ * Obtém a sessão quente de uma chamada ativa (case-insensitive ou por telefone)
  */
 export function getCallSession(callId) {
-  return activeCallsMap.get(callId) || null;
+  if (!callId) return null;
+  const normId = normalizeCallId(callId);
+  if (activeCallsMap.has(normId)) {
+    return activeCallsMap.get(normId);
+  }
+  const cleanPhone = normalizePhone(callId);
+  if (cleanPhone.length >= 8 && activeCallsByPhoneMap.has(cleanPhone)) {
+    return activeCallsByPhoneMap.get(cleanPhone);
+  }
+  return null;
 }
 
 /**
@@ -707,7 +754,7 @@ export const getActiveCallsList = listActiveCalls;
  * Aplica IMEDIATAMENTE no PRÓXIMO turno da conversa sem desligar, sem reiniciar, sem reconectar e sem repetir a opening_message.
  */
 export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, personalityId, profileKey, updatedBy = 'Admin' }) {
-  const call = activeCallsMap.get(callId);
+  const call = getCallSession(callId);
   if (!call) {
     throw new Error(`Chamada '${callId}' não encontrada ou já encerrada.`);
   }
@@ -818,7 +865,7 @@ export function recordTurnTelemetry({
   charactersSynthesized = null,
   error = null
 }) {
-  let call = activeCallsMap.get(callId);
+  let call = getCallSession(callId);
   if (!call) {
     call = registerCallSession({ callId });
   }
@@ -920,7 +967,7 @@ export function calculateEstimatedCost({ inputTokens = 0, cachedTokens = 0, outp
  * Finaliza chamada e move para o buffer de histórico
  */
 export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
-  const call = activeCallsMap.get(callId);
+  const call = getCallSession(callId);
   if (!call) return null;
 
   const endedAt = Date.now();
@@ -986,7 +1033,11 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     completedCallsBuffer.pop();
   }
 
-  activeCallsMap.delete(callId);
+  activeCallsMap.delete(normalizeCallId(callId));
+  if (call.normId) activeCallsMap.delete(call.normId);
+  const cleanPhone = normalizePhone(call.remoteNumber);
+  if (cleanPhone) activeCallsByPhoneMap.delete(cleanPhone);
+
   console.log(`[CALL_ENGINE] 🏁 Chamada ${callId} encerrada. Duração: ${durationSeconds}s | Turnos: ${record.turn_count} | Tokens: ${record.tokens.total} | Chars: ${record.tts.total_chars} | Latência Média: ${avgLat}ms`);
 
   return record;

@@ -547,39 +547,77 @@ export const ELEVENLABS_OFFICIAL_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ'; // Pedro / M
 
 /**
  * Transcreve áudio do microfone do usuário usando ElevenLabs Scribe STT (ultra-rápido ~400ms)
+ * com fallback e tolerância a ruído
  */
 export async function transcribeAudio(audioBuffer) {
-  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
-  if (!elevenKey || !audioBuffer || audioBuffer.length < 500) {
+  if (!audioBuffer || audioBuffer.length < 300) {
     return null;
   }
 
-  try {
-    const blob = new Blob([audioBuffer], { type: 'audio/wav' });
-    const formData = new FormData();
-    formData.append('file', blob, 'speech.wav');
-    formData.append('model_id', 'scribe_v1');
-    formData.append('language_code', 'por');
+  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
 
-    const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-      method: 'POST',
-      headers: { 'xi-api-key': elevenKey },
-      body: formData,
-      signal: AbortSignal.timeout(3500)
-    });
+  // 1. ElevenLabs Scribe STT
+  if (elevenKey && elevenKey.trim().length > 0) {
+    try {
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const formData = new FormData();
+      formData.append('file', blob, 'speech.wav');
+      formData.append('model_id', 'scribe_v1');
+      formData.append('language_code', 'por');
 
-    if (res.ok) {
-      const data = await res.json();
-      const text = data?.text?.trim() || '';
-      if (text.length > 0) {
-        console.log(`[VOICE_AGENT] 🎙️ ElevenLabs Scribe STT (${text.length} chars): "${text}"`);
-        return text;
+      const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
+        method: 'POST',
+        headers: { 'xi-api-key': elevenKey.trim() },
+        body: formData,
+        signal: AbortSignal.timeout(7000)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.text?.trim() || '';
+        if (text.length > 0) {
+          console.log(`[VOICE_AGENT] 🎙️ ElevenLabs Scribe STT (${text.length} chars): "${text}"`);
+          return text;
+        } else {
+          console.log(`[VOICE_AGENT] ℹ️ Scribe STT processou áudio mas não detectou palavras claras.`);
+        }
+      } else {
+        const errText = await res.text().catch(() => '');
+        console.warn(`[VOICE_AGENT] ElevenLabs Scribe retornou status ${res.status}: ${errText}`);
       }
-    } else {
-      console.warn(`[VOICE_AGENT] ElevenLabs Scribe retornou status ${res.status}`);
+    } catch (err) {
+      console.warn('[VOICE_AGENT] Falha na transcrição Scribe STT:', err.message);
     }
-  } catch (err) {
-    console.warn('[VOICE_AGENT] Falha na transcrição STT:', err.message);
+  }
+
+  // 2. Fallback Groq Whisper (se disponível)
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey && groqKey.trim().length > 0) {
+    try {
+      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const formData = new FormData();
+      formData.append('file', blob, 'speech.wav');
+      formData.append('model', 'whisper-large-v3-turbo');
+      formData.append('language', 'pt');
+
+      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${groqKey.trim()}` },
+        body: formData,
+        signal: AbortSignal.timeout(6000)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.text?.trim() || '';
+        if (text.length > 0) {
+          console.log(`[VOICE_AGENT] 🎙️ Groq Whisper STT (${text.length} chars): "${text}"`);
+          return text;
+        }
+      }
+    } catch (err) {
+      console.warn('[VOICE_AGENT] Falha no fallback Groq STT:', err.message);
+    }
   }
 
   return null;
@@ -883,14 +921,15 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
   try {
     const playResult = await speakInCall({
       callId,
-      text: replyText
+      text: replyText,
+      voice: activeProfile.voice_id
     });
     const ttsMs = Date.now() - ttsStart;
     const turnLatencyMs = Date.now() - turnStart;
 
     // Registra métricas detalhadas do turno no call-engine
     const turnNumber = (call?.turnCount || 0) + 1;
-    const currentVoice = call?.activeVoice || activeProfile.voice_id || getActiveCallVoice();
+    const currentVoice = activeProfile.voice_id;
     recordTurnTelemetry({
       callId,
       turnNumber,

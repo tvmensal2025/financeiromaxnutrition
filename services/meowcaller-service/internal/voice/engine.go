@@ -743,39 +743,15 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 	return snap, nil
 }
 
-// playInitialGreeting reproduz a saudação inicial do atendente (Pedro) e notifica o Gateway
+// playInitialGreeting estabiliza o RTP e notifica o Gateway para sintetizar a saudação oficial com Google Chirp 3 HD
 func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direction string) {
-	// Aguarda 600ms para estabilização dos pacotes RTP do WhatsApp VoIP
-	time.Sleep(600 * time.Millisecond)
+	// Aguarda 400ms para estabilização dos pacotes RTP do WhatsApp VoIP
+	time.Sleep(400 * time.Millisecond)
 
-	// Notifica o Helena Gateway via Webhook assíncrono
+	// Notifica o Helena Gateway via Webhook assíncrono para sintetizar e tocar abertura oficial (Google Chirp 3 HD)
+	log.Info().Str("call_id", callID).Str("direction", direction).Msg("📞 Notificando Helena Gateway para tocar saudação com Google Cloud Chirp 3 HD...")
+	e.recordDiagEvent("Notificando Gateway para sintetizar e tocar abertura oficial (Google Chirp 3 HD)")
 	go e.notifyGatewayWebhook("CALL_ANSWERED", callID, direction)
-
-	// Busca arquivo de áudio da saudação local
-	candidates := []string{
-		"/app/saudacao_pedro.mp3",
-		"saudacao_pedro.mp3",
-		"services/meowcaller-service/saudacao_pedro.mp3",
-		"/data/saudacao_pedro.mp3",
-	}
-
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			log.Info().Str("path", p).Str("call_id", callID).Str("direction", direction).Msg("🔊 Reproduzindo saudação do Pedro no WhatsApp VoIP...")
-			if src, err := meowcaller.MP3File(p); err == nil {
-				player := call.Play(src)
-				e.setActivePlayer(callID, player)
-				e.recordDiagEvent(fmt.Sprintf("Saudação inicial em reprodução (arquivo: %s)", p))
-				log.Info().Str("call_id", callID).Msg("✅ Áudio do Pedro transmitido com sucesso na ligação!")
-				return
-			} else {
-				e.recordDiagEvent(fmt.Sprintf("Falha ao abrir MP3 de saudação %s: %v", p, err))
-				log.Warn().Err(err).Str("path", p).Msg("Falha ao abrir MP3 de saudação")
-			}
-		}
-	}
-
-	log.Warn().Str("call_id", callID).Msg("Nenhum arquivo local de saudação encontrado. Aguardando comando de voz via /v1/calls/{id}/play...")
 }
 
 // notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
@@ -785,7 +761,7 @@ func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 		"event":                   event,
 		"call_id":                 callID,
 		"direction":               direction,
-		"greeting_already_played": true,
+		"greeting_already_played": false,
 		"timestamp":               time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
@@ -998,10 +974,10 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 	sink := &ConversationalSink{
 		callID:           callID,
 		engine:           e,
-		noiseFloor:       0.0004,
-		rmsThreshold:     0.0008, // Sensibilidade alta para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 15,     // 15 frames * 60ms = ~900ms de silêncio pós-fala (pausa humana natural)
-		minSpeechSamples: 3200,   // Mínimo de 200ms de fala sustentada (rejeita cliques e respirações curtas)
+		noiseFloor:       0.00008,
+		rmsThreshold:     0.00018, // Sensibilidade alta calibrada para microfones de celular no WhatsApp VoIP
+		silenceThreshold: 12,      // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
+		minSpeechSamples: 2400,    // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
@@ -1045,8 +1021,11 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
 	}
 
-	// Limiar adaptativo dinâmico (no mínimo rmsThreshold ou 1.8x o ruído ambiente)
-	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.8)
+	// Limiar adaptativo dinâmico (no mínimo rmsThreshold ou 1.35x o ruído ambiente com teto de segurança)
+	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.35)
+	if effectiveThreshold > 0.0005 {
+		effectiveThreshold = 0.0005 // Teto de segurança para jamais ficar surdo mesmo com ruído de fundo
+	}
 
 	// Registra telemetria contínua
 	s.engine.updateDiagAudio(s.callID, s.totalFrames, rms, s.noiseFloor, effectiveThreshold)

@@ -335,11 +335,8 @@ func (s *Server) handlePlayCallAudio(w http.ResponseWriter, r *http.Request) {
 		log.Info().Str("call_id", id).Str("path", req.FilePath).Msg("Reproduzindo arquivo local na chamada VoIP")
 		err = s.engine.PlayAudioFile(id, req.FilePath)
 	} else {
-		// Tenta reproduzir a saudação padrão local do Pedro
-		err = s.engine.PlayAudioFile(id, "/app/saudacao_pedro.mp3")
-		if err != nil {
-			err = s.engine.PlayAudioFile(id, "saudacao_pedro.mp3")
-		}
+		s.fail(w, "Requisição de reprodução sem áudio: forneça audio_base64, audio_url ou file_path", http.StatusBadRequest)
+		return
 	}
 
 	if err != nil {
