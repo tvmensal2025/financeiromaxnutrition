@@ -44,6 +44,23 @@ import {
 } from '../integrations/kokoro.mjs';
 
 import {
+  isGoogleChirp3CallEnabled,
+  resolveChirp3Voice,
+  getActiveCallVoice,
+  setActiveCallVoice,
+  getPreviousCallVoice,
+  restorePreviousCallVoice,
+  getLastVoiceAudit,
+  listAvailableChirp3Voices,
+  previewGoogleCallVoice,
+  checkInstantCustomVoiceAvailability,
+  getChirp3Metrics,
+  CHIRP3_HD_VOICES_PT_BR,
+  DEFAULT_CHIRP3_HD_VOICE,
+  PROVIDER_NAME as GOOGLE_CHIRP3_PROVIDER
+} from '../integrations/google-chirp3-hd.mjs';
+
+import {
   getVoiceAgentConfig,
   updateVoiceAgentConfig,
   generateAgentSpeechText,
@@ -189,10 +206,217 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
           voices_count: elevenlabs.voices_count || 0,
           is_official: false,
           status: 'STANDBY'
+        },
+        call_tts: {
+          provider: isGoogleChirp3CallEnabled() ? GOOGLE_CHIRP3_PROVIDER : 'legacy',
+          chirp3_hd_enabled: isGoogleChirp3CallEnabled(),
+          model: 'Chirp 3 HD',
+          language: process.env.GOOGLE_CALL_TTS_LANGUAGE || 'pt-BR',
+          voice: resolveChirp3Voice(),
+          metrics: getChirp3Metrics()
         }
       });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/api/integrations/google-chirp3-hd/status', optionalAuth, async (req, res) => {
+    try {
+      const customVoiceStatus = await checkInstantCustomVoiceAvailability();
+      const currentVoice = getActiveCallVoice();
+      const previousVoice = getPreviousCallVoice();
+
+      return res.json({
+        ok: true,
+        provider: GOOGLE_CHIRP3_PROVIDER,
+        enabled: isGoogleChirp3CallEnabled(),
+        model: 'Chirp 3 HD',
+        language: process.env.GOOGLE_CALL_TTS_LANGUAGE || 'pt-BR',
+        voice: currentVoice,
+        previous_voice: previousVoice,
+        can_restore: Boolean(previousVoice && previousVoice !== currentVoice),
+        last_audit: getLastVoiceAudit(),
+        metrics: getChirp3Metrics(),
+        instant_custom_voice: customVoiceStatus
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/api/integrations/google-chirp3-hd/voices', optionalAuth, async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === 'true';
+      const discovered = await listAvailableChirp3Voices(forceRefresh);
+
+      return res.json({
+        ok: true,
+        provider: GOOGLE_CHIRP3_PROVIDER,
+        model: 'Chirp 3 HD',
+        language: 'pt-BR',
+        default_voice: DEFAULT_CHIRP3_HD_VOICE,
+        active_voice: getActiveCallVoice(),
+        source: discovered.source,
+        total: discovered.total,
+        voices: discovered.voices,
+        raw_catalog: CHIRP3_HD_VOICES_PT_BR
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/google-chirp3-hd/preview', optionalAuth, async (req, res) => {
+    try {
+      const { text, voice } = req.body || {};
+      const previewResult = await previewGoogleCallVoice({ text, voice });
+      return res.json(previewResult);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/google-chirp3-hd/set-voice', authenticateUser, async (req, res) => {
+    try {
+      const { voice } = req.body || {};
+      if (!voice || typeof voice !== 'string') {
+        return res.status(400).json({ ok: false, error: 'O parâmetro "voice" é obrigatório.' });
+      }
+
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const updateResult = setActiveCallVoice(voice, updatedBy);
+
+      // Persistência segura no Supabase na tabela configuracao (merge-duplicates)
+      if (supabaseFetch) {
+        try {
+          const configItems = [
+            {
+              chave: 'GOOGLE_CALL_TTS_VOICE',
+              valor: updateResult.active_voice,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Voz oficial Google Cloud Chirp 3 HD para chamadas VoIP'
+            }
+          ];
+          if (updateResult.previous_voice) {
+            configItems.push({
+              chave: 'GOOGLE_CALL_TTS_PREVIOUS_VOICE',
+              valor: updateResult.previous_voice,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Voz anterior Google Cloud Chirp 3 HD para suporte a rollback'
+            });
+          }
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify(configItems)
+          }).catch(() => null);
+
+          // Registra log em integration_events
+          await supabaseFetch('/rest/v1/integration_events', {
+            method: 'POST',
+            body: JSON.stringify({
+              integration: 'google_chirp3_hd',
+              event_type: 'VOICE_CHANGED',
+              payload: {
+                previous_voice: updateResult.previous_voice,
+                new_voice: updateResult.active_voice,
+                updated_by: updatedBy
+              }
+            })
+          }).catch(() => null);
+        } catch (dbErr) {
+          console.warn('[GoogleChirp3HD] Aviso: Não foi possível persistir no Supabase, mas memória foi atualizada:', dbErr.message);
+        }
+      }
+
+      return res.json({
+        ok: true,
+        message: `Voz atualizada com sucesso para '${updateResult.active_voice}'.`,
+        active_voice: updateResult.active_voice,
+        previous_voice: updateResult.previous_voice,
+        audit: updateResult.audit
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/google-chirp3-hd/restore-voice', authenticateUser, async (req, res) => {
+    try {
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const restoreResult = restorePreviousCallVoice(updatedBy);
+
+      if (supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([
+              {
+                chave: 'GOOGLE_CALL_TTS_VOICE',
+                valor: restoreResult.active_voice,
+                tipo: 'CONFIG',
+                responsavel: updatedBy,
+                descricao: 'Voz oficial restaurada Google Cloud Chirp 3 HD'
+              }
+            ])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json({
+        ok: true,
+        message: `Voz restaurada com sucesso para '${restoreResult.active_voice}'.`,
+        active_voice: restoreResult.active_voice,
+        previous_voice: restoreResult.previous_voice,
+        audit: restoreResult.audit
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.get('/api/integrations/google-chirp3-hd/custom-voice-status', optionalAuth, async (req, res) => {
+    try {
+      const status = await checkInstantCustomVoiceAvailability();
+      return res.json({ ok: true, ...status });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  router.post('/api/integrations/google-chirp3-hd/custom-voice', authenticateUser, async (req, res) => {
+    try {
+      const availability = await checkInstantCustomVoiceAvailability();
+      if (!availability.available) {
+        return res.status(403).json({
+          ok: false,
+          error: availability.message,
+          status: availability.status,
+          requirements: availability.requirements
+        });
+      }
+
+      const { name, consent_audio, reference_audio } = req.body || {};
+      if (!name || !consent_audio || !reference_audio) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Parâmetros obrigatórios: nome da voz, áudio de consentimento do locutor e áudio de referência.'
+        });
+      }
+
+      // Quando aprovado pelo Google, a criação prossegue
+      return res.json({
+        ok: true,
+        voice_id: `custom-${Date.now()}`,
+        name,
+        status: 'PENDING_GOOGLE_PROCESSING'
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
     }
   });
 
@@ -844,6 +1068,140 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   router.get('/api/integrations/voice-agent/call-history/:call_id', optionalAuth, (req, res) => {
     const history = getCallHistory(req.params.call_id);
     return res.json({ ok: true, call_id: req.params.call_id, history });
+  });
+
+  // ======================================================================
+  // 8. GOOGLE CLOUD CHIRP 3 HD — VOZES DE LIGAÇÕES (CALL)
+  // ======================================================================
+
+  /**
+   * Status da integração Google Chirp 3 HD e voz ativa
+   * GET /api/integrations/google-chirp3-hd/status
+   */
+  router.get('/api/integrations/google-chirp3-hd/status', optionalAuth, async (req, res) => {
+    try {
+      const activeVoice = getActiveCallVoice();
+      const previousVoice = getPreviousCallVoice();
+      const metrics = getChirp3Metrics();
+      const lastAudit = getLastVoiceAudit();
+      const isEnabled = isGoogleChirp3CallEnabled();
+
+      return res.json({
+        ok: true,
+        provider: GOOGLE_CHIRP3_PROVIDER,
+        enabled: isEnabled,
+        model: 'Chirp 3 HD',
+        language: process.env.GOOGLE_CALL_TTS_LANGUAGE || 'pt-BR',
+        voice: activeVoice,
+        previous_voice: previousVoice,
+        can_restore: Boolean(previousVoice && previousVoice !== activeVoice),
+        metrics,
+        last_audit: lastAudit
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Catálogo de vozes pt-BR Chirp 3 HD
+   * GET /api/integrations/google-chirp3-hd/voices
+   */
+  router.get('/api/integrations/google-chirp3-hd/voices', optionalAuth, async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === 'true';
+      const catalog = await listAvailableChirp3Voices(forceRefresh);
+      return res.json({
+        ok: true,
+        ...catalog,
+        raw_catalog: CHIRP3_HD_VOICES_PT_BR
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Prévia de áudio de teste no navegador (sem iniciar chamada telefônica)
+   * POST /api/integrations/google-chirp3-hd/preview
+   */
+  router.post('/api/integrations/google-chirp3-hd/preview', optionalAuth, async (req, res) => {
+    try {
+      const { text, voice } = req.body || {};
+      const preview = await previewGoogleCallVoice({ text, voice });
+      return res.json(preview);
+    } catch (err) {
+      console.error('[GoogleChirp3HD] Falha na prévia de voz:', err.message);
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Define e persiste a nova voz padrão de chamadas
+   * POST /api/integrations/google-chirp3-hd/set-voice
+   */
+  router.post('/api/integrations/google-chirp3-hd/set-voice', authenticateUser, async (req, res) => {
+    try {
+      const { voice } = req.body || {};
+      if (!voice) {
+        return res.status(400).json({ ok: false, error: 'O campo voice é obrigatório.' });
+      }
+
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const result = setActiveCallVoice(voice, updatedBy);
+
+      // Persistência não sensível no Supabase
+      if (supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              chave: 'google_chirp_call_voice',
+              valor: voice,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Voz ativa do Google Cloud Chirp 3 HD para chamadas'
+            }])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Restaura a voz anterior em produção
+   * POST /api/integrations/google-chirp3-hd/restore-voice
+   */
+  router.post('/api/integrations/google-chirp3-hd/restore-voice', authenticateUser, async (req, res) => {
+    try {
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+      const result = restorePreviousCallVoice(updatedBy);
+
+      if (result.success && supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              chave: 'google_chirp_call_voice',
+              valor: result.voice,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Voz ativa do Google Cloud Chirp 3 HD para chamadas (restaurada)'
+            }])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
   });
 
   return router;

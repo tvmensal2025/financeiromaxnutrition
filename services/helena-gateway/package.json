@@ -8,10 +8,11 @@
   },
   "scripts": {
     "start": "node src/server.mjs",
-    "check": "node --check src/server.mjs src/whatsapp-ura.mjs src/routes/integrations.mjs",
-    "test": "node --test test/record-dispatch.test.mjs test/whatsapp-ura.test.mjs test/kokoro.test.mjs test/voice-agent.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
+    "check": "node --check src/server.mjs src/whatsapp-ura.mjs src/routes/integrations.mjs src/integrations/google-chirp3-hd.mjs src/integrations/audio-router.mjs",
+    "test": "node --test test/record-dispatch.test.mjs test/whatsapp-ura.test.mjs test/kokoro.test.mjs test/voice-agent.test.mjs test/google-chirp3-hd.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
   },
   "dependencies": {
+    "@google-cloud/text-to-speech": "^7.1.0",
     "@modelcontextprotocol/express": "^2.0.1",
     "@modelcontextprotocol/node": "^2.1.0",
     "@modelcontextprotocol/server": "^2.1.0",

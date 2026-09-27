@@ -5,6 +5,7 @@
  */
 
 import { synthesizeKokoroSpeech, KOKORO_DEFAULT_PROFILE_ID, KOKORO_OFFICIAL_VOICE_ID } from './kokoro.mjs';
+import { routeCallAudio } from './audio-router.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -570,11 +571,16 @@ export async function speakInCall({ callId, text, voice = null }) {
   const cfg = await getVoiceAgentConfig();
   console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId}: "${text}"`);
 
-  // Sintetiza via ElevenLabs Flash / Kokoro
-  const speechRes = await synthesizeSpeechFast({
+  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Chirp 3 HD ou legado)
+  const speechRes = await routeCallAudio({
     text,
-    voice: voice || (cfg.voice_provider === 'ELEVENLABS' ? cfg.elevenlabs_voice : cfg.kokoro_voice),
-    cfg
+    callId,
+    voice,
+    legacyCallSynthesizer: () => synthesizeSpeechFast({
+      text,
+      voice: voice || (cfg.voice_provider === 'ELEVENLABS' ? cfg.elevenlabs_voice : cfg.kokoro_voice),
+      cfg
+    })
   });
 
   const base64Audio = speechRes.buffer.toString('base64');
