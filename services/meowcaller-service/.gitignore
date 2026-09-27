@@ -39,3 +39,5 @@ whatsapp-session/
 
 # Logs
 *.log
+
+.meowcaller-patched-*/

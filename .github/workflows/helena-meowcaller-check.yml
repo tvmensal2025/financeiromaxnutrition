@@ -27,7 +27,11 @@ jobs:
 
       - name: Download Go Dependencies
         working-directory: services/meowcaller-service
-        run: go mod download
+        run: python3 tools/prepare_meowcaller.py
+
+      - name: Test patched Meowcaller
+        working-directory: services/meowcaller-service
+        run: go test github.com/purpshell/meowcaller
 
       - name: Run Go Vet
         working-directory: services/meowcaller-service

@@ -1,0 +1,21 @@
+package meowcaller
+
+import "testing"
+
+func TestRelayPatchReplayAcrossMigration(t *testing.T) {
+ f := newRtpReplayFilter()
+ for _, seq := range []uint16{65534,65535,0,1,2} {
+  if f.Duplicate(100,seq) { t.Fatalf("first arrival dropped: %d",seq) }
+  if !f.Duplicate(100,seq) { t.Fatalf("duplicate from another relay accepted: %d",seq) }
+  if f.Duplicate(200,seq) { t.Fatal("independent SSRC dropped") }
+ }
+ for i:=uint16(3);i<1100;i++ { if f.Duplicate(100,i) { t.Fatal("fresh sequence dropped") } }
+ if !f.Duplicate(100,1099) { t.Fatal("recent replay not detected") }
+}
+func TestRelayPatchClosureUnblocksReceive(t *testing.T) {
+ f:=newRelayFanout(nil,nil,nil)
+ if err:=f.Close();err!=nil { t.Fatal(err) }
+ if err:=f.Close();err!=nil { t.Fatal(err) }
+ if _,err:=f.Recv(make([]byte,1500));err==nil { t.Fatal("closed receive must fail") }
+ if _,err:=f.Send([]byte{1});err==nil { t.Fatal("closed send must fail") }
+}
