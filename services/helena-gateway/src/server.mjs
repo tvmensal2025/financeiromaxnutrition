@@ -1,3 +1,5 @@
+import { createProfileStore } from './integrations/profile-store.mjs';
+import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
  * Conecta o ecossistema Helena (GPT via Hermes / Supabase / Evolution API)
@@ -1095,7 +1097,9 @@ app.use((req, res, next) => {
 });
 
 // Monta Central de Integrações (Evolution, Meowcaller, ElevenLabs, Laya)
-app.use(createIntegrationsRouter({ supabaseFetch, authenticateUser: authenticateMcp }));
+app.use(createIntegrationsRouter({ supabaseFetch,
+  profileStore: SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createProfileStore(supabaseFetch) : null,
+  authenticateUser: createVoiceAdminAuth({ fallback: authenticateMcp }) }));
 
 // Helpers de OAuth 2.1 Protected Resource Metadata
 function getResourceHost(req) {
