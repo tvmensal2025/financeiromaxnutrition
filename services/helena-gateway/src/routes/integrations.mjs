@@ -64,6 +64,7 @@ import {
   getVoiceAgentConfig,
   updateVoiceAgentConfig,
   generateAgentSpeechText,
+  generateAgentSpeechTextDetailed,
   speakInCall,
   handleCallConnectedWebhook,
   handleCallEndedWebhook,
@@ -80,6 +81,7 @@ import {
   updatePersonality,
   resetPersonalityToDefault,
   getActiveCallsList,
+  registerCallSession,
   switchCallRuntime,
   getCallsHistoryMetrics,
   getCallDetailById,
@@ -1643,6 +1645,106 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       return res.json(preview);
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Executa um turno conversacional completo para o aplicativo web/mobile
+   * Conexão DIRETA: processa o texto com DeepSeek (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
+   * POST /api/integrations/call-engine/turn
+   */
+  router.post('/api/integrations/call-engine/turn', optionalAuth, async (req, res) => {
+    try {
+      const { character_id, mode, user_text, history = [], is_start = false, call_id } = req.body || {};
+      const callId = call_id || `WEB-${Date.now()}`;
+
+      // Resolve o perfil correspondente
+      const char = (character_id || 'rafael').toLowerCase();
+      const m = (mode || 'normal').toLowerCase();
+      const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
+
+      let replyText = '';
+      if (is_start || !user_text || String(user_text).trim().length === 0) {
+        replyText = profile.opening_message;
+      } else {
+        const generated = await generateAgentSpeechTextDetailed({
+          prompt: String(user_text).trim(),
+          history,
+          callContext: { callId }
+        });
+        replyText = generated.text;
+      }
+
+      // Sintetiza áudio via Google Cloud Chirp 3 HD
+      const preview = await previewGoogleCallVoice({
+        text: replyText,
+        voice: profile.voice_id
+      });
+
+      return res.json({
+        ok: true,
+        call_id: callId,
+        reply_text: replyText,
+        audio_base64: preview.audio_base64,
+        content_type: preview.content_type || 'audio/mp3',
+        voice: profile.voice_id,
+        character_id: profile.character_id,
+        character_name: profile.character_name,
+        mode: profile.mode,
+        mode_name: profile.mode_name,
+        profile_key: profile.profile_key
+      });
+    } catch (err) {
+      console.error('[CALL_ENGINE] Erro no turno de ligação web/mobile:', err);
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Dispara ligação telefônica real via Meowcaller para o celular do usuário
+   * POST /api/integrations/call-engine/call-phone
+   */
+  router.post('/api/integrations/call-engine/call-phone', optionalAuth, async (req, res) => {
+    try {
+      const { phone, character_id, mode } = req.body || {};
+      if (!phone || String(phone).trim().length < 8) {
+        return res.status(400).json({ ok: false, error: 'Número de telefone válido é obrigatório.' });
+      }
+
+      const cleanPhone = String(phone).replace(/\s+/g, '');
+      const char = (character_id || 'rafael').toLowerCase();
+      const m = (mode || 'normal').toLowerCase();
+      const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
+
+      // Inicia chamada no Meowcaller com a voz do Google Chirp 3 HD
+      const callResult = await originateCall({
+        phone: cleanPhone,
+        business_id: 'BIZ-001',
+        voice_profile_id: profile.voice_id
+      });
+
+      const callId = callResult?.call_id || `CALL-${Date.now()}`;
+
+      // Registra a sessão no motor quente com o perfil selecionado
+      registerCallSession({
+        callId,
+        remoteNumber: cleanPhone,
+        direction: 'OUTBOUND',
+        profileKey: profile.profile_key
+      });
+
+      return res.json({
+        ok: true,
+        call_id: callId,
+        character: profile.character_name,
+        mode: profile.mode_name,
+        voice: profile.voice_id,
+        phone: cleanPhone,
+        message: `Chamada originada para ${cleanPhone} com sucesso via Google Chirp 3 HD!`
+      });
+    } catch (err) {
+      console.error('[CALL_ENGINE] Erro ao originar ligação telefônica:', err);
+      return res.status(500).json({ ok: false, error: err.message });
     }
   });
 
