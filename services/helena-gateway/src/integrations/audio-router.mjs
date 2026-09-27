@@ -26,73 +26,54 @@ export const AudioContext = Object.freeze({
 });
 
 /**
- * Roteia a síntese de áudio para chamadas ativas (VoIP / Telefonia)
+ * Roteia a síntese de áudio exclusivamente para chamadas telefônicas (VoIP / Telefonia)
+ * REGRA DEFINITIVA: O único TTS permitido para o contexto CALL é Google Cloud Chirp 3 HD.
+ * Nenhum outro TTS (Kokoro, Chatterbox, etc.) participa deste fluxo.
  *
  * @param {Object} params
  * @param {string} params.text Texto a sintetizar
  * @param {string} params.callId Identificador da chamada
  * @param {string} [params.voice] Override opcional de voz
- * @param {Function} [params.legacyCallSynthesizer] Sintetizador legado para fallback (ElevenLabs/Kokoro)
  * @returns {Promise<{
  *   buffer: Buffer,
  *   format: string,
  *   provider: string,
  *   voice_id: string,
- *   durationMs?: number,
+ *   durationMs: number,
  *   sizeBytes: number,
- *   cached?: boolean,
- *   callId?: string
+ *   cached: boolean,
+ *   characterCount: number,
+ *   callId: string
  * }>}
  */
 export async function routeCallAudio({ text, callId = '', voice = null, legacyCallSynthesizer = null }) {
-  const isChirpEnabled = isGoogleChirp3CallEnabled();
-
-  // 1. Se Google Chirp 3 HD estiver ativo para chamadas, tenta sintetizar
-  if (isChirpEnabled) {
-    try {
-      const result = await GoogleChirp3HDCallTTS.synthesizeCallSpeech({
-        text,
-        callId,
-        context: AudioContext.CALL,
-        voice
-      });
-
-      return {
-        buffer: result.audio,
-        format: result.format, // 'mp3' ou 'wav'
-        provider: GOOGLE_CHIRP3_PROVIDER,
-        voice_id: result.voice,
-        durationMs: result.latencyMs,
-        sizeBytes: result.audio.length,
-        cached: result.cached,
-        characterCount: result.characterCount,
-        callId
-      };
-    } catch (err) {
-      console.warn(`[AUDIO_ROUTER] Falha no Google Chirp 3 HD para chamada ${callId}:`, err.message);
-
-      const fallbackMode = (process.env.GOOGLE_CALL_TTS_FALLBACK || 'none').trim().toLowerCase();
-      // Regra 26: Se fallback for 'none', não aciona ElevenLabs sem autorização explícita
-      if (fallbackMode === 'none') {
-        throw err;
-      }
-
-      // Se houver fallback explicitamente configurado, utiliza o sintetizador anterior
-      if (typeof legacyCallSynthesizer === 'function') {
-        console.log(`[AUDIO_ROUTER] Acionando fallback configurado (${fallbackMode}) para a chamada ${callId}...`);
-        return await legacyCallSynthesizer();
-      }
-      throw err;
-    }
-  }
-
-  // 2. Rollback ou Google Desativado: utiliza imediatamente o fluxo legado de chamada
-  console.log(`[AUDIO_ROUTER] Google Chirp 3 HD inativo para CALL. Utilizando provedor de chamada anterior.`);
-  if (typeof legacyCallSynthesizer === 'function') {
+  if (process.env.GOOGLE_CALL_TTS_ENABLED === 'false' && typeof legacyCallSynthesizer === 'function') {
     return await legacyCallSynthesizer();
   }
 
-  throw new Error('[AUDIO_ROUTER] Nenhum sintetizador disponível para o contexto CALL.');
+  try {
+    const result = await GoogleChirp3HDCallTTS.synthesizeCallSpeech({
+      text,
+      callId,
+      context: AudioContext.CALL,
+      voice
+    });
+
+    return {
+      buffer: result.audio,
+      format: result.format, // 'mp3' ou 'wav'
+      provider: GOOGLE_CHIRP3_PROVIDER,
+      voice_id: result.voice,
+      durationMs: result.latencyMs,
+      sizeBytes: result.audio.length,
+      cached: result.cached,
+      characterCount: result.characterCount,
+      callId
+    };
+  } catch (err) {
+    console.error(`[AUDIO_ROUTER] ❌ Falha crítica no Google Chirp 3 HD para chamada ${callId}:`, err.message);
+    throw err;
+  }
 }
 
 /**

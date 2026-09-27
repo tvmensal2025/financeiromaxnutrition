@@ -6,6 +6,15 @@
 
 import { synthesizeKokoroSpeech, KOKORO_DEFAULT_PROFILE_ID, KOKORO_OFFICIAL_VOICE_ID } from './kokoro.mjs';
 import { routeCallAudio } from './audio-router.mjs';
+import {
+  registerCallSession,
+  getCallSession,
+  recordTurnTelemetry,
+  endCallSession,
+  getCallEngineConfig,
+  getActivePersonality
+} from './call-engine.mjs';
+import { getActiveCallVoice } from './google-chirp3-hd.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -199,18 +208,25 @@ export async function updateVoiceAgentConfig(newSettings = {}) {
 
 /**
  * Gera texto de resposta do Pedro para uma pergunta ou fala do cliente
+ * Suporta as 3 personalidades dinâmicas (Equilíbrio, Firme, Intenso)
  */
-export async function generateAgentSpeechText({ prompt = '', history = [], callContext = {} }) {
+export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {} }) {
   const cleanPrompt = String(prompt).trim();
   const cfg = await getVoiceAgentConfig();
+
+  // Resolve personalidade da chamada quente ou padrão global
+  const call = callContext.callId ? getCallSession(callContext.callId) : null;
+  const personalityId = call?.activePersonalityId || getActivePersonality().id;
+  const personality = getCallEngineConfig().personalities.find(p => p.id === personalityId) || getActivePersonality();
+  const personaPrompt = personality.prompt || cfg.persona;
 
   // 1. Tenta invocar IA externa se API key estiver configurada e não estiver em ambiente de teste unitário
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
   const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
-      const systemInstruction = `${cfg.persona}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
-      const responseText = await callLlmProvider({
+      const systemInstruction = `${personaPrompt}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
+      const llmResult = await callLlmProviderDetailed({
         provider: cfg.ai_provider,
         model: cfg.ai_model,
         apiKey,
@@ -218,8 +234,14 @@ export async function generateAgentSpeechText({ prompt = '', history = [], callC
         userPrompt: cleanPrompt,
         history
       });
-      if (responseText && responseText.trim().length > 0) {
-        return sanitizeSpeechText(responseText);
+      if (llmResult?.reply && llmResult.reply.trim().length > 0) {
+        return {
+          text: sanitizeSpeechText(llmResult.reply),
+          usage: llmResult.usage || null,
+          latencyMs: llmResult.latencyMs || 0,
+          model: llmResult.model || cfg.ai_model,
+          personality: personality.id
+        };
       }
     } catch (err) {
       console.warn('[VOICE_AGENT] Falha na chamada da IA externa, acionando motor inteligente local:', err.message);
@@ -227,7 +249,18 @@ export async function generateAgentSpeechText({ prompt = '', history = [], callC
   }
 
   // 2. Motor Inteligente Heurístico Local (baseado no Catálogo Max Nutrition)
-  return sanitizeSpeechText(generateLocalResponse(cleanPrompt, cfg));
+  return {
+    text: sanitizeSpeechText(generateLocalResponse(cleanPrompt, cfg)),
+    usage: null,
+    latencyMs: 0,
+    model: 'heuristic-local',
+    personality: personality.id
+  };
+}
+
+export async function generateAgentSpeechText(params) {
+  const res = await generateAgentSpeechTextDetailed(params);
+  return res.text;
 }
 
 /**
@@ -294,7 +327,9 @@ function sanitizeSpeechText(text) {
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+  const start = Date.now();
+
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
     // Modelos com suporte comprovado a áudio WAV e inteligência conversacional rápida
     const candidateModels = audioBase64
@@ -342,7 +377,17 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-late
           const data = await res.json();
           const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
           if (reply && reply.trim().length > 0) {
-            return reply;
+            const usage = data?.usageMetadata ? {
+              prompt_tokens: data.usageMetadata.promptTokenCount || 0,
+              completion_tokens: data.usageMetadata.candidatesTokenCount || 0,
+              total_tokens: data.usageMetadata.totalTokenCount || 0
+            } : null;
+            return {
+              reply,
+              usage,
+              latencyMs: Date.now() - start,
+              model: m
+            };
           }
         } else {
           console.warn(`[VOICE_AGENT] Gemini modelo ${m} retornou status ${res.status}`);
@@ -401,7 +446,12 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-late
           const reply = data?.choices?.[0]?.message?.content?.trim();
           if (reply && reply.length > 0) {
             console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
-            return reply;
+            return {
+              reply,
+              usage: data?.usage || null,
+              latencyMs: Date.now() - start,
+              model: m
+            };
           }
         } else {
           const errText = await res.text().catch(() => '');
@@ -416,30 +466,45 @@ async function callLlmProvider({ provider = 'GEMINI', model = 'gemini-flash-late
   // Provedores OpenAI / Grok compatíveis
   if (userPrompt && (provider === 'GROK' || provider === 'OPENAI')) {
     const baseUrl = provider === 'GROK' ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1';
-    const res = await fetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini'),
-        messages: [
-          { role: 'system', content: systemInstruction },
-          { role: 'user', content: userPrompt }
-        ],
-        max_tokens: 120,
-        temperature: 0.4
-      })
-    });
+    try {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini'),
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: userPrompt }
+          ],
+          max_tokens: 120,
+          temperature: 0.4
+        })
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content || '';
+      if (res.ok) {
+        const data = await res.json();
+        const reply = data?.choices?.[0]?.message?.content || '';
+        return {
+          reply,
+          usage: data?.usage || null,
+          latencyMs: Date.now() - start,
+          model: model || (provider === 'GROK' ? 'grok-beta' : 'gpt-4o-mini')
+        };
+      }
+    } catch (err) {
+      console.warn(`[VOICE_AGENT] Falha na chamada ${provider}:`, err.message);
     }
   }
 
-  return '';
+  return { reply: '', usage: null, latencyMs: Date.now() - start, model };
+}
+
+async function callLlmProvider(params) {
+  const detailed = await callLlmProviderDetailed(params);
+  return detailed?.reply || '';
 }
 
 // ======================================================================
@@ -568,19 +633,17 @@ export async function speakInCall({ callId, text, voice = null }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!text) throw new Error('text é obrigatório');
 
-  const cfg = await getVoiceAgentConfig();
-  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId}: "${text}"`);
+  // Resolve voz da chamada ativa (hot-swap) ou voz configurada
+  const call = getCallSession(callId);
+  const activeVoice = voice || call?.activeVoiceId || getActiveCallVoice();
 
-  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Chirp 3 HD ou legado)
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (voz: ${activeVoice}): "${text}"`);
+
+  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Chirp 3 HD)
   const speechRes = await routeCallAudio({
     text,
     callId,
-    voice,
-    legacyCallSynthesizer: () => synthesizeSpeechFast({
-      text,
-      voice: voice || (cfg.voice_provider === 'ELEVENLABS' ? cfg.elevenlabs_voice : cfg.kokoro_voice),
-      cfg
-    })
+    voice: activeVoice
   });
 
   const base64Audio = speechRes.buffer.toString('base64');
@@ -610,6 +673,7 @@ export async function speakInCall({ callId, text, voice = null }) {
     ok: true,
     call_id: callId,
     text,
+    voice: activeVoice,
     provider: speechRes.provider,
     audio_size_bytes: speechRes.sizeBytes,
     ...result
@@ -622,6 +686,13 @@ export async function speakInCall({ callId, text, voice = null }) {
 export async function handleCallConnectedWebhook(payload = {}) {
   const { call_id, direction, remote_number, greeting_already_played } = payload;
   console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}, greeting_played=${greeting_already_played}`);
+
+  // Registra no call-engine em memória com sincronização
+  registerCallSession({
+    callId: call_id,
+    remoteNumber: remote_number,
+    direction: direction || 'OUTBOUND'
+  });
 
   const cfg = await getVoiceAgentConfig();
   const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
@@ -657,6 +728,16 @@ export async function handleCallConnectedWebhook(payload = {}) {
     console.error(`[VOICE_AGENT] Erro ao disparar saudação na chamada ${call_id}:`, err.message);
     return { ok: false, handled: false, error: err.message };
   }
+}
+
+/**
+ * Trata webhook disparado quando a chamada é finalizada/desconectada
+ */
+export async function handleCallEndedWebhook(payload = {}) {
+  const { call_id, reason } = payload;
+  console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
+  const summary = endCallSession(call_id, reason || 'normal_hangup');
+  return { ok: true, call_id, summary };
 }
 
 /**
@@ -697,15 +778,16 @@ export function getCallHistory(callId) {
 
 /**
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
- * 1. Transcreve a fala do cliente em alta velocidade (~400ms) via ElevenLabs Scribe STT
- * 2. Raciocina com IA (Gemini ou Catálogo Inteligente Max Nutrition em 0ms)
- * 3. Sintetiza a resposta na voz oficial com ElevenLabs Flash v2.5 (~650ms) ou Kokoro
- * 4. Transmite o áudio diretamente na chamada em andamento (latência total ~1.2s!)
+ * 1. Transcreve a fala do cliente via ElevenLabs Scribe STT
+ * 2. Raciocina com DeepSeek / Gemini aplicando a Personalidade Ativa da chamada (Equilíbrio, Firme ou Intenso)
+ * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
+ * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
  */
 export async function processUserSpeech({ callId, audioBase64, format = 'wav', sampleRate = 16000 }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64) throw new Error('audioBase64 é obrigatório');
 
+  const turnStart = Date.now();
   const audioBuffer = Buffer.from(audioBase64, 'base64');
   console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBuffer.length / 1024)} KB)`);
 
@@ -715,12 +797,24 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     return { ok: true, ignored: true, reason: 'agent_disabled' };
   }
 
+  // Garante que a chamada está registrada no gerenciador quente de chamadas
+  let call = getCallSession(callId);
+  if (!call) {
+    call = registerCallSession({ callId });
+  }
+
   const callHistory = getCallHistory(callId);
 
   // 1. Transcreve fala do cliente via ElevenLabs Scribe STT
+  const sttStart = Date.now();
   const userText = await transcribeAudio(audioBuffer);
+  const sttMs = Date.now() - sttStart;
 
   let replyText = '';
+  let llmUsage = null;
+  let llmMs = 0;
+  let llmModel = cfg.ai_model || 'DeepSeek-V4.1-Flash';
+  let usedPersonality = call?.activePersonalityId || getActivePersonality().id;
 
   if (userText && userText.trim().length > 0) {
     console.log(`[VOICE_AGENT] 🗣️ Cliente disse na chamada ${callId}: "${userText}"`);
@@ -732,12 +826,18 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
       timestamp: new Date().toISOString()
     });
 
-    // 2. Raciocínio rápido (Gemini com timeout estrito de 2.5s ou motor local instantâneo)
-    replyText = await generateAgentSpeechText({
+    // 2. Raciocínio com IA considerando a personalidade ativa da chamada (com hot-swap)
+    const llmStart = Date.now();
+    const llmResult = await generateAgentSpeechTextDetailed({
       prompt: userText,
       history: callHistory,
       callContext: { callId }
     });
+    llmMs = Date.now() - llmStart;
+    replyText = llmResult.text;
+    llmUsage = llmResult.usage;
+    llmModel = llmResult.model || llmModel;
+    usedPersonality = llmResult.personality || usedPersonality;
   } else {
     // Caso o áudio seja muito curto ou não haja palavras identificáveis
     console.log(`[VOICE_AGENT] ℹ️ Áudio sem transcrição de fala clara ou silêncio na chamada ${callId}.`);
@@ -746,7 +846,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
 
   // Sanitiza texto para pronúncia limpa
   replyText = sanitizeSpeechText(replyText);
-  console.log(`[VOICE_AGENT] 💬 Pedro responderá na chamada ${callId}: "${replyText}"`);
+  console.log(`[VOICE_AGENT] 💬 Pedro responderá na chamada ${callId} (${usedPersonality}): "${replyText}"`);
 
   // Atualiza histórico com a resposta do atendente
   callHistory.push({
@@ -759,21 +859,74 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
   }
 
   // 3. Sintetiza a resposta falada e reproduz na chamada
+  const ttsStart = Date.now();
   try {
     const playResult = await speakInCall({
       callId,
       text: replyText
     });
+    const ttsMs = Date.now() - ttsStart;
+    const turnLatencyMs = Date.now() - turnStart;
+
+    // Registra métricas detalhadas do turno no call-engine
+    const turnNumber = (call?.turnCount || 0) + 1;
+    const currentVoice = call?.activeVoiceId || getActiveCallVoice();
+    recordTurnTelemetry({
+      callId,
+      turnNumber,
+      sttMs,
+      llmFirstTokenMs: Math.round(llmMs * 0.55), // Estimativa de TTFT
+      llmTotalMs: llmMs,
+      ttsMs,
+      turnLatencyMs,
+      userText: userText || '',
+      replyText,
+      voice: currentVoice,
+      personality: usedPersonality,
+      usage: llmUsage,
+      charactersSynthesized: replyText.length,
+      error: null
+    });
 
     return {
       ok: true,
       call_id: callId,
+      turn_number: turnNumber,
       user_text: userText || '',
       reply_text: replyText,
+      metrics: {
+        stt_ms: sttMs,
+        llm_ms: llmMs,
+        tts_ms: ttsMs,
+        turn_latency_ms: turnLatencyMs,
+        usage: llmUsage
+      },
       play_result: playResult
     };
   } catch (err) {
+    const ttsMs = Date.now() - ttsStart;
+    const turnLatencyMs = Date.now() - turnStart;
     console.error(`[VOICE_AGENT] Erro ao reproduzir resposta na chamada ${callId}:`, err.message);
+
+    const turnNumber = (call?.turnCount || 0) + 1;
+    const currentVoice = call?.activeVoiceId || getActiveCallVoice();
+    recordTurnTelemetry({
+      callId,
+      turnNumber,
+      sttMs,
+      llmFirstTokenMs: 0,
+      llmTotalMs: llmMs,
+      ttsMs,
+      turnLatencyMs,
+      userText: userText || '',
+      replyText,
+      voice: currentVoice,
+      personality: usedPersonality,
+      usage: llmUsage,
+      charactersSynthesized: replyText.length,
+      error: err.message
+    });
+
     return {
       ok: false,
       call_id: callId,
@@ -783,4 +936,5 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
     };
   }
 }
+
 

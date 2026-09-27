@@ -66,10 +66,25 @@ import {
   generateAgentSpeechText,
   speakInCall,
   handleCallConnectedWebhook,
+  handleCallEndedWebhook,
   handleUserSilence,
   processUserSpeech,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
+
+import {
+  getCallEngineConfig,
+  updateCallEngineConfig,
+  updateFavoriteVoiceSlot,
+  getPersonalitiesList,
+  updatePersonality,
+  resetPersonalityToDefault,
+  getActiveCallsList,
+  switchCallRuntime,
+  getCallsHistoryMetrics,
+  getCallDetailById,
+  DEFAULT_PERSONALITIES
+} from '../integrations/call-engine.mjs';
 
 import { MeowcallerElevenBridge, MeowcallerKokoroBridge } from '../integrations/bridge.mjs';
 import {
@@ -1199,6 +1214,307 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       }
 
       return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Webhook Meowcaller quando a chamada é finalizada/desconectada
+   * POST /api/integrations/voice-agent/ended
+   */
+  router.post('/api/integrations/voice-agent/ended', async (req, res) => {
+    try {
+      const result = await handleCallEndedWebhook(req.body || {});
+      return res.json({ ok: true, result });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // ======================================================================
+  // 9. CENTRAL DE VOZ E PERSONALIDADE — MOTOR DE LIGAÇÕES (CALL ENGINE)
+  // ======================================================================
+
+  /**
+   * Retorna a configuração global do motor de chamadas
+   * GET /api/integrations/call-engine/config
+   */
+  router.get('/api/integrations/call-engine/config', optionalAuth, async (req, res) => {
+    try {
+      const config = getCallEngineConfig();
+      return res.json({
+        ok: true,
+        provider: 'google_chirp3_hd',
+        model: 'Chirp 3 HD',
+        language: 'pt-BR',
+        ...config
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Atualiza a configuração global (voz ativa, personalidade ativa, etc.)
+   * POST /api/integrations/call-engine/config
+   */
+  router.post('/api/integrations/call-engine/config', authenticateUser, async (req, res) => {
+    try {
+      const { active_voice, active_personality } = req.body || {};
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+
+      const updated = updateCallEngineConfig({
+        activeVoice: active_voice,
+        activePersonalityId: active_personality
+      }, updatedBy);
+
+      // Persiste no Supabase configuracao se disponível
+      if (supabaseFetch) {
+        try {
+          const items = [];
+          if (active_voice) {
+            items.push({
+              chave: 'GOOGLE_CALL_TTS_VOICE',
+              valor: active_voice,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Voz ativa oficial Google Chirp 3 HD para chamadas'
+            });
+          }
+          if (active_personality) {
+            items.push({
+              chave: 'CALL_ACTIVE_PERSONALITY',
+              valor: active_personality,
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: 'Personalidade ativa de atendimento em chamadas'
+            });
+          }
+          if (items.length > 0) {
+            await supabaseFetch('/rest/v1/configuracao', {
+              method: 'POST',
+              headers: { 'Prefer': 'resolution=merge-duplicates' },
+              body: JSON.stringify(items)
+            }).catch(() => null);
+          }
+        } catch {}
+      }
+
+      return res.json({
+        ok: true,
+        message: 'Configurações de chamada atualizadas com sucesso.',
+        config: updated
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Atualiza um dos 3 slots de vozes favoritas (Slot 1, 2 ou 3)
+   * POST /api/integrations/call-engine/favorite-slot
+   */
+  router.post('/api/integrations/call-engine/favorite-slot', authenticateUser, async (req, res) => {
+    try {
+      const { slot, name, voice_id, gender } = req.body || {};
+      const slotNum = Number(slot);
+      if (![1, 2, 3].includes(slotNum)) {
+        return res.status(400).json({ ok: false, error: 'O slot deve ser 1, 2 ou 3.' });
+      }
+
+      const updatedSlot = updateFavoriteVoiceSlot(slotNum, { name, voice_id, gender });
+      const config = getCallEngineConfig();
+
+      if (supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              chave: `CALL_FAVORITE_VOICE_SLOT_${slotNum}`,
+              valor: JSON.stringify(updatedSlot),
+              tipo: 'CONFIG',
+              responsavel: req.user?.email || 'Admin',
+              descricao: `Slot ${slotNum} de voz favorita para chamadas`
+            }])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json({
+        ok: true,
+        message: `Slot ${slotNum} atualizado com sucesso.`,
+        slot: updatedSlot,
+        favorite_voices: config.favorite_voices
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Retorna as 3 personalidades oficiais de atendimento
+   * GET /api/integrations/call-engine/personalities
+   */
+  router.get('/api/integrations/call-engine/personalities', optionalAuth, async (req, res) => {
+    try {
+      const personalities = getPersonalitiesList();
+      return res.json({ ok: true, personalities });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Atualiza o prompt/script e parâmetros de uma personalidade
+   * POST /api/integrations/call-engine/personalities/:id
+   */
+  router.post('/api/integrations/call-engine/personalities/:id', authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, tone, intensity, prompt } = req.body || {};
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+
+      const updated = updatePersonality(id, { name, description, tone, intensity, prompt }, updatedBy);
+
+      // Persiste no Supabase para não exigir restart nem redeploy
+      if (supabaseFetch) {
+        try {
+          await supabaseFetch('/rest/v1/configuracao', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify([{
+              chave: `CALL_PERSONALITY_PROMPT_${id.toUpperCase()}`,
+              valor: JSON.stringify(updated),
+              tipo: 'CONFIG',
+              responsavel: updatedBy,
+              descricao: `Script e prompt da personalidade ${id}`
+            }])
+          }).catch(() => null);
+        } catch {}
+      }
+
+      return res.json({
+        ok: true,
+        message: `Personalidade '${updated.name}' atualizada com sucesso. Vale imediatamente!`,
+        personality: updated
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Restaura o script/prompt de uma personalidade para o padrão de fábrica
+   * POST /api/integrations/call-engine/personalities/:id/reset
+   */
+  router.post('/api/integrations/call-engine/personalities/:id/reset', authenticateUser, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const reset = resetPersonalityToDefault(id);
+      return res.json({
+        ok: true,
+        message: `Personalidade '${reset.name}' restaurada para os padrões originais com sucesso.`,
+        personality: reset
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Lista as chamadas telefônicas atualmente em andamento
+   * GET /api/integrations/call-engine/active-calls
+   */
+  router.get('/api/integrations/call-engine/active-calls', optionalAuth, async (req, res) => {
+    try {
+      const activeCalls = getActiveCallsList();
+      return res.json({
+        ok: true,
+        count: activeCalls.length,
+        calls: activeCalls
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * REQUISITO CRÍTICO: HOT-SWAP de voz e/ou personalidade DURANTE UMA LIGAÇÃO EM ANDAMENTO!
+   * POST /api/integrations/call-engine/active-calls/:callId/switch
+   */
+  router.post('/api/integrations/call-engine/active-calls/:callId/switch', authenticateUser, async (req, res) => {
+    try {
+      const { callId } = req.params;
+      const { voice, personality_id } = req.body || {};
+      const updatedBy = req.user?.email || req.user?.id || 'Admin';
+
+      const result = switchCallRuntime({
+        callId,
+        voice,
+        personalityId: personality_id,
+        updatedBy
+      });
+
+      return res.json({
+        ok: true,
+        ...result
+      });
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Retorna histórico de ligações com métricas e resumo acumulado
+   * GET /api/integrations/call-engine/history
+   */
+  router.get('/api/integrations/call-engine/history', optionalAuth, async (req, res) => {
+    try {
+      const filter = req.query.filter || 'today';
+      const limit = Number(req.query.limit) || 50;
+      const historyMetrics = getCallsHistoryMetrics({ filter, limit });
+
+      return res.json({
+        ok: true,
+        ...historyMetrics
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Retorna os detalhes de uma chamada com todos os turnos expandidos
+   * GET /api/integrations/call-engine/history/:callId
+   */
+  router.get('/api/integrations/call-engine/history/:callId', optionalAuth, async (req, res) => {
+    try {
+      const { callId } = req.params;
+      const detail = getCallDetailById(callId);
+      if (!detail) {
+        return res.status(404).json({ ok: false, error: 'Chamada não encontrada no histórico.' });
+      }
+
+      return res.json({
+        ok: true,
+        call: detail
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  /**
+   * Prévia de áudio com Google Cloud Chirp 3 HD
+   * POST /api/integrations/call-engine/preview
+   */
+  router.post('/api/integrations/call-engine/preview', optionalAuth, async (req, res) => {
+    try {
+      const { text, voice } = req.body || {};
+      const preview = await previewGoogleCallVoice({ text, voice });
+      return res.json(preview);
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
     }
