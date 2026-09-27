@@ -1010,7 +1010,7 @@ type ConversationalSink struct {
 	consecutiveSpeech    int // Frames consecutivos de voz para validar início de fala
 	noiseFloor           float64
 	rmsThreshold         float64
-	silenceThreshold     int  // 15 frames * 60ms = ~900ms de silêncio pós-fala (padrão ElevenLabs/Vapi)
+	silenceThreshold     int  // Base endpoint for longer utterances; brief phrases allow a thinking pause.
 	minSpeechSamples     int  // Mínimo de 200ms de fala (3200 amostras a 16kHz)
 	initialSilenceFrames int  // Contador de frames em silêncio antes da primeira fala
 	nudgeSent            bool // Flag para cutucada cortês enviada uma única vez
@@ -1177,8 +1177,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			// Mantém as amostras do silêncio para preservar a cauda natural das palavras
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
 
-			// Silêncio suficiente detectado (fim do turno do usuário: ~900ms)
-			if s.silenceFrames >= s.silenceThreshold {
+			// Short clauses often continue after a one-second thinking pause.
+			// Keep the faster endpoint for longer utterances.
+			endpointFrames := s.silenceThreshold
+			spokenSamples := len(s.speechSamples) - s.silenceFrames*len(pcmFrame)
+			if spokenSamples < 16000*4 && endpointFrames < 20 {
+				endpointFrames = 20 // 1.2 seconds, only for short clauses.
+			}
+			if s.silenceFrames >= endpointFrames {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
 				epoch := s.speechEpoch

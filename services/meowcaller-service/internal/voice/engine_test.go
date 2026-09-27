@@ -107,3 +107,24 @@ func TestRoomNoiseDoesNotStartOrExtendSpeech(t *testing.T) {
 		t.Fatalf("noise prevented endpoint: %d", sink.silenceFrames)
 	}
 }
+
+func TestShortClauseKeepsOneSecondPauseInSameTurn(t *testing.T) {
+	sink, player := testVoiceSink()
+	player.Stop()
+	for i := 0; i < 30; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	epoch := sink.speechEpoch
+	for i := 0; i < 17; i++ {
+		_ = sink.WriteFrame(voiceFrame(0))
+	}
+	if !sink.isSpeaking {
+		t.Fatal("one-second thinking pause ended the short clause")
+	}
+	for i := 0; i < 4; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	if sink.speechEpoch != epoch || sink.silenceFrames != 0 {
+		t.Fatal("continuation must stay in the same speech turn")
+	}
+}

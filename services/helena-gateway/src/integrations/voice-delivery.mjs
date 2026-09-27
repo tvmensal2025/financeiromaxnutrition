@@ -1,6 +1,8 @@
 export const VOICE_DELIVERY_INSTRUCTION = `FORMATO DE ENTREGA PARA VOZ:
 Preserve a identidade, as regras e os fatos do perfil ativo. Responda em português brasileiro,
-com uma ou duas frases completas, preferencialmente de 20 a 35 palavras no total.
+com uma ou duas frases completas. Para perguntas simples, prefira de 8 a 22 palavras;
+use mais apenas quando a explicação ou uma condição importante exigir.
+Comece pela informação útil, numa primeira frase curta, sem introduções que atrasem a resposta.
 Responda primeiro ao que a pessoa acabou de dizer. Faça no máximo uma pergunta por vez.
 Use vírgulas para pausas naturais, ponto final para concluir ideias e interrogação em perguntas.
 Expresse acolhimento quando houver dúvida ou frustração, e entusiasmo moderado quando apropriado.
@@ -12,7 +14,9 @@ Quando combinar com a fala da pessoa, use uma reação breve como "Hum, entendi"
 seguida da resposta útil no mesmo turno. Não use em turnos consecutivos, nem simule uma consulta
 que não foi feita. Não preencha todo silêncio; respeite a pausa e a interrupção da pessoa.
 Varie a cadência com pontuação natural, sem alongamentos artificiais como "hummmmmm".
-Não repita apresentação, nome ou mensagem inicial a cada resposta.
+Não repita apresentação, nome ou mensagem inicial a cada resposta. Após o primeiro turno,
+não recomece com "Olá". Se pedirem para esperar ou parar, diga apenas "Claro, pode falar."
+e não acrescente orientação nem outra pergunta nesse turno.
 Entregue somente o que será falado: sem listas, markdown, emojis, SSML ou rubricas como [feliz].
 Escreva valores, porcentagens e unidades por extenso quando isso ajudar a pronúncia, sem alterar os fatos.
 Conclua a frase antes de encerrar. Nunca sacrifique uma condição importante para encurtar a resposta.`;
@@ -35,4 +39,9 @@ export function completeVoiceReply(text, finishReason) {
   // whose missing continuation could contain a qualification or correction.
   if (finishReason && !['stop', 'STOP'].includes(finishReason)) return '';
   return typeof text === 'string' ? text.trim() : '';
+}
+
+export function cleanSpeechTranscript(text) {
+  // Scribe may return tagged sounds even when no words were spoken.
+  return String(text || '').replace(/\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
 }

@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import { normalizeCallerPhone, loadCallerContext, buildCallInstruction } from '../src/integrations/caller-context.mjs';
 import { registerCallSession, getCallSession, updateProfile } from '../src/integrations/call-engine.mjs';
 import { handleCallConnectedWebhook } from '../src/integrations/voice-agent.mjs';
+import { cleanSpeechTranscript } from '../src/integrations/voice-delivery.mjs';
+
+test('sound-only annotations do not become conversational turns', () => {
+  assert.equal(cleanSpeechTranscript('[som de fungada] [silêncio]'), '');
+  assert.equal(cleanSpeechTranscript('[risos] Olá, tudo bem?'), 'Olá, tudo bem?');
+});
 
 test('LID cannot be used as phone; WhatsApp phone device is stripped', () => {
   assert.equal(normalizeCallerPhone('999999999999@lid'), '');
