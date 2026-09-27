@@ -993,9 +993,9 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 		callID:           callID,
 		engine:           e,
 		noiseFloor:       0.00008,
-		rmsThreshold:     0.00018, // Sensibilidade alta calibrada para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 12,      // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
-		minSpeechSamples: 2400,    // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
+		rmsThreshold:     0.003, // Separate quiet room noise from conversational speech.
+		silenceThreshold: 12,    // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
+		minSpeechSamples: 2400,  // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
@@ -1037,14 +1037,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// Atualiza piso de ruído adaptativo quando não está falando
 	if s.noiseFloor == 0 {
 		s.noiseFloor = rms
-	} else if !s.isSpeaking && !activePlayer {
+	} else if !s.isSpeaking && !activePlayer && rms < math.Max(s.rmsThreshold, s.noiseFloor*2.5) {
 		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
 	}
 
-	// Limiar adaptativo dinâmico (no mínimo rmsThreshold ou 1.35x o ruído ambiente com teto de segurança)
-	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.35)
-	if effectiveThreshold > 0.0005 {
-		effectiveThreshold = 0.0005 // Teto de segurança para jamais ficar surdo mesmo com ruído de fundo
+	// Learn only quiet frames; speech must not raise the ambient noise estimate.
+	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*2.5)
+	if effectiveThreshold > 0.02 {
+		effectiveThreshold = 0.02 // Bound adaptation while keeping background noise below speech.
 	}
 
 	requiredFrames := 2

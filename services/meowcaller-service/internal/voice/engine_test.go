@@ -12,7 +12,7 @@ func testVoiceSink() (*ConversationalSink, *meowcaller.Player) {
 	engine := &Engine{callPlayers: map[string]*meowcaller.Player{"test": player}}
 	return &ConversationalSink{
 		callID: "test", engine: engine, noiseFloor: 0.00008,
-		rmsThreshold: 0.00018, silenceThreshold: 12, minSpeechSamples: 2400,
+		rmsThreshold: 0.003, silenceThreshold: 12, minSpeechSamples: 2400,
 	}, player
 }
 
@@ -81,5 +81,29 @@ func TestListActiveCallsExcludesEnded(t *testing.T) {
 	calls := e.ListActiveCalls()
 	if len(calls) != 1 || calls[0].CallID != "live" {
 		t.Fatalf("unexpected active calls: %+v", calls)
+	}
+}
+
+func TestRoomNoiseDoesNotStartOrExtendSpeech(t *testing.T) {
+	sink, player := testVoiceSink()
+	player.Stop()
+	for i := 0; i < 30; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.001))
+	}
+	if sink.isSpeaking {
+		t.Fatal("room noise classified as speech")
+	}
+	for i := 0; i < 4; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	if !sink.isSpeaking {
+		t.Fatal("clear speech not detected")
+	}
+	// Stop before dispatch; verify background frames count toward the end pause.
+	for i := 0; i < 10; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.001))
+	}
+	if sink.silenceFrames != 10 {
+		t.Fatalf("noise prevented endpoint: %d", sink.silenceFrames)
 	}
 }
