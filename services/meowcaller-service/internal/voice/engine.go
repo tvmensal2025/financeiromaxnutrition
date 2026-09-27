@@ -344,6 +344,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 			e.recordDiagEvent(fmt.Sprintf("Chamada encerrada. Motivo: %s", reason))
 			snap.Status = "ENDED"
 			e.closeCallAudio(callID)
+			go e.notifyGatewayWebhook("CALL_ENDED", callID, "")
 
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -720,6 +721,7 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			snap.Status = "ENDED"
 			closeDone()
 			e.closeCallAudio(callID)
+			go e.notifyGatewayWebhook("CALL_ENDED", callID, "")
 			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada discada encerrada")
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -750,6 +752,14 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 	// Aguarda 400ms para estabilização dos pacotes RTP do WhatsApp VoIP
 	time.Sleep(400 * time.Millisecond)
 
+	e.callsMu.RLock()
+	snapshot := e.activeCalls[callID]
+	active := snapshot != nil && snapshot.Status != "ENDED"
+	e.callsMu.RUnlock()
+	if !active {
+		return
+	}
+
 	// Notifica o Helena Gateway via Webhook assíncrono para sintetizar e tocar abertura oficial (Google Chirp 3 HD)
 	log.Info().Str("call_id", callID).Str("direction", direction).Msg("📞 Notificando Helena Gateway para tocar saudação com Google Cloud Chirp 3 HD...")
 	e.recordDiagEvent("Notificando Gateway para sintetizar e tocar abertura oficial (Google Chirp 3 HD)")
@@ -759,6 +769,9 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 // notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
 func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
+	if event == "CALL_ENDED" {
+		gatewayURL = strings.TrimSuffix(gatewayURL, "/webhook") + "/ended"
+	}
 	payload, err := json.Marshal(map[string]interface{}{
 		"event":                   event,
 		"call_id":                 callID,
@@ -919,7 +932,9 @@ func (e *Engine) ListActiveCalls() []CallSnapshot {
 	defer e.callsMu.RUnlock()
 	calls := make([]CallSnapshot, 0, len(e.activeCalls))
 	for _, c := range e.activeCalls {
-		calls = append(calls, *c)
+		if c.Status != "ENDED" {
+			calls = append(calls, *c)
+		}
 	}
 	return calls
 }

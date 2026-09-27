@@ -337,3 +337,14 @@ export async function playCallAudio(callId, { audioUrl = '', audioBase64 = '', f
 
   return await res.json();
 }
+
+// A failed lookup must never be mistaken for an empty list of calls.
+export async function listMeowcallerCalls() {
+  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/calls`, {
+    headers: getHeaders(), signal: AbortSignal.timeout(4000)
+  });
+  if (!res.ok) throw new Error(`Meowcaller call lookup failed: ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data.calls)) throw new Error('Invalid Meowcaller call list');
+  return data.calls;
+}

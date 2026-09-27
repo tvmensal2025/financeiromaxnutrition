@@ -149,3 +149,16 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
    assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI', ai_api_key: 'legacy-deepseek' }), '');
   } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
  });
+
+ it('ends a registered call and ignores repeated termination events', async () => {
+  const { registerCallSession, getActiveCallsList } = await import('../src/integrations/call-engine.mjs');
+  const { handleCallEndedWebhook, handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
+  const call_id = 'TERMINATION-REGRESSION';
+  registerCallSession({ callId: call_id });
+  assert.ok(getActiveCallsList().some(c => c.call_id === call_id));
+  const result = await handleCallEndedWebhook({ call_id, reason: 'remote_hangup' });
+  assert.ok(result.summary);
+  assert.ok(!getActiveCallsList().some(c => c.call_id === call_id));
+  assert.equal((await handleCallEndedWebhook({ call_id })).summary, null);
+  assert.equal((await handleCallConnectedWebhook({ call_id })).reason, 'already_ended');
+ });
