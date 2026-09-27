@@ -109,7 +109,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     });
 
     assert.ok(session);
-    assert.strictEqual(session.activeVoice, getActiveGlobalProfile().voice_id);
+    assert.strictEqual(session.activeVoice, getProfile('sirlene', 'normal').voice_id);
     assert.strictEqual(session.activePersonalityId, 'equilibrio');
 
     // Troca de Voz e Personalidade em tempo real durante a chamada
