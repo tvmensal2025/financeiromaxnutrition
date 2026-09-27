@@ -9,8 +9,10 @@ info = json.loads(subprocess.check_output(["go", "mod", "download", "-json", mod
 if info.get("Error"): raise RuntimeError(info["Error"])
 target = pathlib.Path(tempfile.mkdtemp(prefix=".meowcaller-patched-", dir=root))
 shutil.copytree(info["Dir"], target, dirs_exist_ok=True)
+target.chmod(0o755)
 for item in target.rglob("*"):
-    if item.is_file(): item.chmod(0o644)
+    if item.is_dir(): item.chmod(0o755)
+    elif item.is_file(): item.chmod(0o644)
 subprocess.run(["git", "init", "-q", str(target)], check=True)
 # Exclude upstream release notes: only runtime source is patched.
 subprocess.run(["git", "apply", "--check", "--exclude=CHANGELOG.md", str(patch)], cwd=target, check=True)
