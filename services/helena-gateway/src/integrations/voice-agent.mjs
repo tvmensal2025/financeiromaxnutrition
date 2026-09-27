@@ -5,6 +5,7 @@
  */
 
 import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply } from './voice-delivery.mjs';
+import { buildCallInstruction, loadCallerContext, persistVoiceTurn } from './caller-context.mjs';
 import { streamReplyToCall } from './call-streaming.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
@@ -241,7 +242,7 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
-      const systemInstruction = `${systemScript}\n\nBASE DE CONHECIMENTO OFICIAL DA MAX NUTRITION:\n${cfg.knowledge_base}`;
+      const systemInstruction = await buildCallInstruction(call, profile);
       let providerToUse = cfg.ai_provider || 'OPENAI';
       let modelToUse = cfg.ai_model || 'gpt-6-luna';
       if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) {
@@ -751,15 +752,19 @@ export async function handleCallConnectedWebhook(payload = {}) {
 
   // Registra no call-engine em memória com sincronização
   let call = getCallSession(call_id);
-  if (!call) {
+  if (!call || (direction === 'INBOUND' && !call.callerConnected)) {
     call = registerCallSession({
       callId: call_id,
       remoteNumber: remote_number,
-      direction: direction || 'OUTBOUND'
+      direction: direction || 'OUTBOUND',
+      profileKey: direction === 'INBOUND' ? 'sirlene_normal' : null
     });
   }
 
+  if (remote_number) call.remoteNumber = remote_number;
+  call.callerConnected = true;
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  void loadCallerContext(call, profile.character_id);
   if (profile.opening_enabled !== true || !profile.opening_message?.trim()) {
     call.greetingPlayed = true;
     return { ok: true, handled: true, call_id, opening_enabled: false };
@@ -977,6 +982,7 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
       text: replyText,
       voice: activeProfile.voice_id
     });
+    void persistVoiceTurn(call, activeProfile, userText || '', replyText);
     const ttsMs = Date.now() - ttsStart;
     const turnLatencyMs = Date.now() - turnStart;
 
@@ -1071,9 +1077,10 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
     characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
   try {
     const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
-      systemInstruction: `${call?.activeSystemScript || profile.system_script}\n\nBASE DE CONHECIMENTO OFICIAL:\n${cfg.knowledge_base}`,
+      systemInstruction: await buildCallInstruction(call, profile),
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
+    void persistVoiceTurn(call, profile, userText, result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
     const metrics = { ...result.metrics, transport: result.playback.metrics, streaming: true };

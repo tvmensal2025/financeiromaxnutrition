@@ -55,7 +55,7 @@ export const CHARACTERS_MAP = Object.freeze({
     name: 'Alex',
     role: 'Personal Trainer, Treino de Força, Hipertrofia & Disciplina',
     gender: 'MALE',
-    defaultVoice: 'pt-BR-Chirp3-HD-Alkaid'
+    defaultVoice: 'pt-BR-Chirp3-HD-Achird'
   }
 });
 
@@ -116,7 +116,7 @@ DIRETRIZES DE ATENDIMENTO:
     character_name: 'Rafael',
     mode: 'firm',
     mode_name: 'Firme',
-    voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    voice_id: 'pt-BR-Chirp3-HD-Achird',
     opening_enabled: false,
     opening_message: 'Olá! Aqui é o Rafael da Max Nutrition. Vamos direto ao ponto: como está o seu compromisso com suas metas hoje?',
     system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
@@ -237,7 +237,7 @@ DIRETRIZES DE ATENDIMENTO:
     character_name: 'Vital',
     mode: 'firm',
     mode_name: 'Firme',
-    voice_id: 'pt-BR-Chirp3-HD-Gaspra',
+    voice_id: 'pt-BR-Chirp3-HD-Charon',
     opening_enabled: false,
     opening_message: 'Aqui é o Vital. Vim verificar sua saúde e seus exames. Você tem cuidado da sua rotina clínica e hidratação como combinamos?',
     system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde da Max Nutrition na ligação telefônica.
@@ -277,7 +277,7 @@ DIRETRIZES DE ATENDIMENTO:
     character_name: 'Alex',
     mode: 'normal',
     mode_name: 'Normal',
-    voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    voice_id: 'pt-BR-Chirp3-HD-Achird',
     opening_enabled: false,
     opening_message: 'Fala campeão, aqui é o Alex! Tô passando pra gente bater um papo rápido sobre sua rotina de treinos. Treinou hoje?',
     system_script: `Você é o Alex, personal trainer virtual e especialista em treinos e performance da Max Nutrition na ligação telefônica.

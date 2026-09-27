@@ -1055,7 +1055,15 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/voice-agent/webhook', async (req, res) => {
+  const authenticateVoiceGateway = (req, res, next) => {
+    const expected = process.env.VOICE_GATEWAY_INTERNAL_KEY;
+    const supplied = String(req.headers['x-api-key'] || '');
+    if (!expected || supplied.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) {
+      return res.status(401).json({ error: 'invalid_voice_gateway_key' });
+    }
+    return next();
+  };
+  router.post('/api/integrations/voice-agent/webhook', authenticateVoiceGateway, async (req, res) => {
     try {
       const result = await handleCallConnectedWebhook(req.body || {});
       return res.json({ ok: true, result });
@@ -1435,6 +1443,11 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         opening_message, opening_enabled, row_version,
         system_script: system_script ?? script
       };
+
+      if (updates.voice_id) {
+        const catalog = await listAvailableChirp3Voices();
+        if (!catalog.voices.some(v => v.name === updates.voice_id)) return res.status(400).json({ error: 'Selecione uma voz validada na lista.' });
+      }
 
       const updated = profileStore
         ? await profileStore.save(characterId, mode, updates, updatedBy)

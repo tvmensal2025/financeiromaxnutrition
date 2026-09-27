@@ -27,49 +27,219 @@ export const DEFAULT_CHIRP3_HD_VOICE = 'pt-BR-Chirp3-HD-Achernar';
  * Todas as vozes abaixo pertencem ao modelo generativo Chirp 3 HD.
  */
 export const CHIRP3_HD_VOICES_PT_BR = Object.freeze({
-  FEMALE: [
-    { name: 'pt-BR-Chirp3-HD-Achernar', gender: 'FEMALE', isDefault: true, description: 'Feminina natural, expressiva e clara para telefonia (Soft)' },
-    { name: 'pt-BR-Chirp3-HD-Algieba', gender: 'FEMALE', isDefault: false, description: 'Feminina calorosa e acolhedora (Warm)' },
-    { name: 'pt-BR-Chirp3-HD-Aoede', gender: 'FEMALE', isDefault: false, description: 'Feminina suave e cordial (Breezy)' },
-    { name: 'pt-BR-Chirp3-HD-Autonoe', gender: 'FEMALE', isDefault: false, description: 'Feminina dinâmica e profissional (Bright)' },
-    { name: 'pt-BR-Chirp3-HD-Callirrhoe', gender: 'FEMALE', isDefault: false, description: 'Feminina firme e acolhedora (Lively)' },
-    { name: 'pt-BR-Chirp3-HD-Despina', gender: 'FEMALE', isDefault: false, description: 'Feminina jovem e calorosa (Smooth)' },
-    { name: 'pt-BR-Chirp3-HD-Dia', gender: 'FEMALE', isDefault: false, description: 'Feminina expressiva e clara' },
-    { name: 'pt-BR-Chirp3-HD-Elara', gender: 'FEMALE', isDefault: false, description: 'Feminina nítida e confiante' },
-    { name: 'pt-BR-Chirp3-HD-Erinome', gender: 'FEMALE', isDefault: false, description: 'Feminina corporativa e equilibrada (Clear)' },
-    { name: 'pt-BR-Chirp3-HD-Eukelade', gender: 'FEMALE', isDefault: false, description: 'Feminina articulada e fluida' },
-    { name: 'pt-BR-Chirp3-HD-Galatea', gender: 'FEMALE', isDefault: false, description: 'Feminina suave e atenciosa' },
-    { name: 'pt-BR-Chirp3-HD-Harpalyke', gender: 'FEMALE', isDefault: false, description: 'Feminina confiante e serena' },
-    { name: 'pt-BR-Chirp3-HD-Helike', gender: 'FEMALE', isDefault: false, description: 'Feminina calorosa e empática' },
-    { name: 'pt-BR-Chirp3-HD-Hermippe', gender: 'FEMALE', isDefault: false, description: 'Feminina executiva e segura' },
-    { name: 'pt-BR-Chirp3-HD-Himalia', gender: 'FEMALE', isDefault: false, description: 'Feminina dinâmica e moderna' },
-    { name: 'pt-BR-Chirp3-HD-Kore', gender: 'FEMALE', isDefault: false, description: 'Feminina leve e conversacional (Gentle)' },
-    { name: 'pt-BR-Chirp3-HD-Laomedeia', gender: 'FEMALE', isDefault: false, description: 'Feminina formal e articulada (Cheerful)' },
-    { name: 'pt-BR-Chirp3-HD-Leda', gender: 'FEMALE', isDefault: false, description: 'Feminina calma e atenciosa (Melodic)' },
-    { name: 'pt-BR-Chirp3-HD-Pulcherrima', gender: 'FEMALE', isDefault: false, description: 'Feminina persuasiva e elegante (Elegant)' },
-    { name: 'pt-BR-Chirp3-HD-Sadachbia', gender: 'FEMALE', isDefault: false, description: 'Feminina serena e tranquila (Serene)' },
-    { name: 'pt-BR-Chirp3-HD-Schedar', gender: 'FEMALE', isDefault: false, description: 'Feminina nítida e direta (Crisp)' },
-    { name: 'pt-BR-Chirp3-HD-Sulafat', gender: 'FEMALE', isDefault: false, description: 'Feminina padrão atendimento comercial (Dynamic)' },
-    { name: 'pt-BR-Chirp3-HD-Vindemiatrix', gender: 'FEMALE', isDefault: false, description: 'Feminina assertiva e segura (Warm)' }
+  "FEMALE": [
+    {
+      "name": "pt-BR-Chirp3-HD-Achernar",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": true
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Aoede",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Autonoe",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Callirrhoe",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Despina",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Erinome",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Gacrux",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Kore",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Laomedeia",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Leda",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Pulcherrima",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Sulafat",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Vindemiatrix",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Zephyr",
+      "gender": "FEMALE",
+      "validated": true,
+      "description": "Feminina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    }
   ],
-  MALE: [
-    { name: 'pt-BR-Chirp3-HD-Achird', gender: 'MALE', isDefault: false, description: 'Masculina natural e segura (Natural)' },
-    { name: 'pt-BR-Chirp3-HD-Algenib', gender: 'MALE', isDefault: false, description: 'Masculina firme e corporativa (Firm)' },
-    { name: 'pt-BR-Chirp3-HD-Alnilam', gender: 'MALE', isDefault: false, description: 'Masculina equilibrada e clara' },
-    { name: 'pt-BR-Chirp3-HD-Charon', gender: 'MALE', isDefault: false, description: 'Masculina informativa e estruturada (Informative)' },
-    { name: 'pt-BR-Chirp3-HD-Enceladus', gender: 'MALE', isDefault: false, description: 'Masculina próxima e amigável (Breathy)' },
-    { name: 'pt-BR-Chirp3-HD-Fenrir', gender: 'MALE', isDefault: false, description: 'Masculina encorpada e profunda (Deep)' },
-    { name: 'pt-BR-Chirp3-HD-Gacrux', gender: 'MALE', isDefault: false, description: 'Masculina calma e executiva (Calm)' },
-    { name: 'pt-BR-Chirp3-HD-Iapetus', gender: 'MALE', isDefault: false, description: 'Masculina institucional e firme (Authoritative)' },
-    { name: 'pt-BR-Chirp3-HD-Isonoe', gender: 'MALE', isDefault: false, description: 'Masculina grave e sóbria' },
-    { name: 'pt-BR-Chirp3-HD-Kalyke', gender: 'MALE', isDefault: false, description: 'Masculina moderada e pontual' },
-    { name: 'pt-BR-Chirp3-HD-Orus', gender: 'MALE', isDefault: false, description: 'Masculina direta e estável (Firm)' },
-    { name: 'pt-BR-Chirp3-HD-Puck', gender: 'MALE', isDefault: false, description: 'Masculina jovem e ágil (Youthful)' },
-    { name: 'pt-BR-Chirp3-HD-Rasalgethi', gender: 'MALE', isDefault: false, description: 'Masculina confiante e vibrante (Confident)' },
-    { name: 'pt-BR-Chirp3-HD-Sadaltager', gender: 'MALE', isDefault: false, description: 'Masculina ressonante e clara (Resonant)' },
-    { name: 'pt-BR-Chirp3-HD-Umbriel', gender: 'MALE', isDefault: false, description: 'Masculina sóbria e ponderada (Grounded)' },
-    { name: 'pt-BR-Chirp3-HD-Zephyr', gender: 'MALE', isDefault: false, description: 'Masculina fluida e moderna (Gentle)' },
-    { name: 'pt-BR-Chirp3-HD-Zubenelgenubi', gender: 'MALE', isDefault: false, description: 'Masculina séria e precisa (Serious)' }
+  "MALE": [
+    {
+      "name": "pt-BR-Chirp3-HD-Achird",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Algenib",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Algieba",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Alnilam",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Charon",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Enceladus",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Fenrir",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Iapetus",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Orus",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Puck",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Rasalgethi",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Sadachbia",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Sadaltager",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Schedar",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Umbriel",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    },
+    {
+      "name": "pt-BR-Chirp3-HD-Zubenelgenubi",
+      "gender": "MALE",
+      "validated": true,
+      "description": "Masculina â€” Ã¡udio e streaming verificados",
+      "isDefault": false
+    }
   ]
 });
 
@@ -421,73 +591,47 @@ export function resolveAudioEncoding() {
 // ======================================================================
 
 let cachedDiscoveredVoices = null;
-let lastVoicesFetchTime = 0;
-const VOICES_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutos
+let voicesValidation = null;
+const VOICES_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-/**
- * Lista as vozes pt-BR Chirp 3 HD disponíveis (com cache e descoberta via API do Google)
- */
-export async function listAvailableChirp3Voices(forceRefresh = false) {
-  const now = Date.now();
-  if (!forceRefresh && cachedDiscoveredVoices && (now - lastVoicesFetchTime < VOICES_CACHE_TTL_MS)) {
-    return cachedDiscoveredVoices;
-  }
-
+// Prove both browser playback and the CALL streaming format using this account.
+export async function validateChirpVoice(name) {
+  const preview = await previewGoogleCallVoice({ voice: name, text: 'Olá, tudo bem?' });
+  const stream = openChirp3CallStream({ voice: name });
+  let bytes = 0;
+  const timer = setTimeout(() => stream.destroy(new Error('Voice validation timeout')), 8000);
   try {
-    const client = getGoogleTTSClient();
-    if (client && typeof client.listVoices === 'function') {
-      const [response] = await client.listVoices({ languageCode: 'pt-BR' });
-      if (response && Array.isArray(response.voices)) {
-        const chirp3Voices = response.voices.filter(v =>
-          v.name && v.name.includes('Chirp3-HD') &&
-          Array.isArray(v.languageCodes) && v.languageCodes.includes('pt-BR')
-        );
+    stream.end({ input: { text: 'Olá, tudo bem?' } });
+    for await (const chunk of stream) bytes += chunk.audioContent?.length || 0;
+    if (!bytes || !preview.size_bytes) throw new Error('Empty audio');
+    return true;
+  } finally { clearTimeout(timer); stream.destroy(); }
+}
 
-        if (chirp3Voices.length > 0) {
-          const formatted = chirp3Voices.map(v => {
-            const isFemale = v.ssmlGender === 'FEMALE';
-            return {
-              name: v.name,
-              gender: v.ssmlGender || (isFemale ? 'FEMALE' : 'MALE'),
-              naturalSampleRateHertz: v.naturalSampleRateHertz || 24000,
-              isDefault: v.name === DEFAULT_CHIRP3_HD_VOICE,
-              description: isFemale ? 'Feminina oficial Google Chirp 3 HD' : 'Masculina oficial Google Chirp 3 HD'
-            };
-          });
-
-          cachedDiscoveredVoices = {
-            source: 'GOOGLE_API_DYNAMIC',
-            language: 'pt-BR',
-            model: 'Chirp 3 HD',
-            total: formatted.length,
-            voices: formatted,
-            fetchedAt: new Date().toISOString()
-          };
-          lastVoicesFetchTime = now;
-          return cachedDiscoveredVoices;
-        }
-      }
+export async function listAvailableChirp3Voices(forceRefresh = false) {
+  if (!forceRefresh && cachedDiscoveredVoices && Date.now() - Date.parse(cachedDiscoveredVoices.fetchedAt) < VOICES_CACHE_TTL_MS) return cachedDiscoveredVoices;
+  if (voicesValidation) return voicesValidation;
+  voicesValidation = (async () => {
+    const [response] = await getGoogleTTSClient().listVoices({ languageCode: 'pt-BR' });
+    const candidates = (response.voices || []).filter(v => v.name?.startsWith('pt-BR-Chirp3-HD-'));
+    const voices = [];
+    // Limit concurrent probes; a single failed voice never hides the working ones.
+    for (let i = 0; i < candidates.length; i += 3) {
+      await Promise.all(candidates.slice(i, i + 3).map(async v => {
+        try {
+          await validateChirpVoice(v.name);
+          voices.push({ name: v.name, gender: v.ssmlGender, validated: true,
+            description: `${v.ssmlGender === 'FEMALE' ? 'Feminina' : 'Masculina'} — áudio e streaming verificados` });
+        } catch { console.warn('[Chirp] Voice unavailable:', v.name); }
+      }));
     }
-  } catch (err) {
-    console.warn('[GoogleChirp3HDCallTTS] Consulta dinâmica de vozes falhou ou não autorizada. Utilizando catálogo pré-validado:', err.message);
-  }
-
-  // Fallback seguro: catálogo oficial validado
-  const allStatic = [
-    ...CHIRP3_HD_VOICES_PT_BR.FEMALE,
-    ...CHIRP3_HD_VOICES_PT_BR.MALE
-  ];
-
-  cachedDiscoveredVoices = {
-    source: 'OFFICIAL_CATALOG',
-    language: 'pt-BR',
-    model: 'Chirp 3 HD',
-    total: allStatic.length,
-    voices: allStatic,
-    fetchedAt: new Date().toISOString()
-  };
-  lastVoicesFetchTime = now;
-  return cachedDiscoveredVoices;
+    if (!voices.length) throw new Error('Nenhuma voz validada pelo Google. Tente novamente.');
+    voices.sort((a,b) => a.name.localeCompare(b.name));
+    cachedDiscoveredVoices = { source: 'GOOGLE_AUDIO_VALIDATED', language: 'pt-BR', model: 'Chirp 3 HD',
+      voices, total: voices.length, fetchedAt: new Date().toISOString() };
+    return cachedDiscoveredVoices;
+  })();
+  try { return await voicesValidation; } finally { voicesValidation = null; }
 }
 
 /**
@@ -502,7 +646,7 @@ export async function previewGoogleCallVoice({ text, voice = null } = {}) {
 
   const voiceName = resolveChirp3Voice(voice);
   const languageCode = (process.env.GOOGLE_CALL_TTS_LANGUAGE || DEFAULT_LANGUAGE).trim();
-  const { encodingParam, format, sampleRate } = resolveAudioEncoding();
+  const encodingParam = 'MP3', format = 'mp3', sampleRate = 24000;
 
   const request = {
     input: { text: cleanText },
@@ -520,11 +664,12 @@ export async function previewGoogleCallVoice({ text, voice = null } = {}) {
   const client = getGoogleTTSClient();
 
   const timeoutMs = 8000;
+  let timeout;
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Timeout na prévia de voz Chirp 3 HD (${timeoutMs}ms)`)), timeoutMs);
+    timeout = setTimeout(() => reject(new Error(`Timeout na prévia de voz Chirp 3 HD (${timeoutMs}ms)`)), timeoutMs);
   });
 
-  const [response] = await Promise.race([client.synthesizeSpeech(request), timeoutPromise]);
+  const [response] = await Promise.race([client.synthesizeSpeech(request), timeoutPromise]).finally(() => clearTimeout(timeout));
   const latencyMs = Math.round(performance.now() - startTime);
 
   if (!response || !response.audioContent) {
@@ -542,6 +687,7 @@ export async function previewGoogleCallVoice({ text, voice = null } = {}) {
     language: languageCode,
     codec: `${encodingParam} (${sampleRate}Hz)`,
     format,
+    content_type: 'audio/mpeg',
     audio_base64: audioBuffer.toString('base64'),
     size_bytes: audioBuffer.length,
     character_count: cleanText.length,

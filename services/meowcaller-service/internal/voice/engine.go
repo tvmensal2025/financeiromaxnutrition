@@ -303,6 +303,14 @@ func (e *Engine) runSession(ctx context.Context) error {
 	if diagRec != nil {
 		meowOpts = append(meowOpts, meowcaller.WithDiagnostics(diagRec))
 	}
+	// Capture the authenticated phone/LID mapping before the VoIP offer handler.
+	wa.AddEventHandler(func(evt any) {
+		if offer, ok := evt.(*events.CallOffer); ok && offer.CallCreator.Server == types.HiddenUserServer && offer.CallCreatorAlt.Server == types.DefaultUserServer {
+			if err := wa.Store.LIDs.PutLIDMapping(context.Background(), offer.CallCreator, offer.CallCreatorAlt); err != nil {
+				log.Warn().Msg("Não foi possível registrar identificação do chamador")
+			}
+		}
+	})
 	meo := meowcaller.NewClient(wa, meowOpts...)
 
 	e.mu.Lock()
@@ -768,6 +776,31 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 
 // notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
 func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
+	e.callsMu.RLock()
+	remote := ""
+	if snapshot := e.activeCalls[callID]; snapshot != nil {
+		remote = snapshot.RemoteNumber
+	}
+	e.callsMu.RUnlock()
+	if jid, err := types.ParseJID(remote); err == nil && jid.Server != "" {
+		if jid.Server == types.HiddenUserServer {
+			e.mu.RLock()
+			wa := e.wa
+			e.mu.RUnlock()
+			if wa != nil && wa.Store != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				pn, lookupErr := wa.Store.LIDs.GetPNForLID(ctx, jid)
+				cancel()
+				if lookupErr == nil {
+					jid = pn
+				}
+			}
+		}
+		remote = "" // A LID is never a telephone number.
+		if jid.Server == types.DefaultUserServer {
+			remote = jid.User
+		}
+	}
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
 	if event == "CALL_ENDED" {
 		gatewayURL = strings.TrimSuffix(gatewayURL, "/webhook") + "/ended"
@@ -776,6 +809,7 @@ func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 		"event":                   event,
 		"call_id":                 callID,
 		"direction":               direction,
+		"remote_number":           remote,
 		"greeting_already_played": false,
 		"timestamp":               time.Now().UTC().Format(time.RFC3339),
 	})
@@ -993,9 +1027,9 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 		callID:           callID,
 		engine:           e,
 		noiseFloor:       0.00008,
-		rmsThreshold:     0.00018, // Sensibilidade alta calibrada para microfones de celular no WhatsApp VoIP
-		silenceThreshold: 12,      // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
-		minSpeechSamples: 2400,    // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
+		rmsThreshold:     0.003, // Separate quiet room noise from conversational speech.
+		silenceThreshold: 12,    // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
+		minSpeechSamples: 2400,  // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
@@ -1037,14 +1071,14 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	// Atualiza piso de ruído adaptativo quando não está falando
 	if s.noiseFloor == 0 {
 		s.noiseFloor = rms
-	} else if !s.isSpeaking && !activePlayer {
+	} else if !s.isSpeaking && !activePlayer && rms < math.Max(s.rmsThreshold, s.noiseFloor*2.5) {
 		s.noiseFloor = s.noiseFloor*0.95 + rms*0.05
 	}
 
-	// Limiar adaptativo dinâmico (no mínimo rmsThreshold ou 1.35x o ruído ambiente com teto de segurança)
-	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*1.35)
-	if effectiveThreshold > 0.0005 {
-		effectiveThreshold = 0.0005 // Teto de segurança para jamais ficar surdo mesmo com ruído de fundo
+	// Learn only quiet frames; speech must not raise the ambient noise estimate.
+	effectiveThreshold := math.Max(s.rmsThreshold, s.noiseFloor*2.5)
+	if effectiveThreshold > 0.02 {
+		effectiveThreshold = 0.02 // Bound adaptation while keeping background noise below speech.
 	}
 
 	requiredFrames := 2
