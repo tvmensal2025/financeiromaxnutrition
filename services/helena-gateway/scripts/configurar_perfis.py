@@ -23,7 +23,7 @@ URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host/mcp'
 KEY = 'HELENA_GATEWAY_PROFILE_TOKEN'
 TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'claim_job',
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
-         'handoff_task', 'create_task_job', 'release_job']
+         'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 MARKER = '## Protocolo Hermes-Supabase v2'
 RULES = '''
 ## Protocolo Hermes-Supabase v2
@@ -82,7 +82,10 @@ def prepare(home):
                   'tools': {'include': ['get_work_context'] if profile == 'laura--pessoal' else TOOLS, 'prompts': False}}
         servers = config.setdefault('mcp_servers', {})
         if 'helena_operacao' in servers and servers['helena_operacao'] != server:
-            raise ValueError('Conector existente diferente; comparar antes de gravar: ' + profile)
+            # Accept only the exact earlier filter; never replace unrelated settings.
+            previous = {**server, 'tools': {**server['tools'], 'include': TOOLS[:-2]}}
+            if profile == 'laura--pessoal' or servers['helena_operacao'] != previous:
+                raise ValueError('Conector existente diferente; comparar antes de gravar: ' + profile)
         servers['helena_operacao'] = server
         if not matches:
             env = env.rstrip('\n') + '\n' + KEY + '=' + token + '\n'

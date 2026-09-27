@@ -39,6 +39,26 @@ class ProvisionTest(unittest.TestCase):
                 self.assertEqual((folder / 'SOUL.md').read_text(encoding='utf-8').count(module.MARKER), 1)
             self.assertNotIn('hhs_', log.getvalue())
 
+    def test_old_filter_upgrade_preserves_key_and_rejects_other_changes(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            home = Path(directory)
+            self.make_profiles(home)
+            module.run(home, True)
+            manifest = (home / 'helena-runtime' / 'manifest-publico.json').read_text()
+            config_path = home / 'profiles' / 'pedro--biz003' / 'config.yaml'
+            config = module.yaml.safe_load(config_path.read_text())
+            config['mcp_servers']['helena_operacao']['tools']['include'] = module.TOOLS[:-2]
+            config_path.write_text(module.yaml.safe_dump(config))
+            module.run(home, True)
+            self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
+            upgraded = module.yaml.safe_load(config_path.read_text())
+            self.assertEqual(upgraded['mcp_servers']['helena_operacao']['tools']['include'], module.TOOLS)
+            upgraded['mcp_servers']['helena_operacao']['url'] = 'https://unexpected.invalid/mcp'
+            config_path.write_text(module.yaml.safe_dump(upgraded))
+            with self.assertRaises(ValueError):
+                module.run(home, True)
+            self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
+
     def test_missing_profile_fails_before_any_change(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
