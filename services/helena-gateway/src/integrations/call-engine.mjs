@@ -366,7 +366,9 @@ export function getProfileByKey(profileKey) {
 
 export function getProfile(characterId, mode) {
   const cId = String(characterId || '').toLowerCase().trim();
-  const mId = String(mode || '').toLowerCase().trim();
+  let mId = String(mode || '').toLowerCase().trim();
+  if (mId === 'firme') mId = 'firm';
+  if (mId === 'intenso') mId = 'intense';
   const key = `${cId}_${mId}`;
   return profiles12State[key] || getProfileByKey(activeGlobalProfileKey);
 }

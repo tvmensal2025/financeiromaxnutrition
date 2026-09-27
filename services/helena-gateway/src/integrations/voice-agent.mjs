@@ -213,13 +213,13 @@ export async function updateVoiceAgentConfig(newSettings = {}) {
  * Gera texto de resposta para a chamada aplicando com rigor o perfil ativo (4 Personagens x 3 Modos)
  * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no DeepSeek.
  */
-export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {} }) {
+export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {}, profileKeyOverride = null }) {
   const cleanPrompt = String(prompt).trim();
   const cfg = await getVoiceAgentConfig();
 
   // Resolve o perfil ativo da chamada em andamento (Hot-Swap) ou o perfil global
   const call = callContext.callId ? getCallSession(callContext.callId) : null;
-  const profileKey = call?.activeProfileKey || getActiveGlobalProfileKey();
+  const profileKey = profileKeyOverride || call?.activeProfileKey || getActiveGlobalProfileKey();
   const profile = getProfileByKey(profileKey);
 
   // REQUISITO CRÍTICO: O script selecionado é o System Prompt oficial do DeepSeek sem sobreposição

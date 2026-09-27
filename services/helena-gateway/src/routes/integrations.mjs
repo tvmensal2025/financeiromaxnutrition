@@ -1670,6 +1670,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         const generated = await generateAgentSpeechTextDetailed({
           prompt: String(user_text).trim(),
           history,
+          profileKeyOverride: profile.profile_key,
           callContext: { callId }
         });
         replyText = generated.text;
@@ -1684,6 +1685,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       return res.json({
         ok: true,
         call_id: callId,
+        text: replyText,
         reply_text: replyText,
         audio_base64: preview.audio_base64,
         content_type: preview.content_type || 'audio/mp3',
