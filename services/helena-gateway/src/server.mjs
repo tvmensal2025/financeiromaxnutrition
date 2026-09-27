@@ -12,7 +12,8 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/server';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
-import { authorizeGatewayTool, matchHermesToken } from './runtime-access.mjs';
+import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
+import { workflowTools } from './workflow.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -395,6 +396,7 @@ async function handleGetJob({ job_id }) {
 
   return {
     job,
+    task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
     runtime_binding: runtimeBinding || null,
     connection: runtimeBinding ? {
       agent_id: runtimeBinding.agent_id,
@@ -489,7 +491,8 @@ async function handleRecordProgress({ job_id, agent_id, step_key, action, reason
     actor: {
       type: identity.type || 'unattributed',
       user_id: identity.userId || null,
-      client_id: identity.clientId || null
+      client_id: identity.clientId || null,
+      ...(identity.profileSlug ? { profile_slug: identity.profileSlug, agent_id: identity.agentId } : {})
     }
   });
   if (!result?.event_id) {
@@ -744,6 +747,7 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 // ======================================================================
 
 const TOOLS_CONFIG = {
+  ...workflowTools(callSupabaseRpc),
   list_ready_jobs: {
     description: 'Consulta fila de agent_jobs no Supabase com status READY e available_at <= now, ordenados por prioridade e com dispatch_message estruturada para bots.',
     schema: z.object({
@@ -1129,11 +1133,13 @@ async function authenticateMcp(req, res, next) {
     return next();
   }
 
-  const hermesIdentity = matchHermesToken(token, HERMES_PROFILE_TOKEN_HASHES);
+  const hermesIdentity = await resolveHermesToken(token, supabaseFetch, HERMES_PROFILE_TOKEN_HASHES);
   if (hermesIdentity) {
     req.identity = hermesIdentity;
     return next();
   }
+
+  if (token.startsWith('hhs_')) return res.status(401).json({ error: 'invalid_token' });
 
   // 2. Validação obrigatória de Access Token OAuth 2.1 emitido pelo Supabase Auth via JWKS
   try {
@@ -1228,6 +1234,7 @@ app.get('/health', async (req, res) => {
     version: '0.1.0',
     supabase: supabaseOk,
     runtime_access: 'hermes-scoped-v1',
+    workflow_version: 'hermes-workflow-v2',
     oauth: oauthOk,
     mcp: true
   });

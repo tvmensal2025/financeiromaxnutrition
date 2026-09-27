@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { authorizeGatewayTool, matchHermesToken } from '../src/runtime-access.mjs';
+import { authorizeGatewayTool, matchHermesToken, resolveHermesToken } from '../src/runtime-access.mjs';
 
 const token = 'hhs_' + 'a'.repeat(48);
 const entry = { profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256').update(token).digest('hex') };
@@ -24,6 +24,18 @@ test('token individual exige hash unico e formato forte', () => {
   assert.equal(matchHermesToken(token + 'b', JSON.stringify([entry])), null);
   assert.equal(matchHermesToken(token, '{'), null);
   assert.equal(matchHermesToken('short', JSON.stringify([entry])), null);
+});
+
+test('registro de credenciais consulta somente hash e exige unicidade; falha fecha acesso', async () => {
+  const read = async url => {
+    assert.ok(!url.includes(token));
+    assert.ok(url.includes('revoked_at=is.null'));
+    return [{ profile_slug: 'pedro--biz003' }];
+  };
+  assert.deepEqual(await resolveHermesToken(token, read), identity);
+  assert.equal(await resolveHermesToken(token, async () => []), null);
+  assert.equal(await resolveHermesToken(token, async () => [{profile_slug:'a'},{profile_slug:'b'}]), null);
+  assert.equal(await resolveHermesToken(token, async () => { throw new Error('offline'); }), null);
 });
 
 test('identidade ausente ou OAuth comum nao pode se passar por bot', async () => {
@@ -85,5 +97,18 @@ test('Helena supervisiona empresas sem executar pelo agente especialista', async
   await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
   const result = await authorizeGatewayTool('queue_summary', {}, identity, read);
   assert.deepEqual(result.args, {});
-  await assert.rejects(authorizeGatewayTool('complete_job', { job_id: job.job_id, agent_id: 'AGT-18' }, identity, read), /outro agente/);
+  await assert.rejects(authorizeGatewayTool('complete_job', { job_id: job.job_id, agent_id: 'AGT-18' }, identity, read), /submit_delivery/);
+});
+
+test('workflow exige escopo empresarial e coordenacao para liberar', async () => {
+  await assert.rejects(authorizeGatewayTool('release_job', { job_id: job.job_id }, identity, reader()), /Somente Helena ou Marina/);
+  await authorizeGatewayTool('submit_delivery', { job_id: job.job_id }, identity, reader());
+  const coordinator = reader({ runtime: { ...binding, agent_id: 'AGT-04' } });
+  await assert.rejects(authorizeGatewayTool('create_task_job', { business_id: 'BIZ-001' }, identity, coordinator), /fora do escopo/);
+});
+
+test('revisor designado pode consultar entrega sem assumir identidade do autor', async () => {
+  const read = reader({ runtime: { ...binding, agent_id: 'AGT-06' }, task: { ...job, result_payload: { reviewer_agent_id: 'AGT-06' } } });
+  await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
+  await assert.rejects(authorizeGatewayTool('claim_job', { job_id: job.job_id }, identity, read), /outro agente/);
 });

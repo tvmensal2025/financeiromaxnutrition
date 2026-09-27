@@ -36,6 +36,7 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null } = {}) {
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
     else if (value.pathname.endsWith('/agent_jobs')) result = [currentJob];
     else if (value.pathname.endsWith('/agent_job_events')) result = [];
+    else if (value.pathname.endsWith('/tarefas')) result = [{ task_id: job.task_id, business_id: job.business_id, row_version: 123 }];
     else throw new Error('Requisicao nao prevista: ' + value.pathname);
     return new Response(JSON.stringify(result), { headers: { 'content-type': 'application/json' } });
   };
@@ -74,8 +75,8 @@ for (const transport of ['mcp', 'direct', 'rest']) {
   });
 }
 
-test('conclusao e falha nao declaram sucesso se RPC nao mudou registro', async () => {
-  for (const tool of ['complete_job', 'fail_job']) {
+test('falha nao declara sucesso se RPC nao mudou registro', async () => {
+  for (const tool of ['fail_job']) {
     const args = tool === 'complete_job'
       ? { job_id: job.job_id, agent_id: job.agent_id, result_summary: 'Fixture', evidence_refs: ['fixture:evidence'] }
       : { job_id: job.job_id, agent_id: job.agent_id, error_code: 'FIXTURE', error_message: 'Teste' };
@@ -94,6 +95,7 @@ test('detalhe do job identifica runtime Hermes atual sem consultar conexao Grok'
   const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
   assert.equal(result.runtime_binding.profile_slug, 'pedro--biz003');
   assert.equal(result.connection.provider, 'HERMES');
+  assert.equal(result.task.row_version, 123);
   assert.equal(calls.some(call => call.url.pathname.endsWith('/agent_connections')), false);
 });
 
@@ -103,9 +105,28 @@ test('descoberta MCP publica parametros necessarios para cliente Hermes', async 
     body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
   });
   const { result } = await response.json();
-  for (const tool of result.tools) assert.ok(Object.keys(tool.inputSchema.properties).length > 0, tool.name);
+  for (const tool of result.tools) if (tool.name !== 'get_work_context') assert.ok(Object.keys(tool.inputSchema.properties).length > 0, tool.name);
   const claim = result.tools.find(tool => tool.name === 'claim_job');
   assert.deepEqual(claim.inputSchema.required, ['job_id', 'agent_id']);
   const complete = result.tools.find(tool => tool.name === 'complete_job');
   assert.equal(complete.inputSchema.properties.evidence_refs.minItems, 1);
+});
+
+test('Hermes nao consegue concluir sem revisao', async () => {
+  const calls = mock();
+  const result = await invoke('mcp', 'complete_job', { job_id: job.job_id, agent_id: job.agent_id, result_summary: 'Fixture', evidence_refs: ['fixture:evidence'] });
+  assert.equal(result.result.isError, true);
+  assert.match(result.result.content[0].text, /submit_delivery/);
+  assert.equal(calls.some(c => c.url.pathname.includes('/rpc/')), false);
+});
+
+test('workflow HTTP passa identidade do token e chave de idempotencia ao Supabase', async () => {
+  const calls = mock({ rpcResult: { success: true, status: 'WAITING_HELENA', completed: false } });
+  const payload = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'delivery-1', summary: 'Entrega', evidence_refs: ['fixture:evidence'] };
+  const response = resultOf(await invoke('mcp', 'submit_delivery', payload), 'mcp');
+  assert.equal(response.completed, false);
+  const call = calls.find(c => c.url.pathname.endsWith('/gateway_workflow'));
+  assert.deepEqual(JSON.parse(call.body), { p_profile_slug: 'pedro--biz003', p_action: 'submit_delivery', p_payload: payload });
+  const forged = await invoke('mcp', 'submit_delivery', { ...payload, profile_slug: 'helena--grupo' });
+  assert.equal(forged.result.isError, true);
 });
