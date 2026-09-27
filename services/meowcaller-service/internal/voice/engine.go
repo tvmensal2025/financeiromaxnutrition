@@ -303,6 +303,14 @@ func (e *Engine) runSession(ctx context.Context) error {
 	if diagRec != nil {
 		meowOpts = append(meowOpts, meowcaller.WithDiagnostics(diagRec))
 	}
+	// Capture the authenticated phone/LID mapping before the VoIP offer handler.
+	wa.AddEventHandler(func(evt any) {
+		if offer, ok := evt.(*events.CallOffer); ok && offer.CallCreator.Server == types.HiddenUserServer && offer.CallCreatorAlt.Server == types.DefaultUserServer {
+			if err := wa.Store.LIDs.PutLIDMapping(context.Background(), offer.CallCreator, offer.CallCreatorAlt); err != nil {
+				log.Warn().Msg("Não foi possível registrar identificação do chamador")
+			}
+		}
+	})
 	meo := meowcaller.NewClient(wa, meowOpts...)
 
 	e.mu.Lock()
@@ -768,6 +776,31 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 
 // notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
 func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
+	e.callsMu.RLock()
+	remote := ""
+	if snapshot := e.activeCalls[callID]; snapshot != nil {
+		remote = snapshot.RemoteNumber
+	}
+	e.callsMu.RUnlock()
+	if jid, err := types.ParseJID(remote); err == nil && jid.Server != "" {
+		if jid.Server == types.HiddenUserServer {
+			e.mu.RLock()
+			wa := e.wa
+			e.mu.RUnlock()
+			if wa != nil && wa.Store != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				pn, lookupErr := wa.Store.LIDs.GetPNForLID(ctx, jid)
+				cancel()
+				if lookupErr == nil {
+					jid = pn
+				}
+			}
+		}
+		remote = "" // A LID is never a telephone number.
+		if jid.Server == types.DefaultUserServer {
+			remote = jid.User
+		}
+	}
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
 	if event == "CALL_ENDED" {
 		gatewayURL = strings.TrimSuffix(gatewayURL, "/webhook") + "/ended"
@@ -776,6 +809,7 @@ func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 		"event":                   event,
 		"call_id":                 callID,
 		"direction":               direction,
+		"remote_number":           remote,
 		"greeting_already_played": false,
 		"timestamp":               time.Now().UTC().Format(time.RFC3339),
 	})

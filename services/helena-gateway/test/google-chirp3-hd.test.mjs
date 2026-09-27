@@ -1,3 +1,4 @@
+import { Transform } from 'node:stream';
 /**
  * google-chirp3-hd.test.mjs
  * Suíte de testes rigorosa para validação do Google Cloud Text-to-Speech Chirp 3 HD
@@ -357,8 +358,8 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
       assert.strictEqual(res.voice, v);
     }
 
-    assert.strictEqual(CHIRP3_HD_VOICES_PT_BR.FEMALE.length, 23);
-    assert.strictEqual(CHIRP3_HD_VOICES_PT_BR.MALE.length, 17);
+    assert.strictEqual(CHIRP3_HD_VOICES_PT_BR.FEMALE.length, 14);
+    assert.strictEqual(CHIRP3_HD_VOICES_PT_BR.MALE.length, 16);
   });
 
   // ======================================================================
@@ -518,6 +519,10 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
     
     // 1. Descoberta dinâmica via API mockada
     setGoogleTTSClientForTesting({
+      synthesizeSpeech: async () => [{ audioContent: Buffer.from('mp3') }],
+      streamingSynthesize: () => new Transform({ objectMode:true, transform(chunk, _, done) {
+        if (chunk.input) this.push({ audioContent: Buffer.from('pcm') }); done();
+      }}),
       listVoices: async () => [{
         voices: [
           { name: 'pt-BR-Chirp3-HD-Achernar', ssmlGender: 'FEMALE', languageCodes: ['pt-BR'] },
@@ -526,7 +531,7 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
       }]
     });
     const resDynamic = await listAvailableChirp3Voices(true);
-    assert.strictEqual(resDynamic.source, 'GOOGLE_API_DYNAMIC');
+    assert.strictEqual(resDynamic.source, 'GOOGLE_AUDIO_VALIDATED');
     assert.strictEqual(resDynamic.model, 'Chirp 3 HD');
     assert.strictEqual(resDynamic.language, 'pt-BR');
     assert.strictEqual(resDynamic.total, 2);
@@ -538,12 +543,7 @@ describe('Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL', (
         throw new Error('Quota or auth error');
       }
     });
-    const resFallback = await listAvailableChirp3Voices(true);
-    assert.strictEqual(resFallback.source, 'OFFICIAL_CATALOG');
-    assert.strictEqual(resFallback.model, 'Chirp 3 HD');
-    assert.strictEqual(resFallback.language, 'pt-BR');
-    assert.strictEqual(resFallback.total, 40);
-    assert.ok(resFallback.voices.some(v => v.name === 'pt-BR-Chirp3-HD-Achernar'));
+    await assert.rejects(listAvailableChirp3Voices(true), /Quota or auth error/);
   });
 });
 
