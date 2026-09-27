@@ -72,3 +72,14 @@ func TestSpeechWithoutPlaybackKeepsFirstFrame(t *testing.T) {
 		t.Fatal("normal speech must preserve both onset frames")
 	}
 }
+
+func TestListActiveCallsExcludesEnded(t *testing.T) {
+	e := &Engine{activeCalls: map[string]*CallSnapshot{
+		"done": {CallID: "done", Status: "ENDED"},
+		"live": {CallID: "live", Status: "CONNECTED"},
+	}}
+	calls := e.ListActiveCalls()
+	if len(calls) != 1 || calls[0].CallID != "live" {
+		t.Fatalf("unexpected active calls: %+v", calls)
+	}
+}

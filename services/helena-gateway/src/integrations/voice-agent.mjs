@@ -741,7 +741,11 @@ export async function speakInCall({ callId, text, voice = null }) {
 /**
  * Trata o webhook disparado pelo Meowcaller quando a chamada é atendida
  */
+const endedVoiceCalls = new Map();
+
 export async function handleCallConnectedWebhook(payload = {}) {
+  const endedKey = String(payload.call_id || "").toUpperCase();
+  if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: "already_ended" };
   const { call_id, direction, remote_number } = payload;
   console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}`);
 
@@ -796,11 +800,14 @@ export async function handleCallConnectedWebhook(payload = {}) {
  */
 export async function handleCallEndedWebhook(payload = {}) {
   const { call_id, reason } = payload;
+  if (!call_id) throw new Error("call_id é obrigatório");
+  endedVoiceCalls.set(String(call_id).toUpperCase(), Date.now());
+  if (endedVoiceCalls.size > 1000) endedVoiceCalls.delete(endedVoiceCalls.keys().next().value);
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
   activeVoiceTurns.get(call_id)?.abort(new Error('Call ended'));
   activeVoiceTurns.delete(call_id);
   latestSpeechEpochs.delete(call_id);
-  const summary = endCallSession(call_id, reason || 'normal_hangup');
+  const summary = endCallSession({ callId: call_id, reason: reason || 'normal_hangup' });
   return { ok: true, call_id, summary };
 }
 

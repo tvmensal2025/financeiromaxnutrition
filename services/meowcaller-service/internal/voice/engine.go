@@ -61,22 +61,25 @@ type CallSnapshot struct {
 
 // VoiceDiagnostics armazena métricas e telemetria da última chamada para diagnóstico em tempo real
 type VoiceDiagnostics struct {
-	LastCallID          string    `json:"last_call_id"`
-	LastPeer            string    `json:"last_peer"`
-	LastCallDirection   string    `json:"last_call_direction"`
-	LastCallStartedAt   time.Time `json:"last_call_started_at"`
-	TotalFramesReceived int       `json:"total_frames_received"`
-	LastRMS             float64   `json:"last_rms"`
-	MaxRMS              float64   `json:"max_rms"`
-	NoiseFloor          float64   `json:"noise_floor"`
-	EffectiveThreshold  float64   `json:"effective_threshold"`
-	SpeechEventsCount   int       `json:"speech_events_count"`
-	WavsDispatchedCount int       `json:"wavs_dispatched_count"`
-	LastDispatchedBytes int       `json:"last_dispatched_bytes"`
-	LastGatewayStatus   int       `json:"last_gateway_status"`
-	LastGatewayResponse string    `json:"last_gateway_response"`
-	LastBargeInAt       time.Time `json:"last_barge_in_at"`
-	RecentEvents        []string  `json:"recent_events"`
+	RemoteMuted          *bool     `json:"remote_muted"`
+	LastAudioFrameAt     time.Time `json:"last_audio_frame_at"`
+	TotalSamplesReceived int64     `json:"total_samples_received"`
+	LastCallID           string    `json:"last_call_id"`
+	LastPeer             string    `json:"last_peer"`
+	LastCallDirection    string    `json:"last_call_direction"`
+	LastCallStartedAt    time.Time `json:"last_call_started_at"`
+	TotalFramesReceived  int       `json:"total_frames_received"`
+	LastRMS              float64   `json:"last_rms"`
+	MaxRMS               float64   `json:"max_rms"`
+	NoiseFloor           float64   `json:"noise_floor"`
+	EffectiveThreshold   float64   `json:"effective_threshold"`
+	SpeechEventsCount    int       `json:"speech_events_count"`
+	WavsDispatchedCount  int       `json:"wavs_dispatched_count"`
+	LastDispatchedBytes  int       `json:"last_dispatched_bytes"`
+	LastGatewayStatus    int       `json:"last_gateway_status"`
+	LastGatewayResponse  string    `json:"last_gateway_response"`
+	LastBargeInAt        time.Time `json:"last_barge_in_at"`
+	RecentEvents         []string  `json:"recent_events"`
 }
 
 // Engine gerencia a sessão WhatsApp e o engine de chamadas VoIP
@@ -129,6 +132,12 @@ func (e *Engine) updateDiagCallStart(callID, peer, direction string) {
 	e.diag.LastCallDirection = direction
 	e.diag.LastCallStartedAt = time.Now()
 	e.diag.TotalFramesReceived = 0
+	e.diag.RemoteMuted = nil
+	e.diag.LastAudioFrameAt = time.Time{}
+	e.diag.TotalSamplesReceived = 0
+	e.diag.LastGatewayStatus = 0
+	e.diag.LastGatewayResponse = ""
+	e.diag.LastDispatchedBytes = 0
 	e.diag.LastRMS = 0
 	e.diag.MaxRMS = 0
 	e.diag.NoiseFloor = 0
@@ -137,10 +146,12 @@ func (e *Engine) updateDiagCallStart(callID, peer, direction string) {
 	e.recordDiagEventLocked(fmt.Sprintf("Chamada iniciada: id=%s, peer=%s, dir=%s", callID, peer, direction))
 }
 
-func (e *Engine) updateDiagAudio(callID string, frames int, rms, floor, threshold float64) {
+func (e *Engine) updateDiagAudio(callID string, frames, samples int, rms, floor, threshold float64) {
 	e.diagMu.Lock()
 	defer e.diagMu.Unlock()
 	e.diag.TotalFramesReceived = frames
+	e.diag.LastAudioFrameAt = time.Now()
+	e.diag.TotalSamplesReceived += int64(samples)
 	e.diag.LastRMS = rms
 	e.diag.NoiseFloor = floor
 	e.diag.EffectiveThreshold = threshold
@@ -325,6 +336,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 		e.callsMu.Unlock()
 
 		e.updateDiagCallStart(callID, peer, "INBOUND")
+		e.observeRemoteMute(callID, call)
 
 		// Hook de encerramento da chamada recebida
 		call.OnEnd(func(reason string) {
@@ -332,6 +344,7 @@ func (e *Engine) runSession(ctx context.Context) error {
 			e.recordDiagEvent(fmt.Sprintf("Chamada encerrada. Motivo: %s", reason))
 			snap.Status = "ENDED"
 			e.closeCallAudio(callID)
+			go e.notifyGatewayWebhook("CALL_ENDED", callID, "")
 
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -708,6 +721,7 @@ func (e *Engine) OriginateCall(ctx context.Context, target string) (*CallSnapsho
 			snap.Status = "ENDED"
 			closeDone()
 			e.closeCallAudio(callID)
+			go e.notifyGatewayWebhook("CALL_ENDED", callID, "")
 			log.Info().Str("call_id", callID).Str("reason", reason).Msg("Chamada discada encerrada")
 			time.AfterFunc(5*time.Second, func() {
 				e.callsMu.Lock()
@@ -738,6 +752,14 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 	// Aguarda 400ms para estabilização dos pacotes RTP do WhatsApp VoIP
 	time.Sleep(400 * time.Millisecond)
 
+	e.callsMu.RLock()
+	snapshot := e.activeCalls[callID]
+	active := snapshot != nil && snapshot.Status != "ENDED"
+	e.callsMu.RUnlock()
+	if !active {
+		return
+	}
+
 	// Notifica o Helena Gateway via Webhook assíncrono para sintetizar e tocar abertura oficial (Google Chirp 3 HD)
 	log.Info().Str("call_id", callID).Str("direction", direction).Msg("📞 Notificando Helena Gateway para tocar saudação com Google Cloud Chirp 3 HD...")
 	e.recordDiagEvent("Notificando Gateway para sintetizar e tocar abertura oficial (Google Chirp 3 HD)")
@@ -747,6 +769,9 @@ func (e *Engine) playInitialGreeting(callID string, call *meowcaller.Call, direc
 // notifyGatewayWebhook envia evento de ligação atendida para o Helena Gateway
 func (e *Engine) notifyGatewayWebhook(event, callID, direction string) {
 	gatewayURL := "https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/voice-agent/webhook"
+	if event == "CALL_ENDED" {
+		gatewayURL = strings.TrimSuffix(gatewayURL, "/webhook") + "/ended"
+	}
 	payload, err := json.Marshal(map[string]interface{}{
 		"event":                   event,
 		"call_id":                 callID,
@@ -907,7 +932,9 @@ func (e *Engine) ListActiveCalls() []CallSnapshot {
 	defer e.callsMu.RUnlock()
 	calls := make([]CallSnapshot, 0, len(e.activeCalls))
 	for _, c := range e.activeCalls {
-		calls = append(calls, *c)
+		if c.Status != "ENDED" {
+			calls = append(calls, *c)
+		}
 	}
 	return calls
 }
@@ -1027,7 +1054,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 	}
 
 	// Registra telemetria contínua
-	s.engine.updateDiagAudio(s.callID, s.totalFrames, rms, s.noiseFloor, effectiveThreshold)
+	s.engine.updateDiagAudio(s.callID, s.totalFrames, len(frame), rms, s.noiseFloor, effectiveThreshold)
 
 	// Evento de diagnóstico imediato no primeiro frame para auditoria em tempo real
 	if s.totalFrames == 1 {
@@ -1313,4 +1340,17 @@ func (e *Engine) closeCallAudio(callID string) {
 	if sink != nil {
 		_ = sink.Close()
 	}
+}
+
+// Observe the peer microphone state without changing call signaling or media.
+func (e *Engine) observeRemoteMute(callID string, call *meowcaller.Call) {
+	call.OnMuteState(func(muted bool) {
+		e.diagMu.Lock()
+		if e.diag.LastCallID == callID {
+			value := muted
+			e.diag.RemoteMuted = &value
+			e.recordDiagEventLocked(fmt.Sprintf("Microfone remoto: muted=%t", muted))
+		}
+		e.diagMu.Unlock()
+	})
 }

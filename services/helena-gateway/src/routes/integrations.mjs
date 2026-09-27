@@ -4,6 +4,7 @@
  */
 
 import crypto from 'node:crypto';
+import { reconcilePhoneCalls } from '../integrations/call-reconciliation.mjs';
 import express from 'express';
 import { getLayaHealth, classifyMessage, scoreMessage, routeMessage } from '../integrations/laya.mjs';
 import {
@@ -19,6 +20,7 @@ import {
   getEvolutionWebhookSecret
 } from '../integrations/evolution.mjs';
 import {
+  listMeowcallerCalls,
   getMeowcallerHealth,
   getMeowcallerSession,
   startMeowcallerSession,
@@ -1532,6 +1534,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    */
   router.get('/api/integrations/call-engine/active-calls', optionalAuth, async (req, res) => {
     try {
+      await reconcilePhoneCalls({ listLocal: getActiveCallsList, listRemote: listMeowcallerCalls, endCall: handleCallEndedWebhook });
       const activeCalls = getActiveCallsList();
       return res.json({
         ok: true,
