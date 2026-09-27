@@ -99,6 +99,7 @@ export const DEFAULT_PROFILES_12 = Object.freeze({
     mode: 'normal',
     mode_name: 'Normal',
     voice_id: 'pt-BR-Chirp3-HD-Achird',
+    opening_enabled: false,
     opening_message: 'Olá! Tudo bem? Aqui é o Rafael da Max Nutrition. Estou entrando em contato para saber como estão seus objetivos e tirar qualquer dúvida!',
     system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
 MODO ATIVO: RAFAEL / NORMAL
@@ -116,6 +117,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'firm',
     mode_name: 'Firme',
     voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    opening_enabled: false,
     opening_message: 'Olá! Aqui é o Rafael da Max Nutrition. Vamos direto ao ponto: como está o seu compromisso com suas metas hoje?',
     system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
 MODO ATIVO: RAFAEL / FIRME
@@ -134,6 +136,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'intense',
     mode_name: 'Intenso',
     voice_id: 'pt-BR-Chirp3-HD-Fenrir',
+    opening_enabled: false,
     opening_message: 'Aqui é o Rafael da Max Nutrition. Foco total: sem enrolação, o que você já fez hoje pelos seus resultados?',
     system_script: `Você é o Rafael, consultor e líder de atendimento da Max Nutrition na ligação telefônica.
 MODO ATIVO: RAFAEL / INTENSO
@@ -157,6 +160,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'normal',
     mode_name: 'Normal',
     voice_id: 'pt-BR-Chirp3-HD-Achernar',
+    opening_enabled: false,
     opening_message: 'Olá! Seja muito bem-vindo, aqui é a Sirlene da Max Nutrition. Me conta com calma: como você tem se sentido com sua alimentação?',
     system_script: `Você é a Sirlene, especialista em nutrição, reeducação alimentar e emagrecimento da Max Nutrition na ligação telefônica.
 MODO ATIVO: SIRLENE / NORMAL
@@ -175,6 +179,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'firm',
     mode_name: 'Firme',
     voice_id: 'pt-BR-Chirp3-HD-Aoede',
+    opening_enabled: false,
     opening_message: 'Olá, aqui é a Sirlene da Max Nutrition. Vim checar como está a disciplina do seu plano alimentar. Como você está seguindo?',
     system_script: `Você é a Sirlene, especialista em nutrição da Max Nutrition na ligação telefônica.
 MODO ATIVO: SIRLENE / FIRME
@@ -192,6 +197,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'intense',
     mode_name: 'Intenso',
     voice_id: 'pt-BR-Chirp3-HD-Autonoe',
+    opening_enabled: false,
     opening_message: 'Oi, aqui é a Sirlene da Max Nutrition. Sem desculpas para a alimentação hoje: seguiu o protocolo ou furou a dieta?',
     system_script: `Você é a Sirlene, especialista em nutrição da Max Nutrition na ligação telefônica.
 MODO ATIVO: SIRLENE / INTENSO
@@ -213,6 +219,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'normal',
     mode_name: 'Normal',
     voice_id: 'pt-BR-Chirp3-HD-Charon',
+    opening_enabled: false,
     opening_message: 'O Vital saiu para resolver algumas coisas. Eu vou ficar aqui com você agora. Como você tem passado ultimamente?',
     system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde integrativa da Max Nutrition na ligação telefônica.
 MODO ATIVO: VITAL / NORMAL
@@ -231,6 +238,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'firm',
     mode_name: 'Firme',
     voice_id: 'pt-BR-Chirp3-HD-Gaspra',
+    opening_enabled: false,
     opening_message: 'Aqui é o Vital. Vim verificar sua saúde e seus exames. Você tem cuidado da sua rotina clínica e hidratação como combinamos?',
     system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde da Max Nutrition na ligação telefônica.
 MODO ATIVO: VITAL / FIRME
@@ -248,6 +256,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'intense',
     mode_name: 'Intenso',
     voice_id: 'pt-BR-Chirp3-HD-Iapetus',
+    opening_enabled: false,
     opening_message: 'Aqui é o Vital. Foco na sua integridade física: sem negligenciar exames e cuidados médicos. O que foi feito hoje pela sua saúde?',
     system_script: `Você é o Vital (Dr. Vital), assistente médico e de saúde da Max Nutrition na ligação telefônica.
 MODO ATIVO: VITAL / INTENSO
@@ -269,6 +278,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'normal',
     mode_name: 'Normal',
     voice_id: 'pt-BR-Chirp3-HD-Alkaid',
+    opening_enabled: false,
     opening_message: 'Fala campeão, aqui é o Alex! Tô passando pra gente bater um papo rápido sobre sua rotina de treinos. Treinou hoje?',
     system_script: `Você é o Alex, personal trainer virtual e especialista em treinos e performance da Max Nutrition na ligação telefônica.
 MODO ATIVO: ALEX / NORMAL
@@ -286,6 +296,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'firm',
     mode_name: 'Firme',
     voice_id: 'pt-BR-Chirp3-HD-Fenrir',
+    opening_enabled: false,
     opening_message: 'Aqui é o Alex, seu personal. Vim cobrar o treino de hoje: o que foi planejado já foi executado ou você tá adiando?',
     system_script: `Você é o Alex, personal trainer da Max Nutrition na ligação telefônica.
 MODO ATIVO: ALEX / FIRME
@@ -303,6 +314,7 @@ DIRETRIZES DE ATENDIMENTO:
     mode: 'intense',
     mode_name: 'Intenso',
     voice_id: 'pt-BR-Chirp3-HD-Achird',
+    opening_enabled: false,
     opening_message: 'Alex na área! Sem moleza e sem mimimi: treinou hoje com carga de verdade ou vai inventar desculpa pra descansar?',
     system_script: `Você é o Alex, personal trainer de alta cobrança da Max Nutrition na ligação telefônica.
 MODO ATIVO: ALEX / INTENSO
@@ -384,7 +396,7 @@ export function getProfile(characterId, mode) {
   return profiles12State[key] || getProfileByKey(activeGlobalProfileKey);
 }
 
-export function updateProfile(characterId, mode, updates = {}, updatedBy = 'Admin') {
+export function buildProfileUpdate(characterId, mode, updates = {}, updatedBy = 'Admin') {
   const cId = String(characterId || '').toLowerCase().trim();
   const mId = String(mode || '').toLowerCase().trim();
   const key = `${cId}_${mId}`;
@@ -397,13 +409,28 @@ export function updateProfile(characterId, mode, updates = {}, updatedBy = 'Admi
   const updated = {
     ...current,
     voice_id: updates.voice_id?.trim() || current.voice_id,
+    opening_enabled: updates.opening_enabled === undefined ? current.opening_enabled === true : updates.opening_enabled === true,
+    row_version: updates.row_version ?? current.row_version ?? 0,
     opening_message: updates.opening_message !== undefined ? String(updates.opening_message).trim() : current.opening_message,
     system_script: updates.system_script !== undefined ? String(updates.system_script).trim() : current.system_script,
     updated_at: new Date().toISOString(),
     updated_by: updatedBy
   };
 
+  return updated;
+}
+
+export function updateProfile(characterId, mode, updates = {}, updatedBy = 'Admin') {
+  const updated = buildProfileUpdate(characterId, mode, updates, updatedBy);
+  const key = updated.profile_key;
   profiles12State[key] = updated;
+  for (const call of activeCallsMap.values()) {
+    if (call.activeProfileKey === key) {
+      call.activeVoice = updated.voice_id;
+      call.activeSystemScript = updated.system_script;
+      call.openingMessage = updated.opening_message;
+    }
+  }
   console.log(`[CALL_ENGINE] 💾 Perfil '${key}' (${updated.character_name} / ${updated.mode_name}) atualizado por ${updatedBy}`);
   return {
     ...updated,

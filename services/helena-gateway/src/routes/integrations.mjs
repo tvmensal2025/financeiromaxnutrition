@@ -173,8 +173,14 @@ export function authenticateEvolutionWebhook(req, res, next) {
   return next();
 }
 
-export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
+export function createIntegrationsRouter({ supabaseFetch, authenticateUser, profileStore }) {
   const router = express.Router();
+  router.use(async (req, res, next) => {
+    if (profileStore && (req.path.startsWith('/api/integrations/call-engine/') || req.path.startsWith('/api/integrations/voice-agent/'))) {
+      try { await profileStore.load(); } catch { return res.status(503).json({ error: 'Não foi possível carregar os perfis salvos.' }); }
+    }
+    next();
+  });
   const bridge = new MeowcallerVoiceBridge(supabaseFetch);
 
   // Middleware opcional para rotas de telemetria e status visual que não devem bloquear o dashboard
@@ -1419,34 +1425,18 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   const handleUpdateProfile = async (req, res) => {
     try {
       const { characterId, mode } = req.params;
-      const { voice_id, opening_message, system_script, voice, script } = req.body || {};
+      const { voice_id, opening_message, opening_enabled, row_version, system_script, voice, script } = req.body || {};
       const updatedBy = req.user?.email || req.user?.id || 'Admin';
 
       const updates = {
         voice_id: voice_id || voice,
-        opening_message,
-        system_script: system_script || script
+        opening_message, opening_enabled, row_version,
+        system_script: system_script ?? script
       };
 
-      const updated = updateProfile(characterId, mode, updates, updatedBy);
-
-      // Persiste no Supabase para integridade duradoura
-      if (supabaseFetch) {
-        try {
-          const configKey = `CALL_PROFILE_${characterId.toUpperCase()}_${mode.toUpperCase()}`;
-          await supabaseFetch('/rest/v1/configuracao', {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify([{
-              chave: configKey,
-              valor: JSON.stringify(updated),
-              tipo: 'CONFIG',
-              responsavel: updatedBy,
-              descricao: `Perfil completo de ${characterId} no modo ${mode}`
-            }])
-          }).catch(() => null);
-        } catch {}
-      }
+      const updated = profileStore
+        ? await profileStore.save(characterId, mode, updates, updatedBy)
+        : updateProfile(characterId, mode, updates, updatedBy).profile;
 
       return res.json({
         ok: true,
@@ -1454,7 +1444,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         profile: updated
       });
     } catch (err) {
-      return res.status(400).json({ ok: false, error: err.message });
+      return res.status(err.status === 409 ? 409 : 400).json({ ok: false, error: err.message });
     }
   };
 
@@ -1469,23 +1459,9 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     try {
       const { characterId, mode } = req.params;
       const updatedBy = req.user?.email || req.user?.id || 'Admin';
-      const active = setActiveGlobalProfile(characterId, mode, updatedBy);
-
-      if (supabaseFetch) {
-        try {
-          await supabaseFetch('/rest/v1/configuracao', {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify([{
-              chave: 'CALL_ACTIVE_GLOBAL_PROFILE',
-              valor: active.profile_key,
-              tipo: 'CONFIG',
-              responsavel: updatedBy,
-              descricao: 'Perfil ativo padrão global para novas chamadas'
-            }])
-          }).catch(() => null);
-        } catch {}
-      }
+      const active = profileStore
+        ? await profileStore.activate(characterId, mode, updatedBy)
+        : setActiveGlobalProfile(characterId, mode, updatedBy);
 
       return res.json({
         ok: true,
@@ -1493,7 +1469,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         active_profile: active
       });
     } catch (err) {
-      return res.status(400).json({ ok: false, error: err.message });
+      return res.status(err.status === 409 ? 409 : 400).json({ ok: false, error: err.message });
     }
   });
 
@@ -1504,14 +1480,16 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   router.post('/api/integrations/call-engine/profiles/:characterId/:mode/reset', authenticateUser, async (req, res) => {
     try {
       const { characterId, mode } = req.params;
-      const reset = resetProfileToDefault(characterId, mode);
+      const reset = profileStore
+        ? await profileStore.save(characterId, mode, req.body || {}, req.user?.email || 'Admin', true)
+        : resetProfileToDefault(characterId, mode).profile;
       return res.json({
         ok: true,
         message: `Perfil '${reset.character_name} / ${reset.mode_name}' restaurado para os padrões originais.`,
         profile: reset
       });
     } catch (err) {
-      return res.status(400).json({ ok: false, error: err.message });
+      return res.status(err.status === 409 ? 409 : 400).json({ ok: false, error: err.message });
     }
   });
 

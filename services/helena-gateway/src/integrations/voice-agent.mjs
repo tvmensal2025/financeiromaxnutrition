@@ -756,6 +756,10 @@ export async function handleCallConnectedWebhook(payload = {}) {
   }
 
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  if (profile.opening_enabled !== true || !profile.opening_message?.trim()) {
+    call.greetingPlayed = true;
+    return { ok: true, handled: true, call_id, opening_enabled: false };
+  }
   const greeting = profile.opening_message;
 
   // Inicializa histórico com a abertura oficial do perfil ativo
@@ -804,6 +808,9 @@ export async function handleCallEndedWebhook(payload = {}) {
  * Trata detecção de silêncio prolongado (nudge conversacional)
  */
 export async function handleUserSilence({ callId }) {
+  const session = getCallSession(callId);
+  const profile = session?.activeProfileKey ? getProfileByKey(session.activeProfileKey) : getActiveGlobalProfile();
+  if (profile.opening_enabled !== true && !getCallHistory(callId).some(turn => turn.role === 'user')) return { ok: true, ignored: true, reason: 'waiting_for_customer' };
   if (activeVoiceTurns.has(callId)) return { ok: true, ignored: true, reason: 'response_in_progress' };
   if (!callId) throw new Error('callId é obrigatório');
   console.log(`[VOICE_AGENT] ⏳ Silêncio do cliente na chamada ${callId}. Disparando cutucada cortês...`);
