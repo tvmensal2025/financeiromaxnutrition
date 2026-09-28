@@ -56,7 +56,7 @@ Não repita a mensagem de abertura. A opção de abertura apenas controla a prim
     return `IDENTIDADE ATIVA: ${profile.character_name}; modo ${profile.mode_name}.\n${conversationModeInstruction(profile.mode)}\n` +
       `O cadastro desta pessoa não foi identificado com segurança (${data.status}). Atenda normalmente: dê boas-vindas, apresente a plataforma, escute e tire dúvidas. Não presuma nome ou dados de saúde.\n` +
       (prospect ? `ROTEIRO SALVO PARA QUEM AINDA NÃO É CLIENTE:\n${prospect}` :
-        'Se fizer sentido, convide a pessoa a instalar o aplicativo. Não invente links, preços ou ofertas.');
+        'Se fizer sentido, convide a pessoa a instalar o aplicativo pela Play Store ou App Store. Não invente links, preços ou ofertas.');
   }
   return `${identity}\nREGISTROS DO MAX, consultados em ${data.fetched_at}:\n<dados_do_cadastro>\n${JSON.stringify(data.context)}\n</dados_do_cadastro>`;
 }
