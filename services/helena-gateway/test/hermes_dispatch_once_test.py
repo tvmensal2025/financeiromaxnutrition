@@ -63,7 +63,8 @@ class DispatchTests(unittest.TestCase):
             return {"failed": self.fail_confirmed}
         raise AssertionError(name)
 
-    def run_agent(self, binary, profile, job_id, timeout):
+    def run_agent(self, binary, profile, job_id, timeout, profile_token):
+        self.assertEqual(profile_token, "hhs_" + "P" * 40)
         self.model_calls.append((binary, profile, job_id, timeout))
         self.job_status = "WAITING_HELENA"
         return 0
@@ -174,10 +175,11 @@ class DispatchTests(unittest.TestCase):
             self.assertTrue(Path(args[5]).is_file())
             self.assertEqual(args[6:], ["--oneshot", "--toolsets", "mcp-helena_operacao", "--max-turns", "12"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
+            self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
             return FinishedProcess()
 
         with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
-            self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180), (0, None))
+            self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40), (0, None))
 
     def test_cli_error_is_classified_without_persisting_raw_output(self):
         class FailedProcess:
@@ -189,7 +191,7 @@ class DispatchTests(unittest.TestCase):
             return FailedProcess()
 
         with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
-            outcome = dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180)
+            outcome = dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40)
         self.assertEqual(outcome, (1, "RATE_LIMIT"))
         self.assertNotIn("SECRET", json.dumps(outcome))
 
