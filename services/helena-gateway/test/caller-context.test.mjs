@@ -39,8 +39,17 @@ test('caller context is cached only within the call, phone and character', async
 });
 test('saved personality wins over stale session; missing data is explicit', async () => {
   const instruction = await buildCallInstruction({activeSystemScript:'STALE'}, {character_id:'vital',character_name:'Vital',mode_name:'Firme',system_script:'SAVED VITAL'});
-  assert.ok(instruction.includes('SAVED VITAL')); assert.ok(!instruction.includes('STALE'));
+  assert.ok(!instruction.includes('STALE'));
   assert.ok(instruction.includes('unidentified'));
+});
+
+test('unidentified WhatsApp callers use the saved prospect script and never a known-client script', async () => {
+  const instruction = await buildCallInstruction({remoteNumber:'5511888888888'}, {
+    character_id:'sirlene',character_name:'Sirlene',mode:'normal',mode_name:'Normal',
+    system_script:'SCRIPT PARA CLIENTE',prospect_script:'Apresente o aplicativo e responda às dúvidas.'
+  });
+  assert.match(instruction,/Apresente o aplicativo/);
+  assert.doesNotMatch(instruction,/SCRIPT PARA CLIENTE/);
 });
 test('inbound greets naturally in Normal once even with fixed opening disabled', async () => {
   updateProfile('sirlene','normal',{opening_enabled:false});

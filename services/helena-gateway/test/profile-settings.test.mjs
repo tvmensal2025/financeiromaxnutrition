@@ -50,6 +50,14 @@ test('voice, full script and toggle persist across store reload; reset persists;
   assert.equal(getProfile('vital','normal').system_script,DEFAULT_PROFILES_12.vital_normal.system_script);
 });
 
+test('prospect script persists only in the saved Sirlene Normal profile', async()=>{
+  const current=getProfile('sirlene','normal');
+  const {updateProfile}=await import('../src/integrations/call-engine.mjs');
+  updateProfile('sirlene','normal',{prospect_script:'Explique a plataforma e indique somente links oficiais.'},'test');
+  assert.match(getProfile('sirlene','normal').prospect_script,/links oficiais/);
+  updateProfile('sirlene','normal',{prospect_script:current.prospect_script || ''},'test');
+});
+
 for(const [label,valid,admin,status] of [['admin',true,true,200],['expired',false,true,401],['member',true,false,403]]) {
  test(`Max authentication: ${label}`,async()=>{
   const url='https://max.example';const token='x.'+Buffer.from(JSON.stringify({iss:url+'/auth/v1'})).toString('base64url')+'.x';
