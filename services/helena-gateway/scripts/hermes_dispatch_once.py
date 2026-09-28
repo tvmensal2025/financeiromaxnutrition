@@ -109,7 +109,8 @@ def usage_preflight(binary: str, profile: str, runner=subprocess.run) -> dict:
     return {"status": "READY"}
 
 
-def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str) -> tuple[int, str | None]:
+def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
+                profile_home: Path) -> tuple[int, str | None]:
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
@@ -131,7 +132,9 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
                  "--toolsets", "mcp-helena_operacao", "--max-turns", "12"],
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
-                env={**os.environ, TOKEN_NAME: profile_token},
+                # Hermes starts background MCP discovery before the -p switch is applied.
+                # Bind the profile home at process start so it discovers this agent's servers.
+                env={**os.environ, "HERMES_HOME": str(profile_home), TOKEN_NAME: profile_token},
             )
             try:
                 exit_code = process.wait(timeout=timeout)
@@ -214,7 +217,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if started.get("running") is not True:
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
-        outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token)
+        outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except OSError:
         exit_code, diagnostic = 125, "PROCESS_START"
