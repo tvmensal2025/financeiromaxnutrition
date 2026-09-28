@@ -2,7 +2,7 @@
 
 Cada job empresarial deve ter uma tarefa visível, empresa, responsável, objetivo, definição de pronto e um briefing específico da função. A coordenação prepara o briefing antes de liberar o job. O executor pode propor melhorias de método e explicar o benefício, mas não altera a meta, assume despesas ou faz contato externo sem a decisão correspondente.
 
-O campo `agent_jobs.instruction` usa as oito seções abaixo, nesta ordem. Cada seção precisa conter conteúdo específico da tarefa; repetir o título ou usar texto genérico não basta. O Gateway e o despachante bloqueiam a liberação ou a chamada ao modelo se faltar seção, conteúdo, objetivo, definição de pronto ou coerência entre empresa, tarefa e perfil. Essa verificação estrutural não substitui a revisão humana/Helena da qualidade factual.
+O campo `agent_jobs.instruction` usa as oito seções abaixo, nesta ordem. Cada seção precisa conter conteúdo específico da tarefa; repetir o título ou usar texto genérico não basta. No fluxo Hermes pelo Gateway, a liberação e o aceite bloqueiam seção ou conteúdo ausente, objetivo ou definição de pronto vazios e incoerência entre empresa, tarefa e perfil. O despachante do repositório faz uma checagem adicional antes da chamada ao modelo; a instalação dessa versão no host Hermes ainda precisa ser confirmada. Conversas manuais fora desse fluxo não estão cobertas por esse bloqueio. A verificação estrutural não substitui a revisão humana/Helena da qualidade factual.
 
 ## Contexto e fontes
 
