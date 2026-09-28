@@ -80,6 +80,7 @@ import {
   restartActiveReplyForProfile,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
+import { transcribeLivePCM } from '../integrations/live-transcription.mjs';
 
 import {
   getCallEngineConfig,
@@ -1032,6 +1033,24 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       return res.json({ ok: true, result });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // Meowcaller envia PCM16 enquanto o cliente fala; o endpoint fecha no fim do turno.
+  router.post('/api/integrations/voice-agent/user-speech-stream', authenticateVoiceGateway, async (req, res) => {
+    const callId = String(req.headers['x-call-id'] || '').trim();
+    const speechEpoch = Number(req.headers['x-speech-epoch']);
+    if (!callId || callId.length > 160 || !Number.isSafeInteger(speechEpoch) || speechEpoch < 0 ||
+        req.headers['content-type'] !== 'audio/pcm') {
+      return res.status(400).json({ ok: false, error: 'Cabeçalhos de áudio inválidos' });
+    }
+    try {
+      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY });
+      const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics });
+      return res.json({ ok: true, result, stt_metrics: transcript.metrics });
+    } catch (err) {
+      console.error('[VOICE_AGENT] Falha no STT em tempo real:', err.message);
+      return res.status(502).json({ ok: false, error: 'live_stt_unavailable' });
     }
   });
 

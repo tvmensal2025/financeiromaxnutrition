@@ -669,13 +669,13 @@ export async function processUserSpeech(params) {
   }
 }
 
-async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
+async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
   if (!callId) throw new Error('callId é obrigatório');
-  if (!audioBase64) throw new Error('audioBase64 é obrigatório');
+  if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
   const turnStart = Date.now();
-  const audioBuffer = Buffer.from(audioBase64, 'base64');
-  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBuffer.length / 1024)} KB)`);
+  const audioBuffer = audioBase64 ? Buffer.from(audioBase64, 'base64') : null;
+  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${liveText !== undefined ? 'STT ao vivo' : format}${audioBuffer ? `, ~${Math.round(audioBuffer.length / 1024)} KB` : ''})`);
 
   const cfg = await getVoiceAgentConfig();
   if (!cfg.is_active) {
@@ -693,8 +693,8 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 
   // 1. Transcreve fala do cliente via OpenAI STT
   const sttStart = Date.now();
-  const userText = cleanSpeechTranscript(await transcribeAudio(audioBuffer, 'audio/wav', { signal }));
-  const sttMs = Date.now() - sttStart;
+  const userText = cleanSpeechTranscript(typeof liveText === 'string' ? liveText : await transcribeAudio(audioBuffer, 'audio/wav', { signal }));
+  const sttMs = typeof liveText === 'string' ? (sttMetrics?.stt_final_ms ?? 0) : Date.now() - sttStart;
   signal.throwIfAborted();
   if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
 
