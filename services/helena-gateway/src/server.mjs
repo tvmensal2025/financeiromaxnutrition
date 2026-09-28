@@ -16,6 +16,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
 import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
+import { validateProfessionalBrief } from './brief-contract.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -446,6 +447,12 @@ async function handleGetJob({ job_id }) {
 async function handleClaimJob({ job_id, agent_id }) {
   if (!job_id || !agent_id) {
     throw new Error('job_id e agent_id são obrigatórios para claim_job');
+  }
+
+  const detail = await handleGetJob({ job_id });
+  validateProfessionalBrief(detail);
+  if (detail.job.agent_id !== agent_id || detail.job.status !== 'READY') {
+    throw new Error('Job ainda não está liberado para este agente');
   }
 
   const result = await callSupabaseRpc('gateway_claim_agent_job', {
