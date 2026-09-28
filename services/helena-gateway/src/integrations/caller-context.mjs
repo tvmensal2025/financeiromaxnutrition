@@ -52,14 +52,36 @@ Não repita a mensagem de abertura. A opção de abertura apenas controla a prim
 
 export async function persistVoiceTurn(call, profile, userText, replyText) {
   const phone = normalizeCallerPhone(call?.remoteNumber);
-  if ((!phone && !call?.accessToken) || !process.env.MAX_VOICE_CONTEXT_TOKEN || !process.env.MAX_VOICE_CONTEXT_URL) return;
+  if ((!phone && !call?.accessToken) || !process.env.MAX_VOICE_CONTEXT_TOKEN || !process.env.MAX_VOICE_CONTEXT_URL) return null;
+  const turnId = crypto.randomUUID();
   try {
     const response = await fetch(process.env.MAX_VOICE_CONTEXT_URL, {
       method: 'POST', signal: AbortSignal.timeout(5000),
       headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': process.env.MAX_VOICE_CONTEXT_TOKEN },
       body: JSON.stringify({ action: 'append_turn', phone, access_token: call.accessToken, character: profile.character_id,
-        call_id: call.callId, turn_id: crypto.randomUUID(), user_text: userText, assistant_text: replyText }),
+        call_id: call.callId, turn_id: turnId, user_text: userText, assistant_text: replyText }),
     });
     if (!response.ok) throw new Error('Persistence unavailable');
-  } catch { console.warn('[VOICE_CONTEXT] Não foi possível persistir este turno.'); }
+    return turnId;
+  } catch { console.warn('[VOICE_CONTEXT] Não foi possível persistir este turno.'); return null; }
+}
+
+export async function persistVoiceUtterance(call, profile, userText) {
+  const turnId = await persistVoiceTurn(call, profile, userText, '');
+  if (turnId) void extractVoiceFacts(call, profile, turnId);
+  return turnId;
+}
+
+async function extractVoiceFacts(call, profile, turnId) {
+  const phone = normalizeCallerPhone(call?.remoteNumber);
+  try {
+    const response = await fetch(process.env.MAX_VOICE_CONTEXT_URL, {
+      method: 'POST', signal: AbortSignal.timeout(10000),
+      headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': process.env.MAX_VOICE_CONTEXT_TOKEN },
+      body: JSON.stringify({ action: 'extract_facts', phone, access_token: call.accessToken,
+        character: profile.character_id, turn_id: turnId }),
+    });
+    if (!response.ok) throw new Error(`Fact extraction failed: ${response.status}`);
+    call.callerContexts?.clear();
+  } catch { console.warn('[VOICE_CONTEXT] Não foi possível classificar os fatos desta fala.'); }
 }

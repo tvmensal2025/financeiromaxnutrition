@@ -6,7 +6,7 @@ import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
  */
 
 import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply, cleanSpeechTranscript } from './voice-delivery.mjs';
-import { buildCallInstruction, loadCallerContext, persistVoiceTurn } from './caller-context.mjs';
+import { buildCallInstruction, loadCallerContext, persistVoiceTurn, persistVoiceUtterance } from './caller-context.mjs';
 import { streamReplyToCall } from './call-streaming.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
@@ -942,6 +942,9 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
       text: userText,
       timestamp: new Date().toISOString()
     });
+    // Preserve the customer's words before generation or playback can be interrupted.
+    const heardProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+    await persistVoiceUtterance(call, heardProfile, userText);
 
     if (process.env.CALL_VOICE_STREAMING_ENABLED === 'true' &&
         (cfg.ai_provider || 'OPENAI') === 'OPENAI' && Number.isSafeInteger(speechEpoch)) {
@@ -995,7 +998,7 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
       text: replyText,
       voice: activeProfile.voice_id
     });
-    void persistVoiceTurn(call, activeProfile, userText || '', replyText);
+    void persistVoiceTurn(call, activeProfile, '', replyText);
     const ttsMs = Date.now() - ttsStart;
     const turnLatencyMs = Date.now() - turnStart;
 
@@ -1093,7 +1096,7 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
       systemInstruction: await buildCallInstruction(call, profile),
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
-    void persistVoiceTurn(call, profile, userText, result.text);
+    void persistVoiceTurn(call, profile, '', result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
     const metrics = { ...result.metrics, transport: result.playback.metrics, streaming: true };

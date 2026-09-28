@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeCallerPhone, loadCallerContext, buildCallInstruction } from '../src/integrations/caller-context.mjs';
+import { normalizeCallerPhone, loadCallerContext, buildCallInstruction, persistVoiceTurn, persistVoiceUtterance } from '../src/integrations/caller-context.mjs';
 import { registerCallSession, getCallSession, updateProfile } from '../src/integrations/call-engine.mjs';
 import { handleCallConnectedWebhook } from '../src/integrations/voice-agent.mjs';
 import { cleanSpeechTranscript } from '../src/integrations/voice-delivery.mjs';
@@ -71,6 +71,31 @@ test('web context forwards authenticated session without trusting a supplied use
     }});
     assert.equal(result.context.profile.firstName,'Rafael');
   } finally {
+    if(oldUrl===undefined) delete process.env.MAX_VOICE_CONTEXT_URL; else process.env.MAX_VOICE_CONTEXT_URL=oldUrl;
+    if(oldToken===undefined) delete process.env.MAX_VOICE_CONTEXT_TOKEN; else process.env.MAX_VOICE_CONTEXT_TOKEN=oldToken;
+  }
+});
+
+test('stores a heard utterance before its answer and requests fact extraction once', async () => {
+  const oldUrl=process.env.MAX_VOICE_CONTEXT_URL, oldToken=process.env.MAX_VOICE_CONTEXT_TOKEN, oldFetch=global.fetch;
+  process.env.MAX_VOICE_CONTEXT_URL='https://example.test/context'; process.env.MAX_VOICE_CONTEXT_TOKEN='gateway-secret';
+  const requests=[];
+  global.fetch=async (_url, options)=>{requests.push(JSON.parse(options.body));return {ok:true};};
+  try {
+    const call={callId:'web-test',accessToken:'session-token'};
+    const profile={character_id:'vital'};
+    const utteranceId=await persistVoiceUtterance(call,profile,'Comi arroz e depois passei mal');
+    assert.match(utteranceId,/^[a-f0-9-]{36}$/);
+    await new Promise(resolve=>setImmediate(resolve));
+    assert.equal(requests[0].action,'append_turn');
+    assert.equal(requests[0].assistant_text,'');
+    assert.equal(requests[1].action,'extract_facts');
+    assert.equal(requests[1].turn_id,utteranceId);
+    await persistVoiceTurn(call,profile,'','Espero que melhore.');
+    assert.equal(requests[2].user_text,'');
+    assert.equal(requests[2].assistant_text,'Espero que melhore.');
+  } finally {
+    global.fetch=oldFetch;
     if(oldUrl===undefined) delete process.env.MAX_VOICE_CONTEXT_URL; else process.env.MAX_VOICE_CONTEXT_URL=oldUrl;
     if(oldToken===undefined) delete process.env.MAX_VOICE_CONTEXT_TOKEN; else process.env.MAX_VOICE_CONTEXT_TOKEN=oldToken;
   }

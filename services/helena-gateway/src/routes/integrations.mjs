@@ -1,5 +1,5 @@
 import { cleanSpeechTranscript } from '../integrations/voice-delivery.mjs';
-import { loadCallerContext, persistVoiceTurn } from '../integrations/caller-context.mjs';
+import { loadCallerContext, persistVoiceTurn, persistVoiceUtterance } from '../integrations/caller-context.mjs';
 /**
  * Routes / Integrations
  * Endpoints REST administrativos e webhooks para Central de Canais, Voz e Roteamento
@@ -1686,6 +1686,11 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       const webCall = { callId, accessToken };
       const context = await loadCallerContext(webCall, profile.character_id);
       if (context.status !== 'matched') return res.status(503).json({error:'Não foi possível carregar seu cadastro. Tente novamente.'});
+      if (!is_start) {
+        if (!String(user_text || '').trim()) return res.status(400).json({error:'Não ouvi sua fala com clareza.'});
+        const saved = await persistVoiceUtterance(webCall, profile, String(user_text).trim());
+        if (!saved) return res.status(503).json({error:'Não consegui guardar sua fala. Tente novamente.'});
+      }
       let replyText = '';
       const opening = webOpening(profile, is_start, user_text);
       if (opening !== null) {
@@ -1707,6 +1712,9 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         text: replyText,
         voice: characterVoice
       }) : { audio_base64: '', content_type: 'audio/mpeg' };
+      if (replyText && !await persistVoiceTurn(webCall, profile, '', replyText)) {
+        return res.status(503).json({error:'Não consegui guardar a resposta. Tente novamente.'});
+      }
 
       return res.json({
         ok: true,
