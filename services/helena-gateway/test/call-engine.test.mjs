@@ -325,7 +325,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
 
       assert.strictEqual(swap.success, true);
       assert.strictEqual(swap.next_turn_ready, true);
-      assert.ok(swap.feedback.includes('será aplicado na próxima resposta'));
+      assert.ok(swap.feedback.includes('ativo imediatamente'));
 
       // Verifica estado em memória imediato
       const liveCall = getCallSession(callId);

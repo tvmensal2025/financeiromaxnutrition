@@ -783,7 +783,7 @@ export const getActiveCallsList = listActiveCalls;
 /**
  * REQUISITO CRÍTICO — HOT-SWAP EM LIGAÇÃO:
  * Troca de Personagem e/ou Modo DURANTE a mesma ligação em andamento.
- * Aplica IMEDIATAMENTE no PRÓXIMO turno da conversa sem desligar, sem reiniciar, sem reconectar e sem repetir a opening_message.
+ * Atualiza o perfil da sessão imediatamente; o endpoint de troca retoma a resposta corrente.
  */
 export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, personalityId, profileKey, updatedBy = 'Admin' }) {
   const call = getCallSession(callId);
@@ -853,7 +853,7 @@ export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, p
     });
   }
 
-  const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} será aplicado na próxima resposta.`;
+  const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} ativo imediatamente.`;
   console.log(`[CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA ${callId} por ${updatedBy}: ${feedbackMessage} (Voz: ${call.activeVoice})`);
 
   return {

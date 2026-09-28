@@ -2,6 +2,27 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { prepareVoiceHistory, completeVoiceReply } from '../src/integrations/voice-delivery.mjs';
 import { callLlmProviderDetailed } from '../src/integrations/voice-agent.mjs';
+import { transcribeAudio } from '../src/integrations/voice-agent.mjs';
+
+it('transcribes call audio with OpenAI and never contacts ElevenLabs', async (t) => {
+  const oldKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'test-openai';
+  t.after(() => { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; });
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.strictEqual(String(url), 'https://api.openai.com/v1/audio/transcriptions');
+    assert.strictEqual(options.body.get('model'), 'gpt-transcribe');
+    assert.strictEqual(options.body.get('language'), 'pt');
+    assert.strictEqual(options.headers.Authorization, 'Bearer test-openai');
+    return Response.json({ text: '  Olá, tudo bem?  ' });
+  });
+  assert.strictEqual(await transcribeAudio(Buffer.alloc(320, 1)), 'Olá, tudo bem?');
+});
+
+it('keeps Google as the call voice provider when old settings arrive', async () => {
+  const cfg = await updateVoiceAgentConfig({ voice_provider: 'ELEVENLABS', elevenlabs_voice: 'old', voice_profile_id: 'old' });
+  assert.strictEqual(cfg.config.voice_provider, 'GOOGLE_CHIRP3_HD');
+  assert.strictEqual('elevenlabs_voice' in cfg.config, false);
+});
 
 describe('Conversational delivery regressions', () => {
   it('keeps four exchanges and does not repeat the current user message', () => {

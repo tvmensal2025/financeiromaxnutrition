@@ -77,6 +77,7 @@ import {
   handleCallEndedWebhook,
   handleUserSilence,
   processUserSpeech,
+  restartActiveReplyForProfile,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
 
@@ -1544,9 +1545,15 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         updatedBy
       });
 
+      const responseRestarted = await restartActiveReplyForProfile(callId);
+
       return res.json({
         ok: true,
-        ...result
+        ...result,
+        response_restarted: responseRestarted,
+        message: responseRestarted
+          ? `${result.active_character_name} / ${result.active_mode_name} ativo; resposta atual reiniciada com a nova voz.`
+          : `${result.active_character_name} / ${result.active_mode_name} ativo imediatamente.`
       });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });

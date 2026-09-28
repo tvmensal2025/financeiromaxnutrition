@@ -120,9 +120,7 @@ let cachedConfig = {
   knowledge_base: DEFAULT_MAX_KNOWLEDGE_BASE,
   inbound_greeting: DEFAULT_INBOUND_GREETING,
   outbound_greeting: DEFAULT_OUTBOUND_GREETING,
-  voice_provider: 'ELEVENLABS',
-  voice_profile_id: 'VP-ELEVEN-MASC-01',
-  elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
+  voice_provider: 'GOOGLE_CHIRP3_HD',
   call_voice: 'pt-BR-Chirp3-HD-Achird',
   ai_provider: 'OPENAI',
   ai_model: 'gpt-6-luna',
@@ -147,13 +145,14 @@ export async function getVoiceAgentConfig() {
  * Atualiza e persiste as configurações do Agente de Voz
  */
 export async function updateVoiceAgentConfig(newSettings = {}) {
-  const { ai_provider, ai_model, ai_api_key, ...allowedSettings } = newSettings;
+  const { ai_provider, ai_model, ai_api_key, voice_provider, voice_profile_id, elevenlabs_voice, ...allowedSettings } = newSettings;
   cachedConfig = {
     ...cachedConfig,
     ...allowedSettings,
     ai_provider: 'OPENAI',
     ai_model: 'gpt-6-luna',
     ai_api_key: '',
+    voice_provider: 'GOOGLE_CHIRP3_HD',
     updated_at: new Date().toISOString()
   };
   return { ok: true, config: cachedConfig };
@@ -422,144 +421,32 @@ async function callLlmProvider(params) {
 }
 
 // ======================================================================
-// MOTOR DE VOZ & CONVERSAÇÃO TELEFÔNICA (ELEVENLABS + KOKORO + MEOWCALLER)
+// MOTOR DE VOZ & CONVERSAÇÃO TELEFÔNICA (OPENAI STT + GOOGLE TTS + MEOWCALLER)
 // ======================================================================
 
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || 'helena_meow_sec_8a3c1f9d2e';
-export const ELEVENLABS_OFFICIAL_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ'; // Pedro / Max Alex
-
-/**
- * Transcreve áudio do microfone do usuário usando ElevenLabs Scribe STT (ultra-rápido ~400ms)
- * com fallback e tolerância a ruído
- */
-export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav') {
+/** Transcreve o turno concluído usando a mesma conta OpenAI do agente. */
+export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', { signal } = {}) {
   if (!audioBuffer || audioBuffer.length < 300) {
     return null;
   }
-
-  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
-
-  // 1. ElevenLabs Scribe STT
-  if (elevenKey && elevenKey.trim().length > 0) {
-    try {
-      const blob = new Blob([audioBuffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
-      formData.append('model_id', 'scribe_v1');
-      formData.append('language_code', 'por');
-
-      const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: { 'xi-api-key': elevenKey.trim() },
-        body: formData,
-        signal: AbortSignal.timeout(7000)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.text?.trim() || '';
-        if (text.length > 0) {
-          console.log(`[VOICE_AGENT] 🎙️ ElevenLabs Scribe STT (${text.length} chars): "${text}"`);
-          return text;
-        } else {
-          console.log(`[VOICE_AGENT] ℹ️ Scribe STT processou áudio mas não detectou palavras claras.`);
-          return '';
-        }
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.warn(`[VOICE_AGENT] ElevenLabs Scribe retornou status ${res.status}: ${errText}`);
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na transcrição Scribe STT:', err.message);
-    }
-  }
-
-  // 2. Fallback Groq Whisper (se disponível)
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey && groqKey.trim().length > 0) {
-    try {
-      const blob = new Blob([audioBuffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
-      formData.append('model', 'whisper-large-v3-turbo');
-      formData.append('language', 'pt');
-
-      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${groqKey.trim()}` },
-        body: formData,
-        signal: AbortSignal.timeout(6000)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.text?.trim() || '';
-        if (text.length > 0) {
-          console.log(`[VOICE_AGENT] 🎙️ Groq Whisper STT (${text.length} chars): "${text}"`);
-          return text;
-        }
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha no fallback Groq STT:', err.message);
-    }
-  }
-
-  return null;
-}
-
-/**
- * Sintetiza voz conversacional rápida (prioriza ElevenLabs Flash v2.5 com fallback para Kokoro)
- */
-export async function synthesizeSpeechFast({ text, voice, cfg = {} }) {
-  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
-  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
-
-  // 1. Prioridade: ElevenLabs Flash v2.5 (latência ~650ms, voz 100% humana)
-  if (elevenKey && !isTest && cfg.voice_provider !== 'KOKORO') {
-    try {
-      const voiceId = voice || cfg.elevenlabs_voice || ELEVENLABS_OFFICIAL_VOICE_ID;
-      const startTime = performance.now();
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_22050_32`, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': elevenKey,
-          'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(4000),
-        body: JSON.stringify({
-          text: sanitizeSpeechText(text),
-          model_id: 'eleven_flash_v2_5',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.8
-          }
-        })
-      });
-
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer();
-        const buffer = Buffer.from(arrayBuf);
-        const durationMs = Math.round(performance.now() - startTime);
-        console.log(`[VOICE_AGENT] ⚡ ElevenLabs Flash v2.5 gerado em ${durationMs}ms (${buffer.length} bytes)`);
-        return {
-          buffer,
-          durationMs,
-          sizeBytes: buffer.length,
-          format: 'mp3',
-          provider: 'ELEVENLABS',
-          voice_id: voiceId
-        };
-      } else {
-        console.warn(`[VOICE_AGENT] ElevenLabs TTS retornou status ${res.status}`);
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha ElevenLabs TTS:', err.message);
-    }
-  }
-
-  // Em chamadas (CALL), o único TTS permitido é Google Cloud Chirp 3 HD (através de routeCallAudio).
-  throw new Error('[VOICE_AGENT] Provedor de TTS indisponível fora do contexto de chamada telefônica.');
+  const apiKey = await resolveAiApiKey();
+  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada para transcrição');
+  const extension = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav';
+  const formData = new FormData();
+  formData.append('file', new Blob([audioBuffer], { type: mimeType }), `speech.${extension}`);
+  formData.append('model', 'gpt-transcribe');
+  formData.append('language', 'pt');
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+    signal: AbortSignal.any([AbortSignal.timeout(10000), ...(signal ? [signal] : [])])
+  });
+  if (!res.ok) throw new Error(`OpenAI STT HTTP ${res.status}`);
+  const data = await res.json();
+  return data?.text?.trim() || '';
 }
 
 /**
@@ -752,7 +639,7 @@ export function getCallHistory(callId) {
 
 /**
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
- * 1. Transcreve a fala do cliente via ElevenLabs Scribe STT
+ * 1. Transcreve a fala do cliente via OpenAI STT
  * 2. Gera o texto com GPT, aplicando o perfil ativo da chamada.
  * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
  * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
@@ -769,9 +656,11 @@ export async function processUserSpeech(params) {
   }
   activeVoiceTurns.get(callId)?.abort(new Error('New customer utterance'));
   const controller = new AbortController();
+  controller.speechEpoch = speechEpoch;
   activeVoiceTurns.set(callId, controller);
   try {
-    return await processUserSpeechTurn({ ...params, signal: controller.signal });
+    controller.done = processUserSpeechTurn({ ...params, signal: controller.signal });
+    return await controller.done;
   } catch (err) {
     if (controller.signal.aborted) return { ok: true, interrupted: true, call_id: callId };
     throw err;
@@ -802,9 +691,9 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 
   const callHistory = getCallHistory(callId);
 
-  // 1. Transcreve fala do cliente via ElevenLabs Scribe STT
+  // 1. Transcreve fala do cliente via OpenAI STT
   const sttStart = Date.now();
-  const userText = cleanSpeechTranscript(await transcribeAudio(audioBuffer));
+  const userText = cleanSpeechTranscript(await transcribeAudio(audioBuffer, 'audio/wav', { signal }));
   const sttMs = Date.now() - sttStart;
   signal.throwIfAborted();
   if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
@@ -827,6 +716,7 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
     // Preserve the customer's words before generation or playback can be interrupted.
     const heardProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
     await persistVoiceUtterance(call, heardProfile, userText);
+    if (activeVoiceTurns.get(callId)?.signal === signal) activeVoiceTurns.get(callId).userText = userText;
 
     if (process.env.CALL_VOICE_STREAMING_ENABLED === 'true' &&
         (cfg.ai_provider || 'OPENAI') === 'OPENAI' && Number.isSafeInteger(speechEpoch)) {
@@ -967,6 +857,30 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 }
 
 
+
+/** Retoma a resposta corrente com o perfil novo após encerrar o áudio antigo. */
+export async function restartActiveReplyForProfile(callId) {
+  const previous = activeVoiceTurns.get(callId);
+  if (!previous?.userText || !Number.isSafeInteger(previous.speechEpoch)) return false;
+  previous.abort(new Error('Active profile changed'));
+  await previous.done?.catch(() => {});
+  if (activeVoiceTurns.get(callId) === previous) activeVoiceTurns.delete(callId);
+  if (activeVoiceTurns.has(callId) || latestSpeechEpochs.get(callId) !== previous.speechEpoch) return false;
+  const call = getCallSession(callId);
+  const apiKey = await resolveAiApiKey();
+  if (!call || !apiKey || process.env.CALL_VOICE_STREAMING_ENABLED !== 'true') return false;
+  const controller = new AbortController();
+  controller.speechEpoch = previous.speechEpoch;
+  controller.userText = previous.userText;
+  activeVoiceTurns.set(callId, controller);
+  controller.done = processStreamingSpeechTurn({ callId, speechEpoch: previous.speechEpoch,
+    cfg: await getVoiceAgentConfig(), apiKey, call, callHistory: getCallHistory(callId),
+    userText: previous.userText, sttMs: 0, turnStart: Date.now(), signal: controller.signal });
+  void controller.done.finally(() => {
+    if (activeVoiceTurns.get(callId) === controller) activeVoiceTurns.delete(callId);
+  }).catch(err => console.error('[VOICE_AGENT] Falha ao retomar resposta após troca de perfil:', err.message));
+  return true;
+}
 
 async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal }) {
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
