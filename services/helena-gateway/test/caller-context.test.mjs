@@ -7,7 +7,7 @@ import { cleanSpeechTranscript } from '../src/integrations/voice-delivery.mjs';
 import { webOpening, conversationModeInstruction } from '../src/integrations/conversation-mode.mjs';
 
 test('web opening respects explicit toggle and never repeats for empty turns', () => {
-  assert.equal(webOpening({opening_enabled:false,opening_message:'fixed'},true,''),'');
+  assert.equal(webOpening({opening_enabled:false,opening_message:'fixed'},true,''),null);
   assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},true,''),'fixed');
   assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},false,''),'');
   assert.equal(webOpening({},false,'Olá'),null);
@@ -42,9 +42,21 @@ test('saved personality wins over stale session; missing data is explicit', asyn
   assert.ok(instruction.includes('SAVED VITAL')); assert.ok(!instruction.includes('STALE'));
   assert.ok(instruction.includes('unidentified'));
 });
-test('inbound starts with Sirlene and disabled opening stays silent', async () => {
+test('inbound greets naturally in Normal once even with fixed opening disabled', async () => {
   updateProfile('sirlene','normal',{opening_enabled:false});
-  await handleCallConnectedWebhook({call_id:'caller-context-inbound',direction:'INBOUND',remote_number:'5511999991234'});
+  const spoken = [];
+  const payload = {call_id:'caller-context-inbound',direction:'INBOUND',remote_number:'5511999991234'};
+  const dependencies = { speak: async args => { spoken.push(args.text); return {ok:true}; } };
+  await handleCallConnectedWebhook(payload, dependencies);
+  await handleCallConnectedWebhook(payload, dependencies);
+  assert.equal(spoken.length, 1);
+  assert.match(spoken[0], /Sirlene/);
   assert.equal(getCallSession('caller-context-inbound').activeProfileKey,'sirlene_normal');
   assert.equal(getCallSession('caller-context-inbound').remoteNumber,'5511999991234');
+});
+
+test('outbound resets a previously selected Intense profile to Normal', async () => {
+  registerCallSession({callId:'outbound-normal',profileKey:'vital_intense',direction:'OUTBOUND'});
+  await handleCallConnectedWebhook({call_id:'outbound-normal',direction:'OUTBOUND'}, {speak:async () => ({ok:true})});
+  assert.equal(getCallSession('outbound-normal').activeProfileKey,'vital_normal');
 });

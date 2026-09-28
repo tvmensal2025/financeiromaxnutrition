@@ -5,14 +5,18 @@ import { createVoiceAdminAuth } from '../src/voice-admin-auth.mjs';
 import { DEFAULT_PROFILES_12, getProfile, registerCallSession, getCallSession } from '../src/integrations/call-engine.mjs';
 import { handleCallConnectedWebhook, handleUserSilence, getCallHistory } from '../src/integrations/voice-agent.mjs';
 
-test('all 12 profiles start without greeting and no initial silence nudge', async () => {
+test('all profiles greet in Normal and wait for customer before silence nudge', async () => {
   assert.equal(Object.keys(DEFAULT_PROFILES_12).length,12);
   for (const p of Object.values(DEFAULT_PROFILES_12)) {
     assert.equal(p.opening_enabled,false);
     const callId=`silent-${p.profile_key}`;
     registerCallSession({callId,profileKey:p.profile_key});
-    assert.equal((await handleCallConnectedWebhook({call_id:callId})).opening_enabled,false);
-    assert.equal(getCallHistory(callId).length,0);
+    const spoken=[];
+    const result=await handleCallConnectedWebhook({call_id:callId},{speak:async args => {spoken.push(args.text);return {ok:true};}});
+    assert.equal(result.ok,true);
+    assert.equal(spoken.length,1);
+    assert.equal(getCallHistory(callId).length,1);
+    assert.equal(getCallSession(callId).activeProfileKey,`${p.character_id}_normal`);
     assert.equal((await handleUserSilence({callId})).reason,'waiting_for_customer');
   }
 });
