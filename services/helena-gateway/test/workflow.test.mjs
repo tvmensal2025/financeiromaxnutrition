@@ -21,3 +21,17 @@ test('somente resposta confirmada conta como gravação', async () => {
   const identity = { type: 'hermes_profile', profileSlug: 'pedro--biz003', bindingVerified: true };
   await assert.rejects(tools.submit_delivery.handler({}, { identity }), /nao confirmou/);
 });
+test('vinculo de tarefa existente exige identidade do perfil e versao e usa RPC dedicada', async () => {
+  const calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true, status: 'DRAFT' }; });
+  const input = { task_id: 'TSK-HD-20260927-03', target_agent_id: 'AGT-03', expected_task_version: 2389 };
+  assert.ok(tools.adopt_existing_task.schema.safeParse(input).success);
+  assert.equal(tools.adopt_existing_task.schema.safeParse({ ...input, expected_task_version: 0 }).success, false);
+  assert.equal(tools.adopt_existing_task.schema.safeParse({ ...input, business_id: 'BIZ-004' }).success, false);
+  await assert.rejects(tools.adopt_existing_task.handler(input, { identity: { type: 'static_fallback' } }), /individual Hermes/);
+  await tools.adopt_existing_task.handler(input, { identity: { type: 'hermes_profile', profileSlug: 'helena--grupo', bindingVerified: true } });
+  assert.deepEqual(calls, [['gateway_adopt_existing_task', {
+    p_profile_slug: 'helena--grupo', p_task_id: input.task_id, p_target_agent_id: input.target_agent_id,
+    p_expected_task_version: 2389, p_instruction: null
+  }]]);
+});

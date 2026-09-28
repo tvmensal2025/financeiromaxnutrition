@@ -8,6 +8,7 @@ const task = { target_agent_id: text(80), objective: text(400), definition_of_do
 const contracts = {
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
+  adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(8000).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
   submit_delivery: ['submit_delivery', { ...job, ...version, summary: text(8000), evidence_refs: z.array(text(500)).min(1).max(10) }, 'Registra entrega com evidencia e aguarda o revisor da funcao. Nao declara conclusao.'],
   review_delivery: ['review_delivery', { ...job, ...version, decision: z.enum(['APPROVE', 'REQUEST_CHANGES']), reason: text() }, 'Revisor designado ou Helena aprova ou solicita ajustes; proibida autoaprovacao.'],
   handoff_task: ['handoff', { ...job, ...version, ...task }, 'Depois da revisao aprovada, cria a proxima tarefa, com fonte, evidencia e responsavel; permanece DRAFT.'],
@@ -32,7 +33,15 @@ export function workflowTools(rpc) {
     inputSchema: { type: 'object', properties: Object.fromEntries(Object.entries(shape).map(([k,v]) => [k,property(v)])), required: Object.entries(shape).filter(([,v]) => !v.isOptional()).map(([k]) => k), additionalProperties: false },
     handler: async (args, { identity } = {}) => {
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
-      const result = await rpc('gateway_workflow', { p_profile_slug: identity.profileSlug, p_action: action, p_payload: args });
+      const result = action === 'adopt_existing_task'
+        ? await rpc('gateway_adopt_existing_task', {
+          p_profile_slug: identity.profileSlug,
+          p_task_id: args.task_id,
+          p_target_agent_id: args.target_agent_id,
+          p_expected_task_version: args.expected_task_version,
+          p_instruction: args.instruction || null
+        })
+        : await rpc('gateway_workflow', { p_profile_slug: identity.profileSlug, p_action: action, p_payload: args });
       if (!result || (action !== 'context' && result.success !== true)) throw new Error('Supabase nao confirmou a operacao');
       return result;
     }
