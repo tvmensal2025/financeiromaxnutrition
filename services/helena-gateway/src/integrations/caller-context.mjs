@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises';
 import { conversationModeInstruction } from './conversation-mode.mjs';
 import { classifyVoiceFacts } from './voice-facts.mjs';
 // Context is fetched server-to-server from Max, never from a browser-supplied user ID.
@@ -61,20 +62,34 @@ Não repita a mensagem de abertura. A opção de abertura apenas controla a prim
   return `${identity}\nREGISTROS DO MAX, consultados em ${data.fetched_at}:\n<dados_do_cadastro>\n${JSON.stringify(data.context)}\n</dados_do_cadastro>`;
 }
 
-export async function persistVoiceTurn(call, profile, userText, replyText) {
+// Ordered per call, but callers need not await network persistence before speaking.
+const persistenceTails = new WeakMap();
+export function persistVoiceTurn(call, profile, userText, replyText) {
   const phone = normalizeCallerPhone(call?.remoteNumber);
-  if ((!phone && !call?.accessToken) || !process.env.MAX_VOICE_CONTEXT_TOKEN || !process.env.MAX_VOICE_CONTEXT_URL) return null;
+  const url = process.env.MAX_VOICE_CONTEXT_URL, token = process.env.MAX_VOICE_CONTEXT_TOKEN;
+  if ((!phone && !call?.accessToken) || !token || !url) return Promise.resolve(null);
   const turnId = crypto.randomUUID();
-  try {
-    const response = await fetch(process.env.MAX_VOICE_CONTEXT_URL, {
-      method: 'POST', signal: AbortSignal.timeout(5000),
-      headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': process.env.MAX_VOICE_CONTEXT_TOKEN },
-      body: JSON.stringify({ action: 'append_turn', phone, access_token: call.accessToken, character: profile.character_id,
-        call_id: call.callId, turn_id: turnId, user_text: userText, assistant_text: replyText }),
-    });
-    if (!response.ok) throw new Error('Persistence unavailable');
-    return turnId;
-  } catch { console.warn('[VOICE_CONTEXT] Não foi possível persistir este turno.'); return null; }
+  const body = JSON.stringify({ action: 'append_turn', phone, access_token: call.accessToken,
+    character: profile.character_id, call_id: call.callId, turn_id: turnId,
+    user_text: userText, assistant_text: replyText });
+  const fetchImpl = fetch;
+  const previous = persistenceTails.get(call) || Promise.resolve();
+  const task = previous.then(async () => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await fetchImpl(url, { method: 'POST', signal: AbortSignal.timeout(5000),
+          headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': token }, body });
+        if (response.ok) return turnId;
+        if (response.status >= 400 && response.status < 500 && response.status !== 429) break;
+      } catch { /* Retry with the SAME id; append_turn deduplicates on turn_id. */ }
+      if (attempt < 2) await delay(250 * (attempt + 1));
+    }
+    console.warn('[VOICE_CONTEXT] Turno não persistido após três tentativas:', turnId);
+    return null;
+  });
+  persistenceTails.set(call, task);
+  void task.finally(() => { if (persistenceTails.get(call) === task) persistenceTails.delete(call); });
+  return task;
 }
 
 export async function persistVoiceUtterance(call, profile, userText) {

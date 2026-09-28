@@ -40,8 +40,27 @@ export function extractSentences(text, final = false) {
   return { sentences, rest };
 }
 
+// Send a meaningful clause early, never split a decimal or an unfinished word.
+export function extractSpeechChunks(text, final = false) {
+  if (final) return extractSentences(text, true);
+  const full = extractSentences(text);
+  const chunks = [];
+  for (const sentence of full.sentences) chunks.push(sentence);
+  let rest = full.rest;
+  const boundary = /[,;:](?=\s)/g;
+  for (const match of rest.matchAll(boundary)) {
+    const clause = rest.slice(0, match.index + 1).trim();
+    if (clause.length >= 24 && clause.split(/\s+/).length >= 4) {
+      chunks.push(clause);
+      rest = rest.slice(match.index + 1);
+      break;
+    }
+  }
+  return { sentences: chunks, rest };
+}
+
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, backchannelDelayMs = 1100 }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, waitCue, backchannelDelayMs = 700 }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
@@ -59,7 +78,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   combined.addEventListener('abort', cancelTTS, { once: true });
   // The short acknowledgement enters the same Google TTS stream as the answer.
   // This keeps playback ordered and lets the existing speech epoch cancel both.
-  if (process.env.CALL_BACKCHANNEL_ENABLED !== 'false') {
+  if (!waitCue && process.env.CALL_BACKCHANNEL_ENABLED !== 'false') {
     backchannelTimer = setTimeout(() => {
       if (firstTextAt !== null || combined.aborted || tts.destroyed) return;
       try {
@@ -80,13 +99,15 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
+    const resolvedInstruction = await systemInstruction;
+    combined.throwIfAborted();
     const apiModel = model || 'gpt-6-luna';
     const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
       method: 'POST', signal: AbortSignal.any([combined, AbortSignal.timeout(8000)]),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model: apiModel, stream: true, stream_options: { include_usage: true }, reasoning_effort: 'none',
         max_completion_tokens: 200, temperature: 0.3,
-        messages: [{ role: 'system', content: `${systemInstruction}\n\n${VOICE_DELIVERY_INSTRUCTION}` },
+        messages: [{ role: 'system', content: `${resolvedInstruction}\n\n${VOICE_DELIVERY_INSTRUCTION}` },
           ...prepareVoiceHistory(history, userPrompt), { role: 'user', content: userPrompt }] })
     });
     if (!res.ok || !res.body) throw new Error(`OpenAI streaming HTTP ${res.status}`);
@@ -104,7 +125,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
         totalCharacters += delta.length;
         if (totalCharacters > 2400) throw new Error('Voice response exceeds conversational limit');
         pending += delta;
-        const split = extractSentences(pending);
+        const split = extractSpeechChunks(pending);
         pending = split.rest;
         for (const sentence of split.sentences) await writeSentence(sentence);
       }
@@ -126,14 +147,33 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
         metrics.tts_first_audio_ms = firstTextAt === null ? null : Math.round(performance.now() - firstTextAt);
       }
       audioBytes += bytes.length;
+      if (!waitCue && metrics.first_audio_sent_at == null) metrics.first_audio_sent_at = Date.now();
       yield bytes;
     }
     if (!audioBytes) throw new Error('Google returned no streaming audio');
   })(), { highWaterMark: 4096, objectMode: false });
   audio.on('error', () => {});
   const playbackTask = (async () => {
+    let body = audio;
+    if (waitCue) {
+      // Do not reserve the Meowcaller stream until a possible cue has finished.
+      // LLM and Google continue working while the cached clip is playing.
+      const iterator = audio[Symbol.asyncIterator]();
+      const first = await iterator.next();
+      await waitCue.beforeReply();
+      combined.throwIfAborted();
+      body = Readable.from((async function* () {
+        if (!first.done) yield first.value;
+        for await (const chunk of iterator) yield chunk;
+      })(), { objectMode: false });
+      body.on('error', () => {});
+    }
+    if (waitCue) {
+      metrics.first_audio_sent_at = Date.now();
+      metrics.first_audio_to_transport_ms = Math.round(performance.now() - started);
+    }
     const res = await fetchImpl(`${baseUrl}/v1/calls/${encodeURIComponent(callId)}/play/stream`, {
-      method: 'POST', signal: combined, duplex: 'half', body: audio,
+      method: 'POST', signal: combined, duplex: 'half', body,
       headers: { 'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '16000', 'X-Speech-Epoch': String(speechEpoch), 'X-API-Key': token }
     });
     if (!res.ok) {
@@ -157,6 +197,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     throw err;
   } finally {
     clearTimeout(backchannelTimer);
+    waitCue?.finish();
     combined.removeEventListener('abort', cancelTTS);
   }
 }

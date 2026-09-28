@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Transform, Readable } from 'node:stream';
-import { readSSE, extractSentences, streamReplyToCall } from '../src/integrations/call-streaming.mjs';
+import { readSSE, extractSentences, extractSpeechChunks, streamReplyToCall } from '../src/integrations/call-streaming.mjs';
 import { openChirp3CallStream, setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
 
 const event = data => Buffer.from(`data: ${JSON.stringify(data)}\r\n\r\n`);
@@ -131,4 +131,39 @@ describe('End-to-end voice streaming', () => {
       stream.destroy();
     } finally { setGoogleTTSClientForTesting(null); }
   });
+});
+
+it('emits a meaningful clause before the rest of a long sentence is generated', async () => {
+  assert.deepEqual(extractSpeechChunks('Para entender melhor a sua situação, preciso saber mais'), {
+    sentences: ['Para entender melhor a sua situação,'], rest: ' preciso saber mais'
+  });
+  assert.deepEqual(extractSpeechChunks('O valor é de 1234,56 reais'), {sentences: [], rest: 'O valor é de 1234,56 reais'});
+  let release;
+  const heard = new Promise(resolve => { release = resolve; });
+  const sent = [];
+  await streamReplyToCall({...base, openTTS: () => fakeTTS(s => { sent.push(s); release(); }),
+    fetchImpl: async (url,opts) => {
+      if (url.includes('api.openai.com')) return {ok:true,body:Readable.from((async function*(){
+        yield event(delta('Para entender melhor a sua situação, '));
+        await heard;
+        yield event(delta('preciso saber mais.')); yield event(stop);
+      })())};
+      for await (const chunk of opts.body) assert.ok(chunk.length);
+      return Response.json({ok:true});
+    }});
+  assert.deepEqual(sent,['Para entender melhor a sua situação, ','preciso saber mais. ']);
+});
+
+it('generates while a cached cue plays but reserves reply transport only after it ends', async () => {
+  let releaseCue, generationStarted = false, cueFinished = false;
+  const done = new Promise(resolve => { releaseCue = resolve; });
+  const waitCue = { beforeReply: async () => { assert.equal(generationStarted,true); await done; cueFinished=true; }, finish() {} };
+  const result = streamReplyToCall({...base,waitCue,openTTS:() => fakeTTS(),fetchImpl:async(url,opts)=>{
+    if(url.includes('api.openai.com')) { generationStarted=true; return {ok:true,body:Readable.from([event(delta('Aqui está.')),event(stop)])}; }
+    assert.equal(cueFinished,true);
+    for await(const chunk of opts.body) assert.ok(chunk.length);
+    return Response.json({ok:true});
+  }});
+  await new Promise(resolve=>setTimeout(resolve,20)); assert.equal(generationStarted,true);
+  releaseCue(); assert.equal((await result).text,'Aqui está.');
 });

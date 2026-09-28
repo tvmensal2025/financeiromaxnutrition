@@ -127,3 +127,27 @@ test('stores a heard utterance before its answer and requests fact extraction on
     if(oldToken===undefined) delete process.env.MAX_VOICE_CONTEXT_TOKEN; else process.env.MAX_VOICE_CONTEXT_TOKEN=oldToken;
   }
 });
+
+
+test('persistence retries the same id and preserves heard-before-answer ordering', async t => {
+  const url=process.env.MAX_VOICE_CONTEXT_URL, token=process.env.MAX_VOICE_CONTEXT_TOKEN;
+  process.env.MAX_VOICE_CONTEXT_URL='https://example.test/context'; process.env.MAX_VOICE_CONTEXT_TOKEN='fake';
+  const bodies=[];
+  t.mock.method(globalThis,'fetch',async (_,opts)=>{
+    bodies.push(JSON.parse(opts.body));
+    return {ok:bodies.length>1,status:bodies.length===1?503:200};
+  });
+  try {
+    const call={callId:'retry-test',accessToken:'fake'};
+    const a=persistVoiceTurn(call,{character_id:'vital'},'Olá','');
+    const b=persistVoiceTurn(call,{character_id:'vital'},'','Oi');
+    await Promise.all([a,b]);
+    assert.equal(bodies.length,3);
+    assert.equal(bodies[0].turn_id,bodies[1].turn_id);
+    assert.equal(bodies[2].assistant_text,'Oi');
+    assert.notEqual(bodies[2].turn_id,bodies[1].turn_id);
+  } finally {
+    if(url===undefined)delete process.env.MAX_VOICE_CONTEXT_URL;else process.env.MAX_VOICE_CONTEXT_URL=url;
+    if(token===undefined)delete process.env.MAX_VOICE_CONTEXT_TOKEN;else process.env.MAX_VOICE_CONTEXT_TOKEN=token;
+  }
+});

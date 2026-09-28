@@ -77,6 +77,7 @@ import {
   handleCallEndedWebhook,
   handleUserSilence,
   processUserSpeech,
+  prepareLiveSpeech,
   restartActiveReplyForProfile,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
@@ -1044,14 +1045,19 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         req.headers['content-type'] !== 'audio/pcm') {
       return res.status(400).json({ ok: false, error: 'Cabeçalhos de áudio inválidos' });
     }
+    const waitCue = prepareLiveSpeech(callId, speechEpoch);
+    const disconnect = () => waitCue.cancel();
+    req.once('aborted', disconnect);
     try {
-      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY });
-      const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics });
+      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY,
+        onInputEnd: () => waitCue.inputEnded(), onTranscript: text => waitCue.heard(text) });
+      waitCue.heard(transcript.text);
+      const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics, waitCue });
       return res.json({ ok: true, result, stt_metrics: transcript.metrics });
     } catch (err) {
       console.error('[VOICE_AGENT] Falha no STT em tempo real:', err.message);
       return res.status(502).json({ ok: false, error: 'live_stt_unavailable' });
-    }
+    } finally { req.removeListener('aborted', disconnect); waitCue.finish(); }
   });
 
   router.post('/api/integrations/voice-agent/user-speech', async (req, res) => {

@@ -15,13 +15,14 @@ export function pcm16To24k(bytes) {
   return output;
 }
 
-export async function transcribeLivePCM(chunks, { apiKey, WebSocketImpl = WebSocket, timeoutMs = 40000 } = {}) {
+export async function transcribeLivePCM(chunks, { apiKey, WebSocketImpl = WebSocket, timeoutMs = 40000, onInputEnd = () => {}, onTranscript = () => {} } = {}) {
   if (!apiKey) throw new Error('OPENAI_API_KEY ausente');
   const started = Date.now();
   const metrics = { stt_first_delta_ms: null, stt_final_ms: null, audio_bytes: 0 };
   const ws = new WebSocketImpl('wss://api.openai.com/v1/realtime?intent=transcription', {
     headers: { Authorization: `Bearer ${apiKey}` }
   });
+  let committedAt = null;
   let readyResolve, readyReject, finalResolve, finalReject;
   const ready = new Promise((resolve, reject) => { readyResolve = resolve; readyReject = reject; });
   const final = new Promise((resolve, reject) => { finalResolve = resolve; finalReject = reject; });
@@ -42,10 +43,13 @@ export async function transcribeLivePCM(chunks, { apiKey, WebSocketImpl = WebSoc
     let data;
     try { data = JSON.parse(event.data); } catch { return; }
     if (data.type === 'session.updated') readyResolve();
-    if (data.type === 'conversation.item.input_audio_transcription.delta' && metrics.stt_first_delta_ms === null)
-      metrics.stt_first_delta_ms = Date.now() - started;
+    if (data.type === 'conversation.item.input_audio_transcription.delta') {
+      if (metrics.stt_first_delta_ms === null) metrics.stt_first_delta_ms = Date.now() - started;
+      onTranscript(data.delta);
+    }
     if (data.type === 'conversation.item.input_audio_transcription.completed') {
       metrics.stt_final_ms = Date.now() - started;
+      metrics.stt_after_commit_ms = committedAt === null ? null : Date.now() - committedAt;
       finalResolve({ text: data.transcript?.trim() || '', metrics });
     }
     if (data.type === 'error') fail(new Error(`OpenAI realtime STT: ${data.error?.code || data.error?.type || 'erro'}`));
@@ -66,6 +70,9 @@ export async function transcribeLivePCM(chunks, { apiKey, WebSocketImpl = WebSoc
     }
     if (pending.length) throw new Error('PCM16 final incompleto');
     if (metrics.audio_bytes < 3200) throw new Error('Áudio insuficiente para transcrição');
+    committedAt = Date.now();
+    metrics.input_ended_at = committedAt;
+    onInputEnd();
     ws.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
     return await final;
   } finally {

@@ -12,7 +12,7 @@ it('resamples complete PCM16 frames from 16 to 24 kHz', () => {
 });
 
 it('sends audio before commit and consumes the final live transcript', async () => {
-  let audioBeforeCommit = 0;
+  let audioBeforeCommit = 0, ended = false;
   class FakeSocket extends EventTarget {
     constructor(url, options) {
       super();
@@ -29,6 +29,7 @@ it('sends audio before commit and consumes the final live transcript', async () 
       if (event.type === 'input_audio_buffer.append') audioBeforeCommit++;
       if (event.type === 'input_audio_buffer.commit') {
         assert.ok(audioBeforeCommit >= 2);
+        assert.equal(ended, true);
         queueMicrotask(() => this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({
           type: 'conversation.item.input_audio_transcription.completed', transcript: 'Olá, preciso de ajuda.'
         }) })));
@@ -40,7 +41,9 @@ it('sends audio before commit and consumes the final live transcript', async () 
     yield Buffer.alloc(1921);
     yield Buffer.alloc(1919);
   }
-  const result = await transcribeLivePCM(audio(), { apiKey: 'test', WebSocketImpl: FakeSocket });
+  const result = await transcribeLivePCM(audio(), { apiKey: 'test', WebSocketImpl: FakeSocket, onInputEnd: () => { ended = true; } });
   assert.equal(result.text, 'Olá, preciso de ajuda.');
   assert.equal(result.metrics.audio_bytes, 3840);
+  assert.ok(result.metrics.input_ended_at > 0);
+  assert.ok(result.metrics.stt_after_commit_ms <= result.metrics.stt_final_ms);
 });

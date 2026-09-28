@@ -1,3 +1,4 @@
+import { warmCallWaitClip, createCallWaitCue, cancelCallWaitCue } from './call-wait-cue.mjs';
 import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
@@ -547,6 +548,7 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   call.callerConnected = true;
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   void loadCallerContext(call, profile.character_id);
+  if (!process.env.NODE_TEST_CONTEXT) void warmCallWaitClip(call.activeVoice || profile.voice_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
   const greeting = await generateNaturalOpening(profile, call_id);
@@ -590,6 +592,7 @@ export async function handleCallEndedWebhook(payload = {}) {
   endedVoiceCalls.set(String(call_id).toUpperCase(), Date.now());
   if (endedVoiceCalls.size > 1000) endedVoiceCalls.delete(endedVoiceCalls.keys().next().value);
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
+  cancelCallWaitCue(call_id);
   activeVoiceTurns.get(call_id)?.abort(new Error('Call ended'));
   activeVoiceTurns.delete(call_id);
   latestSpeechEpochs.delete(call_id);
@@ -649,6 +652,7 @@ const latestSpeechEpochs = new Map();
 
 export async function processUserSpeech(params) {
   const { callId, speechEpoch } = params;
+  if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (!callId) throw new Error('callId é obrigatório');
   if (Number.isSafeInteger(speechEpoch)) {
     if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
@@ -669,7 +673,7 @@ export async function processUserSpeech(params) {
   }
 }
 
-async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
+async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, waitCue, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
@@ -694,7 +698,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   // 1. Transcreve fala do cliente via OpenAI STT
   const sttStart = Date.now();
   const userText = cleanSpeechTranscript(typeof liveText === 'string' ? liveText : await transcribeAudio(audioBuffer, 'audio/wav', { signal }));
-  const sttMs = typeof liveText === 'string' ? (sttMetrics?.stt_final_ms ?? 0) : Date.now() - sttStart;
+  const sttMs = typeof liveText === 'string' ? (sttMetrics?.stt_after_commit_ms ?? 0) : Date.now() - sttStart;
   signal.throwIfAborted();
   if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
 
@@ -715,7 +719,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
     });
     // Preserve the customer's words before generation or playback can be interrupted.
     const heardProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
-    await persistVoiceUtterance(call, heardProfile, userText);
+    void persistVoiceUtterance(call, heardProfile, userText);
     if (activeVoiceTurns.get(callId)?.signal === signal) activeVoiceTurns.get(callId).userText = userText;
 
     if (process.env.CALL_VOICE_STREAMING_ENABLED === 'true' &&
@@ -723,7 +727,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       const apiKey = await resolveAiApiKey(cfg);
       signal.throwIfAborted();
       if (apiKey && !apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
-        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal });
+        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, waitCue, turnStart, signal });
       }
     }
 
@@ -860,6 +864,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
 
 /** Retoma a resposta corrente com o perfil novo após encerrar o áudio antigo. */
 export async function restartActiveReplyForProfile(callId) {
+  cancelCallWaitCue(callId);
   const previous = activeVoiceTurns.get(callId);
   if (!previous?.userText || !Number.isSafeInteger(previous.speechEpoch)) return false;
   previous.abort(new Error('Active profile changed'));
@@ -882,20 +887,22 @@ export async function restartActiveReplyForProfile(callId) {
   return true;
 }
 
-async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal }) {
+async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, waitCue, turnStart, signal }) {
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const voice = call?.activeVoice || profile.voice_id;
   const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
     characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
   try {
     const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
-      systemInstruction: await buildCallInstruction(call, profile),
+      systemInstruction: buildCallInstruction(call, profile), waitCue,
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
     void persistVoiceTurn(call, profile, '', result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
-    const metrics = { ...result.metrics, transport: result.playback.metrics, streaming: true };
+    const metrics = { ...sttMetrics, ...result.metrics, ...waitCue?.metrics,
+      input_end_to_first_audio_ms: sttMetrics?.input_ended_at && result.metrics.first_audio_sent_at
+        ? result.metrics.first_audio_sent_at - sttMetrics.input_ended_at : null, transport: result.playback.metrics, streaming: true };
     recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
       llmFirstTokenMs: metrics.llm_first_token_ms, llmTotalMs: metrics.llm_total_ms,
       ttsMs: metrics.tts_first_audio_ms || 0, turnLatencyMs: Date.now() - turnStart,
@@ -909,4 +916,23 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
       error: interrupted ? 'stream_interrupted' : err.message });
     return { ok: interrupted, streaming: true, interrupted, call_id: callId, error: interrupted ? null : err.message };
   }
+}
+
+
+// Called as incoming PCM starts, so context and Google clips warm while the caller speaks.
+export function prepareLiveSpeech(callId, speechEpoch) {
+  const previous = activeVoiceTurns.get(callId);
+  if (previous && speechEpoch > previous.speechEpoch) previous.abort(new Error('New customer speech started'));
+  const call = getCallSession(callId);
+  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  const voice = call?.activeVoice || profile.voice_id;
+  if (call) void loadCallerContext(call, profile.character_id);
+  if (!process.env.NODE_TEST_CONTEXT) void warmCallWaitClip(voice);
+  return createCallWaitCue({ callId, speechEpoch, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN,
+    isCurrent: () => {
+      if (endedVoiceCalls.has(String(callId).toUpperCase())) return false;
+      const current = getCallSession(callId);
+      const selected = current?.activeProfileKey ? getProfileByKey(current.activeProfileKey) : getActiveGlobalProfile();
+      return (current?.activeVoice || selected.voice_id) === voice && selected.profile_key === profile.profile_key;
+    } });
 }

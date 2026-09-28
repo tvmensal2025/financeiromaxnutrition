@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server.mjs",
     "check": "node --check src/server.mjs src/whatsapp-ura.mjs src/routes/integrations.mjs src/integrations/google-chirp3-hd.mjs src/integrations/audio-router.mjs",
-    "test": "node --test test/artifact-storage.test.mjs test/brief-contract.test.mjs test/caller-context.test.mjs test/profile-settings.test.mjs test/call-streaming.test.mjs test/live-transcription.test.mjs test/workflow.test.mjs test/runtime-access.test.mjs test/runtime-http.test.mjs test/record-progress.test.mjs test/waiting-helena.test.mjs test/record-dispatch.test.mjs test/whatsapp-ura.test.mjs test/kokoro.test.mjs test/voice-agent.test.mjs test/google-chirp3-hd.test.mjs test/call-engine.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
+    "test": "node --test test/artifact-storage.test.mjs test/brief-contract.test.mjs test/caller-context.test.mjs test/profile-settings.test.mjs test/call-streaming.test.mjs test/call-wait-cue.test.mjs test/voice-latency.test.mjs test/live-transcription.test.mjs test/workflow.test.mjs test/runtime-access.test.mjs test/runtime-http.test.mjs test/record-progress.test.mjs test/waiting-helena.test.mjs test/record-dispatch.test.mjs test/whatsapp-ura.test.mjs test/kokoro.test.mjs test/voice-agent.test.mjs test/google-chirp3-hd.test.mjs test/call-engine.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs"
   },
   "dependencies": {
     "@google-cloud/text-to-speech": "^7.1.0",
