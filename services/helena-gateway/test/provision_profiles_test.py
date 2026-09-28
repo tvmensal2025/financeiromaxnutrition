@@ -37,6 +37,11 @@ class ProvisionTest(unittest.TestCase):
                 self.assertFalse(config['kanban']['dispatch_in_gateway'])
                 self.assertIn('EXISTING_SETTING=fixture-preserve', (folder / '.env').read_text())
                 self.assertEqual((folder / 'SOUL.md').read_text(encoding='utf-8').count(module.MARKER), 1)
+                included = config['mcp_servers']['helena_operacao']['tools']['include']
+                if profile in ('helena--grupo', 'marina--biz003'):
+                    self.assertIn('adopt_existing_task', included)
+                else:
+                    self.assertNotIn('adopt_existing_task', included)
             self.assertNotIn('hhs_', log.getvalue())
 
     def test_old_filter_upgrade_preserves_key_and_rejects_other_changes(self):
@@ -58,6 +63,23 @@ class ProvisionTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
+
+    def test_coordinator_filter_upgrade_keeps_other_profiles_intact(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            home = Path(directory)
+            self.make_profiles(home)
+            module.run(home, True)
+            manifest = (home / 'helena-runtime' / 'manifest-publico.json').read_text()
+            for profile in ('helena--grupo', 'marina--biz003'):
+                config_path = home / 'profiles' / profile / 'config.yaml'
+                config = module.yaml.safe_load(config_path.read_text())
+                config['mcp_servers']['helena_operacao']['tools']['include'] = module.TOOLS
+                config_path.write_text(module.yaml.safe_dump(config))
+            module.run(home, True)
+            self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
+            for profile in ('helena--grupo', 'marina--biz003'):
+                config = module.yaml.safe_load((home / 'profiles' / profile / 'config.yaml').read_text())
+                self.assertEqual(config['mcp_servers']['helena_operacao']['tools']['include'], module.COORDINATOR_TOOLS)
 
     def test_missing_profile_fails_before_any_change(self):
         with tempfile.TemporaryDirectory() as directory:
