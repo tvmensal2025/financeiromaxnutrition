@@ -4,6 +4,16 @@ import { normalizeCallerPhone, loadCallerContext, buildCallInstruction } from '.
 import { registerCallSession, getCallSession, updateProfile } from '../src/integrations/call-engine.mjs';
 import { handleCallConnectedWebhook } from '../src/integrations/voice-agent.mjs';
 import { cleanSpeechTranscript } from '../src/integrations/voice-delivery.mjs';
+import { webOpening, conversationModeInstruction } from '../src/integrations/conversation-mode.mjs';
+
+test('web opening respects explicit toggle and never repeats for empty turns', () => {
+  assert.equal(webOpening({opening_enabled:false,opening_message:'fixed'},true,''),'');
+  assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},true,''),'fixed');
+  assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},false,''),'');
+  assert.equal(webOpening({},false,'Olá'),null);
+  assert.notEqual(conversationModeInstruction('normal'),conversationModeInstruction('firm'));
+  assert.notEqual(conversationModeInstruction('firm'),conversationModeInstruction('intense'));
+});
 
 test('sound-only annotations do not become conversational turns', () => {
   assert.equal(cleanSpeechTranscript('[som de fungada] [silêncio]'), '');
