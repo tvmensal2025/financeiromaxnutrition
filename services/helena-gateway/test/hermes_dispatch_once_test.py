@@ -1,6 +1,7 @@
 """No network or model invocation: contract tests for the opt-in dispatcher."""
 
 import importlib.util
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -156,6 +157,45 @@ class DispatchTests(unittest.TestCase):
 
         with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
             self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180), 0)
+
+    def test_lost_mutation_responses_do_not_retry_or_start_model(self):
+        original = self.request
+        for operation, phase in (("claim_job", "CLAIM_RESPONSE_UNKNOWN"), ("start_job", "START_RESPONSE_UNKNOWN")):
+            with self.subTest(operation=operation):
+                self.job_status = "READY"
+                self.calls.clear()
+                def interrupted(gateway, token, name, payload):
+                    response = original(gateway, token, name, payload)
+                    if name == operation:
+                        raise OSError("secret transport detail")
+                    return response
+                with patch.object(self, "request", side_effect=interrupted), patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="hermes"):
+                    result = self.dispatch(execute=True)
+                self.assertEqual(result["phase"], phase)
+                self.assertFalse(result["automatic_retry"])
+                self.assertEqual(self.model_calls, [])
+                self.assertEqual(sum(call[0] == operation for call in self.calls), 1)
+                self.assertNotIn("secret", json.dumps(result))
+
+    def test_lost_delivery_read_preserves_job_without_second_model_call(self):
+        original = self.request
+        def interrupted(gateway, token, name, payload):
+            if name == "get_job" and self.model_calls:
+                raise OSError("offline")
+            return original(gateway, token, name, payload)
+        with patch.object(self, "request", side_effect=interrupted), patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="hermes"):
+            result = self.dispatch(execute=True)
+        self.assertEqual(result["phase"], "VERIFY_DELIVERY")
+        self.assertEqual(result["job_id"], JOB_ID)
+        self.assertEqual(len(self.model_calls), 1)
+        self.assertFalse(any(call[0] == "fail_job" for call in self.calls))
+
+    def test_receipt_records_seconds_and_reconciliation(self):
+        dispatcher.save_report(self.root, dispatcher.reconcile(JOB_ID, "VERIFY_DELIVERY"))
+        report = json.loads((self.root / "dispatcher-last-result.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["job_id"], JOB_ID)
+        self.assertRegex(report["observed_at"], r"T\d{2}:\d{2}:\d{2}\+00:00$")
+        self.assertNotIn("hhs_", json.dumps(report))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ script later, after the business and model-usage policy has been approved.
 """
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,32 @@ GATEWAY = "https://helena-automation-helena-gateway.d9v63q.easypanel.host"
 TOKEN_NAME = "HELENA_GATEWAY_PROFILE_TOKEN"
 PROFILE_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,79}\Z")
 JOB_PATTERN = re.compile(r"JOB-HR-[a-f0-9]{32}\Z")
+TRANSPORT_ERRORS = (OSError, ValueError, RuntimeError)
+
+
+def reconcile(job_id: str, phase: str) -> dict:
+    # Never echo transport exceptions: they may contain credentials or payloads.
+    return {"status": "RECONCILE", "job_id": job_id, "phase": phase,
+            "reconciliation_required": True, "automatic_retry": False}
+
+
+def save_report(directory: Path, result: dict) -> None:
+    """Preserve a credential-free receipt, including uncertain outcomes."""
+    directory.mkdir(parents=True, exist_ok=True)
+    report = {**result, "observed_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory,
+                                         prefix="dispatch-", suffix=".tmp", delete=False) as handle:
+            path = Path(handle.name)
+            os.chmod(path, 0o600)
+            json.dump(report, handle, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(path, directory / "dispatcher-last-result.json")
+    finally:
+        if path is not None:
+            path.unlink(missing_ok=True)
 
 
 def token_for(root: Path, profile: str) -> str:
@@ -127,28 +154,42 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     resolved_binary = shutil.which(binary)
     if not resolved_binary:
         raise RuntimeError("CLI Hermes indisponivel; job permanece READY")
-    claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
+    try:
+        claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
+    except TRANSPORT_ERRORS:
+        return reconcile(job_id, "CLAIM_RESPONSE_UNKNOWN")
     if claimed.get("claimed") is not True:
         raise RuntimeError("Claim nao confirmado; nenhuma chamada ao modelo")
-    started = request(gateway, profile_token, "start_job", {"job_id": job_id, "agent_id": agent_id})
+    try:
+        started = request(gateway, profile_token, "start_job", {"job_id": job_id, "agent_id": agent_id})
+    except TRANSPORT_ERRORS:
+        return reconcile(job_id, "START_RESPONSE_UNKNOWN")
     if started.get("running") is not True:
-        return {"status": "CLAIMED_START_FAILED_RECONCILE", "job_id": job_id}
+        return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
         exit_code = run_agent(resolved_binary, profile, job_id, 180)
     except OSError:
         exit_code = 125
-    result = request(gateway, profile_token, "get_job", {"job_id": job_id})
+    try:
+        result = request(gateway, profile_token, "get_job", {"job_id": job_id})
+    except TRANSPORT_ERRORS:
+        return {**reconcile(job_id, "VERIFY_DELIVERY"), "exit_code": exit_code}
     final_status = (result.get("job") or {}).get("status")
     if final_status in {"WAITING_HELENA", "COMPLETED", "FAILED"}:
         return {"status": final_status, "job_id": job_id, "exit_code": exit_code}
     if final_status in {"RUNNING", "CLAIMED"}:
-        failed = request(gateway, profile_token, "fail_job", {
-            "job_id": job_id, "agent_id": agent_id,
-            "error_code": "HERMES_NO_DELIVERY" if exit_code == 0 else "HERMES_PROCESS_FAILED",
-            "error_message": "Execucao pontual terminou sem entrega confirmada; verificar eventos e evidencias antes de qualquer repeticao.",
-        })
-        return {"status": "FAILED" if failed.get("failed") else "RECONCILE", "job_id": job_id, "exit_code": exit_code}
-    return {"status": "RECONCILE", "job_id": job_id, "observed_status": final_status}
+        try:
+            failed = request(gateway, profile_token, "fail_job", {
+                "job_id": job_id, "agent_id": agent_id,
+                "error_code": "HERMES_NO_DELIVERY" if exit_code == 0 else "HERMES_PROCESS_FAILED",
+                "error_message": "Execucao pontual terminou sem entrega confirmada; verificar eventos e evidencias antes de qualquer repeticao.",
+            })
+        except TRANSPORT_ERRORS:
+            return {**reconcile(job_id, "FAIL_RESPONSE_UNKNOWN"), "exit_code": exit_code}
+        if failed.get("failed") is not True:
+            return {**reconcile(job_id, "FAIL_NOT_CONFIRMED"), "exit_code": exit_code}
+        return {"status": "FAILED", "job_id": job_id, "exit_code": exit_code}
+    return {**reconcile(job_id, "UNEXPECTED_FINAL_STATUS"), "observed_status": final_status}
 
 
 def main() -> int:
@@ -171,6 +212,7 @@ def main() -> int:
             return 0
         try:
             result = dispatch_once(args.profiles_root, GATEWAY, args.job_id, args.execute)
+            save_report(lock_path.parent, result)
             print(json.dumps(result, ensure_ascii=False))
             return 0 if result["status"] in {"DRY_RUN_QUEUE_ONLY", "NO_APPROVED_READY_JOB", "DRY_RUN", "WAITING_HELENA", "COMPLETED"} else 1
         except (ValueError, RuntimeError, OSError) as error:

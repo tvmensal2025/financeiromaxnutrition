@@ -41,6 +41,8 @@ O código ainda precisa de validação operacional **no host** antes de um job r
 
 ## Validação
 
+Atualização de 28/09/2026: o acionador agora retorna reconciliação com ID do job e etapa quando perde a resposta de aceite, início, consulta da entrega ou registro de falha. Não repete a chamada nem inicia outro modelo. Grava recibo local privado `dispatcher-last-result.json` com data, hora e segundos UTC, sem credenciais. Esse recibo não substitui os eventos no Supabase e não cobre encerramento forçado do processo antes da gravação. Os 16 testes Python passaram (13 do acionador e 3 do provisionamento). A nova revisão ainda NÃO foi instalada: o acesso ao Hermes Hostinger retornou `ERR_HTTP2_PROTOCOL_ERROR` durante a tentativa. A versão instalada anteriormente e as filas foram preservadas.
+
 - Testes Node/HTTP, autenticação e integrações existentes.
 - `test/workflow-rollback.sql`: fluxo inteiro no banco, com rollback; inclui recusa de versão antiga, empresa errada, autoaprovação, duplicidade, WIP excedido e terceira tentativa.
 - `test/provision_profiles_test.py`: simulação, repetição, preservação do modelo/configurações, ausência de segredo em logs e falha antes de escrever se falta um perfil.
