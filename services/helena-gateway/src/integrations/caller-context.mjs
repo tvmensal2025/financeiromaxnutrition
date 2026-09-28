@@ -10,7 +10,7 @@ export function normalizeCallerPhone(value) {
 export async function loadCallerContext(call, character, { fetchImpl = fetch } = {}) {
   if (!call) return { status: 'unidentified' };
   const phone = normalizeCallerPhone(call.remoteNumber);
-  if (!phone) return { status: 'unidentified' };
+  if (!phone && !call.accessToken) return { status: 'unidentified' };
   const url = process.env.MAX_VOICE_CONTEXT_URL;
   const token = process.env.MAX_VOICE_CONTEXT_TOKEN;
   if (!url || !token) return { status: 'unavailable' };
@@ -22,7 +22,7 @@ export async function loadCallerContext(call, character, { fetchImpl = fetch } =
     try {
       const response = await fetchImpl(url, { method: 'POST', signal: AbortSignal.timeout(4500),
         headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': token },
-        body: JSON.stringify({ phone, character }) });
+        body: JSON.stringify({ phone, character, access_token: call.accessToken }) });
       if (!response.ok) throw new Error('Context unavailable');
       const data = await response.json();
       return { status: data.status, context: data.context, fetched_at: data.fetched_at };
@@ -52,12 +52,12 @@ Não repita a mensagem de abertura. A opção de abertura apenas controla a prim
 
 export async function persistVoiceTurn(call, profile, userText, replyText) {
   const phone = normalizeCallerPhone(call?.remoteNumber);
-  if (!phone || !process.env.MAX_VOICE_CONTEXT_TOKEN || !process.env.MAX_VOICE_CONTEXT_URL) return;
+  if ((!phone && !call?.accessToken) || !process.env.MAX_VOICE_CONTEXT_TOKEN || !process.env.MAX_VOICE_CONTEXT_URL) return;
   try {
     const response = await fetch(process.env.MAX_VOICE_CONTEXT_URL, {
       method: 'POST', signal: AbortSignal.timeout(5000),
       headers: { 'Content-Type': 'application/json', 'X-Voice-Gateway-Key': process.env.MAX_VOICE_CONTEXT_TOKEN },
-      body: JSON.stringify({ action: 'append_turn', phone, character: profile.character_id,
+      body: JSON.stringify({ action: 'append_turn', phone, access_token: call.accessToken, character: profile.character_id,
         call_id: call.callId, turn_id: crypto.randomUUID(), user_text: userText, assistant_text: replyText }),
     });
     if (!response.ok) throw new Error('Persistence unavailable');

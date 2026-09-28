@@ -60,3 +60,18 @@ test('outbound resets a previously selected Intense profile to Normal', async ()
   await handleCallConnectedWebhook({call_id:'outbound-normal',direction:'OUTBOUND'}, {speak:async () => ({ok:true})});
   assert.equal(getCallSession('outbound-normal').activeProfileKey,'vital_normal');
 });
+
+test('web context forwards authenticated session without trusting a supplied user id', async () => {
+  const oldUrl=process.env.MAX_VOICE_CONTEXT_URL, oldToken=process.env.MAX_VOICE_CONTEXT_TOKEN;
+  process.env.MAX_VOICE_CONTEXT_URL='https://example.test/context'; process.env.MAX_VOICE_CONTEXT_TOKEN='gateway-secret';
+  try {
+    const result=await loadCallerContext({accessToken:'session-token'},'vital',{fetchImpl:async (_url,opts)=>{
+      const body=JSON.parse(opts.body); assert.equal(body.access_token,'session-token'); assert.equal(body.user_id,undefined);
+      return {ok:true,json:async()=>({status:'matched',context:{profile:{firstName:'Rafael'}}})};
+    }});
+    assert.equal(result.context.profile.firstName,'Rafael');
+  } finally {
+    if(oldUrl===undefined) delete process.env.MAX_VOICE_CONTEXT_URL; else process.env.MAX_VOICE_CONTEXT_URL=oldUrl;
+    if(oldToken===undefined) delete process.env.MAX_VOICE_CONTEXT_TOKEN; else process.env.MAX_VOICE_CONTEXT_TOKEN=oldToken;
+  }
+});
