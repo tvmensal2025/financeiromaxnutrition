@@ -86,7 +86,7 @@ def call_tool(gateway: str, profile_token: str, name: str, payload: dict) -> dic
     return envelope["result"]
 
 
-def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> int:
+def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> tuple[int, str | None]:
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
@@ -101,18 +101,37 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> int:
         os.chmod(prompt_path, 0o600)
         handle.write(prompt)
     try:
-        process = subprocess.Popen(
-            [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-             "--toolsets", "mcp-helena_operacao", "--max-turns", "12"],
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        try:
-            return process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-            return 124
+        # Keep raw CLI output private and ephemeral. It may contain model text or credentials.
+        with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
+            process = subprocess.Popen(
+                [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
+                 "--toolsets", "mcp-helena_operacao", "--max-turns", "12"],
+                stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
+                start_new_session=True,
+            )
+            try:
+                exit_code = process.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                return 124, "TIMEOUT"
+            if exit_code == 0:
+                return 0, None
+            sample = []
+            for stream in (errors, output):
+                stream.seek(0, os.SEEK_END)
+                stream.seek(max(0, stream.tell() - 65536))
+                sample.append(stream.read(65536).decode("utf-8", errors="replace").lower())
+            diagnostic = " ".join(sample)
+            if any(term in diagnostic for term in ("429", "rate limit", "usage limit", "quota exceeded")):
+                category = "RATE_LIMIT"
+            elif any(term in diagnostic for term in ("401", "unauthorized", "authentication failed")):
+                category = "AUTHENTICATION"
+            elif any(term in diagnostic for term in ("unrecognized arguments", "unknown toolset", "invalid choice")):
+                category = "CLI_CONFIGURATION"
+            else:
+                category = "UNKNOWN"
+            return exit_code, category
     finally:
         prompt_path.unlink(missing_ok=True)
 
@@ -167,28 +186,29 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if started.get("running") is not True:
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
-        exit_code = run_agent(resolved_binary, profile, job_id, 180)
+        outcome = run_agent(resolved_binary, profile, job_id, 180)
+        exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except OSError:
-        exit_code = 125
+        exit_code, diagnostic = 125, "PROCESS_START"
     try:
         result = request(gateway, profile_token, "get_job", {"job_id": job_id})
     except TRANSPORT_ERRORS:
-        return {**reconcile(job_id, "VERIFY_DELIVERY"), "exit_code": exit_code}
+        return {**reconcile(job_id, "VERIFY_DELIVERY"), "exit_code": exit_code, "diagnostic": diagnostic}
     final_status = (result.get("job") or {}).get("status")
     if final_status in {"WAITING_HELENA", "COMPLETED", "FAILED"}:
-        return {"status": final_status, "job_id": job_id, "exit_code": exit_code}
+        return {"status": final_status, "job_id": job_id, "exit_code": exit_code, "diagnostic": diagnostic}
     if final_status in {"RUNNING", "CLAIMED"}:
         try:
             failed = request(gateway, profile_token, "fail_job", {
                 "job_id": job_id, "agent_id": agent_id,
                 "error_code": "HERMES_NO_DELIVERY" if exit_code == 0 else "HERMES_PROCESS_FAILED",
-                "error_message": "Execucao pontual terminou sem entrega confirmada; verificar eventos e evidencias antes de qualquer repeticao.",
+                "error_message": "Execucao pontual terminou sem entrega confirmada. Diagnostico local: " + (diagnostic or "UNKNOWN") + ". Verificar eventos antes de qualquer repeticao.",
             })
         except TRANSPORT_ERRORS:
-            return {**reconcile(job_id, "FAIL_RESPONSE_UNKNOWN"), "exit_code": exit_code}
+            return {**reconcile(job_id, "FAIL_RESPONSE_UNKNOWN"), "exit_code": exit_code, "diagnostic": diagnostic}
         if failed.get("failed") is not True:
-            return {**reconcile(job_id, "FAIL_NOT_CONFIRMED"), "exit_code": exit_code}
-        return {"status": "FAILED", "job_id": job_id, "exit_code": exit_code}
+            return {**reconcile(job_id, "FAIL_NOT_CONFIRMED"), "exit_code": exit_code, "diagnostic": diagnostic}
+        return {"status": "FAILED", "job_id": job_id, "exit_code": exit_code, "diagnostic": diagnostic}
     return {**reconcile(job_id, "UNEXPECTED_FINAL_STATUS"), "observed_status": final_status}
 
 

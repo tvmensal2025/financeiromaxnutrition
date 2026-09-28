@@ -156,7 +156,29 @@ class DispatchTests(unittest.TestCase):
             return FinishedProcess()
 
         with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
-            self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180), 0)
+            self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180), (0, None))
+
+    def test_cli_error_is_classified_without_persisting_raw_output(self):
+        class FailedProcess:
+            def wait(self, timeout):
+                return 1
+
+        def spawn(args, **kwargs):
+            kwargs["stderr"].write(b"429 usage limit reached; token=hhs_SECRET_SHOULD_NOT_LEAK")
+            return FailedProcess()
+
+        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
+            outcome = dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180)
+        self.assertEqual(outcome, (1, "RATE_LIMIT"))
+        self.assertNotIn("SECRET", json.dumps(outcome))
+
+    def test_failed_model_call_records_only_safe_diagnostic(self):
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
+            result = self.dispatch(execute=True, run_agent=lambda *args: (1, "RATE_LIMIT"))
+        self.assertEqual(result["status"], "FAILED")
+        self.assertEqual(result["diagnostic"], "RATE_LIMIT")
+        self.assertEqual(self.calls[-1][1]["error_code"], "HERMES_PROCESS_FAILED")
+        self.assertIn("RATE_LIMIT", self.calls[-1][1]["error_message"])
 
     def test_lost_mutation_responses_do_not_retry_or_start_model(self):
         original = self.request
