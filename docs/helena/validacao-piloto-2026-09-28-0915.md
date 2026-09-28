@@ -1,5 +1,11 @@
 # Piloto Augusto — resultado e correção das fontes
 
+## Atualização confirmada — 28/09/2026 09:24:49 America/Sao_Paulo
+
+O bloqueio por decisão foi resolvido pela nova ferramenta resolve_job_block, publicada no Gateway (56a3d53) e no Supabase. A configuração de Helena e Marina foi atualizada com backup. A chamada real autenticada como Marina retornou sucesso e a consulta independente ao Supabase confirmou: mesmo job e mesma tarefa, DRAFT, attempt_count=1, task row_version=2655, exatamente um evento WORKFLOW_resolve_job_block, resolved_by=AGT-04. Nenhuma nova execução de IA foi iniciada.
+
+Testes transacionais com rollback confirmaram: executor não pode desbloquear; versão antiga é recusada; revisão de entrega não é desviada para desbloqueio; limite de tentativas é preservado; repetição idêntica não duplica evento; chave reutilizada com outro conteúdo é recusada. 138 testes e 22 verificações de integrações passaram; após adicionar o teste HTTP da nova ferramenta, os 15 testes HTTP passaram. A função do banco não é executável por anon/authenticated; somente service_role. O próximo passo agora é liberar e retomar o mesmo job para entregar a estratégia, seguido de revisão e confirmação na página. Os parágrafos abaixo preservam a observação anterior ao desbloqueio.
+
 Verificação: 28/09/2026, 09:15:18, America/Sao_Paulo (12:15:18 UTC). Este registro complementa o checkpoint operacional anterior; não altera seu retrato histórico nem substitui o checkpoint ativo do Supabase.
 
 ## Resultado confirmado

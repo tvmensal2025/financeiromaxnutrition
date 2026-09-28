@@ -86,7 +86,7 @@ def prepare(home):
         servers = config.setdefault('mcp_servers', {})
         if 'helena_operacao' in servers and servers['helena_operacao'] != server:
             # Accept only the known prior filters; never replace unrelated settings.
-            prior_filters = [TOOLS] if profile in ('helena--grupo', 'marina--biz003') else []
+            prior_filters = [TOOLS, TOOLS + ['adopt_existing_task']] if profile in ('helena--grupo', 'marina--biz003') else []
             if profile != 'laura--pessoal':
                 prior_filters.append(TOOLS[:-2])
             expected_previous = [{**server, 'tools': {**server['tools'], 'include': prior}} for prior in prior_filters]
