@@ -229,7 +229,7 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   const cfg = await getVoiceAgentConfig();
 
   // Resolve o perfil ativo da chamada em andamento (Hot-Swap) ou o perfil global
-  const call = callContext.callId ? getCallSession(callContext.callId) : null;
+  const call = callContext.webCall || (callContext.callId ? getCallSession(callContext.callId) : null);
   const profileKey = profileKeyOverride || call?.activeProfileKey || getActiveGlobalProfileKey();
   const profile = getProfileByKey(profileKey);
 
@@ -745,9 +745,9 @@ export async function speakInCall({ callId, text, voice = null }) {
  */
 const endedVoiceCalls = new Map();
 
-export async function generateNaturalOpening(profile, callId) {
+export async function generateNaturalOpening(profile, callId, webCall = null) {
   const result = await generateAgentSpeechTextDetailed({ prompt: NATURAL_OPENING_PROMPT,
-    history: [], profileKeyOverride: profile.profile_key, callContext: { callId } });
+    history: [], profileKeyOverride: profile.profile_key, callContext: { callId, webCall } });
   return result.model !== 'heuristic-local' && result.text?.trim()
     ? result.text.trim() : `Olá, aqui é ${profile.character_name}. Como você está hoje?`;
 }

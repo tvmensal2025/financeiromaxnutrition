@@ -1,3 +1,4 @@
+import { loadCallerContext, persistVoiceTurn } from '../integrations/caller-context.mjs';
 /**
  * Routes / Integrations
  * Endpoints REST administrativos e webhooks para Central de Canais, Voz e Roteamento
@@ -1650,7 +1651,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    * Conexão DIRETA: processa o texto com DeepSeek (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
    * POST /api/integrations/call-engine/turn
    */
-  router.post('/api/integrations/call-engine/turn', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/call-engine/turn', async (req, res) => {
     try {
       const { character_id, mode, user_text, history = [], is_start = false, call_id } = req.body || {};
       const callId = call_id || `WEB-${Date.now()}`;
@@ -1662,18 +1663,23 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       // One saved character voice across all conversation modes.
       const characterVoice = getProfile(char, 'normal').voice_id;
 
+      const accessToken = String(req.headers.authorization || '').replace(/^Bearer /i, '');
+      if (!accessToken) return res.status(401).json({error:'Entre na sua conta para iniciar a chamada.'});
+      const webCall = { callId, accessToken };
+      const context = await loadCallerContext(webCall, profile.character_id);
+      if (context.status !== 'matched') return res.status(503).json({error:'Não foi possível carregar seu cadastro. Tente novamente.'});
       let replyText = '';
       const opening = webOpening(profile, is_start, user_text);
       if (opening !== null) {
         replyText = opening;
       } else if (is_start) {
-        replyText = await generateNaturalOpening(profile, callId);
+        replyText = await generateNaturalOpening(profile, callId, webCall);
       } else {
         const generated = await generateAgentSpeechTextDetailed({
           prompt: String(user_text).trim(),
           history,
           profileKeyOverride: profile.profile_key,
-          callContext: { callId }
+          callContext: { callId, webCall }
         });
         replyText = generated.text;
       }
