@@ -68,10 +68,11 @@ class DispatchTests(unittest.TestCase):
         self.job_status = "WAITING_HELENA"
         return 0
 
-    def dispatch(self, job_id=JOB_ID, execute=False, run_agent=None):
+    def dispatch(self, job_id=JOB_ID, execute=False, run_agent=None, preflight=None):
         return dispatcher.dispatch_once(
             self.root, dispatcher.GATEWAY, job_id, execute,
             run_agent=run_agent or self.run_agent, request=self.request,
+            preflight=preflight or (lambda *args: {"status": "READY"}),
         )
 
     def test_queue_check_without_job_cannot_start_model(self):
@@ -121,6 +122,26 @@ class DispatchTests(unittest.TestCase):
             result = self.dispatch(execute=True)
         self.assertEqual(result["status"], "CLAIMED_START_FAILED_RECONCILE")
         self.assertEqual(self.model_calls, [])
+
+    def test_exhausted_provider_blocks_claim_and_model(self):
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
+            result = self.dispatch(execute=True, preflight=lambda *args: {
+                "status": "PROVIDER_LIMIT", "reset_at": "2026-09-28T08:48:49Z"})
+        self.assertEqual(result["status"], "PROVIDER_LIMIT")
+        self.assertFalse(result["model_started"])
+        self.assertEqual(self.model_calls, [])
+        self.assertFalse(any(call[0] == "claim_job" for call in self.calls))
+
+    def test_usage_preflight_fails_closed_on_unknown_and_reports_limit(self):
+        from unittest.mock import Mock
+        def response(payload, exit_code=0):
+            return Mock(returncode=exit_code, stdout=json.dumps(payload).encode())
+        runner = lambda *args, **kwargs: response({"provider": "openai-codex", "windows": [
+            {"label": "Session", "used_percent": 100, "resets_at": "2026-09-28T08:48:49Z"}]})
+        self.assertEqual(dispatcher.usage_preflight("hermes", PROFILE, runner)["status"], "PROVIDER_LIMIT")
+        runner = lambda *args, **kwargs: response({"provider": "openai-codex", "windows": [
+            {"label": "Session", "used_percent": None}]})
+        self.assertEqual(dispatcher.usage_preflight("hermes", PROFILE, runner)["status"], "USAGE_UNAVAILABLE")
 
     def test_no_delivery_records_failure_instead_of_false_success(self):
         with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):

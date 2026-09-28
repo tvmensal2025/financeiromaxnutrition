@@ -86,6 +86,29 @@ def call_tool(gateway: str, profile_token: str, name: str, payload: dict) -> dic
     return envelope["result"]
 
 
+def usage_preflight(binary: str, profile: str, runner=subprocess.run) -> dict:
+    """Read the provider quota without a model turn; fail closed if it is unclear."""
+    try:
+        response = runner(
+            [binary, "-p", profile, "usage", "--provider", "openai-codex", "--json"],
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=20, check=False,
+        )
+        if response.returncode != 0 or len(response.stdout) > 65536:
+            return {"status": "USAGE_UNAVAILABLE"}
+        report = json.loads(response.stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return {"status": "USAGE_UNAVAILABLE"}
+    windows = report.get("windows") if isinstance(report, dict) and report.get("provider") == "openai-codex" else None
+    if not isinstance(windows, list) or not windows:
+        return {"status": "USAGE_UNAVAILABLE"}
+    for window in windows:
+        if not isinstance(window, dict) or not isinstance(window.get("used_percent"), (int, float)):
+            return {"status": "USAGE_UNAVAILABLE"}
+        if window["used_percent"] >= 95:
+            return {"status": "PROVIDER_LIMIT", "reset_at": window.get("resets_at")}
+    return {"status": "READY"}
+
+
 def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> tuple[int, str | None]:
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
@@ -136,7 +159,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int) -> tuple[i
         prompt_path.unlink(missing_ok=True)
 
 
-def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool) -> dict:
+def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None) -> dict:
     if gateway.rstrip("/") != GATEWAY:
         raise ValueError("Gateway fora do endpoint aprovado")
     helena_token = token_for(root, "helena--grupo")
@@ -173,6 +196,10 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     resolved_binary = shutil.which(binary)
     if not resolved_binary:
         raise RuntimeError("CLI Hermes indisponivel; job permanece READY")
+    usage = (preflight or usage_preflight)(resolved_binary, profile)
+    if usage.get("status") != "READY":
+        return {"status": usage.get("status", "USAGE_UNAVAILABLE"), "job_id": job_id,
+                "reset_at": usage.get("reset_at"), "model_started": False}
     try:
         claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
     except TRANSPORT_ERRORS:
