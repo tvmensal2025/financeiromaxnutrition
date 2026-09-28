@@ -38,6 +38,17 @@ export function workflowTools(rpc, readJob) {
         if (!readJob) throw new Error('Leitura do briefing indisponível; liberação recusada');
         validateProfessionalBrief(await readJob({ job_id: args.job_id }));
       }
+      if (action === 'review_delivery' && args.decision === 'APPROVE') {
+        if (!readJob) throw new Error('Leitura das evidencias indisponivel; aprovacao recusada');
+        const context = await readJob({ job_id: args.job_id });
+        const refs = context?.job?.evidence_refs;
+        const ownRecords = context?.evidence_records?.filter(record => record.related_object_id === args.job_id);
+        if (context?.job?.status !== 'WAITING_HELENA' || !Array.isArray(refs) || refs.length === 0
+          || !Array.isArray(ownRecords) || ownRecords.length === 0
+          || !Array.isArray(context.evidence_missing) || context.evidence_missing.length > 0) {
+          throw new Error('Aprovacao exige entrega em revisao e evidencia da propria tarefa localizada no Supabase');
+        }
+      }
       const result = action === 'adopt_existing_task'
         ? await rpc('gateway_adopt_existing_task', {
           p_profile_slug: identity.profileSlug,

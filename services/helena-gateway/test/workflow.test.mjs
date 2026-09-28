@@ -35,3 +35,25 @@ test('vinculo de tarefa existente exige identidade do perfil e versao e usa RPC 
     p_expected_task_version: 2389, p_instruction: null
   }]]);
 });
+
+test('aprovacao exige evidencia da propria tarefa recuperada do Supabase', async () => {
+  const calls = [];
+  const identity = { type: 'hermes_profile', profileSlug: 'clara--biz003', bindingVerified: true };
+  const input = { job_id: 'JOB-1', expected_task_version: 2, idempotency_key: 'review-1', decision: 'APPROVE', reason: 'Conferi fontes e escopo.' };
+  const job = { status: 'WAITING_HELENA', evidence_refs: ['MEM-HR-1'] };
+  let context = { job, evidence_records: [], evidence_missing: ['MEM-HR-1'] };
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true }; }, async () => context);
+  await assert.rejects(tools.review_delivery.handler(input, { identity }), /evidencia da propria tarefa/);
+  assert.equal(calls.length, 0);
+  context = { job, evidence_records: [{ id: 'MEM-HR-1', related_object_id: 'OUTRO-JOB' }], evidence_missing: [] };
+  await assert.rejects(tools.review_delivery.handler(input, { identity }), /evidencia da propria tarefa/);
+  assert.equal(calls.length, 0);
+  context = { job, evidence_records: [{ id: 'MEM-HR-1', related_object_id: 'JOB-1' }], evidence_missing: [] };
+  await tools.review_delivery.handler(input, { identity });
+  assert.equal(calls.length, 1);
+  context = { job: { ...job, status: 'RUNNING' }, evidence_records: [{ id: 'MEM-HR-1', related_object_id: 'JOB-1' }], evidence_missing: [] };
+  await assert.rejects(tools.review_delivery.handler(input, { identity }), /entrega em revisao/);
+  const requestChanges = { ...input, decision: 'REQUEST_CHANGES', reason: 'Faltou fonte.' };
+  await tools.review_delivery.handler(requestChanges, { identity });
+  assert.equal(calls.length, 2);
+});
