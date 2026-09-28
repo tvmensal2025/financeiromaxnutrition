@@ -59,6 +59,20 @@ function resultOf(response, transport) {
   return transport === 'mcp' ? JSON.parse(response.result.content[0].text) : response.result;
 }
 
+test('resolve_job_block impede executor de desbloquear e aceita coordenacao autenticada', async () => {
+  const args = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'resolve-test', reason: 'Fonte recuperada' };
+  const deniedCalls = mock();
+  const denied = await invoke('mcp', 'resolve_job_block', args);
+  assert.match(JSON.stringify(denied), /Somente Helena ou Marina/);
+  assert.equal(deniedCalls.filter(c => c.method !== 'GET').length, 0);
+  const calls = mock({ runtime: { ...binding, agent_id: 'AGT-04' }, rpcResult: { success: true, status: 'DRAFT', started: false } });
+  const accepted = resultOf(await invoke('mcp', 'resolve_job_block', args), 'mcp');
+  assert.equal(accepted.status, 'DRAFT');
+  assert.equal(accepted.started, false);
+  const call = calls.find(c => c.url.pathname.endsWith('/gateway_resolve_job_block'));
+  assert.equal(JSON.parse(call.body).p_profile_slug, binding.profile_slug);
+});
+
 test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria', async () => {
   const id = 'MEM-HR-' + 'd'.repeat(32);
   const other = 'MEM-HR-' + 'e'.repeat(32);

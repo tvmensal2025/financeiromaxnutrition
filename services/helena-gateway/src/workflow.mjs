@@ -7,6 +7,7 @@ const job = { job_id: text(120), idempotency_key: key };
 const version = { expected_task_version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) };
 const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000).optional() };
 const contracts = {
+  resolve_job_block: ['resolve_job_block', { ...job, ...version, reason: text() }, 'Helena ou Marina registra a solucao de um bloqueio por decisao e devolve o mesmo job a DRAFT. Nao aprova entrega, nao inicia modelo e preserva limite de tentativas.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
   adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(8000).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
@@ -49,7 +50,9 @@ export function workflowTools(rpc, readJob) {
           throw new Error('Aprovacao exige entrega em revisao e evidencia da propria tarefa localizada no Supabase');
         }
       }
-      const result = action === 'adopt_existing_task'
+      const result = action === 'resolve_job_block'
+        ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })
+        : action === 'adopt_existing_task'
         ? await rpc('gateway_adopt_existing_task', {
           p_profile_slug: identity.profileSlug,
           p_task_id: args.task_id,

@@ -24,7 +24,7 @@ KEY = 'HELENA_GATEWAY_PROFILE_TOKEN'
 TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'claim_job',
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
-COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task']
+COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block']
 MARKER = '## Protocolo Hermes-Supabase v2'
 RULES = '''
 ## Protocolo Hermes-Supabase v2

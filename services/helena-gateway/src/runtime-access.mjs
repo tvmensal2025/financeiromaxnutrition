@@ -55,7 +55,7 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
   if (WORKFLOW_TOOLS.has(name)) {
     // The RPC repeats scope/role checks and locks the authoritative rows.
     // profile_slug comes only from the authenticated token, never the payload.
-    if ((name === 'create_task_job' || name === 'release_job') && !manager) fail('Somente Helena ou Marina organiza a fila');
+    if (['create_task_job', 'release_job', 'resolve_job_block'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
     if (args.business_id && !group && args.business_id !== binding.business_id) fail('Empresa fora do escopo');
   } else if (JOB_TOOLS.has(name)) {
     if (name === 'complete_job') fail('Use submit_delivery para revisao; conclusao direta nao liberada para Hermes');
