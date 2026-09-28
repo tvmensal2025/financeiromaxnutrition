@@ -272,6 +272,20 @@ class DispatchTests(unittest.TestCase):
                 self.assertEqual(sum(call[0] == operation for call in self.calls), 1)
                 self.assertNotIn("secret", json.dumps(result))
 
+    def test_gateway_claim_refusal_is_not_reported_as_lost_response(self):
+        original = self.request
+        def refused(gateway, token, name, payload):
+            if name == "claim_job":
+                raise dispatcher.GatewayRefusal("Gateway recusou claim_job (HTTP 400)")
+            return original(gateway, token, name, payload)
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="hermes"), patch.object(self, "request", side_effect=refused):
+            result = self.dispatch(execute=True)
+        self.assertEqual(result["status"], "GATEWAY_REJECTED")
+        self.assertEqual(result["phase"], "CLAIM")
+        self.assertFalse(result["automatic_retry"])
+        self.assertFalse(result["model_started"])
+        self.assertEqual(self.model_calls, [])
+
     def test_lost_delivery_read_preserves_job_without_second_model_call(self):
         original = self.request
         def interrupted(gateway, token, name, payload):

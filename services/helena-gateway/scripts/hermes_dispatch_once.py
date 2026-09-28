@@ -28,7 +28,11 @@ GATEWAY = "https://helena-automation-helena-gateway.d9v63q.easypanel.host"
 TOKEN_NAME = "HELENA_GATEWAY_PROFILE_TOKEN"
 PROFILE_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,79}\Z")
 JOB_PATTERN = re.compile(r"JOB-HR-[a-f0-9]{32}\Z")
-TRANSPORT_ERRORS = (OSError, ValueError, RuntimeError)
+TRANSPORT_ERRORS = (OSError, ValueError)
+
+
+class GatewayRefusal(RuntimeError):
+    """A definitive Gateway rejection, not a lost network response."""
 BRIEF_SECTIONS = (
     "Contexto e fontes", "Objetivo e impacto", "Escopo e limites",
     "Plano de trabalho", "Entregáveis", "Critérios de pronto",
@@ -115,9 +119,9 @@ def call_tool(gateway: str, profile_token: str, name: str, payload: dict) -> dic
         with urllib.request.urlopen(request, timeout=20) as response:
             envelope = json.load(response)
     except urllib.error.HTTPError as error:
-        raise RuntimeError("Gateway recusou " + name + " (HTTP " + str(error.code) + ")") from None
+        raise GatewayRefusal("Gateway recusou " + name + " (HTTP " + str(error.code) + ")") from None
     if not isinstance(envelope, dict) or envelope.get("ok") is not True or not isinstance(envelope.get("result"), dict):
-        raise RuntimeError("Gateway nao confirmou " + name)
+        raise GatewayRefusal("Gateway respondeu sem confirmacao para " + name)
     return envelope["result"]
 
 
@@ -283,12 +287,16 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {"status": "MCP_UNAVAILABLE", "job_id": job_id, "model_started": False}
     try:
         claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
+    except GatewayRefusal as error:
+        return {"status": "GATEWAY_REJECTED", "job_id": job_id, "phase": "CLAIM", "reason": str(error), "automatic_retry": False, "model_started": False}
     except TRANSPORT_ERRORS:
         return reconcile(job_id, "CLAIM_RESPONSE_UNKNOWN")
     if claimed.get("claimed") is not True:
         raise RuntimeError("Claim nao confirmado; nenhuma chamada ao modelo")
     try:
         started = request(gateway, profile_token, "start_job", {"job_id": job_id, "agent_id": agent_id})
+    except GatewayRefusal as error:
+        return {"status": "GATEWAY_REJECTED", "job_id": job_id, "phase": "START", "reason": str(error), "automatic_retry": False, "model_started": False}
     except TRANSPORT_ERRORS:
         return reconcile(job_id, "START_RESPONSE_UNKNOWN")
     if started.get("running") is not True:
