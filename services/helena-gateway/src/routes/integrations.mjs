@@ -4,6 +4,7 @@
  */
 
 import crypto from 'node:crypto';
+import { webOpening } from '../integrations/conversation-mode.mjs';
 import { reconcilePhoneCalls } from '../integrations/call-reconciliation.mjs';
 import express from 'express';
 import { getLayaHealth, classifyMessage, scoreMessage, routeMessage } from '../integrations/laya.mjs';
@@ -1657,10 +1658,13 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       const char = (character_id || 'rafael').toLowerCase();
       const m = (mode || 'normal').toLowerCase();
       const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
+      // One saved character voice across all conversation modes.
+      const characterVoice = getProfile(char, 'normal').voice_id;
 
       let replyText = '';
-      if (is_start || !user_text || String(user_text).trim().length === 0) {
-        replyText = profile.opening_message;
+      const opening = webOpening(profile, is_start, user_text);
+      if (opening !== null) {
+        replyText = opening;
       } else {
         const generated = await generateAgentSpeechTextDetailed({
           prompt: String(user_text).trim(),
@@ -1672,10 +1676,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       }
 
       // Sintetiza áudio via Google Cloud Chirp 3 HD
-      const preview = await previewGoogleCallVoice({
+      const preview = replyText ? await previewGoogleCallVoice({
         text: replyText,
-        voice: profile.voice_id
-      });
+        voice: characterVoice
+      }) : { audio_base64: '', content_type: 'audio/mpeg' };
 
       return res.json({
         ok: true,
@@ -1684,7 +1688,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         reply_text: replyText,
         audio_base64: preview.audio_base64,
         content_type: preview.content_type || 'audio/mp3',
-        voice: profile.voice_id,
+        voice: characterVoice,
         character_id: profile.character_id,
         character_name: profile.character_name,
         mode: profile.mode,

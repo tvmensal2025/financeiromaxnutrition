@@ -1,3 +1,4 @@
+import { conversationModeInstruction } from './conversation-mode.mjs';
 // Context is fetched server-to-server from Max, never from a browser-supplied user ID.
 export function normalizeCallerPhone(value) {
   const raw = String(value || '').trim();
@@ -36,6 +37,7 @@ export async function buildCallInstruction(call, profile) {
   const identity = `IDENTIDADE ATIVA: ${profile.character_name}; modo ${profile.mode_name}.
 Use a personalidade salva abaixo. Não assuma outra identidade por causa de dados históricos.
 ${profile.system_script}
+${conversationModeInstruction(profile.mode)}
 
 CONTINUIDADE DO ATENDIMENTO:
 Use os registros para personalizar a resposta sem recitar o prontuário. Confirme mudanças recentes.
