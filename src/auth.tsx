@@ -19,8 +19,10 @@ type AuthState = {
   isAdmin: boolean;
   isMember: boolean;
   loading: boolean;
+  passwordRecovery: boolean;
   entrar: (email: string, senha: string) => Promise<string | null>;
   sair: () => Promise<void>;
+  concluirRecuperacaoSenha: () => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -29,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [appAccess, setAppAccess] = useState<AppAccess | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const carregarAppAccess = async (userId: string) => {
     try {
@@ -58,7 +61,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+      }
+      if (event === "SIGNED_OUT") {
+        setPasswordRecovery(false);
+      }
       setSession(next);
       if (next?.user) {
         carregarAppAccess(next.user.id).finally(() => setLoading(false));
@@ -120,6 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setAppAccess(null);
+    setPasswordRecovery(false);
+  }
+
+  function concluirRecuperacaoSenha() {
+    setPasswordRecovery(false);
   }
 
   const role = appAccess?.role || null;
@@ -138,8 +152,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         isMember,
         loading,
+        passwordRecovery,
         entrar,
         sair,
+        concluirRecuperacaoSenha,
       }}
     >
       {children}
