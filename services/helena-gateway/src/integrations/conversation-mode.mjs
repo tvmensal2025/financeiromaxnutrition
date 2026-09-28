@@ -12,5 +12,8 @@ Estas orientações de modo prevalecem sobre um rótulo de modo antigo dentro do
 
 export function webOpening(profile, isStart, userText) {
   if (!isStart && String(userText || '').trim()) return null;
-  return isStart && profile.opening_enabled === true ? String(profile.opening_message || '').trim() : '';
+  if (!isStart) return '';
+  return profile.opening_enabled === true && String(profile.opening_message || '').trim() ? String(profile.opening_message).trim() : null;
 }
+
+export const NATURAL_OPENING_PROMPT = 'A ligação acabou de ser atendida. Fale primeiro no modo Normal: crie uma saudação natural e breve com sua identidade e personalidade salvas e uma pergunta acolhedora. Não copie frases fixas antigas nem diga que outro personagem saiu. Só use o nome do cliente quando confirmado no contexto. Não exponha dados de saúde na abertura.';

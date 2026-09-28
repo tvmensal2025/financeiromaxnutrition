@@ -68,6 +68,7 @@ import {
   updateVoiceAgentConfig,
   generateAgentSpeechText,
   generateAgentSpeechTextDetailed,
+  generateNaturalOpening,
   speakInCall,
   handleCallConnectedWebhook,
   handleCallEndedWebhook,
@@ -1656,7 +1657,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
       // Resolve o perfil correspondente
       const char = (character_id || 'rafael').toLowerCase();
-      const m = (mode || 'normal').toLowerCase();
+      const m = is_start ? 'normal' : (mode || 'normal').toLowerCase();
       const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
       // One saved character voice across all conversation modes.
       const characterVoice = getProfile(char, 'normal').voice_id;
@@ -1665,6 +1666,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       const opening = webOpening(profile, is_start, user_text);
       if (opening !== null) {
         replyText = opening;
+      } else if (is_start) {
+        replyText = await generateNaturalOpening(profile, callId);
       } else {
         const generated = await generateAgentSpeechTextDetailed({
           prompt: String(user_text).trim(),
@@ -1714,7 +1717,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
       const cleanPhone = String(phone).replace(/\s+/g, '');
       const char = (character_id || 'rafael').toLowerCase();
-      const m = (mode || 'normal').toLowerCase();
+      const m = 'normal';
       const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
 
       // Inicia chamada no Meowcaller com a voz do Google Chirp 3 HD

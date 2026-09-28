@@ -1,3 +1,4 @@
+import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
  * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + DeepSeek
@@ -744,7 +745,14 @@ export async function speakInCall({ callId, text, voice = null }) {
  */
 const endedVoiceCalls = new Map();
 
-export async function handleCallConnectedWebhook(payload = {}) {
+export async function generateNaturalOpening(profile, callId) {
+  const result = await generateAgentSpeechTextDetailed({ prompt: NATURAL_OPENING_PROMPT,
+    history: [], profileKeyOverride: profile.profile_key, callContext: { callId } });
+  return result.model !== 'heuristic-local' && result.text?.trim()
+    ? result.text.trim() : `Olá, aqui é ${profile.character_name}. Como você está hoje?`;
+}
+
+export async function handleCallConnectedWebhook(payload = {}, { speak = speakInCall } = {}) {
   const endedKey = String(payload.call_id || "").toUpperCase();
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: "already_ended" };
   const { call_id, direction, remote_number } = payload;
@@ -762,14 +770,19 @@ export async function handleCallConnectedWebhook(payload = {}) {
   }
 
   if (remote_number) call.remoteNumber = remote_number;
+  if (call.greetingPlayed) return { ok: true, handled: true, call_id, greeting_already_played: true };
+  if (!call.callerConnected) {
+    const characterId = direction === 'INBOUND' ? 'sirlene' : getProfileByKey(call.activeProfileKey).character_id;
+    switchCallRuntime({ callId: call_id, characterId, mode: 'normal' });
+  }
   call.callerConnected = true;
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   void loadCallerContext(call, profile.character_id);
-  if (profile.opening_enabled !== true || !profile.opening_message?.trim()) {
-    call.greetingPlayed = true;
-    return { ok: true, handled: true, call_id, opening_enabled: false };
-  }
-  const greeting = profile.opening_message;
+  // Reserve before awaiting generation to deduplicate connected events.
+  call.greetingPlayed = true;
+  const greeting = profile.opening_enabled === true && profile.opening_message?.trim()
+    ? profile.opening_message.trim() : await generateNaturalOpening(profile, call_id);
+  if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
 
   // Inicializa histórico com a abertura oficial do perfil ativo
   const callHistory = getCallHistory(call_id);
@@ -782,10 +795,9 @@ export async function handleCallConnectedWebhook(payload = {}) {
   }
 
   // Dispara a fala de abertura do perfil ativo no Google Chirp 3 HD se ainda não foi tocada nesta chamada
-  if (!call.greetingPlayed) {
-    call.greetingPlayed = true;
+  {
     try {
-      const res = await speakInCall({
+      const res = await speak({
         callId: call_id,
         text: greeting,
         voice: profile.voice_id
