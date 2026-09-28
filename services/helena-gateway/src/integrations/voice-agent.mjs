@@ -802,6 +802,7 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
         text: greeting,
         voice: profile.voice_id
       });
+      await persistVoiceTurn(call, profile, '', greeting);
       return { ok: true, handled: true, call_id, greeting, character: profile.character_name, mode: profile.mode_name, ...res };
     } catch (err) {
       console.error(`[VOICE_AGENT] Erro ao disparar abertura na chamada ${call_id}:`, err.message);
