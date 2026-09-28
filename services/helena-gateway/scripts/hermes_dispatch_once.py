@@ -29,6 +29,41 @@ TOKEN_NAME = "HELENA_GATEWAY_PROFILE_TOKEN"
 PROFILE_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,79}\Z")
 JOB_PATTERN = re.compile(r"JOB-HR-[a-f0-9]{32}\Z")
 TRANSPORT_ERRORS = (OSError, ValueError, RuntimeError)
+BRIEF_SECTIONS = (
+    "Contexto e fontes", "Objetivo e impacto", "Escopo e limites",
+    "Plano de trabalho", "Entregáveis", "Critérios de pronto",
+    "Evidências e registro", "Revisão e encaminhamento",
+)
+
+
+def validate_professional_brief(detail: dict) -> None:
+    """Block shallow or mismatched work before claim/start/model consumption."""
+    job = detail.get("job") or {}
+    task = detail.get("task") or {}
+    binding = detail.get("runtime_binding") or {}
+    if (not job or not task or not binding or job.get("task_id") != task.get("task_id")
+            or job.get("business_id") != task.get("business_id")
+            or job.get("agent_id") != binding.get("agent_id")
+            or (binding.get("business_id") != job.get("business_id")
+                and not (binding.get("scope_type") == "GROUP" and binding.get("agent_id") == "AGT-01"))):
+        raise RuntimeError("Briefing incompleto: tarefa, empresa, executor e perfil divergentes")
+    if not str(job.get("objective") or "").strip() or not str(task.get("definicao_de_pronto") or "").strip():
+        raise RuntimeError("Briefing incompleto: objetivo ou definicao de pronto ausente")
+    instruction = str(job.get("instruction") or "").strip()
+    if not 700 <= len(instruction) <= 8000:
+        raise RuntimeError("Briefing profissional exige instrucao substantiva")
+    positions = []
+    for title in BRIEF_SECTIONS:
+        match = re.search(r"^## " + re.escape(title) + r"\r?$", instruction, re.IGNORECASE | re.MULTILINE)
+        if not match:
+            raise RuntimeError("Briefing profissional sem secao: " + title)
+        positions.append((title, match.start(), match.end()))
+    for index, (title, start, end) in enumerate(positions):
+        next_start = positions[index + 1][1] if index + 1 < len(positions) else len(instruction)
+        if next_start <= start:
+            raise RuntimeError("Briefing profissional com secoes fora de ordem")
+        if len(instruction[end:next_start].strip()) < 40:
+            raise RuntimeError("Briefing profissional raso na secao: " + title)
 
 
 def reconcile(job_id: str, phase: str) -> dict:
@@ -213,6 +248,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if (source.get("status") != "READY" or source.get("agent_id") != agent_id or source.get("business_id") != business_id
             or source.get("task_id") != job.get("task_id") or binding.get("profile_slug") != profile or binding.get("status") != "ACTIVE"):
         raise RuntimeError("Job, tarefa e perfil divergentes; nenhuma chamada ao modelo")
+    validate_professional_brief(detail)
     if not execute:
         return {"status": "DRY_RUN", "job_id": job_id, "profile": profile, "business_id": business_id}
     if os.environ.get("HELENA_DISPATCH_ENABLED") != "1":

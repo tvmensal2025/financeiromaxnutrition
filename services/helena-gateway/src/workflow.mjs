@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { validateProfessionalBrief } from './brief-contract.mjs';
 
 const text = (max = 4000) => z.string().trim().min(1).max(max);
 const key = text(120);
@@ -26,13 +27,17 @@ function property(field) {
   return { type: 'string', minLength: 1 };
 }
 
-export function workflowTools(rpc) {
+export function workflowTools(rpc, readJob) {
   return Object.fromEntries(Object.entries(contracts).map(([name, [action, shape, description]]) => [name, {
     description,
     schema: z.object(shape).strict(),
     inputSchema: { type: 'object', properties: Object.fromEntries(Object.entries(shape).map(([k,v]) => [k,property(v)])), required: Object.entries(shape).filter(([,v]) => !v.isOptional()).map(([k]) => k), additionalProperties: false },
     handler: async (args, { identity } = {}) => {
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
+      if (action === 'release_job') {
+        if (!readJob) throw new Error('Leitura do briefing indisponível; liberação recusada');
+        validateProfessionalBrief(await readJob({ job_id: args.job_id }));
+      }
       const result = action === 'adopt_existing_task'
         ? await rpc('gateway_adopt_existing_task', {
           p_profile_slug: identity.profileSlug,

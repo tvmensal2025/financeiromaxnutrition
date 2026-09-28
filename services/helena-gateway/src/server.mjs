@@ -779,7 +779,7 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 // ======================================================================
 
 const TOOLS_CONFIG = {
-  ...workflowTools(callSupabaseRpc),
+  ...workflowTools(callSupabaseRpc, handleGetJob),
   list_ready_jobs: {
     description: 'Consulta fila de agent_jobs no Supabase com status READY e available_at <= now, ordenados por prioridade e com dispatch_message estruturada para bots.',
     schema: z.object({

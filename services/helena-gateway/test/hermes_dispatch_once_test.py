@@ -15,6 +15,10 @@ dispatcher = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dispatcher)
 JOB_ID = "JOB-HR-" + "a" * 32
 PROFILE = "pedro--biz003"
+BRIEF = "\n".join(
+    f"## {title}\nDefina dados verificáveis, responsável, limite, resultado e evidência para esta etapa específica."
+    for title in dispatcher.BRIEF_SECTIONS
+)
 
 
 class DispatchTests(unittest.TestCase):
@@ -29,7 +33,7 @@ class DispatchTests(unittest.TestCase):
         self.job = {
             "job_id": JOB_ID, "agent_id": "AGT-18", "business_id": "BIZ-003",
             "task_id": "TSK-HR-" + "b" * 32, "provider": "HERMES",
-            "external_agent_id": PROFILE,
+            "external_agent_id": PROFILE, "objective": "Validar parceiros", "instruction": BRIEF,
         }
         self.calls = []
         self.model_calls = []
@@ -48,7 +52,10 @@ class DispatchTests(unittest.TestCase):
         if name == "get_job":
             return {
                 "job": {**self.job, "status": self.job_status},
-                "runtime_binding": {"profile_slug": PROFILE, "status": self.binding_status},
+                "task": {"task_id": self.job["task_id"], "business_id": "BIZ-003",
+                         "definicao_de_pronto": "Entregar checklist com fontes e revisão."},
+                "runtime_binding": {"profile_slug": PROFILE, "status": self.binding_status,
+                                    "business_id": "BIZ-003", "agent_id": "AGT-18"},
             }
         if name == "claim_job":
             self.job_status = "CLAIMED"
@@ -124,6 +131,14 @@ class DispatchTests(unittest.TestCase):
         with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
             result = self.dispatch(execute=True)
         self.assertEqual(result["status"], "CLAIMED_START_FAILED_RECONCILE")
+        self.assertEqual(self.model_calls, [])
+
+    def test_briefing_raso_bloqueia_antes_do_claim_e_do_modelo(self):
+        self.job["instruction"] = "Faça uma análise."
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}):
+            with self.assertRaisesRegex(RuntimeError, "Briefing profissional"):
+                self.dispatch(execute=True)
+        self.assertFalse(any(call[0] in ("claim_job", "start_job") for call in self.calls))
         self.assertEqual(self.model_calls, [])
 
     def test_exhausted_provider_blocks_claim_and_model(self):
