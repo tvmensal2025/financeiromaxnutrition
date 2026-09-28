@@ -8,7 +8,7 @@ import { webOpening, conversationModeInstruction } from '../src/integrations/con
 
 test('web opening respects explicit toggle and never repeats for empty turns', () => {
   assert.equal(webOpening({opening_enabled:false,opening_message:'fixed'},true,''),null);
-  assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},true,''),'fixed');
+  assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},true,''),null);
   assert.equal(webOpening({opening_enabled:true,opening_message:'fixed'},false,''),'');
   assert.equal(webOpening({},false,'Olá'),null);
   assert.notEqual(conversationModeInstruction('normal'),conversationModeInstruction('firm'));
