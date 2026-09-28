@@ -404,6 +404,9 @@ export function buildProfileUpdate(characterId, mode, updates = {}, updatedBy = 
   if (!profiles12State[key]) {
     throw new Error(`Perfil '${key}' não encontrado na matriz de 12 perfis.`);
   }
+  if (updates.prospect_script !== undefined && String(updates.prospect_script).length > 12000) {
+    throw new Error('Roteiro para novos contatos deve ter até 12000 caracteres.');
+  }
 
   const current = profiles12State[key];
   const updated = {
@@ -413,6 +416,7 @@ export function buildProfileUpdate(characterId, mode, updates = {}, updatedBy = 
     row_version: updates.row_version ?? current.row_version ?? 0,
     opening_message: updates.opening_message !== undefined ? String(updates.opening_message).trim() : current.opening_message,
     system_script: updates.system_script !== undefined ? String(updates.system_script).trim() : current.system_script,
+    prospect_script: updates.prospect_script !== undefined ? String(updates.prospect_script).trim() : (current.prospect_script || ''),
     updated_at: new Date().toISOString(),
     updated_by: updatedBy
   };

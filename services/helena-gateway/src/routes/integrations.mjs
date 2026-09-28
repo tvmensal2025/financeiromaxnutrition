@@ -1440,13 +1440,14 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
   const handleUpdateProfile = async (req, res) => {
     try {
       const { characterId, mode } = req.params;
-      const { voice_id, opening_message, opening_enabled, row_version, system_script, voice, script } = req.body || {};
+      const { voice_id, opening_message, opening_enabled, row_version, system_script, prospect_script, voice, script } = req.body || {};
       const updatedBy = req.user?.email || req.user?.id || 'Admin';
 
       const updates = {
         voice_id: voice_id || voice,
         opening_message, opening_enabled, row_version,
-        system_script: system_script ?? script
+        system_script: system_script ?? script,
+        prospect_script: characterId === 'sirlene' && mode === 'normal' ? prospect_script : undefined
       };
 
       if (updates.voice_id) {
