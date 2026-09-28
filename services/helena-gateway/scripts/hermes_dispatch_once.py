@@ -109,6 +109,27 @@ def usage_preflight(binary: str, profile: str, runner=subprocess.run) -> dict:
     return {"status": "READY"}
 
 
+def mcp_preflight(profile_home: Path, profile_token: str, runner=subprocess.run) -> dict:
+    """Check the same MCP discovery used by Hermes chat, without a model call."""
+    probe = Path(__file__).with_name("hermes_mcp_preflight.py")
+    python = os.environ.get("HERMES_PYTHON", "/opt/hermes/.venv/bin/python")
+    if not probe.is_file() or not Path(python).is_file():
+        return {"status": "MCP_UNAVAILABLE"}
+    try:
+        result = runner(
+            [python, str(probe)], env={**os.environ, "HERMES_HOME": str(profile_home), TOKEN_NAME: profile_token},
+            stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False,
+        )
+        if result.returncode != 0 or len(result.stdout) > 1024:
+            return {"status": "MCP_UNAVAILABLE"}
+        report = json.loads(result.stdout)
+        if report.get("server") == "helena_operacao" and report.get("tool_count", 0) >= 10:
+            return {"status": "READY"}
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    return {"status": "MCP_UNAVAILABLE"}
+
+
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
                 profile_home: Path) -> tuple[int, str | None]:
     prompt = (
@@ -129,7 +150,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "mcp-helena_operacao", "--max-turns", "12"],
+                 "--toolsets", "helena_operacao", "--max-turns", "12"],
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
                 # Hermes starts background MCP discovery before the -p switch is applied.
@@ -163,7 +184,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         prompt_path.unlink(missing_ok=True)
 
 
-def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None) -> dict:
+def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None) -> dict:
     if gateway.rstrip("/") != GATEWAY:
         raise ValueError("Gateway fora do endpoint aprovado")
     helena_token = token_for(root, "helena--grupo")
@@ -204,6 +225,9 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if usage.get("status") != "READY":
         return {"status": usage.get("status", "USAGE_UNAVAILABLE"), "job_id": job_id,
                 "reset_at": usage.get("reset_at"), "model_started": False}
+    tools = (tool_preflight or mcp_preflight)(root / profile, profile_token)
+    if tools.get("status") != "READY":
+        return {"status": "MCP_UNAVAILABLE", "job_id": job_id, "model_started": False}
     try:
         claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
     except TRANSPORT_ERRORS:

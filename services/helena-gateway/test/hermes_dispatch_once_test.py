@@ -70,11 +70,12 @@ class DispatchTests(unittest.TestCase):
         self.job_status = "WAITING_HELENA"
         return 0
 
-    def dispatch(self, job_id=JOB_ID, execute=False, run_agent=None, preflight=None):
+    def dispatch(self, job_id=JOB_ID, execute=False, run_agent=None, preflight=None, tool_preflight=None):
         return dispatcher.dispatch_once(
             self.root, dispatcher.GATEWAY, job_id, execute,
             run_agent=run_agent or self.run_agent, request=self.request,
             preflight=preflight or (lambda *args: {"status": "READY"}),
+            tool_preflight=tool_preflight or (lambda *args: {"status": "READY"}),
         )
 
     def test_queue_check_without_job_cannot_start_model(self):
@@ -134,6 +135,23 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(self.model_calls, [])
         self.assertFalse(any(call[0] == "claim_job" for call in self.calls))
 
+    def test_missing_mcp_blocks_claim_and_model(self):
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
+            result = self.dispatch(execute=True, tool_preflight=lambda *args: {"status": "MCP_UNAVAILABLE"})
+        self.assertEqual(result["status"], "MCP_UNAVAILABLE")
+        self.assertFalse(result["model_started"])
+        self.assertFalse(any(call[0] == "claim_job" for call in self.calls))
+
+    def test_mcp_probe_requires_discovered_tools(self):
+        from unittest.mock import Mock
+        probe = Path(dispatcher.__file__).with_name("hermes_mcp_preflight.py")
+        self.assertTrue(probe.is_file())
+        with patch.object(dispatcher.Path, "is_file", return_value=True):
+            run = lambda *args, **kwargs: Mock(returncode=0, stdout=b'{"server":"helena_operacao","tool_count":15}')
+            self.assertEqual(dispatcher.mcp_preflight(self.root / PROFILE, "hhs_" + "P" * 40, run), {"status": "READY"})
+            run = lambda *args, **kwargs: Mock(returncode=0, stdout=b'{"server":"helena_operacao","tool_count":0}')
+            self.assertEqual(dispatcher.mcp_preflight(self.root / PROFILE, "hhs_" + "P" * 40, run), {"status": "MCP_UNAVAILABLE"})
+
     def test_usage_preflight_fails_closed_on_unknown_and_reports_limit(self):
         from unittest.mock import Mock
         def response(payload, exit_code=0):
@@ -174,7 +192,7 @@ class DispatchTests(unittest.TestCase):
             self.assertEqual(args[:4], ["/usr/bin/hermes", "-p", PROFILE, "chat"])
             self.assertEqual(args[4], "--query-file")
             self.assertTrue(Path(args[5]).is_file())
-            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "mcp-helena_operacao", "--max-turns", "12"])
+            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "12"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
             self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
             self.assertEqual(kwargs["env"]["HERMES_HOME"], str(self.root / PROFILE))
