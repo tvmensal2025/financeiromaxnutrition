@@ -27,7 +27,7 @@ after(async () => {
 
 const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', profile_slug: 'pedro--biz003', status: 'ACTIVE' };
 const job = { job_id: 'JOB-FIXTURE', task_id: 'TSK-FIXTURE', agent_id: 'AGT-18', business_id: 'BIZ-003', status: 'RUNNING' };
-function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [] } = {}) {
+function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, handoffLinks = [] } = {}) {
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {
     const value = new URL(String(url));
@@ -36,8 +36,8 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null, memories 
     let result;
     if (value.pathname.includes('/rpc/')) result = rpcResult;
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
-    else if (value.pathname.endsWith('/agent_jobs')) result = [currentJob];
-    else if (value.pathname.endsWith('/agent_job_events')) result = [];
+    else if (value.pathname.endsWith('/agent_jobs')) result = [sourceJob && value.searchParams.get('job_id') === `eq.${sourceJob.job_id}` ? sourceJob : currentJob];
+    else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : [];
     else if (value.pathname.endsWith('/memoria_mestre')) result = memories;
     else if (value.pathname.endsWith('/tarefas')) result = [{ task_id: job.task_id, business_id: job.business_id, row_version: 123 }];
     else throw new Error('Requisicao nao prevista: ' + value.pathname);
@@ -123,6 +123,24 @@ test('revisora le somente memoria submetida deste job e empresa', async () => {
   assert.equal(query.get('related_object_id'), `eq.${job.job_id}`);
   assert.equal(query.get('business_id_area'), 'eq.BIZ-003');
   assert.equal(query.get('id'), `in.(${evidenceId},${missingId})`);
+});
+
+test('handoff comprovado entrega a evidencia do pai aprovado antes da execucao', async () => {
+  const evidenceId = 'MEM-HR-' + 'c'.repeat(32);
+  const sourceJob = { ...job, job_id: 'JOB-PARENT', correlation_id: 'JOB-PARENT', status: 'COMPLETED', approval_status: 'APPROVED', evidence_refs: [evidenceId], result_payload: { reviewed_by: 'AGT-06' } };
+  const child = { ...job, correlation_id: sourceJob.job_id, evidence_refs: [] };
+  const memories = [{ id: evidenceId, registro: 'Entrega integral aprovada', business_id_area: job.business_id, related_object_id: sourceJob.job_id }];
+  const handoffLinks = [{ job_id: sourceJob.job_id, business_id: job.business_id, payload: { response: { job_id: job.job_id } } }];
+  mock({ currentJob: child, sourceJob, handoffLinks, memories });
+  const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.equal(result.source_evidence_records[0].registro, 'Entrega integral aprovada');
+  assert.equal(result.source_job.job_id, sourceJob.job_id);
+  for (const changed of [{ handoffLinks: [] }, { sourceJob: { ...sourceJob, business_id: 'BIZ-001' } }, { sourceJob: { ...sourceJob, status: 'DRAFT' } }]) {
+    mock({ currentJob: { ...child, evidence_refs: [evidenceId] }, sourceJob, handoffLinks, memories, ...changed });
+    const refused = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+    assert.deepEqual(refused.source_evidence_records, []);
+    assert.deepEqual(refused.evidence_missing, [evidenceId]);
+  }
 });
 
 test('descoberta MCP publica parametros necessarios para cliente Hermes', async () => {

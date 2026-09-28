@@ -395,19 +395,30 @@ async function handleGetJob({ job_id }) {
     b.provider === 'HERMES' && (b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP'))
   ) : null;
 
-  // Reviewers can inspect only submitted memory evidence for this exact job and company.
-  // A missing or unreadable record must be visible, never treated as reviewed evidence.
+  // A verified handoff carries the approved predecessor's evidence into the new task.
+  // Same-company membership alone never grants access to another job's memory.
+  let sourceJob = null;
+  if (job.correlation_id && job.correlation_id !== job.job_id) {
+    const links = await supabaseFetch(`/rest/v1/agent_job_events?event_type=eq.WORKFLOW_handoff&business_id=eq.${encodeURIComponent(job.business_id)}&payload->response->>job_id=eq.${encodeURIComponent(job_id)}&limit=2`);
+    if (Array.isArray(links) && links.length === 1 && links[0].payload?.response?.job_id === job_id && links[0].business_id === job.business_id) {
+      const parents = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(links[0].job_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`);
+      const parent = Array.isArray(parents) ? parents[0] : null;
+      if (parent?.business_id === job.business_id && parent.status === 'COMPLETED' && parent.approval_status === 'APPROVED' && (parent.correlation_id || parent.job_id) === job.correlation_id && parent.result_payload?.reviewed_by) sourceJob = parent;
+    }
+  }
   const memoryIds = [...new Set((Array.isArray(job.evidence_refs) ? job.evidence_refs : [])
     .filter(ref => typeof ref === 'string' && /^MEM-HR-[a-f0-9]{32}$/i.test(ref)))];
-  const requestedMemoryIds = memoryIds.slice(0, 20);
+  const sourceIds = (sourceJob?.evidence_refs || []).filter(ref => typeof ref === 'string' && /^MEM-HR-[a-f0-9]{32}$/i.test(ref)).slice(0, 10);
+  const requestedMemoryIds = [...new Set([...memoryIds, ...sourceIds])].slice(0, 20);
+  const allowedJobs = sourceJob ? `in.(${job_id},${sourceJob.job_id})` : `eq.${encodeURIComponent(job_id)}`;
   let evidenceRecords = [];
   if (requestedMemoryIds.length > 0) {
     const records = await supabaseFetch(
-      `/rest/v1/memoria_mestre?select=id,assunto,registro,evidencia_origem,proxima_acao,status,confianca,business_id_area,related_object_id&related_object_id=eq.${encodeURIComponent(job_id)}&business_id_area=eq.${encodeURIComponent(job.business_id)}&id=in.(${requestedMemoryIds.join(',')})&limit=20`
+      `/rest/v1/memoria_mestre?select=id,assunto,registro,evidencia_origem,proxima_acao,status,confianca,business_id_area,related_object_id&related_object_id=${allowedJobs}&business_id_area=eq.${encodeURIComponent(job.business_id)}&id=in.(${requestedMemoryIds.join(',')})&limit=20`
     );
     if (!Array.isArray(records)) throw new Error('Consulta de evidencias retornou formato invalido');
     evidenceRecords = records.filter(record => requestedMemoryIds.includes(record.id)
-      && record.business_id_area === job.business_id && record.related_object_id === job_id);
+      && record.business_id_area === job.business_id && (record.related_object_id === job_id || (record.related_object_id === sourceJob?.job_id && sourceIds.includes(record.id))));
   }
   const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
 
@@ -422,6 +433,8 @@ async function handleGetJob({ job_id }) {
       connection_status: runtimeBinding.status === 'ACTIVE' ? 'CONNECTED' : 'NOT_CONNECTED'
     } : null,
     events: Array.isArray(events) ? events : [],
+    source_job: sourceJob ? { job_id: sourceJob.job_id, result_summary: sourceJob.result_summary, review: sourceJob.result_payload } : null,
+    source_evidence_records: evidenceRecords.filter(record => record.related_object_id === sourceJob?.job_id),
     evidence_records: evidenceRecords,
     evidence_missing: evidenceMissing
   };
