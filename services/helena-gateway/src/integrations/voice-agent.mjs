@@ -946,7 +946,8 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
     const heardProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
     await persistVoiceUtterance(call, heardProfile, userText);
 
-    if (process.env.CALL_VOICE_STREAMING_ENABLED === 'true' &&
+    const isStreamingEnabled = (process.env.CALL_VOICE_STREAMING_ENABLED ?? 'true') !== 'false';
+    if (isStreamingEnabled &&
         (cfg.ai_provider || 'OPENAI') === 'OPENAI' && Number.isSafeInteger(speechEpoch)) {
       const apiKey = await resolveAiApiKey(cfg);
       signal.throwIfAborted();

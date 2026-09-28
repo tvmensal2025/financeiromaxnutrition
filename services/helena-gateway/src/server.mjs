@@ -1291,6 +1291,7 @@ const server = disableListen
       console.log(`[HELENA_GATEWAY] Host público configurado: ${PUBLIC_HOST}`);
       console.log(`[HELENA_GATEWAY] Supabase: ${SUPABASE_URL}`);
       console.log(`[HELENA_GATEWAY] Evolution API: ${EVOLUTION_BASE_URL ? 'CONFIGURADA' : 'DESATIVADA'}`);
+      console.log(`[HELENA_GATEWAY] Voice Streaming: ${((process.env.CALL_VOICE_STREAMING_ENABLED ?? 'true') !== 'false') ? 'ATIVADO' : 'DESATIVADO'}`);
 
       // Inicia loops periódicos
       setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);

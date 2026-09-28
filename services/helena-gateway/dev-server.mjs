@@ -10,5 +10,6 @@ process.env.MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || 'helena_meow_sec_
 process.env.EVOLUTION_BASE_URL = process.env.EVOLUTION_BASE_URL || 'http://helena-automation-evolution-api.d9v63q.easypanel.host';
 process.env.EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '429683C4C977415CAAFCCE10F7D57E11';
 process.env.EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE || 'helena_mensagens';
+process.env.CALL_VOICE_STREAMING_ENABLED = process.env.CALL_VOICE_STREAMING_ENABLED || 'true';
 
 await import('./src/server.mjs');
