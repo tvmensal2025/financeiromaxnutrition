@@ -209,11 +209,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
   router.get('/api/integrations/status', async (req, res) => {
     try {
-      const [laya, evolution, meowcaller, elevenlabs, kokoro] = await Promise.all([
+      const [laya, evolution, meowcaller, kokoro] = await Promise.all([
         getLayaHealth().catch((err) => ({ healthy: false, error: err.message })),
         getEvolutionStatus().catch((err) => ({ configured: false, error: err.message })),
         getMeowcallerSession().catch((err) => ({ healthy: false, error: err.message })),
-        getElevenLabsVoices().catch((err) => ({ configured: false, error: err.message })),
         getKokoroVoices().catch((err) => ({ configured: false, error: err.message }))
       ]);
 
@@ -239,11 +238,11 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
           status: 'OFICIAL'
         },
         elevenlabs: {
-          configured: elevenlabs.configured ?? false,
-          reachable: elevenlabs.reachable ?? false,
-          voices_count: elevenlabs.voices_count || 0,
+          configured: false,
+          reachable: false,
+          voices_count: 0,
           is_official: false,
-          status: 'STANDBY'
+          status: 'LEGACY_AUDIO_ONLY'
         },
         call_tts: {
           provider: isGoogleChirp3CallEnabled() ? GOOGLE_CHIRP3_PROVIDER : 'legacy',
