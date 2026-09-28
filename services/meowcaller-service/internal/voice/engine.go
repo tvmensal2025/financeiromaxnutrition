@@ -1007,6 +1007,7 @@ type ConversationalSink struct {
 	silenceFrames        int
 	totalFrames          int
 	speechEpoch          uint64
+	liveStream           *liveSpeechStream
 	consecutiveSpeech    int // Frames consecutivos de voz para validar início de fala
 	noiseFloor           float64
 	rmsThreshold         float64
@@ -1137,6 +1138,10 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			for _, preFrame := range s.preSpeechRing {
 				s.speechSamples = append(s.speechSamples, preFrame...)
 			}
+			s.liveStream = s.engine.startLiveSpeech(s.callID, s.speechEpoch)
+			for _, preFrame := range s.preSpeechRing {
+				s.liveStream.push(preFrame)
+			}
 			s.preSpeechRing = s.preSpeechRing[:0]
 		}
 
@@ -1150,6 +1155,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 
 		if s.isSpeaking {
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
+			s.liveStream.push(pcmFrame)
 			s.silenceFrames = 0
 
 			// Guardrail de duração máxima: 12 segundos contínuos de fala para despachar sem travar
@@ -1157,6 +1163,8 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
 				epoch := s.speechEpoch
+				stream := s.liveStream
+				s.liveStream = nil
 				s.speechSamples = make([]int16, 0, 16000*5)
 				s.isSpeaking = false
 				s.silenceFrames = 0
@@ -1164,8 +1172,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				s.mu.Unlock()
 
 				log.Info().Str("call_id", callID).Msg("🗣️ Turno de fala atingiu limite máximo (12s). Despachando áudio...")
-				wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
-				go s.engine.notifyUserSpeech(callID, wavBytes, epoch)
+				go s.engine.dispatchLiveOrBatch(stream, callID, samplesToDispatch, epoch)
 				return nil
 			}
 		}
@@ -1176,6 +1183,7 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			s.silenceFrames++
 			// Mantém as amostras do silêncio para preservar a cauda natural das palavras
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
+			s.liveStream.push(pcmFrame)
 
 			// Short clauses often continue after a one-second thinking pause.
 			// Keep the faster endpoint for longer utterances.
@@ -1188,6 +1196,8 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID
 				epoch := s.speechEpoch
+				stream := s.liveStream
+				s.liveStream = nil
 				s.speechSamples = make([]int16, 0, 16000*5)
 				s.isSpeaking = false
 				s.silenceFrames = 0
@@ -1202,8 +1212,9 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 						Int("samples", len(samplesToDispatch)).
 						Int("duration_ms", durationMs).
 						Msg("🗣️ Turno de fala do cliente finalizado. Gerando WAV e enviando para Helena Gateway...")
-					wavBytes := encodePCMToWAV(samplesToDispatch, 16000)
-					go s.engine.notifyUserSpeech(callID, wavBytes, epoch)
+					go s.engine.dispatchLiveOrBatch(stream, callID, samplesToDispatch, epoch)
+				} else {
+					stream.stop()
 				}
 				return nil
 			}
@@ -1240,6 +1251,8 @@ func (s *ConversationalSink) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
+	s.liveStream.stop()
+	s.liveStream = nil
 	s.speechSamples = nil
 	return nil
 }
