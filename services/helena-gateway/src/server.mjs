@@ -421,7 +421,6 @@ async function handleGetJob({ job_id }) {
     evidenceRecords = records.filter(record => requestedMemoryIds.includes(record.id)
       && record.business_id_area === job.business_id && (record.related_object_id === job_id || (record.related_object_id === sourceJob?.job_id && sourceIds.includes(record.id))));
   }
-  const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
 
   // Manager-authored briefing references are inputs, never proof of this job's delivery.
   // Only the explicitly named, reviewed output of a completed same-company job is returned.
@@ -441,6 +440,12 @@ async function handleGetJob({ job_id }) {
         && owner.result_payload?.reviewed_by && Array.isArray(owner.evidence_refs) && owner.evidence_refs.includes(record.id)));
     }
   }
+
+  // Deliveries may cite both their own output and approved briefing inputs.
+  // Approval still requires a record owned by this job in workflow.mjs.
+  evidenceRecords = [...evidenceRecords, ...inputRecords.filter(record => memoryIds.includes(record.id)
+    && !evidenceRecords.some(existing => existing.id === record.id))];
+  const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
 
   return {
     job,

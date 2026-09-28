@@ -84,6 +84,11 @@ test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem vir
   assert.deepEqual(result.input_evidence_records.map(r => r.id), [id]);
   assert.deepEqual(result.input_evidence_missing, [other]);
   assert.deepEqual(result.evidence_records, []);
+  mock({ currentJob: { ...currentJob, evidence_refs: [id] }, memories: [memory], inputJobs: [source] });
+  const cited = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.deepEqual(cited.evidence_missing, []);
+  assert.deepEqual(cited.evidence_records.map(r => r.id), [id]);
+  assert.equal(cited.evidence_records.filter(r => r.related_object_id === job.job_id).length, 0);
   for (const invalid of [{ ...source, status: 'RUNNING' }, { ...source, approval_status: 'PENDING' }, { ...source, business_id: 'BIZ-001' }, { ...source, result_payload: {} }, { ...source, evidence_refs: [] }]) {
     mock({ currentJob, memories: [memory], inputJobs: [invalid] });
     const rejected = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
