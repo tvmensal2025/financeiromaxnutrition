@@ -1,7 +1,7 @@
 import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
- * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + DeepSeek
+ * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + GPT
  * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
@@ -131,70 +131,9 @@ let cachedConfig = {
   updated_at: new Date().toISOString()
 };
 
-let resolvedSupabaseDeepSeekKey = '';
-let lastKeyFetchTime = 0;
-
-/**
- * Resolve a API key de inteligência (prioriza DeepSeek configurada no Supabase ou env)
- */
-export async function resolveAiApiKey(cfg = {}) {
-  if ((cfg.ai_provider || 'OPENAI') === 'OPENAI') return (process.env.OPENAI_API_KEY || '').trim();
-  // 1. Chave explícita em cfg
-  if (cfg.ai_api_key && cfg.ai_api_key.trim().length > 0) {
-    return cfg.ai_api_key.trim();
-  }
-
-  // 2. Variável de ambiente DEEPSEEK_API_KEY / GOOGLE_AI_API_KEY / OPENAI_API_KEY
-  if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
-    return process.env.DEEPSEEK_API_KEY.trim();
-  }
-  if (process.env.GOOGLE_AI_API_KEY && process.env.GOOGLE_AI_API_KEY.trim().length > 0) {
-    return process.env.GOOGLE_AI_API_KEY.trim();
-  }
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0) {
-    return process.env.OPENAI_API_KEY.trim();
-  }
-
-  // 3. Cache recente de chave do Supabase (1 minuto)
-  const now = Date.now();
-  if (resolvedSupabaseDeepSeekKey && (now - lastKeyFetchTime) < 60000) {
-    return resolvedSupabaseDeepSeekKey;
-  }
-
-  // 4. Consulta dinâmica no Supabase configuracao
-  try {
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co';
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    if (serviceKey) {
-      const url = `${supabaseUrl}/rest/v1/configuracao?chave=eq.DEEPSEEK_API_KEY&select=valor`;
-      const res = await fetch(url, {
-        headers: {
-          'apikey': serviceKey,
-          'Authorization': `Bearer ${serviceKey}`
-        },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0 && rows[0]?.valor) {
-          resolvedSupabaseDeepSeekKey = rows[0].valor.trim();
-          lastKeyFetchTime = now;
-          return resolvedSupabaseDeepSeekKey;
-        }
-      }
-    }
-  } catch (err) {
-    // Silencioso em caso de falha de conexão
-  }
-
-  // 5. Fallbacks para outros provedores caso DeepSeek ainda não tenha chave
-  return (
-    process.env.GOOGLE_AI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.GROK_API_KEY ||
-    ''
-  );
+/** Resolve somente a chave GPT das ligações; chaves legadas não entram neste fluxo. */
+export async function resolveAiApiKey() {
+  return (process.env.OPENAI_API_KEY || '').trim();
 }
 
 /**
@@ -208,9 +147,13 @@ export async function getVoiceAgentConfig() {
  * Atualiza e persiste as configurações do Agente de Voz
  */
 export async function updateVoiceAgentConfig(newSettings = {}) {
+  const { ai_provider, ai_model, ai_api_key, ...allowedSettings } = newSettings;
   cachedConfig = {
     ...cachedConfig,
-    ...newSettings,
+    ...allowedSettings,
+    ai_provider: 'OPENAI',
+    ai_model: 'gpt-6-luna',
+    ai_api_key: '',
     updated_at: new Date().toISOString()
   };
   return { ok: true, config: cachedConfig };
@@ -222,7 +165,7 @@ export async function updateVoiceAgentConfig(newSettings = {}) {
 
 /**
  * Gera texto de resposta para a chamada aplicando com rigor o perfil ativo (4 Personagens x 3 Modos)
- * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no DeepSeek.
+ * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no GPT.
  */
 export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {}, profileKeyOverride = null }) {
   const cleanPrompt = String(prompt).trim();
@@ -233,27 +176,20 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   const profileKey = profileKeyOverride || call?.activeProfileKey || getActiveGlobalProfileKey();
   const profile = getProfileByKey(profileKey);
 
-  // REQUISITO CRÍTICO: O script selecionado é o System Prompt oficial do DeepSeek sem sobreposição
+  // O script selecionado é o System Prompt oficial do perfil, sem sobreposição.
   const systemScript = call?.activeSystemScript || profile.system_script;
   const characterName = call?.activeCharacterName || profile.character_name;
   const modeName = call?.activeModeName || profile.mode_name;
 
-  // 1. Tenta invocar IA externa (DeepSeek) se API key estiver configurada e não for teste unitário estrito
+  // 1. Tenta invocar GPT se a chave estiver configurada e não for teste unitário estrito.
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
   const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
       const systemInstruction = await buildCallInstruction(call, profile);
-      let providerToUse = cfg.ai_provider || 'OPENAI';
-      let modelToUse = cfg.ai_model || 'gpt-6-luna';
-      if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) {
-        providerToUse = 'GEMINI';
-        modelToUse = 'gemini-flash-latest';
-      }
-
       const llmResult = await callLlmProviderDetailed({
-        provider: providerToUse,
-        model: modelToUse,
+        provider: 'OPENAI',
+        model: cfg.ai_model || 'gpt-6-luna',
         apiKey,
         systemInstruction,
         userPrompt: cleanPrompt,
@@ -274,7 +210,7 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
         };
       }
     } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na chamada do DeepSeek, acionando motor inteligente local:', err.message);
+      console.warn('[VOICE_AGENT] Falha na chamada do GPT, acionando motor inteligente local:', err.message);
     }
   }
 
@@ -435,61 +371,6 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
         }
       } catch (err) {
         console.warn(`[VOICE_AGENT] Erro/timeout no modelo ${m}: ${err.message}`);
-      }
-    }
-  }
-
-  // Provedor DeepSeek Oficial (Compatível OpenAI v1)
-  if (userPrompt && (provider === 'DEEPSEEK' || provider.includes('DEEPSEEK'))) {
-    // The display/version name is not the API model identifier.
-    const requestedModel = !model || /^DeepSeek-V4\.1-Flash$/i.test(model) ? 'deepseek-flash' : model;
-    const uniqueModels = [...new Set([requestedModel, 'deepseek-flash'])];
-    const messages = [
-      { role: 'system', content: systemInstruction },
-      ...recentHistory,
-      { role: 'user', content: userPrompt }
-    ];
-
-    for (const m of uniqueModels) {
-      if (deadline.aborted) break;
-      try {
-        const res = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          signal: deadline,
-          body: JSON.stringify({
-            model: m,
-            messages,
-            max_tokens: 160, // Brevity comes from the prompt; leave room to finish sentences.
-            thinking: { type: 'disabled' },
-            temperature: 0.3
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const choice = data?.choices?.[0];
-          const reply = completeVoiceReply(choice?.message?.content, choice?.finish_reason);
-          if (!reply) break;
-          if (reply && reply.length > 0) {
-            console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
-            return {
-              reply,
-              usage: data?.usage || null,
-              latencyMs: Date.now() - start,
-              model: m
-            };
-          }
-        } else {
-          if (![400, 404].includes(res.status)) break;
-          const errText = await res.text().catch(() => '');
-          console.warn(`[VOICE_AGENT] DeepSeek modelo ${m} retornou status ${res.status}: ${errText.slice(0, 120)}`);
-        }
-      } catch (err) {
-        console.warn(`[VOICE_AGENT] Falha na chamada DeepSeek com modelo ${m}: ${err.message}`);
       }
     }
   }
@@ -872,7 +753,7 @@ export function getCallHistory(callId) {
 /**
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
  * 1. Transcreve a fala do cliente via ElevenLabs Scribe STT
- * 2. Raciocina com DeepSeek / Gemini aplicando a Personalidade Ativa da chamada (Equilíbrio, Firme ou Intenso)
+ * 2. Gera o texto com GPT, aplicando o perfil ativo da chamada.
  * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
  * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
  */
