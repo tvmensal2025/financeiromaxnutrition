@@ -781,8 +781,7 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   void loadCallerContext(call, profile.character_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
-  const greeting = profile.opening_enabled === true && profile.opening_message?.trim()
-    ? profile.opening_message.trim() : await generateNaturalOpening(profile, call_id);
+  const greeting = await generateNaturalOpening(profile, call_id);
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
 
   // Inicializa histórico com a abertura oficial do perfil ativo
