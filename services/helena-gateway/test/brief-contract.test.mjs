@@ -38,3 +38,14 @@ test('liberação recusa briefing raso antes de gravar no Supabase', async () =>
   await assert.rejects(tools.release_job.handler({ job_id: 'job-1', expected_task_version: 1, idempotency_key: 'k' }, { identity }), /Briefing profissional/);
   assert.equal(writes, 0);
 });
+
+test('liberacao bloqueia fonte ausente antes de gastar IA ou gravar', async () => {
+  const id = 'MEM-HR-' + 'f'.repeat(32);
+  const withSource = { ...detail, job: { ...detail.job, instruction: instruction + `\nFonte: ${id}` }, input_evidence_records: [], input_evidence_missing: [id] };
+  let writes = 0;
+  const identity = { type: 'hermes_profile', bindingVerified: true, profileSlug: 'marina--biz003' };
+  const tools = workflowTools(async () => { writes++; }, async () => withSource);
+  await assert.rejects(tools.release_job.handler({ job_id: 'job-1', expected_task_version: 1, idempotency_key: 'k' }, { identity }), /Fontes do briefing/);
+  assert.equal(writes, 0);
+  assert.equal(validateProfessionalBrief({ ...withSource, input_evidence_records: [{ id }], input_evidence_missing: [] }), true);
+});

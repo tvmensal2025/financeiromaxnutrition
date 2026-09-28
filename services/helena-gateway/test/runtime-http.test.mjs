@@ -27,7 +27,7 @@ after(async () => {
 
 const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', profile_slug: 'pedro--biz003', status: 'ACTIVE' };
 const job = { job_id: 'JOB-FIXTURE', task_id: 'TSK-FIXTURE', agent_id: 'AGT-18', business_id: 'BIZ-003', status: 'RUNNING' };
-function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, handoffLinks = [] } = {}) {
+function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, inputJobs = [], handoffLinks = [] } = {}) {
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {
     const value = new URL(String(url));
@@ -36,7 +36,7 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null, memories 
     let result;
     if (value.pathname.includes('/rpc/')) result = rpcResult;
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
-    else if (value.pathname.endsWith('/agent_jobs')) result = [sourceJob && value.searchParams.get('job_id') === `eq.${sourceJob.job_id}` ? sourceJob : currentJob];
+    else if (value.pathname.endsWith('/agent_jobs')) result = value.searchParams.get('job_id')?.startsWith('in.') ? inputJobs : [sourceJob && value.searchParams.get('job_id') === `eq.${sourceJob.job_id}` ? sourceJob : currentJob];
     else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : [];
     else if (value.pathname.endsWith('/memoria_mestre')) result = memories;
     else if (value.pathname.endsWith('/tarefas')) result = [{ task_id: job.task_id, business_id: job.business_id, row_version: 123 }];
@@ -58,6 +58,25 @@ async function invoke(transport, name, args, bearer = token) {
 function resultOf(response, transport) {
   return transport === 'mcp' ? JSON.parse(response.result.content[0].text) : response.result;
 }
+
+test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria', async () => {
+  const id = 'MEM-HR-' + 'd'.repeat(32);
+  const other = 'MEM-HR-' + 'e'.repeat(32);
+  const source = { job_id: 'JOB-INPUT', business_id: job.business_id, status: 'COMPLETED', approval_status: 'APPROVED', evidence_refs: [id], result_payload: { reviewed_by: 'AGT-06' } };
+  const memory = { id, business_id_area: job.business_id, related_object_id: source.job_id, registro: 'Fonte interna aprovada' };
+  const currentJob = { ...job, instruction: `Consultar ${id} e ${other}`, evidence_refs: [] };
+  mock({ currentJob, memories: [memory, { ...memory, id: other, business_id_area: 'BIZ-001' }], inputJobs: [source] });
+  const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.deepEqual(result.input_evidence_records.map(r => r.id), [id]);
+  assert.deepEqual(result.input_evidence_missing, [other]);
+  assert.deepEqual(result.evidence_records, []);
+  for (const invalid of [{ ...source, status: 'RUNNING' }, { ...source, approval_status: 'PENDING' }, { ...source, business_id: 'BIZ-001' }, { ...source, result_payload: {} }, { ...source, evidence_refs: [] }]) {
+    mock({ currentJob, memories: [memory], inputJobs: [invalid] });
+    const rejected = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+    assert.deepEqual(rejected.input_evidence_records, []);
+    assert.deepEqual(rejected.input_evidence_missing, [id, other]);
+  }
+});
 
 for (const transport of ['mcp', 'direct', 'rest']) {
   test(`${transport}: job de outra empresa nao chega a RPC`, async () => {

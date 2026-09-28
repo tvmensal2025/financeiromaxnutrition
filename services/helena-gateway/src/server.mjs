@@ -423,6 +423,25 @@ async function handleGetJob({ job_id }) {
   }
   const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
 
+  // Manager-authored briefing references are inputs, never proof of this job's delivery.
+  // Only the explicitly named, reviewed output of a completed same-company job is returned.
+  const inputIds = [...new Set(String(job.instruction || '').match(/\bMEM-HR-[a-f0-9]{32}\b/gi) || [])].slice(0, 10);
+  let inputRecords = [];
+  if (inputIds.length) {
+    const candidates = await supabaseFetch(`/rest/v1/memoria_mestre?select=id,assunto,registro,evidencia_origem,proxima_acao,status,confianca,business_id_area,related_object_id&business_id_area=eq.${encodeURIComponent(job.business_id)}&id=in.(${inputIds.join(',')})&limit=10`);
+    if (!Array.isArray(candidates)) throw new Error('Consulta de fontes retornou formato invalido');
+    const scoped = candidates.filter(record => inputIds.includes(record.id) && record.business_id_area === job.business_id
+      && typeof record.related_object_id === 'string' && record.related_object_id !== job_id);
+    const ownerIds = [...new Set(scoped.map(record => record.related_object_id))];
+    if (ownerIds.length) {
+      const owners = await supabaseFetch(`/rest/v1/agent_jobs?job_id=in.(${ownerIds.map(encodeURIComponent).join(',')})&business_id=eq.${encodeURIComponent(job.business_id)}&status=eq.COMPLETED&approval_status=eq.APPROVED&limit=10`);
+      if (!Array.isArray(owners)) throw new Error('Consulta de revisoes retornou formato invalido');
+      inputRecords = scoped.filter(record => owners.some(owner => owner.job_id === record.related_object_id
+        && owner.business_id === job.business_id && owner.status === 'COMPLETED' && owner.approval_status === 'APPROVED'
+        && owner.result_payload?.reviewed_by && Array.isArray(owner.evidence_refs) && owner.evidence_refs.includes(record.id)));
+    }
+  }
+
   return {
     job,
     task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
@@ -436,6 +455,8 @@ async function handleGetJob({ job_id }) {
     events: Array.isArray(events) ? events : [],
     source_job: sourceJob ? { job_id: sourceJob.job_id, result_summary: sourceJob.result_summary, review: sourceJob.result_payload } : null,
     source_evidence_records: evidenceRecords.filter(record => record.related_object_id === sourceJob?.job_id),
+    input_evidence_records: inputRecords,
+    input_evidence_missing: inputIds.filter(id => !inputRecords.some(record => record.id === id)),
     evidence_records: evidenceRecords,
     evidence_missing: evidenceMissing
   };

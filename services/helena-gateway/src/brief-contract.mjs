@@ -24,6 +24,11 @@ export function validateProfessionalBrief(detail) {
     throw new Error('Briefing incompleto: objetivo e definição de pronto são obrigatórios');
   }
   const instruction = job.instruction?.trim() || '';
+  const inputIds = [...new Set(instruction.match(/\bMEM-HR-[a-f0-9]{32}\b/gi) || [])];
+  if (inputIds.length > 10 || inputIds.some(id => !detail.input_evidence_records?.some(record => record.id === id))
+      || detail.input_evidence_missing?.length) {
+    throw new Error('Fontes do briefing indisponiveis ou sem revisao aprovada; liberacao e aceite recusados antes de chamar IA');
+  }
   if (instruction.length < 700 || instruction.length > 8000) {
     throw new Error('Briefing profissional exige instrução substantiva de 700 a 8000 caracteres');
   }
