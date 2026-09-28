@@ -4,3 +4,11 @@
 node_modules/
 npm-debug.log*
 *.log
+
+# Google Cloud credentials
+google-tts.json
+google-service-account.json
+*-service-account.json
+credentials/
+secrets/
+

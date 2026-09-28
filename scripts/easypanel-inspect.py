@@ -61,6 +61,8 @@ try:
         lines = env_vars.split('\n')
         var_names = [line.split('=')[0].strip() for line in lines if '=' in line]
         print(f'   Variáveis configuradas ({len(var_names)}): {var_names}')
+        if svc == 'meowcaller-service':
+            print(json.dumps(details, indent=2))
         
         # Se for meowcaller, queremos ver se há MEOWCALLER_TOKEN ou API_KEY
         if svc == 'meowcaller-service':

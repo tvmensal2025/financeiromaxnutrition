@@ -35,3 +35,15 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Google Cloud credentials
+google-tts.json
+google-service-account.json
+*-service-account.json
+credentials/
+secrets/
+
+ 
+*.png
+public/audios/
+audios/
