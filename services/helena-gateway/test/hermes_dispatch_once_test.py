@@ -21,6 +21,21 @@ BRIEF = "\n".join(
 )
 
 
+class BinaryResolutionTests(unittest.TestCase):
+    def test_installed_cli_is_found_without_path(self):
+        with patch.dict(os.environ, {}, clear=True), patch.object(dispatcher.shutil, "which", return_value=None), patch.object(dispatcher.Path, "is_file", return_value=True), patch.object(dispatcher.os, "access", return_value=True):
+            self.assertEqual(dispatcher.resolve_hermes_binary(), "/opt/hermes/bin/hermes")
+
+    def test_explicit_missing_cli_does_not_switch_install(self):
+        with patch.dict(os.environ, {"HERMES_BIN": "/missing/hermes"}, clear=True), patch.object(dispatcher.shutil, "which", return_value=None), patch.object(dispatcher.Path, "is_file") as probe:
+            self.assertIsNone(dispatcher.resolve_hermes_binary())
+            probe.assert_not_called()
+
+    def test_non_executable_cli_is_refused(self):
+        with patch.dict(os.environ, {}, clear=True), patch.object(dispatcher.shutil, "which", return_value=None), patch.object(dispatcher.Path, "is_file", return_value=True), patch.object(dispatcher.os, "access", return_value=False):
+            self.assertIsNone(dispatcher.resolve_hermes_binary())
+
+
 class DispatchTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

@@ -144,6 +144,24 @@ def usage_preflight(binary: str, profile: str, runner=subprocess.run) -> dict:
     return {"status": "READY"}
 
 
+def resolve_hermes_binary() -> str | None:
+    """Resolve the installed CLI without spawning processes or changing PATH."""
+    configured = os.environ.get("HERMES_BIN")
+    if configured:
+        # An explicit operator selection must never fall through to another install.
+        return shutil.which(configured)
+    resolved = shutil.which("hermes")
+    if resolved:
+        return resolved
+    for candidate in ("/opt/hermes/bin/hermes", "/opt/hermes/.venv/bin/hermes"):
+        try:
+            if Path(candidate).is_file() and os.access(candidate, os.X_OK):
+                return candidate
+        except OSError:
+            continue
+    return None
+
+
 def mcp_preflight(profile_home: Path, profile_token: str, runner=subprocess.run) -> dict:
     """Check the same MCP discovery used by Hermes chat, without a model call."""
     probe = Path(__file__).with_name("hermes_mcp_preflight.py")
@@ -253,8 +271,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {"status": "DRY_RUN", "job_id": job_id, "profile": profile, "business_id": business_id}
     if os.environ.get("HELENA_DISPATCH_ENABLED") != "1":
         raise RuntimeError("Execucao desligada; HELENA_DISPATCH_ENABLED=1 e obrigatorio")
-    binary = os.environ.get("HERMES_BIN", "hermes")
-    resolved_binary = shutil.which(binary)
+    resolved_binary = resolve_hermes_binary()
     if not resolved_binary:
         raise RuntimeError("CLI Hermes indisponivel; job permanece READY")
     usage = (preflight or usage_preflight)(resolved_binary, profile)
