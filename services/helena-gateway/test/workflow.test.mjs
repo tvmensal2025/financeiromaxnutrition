@@ -57,3 +57,17 @@ test('aprovacao exige evidencia da propria tarefa recuperada do Supabase', async
   await tools.review_delivery.handler(requestChanges, { identity });
   assert.equal(calls.length, 2);
 });
+
+test('entrega visual da Maya nao recebe aprovacao sem as quatro artes verificadas', async () => {
+  const calls = [];
+  const identity = { type: 'hermes_profile', profileSlug: 'nina--biz003', bindingVerified: true };
+  const input = { job_id: 'JOB-MAYA', expected_task_version: 3, idempotency_key: 'review-maya', decision: 'APPROVE', reason: 'Conferi dimensoes e arquivos.' };
+  const job = { status: 'WAITING_HELENA', agent_id: 'AGT-12', objective: 'Criar post e stories', evidence_refs: ['MEM-HR-1'] };
+  const context = { job, evidence_records: [{ id: 'MEM-HR-1', related_object_id: 'JOB-MAYA' }], evidence_missing: [], artifact_records: [{ slot: 'post' }] };
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true }; }, async () => context);
+  await assert.rejects(tools.review_delivery.handler(input, { identity }), /post e tres stories/);
+  assert.equal(calls.length, 0);
+  context.artifact_records.push({ slot: 'story-1' }, { slot: 'story-2' }, { slot: 'story-3' });
+  await tools.review_delivery.handler(input, { identity });
+  assert.equal(calls.length, 1);
+});

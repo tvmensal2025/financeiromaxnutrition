@@ -1,17 +1,20 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { PNG } from 'pngjs';
 
 // Credenciais ficticias; nenhum acesso ao Supabase ou Hermes real neste arquivo.
 const token = 'hhs_' + 'fixture'.repeat(8);
 const claraToken = 'hhs_' + 'reviewer'.repeat(7);
+const mayaToken = 'hhs_' + 'designer'.repeat(7);
 process.env.HELENA_GATEWAY_DISABLE_LISTEN = '1';
 process.env.SUPABASE_URL = 'https://example.invalid';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'fixture-only';
 process.env.MCP_BEARER_TOKEN = 'fixture-admin';
 process.env.HERMES_PROFILE_TOKEN_HASHES = JSON.stringify([
   { profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256').update(token).digest('hex') },
-  { profile_slug: 'clara--biz003', sha256: crypto.createHash('sha256').update(claraToken).digest('hex') }
+  { profile_slug: 'clara--biz003', sha256: crypto.createHash('sha256').update(claraToken).digest('hex') },
+  { profile_slug: 'maya--biz003', sha256: crypto.createHash('sha256').update(mayaToken).digest('hex') }
 ]);
 const originalFetch = globalThis.fetch;
 const { app } = await import('../src/server.mjs');
@@ -27,17 +30,23 @@ after(async () => {
 
 const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', profile_slug: 'pedro--biz003', status: 'ACTIVE' };
 const job = { job_id: 'JOB-FIXTURE', task_id: 'TSK-FIXTURE', agent_id: 'AGT-18', business_id: 'BIZ-003', status: 'RUNNING' };
-function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, inputJobs = [], handoffLinks = [] } = {}) {
+function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, inputJobs = [], handoffLinks = [], storageObject = null, artifactEvents = [] } = {}) {
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {
     const value = new URL(String(url));
     assert.equal(value.origin, 'https://example.invalid', 'Nenhuma rede externa permitida');
     calls.push({ url: value, method: options.method || 'GET', body: options.body });
     let result;
+    if (value.pathname.includes('/storage/v1/object/upload/sign/')) {
+      return new Response(JSON.stringify({ url: value.pathname.slice('/storage/v1'.length) + '?token=fixture-only' }), { headers: { 'content-type': 'application/json' } });
+    }
+    if (value.pathname.includes('/storage/v1/object/authenticated/')) {
+      return storageObject ? new Response(storageObject, { headers: { 'content-type': 'image/png', 'content-length': String(storageObject.length) } }) : new Response('missing', { status: 404 });
+    }
     if (value.pathname.includes('/rpc/')) result = rpcResult;
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
     else if (value.pathname.endsWith('/agent_jobs')) result = value.searchParams.get('job_id')?.startsWith('in.') ? inputJobs : [sourceJob && value.searchParams.get('job_id') === `eq.${sourceJob.job_id}` ? sourceJob : currentJob];
-    else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : [];
+    else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : value.searchParams.get('event_type') === 'eq.ARTIFACT_VERIFIED' ? artifactEvents : [];
     else if (value.pathname.endsWith('/memoria_mestre')) result = memories;
     else if (value.pathname.endsWith('/tarefas')) result = [{ task_id: job.task_id, business_id: job.business_id, row_version: 123 }];
     else throw new Error('Requisicao nao prevista: ' + value.pathname);
@@ -211,4 +220,36 @@ test('workflow HTTP passa identidade do token e chave de idempotencia ao Supabas
   assert.deepEqual(JSON.parse(call.body), { p_profile_slug: 'pedro--biz003', p_action: 'submit_delivery', p_payload: payload });
   const forged = await invoke('mcp', 'submit_delivery', { ...payload, profile_slug: 'helena--grupo' });
   assert.equal(forged.result.isError, true);
+});
+
+test('Maya prepara e confirma PNG apenas no proprio job e empresa', async () => {
+  const visualJob = { ...job, job_id: 'JOB-HR-' + 'a'.repeat(32), agent_id: 'AGT-12' };
+  const mayaBinding = { ...binding, agent_id: 'AGT-12', profile_slug: 'maya--biz003' };
+  const png = new PNG({ width: 1080, height: 1350 });
+  png.data.fill(255);
+  const bytes = PNG.sync.write(png);
+  const calls = mock({ runtime: mayaBinding, currentJob: visualJob, storageObject: bytes });
+  const args = { job_id: visualJob.job_id, slot: 'post', version: 1 };
+  const prepared = resultOf(await invoke('mcp', 'create_artifact_upload', args, mayaToken), 'mcp');
+  assert.equal(prepared.reference, `storage://helena-deliveries/BIZ-003/${visualJob.job_id}/post-v1.png`);
+  assert.match(prepared.upload_url, /^https:\/\/example\.invalid\/storage\/v1\/object\/upload\/sign\//);
+  const verified = resultOf(await invoke('mcp', 'verify_artifact_upload', args, mayaToken), 'mcp');
+  assert.deepEqual([verified.verified, verified.width, verified.height], [true, 1080, 1350]);
+  const event = calls.find(call => call.method === 'POST' && call.url.pathname.endsWith('/agent_job_events'));
+  assert.equal(JSON.parse(event.body).payload.reference, prepared.reference);
+
+  const wrongCompany = mock({ runtime: mayaBinding, currentJob: { ...visualJob, business_id: 'BIZ-001' }, storageObject: bytes });
+  const refused = await invoke('mcp', 'create_artifact_upload', args, mayaToken);
+  assert.equal(refused.result.isError, true);
+  assert.equal(wrongCompany.some(call => call.url.pathname.includes('/storage/')), false);
+});
+
+test('arquivo citado sem verificacao nao segue para revisao', async () => {
+  const visualJob = { ...job, job_id: 'JOB-HR-' + 'b'.repeat(32) };
+  const calls = mock({ currentJob: visualJob });
+  const args = { job_id: visualJob.job_id, expected_task_version: 123, idempotency_key: 'unverified-asset', summary: 'Imagem ainda nao conferida', evidence_refs: [`storage://helena-deliveries/BIZ-003/${visualJob.job_id}/post-v1.png`] };
+  const response = await invoke('mcp', 'submit_delivery', args);
+  assert.equal(response.result.isError, true);
+  assert.match(response.result.content[0].text, /sem verificacao/);
+  assert.equal(calls.some(call => call.url.pathname.includes('/rpc/gateway_workflow')), false);
 });

@@ -16,6 +16,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
 import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
+import { artifactEventId, createArtifactUpload, parseArtifactReference, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
 
 // ======================================================================
@@ -446,7 +447,19 @@ async function handleGetJob({ job_id }) {
   // Approval still requires a record owned by this job in workflow.mjs.
   evidenceRecords = [...evidenceRecords, ...inputRecords.filter(record => memoryIds.includes(record.id)
     && !evidenceRecords.some(existing => existing.id === record.id))];
-  const evidenceMissing = memoryIds.filter(id => !evidenceRecords.some(record => record.id === id));
+  const artifactRefs = (Array.isArray(job.evidence_refs) ? job.evidence_refs : []).filter(ref => typeof ref === 'string' && ref.startsWith('storage://'));
+  const artifactEvents = artifactRefs.length ? await supabaseFetch(
+    `/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&event_type=eq.ARTIFACT_VERIFIED&select=event_id,payload,created_at&limit=20`
+  ) : [];
+  const artifactRecords = artifactRefs.flatMap(ref => {
+    const parsed = parseArtifactReference(ref, job);
+    const event = Array.isArray(artifactEvents) && artifactEvents.find(item => item.payload?.reference === ref && item.payload?.path === parsed?.path);
+    return parsed && event ? [{ ...parsed, width: event.payload.width, height: event.payload.height, bytes: event.payload.bytes, verified_at: event.created_at }] : [];
+  });
+  const evidenceMissing = [
+    ...memoryIds.filter(id => !evidenceRecords.some(record => record.id === id)),
+    ...artifactRefs.filter(ref => !artifactRecords.some(record => record.reference === ref))
+  ];
 
   return {
     job,
@@ -464,6 +477,7 @@ async function handleGetJob({ job_id }) {
     input_evidence_records: inputRecords,
     input_evidence_missing: inputIds.filter(id => !inputRecords.some(record => record.id === id)),
     evidence_records: evidenceRecords,
+    artifact_records: artifactRecords,
     evidence_missing: evidenceMissing
   };
 }
@@ -814,6 +828,32 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 
 const TOOLS_CONFIG = {
   ...workflowTools(callSupabaseRpc, handleGetJob),
+  create_artifact_upload: {
+    description: 'Prepara URL de upload temporaria para PNG privado do proprio job em execucao. Nao compartilhe a URL; envie o arquivo antes de verificar.',
+    schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5) }).strict(),
+    handler: async ({ job_id, slot, version, agent_id, business_id }) => {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+      const job = Array.isArray(jobs) ? jobs[0] : null;
+      if (!job || job.agent_id !== agent_id || job.business_id !== business_id || job.status !== 'RUNNING') throw new Error('Job nao autorizado para arquivo');
+      return createArtifactUpload({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+    }
+  },
+  verify_artifact_upload: {
+    description: 'Confere no Supabase arquivo PNG enviado, tamanho e dimensoes; registra evidência real antes de submit_delivery.',
+    schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5) }).strict(),
+    handler: async ({ job_id, slot, version, agent_id, business_id }) => {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+      const job = Array.isArray(jobs) ? jobs[0] : null;
+      if (!job || job.agent_id !== agent_id || job.business_id !== business_id || job.status !== 'RUNNING') throw new Error('Job nao autorizado para arquivo');
+      const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+      await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', {
+        method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        body: JSON.stringify({ event_id: artifactEventId(verified.reference), job_id, agent_id, business_id,
+          event_type: 'ARTIFACT_VERIFIED', status: 'RUNNING', message: `${slot} v${version} validado no Storage`, payload: verified })
+      });
+      return { reference: verified.reference, slot, version, width: verified.width, height: verified.height, bytes: verified.bytes, verified: true };
+    }
+  },
   list_ready_jobs: {
     description: 'Consulta fila de agent_jobs no Supabase com status READY e available_at <= now, ordenados por prioridade e com dispatch_message estruturada para bots.',
     schema: z.object({
@@ -952,6 +992,8 @@ const inputObject = (properties, required = []) => ({ type: 'object', properties
 const jobFields = textFields('job_id agent_id');
 const jobRequired = ['job_id', 'agent_id'];
 const mcpInputs = {
+  create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
+  verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
   record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),
   get_job: inputObject(textFields('job_id'), ['job_id']),
@@ -992,6 +1034,19 @@ for (const [name, def] of Object.entries(TOOLS_CONFIG)) {
 
 async function executeAuthorizedTool(name, args, identity) {
   const authorized = await authorizeGatewayTool(name, args, identity, supabaseFetch);
+  if (name === 'submit_delivery') {
+    const artifactRefs = args.evidence_refs.filter(ref => ref.startsWith('storage://'));
+    if (artifactRefs.length) {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(args.job_id)}&limit=1`);
+      const job = Array.isArray(jobs) ? jobs[0] : null;
+      if (!job) throw new Error('Job nao encontrado para conferir arquivos');
+      const events = await supabaseFetch(`/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(args.job_id)}&event_type=eq.ARTIFACT_VERIFIED&select=payload&limit=20`);
+      for (const ref of artifactRefs) {
+        const artifact = parseArtifactReference(ref, job);
+        if (!artifact || !Array.isArray(events) || !events.some(event => event.payload?.reference === ref && event.payload?.path === artifact.path)) throw new Error('Arquivo citado sem verificacao no Supabase');
+      }
+    }
+  }
   return TOOLS_CONFIG[name].handler(authorized.args, { identity: authorized.identity });
 }
 

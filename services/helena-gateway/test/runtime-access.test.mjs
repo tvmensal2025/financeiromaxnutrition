@@ -112,3 +112,14 @@ test('revisor designado pode consultar entrega sem assumir identidade do autor',
   await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
   await assert.rejects(authorizeGatewayTool('claim_job', { job_id: job.job_id }, identity, read), /outro agente/);
 });
+
+test('artes so podem ser preparadas pelo proprio executor com job RUNNING', async () => {
+  const own = await authorizeGatewayTool('create_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
+    reader({ task: { ...job, status: 'RUNNING' } }));
+  assert.equal(own.args.agent_id, binding.agent_id);
+  assert.equal(own.args.business_id, binding.business_id);
+  await assert.rejects(authorizeGatewayTool('verify_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
+    reader({ task: { ...job, status: 'DRAFT' } })), /execucao/);
+  await assert.rejects(authorizeGatewayTool('create_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
+    reader({ task: { ...job, status: 'RUNNING', agent_id: 'AGT-12' } })), /proprio agente/);
+});

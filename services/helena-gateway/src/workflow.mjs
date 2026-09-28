@@ -49,6 +49,11 @@ export function workflowTools(rpc, readJob) {
           || !Array.isArray(context.evidence_missing) || context.evidence_missing.length > 0) {
           throw new Error('Aprovacao exige entrega em revisao e evidencia da propria tarefa localizada no Supabase');
         }
+        if (context.job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte/i.test(context.job.objective || '')) {
+          const slots = new Set((context.artifact_records || []).map(record => record.slot));
+          if (!['post', 'story-1', 'story-2', 'story-3'].every(slot => slots.has(slot)))
+            throw new Error('Aprovacao da entrega visual exige post e tres stories verificados no Supabase');
+        }
       }
       const result = action === 'resolve_job_block'
         ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })

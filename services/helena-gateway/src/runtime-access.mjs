@@ -28,6 +28,7 @@ export async function resolveHermesToken(token, read, configured = '[]') {
 }
 
 const JOB_TOOLS = new Set(['get_job', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
+const ARTIFACT_TOOLS = new Set(['create_artifact_upload', 'verify_artifact_upload']);
 const MANAGEMENT = new Set(['AGT-01', 'AGT-04']);
 const fail = message => { throw new Error(message); };
 const first = rows => Array.isArray(rows) ? rows[0] : null;
@@ -57,6 +58,12 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
     // profile_slug comes only from the authenticated token, never the payload.
     if (['create_task_job', 'release_job', 'resolve_job_block'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
     if (args.business_id && !group && args.business_id !== binding.business_id) fail('Empresa fora do escopo');
+  } else if (ARTIFACT_TOOLS.has(name)) {
+    const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,status&job_id=eq.${enc(args.job_id || '')}&limit=1`));
+    if (!job?.business_id || !job.task_id || job.agent_id !== binding.agent_id || job.status !== 'RUNNING') fail('Arquivo exige job em execucao do proprio agente');
+    if (!group && job.business_id !== binding.business_id) fail('Arquivo pertence a outra empresa');
+    args.agent_id = binding.agent_id;
+    args.business_id = job.business_id;
   } else if (JOB_TOOLS.has(name)) {
     if (name === 'complete_job') fail('Use submit_delivery para revisao; conclusao direta nao liberada para Hermes');
     const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,result_payload&job_id=eq.${enc(args.job_id || '')}&limit=1`));
