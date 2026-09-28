@@ -1,3 +1,4 @@
+import { cleanSpeechTranscript } from '../integrations/voice-delivery.mjs';
 import { loadCallerContext, persistVoiceTurn } from '../integrations/caller-context.mjs';
 /**
  * Routes / Integrations
@@ -70,6 +71,7 @@ import {
   generateAgentSpeechText,
   generateAgentSpeechTextDetailed,
   generateNaturalOpening,
+  transcribeAudio,
   speakInCall,
   handleCallConnectedWebhook,
   handleCallEndedWebhook,
@@ -1651,6 +1653,22 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    * Conexão DIRETA: processa o texto com DeepSeek (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
    * POST /api/integrations/call-engine/turn
    */
+  router.post('/api/integrations/call-engine/transcribe', async (req,res)=>{
+    try {
+      const accessToken=String(req.headers.authorization || '').replace(/^Bearer /i,'');
+      if(!accessToken) return res.status(401).json({error:'Entre na sua conta para conversar.'});
+      const {audio_base64,mime_type}=req.body || {};
+      if(typeof audio_base64 !== 'string' || audio_base64.length>2800000 ||
+        !['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'].includes(mime_type))
+        return res.status(400).json({error:'Formato de áudio inválido.'});
+      const context=await loadCallerContext({accessToken},'vital');
+      if(context.status!=='matched') return res.status(401).json({error:'Não foi possível validar sua sessão.'});
+      const text=await transcribeAudio(Buffer.from(audio_base64,'base64'),mime_type);
+      if(text === null) return res.status(503).json({error:'O serviço de reconhecimento não respondeu. Tente novamente.'});
+      return res.json({text:cleanSpeechTranscript(text)});
+    } catch { return res.status(503).json({error:'O serviço de reconhecimento está indisponível. Tente novamente.'}); }
+  });
+
   router.post('/api/integrations/call-engine/turn', async (req, res) => {
     try {
       const { character_id, mode, user_text, history = [], is_start = false, call_id } = req.body || {};

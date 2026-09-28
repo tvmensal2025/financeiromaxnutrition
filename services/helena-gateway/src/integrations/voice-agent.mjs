@@ -552,7 +552,7 @@ export const ELEVENLABS_OFFICIAL_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ'; // Pedro / M
  * Transcreve áudio do microfone do usuário usando ElevenLabs Scribe STT (ultra-rápido ~400ms)
  * com fallback e tolerância a ruído
  */
-export async function transcribeAudio(audioBuffer) {
+export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav') {
   if (!audioBuffer || audioBuffer.length < 300) {
     return null;
   }
@@ -562,9 +562,9 @@ export async function transcribeAudio(audioBuffer) {
   // 1. ElevenLabs Scribe STT
   if (elevenKey && elevenKey.trim().length > 0) {
     try {
-      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const blob = new Blob([audioBuffer], { type: mimeType });
       const formData = new FormData();
-      formData.append('file', blob, 'speech.wav');
+      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
       formData.append('model_id', 'scribe_v1');
       formData.append('language_code', 'por');
 
@@ -583,6 +583,7 @@ export async function transcribeAudio(audioBuffer) {
           return text;
         } else {
           console.log(`[VOICE_AGENT] ℹ️ Scribe STT processou áudio mas não detectou palavras claras.`);
+          return '';
         }
       } else {
         const errText = await res.text().catch(() => '');
@@ -597,9 +598,9 @@ export async function transcribeAudio(audioBuffer) {
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey && groqKey.trim().length > 0) {
     try {
-      const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+      const blob = new Blob([audioBuffer], { type: mimeType });
       const formData = new FormData();
-      formData.append('file', blob, 'speech.wav');
+      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
       formData.append('model', 'whisper-large-v3-turbo');
       formData.append('language', 'pt');
 
