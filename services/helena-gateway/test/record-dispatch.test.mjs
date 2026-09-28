@@ -68,7 +68,7 @@ function installSupabaseMock({ binding = { agent_id: 'AGT-09', business_id: 'MAX
   return writes;
 }
 
-test('record_dispatch com AGT-04 grava DISPATCHED com payload e mensagem corretos', async () => {
+test('record_dispatch com AGT-04 registra pedido sem afirmar execução do Hermes', async () => {
   const writes = installSupabaseMock();
 
   const result = await handleRecordDispatch({
@@ -78,12 +78,13 @@ test('record_dispatch com AGT-04 grava DISPATCHED com payload e mensagem correto
   });
 
   assert.equal(result.success, true);
-  assert.equal(result.dispatched, true);
+  assert.equal(result.dispatched, false);
+  assert.equal(result.local_runner_required, true);
   assert.equal(writes.length, 1);
-  assert.equal(writes[0].event_type, 'DISPATCHED');
+  assert.equal(writes[0].event_type, 'DISPATCH_REQUESTED');
   assert.equal(writes[0].payload.dispatcher_agent_id, 'AGT-04');
   assert.equal(writes[0].payload.target_external_agent_id, 'theo--max');
-  assert.equal(writes[0].message, 'Despachado por AGT-04 para AGT-09');
+  assert.equal(writes[0].message, 'Despacho solicitado por AGT-04 para AGT-09; execução ainda não confirmada');
 });
 
 test('runtime Grok desativado nao aparece na fila e nao aceita despacho', async () => {

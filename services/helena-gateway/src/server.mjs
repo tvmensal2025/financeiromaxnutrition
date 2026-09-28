@@ -322,7 +322,7 @@ async function handleRecordDispatch({
 
   // Verifica cooldown de despacho
   const events = await supabaseFetch(
-    `/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&event_type=eq.DISPATCHED&order=created_at.desc&limit=1`
+    `/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&event_type=eq.DISPATCH_REQUESTED&order=created_at.desc&limit=1`
   );
 
   if (Array.isArray(events) && events.length > 0) {
@@ -335,22 +335,22 @@ async function handleRecordDispatch({
         success: false,
         cooldown: true,
         remaining_seconds: remainingSeconds,
-        message: `Job ${job_id} despachado recentemente. Cooldown ativo de ${remainingSeconds}s restantes.`
+        message: `Pedido de despacho para ${job_id} registrado recentemente. Cooldown de ${remainingSeconds}s restantes.`
       };
     }
   }
 
-  // Cria evento append-only DISPATCHED em public.agent_job_events
-  // Nota: o job permanece com status READY até o especialista fazer claim_job
+  // A API registra apenas a solicitação. A execução real ocorre no host Hermes
+  // pelo dispatcher, que confirma claim_job e start_job com o perfil individual.
   await supabaseFetch('/rest/v1/agent_job_events', {
     method: 'POST',
     body: JSON.stringify({
       job_id,
       agent_id: finalTargetAgent,
       business_id: job.business_id,
-      event_type: 'DISPATCHED',
+      event_type: 'DISPATCH_REQUESTED',
       status: 'READY',
-      message: `Despachado por ${dispatcher_agent_id} para ${finalTargetAgent}`,
+      message: `Despacho solicitado por ${dispatcher_agent_id} para ${finalTargetAgent}; execução ainda não confirmada`,
       payload: {
         dispatcher_agent_id,
         target_agent_id: finalTargetAgent,
@@ -363,11 +363,12 @@ async function handleRecordDispatch({
 
   return {
     success: true,
-    dispatched: true,
+    dispatched: false,
+    local_runner_required: true,
     job_id,
     target_agent_id: finalTargetAgent,
     cooldown_seconds: DISPATCH_COOLDOWN_SECONDS,
-    message: `Job ${job_id} registrado como despachado. Aguardando claim do especialista.`
+    message: `Pedido registrado para ${job_id}. A execução depende do dispatcher no host Hermes.`
   };
 }
 
@@ -823,7 +824,7 @@ const TOOLS_CONFIG = {
     handler: handleListReadyJobs
   },
   record_dispatch: {
-    description: 'Registra evento append-only DISPATCHED pela Marina (PMO) com cooldown de 180s. Não altera o status do job (continua READY até o claim pelo especialista).',
+    description: 'Registra pedido de despacho da Marina com cooldown de 180s. Não inicia o Hermes nem afirma execução; o job continua READY até o claim pelo perfil no host Hermes.',
     schema: z.object({
       job_id: z.string().describe('ID do job a ser despachado'),
       dispatcher_agent_id: z.string().min(1).describe('ID do agente despachante. Marina = AGT-04'),
