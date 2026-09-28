@@ -41,25 +41,41 @@ export function extractSentences(text, final = false) {
 }
 
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, backchannelDelayMs = 1100 }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
   const started = performance.now();
-  const metrics = { llm_first_token_ms: null, llm_total_ms: null, tts_first_audio_ms: null, first_audio_to_transport_ms: null };
+  const metrics = { llm_first_token_ms: null, llm_total_ms: null, tts_first_audio_ms: null, first_audio_to_transport_ms: null,
+    backchannel_ms: null };
   let usage = null;
   let spokenText = '';
   let firstTextAt = null;
   let audioBytes = 0;
+  let backchannelTimer;
   const tts = openTTS({ voice, context: 'CALL', signal: combined });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
   const cancelTTS = () => tts.destroy(combined.reason);
   combined.addEventListener('abort', cancelTTS, { once: true });
+  // The short acknowledgement enters the same Google TTS stream as the answer.
+  // This keeps playback ordered and lets the existing speech epoch cancel both.
+  if (process.env.CALL_BACKCHANNEL_ENABLED !== 'false') {
+    backchannelTimer = setTimeout(() => {
+      if (firstTextAt !== null || combined.aborted || tts.destroyed) return;
+      try {
+        metrics.backchannel_ms = Math.round(performance.now() - started);
+        tts.write({ input: { text: 'Hum, só um instante. ' } });
+      } catch (err) { controller.abort(err); }
+    }, Math.max(0, backchannelDelayMs));
+  }
   const writeSentence = async sentence => {
     combined.throwIfAborted();
     const clean = sentence.replace(/<[^>]*>|\[(?:happy|sad|laughs?|feliz|triste|rindo|sorrindo)\]/gi, '').replace(/[*#_~`]/g, '').trim();
     if (!clean) return;
-    if (firstTextAt === null) firstTextAt = performance.now();
+    if (firstTextAt === null) {
+      firstTextAt = performance.now();
+      clearTimeout(backchannelTimer);
+    }
     spokenText += `${spokenText ? ' ' : ''}${clean}`;
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
@@ -140,6 +156,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     err.partialText = spokenText;
     throw err;
   } finally {
+    clearTimeout(backchannelTimer);
     combined.removeEventListener('abort', cancelTTS);
   }
 }

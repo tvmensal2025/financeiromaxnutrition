@@ -59,6 +59,35 @@ describe('End-to-end voice streaming', () => {
     assert.ok(result.metrics.llm_first_token_ms >= 0);
     assert.ok(result.audioBytes > 0);
   });
+  it('acknowledges a slow answer once in the active Google voice and keeps the answer ordered', async () => {
+    const sentences = [];
+    const result = await streamReplyToCall({ ...base, backchannelDelayMs: 10,
+      openTTS: ({ voice }) => { assert.equal(voice, base.voice); return fakeTTS(s => sentences.push(s)); },
+      fetchImpl: async (url, opts) => {
+        if (url.includes('api.openai.com')) return { ok: true, body: Readable.from((async function* () {
+          await new Promise(resolve => setTimeout(resolve, 35));
+          yield event(delta('A resposta está pronta.'));
+          yield event(stop);
+        })()) };
+        for await (const chunk of opts.body) assert.ok(chunk.length);
+        return Response.json({ ok: true });
+      } });
+    assert.deepEqual(sentences, ['Hum, só um instante. ', 'A resposta está pronta. ']);
+    assert.equal(result.text, 'A resposta está pronta.');
+    assert.ok(result.metrics.backchannel_ms >= 0);
+  });
+  it('skips the acknowledgement when the answer is ready first', async () => {
+    const sentences = [];
+    const result = await streamReplyToCall({ ...base, backchannelDelayMs: 80,
+      openTTS: () => fakeTTS(s => sentences.push(s)),
+      fetchImpl: async (url, opts) => {
+        if (url.includes('api.openai.com')) return { ok: true, body: Readable.from([event(delta('Claro, aqui está.')), event(stop)]) };
+        for await (const chunk of opts.body) assert.ok(chunk.length);
+        return Response.json({ ok: true });
+      } });
+    assert.deepEqual(sentences, ['Claro, aqui está. ']);
+    assert.equal(result.metrics.backchannel_ms, null);
+  });
   it('cancels both providers when transport reports barge-in; never retries batch', async () => {
     let capturedSignal;
     let calls = 0;
