@@ -1185,13 +1185,9 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			s.speechSamples = append(s.speechSamples, pcmFrame...)
 			s.liveStream.push(pcmFrame)
 
-			// Short clauses often continue after a one-second thinking pause.
-			// Keep the faster endpoint for longer utterances.
+			// 720ms also for short clauses. Resumed speech resets the counter;
+			// a new confirmed utterance invalidates pending/playing audio by epoch.
 			endpointFrames := s.silenceThreshold
-			spokenSamples := len(s.speechSamples) - s.silenceFrames*len(pcmFrame)
-			if spokenSamples < 16000*4 && endpointFrames < 20 {
-				endpointFrames = 20 // 1.2 seconds, only for short clauses.
-			}
 			if s.silenceFrames >= endpointFrames {
 				samplesToDispatch := s.speechSamples
 				callID := s.callID

@@ -108,23 +108,52 @@ func TestRoomNoiseDoesNotStartOrExtendSpeech(t *testing.T) {
 	}
 }
 
-func TestShortClauseKeepsOneSecondPauseInSameTurn(t *testing.T) {
+func TestShortClauseKeepsHalfSecondPauseInSameTurn(t *testing.T) {
 	sink, player := testVoiceSink()
 	player.Stop()
 	for i := 0; i < 30; i++ {
 		_ = sink.WriteFrame(voiceFrame(0.02))
 	}
 	epoch := sink.speechEpoch
-	for i := 0; i < 17; i++ {
+	for i := 0; i < 8; i++ {
 		_ = sink.WriteFrame(voiceFrame(0))
 	}
 	if !sink.isSpeaking {
-		t.Fatal("one-second thinking pause ended the short clause")
+		t.Fatal("half-second thinking pause ended the short clause")
 	}
 	for i := 0; i < 4; i++ {
 		_ = sink.WriteFrame(voiceFrame(0.02))
 	}
 	if sink.speechEpoch != epoch || sink.silenceFrames != 0 {
 		t.Fatal("continuation must stay in the same speech turn")
+	}
+}
+
+func TestShortSpeechEndsAt720msAndContinuationAdvancesEpoch(t *testing.T) {
+	sink, player := testVoiceSink()
+	player.Stop()
+	for i := 0; i < 5; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	epoch := sink.speechEpoch
+	// Complete dispatch in memory, without a live HTTP request.
+	live := &liveSpeechStream{frames: make(chan []byte, 32), result: make(chan bool, 1), cancel: func() {}}
+	live.result <- true
+	sink.liveStream = live
+	for i := 0; i < 11; i++ {
+		_ = sink.WriteFrame(voiceFrame(0))
+	}
+	if !sink.isSpeaking {
+		t.Fatal("ended before the 720ms pause")
+	}
+	_ = sink.WriteFrame(voiceFrame(0))
+	if sink.isSpeaking {
+		t.Fatal("still waiting after 720ms")
+	}
+	for i := 0; i < 2; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	if !sink.isSpeaking || sink.speechEpoch != epoch+1 {
+		t.Fatal("resumed speech did not invalidate the pending answer")
 	}
 }
