@@ -23,6 +23,7 @@ import {
   getActivePersonality
 } from './call-engine.mjs';
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
+import { publicVoiceConfig } from './voice-agent-store.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -130,16 +131,41 @@ let cachedConfig = {
   updated_at: new Date().toISOString()
 };
 
+let configStore = null;
+let configLoadedFromStore = false;
+
+export function configureVoiceAgentStore(store) {
+  configStore = store;
+  configLoadedFromStore = false;
+}
+
 /** Resolve somente a chave GPT das ligações; chaves legadas não entram neste fluxo. */
-export async function resolveAiApiKey() {
+export async function resolveAiApiKey(config = {}) {
   return (process.env.OPENAI_API_KEY || '').trim();
 }
 
 /**
  * Retorna as configurações do Agente de Voz e Memória de Produtos
  */
-export async function getVoiceAgentConfig() {
-  return { ...cachedConfig };
+export async function getVoiceAgentConfig({ allowStale = false } = {}) {
+  if (configStore) {
+    try {
+      const persisted = await configStore.load();
+      cachedConfig = {
+        ...cachedConfig,
+        ...publicVoiceConfig(persisted),
+        ai_provider: 'OPENAI',
+        ai_model: 'gpt-6-luna',
+        ai_api_key: '',
+        voice_provider: 'GOOGLE_CHIRP3_HD'
+      };
+      configLoadedFromStore = true;
+    } catch (error) {
+      if (!allowStale || !configLoadedFromStore) throw error;
+      console.warn('[VOICE_AGENT] Supabase indisponível; usando a última configuração carregada.');
+    }
+  }
+  return { ...cachedConfig, ai_api_key: '' };
 }
 
 /**
@@ -147,16 +173,19 @@ export async function getVoiceAgentConfig() {
  */
 export async function updateVoiceAgentConfig(newSettings = {}) {
   const { ai_provider, ai_model, ai_api_key, voice_provider, voice_profile_id, elevenlabs_voice, ...allowedSettings } = newSettings;
-  cachedConfig = {
+  const next = {
     ...cachedConfig,
-    ...allowedSettings,
+    ...publicVoiceConfig(allowedSettings),
     ai_provider: 'OPENAI',
     ai_model: 'gpt-6-luna',
     ai_api_key: '',
     voice_provider: 'GOOGLE_CHIRP3_HD',
     updated_at: new Date().toISOString()
   };
-  return { ok: true, config: cachedConfig };
+  if (configStore) await configStore.save(next);
+  cachedConfig = next;
+  if (configStore) configLoadedFromStore = true;
+  return { ok: true, config: { ...cachedConfig } };
 }
 
 // ======================================================================

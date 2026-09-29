@@ -116,6 +116,15 @@ import {
   URA_DEFAULT_ROUTE
 } from '../whatsapp-ura.mjs';
 
+export function authenticateVoiceGateway(req, res, next) {
+  const expected = process.env.VOICE_GATEWAY_INTERNAL_KEY;
+  const supplied = String(req.headers['x-api-key'] || '');
+  if (!expected || supplied.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) {
+    return res.status(401).json({ error: 'invalid_voice_gateway_key' });
+  }
+  return next();
+}
+
 export {
   buildAutoReplyMessage,
   getWhatsappChannelIdentity,
@@ -186,7 +195,7 @@ export function authenticateEvolutionWebhook(req, res, next) {
 export function createIntegrationsRouter({ supabaseFetch, authenticateUser, profileStore }) {
   const router = express.Router();
   router.use(async (req, res, next) => {
-    if (profileStore && (req.path.startsWith('/api/integrations/call-engine/') || req.path.startsWith('/api/integrations/voice-agent/'))) {
+    if (profileStore && req.path.startsWith('/api/integrations/call-engine/')) {
       try { await profileStore.load(); } catch { return res.status(503).json({ error: 'Não foi possível carregar os perfis salvos.' }); }
     }
     next();
@@ -203,6 +212,23 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       return authenticateUser(req, res, () => next());
     }
     next();
+  };
+
+  const requireFounder = async (req, res, next) => {
+    const userId = req.identity?.userId || req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Authorization required' });
+    if (!supabaseFetch) return res.status(503).json({ error: 'Founder access could not be verified.' });
+    try {
+      const rows = await supabaseFetch(
+        `/rest/v1/app_access?select=role&user_id=eq.${encodeURIComponent(userId)}&active=eq.true&limit=1`
+      );
+      if (!Array.isArray(rows) || rows[0]?.role !== 'founder') {
+        return res.status(403).json({ error: 'Founder access required.' });
+      }
+      return next();
+    } catch {
+      return res.status(503).json({ error: 'Founder access could not be verified.' });
+    }
   };
 
   // ======================================================================
@@ -718,20 +744,30 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       const callId = callResult?.call_id || `CALL-${Date.now()}`;
 
       // Registra chamada em public.call_sessions
+      let trackingStatus = 'REGISTRADA';
+      let warning = null;
       if (supabaseFetch) {
-        await supabaseFetch('/rest/v1/call_sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            call_id: callId,
-            business_id: business_id || 'BIZ-001',
-            provider: 'MEOWCALLER',
-            direction: 'OUTBOUND',
-            remote_number: phone,
-            status: 'DIALING',
-            voice_profile_id: voice_profile_id || null,
-            started_at: new Date().toISOString()
-          })
-        }).catch(() => {});
+        try {
+          await supabaseFetch('/rest/v1/call_sessions', {
+            method: 'POST',
+            body: JSON.stringify({
+              call_id: callId,
+              business_id: business_id || 'BIZ-001',
+              provider: 'MEOWCALLER',
+              direction: 'OUTBOUND',
+              remote_number: phone,
+              status: 'DIALING',
+              voice_profile_id: voice_profile_id || null,
+              started_at: new Date().toISOString()
+            })
+          });
+        } catch (err) {
+          trackingStatus = 'FALHA';
+          warning = `Chamada iniciada, mas não foi registrada no Supabase: ${err.message}`;
+        }
+      } else {
+        trackingStatus = 'FALHA';
+        warning = 'Chamada iniciada, mas o Supabase não está configurado para registrar o histórico.';
       }
 
       // Inicia o bridge de áudio assíncrono
@@ -742,7 +778,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         remoteNumber: phone
       }).catch((err) => console.warn(`[BRIDGE] Falha ao preparar bridge: ${err.message}`));
 
-      return res.json({ ok: true, result: callResult, call_id: callId });
+      return res.json({ ok: true, result: callResult, call_id: callId, tracking_status: trackingStatus, ...(warning ? { warning } : {}) });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
     }
@@ -931,7 +967,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
   // 7. CÉREBRO DO ATENDENTE & MEMÓRIA DE PRODUTOS ("COMANDO GIGANTE")
   // ======================================================================
 
-  router.get('/api/integrations/voice-agent/settings', optionalAuth, async (req, res) => {
+  router.get('/api/integrations/voice-agent/settings', authenticateUser, requireFounder, async (req, res) => {
     try {
       const config = await getVoiceAgentConfig();
       return res.json({ ok: true, config });
@@ -940,7 +976,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/voice-agent/settings', authenticateUser, async (req, res) => {
+  router.post('/api/integrations/voice-agent/settings', authenticateUser, requireFounder, async (req, res) => {
     try {
       if ((req.body?.ai_provider && req.body.ai_provider !== 'OPENAI') ||
           (req.body?.ai_model && req.body.ai_model !== 'gpt-6-luna') || req.body?.ai_api_key) {
@@ -1020,14 +1056,6 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  const authenticateVoiceGateway = (req, res, next) => {
-    const expected = process.env.VOICE_GATEWAY_INTERNAL_KEY;
-    const supplied = String(req.headers['x-api-key'] || '');
-    if (!expected || supplied.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))) {
-      return res.status(401).json({ error: 'invalid_voice_gateway_key' });
-    }
-    return next();
-  };
   router.post('/api/integrations/voice-agent/webhook', authenticateVoiceGateway, async (req, res) => {
     try {
       const result = await handleCallConnectedWebhook(req.body || {});
@@ -1056,7 +1084,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/voice-agent/user-speech', async (req, res) => {
+  router.post('/api/integrations/voice-agent/user-speech', authenticateVoiceGateway, async (req, res) => {
     try {
       const { call_id, audio_base64, format, sample_rate, speech_epoch } = req.body || {};
       if (!call_id || !audio_base64) {
@@ -1090,7 +1118,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.get('/api/integrations/voice-agent/call-history/:call_id', optionalAuth, (req, res) => {
+  router.get('/api/integrations/voice-agent/call-history/:call_id', authenticateUser, requireFounder, (req, res) => {
     const history = getCallHistory(req.params.call_id);
     return res.json({ ok: true, call_id: req.params.call_id, history });
   });

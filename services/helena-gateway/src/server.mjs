@@ -1,4 +1,6 @@
 import { createProfileStore } from './integrations/profile-store.mjs';
+import { createVoiceAgentStore } from './integrations/voice-agent-store.mjs';
+import { configureVoiceAgentStore } from './integrations/voice-agent.mjs';
 import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
@@ -1199,6 +1201,9 @@ app.use((req, res, next) => {
 });
 
 // Monta Central de Integrações (Evolution, Meowcaller, ElevenLabs, Laya)
+configureVoiceAgentStore(
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createVoiceAgentStore(supabaseFetch) : null
+);
 app.use(createIntegrationsRouter({ supabaseFetch,
   profileStore: SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createProfileStore(supabaseFetch) : null,
   authenticateUser: createVoiceAdminAuth({ fallback: authenticateMcp }) }));

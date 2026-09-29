@@ -8,6 +8,7 @@ process.env.EVOLUTION_INSTANCE = 'test-instance';
 process.env.EVOLUTION_WEBHOOK_SECRET = 'test-evo-webhook-secret';
 process.env.MEOWCALLER_BASE_URL = 'http://meowcaller.test';
 process.env.MEOWCALLER_TOKEN = 'test-meow-token';
+process.env.VOICE_GATEWAY_INTERNAL_KEY = 'test-voice-gateway-key';
 process.env.LAYA_BASE_URL = 'http://laya.test';
 
 const originalFetch = globalThis.fetch;
@@ -97,8 +98,10 @@ globalThis.fetch = async (url, options = {}) => {
 const {
   createIntegrationsRouter,
   safeCompareSecrets,
-  authenticateMeowcallerCallback
+  authenticateVoiceGateway
 } = await import('../src/routes/integrations.mjs');
+const { configureVoiceAgentStore } = await import('../src/integrations/voice-agent.mjs');
+const { createVoiceAgentStore } = await import('../src/integrations/voice-agent-store.mjs');
 const {
   setEvolutionWebhook,
   buildEvolutionWebhookUrl,
@@ -168,6 +171,7 @@ function inboundMessagePayload(text = 'oi', { id = 'MSG-TEST-1', remoteJid = '55
 function startApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
+  configureVoiceAgentStore(createVoiceAgentStore(supabaseFetch));
   app.use(createIntegrationsRouter({ supabaseFetch, authenticateUser }));
   return new Promise((resolve) => {
     const server = app.listen(0, '127.0.0.1', () => {
@@ -222,8 +226,11 @@ try {
     appAccessRows = [{ role: 'founder', active: true }];
     const path = `${baseUrl}/api/integrations/voice-agent/settings`;
     const headers = { Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' };
-    const write = await fetch(path, { method: 'POST', headers, body: JSON.stringify({ persona: 'Pedro vigente', ai_api_key: 'não-gravar' }) });
-    assert.equal(write.status, 200);
+    const rejected = await fetch(path, { method: 'POST', headers, body: JSON.stringify({ persona: 'Pedro vigente', ai_api_key: 'não-gravar' }) });
+    assert.equal(rejected.status, 400);
+    assert.equal(JSON.stringify(voiceProfiles).includes('não-gravar'), false);
+    const write = await fetch(path, { method: 'POST', headers, body: JSON.stringify({ persona: 'Pedro vigente' }) });
+    assert.equal(write.status, 200, await write.clone().text());
     assert.equal(voiceProfiles[0].business_id, 'BIZ-002');
     assert.equal(voiceProfiles[0].settings.voice_agent.persona, 'Pedro vigente');
     assert.equal(JSON.stringify(voiceProfiles).includes('não-gravar'), false);
@@ -264,21 +271,22 @@ try {
   await test('callback de voz aceita somente a chave interna configurada', () => {
     let advanced = false;
     const response = { status: () => { throw new Error('deveria aceitar'); } };
-    authenticateMeowcallerCallback({ headers: { 'x-api-key': 'test-meow-token' } }, response, () => { advanced = true; });
+    authenticateVoiceGateway({ headers: { 'x-api-key': 'test-voice-gateway-key' } }, response, () => { advanced = true; });
     assert.equal(advanced, true);
   });
 
   await test('callback de voz falha fechado sem variável configurada', () => {
-    const current = process.env.MEOWCALLER_TOKEN;
-    delete process.env.MEOWCALLER_TOKEN;
+    const current = process.env.VOICE_GATEWAY_INTERNAL_KEY;
+    delete process.env.VOICE_GATEWAY_INTERNAL_KEY;
     try {
       let status;
-      authenticateMeowcallerCallback({ headers: { 'x-api-key': 'qualquer' } }, {
+      authenticateVoiceGateway({ headers: { 'x-api-key': 'qualquer' } }, {
         status(code) { status = code; return { json() {} }; }
       }, () => { throw new Error('não pode avançar'); });
       assert.equal(status, 401);
     } finally {
-      process.env.MEOWCALLER_TOKEN = current;
+      if (current === undefined) delete process.env.VOICE_GATEWAY_INTERNAL_KEY;
+      else process.env.VOICE_GATEWAY_INTERNAL_KEY = current;
     }
   });
 
@@ -581,6 +589,7 @@ try {
   console.log(`TESTES DE SEGURANÇA: ${passed} executados, ${passed} passados, 0 falhos`);
   console.log('========================================');
 } finally {
+  configureVoiceAgentStore(null);
   globalThis.fetch = originalFetch;
   await new Promise((resolve) => server.close(resolve));
 }

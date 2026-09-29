@@ -3,7 +3,7 @@ const BUSINESS_ID = 'BIZ-002';
 const PROFILE_ID = 'VP-VOICE-AGENT-BIZ-002';
 const ALLOWED_FIELDS = [
   'agent_name', 'persona', 'knowledge_base', 'inbound_greeting',
-  'outbound_greeting', 'voice_provider', 'voice_profile_id', 'kokoro_voice', 'elevenlabs_voice',
+  'outbound_greeting', 'voice_provider', 'call_voice', 'voice_profile_id', 'kokoro_voice', 'elevenlabs_voice',
   'ai_provider', 'ai_model', 'is_active', 'updated_at'
 ];
 
@@ -44,8 +44,8 @@ export function createVoiceAgentStore(supabaseFetch) {
     },
     async save(config) {
       const safe = publicVoiceConfig(config);
-      const provider = safe.voice_provider || 'KOKORO';
-      if (!['KOKORO', 'ELEVENLABS'].includes(provider)) {
+      const provider = safe.voice_provider || 'GOOGLE_CHIRP3_HD';
+      if (!['GOOGLE_CHIRP3_HD', 'KOKORO', 'ELEVENLABS'].includes(provider)) {
         throw new Error('Provedor de voz não suportado.');
       }
       const result = await supabaseFetch('/rest/v1/voice_profiles?on_conflict=profile_id', {
@@ -56,9 +56,11 @@ export function createVoiceAgentStore(supabaseFetch) {
           business_id: BUSINESS_ID,
           nome: 'Atendente de voz Max Nutrition',
           provider,
-          voice_id: provider === 'ELEVENLABS'
-            ? (safe.elevenlabs_voice || 'TX3LPaxmHKxFdv7VOQHJ')
-            : (safe.kokoro_voice || 'pm_alex*0.7+am_liam*0.3'),
+          voice_id: provider === 'GOOGLE_CHIRP3_HD'
+            ? (safe.call_voice || 'pt-BR-Chirp3-HD-Achird')
+            : provider === 'ELEVENLABS'
+              ? (safe.elevenlabs_voice || 'TX3LPaxmHKxFdv7VOQHJ')
+              : (safe.kokoro_voice || 'pm_alex*0.7+am_liam*0.3'),
           enabled: safe.is_active !== false,
           is_default: false,
           settings: { voice_agent: safe },

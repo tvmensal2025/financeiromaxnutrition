@@ -63,4 +63,17 @@ describe('Configuração de voz no Supabase', () => {
     assert.deepEqual(await store.load(), settings);
     await assert.rejects(store.save({ voice_provider: 'UNKNOWN' }), /não suportado/);
   });
+
+  it('persiste o provedor Google Chirp 3 HD usado em produção', async () => {
+    let rows = [];
+    const store = createVoiceAgentStore(async (_path, options) => {
+      if (options?.body) rows = JSON.parse(options.body);
+      return rows;
+    });
+    const settings = { voice_provider: 'GOOGLE_CHIRP3_HD', call_voice: 'pt-BR-Chirp3-HD-Achernar', is_active: true };
+    await store.save(settings);
+    assert.equal(rows[0].provider, 'GOOGLE_CHIRP3_HD');
+    assert.equal(rows[0].voice_id, 'pt-BR-Chirp3-HD-Achernar');
+    assert.deepEqual(await store.load(), settings);
+  });
 });

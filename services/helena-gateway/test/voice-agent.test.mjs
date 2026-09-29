@@ -79,7 +79,7 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   it('Configuração inicial contém o catálogo completo da Max Nutrition', async () => {
     const cfg = await getVoiceAgentConfig();
     assert.strictEqual(cfg.is_active, true);
-    assert.strictEqual(cfg.voice_provider, 'KOKORO');
+    assert.strictEqual(cfg.voice_provider, 'GOOGLE_CHIRP3_HD');
     assert.ok(cfg.agent_name.includes('Pedro'));
     assert.ok(cfg.knowledge_base.includes('100% Whey Protein Concentrado'));
     assert.ok(cfg.knowledge_base.includes('Creatina Monohidratada'));
@@ -182,7 +182,7 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
       delete process.env.SUPABASE_SERVICE_ROLE_KEY;
       assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI' }), 'openai-test-only');
       delete process.env.DEEPSEEK_API_KEY;
-      assert.strictEqual(await resolveAiApiKey({ ai_provider: 'DEEPSEEK' }), '');
+      assert.strictEqual(await resolveAiApiKey({ ai_provider: 'DEEPSEEK' }), 'openai-test-only');
     } finally {
       for (const name of names) {
         if (original[name] === undefined) delete process.env[name];
