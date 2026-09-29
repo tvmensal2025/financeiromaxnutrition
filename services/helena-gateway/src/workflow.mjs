@@ -8,6 +8,13 @@ const version = { expected_task_version: z.number().int().positive().max(Number.
 const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000) };
 const contracts = {
   resolve_job_block: ['resolve_job_block', { ...job, ...version, reason: text() }, 'Helena ou Marina registra a solucao de um bloqueio por decisao e devolve o mesmo job a DRAFT. Nao aprova entrega, nao inicia modelo e preserva limite de tentativas.'],
+  revise_task_brief: ['revise_task_brief', {
+    job_id: text(120), idempotency_key: key, ...version,
+    expected_job_updated_at: z.string().datetime({ offset: true }),
+    instruction: z.string().trim().min(700).max(8000),
+    definition_of_done: z.string().trim().min(80).max(4000),
+    revision_summary: text(1200).min(20)
+  }, 'Helena ou Marina corrige o briefing da mesma tarefa apos REQUEST_CHANGES, com versoes conferidas e historico preservado. Mantem DRAFT; nao cria tarefa, nao libera e nao inicia modelo.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
   adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(8000).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
@@ -37,6 +44,35 @@ export function workflowTools(rpc, readJob, beforeRelease) {
       let typesafe;
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
       if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
+      if (action === 'revise_task_brief') {
+        if (!['AGT-01', 'AGT-04'].includes(identity.agentId)) throw new Error('Somente Helena ou Marina revisa briefing');
+        if (!readJob) throw new Error('Leitura da tarefa indisponivel; revisao recusada');
+        const detail = await readJob({ job_id: args.job_id });
+        const jobRecord = detail?.job;
+        const taskRecord = detail?.task;
+        const reviewEvent = detail?.events?.find(event => event.event_type === 'WORKFLOW_review_delivery');
+        const reviewRequest = reviewEvent?.payload?.request?.payload;
+        const reviewPayload = jobRecord?.result_payload;
+        if (!jobRecord || !taskRecord || jobRecord.task_id !== taskRecord.task_id
+          || jobRecord.business_id !== taskRecord.business_id || jobRecord.status !== 'DRAFT'
+          || taskRecord.status !== 'BLOQUEADA' || reviewPayload?.review_pending !== false
+          || !reviewPayload?.reviewed_by || !reviewPayload?.review_reason
+          || reviewPayload.reviewed_by === jobRecord.agent_id
+          || reviewEvent?.agent_id !== reviewPayload.reviewed_by
+          || reviewRequest?.decision !== 'REQUEST_CHANGES'
+          || reviewRequest?.reason !== reviewPayload.review_reason) {
+          throw new Error('Revisao exige o mesmo job em DRAFT, tarefa bloqueada e parecer REQUEST_CHANGES verificavel');
+        }
+        if (Number(taskRecord.row_version) !== args.expected_task_version
+          || Date.parse(jobRecord.updated_at) !== Date.parse(args.expected_job_updated_at)) {
+          throw new Error('Versao desatualizada; releia tarefa e job antes de revisar');
+        }
+        validateProfessionalBrief({
+          ...detail,
+          job: { ...jobRecord, instruction: args.instruction },
+          task: { ...taskRecord, definicao_de_pronto: args.definition_of_done }
+        });
+      }
       if (action === 'release_job') {
         if (!readJob) throw new Error('Leitura do briefing indisponível; liberação recusada');
         const detail = await readJob({ job_id: args.job_id });
@@ -61,6 +97,8 @@ export function workflowTools(rpc, readJob, beforeRelease) {
       }
       const result = action === 'resolve_job_block'
         ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })
+        : action === 'revise_task_brief'
+        ? await rpc('gateway_revise_task_brief', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'adopt_existing_task'
         ? await rpc('gateway_adopt_existing_task', {
           p_profile_slug: identity.profileSlug,

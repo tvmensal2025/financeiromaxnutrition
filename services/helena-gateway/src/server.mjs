@@ -1008,6 +1008,15 @@ const inputObject = (properties, required = []) => ({ type: 'object', properties
 const jobFields = textFields('job_id agent_id');
 const jobRequired = ['job_id', 'agent_id'];
 const mcpInputs = {
+  revise_task_brief: inputObject({
+    job_id: { type: 'string', minLength: 1, maxLength: 120 },
+    idempotency_key: { type: 'string', minLength: 1, maxLength: 120 },
+    expected_task_version: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
+    expected_job_updated_at: { type: 'string', format: 'date-time' },
+    instruction: { type: 'string', minLength: 700, maxLength: 8000 },
+    definition_of_done: { type: 'string', minLength: 80, maxLength: 4000 },
+    revision_summary: { type: 'string', minLength: 20, maxLength: 1200 }
+  }, ['job_id', 'idempotency_key', 'expected_task_version', 'expected_job_updated_at', 'instruction', 'definition_of_done', 'revision_summary']),
   create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 }, svg: { type: 'string', minLength: 1, maxLength: 35000 } }, ['job_id','slot','version']),
   verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),

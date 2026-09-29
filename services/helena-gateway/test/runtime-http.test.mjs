@@ -87,6 +87,23 @@ test('resolve_job_block impede executor de desbloquear e aceita coordenacao aute
   assert.equal(JSON.parse(call.body).p_profile_slug, binding.profile_slug);
 });
 
+test('revise_task_brief nao fica disponivel para especialista comum nem chega ao RPC', async () => {
+  const calls = mock();
+  const args = {
+    job_id: job.job_id,
+    idempotency_key: 'revise-http-test',
+    expected_task_version: 123,
+    expected_job_updated_at: '2026-09-29T12:00:00.000Z',
+    instruction: 'x'.repeat(700),
+    definition_of_done: 'y'.repeat(80),
+    revision_summary: 'Ajuste solicitado pelo revisor, com fontes e criterio descritos.'
+  };
+  const denied = await invoke('mcp', 'revise_task_brief', args);
+  assert.equal(denied.result.isError, true);
+  assert.match(denied.result.content[0].text, /Somente Helena ou Marina/);
+  assert.equal(calls.some(call => call.url.pathname.endsWith('/gateway_revise_task_brief')), false);
+});
+
 test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria', async () => {
   const id = 'MEM-HR-' + 'd'.repeat(32);
   const other = 'MEM-HR-' + 'e'.repeat(32);
@@ -209,6 +226,12 @@ test('descoberta MCP publica parametros necessarios para cliente Hermes', async 
   const upload = result.tools.find(tool => tool.name === 'create_artifact_upload');
   assert.equal(upload.inputSchema.properties.svg.maxLength, 35000);
   assert.deepEqual(upload.inputSchema.required, ['job_id', 'slot', 'version']);
+  const revise = result.tools.find(tool => tool.name === 'revise_task_brief');
+  assert.ok(revise);
+  assert.equal(revise.inputSchema.properties.expected_job_updated_at.format, 'date-time');
+  assert.equal(revise.inputSchema.properties.instruction.minLength, 700);
+  assert.equal(revise.inputSchema.properties.definition_of_done.minLength, 80);
+  assert.deepEqual(revise.inputSchema.required, ['job_id', 'idempotency_key', 'expected_task_version', 'expected_job_updated_at', 'instruction', 'definition_of_done', 'revision_summary']);
 });
 
 test('Hermes nao consegue concluir sem revisao', async () => {

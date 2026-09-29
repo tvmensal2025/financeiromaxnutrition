@@ -57,6 +57,16 @@ test('perfil pessoal nao executa fila empresarial', async () => {
   await assert.rejects(authorizeGatewayTool('queue_summary', {}, identity, reader({ runtime: { ...binding, scope_type: 'PERSONAL', business_id: null } })), /escopo empresarial/);
 });
 
+test('somente Helena ou Marina podem revisar briefings devolvidos', async () => {
+  await assert.rejects(authorizeGatewayTool('revise_task_brief', { job_id: 'JOB-TEST' }, identity, reader()), /Somente Helena ou Marina/);
+  const marina = { ...identity, profileSlug: 'marina--biz003' };
+  const result = await authorizeGatewayTool('revise_task_brief', { job_id: 'JOB-TEST' }, marina, reader({
+    runtime: { ...binding, agent_id: 'AGT-04', profile_slug: 'marina--biz003' }
+  }));
+  assert.equal(result.identity.agentId, 'AGT-04');
+  assert.equal(result.identity.bindingVerified, true);
+});
+
 test('especialista assume apenas seu job na sua empresa', async () => {
   const result = await authorizeGatewayTool('claim_job', { job_id: job.job_id, agent_id: binding.agent_id }, identity, reader());
   assert.equal(result.args.agent_id, 'AGT-18');
