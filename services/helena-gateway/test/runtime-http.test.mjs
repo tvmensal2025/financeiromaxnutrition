@@ -32,6 +32,7 @@ const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSIN
 const job = { job_id: 'JOB-FIXTURE', task_id: 'TSK-FIXTURE', agent_id: 'AGT-18', business_id: 'BIZ-003', status: 'RUNNING' };
 function mock({ runtime = binding, currentJob = job, rpcResult = null, memories = [], sourceJob = null, inputJobs = [], handoffLinks = [], storageObject = null, artifactEvents = [] } = {}) {
   const calls = [];
+  let storedObject = storageObject;
   globalThis.fetch = async (url, options = {}) => {
     const value = new URL(String(url));
     assert.equal(value.origin, 'https://example.invalid', 'Nenhuma rede externa permitida');
@@ -40,8 +41,12 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null, memories 
     if (value.pathname.includes('/storage/v1/object/upload/sign/')) {
       return new Response(JSON.stringify({ url: value.pathname.slice('/storage/v1'.length) + '?token=fixture-only' }), { headers: { 'content-type': 'application/json' } });
     }
+    if (value.pathname.includes('/storage/v1/object/helena-deliveries/')) {
+      storedObject = Buffer.from(options.body);
+      return new Response(JSON.stringify({ Key: value.pathname }), { headers: { 'content-type': 'application/json' } });
+    }
     if (value.pathname.includes('/storage/v1/object/authenticated/')) {
-      return storageObject ? new Response(storageObject, { headers: { 'content-type': 'image/png', 'content-length': String(storageObject.length) } }) : new Response('missing', { status: 404 });
+      return storedObject ? new Response(storedObject, { headers: { 'content-type': 'image/png', 'content-length': String(storedObject.length) } }) : new Response('missing', { status: 404 });
     }
     if (value.pathname.includes('/rpc/')) result = rpcResult;
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
@@ -201,6 +206,9 @@ test('descoberta MCP publica parametros necessarios para cliente Hermes', async 
   assert.deepEqual(claim.inputSchema.required, ['job_id', 'agent_id']);
   const complete = result.tools.find(tool => tool.name === 'complete_job');
   assert.equal(complete.inputSchema.properties.evidence_refs.minItems, 1);
+  const upload = result.tools.find(tool => tool.name === 'create_artifact_upload');
+  assert.equal(upload.inputSchema.properties.svg.maxLength, 35000);
+  assert.deepEqual(upload.inputSchema.required, ['job_id', 'slot', 'version']);
 });
 
 test('Hermes nao consegue concluir sem revisao', async () => {
@@ -242,6 +250,21 @@ test('Maya prepara e confirma PNG apenas no proprio job e empresa', async () => 
   const refused = await invoke('mcp', 'create_artifact_upload', args, mayaToken);
   assert.equal(refused.result.isError, true);
   assert.equal(wrongCompany.some(call => call.url.pathname.includes('/storage/')), false);
+});
+
+test('Maya converte SVG autorizado, armazena PNG privado e registra verificacao', async () => {
+  const visualJob = { ...job, job_id: 'JOB-HR-' + 'c'.repeat(32), agent_id: 'AGT-12' };
+  const mayaBinding = { ...binding, agent_id: 'AGT-12', profile_slug: 'maya--biz003' };
+  const calls = mock({ runtime: mayaBinding, currentJob: visualJob });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"><rect width="1080" height="1920" fill="#063b35"/><text x="90" y="180" fill="#ffffff" font-size="62">Trabalhe de casa</text></svg>';
+  const rendered = resultOf(await invoke('mcp', 'create_artifact_upload', { job_id: visualJob.job_id, slot: 'story-1', version: 1, svg }, mayaToken), 'mcp');
+  assert.deepEqual([rendered.verified, rendered.width, rendered.height], [true, 1080, 1920]);
+  assert.equal(rendered.reference, `storage://helena-deliveries/BIZ-003/${visualJob.job_id}/story-1-v1.png`);
+  assert.ok(calls.some(call => call.method === 'POST' && call.url.pathname.includes('/storage/v1/object/helena-deliveries/')));
+  assert.ok(calls.some(call => call.method === 'GET' && call.url.pathname.includes('/storage/v1/object/authenticated/')));
+  const event = calls.find(call => call.method === 'POST' && call.url.pathname.endsWith('/agent_job_events'));
+  assert.equal(JSON.parse(event.body).event_type, 'ARTIFACT_VERIFIED');
+  assert.equal(JSON.parse(event.body).payload.sha256, rendered.sha256);
 });
 
 test('arquivo citado sem verificacao nao segue para revisao', async () => {

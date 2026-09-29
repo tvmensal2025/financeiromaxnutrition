@@ -193,6 +193,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
         "Use somente helena_operacao.get_work_context e get_job para verificar que o job esta RUNNING, e siga a instrucao registrada na tarefa. "
+        + ("Para cada PNG, chame create_artifact_upload com job_id, slot, version e svg vetorial original (ate 35 KB) nas dimensoes exigidas; sem URLs, imagens externas ou scripts. O Gateway renderiza, envia e verifica o arquivo privado. Registre cada referencia retornada como evidencia. " if profile == "maya--biz003" else "")
+        +
         "Registre marcos reais em record_progress, memoria e fonte em record_memory e entregue com submit_delivery "
         "usando a row_version atual e evidencia. Se impedido, use waiting_helena ou fail_job. "
         "Nao delegue, nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "

@@ -18,7 +18,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
 import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
-import { artifactEventId, createArtifactUpload, parseArtifactReference, verifyArtifact } from './artifact-storage.mjs';
+import { artifactEventId, createArtifactUpload, parseArtifactReference, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
 import { createTypeSafe } from './integrations/typesafe.mjs';
 
@@ -833,12 +833,24 @@ const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
   ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate),
   create_artifact_upload: {
-    description: 'Prepara URL de upload temporaria para PNG privado do proprio job em execucao. Nao compartilhe a URL; envie o arquivo antes de verificar.',
-    schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5) }).strict(),
-    handler: async ({ job_id, slot, version, agent_id, business_id }) => {
+    description: 'Maya: com job_id, slot e version prepara URL privada de upload legado; se enviar tambem svg (ate 35 KB), converte em PNG 1080x1350/1080x1920, envia ao bucket privado sem sobrescrever, relê bytes e registra ARTIFACT_VERIFIED. SVG ativo/externo é recusado. Nunca publica a arte.',
+    schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5), svg: z.string().min(1).max(35_000).optional() }).strict(),
+    handler: async ({ job_id, slot, version, svg, agent_id, business_id }) => {
       const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
       const job = Array.isArray(jobs) ? jobs[0] : null;
       if (!job || job.agent_id !== agent_id || job.business_id !== business_id || job.status !== 'RUNNING') throw new Error('Job nao autorizado para arquivo');
+      if (svg !== undefined) {
+        const rendered = renderArtifactSvg(svg, slot);
+        const uploaded = await uploadRenderedArtifact({ job, slot, version, bytes: rendered.png, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+        const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+        if (verified.sha256 !== uploaded.sha256 || verified.bytes !== uploaded.bytes) throw new Error('PNG armazenado difere dos bytes gerados');
+        await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', {
+          method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+          body: JSON.stringify({ event_id: artifactEventId(verified.reference), job_id, agent_id, business_id,
+            event_type: 'ARTIFACT_VERIFIED', status: 'RUNNING', message: `${slot} v${version} renderizado e validado no Storage`, payload: verified })
+        });
+        return { reference: verified.reference, slot, version, width: verified.width, height: verified.height, bytes: verified.bytes, sha256: verified.sha256, verified: true };
+      }
       return createArtifactUpload({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
     }
   },
@@ -996,7 +1008,7 @@ const inputObject = (properties, required = []) => ({ type: 'object', properties
 const jobFields = textFields('job_id agent_id');
 const jobRequired = ['job_id', 'agent_id'];
 const mcpInputs = {
-  create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
+  create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 }, svg: { type: 'string', minLength: 1, maxLength: 35000 } }, ['job_id','slot','version']),
   verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
   record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),

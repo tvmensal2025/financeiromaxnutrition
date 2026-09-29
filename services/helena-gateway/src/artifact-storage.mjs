@@ -1,9 +1,11 @@
 import crypto from 'node:crypto';
 import { PNG } from 'pngjs';
+import { Resvg } from '@resvg/resvg-js';
 
 export const ARTIFACT_BUCKET = 'helena-deliveries';
 export const ARTIFACT_SLOTS = ['post', 'story-1', 'story-2', 'story-3'];
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_SVG_BYTES = 35 * 1024;
 const referencePattern = /^storage:\/\/helena-deliveries\/(BIZ-[0-9]{3})\/(JOB-HR-[a-f0-9]{32})\/(post|story-[1-3])-v([1-5])\.png$/i;
 
 export function artifactPath(job, slot, version) {
@@ -41,6 +43,82 @@ export async function createArtifactUpload({ job, slot, version, serviceUrl, ser
   const signed = new URL(`${base}/storage/v1${data.url}`);
   if (signed.origin !== new URL(base).origin || signed.pathname !== `/storage/v1/object/upload/sign/${ARTIFACT_BUCKET}/${path}` || !signed.searchParams.get('token')) throw new Error('Supabase devolveu URL de upload invalida');
   return { reference: artifactReference(job, slot, version), path, upload_url: signed.toString(), content_type: 'image/png', max_bytes: MAX_BYTES, expires_in_seconds: 7200 };
+}
+
+export function renderArtifactSvg(svg, slot) {
+  if (typeof svg !== 'string' || Buffer.byteLength(svg, 'utf8') > MAX_SVG_BYTES) {
+    throw new Error('SVG vazio ou acima de 35 KB');
+  }
+  if (!ARTIFACT_SLOTS.includes(slot)) throw new Error('Slot de arquivo invalido');
+
+  // This tool accepts vector artwork only. Disallow active content and all
+  // external resources before passing untrusted model output to the renderer.
+  const localRefsRemoved = svg
+    .replace(/\sxmlns\s*=\s*(["'])http:\/\/www\.w3\.org\/2000\/svg\1/i, '')
+    .replace(/url\(\s*#[A-Za-z_][\w.-]*\s*\)/gi, '');
+  if (/<!DOCTYPE|<!ENTITY|<\s*(script|foreignObject|image|iframe|audio|video|use)\b|\b(?:href|src)\s*=|\bon[a-z]+\s*=|@import|@font-face|url\s*\(|javascript:|data:|https?:|file:|expression\s*\(/i.test(localRefsRemoved)) {
+    throw new Error('SVG contem conteudo ativo ou recurso externo');
+  }
+  const root = /<svg\b([^>]*)>/i.exec(svg)?.[1];
+  if (!root) throw new Error('SVG invalido: elemento raiz ausente');
+  const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];
+  const attr = name => new RegExp(`(?:^|\\s)${name}\\s*=\\s*["'](\\d+)["']`, 'i').exec(root)?.[1];
+  const width = Number(attr('width'));
+  const height = Number(attr('height'));
+  const viewBox = /(?:^|\s)viewBox\s*=\s*["']\s*0\s+0\s+(\d+)\s+(\d+)\s*["']/i.exec(root);
+  if (width !== expected[0] || height !== expected[1]
+      || Number(viewBox?.[1]) !== expected[0] || Number(viewBox?.[2]) !== expected[1]) {
+    throw new Error(`Dimensoes SVG invalidas; width, height e viewBox devem ser ${expected[0]}x${expected[1]} para ${slot}`);
+  }
+
+  let bytes;
+  try {
+    const renderer = new Resvg(svg, {
+      fitTo: { mode: 'original' },
+      font: { loadSystemFonts: true, defaultFontFamily: 'sans-serif', sansSerifFamily: 'sans-serif' },
+      logLevel: 'error'
+    });
+    bytes = renderer.render().asPng();
+  } catch {
+    throw new Error('SVG nao pode ser convertido em PNG');
+  }
+  const dimensions = pngDimensions(bytes);
+  if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) {
+    throw new Error(`PNG gerado com dimensoes incorretas: ${dimensions.width}x${dimensions.height}`);
+  }
+  return { png: bytes, ...dimensions };
+}
+
+export async function uploadRenderedArtifact({ job, slot, version, bytes, serviceUrl, serviceKey, fetchImpl = fetch }) {
+  if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser enviado por job em execucao');
+  const dimensions = pngDimensions(bytes);
+  const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];
+  if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) throw new Error('Dimensoes de PNG incorretas para o slot');
+  const path = artifactPath(job, slot, version);
+  const response = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/${ARTIFACT_BUCKET}/${path}`, {
+    method: 'POST', headers: { ...serviceHeaders(serviceKey), 'Content-Type': 'image/png', 'x-upsert': 'false' },
+    body: bytes, signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) {
+    // A retry after a lost response may encounter the object created by the
+    // first attempt. Accept only byte-identical content; never overwrite it.
+    if ([400, 409].includes(response.status)) {
+      const existing = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/authenticated/${ARTIFACT_BUCKET}/${path}`, {
+        headers: serviceHeaders(serviceKey), signal: AbortSignal.timeout(15000)
+      });
+      if (existing.ok) {
+        const priorBytes = Buffer.from(await existing.arrayBuffer());
+        pngDimensions(priorBytes);
+        const priorHash = crypto.createHash('sha256').update(priorBytes).digest('hex');
+        const currentHash = crypto.createHash('sha256').update(bytes).digest('hex');
+        if (priorHash === currentHash) return { reference: artifactReference(job, slot, version), path, ...dimensions, sha256: currentHash };
+        throw new Error('Arquivo existente difere do PNG atual; nenhuma sobrescrita foi feita');
+      }
+    }
+    throw new Error(`Supabase recusou o PNG (HTTP ${response.status}); arquivo existente nao foi sobrescrito`);
+  }
+  return { reference: artifactReference(job, slot, version), path, ...dimensions,
+    sha256: crypto.createHash('sha256').update(bytes).digest('hex') };
 }
 
 export function pngDimensions(bytes) {

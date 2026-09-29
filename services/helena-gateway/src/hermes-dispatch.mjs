@@ -41,6 +41,7 @@ export async function startHermesRun({ job, task, binding, baseUrl, keysJson, fe
     `Definicao de pronto: ${task.definicao_de_pronto}`,
     'Antes de agir, use helena_operacao.get_work_context e get_job. Confirme empresa, responsavel e versao.',
     'Depois use claim_job e start_job. Registre marcos com record_progress e fontes com record_memory.',
+    ...(binding.profile_slug === 'maya--biz003' ? ['Para cada PNG, chame create_artifact_upload com job_id, slot, version e svg vetorial original (ate 35 KB), em 1080x1350 para post ou 1080x1920 para story; sem URLs, imagens externas ou scripts. O Gateway renderiza, envia e verifica o PNG privado; registre cada referencia retornada como evidencia.'] : []),
     'Entregue com submit_delivery, evidencias e versao atual. Aguarde review_delivery; nao use complete_job.',
     'Em bloqueio, registre fail_job ou waiting_helena. Nunca anuncie conclusao sem leitura confirmada do Supabase.'
   ].join('\n');

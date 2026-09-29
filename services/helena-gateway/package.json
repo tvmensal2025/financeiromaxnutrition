@@ -16,6 +16,7 @@
     "@modelcontextprotocol/express": "^2.0.1",
     "@modelcontextprotocol/node": "^2.1.0",
     "@modelcontextprotocol/server": "^2.1.0",
+    "@resvg/resvg-js": "2.6.2",
     "express": "^4.21.2",
     "jose": "^6.2.12",
     "pngjs": "7.0.0",

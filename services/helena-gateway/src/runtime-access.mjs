@@ -59,6 +59,7 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
     if (['create_task_job', 'release_job', 'resolve_job_block'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
     if (args.business_id && !group && args.business_id !== binding.business_id) fail('Empresa fora do escopo');
   } else if (ARTIFACT_TOOLS.has(name)) {
+    if (binding.agent_id !== 'AGT-12') fail('Ferramentas de arte sao exclusivas da Maya');
     const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,status&job_id=eq.${enc(args.job_id || '')}&limit=1`));
     if (!job?.business_id || !job.task_id || job.agent_id !== binding.agent_id || job.status !== 'RUNNING') fail('Arquivo exige job em execucao do proprio agente');
     if (!group && job.business_id !== binding.business_id) fail('Arquivo pertence a outra empresa');

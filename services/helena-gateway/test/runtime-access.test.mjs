@@ -114,12 +114,21 @@ test('revisor designado pode consultar entrega sem assumir identidade do autor',
 });
 
 test('artes so podem ser preparadas pelo proprio executor com job RUNNING', async () => {
-  const own = await authorizeGatewayTool('create_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
-    reader({ task: { ...job, status: 'RUNNING' } }));
-  assert.equal(own.args.agent_id, binding.agent_id);
-  assert.equal(own.args.business_id, binding.business_id);
-  await assert.rejects(authorizeGatewayTool('verify_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
-    reader({ task: { ...job, status: 'DRAFT' } })), /execucao/);
-  await assert.rejects(authorizeGatewayTool('create_artifact_upload', { job_id: job.job_id, slot: 'post', version: 1 }, identity,
-    reader({ task: { ...job, status: 'RUNNING', agent_id: 'AGT-12' } })), /proprio agente/);
+  const mayaIdentity = { type: 'hermes_profile', profileSlug: 'maya--biz003' };
+  const mayaBinding = { ...binding, agent_id: 'AGT-12' };
+  const mayaJob = { ...job, agent_id: 'AGT-12' };
+  const own = await authorizeGatewayTool('create_artifact_upload', { job_id: mayaJob.job_id, slot: 'post', version: 1 }, mayaIdentity,
+    reader({ runtime: mayaBinding, task: { ...mayaJob, status: 'RUNNING' } }));
+  assert.equal(own.args.agent_id, mayaBinding.agent_id);
+  assert.equal(own.args.business_id, mayaBinding.business_id);
+  await assert.rejects(authorizeGatewayTool('verify_artifact_upload', { job_id: mayaJob.job_id, slot: 'post', version: 1 }, mayaIdentity,
+    reader({ runtime: mayaBinding, task: { ...mayaJob, status: 'DRAFT' } })), /execucao/);
+  await assert.rejects(authorizeGatewayTool('create_artifact_upload', { job_id: mayaJob.job_id, slot: 'post', version: 1 }, mayaIdentity,
+    reader({ runtime: mayaBinding, task: { ...mayaJob, status: 'RUNNING', agent_id: 'AGT-18' } })), /proprio agente/);
+});
+
+test('renderizacao vetorial e exclusiva da Maya, mesmo se outro perfil conhecer o campo SVG', async () => {
+  await assert.rejects(authorizeGatewayTool('create_artifact_upload', {
+    job_id: job.job_id, slot: 'story-1', version: 1, svg: '<svg/>'
+  }, identity, reader({ task: { ...job, status: 'RUNNING' } })), /exclusivas da Maya/);
 });
