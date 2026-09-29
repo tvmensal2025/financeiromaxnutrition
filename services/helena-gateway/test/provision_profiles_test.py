@@ -35,6 +35,7 @@ class ProvisionTest(unittest.TestCase):
                 config = module.yaml.safe_load((folder / 'config.yaml').read_text())
                 self.assertEqual(config['model']['default'], 'fixture-model')
                 self.assertFalse(config['kanban']['dispatch_in_gateway'])
+                self.assertIs(config['parallel'], False)
                 self.assertIn('EXISTING_SETTING=fixture-preserve', (folder / '.env').read_text())
                 self.assertEqual((folder / 'SOUL.md').read_text(encoding='utf-8').count(module.MARKER), 1)
                 included = config['mcp_servers']['helena_operacao']['tools']['include']

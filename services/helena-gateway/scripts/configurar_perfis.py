@@ -25,6 +25,7 @@ TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'cla
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block']
+HERMES_SERIAL_TOOLS = False
 def profile_tools(profile):
     if profile == 'laura--pessoal':
         return ['get_work_context']
@@ -81,6 +82,10 @@ def prepare(home):
         config = yaml.safe_load(config_path.read_text(encoding='utf-8'))
         if not isinstance(config, dict):
             raise ValueError('Configuracao invalida: ' + profile)
+        # The local Hermes tool adapter accepts one MCP call per model response.
+        # Keep this explicit in every profile so a future re-provision cannot
+        # reintroduce parallel batches that the adapter rejects.
+        config['parallel'] = HERMES_SERIAL_TOOLS
         env = env_path.read_text(encoding='utf-8') if env_path.exists() else ''
         soul = soul_path.read_text(encoding='utf-8')
         matches = re.findall(r'^' + KEY + r'=(.*)$', env, re.M)
