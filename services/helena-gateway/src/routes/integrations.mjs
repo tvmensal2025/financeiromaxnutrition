@@ -45,6 +45,7 @@ import {
 
 import {
   getVoiceAgentConfig,
+  configureVoiceAgentStore,
   updateVoiceAgentConfig,
   generateAgentSpeechText,
   speakInCall,
@@ -53,6 +54,7 @@ import {
   processUserSpeech,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
+import { createVoiceAgentStore } from '../integrations/voice-agent-store.mjs';
 
 import { MeowcallerElevenBridge, MeowcallerKokoroBridge } from '../integrations/bridge.mjs';
 import {
@@ -132,9 +134,40 @@ export function authenticateEvolutionWebhook(req, res, next) {
   return next();
 }
 
+// O serviço Meowcaller envia a mesma chave interna usada pelo gateway para chamá-lo.
+// Sem credencial configurada, callbacks que poderiam consumir voz/IA falham fechados.
+export function authenticateMeowcallerCallback(req, res, next) {
+  const expected = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || process.env.MEOWCALLER_KEY || '';
+  const provided = firstHeaderOrQueryValue(req.headers['x-api-key']);
+  if (expected.startsWith('CONFIGURAR_') || !safeCompareSecrets(provided, expected)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  return next();
+}
+
 export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   const router = express.Router();
   const bridge = new MeowcallerElevenBridge(supabaseFetch);
+  configureVoiceAgentStore(supabaseFetch ? createVoiceAgentStore(supabaseFetch) : null);
+
+  const requireFounder = async (req, res, next) => {
+    const userId = req.identity?.userId;
+    if (!supabaseFetch || typeof userId !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(userId)) {
+      return res.status(403).json({ ok: false, error: 'Acesso restrito ao fundador.' });
+    }
+    try {
+      const access = await supabaseFetch(
+        `/rest/v1/app_access?select=role,active&user_id=eq.${encodeURIComponent(userId)}&limit=1`
+      );
+      if (access?.[0]?.role !== 'founder' || access[0].active !== true) {
+        return res.status(403).json({ ok: false, error: 'Acesso restrito ao fundador.' });
+      }
+      return next();
+    } catch {
+      return res.status(503).json({ ok: false, error: 'Não foi possível confirmar o acesso no Supabase.' });
+    }
+  };
 
   // Middleware opcional para rotas de telemetria e status visual que não devem bloquear o dashboard
   const optionalAuth = (req, res, next) => {
@@ -452,23 +485,36 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
 
       // Inicia chamada no Meowcaller com voz oficial do Kokoro
       const callResult = await originateCall({ phone, business_id, voice_profile_id });
-      const callId = callResult?.call_id || `CALL-${Date.now()}`;
+      const callId = callResult?.call_id || null;
+      if (!callId) {
+        return res.json({
+          ok: true, result: callResult, call_id: null, tracking_status: 'ID_AUSENTE',
+          warning: 'O provedor não retornou o identificador da chamada. Verifique a ligação antes de tentar novamente.'
+        });
+      }
 
       // Registra chamada em public.call_sessions
+      let trackingStatus = 'SUPABASE_INDISPONIVEL';
       if (supabaseFetch) {
-        await supabaseFetch('/rest/v1/call_sessions', {
-          method: 'POST',
-          body: JSON.stringify({
-            call_id: callId,
-            business_id: business_id || 'BIZ-001',
-            provider: 'MEOWCALLER',
-            direction: 'OUTBOUND',
-            remote_number: phone,
-            status: 'DIALING',
-            voice_profile_id: voice_profile_id || null,
-            started_at: new Date().toISOString()
-          })
-        }).catch(() => {});
+        try {
+          const saved = await supabaseFetch('/rest/v1/call_sessions', {
+            method: 'POST',
+            body: JSON.stringify({
+              call_id: callId,
+              business_id: business_id || 'BIZ-001',
+              provider: 'MEOWCALLER',
+              direction: 'OUTBOUND',
+              remote_number: phone,
+              status: 'DIALING',
+              voice_profile_id: voice_profile_id || null,
+              started_at: new Date().toISOString()
+            })
+          });
+          trackingStatus = Array.isArray(saved) && saved.some(row => row.call_id === callId)
+            ? 'CONFIRMADO' : 'NAO_CONFIRMADO';
+        } catch {
+          trackingStatus = 'FALHA';
+        }
       }
 
       // Inicia o bridge de áudio assíncrono
@@ -479,7 +525,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
         remoteNumber: phone
       }).catch((err) => console.warn(`[BRIDGE] Falha ao preparar bridge: ${err.message}`));
 
-      return res.json({ ok: true, result: callResult, call_id: callId });
+      return res.json({
+        ok: true, result: callResult, call_id: callId, tracking_status: trackingStatus,
+        ...(trackingStatus === 'CONFIRMADO' ? {} : { warning: 'Chamada iniciada, mas o registro no Supabase não foi confirmado.' })
+      });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
     }
@@ -668,101 +717,26 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
   // 7. CÉREBRO DO ATENDENTE & MEMÓRIA DE PRODUTOS ("COMANDO GIGANTE")
   // ======================================================================
 
-  router.get('/api/integrations/voice-agent/settings', optionalAuth, async (req, res) => {
+  router.get('/api/integrations/voice-agent/settings', authenticateUser, requireFounder, async (req, res) => {
     try {
       const config = await getVoiceAgentConfig();
-      if (supabaseFetch) {
-        try {
-          const remoteConfigs = await supabaseFetch('/rest/v1/configuracao?chave=in.(DEEPSEEK_API_KEY,VOICE_AGENT_AI_PROVIDER,VOICE_AGENT_AI_MODEL)&select=*').catch(() => []);
-          if (Array.isArray(remoteConfigs)) {
-            for (const item of remoteConfigs) {
-              if (item.chave === 'DEEPSEEK_API_KEY' && item.valor) {
-                config.ai_api_key = item.valor;
-                config.has_deepseek_key = true;
-              }
-              if (item.chave === 'VOICE_AGENT_AI_PROVIDER' && item.valor) {
-                config.ai_provider = item.valor;
-              }
-              if (item.chave === 'VOICE_AGENT_AI_MODEL' && item.valor) {
-                config.ai_model = item.valor;
-              }
-            }
-          }
-        } catch {}
-      }
       return res.json({ ok: true, config });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }
   });
 
-  router.post('/api/integrations/voice-agent/settings', authenticateUser, async (req, res) => {
+  router.post('/api/integrations/voice-agent/settings', authenticateUser, requireFounder, async (req, res) => {
     try {
+      await getVoiceAgentConfig();
       const result = await updateVoiceAgentConfig(req.body || {});
-      if (supabaseFetch) {
-        try {
-          const configItems = [];
-          if (req.body.knowledge_base !== undefined) {
-            configItems.push({
-              chave: 'VOICE_AGENT_KNOWLEDGE_BASE',
-              valor: req.body.knowledge_base || '',
-              tipo: 'TEXTO',
-              responsavel: 'Admin',
-              descricao: 'Base de conhecimento e catálogo de produtos Max Nutrition'
-            });
-          }
-          if (req.body.persona !== undefined) {
-            configItems.push({
-              chave: 'VOICE_AGENT_PERSONA',
-              valor: req.body.persona || '',
-              tipo: 'TEXTO',
-              responsavel: 'Admin',
-              descricao: 'Personalidade e regras de atendimento do Pedro'
-            });
-          }
-          if (req.body.ai_provider) {
-            configItems.push({
-              chave: 'VOICE_AGENT_AI_PROVIDER',
-              valor: req.body.ai_provider,
-              tipo: 'CONFIG',
-              responsavel: 'Admin',
-              descricao: 'Provedor de IA do Voice Agent'
-            });
-          }
-          if (req.body.ai_model) {
-            configItems.push({
-              chave: 'VOICE_AGENT_AI_MODEL',
-              valor: req.body.ai_model,
-              tipo: 'CONFIG',
-              responsavel: 'Admin',
-              descricao: 'Modelo de IA do Voice Agent'
-            });
-          }
-          if (req.body.ai_api_key) {
-            configItems.push({
-              chave: 'DEEPSEEK_API_KEY',
-              valor: req.body.ai_api_key,
-              tipo: 'SEGREDO',
-              responsavel: 'Admin',
-              descricao: 'Chave de API DeepSeek para inteligência do Voice Agent'
-            });
-          }
-          if (configItems.length > 0) {
-            await supabaseFetch('/rest/v1/configuracao', {
-              method: 'POST',
-              headers: { 'Prefer': 'resolution=merge-duplicates' },
-              body: JSON.stringify(configItems)
-            }).catch(() => null);
-          }
-        } catch {}
-      }
       return res.json({ ok: true, result });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
     }
   });
 
-  router.post('/api/integrations/voice-agent/test-dialogue', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/voice-agent/test-dialogue', authenticateUser, requireFounder, async (req, res) => {
     try {
       const { prompt = 'Qual a diferença entre a creatina monohidratada e a creapure?', voice = KOKORO_OFFICIAL_VOICE_ID } = req.body || {};
       const responseText = await generateAgentSpeechText({ prompt });
@@ -791,7 +765,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
       const result = await speakInCall({
         callId: call_id,
         text: messageToSpeak,
-        voice: voice || cfg.kokoro_voice || KOKORO_OFFICIAL_VOICE_ID
+        voice: voice || (cfg.voice_provider === 'ELEVENLABS' ? cfg.elevenlabs_voice : cfg.kokoro_voice)
       });
       return res.json({ ok: true, result });
     } catch (err) {
@@ -799,7 +773,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/voice-agent/webhook', async (req, res) => {
+  router.post('/api/integrations/voice-agent/webhook', authenticateMeowcallerCallback, async (req, res) => {
     try {
       const result = await handleCallConnectedWebhook(req.body || {});
       return res.json({ ok: true, result });
@@ -808,7 +782,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/voice-agent/user-speech', async (req, res) => {
+  router.post('/api/integrations/voice-agent/user-speech', authenticateMeowcallerCallback, async (req, res) => {
     try {
       const { call_id, audio_base64, format, sample_rate } = req.body || {};
       if (!call_id || !audio_base64) {
@@ -827,7 +801,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.post('/api/integrations/voice-agent/user-silence', async (req, res) => {
+  router.post('/api/integrations/voice-agent/user-silence', authenticateMeowcallerCallback, async (req, res) => {
     try {
       const { call_id } = req.body || {};
       if (!call_id) {
@@ -841,7 +815,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser }) {
     }
   });
 
-  router.get('/api/integrations/voice-agent/call-history/:call_id', optionalAuth, (req, res) => {
+  router.get('/api/integrations/voice-agent/call-history/:call_id', authenticateUser, requireFounder, (req, res) => {
     const history = getCallHistory(req.params.call_id);
     return res.json({ ok: true, call_id: req.params.call_id, history });
   });

@@ -30,7 +30,7 @@ export function ExecutiveMetricCard({
 
   return (
     <div
-      className={`rounded-xl border border-border bg-card p-5 transition-colors hover:border-border/80 ${className}`}
+      className={`he-metric rounded-xl border border-border bg-card p-5 transition-colors hover:border-border/80 ${className}`}
       style={{
         boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)",
       }}

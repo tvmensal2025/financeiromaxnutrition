@@ -12,6 +12,12 @@ import {
 } from "./execucao";
 
 describe("Central de Execução — Regras e Cálculos Ponderados", () => {
+  it("não usa prazo como conclusão e respeita a data de Brasília", () => {
+    const t: TarefaExecucao = {task_id:"T1",business_id:"BIZ-001",tarefa:"A",prioridade:"ALTA",status:"CONCLUÍDA",responsavel:"Theo",prazo:"2026-09-26"};
+    expect(isTarefaConcluidaHoje(t,"2026-09-26")).toBe(false);
+    expect(isTarefaConcluidaHoje({...t,atualizado_em:"2026-09-26T01:30:00Z"},"2026-09-25")).toBe(true);
+    expect(isTarefaConcluidaHoje({...t,atualizado_em:"2026-09-26T01:30:00Z"},"2026-09-26")).toBe(false);
+  });
   it("calcula exatamente o progresso ponderado de PRJ-0002 como 5.2% (MEM-0023 / MEM-0024)", () => {
     // 16 tarefas reais de PRJ-0002
     const tarefasPrj2: TarefaExecucao[] = [

@@ -16,3 +16,5 @@ export const supabase = createClient(url, key, {
     autoRefreshToken: true,
   },
 });
+
+export const supabaseUrl = url;

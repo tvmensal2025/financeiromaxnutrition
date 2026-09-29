@@ -1,3 +1,4 @@
+import { diaSaoPaulo } from "./comando";
 /**
  * SISTEMA HELENA — CENTRAL DE EXECUÇÃO
  * Modelos, cálculos executivos ponderados e queries para o acompanhamento dos 21 agentes.
@@ -225,19 +226,21 @@ export function isTarefaBloqueada(t: TarefaExecucao): boolean {
 /**
  * Verifica se a tarefa está atrasada em relação à data informada (padrão: hoje).
  */
-export function isTarefaAtrasada(t: TarefaExecucao, dataReferencia: string = "2026-09-25"): boolean {
+export function isTarefaAtrasada(t: TarefaExecucao, dataReferencia: string = diaSaoPaulo()): boolean {
   if (t.status === "CONCLUÍDA" || t.status === "CANCELADA") return false;
-  if (!t.prazo) return false;
+  if (!t.prazo || !/^\d{4}-\d{2}-\d{2}$/.test(t.prazo)) return false;
   return t.prazo < dataReferencia;
 }
 
 /**
- * Verifica se a tarefa foi concluída na data informada (padrão: hoje 2026-09-25).
+ * Verifica se a tarefa foi concluída na data informada (padrão: hoje em Brasília; usa última atualização, não data de conclusão).
  */
-export function isTarefaConcluidaHoje(t: TarefaExecucao, dataReferencia: string = "2026-09-25"): boolean {
+export function isTarefaConcluidaHoje(t: TarefaExecucao, dataReferencia: string = diaSaoPaulo()): boolean {
   if (t.status !== "CONCLUÍDA") return false;
-  if (t.prazo === dataReferencia) return true;
-  if (t.atualizado_em && t.atualizado_em.startsWith(dataReferencia)) return true;
+  if (t.atualizado_em) {
+    const d = new Date(t.atualizado_em);
+    if (!Number.isNaN(d.getTime()) && diaSaoPaulo(d) === dataReferencia) return true;
+  }
   return false;
 }
 

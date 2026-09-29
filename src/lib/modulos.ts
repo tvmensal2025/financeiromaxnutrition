@@ -7,6 +7,7 @@ export type Modulo = {
   escopo: EscopoModulo;
   rota?: string;
   descricao?: string;
+  somenteLeitura?: boolean;
 };
 
 export const MODULOS: Modulo[] = [
@@ -66,9 +67,10 @@ export const MODULOS: Modulo[] = [
   { grupo: "Sistema", tabela: "integracoes", titulo: "Integrações", escopo: "GLOBAL", descricao: "Conexões externas: Evolution, Supabase, Grok, etc." },
   { grupo: "Sistema", tabela: "automacoes", titulo: "Automações", escopo: "MISTO", descricao: "Gatilhos, regras e fluxos automatizados" },
   { grupo: "Sistema", tabela: "agent_jobs", titulo: "Fila de Tarefas dos Agentes", escopo: "GLOBAL", descricao: "Fila técnica de execução dos especialistas" },
+  { grupo: "Sistema", tabela: "task_activity", titulo: "Histórico das Tarefas", escopo: "MISTO", descricao: "Mudanças automáticas de etapa e campos essenciais, somente leitura", somenteLeitura: true },
   { grupo: "Sistema", tabela: "agent_connections", titulo: "Conexões dos Agentes", escopo: "GLOBAL", descricao: "Status real dos providers (ChatGPT, Grok Bot, etc.)" },
   { grupo: "Sistema", tabela: "notification_outbox", titulo: "Fila de Notificações", escopo: "GLOBAL", descricao: "Outbox de mensagens WhatsApp via Evolution API" },
-  { grupo: "Sistema", tabela: "auditoria", titulo: "Auditoria de Operações", escopo: "GLOBAL", descricao: "Log append-only de alterações críticas" },
+  { grupo: "Sistema", tabela: "auditoria", titulo: "Auditoria de Operações", escopo: "GLOBAL", descricao: "Histórico imutável de alterações críticas", somenteLeitura: true },
   { grupo: "Sistema", tabela: "auditoria_sistema", titulo: "Auditoria do Sistema", escopo: "GLOBAL", descricao: "Logs técnicos de integridade e infraestrutura" },
   { grupo: "Sistema", tabela: "acessos", titulo: "Controle de Acessos", escopo: "GLOBAL", descricao: "Permissões de usuários e papéis organizacionais" },
   { grupo: "Sistema", tabela: "backups", titulo: "Backups & Snapshots", escopo: "GLOBAL", descricao: "Histórico de salvamentos e restaurações" },
@@ -107,6 +109,7 @@ export const SEM_EXCLUSAO = new Set([
 ]);
 
 export const COLUNAS_SISTEMA = new Set([
+  "row_version",
   "linha_planilha",
   "criado_em",
   "atualizado_em",

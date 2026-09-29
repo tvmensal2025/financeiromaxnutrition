@@ -2,7 +2,6 @@ import React, { useState, type ComponentType } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Inbox,
   Target,
   Building2,
   Users,
@@ -12,7 +11,8 @@ import {
   Layers,
   Shield,
   FileText,
-  Sliders,
+  ChevronDown,
+  CircleDollarSign,
   Menu,
   X,
   Compass,
@@ -42,14 +42,18 @@ type NavItemConfig = {
 };
 
 const BLOCO_CENTRAL: NavItemConfig[] = [
-  { to: "/", label: "Painel", icon: LayoutDashboard, end: true },
+  { to: "/", label: "Sala de comando", icon: LayoutDashboard, end: true },
+  { to: "/supervisao", label: "Supervisão da Helena", icon: Shield },
+  { to: "/empresas", label: "Operação por empresa", icon: Building2 },
+  { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
   { to: "/execucao", label: "Central de Execução", icon: Activity },
-  { to: "/inbox", label: "Inbox", icon: Inbox },
+  { to: "/entregas", label: "Entregas da equipe", icon: FileText },
   { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
 ];
 
 const BLOCO_NEGOCIOS: NavItemConfig[] = [
   { to: "/portfolio", label: "Portfólio", icon: Building2 },
+  { to: "/indicadores", label: "Indicadores de negócio", icon: LayoutDashboard },
   { to: "/crm", label: "CRM", icon: Target },
   { to: "/modulo/marketing", label: "Marketing", icon: Zap },
   { to: "/modulo/clientes", label: "Clientes", icon: UserCheck },
@@ -65,7 +69,7 @@ const BLOCO_OPERACAO: NavItemConfig[] = [
 ];
 
 const BLOCO_INTELIGENCIA: NavItemConfig[] = [
-  { to: "/equipe", label: "Equipe Digital", icon: Users, badge: "21" },
+  { to: "/equipe", label: "Equipe Digital", icon: Users },
   { to: "/modulo/estado_mestre", label: "Estado Mestre", icon: Activity },
   { to: "/modulo/memoria_mestre", label: "Memória Mestre", icon: FileText },
   { to: "/modulo/handoffs", label: "Handoffs", icon: Layers },
@@ -116,15 +120,22 @@ export function Layout() {
   const [mobileAberto, setMobileAberto] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const { pathname } = useLocation();
-  const { currentBusiness, currentBusinessId, isConsolidated, rotulo } = useBusiness();
+  const { currentBusiness, isConsolidated, error: businessError } = useBusiness();
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
 
   const fecharMobile = () => setMobileAberto(false);
 
   // Calcula o breadcrumb simples e executivo
   const getBreadcrumb = () => {
     const empresaNome = isConsolidated ? "Grupo Consolidado" : (currentBusiness?.nome || "iGreen");
-    if (pathname === "/") return `${empresaNome} / Painel`;
+    if (pathname === "/") return `${empresaNome} / Sala de comando`;
+    if (pathname === "/supervisao") return `${empresaNome} / Supervisão`;
+    if (pathname === "/empresas") return `${empresaNome} / Operação por empresa`;
+    if (pathname === "/consumo") return `${empresaNome} / Consumo e rotinas`;
+    if (pathname === "/indicadores") return `${empresaNome} / Indicadores de negócio`;
+    if (pathname === "/comando") return `${empresaNome} / Sala de comando`;
     if (pathname === "/execucao") return `${empresaNome} / Central de Execução`;
+    if (pathname === "/entregas") return `${empresaNome} / Entregas da equipe`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
     if (pathname === "/equipe") return `Sistema Helena / Equipe Digital`;
@@ -161,50 +172,21 @@ export function Layout() {
           </div>
         </div>
 
-        <div>
-          <p className="pe-sidebar-section">Negócios</p>
-          <div className="space-y-0.5">
-            {BLOCO_NEGOCIOS.map((item) => (
-              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="pe-sidebar-section">Operação</p>
-          <div className="space-y-0.5">
-            {BLOCO_OPERACAO.map((item) => (
-              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="pe-sidebar-section">Inteligência</p>
-          <div className="space-y-0.5">
-            {BLOCO_INTELIGENCIA.map((item) => (
-              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="pe-sidebar-section">Governança</p>
-          <div className="space-y-0.5">
-            {BLOCO_GOVERNANCA.map((item) => (
-              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
-            ))}
-          </div>
-        </div>
-
-        <div className="pb-6">
-          <p className="pe-sidebar-section">Administração</p>
-          <div className="space-y-0.5">
-            {BLOCO_ADMINISTRACAO.map((item) => (
-              <NavItemLink key={item.to} item={item} onClick={fecharMobile} />
-            ))}
-          </div>
-        </div>
+        {[
+          { titulo: 'Negócios', itens: BLOCO_NEGOCIOS },
+          { titulo: 'Operação', itens: BLOCO_OPERACAO },
+          { titulo: 'Inteligência', itens: BLOCO_INTELIGENCIA },
+          { titulo: 'Governança', itens: BLOCO_GOVERNANCA },
+          { titulo: 'Administração', itens: BLOCO_ADMINISTRACAO },
+        ].map(grupo => {
+          const ativa = grupo.itens.some(i => pathname === i.to);
+          const aberta = gruposAbertos[grupo.titulo] ?? ativa;
+          return <div key={grupo.titulo} className="he-nav-group">
+            <button className="he-nav-group-toggle" aria-expanded={aberta} onClick={() => setGruposAbertos(g => ({...g, [grupo.titulo]: !aberta}))}><span>{grupo.titulo}</span><ChevronDown size={14} className={aberta ? 'rotate-180' : ''}/></button>
+            {aberta && <div className="space-y-0.5">{grupo.itens.map(item => <NavItemLink key={item.to} item={item} onClick={fecharMobile}/>)}</div>}
+          </div>;
+        })}
+        <div className="he-sidebar-signature"><span>HELENA HUB</span><p>Direção clara.<br/>Execução verificável.</p></div>
       </div>
     </div>
   );
@@ -229,7 +211,7 @@ export function Layout() {
       {/* Drawer Sidebar Mobile */}
       <aside
         className={`pe-sidebar fixed inset-y-0 left-0 z-50 overflow-y-auto transition-transform duration-200 md:hidden ${
-          mobileAberto ? "translate-x-0" : "-translate-x-full"
+          mobileAberto ? "translate-x-0" : "hidden"
         }`}
       >
         <button
@@ -272,6 +254,7 @@ export function Layout() {
 
         {/* Conteúdo Principal com Max Width Executivo */}
         <main className="pe-main flex-1 w-full">
+          {businessError && <div className="hc-warning" role="alert">Cadastro de empresas indisponível. Atualize a página para tentar novamente.</div>}
           <Outlet />
         </main>
       </div>

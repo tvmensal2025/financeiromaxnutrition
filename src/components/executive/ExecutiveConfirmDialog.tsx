@@ -16,6 +16,8 @@ interface ExecutiveConfirmDialogProps {
   title?: string;
   description?: string;
   confirmLabel?: string;
+  confirmText?: string;
+  danger?: boolean;
   cancelLabel?: string;
   onConfirm: () => void;
   isDestructive?: boolean;
@@ -27,6 +29,8 @@ export function ExecutiveConfirmDialog({
   title = "Excluir registro?",
   description = "Esta ação removerá o registro do sistema. Deseja prosseguir?",
   confirmLabel = "Excluir",
+  confirmText,
+  danger,
   cancelLabel = "Cancelar",
   onConfirm,
   isDestructive = true,
@@ -49,12 +53,12 @@ export function ExecutiveConfirmDialog({
           <AlertDialogAction
             onClick={onConfirm}
             className={`rounded-md text-xs font-semibold px-4 py-2 text-white transition-colors ${
-              isDestructive
+              (danger ?? isDestructive)
                 ? "bg-[#B91C1C] hover:bg-[#991B1B]"
                 : "bg-[#007A3D] hover:bg-[#006030]"
             }`}
           >
-            {confirmLabel}
+            {confirmText || confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

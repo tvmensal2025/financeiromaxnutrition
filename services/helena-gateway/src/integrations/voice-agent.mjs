@@ -5,6 +5,7 @@
  */
 
 import { synthesizeKokoroSpeech, KOKORO_DEFAULT_PROFILE_ID, KOKORO_OFFICIAL_VOICE_ID } from './kokoro.mjs';
+import { publicVoiceConfig } from './voice-agent-store.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -103,8 +104,8 @@ let cachedConfig = {
   knowledge_base: DEFAULT_MAX_KNOWLEDGE_BASE,
   inbound_greeting: DEFAULT_INBOUND_GREETING,
   outbound_greeting: DEFAULT_OUTBOUND_GREETING,
-  voice_provider: 'ELEVENLABS',
-  voice_profile_id: 'VP-ELEVEN-MASC-01',
+  voice_provider: 'KOKORO',
+  voice_profile_id: KOKORO_DEFAULT_PROFILE_ID,
   elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
   kokoro_voice: KOKORO_OFFICIAL_VOICE_ID,
   ai_provider: 'DEEPSEEK',
@@ -118,13 +119,19 @@ let resolvedSupabaseDeepSeekKey = '';
 let lastKeyFetchTime = 0;
 
 /**
- * Resolve a API key de inteligência (prioriza DeepSeek configurada no Supabase ou env)
+ * Resolve a credencial somente do provedor selecionado, sem encaminhar chaves entre serviços.
  */
 export async function resolveAiApiKey(cfg = {}) {
   // 1. Chave explícita em cfg
   if (cfg.ai_api_key && cfg.ai_api_key.trim().length > 0) {
     return cfg.ai_api_key.trim();
   }
+
+  const provider = String(cfg.ai_provider || 'DEEPSEEK').toUpperCase();
+  if (provider === 'GEMINI') return process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
+  if (provider === 'OPENAI') return process.env.OPENAI_API_KEY || '';
+  if (provider === 'GROK') return process.env.GROK_API_KEY || '';
+  if (provider !== 'DEEPSEEK') return '';
 
   // 2. Variável de ambiente DEEPSEEK_API_KEY
   if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
@@ -142,7 +149,7 @@ export async function resolveAiApiKey(cfg = {}) {
     const supabaseUrl = process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co';
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
     if (serviceKey) {
-      const url = `${supabaseUrl}/rest/v1/configuracao?chave=eq.DEEPSEEK_API_KEY&select=valor`;
+      const url = `${supabaseUrl}/rest/v1/configuracao?chave=eq.DEEPSEEK_API_KEY&select=valor&order=registro_id.desc&limit=1`;
       const res = await fetch(url, {
         headers: {
           'apikey': serviceKey,
@@ -163,33 +170,47 @@ export async function resolveAiApiKey(cfg = {}) {
     // Silencioso em caso de falha de conexão
   }
 
-  // 5. Fallbacks para outros provedores caso DeepSeek ainda não tenha chave
-  return (
-    process.env.GOOGLE_AI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.GROK_API_KEY ||
-    ''
-  );
+  return '';
+}
+
+let configStore = null;
+let configLoadedFromStore = false;
+export function configureVoiceAgentStore(store) {
+  configStore = store;
+  configLoadedFromStore = false;
 }
 
 /**
  * Retorna as configurações do Agente de Voz e Memória de Produtos
  */
-export async function getVoiceAgentConfig() {
-  return { ...cachedConfig };
+export async function getVoiceAgentConfig({ allowStale = false } = {}) {
+  if (configStore) {
+    try {
+      const persisted = await configStore.load();
+      cachedConfig = { ...cachedConfig, ...publicVoiceConfig(persisted), ai_api_key: '' };
+      configLoadedFromStore = true;
+    } catch (error) {
+      if (!allowStale || !configLoadedFromStore) throw error;
+      console.warn('[VOICE_AGENT] Supabase indisponível; chamada usa a última configuração carregada.');
+    }
+  }
+  return { ...cachedConfig, ai_api_key: '' };
 }
 
 /**
  * Atualiza e persiste as configurações do Agente de Voz
  */
 export async function updateVoiceAgentConfig(newSettings = {}) {
-  cachedConfig = {
+  const next = {
     ...cachedConfig,
-    ...newSettings,
+    ...publicVoiceConfig(newSettings),
+    ai_api_key: '',
     updated_at: new Date().toISOString()
   };
-  return { ok: true, config: cachedConfig };
+  if (configStore) await configStore.save(next);
+  cachedConfig = next;
+  if (configStore) configLoadedFromStore = true;
+  return { ok: true, config: { ...cachedConfig } };
 }
 
 // ======================================================================
@@ -617,7 +638,10 @@ export async function handleCallConnectedWebhook(payload = {}) {
   const { call_id, direction, remote_number, greeting_already_played } = payload;
   console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}, greeting_played=${greeting_already_played}`);
 
-  const cfg = await getVoiceAgentConfig();
+  const cfg = await getVoiceAgentConfig({ allowStale: true });
+  if (!cfg.is_active) {
+    return { ok: true, handled: false, reason: 'agent_disabled' };
+  }
   const greeting = direction === 'OUTBOUND' ? cfg.outbound_greeting : cfg.inbound_greeting;
 
   // Inicializa histórico com a saudação transmitida
@@ -636,10 +660,6 @@ export async function handleCallConnectedWebhook(payload = {}) {
     return { ok: true, handled: true, call_id, greeting, duplicate_skipped: true };
   }
 
-  if (!cfg.is_active) {
-    console.log('[VOICE_AGENT] Atendente de voz desativado nas configurações.');
-    return { ok: true, handled: false, reason: 'agent_disabled' };
-  }
 
   try {
     const res = await speakInCall({
@@ -703,7 +723,7 @@ export async function processUserSpeech({ callId, audioBase64, format = 'wav', s
   const audioBuffer = Buffer.from(audioBase64, 'base64');
   console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBuffer.length / 1024)} KB)`);
 
-  const cfg = await getVoiceAgentConfig();
+  const cfg = await getVoiceAgentConfig({ allowStale: true });
   if (!cfg.is_active) {
     console.log(`[VOICE_AGENT] Agente de voz inativo. Ignorando fala na chamada ${callId}.`);
     return { ok: true, ignored: true, reason: 'agent_disabled' };

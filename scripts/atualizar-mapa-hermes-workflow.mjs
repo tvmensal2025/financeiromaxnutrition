@@ -1,0 +1,30 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const file = path.join(root, 'docs/helena/hermes/mapeamento.json');
+const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+const name = 'agent_runtime_credentials';
+if (!m.tables.some(t => t.name === name)) {
+  m.tables.push({ name, type: 'BASE TABLE', columns: ['profile_slug','token_sha256','created_at','revoked_at'], domain:'execucao', owner:'Backend / fundador', canonical_store:'Supabase', destination:'Autenticacao interna do Gateway; nao expor ao MCP de agentes', field_policy:'Somente hashes; nunca registrar token bruto. Sem privilegios anon/authenticated.', hermes_replica:'Nenhuma; segredo permanece no .env individual', implementation_status:'CRIADO_TESTADO_SEM_CREDENCIAIS' });
+  m.domains.find(d => d.id === 'execucao').tables.push(name);
+}
+const operations = ['get_work_context','create_task_job','submit_delivery','review_delivery','handoff_task','release_job','record_memory'];
+for (const name of operations) if (!m.gateway_tools.some(t => t.name === name)) m.gateway_tools.push({name,source:'services/helena-gateway/src/workflow.mjs',destination:'MCP helena_operacao restrito por identidade/empresa',adaptation:'RPC gateway_workflow com idempotencia e versao; perfis aguardam credenciais e homologacao real.',status:'IMPLEMENTADO_PUBLICADO_PENDENTE_HOMOLOGACAO_HERMES'});
+for (const [name,args] of [['gateway_workflow',"p_profile_slug text, p_action text, p_payload jsonb DEFAULT '{}'::jsonb"],['gateway_sync_task_state',''],['gateway_claim_budget_guard','']]) if (!m.database_functions.some(f => f.name === name)) m.database_functions.push({ name,args,destination:'Postgres; somente backend',implementation_status:'APLICADO_TESTADO_COM_ROLLBACK' });
+m.source_project.checkpoint='CP-20260927-V018';
+m.generated_at=new Date().toISOString();
+m.inventory_summary.base_tables=m.tables.filter(t=>t.type==='BASE TABLE').length;
+m.inventory_summary.columns=m.tables.reduce((n,t)=>n+t.columns.length,0);
+m.inventory_summary.base_table_columns=m.tables.filter(t=>t.type==='BASE TABLE').reduce((n,t)=>n+t.columns.length,0);
+m.implementation.workflow_deployed=true;
+fs.writeFileSync(file, JSON.stringify(m,null,2)+'\n');
+const reportPath=path.join(root,'docs/helena/hermes/instalacao-2026-09-27.json');
+const r=JSON.parse(fs.readFileSync(reportPath,'utf8'));
+r.checked_at=new Date().toISOString();
+r.phase='WORKFLOW_PUBLICADO_AGUARDANDO_CREDENCIAIS_E_PILOTO';
+r.verified.workflow={commit:'f49c88b',remote_health:true,version:'hermes-workflow-v2',checkpoint:'CP-20260927-V018',protocol:'PAG-V10-011',node_tests:96,http_tests:11,integration_tests:22,provisioning_tests:2,database_rollback_passed:true,objects:72,columns:1559,missing_fields:0,stale_fields:0,credentials_registered:0,bindings_active:0,real_agent_flow_tested:false};
+r.changes.push({date:new Date().toISOString(),action:'Workflow v2: tarefa/job/handoff atomicos, revisao por papel, CAS, idempotencia, WIP 1 e duas tentativas; registro de hashes backend. Instalador preparado em /data/configurar_perfis.py, sem execucao confirmada.',business_jobs_started:false});
+r.pending=['Fundador enviar comando de instalacao no chat Hermes; criacao de credenciais exige handoff pela politica de navegador','Registrar manifesto de hashes, testar autenticacao e homologar uma tarefa real','Conectar acionador Hermes: READY sozinho nao inicia modelo','Implementar e testar escrita especifica das tabelas de dominio e memoria pessoal de Laura','Revalidar 23 jobs legados individualmente; nao liberar em lote','Definir teto de custo e agenda antes de recorrencias','Integrar branch codex/hermes-runtime-preparation ao main antes de alterar origem no EasyPanel'];
+fs.writeFileSync(reportPath,JSON.stringify(r,null,2)+'\n');
+console.log(JSON.stringify({checkpoint:m.source_project.checkpoint,objects:m.tables.length,columns:m.inventory_summary.columns,gateway_tools:m.gateway_tools.length}));

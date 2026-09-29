@@ -64,7 +64,7 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
             className="flex items-center gap-2.5 px-3 py-2 text-xs"
           >
             <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
-            <span>Painel Executivo</span>
+            <span>Sala de comando</span>
           </CommandItem>
           <CommandItem
             onSelect={() => runCommand(() => navigate("/execucao"))}
@@ -74,11 +74,11 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
             <span>Central de Execução (Agentes, Tarefas & Handoffs)</span>
           </CommandItem>
           <CommandItem
-            onSelect={() => runCommand(() => navigate("/inbox"))}
+            onSelect={() => runCommand(() => navigate("/supervisao"))}
             className="flex items-center gap-2.5 px-3 py-2 text-xs"
           >
             <Inbox className="h-4 w-4 text-muted-foreground" />
-            <span>Caixa de Entrada da Helena (Inbox)</span>
+            <span>Supervisão da Helena · pendências e exceções</span>
           </CommandItem>
           <CommandItem
             onSelect={() => runCommand(() => navigate("/portfolio"))}
@@ -92,7 +92,7 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
             className="flex items-center gap-2.5 px-3 py-2 text-xs"
           >
             <Users className="h-4 w-4 text-muted-foreground" />
-            <span>Equipe Digital (21 Especialistas)</span>
+            <span>Equipe Digital · especialistas</span>
           </CommandItem>
           <CommandItem
             onSelect={() => runCommand(() => navigate("/integracoes"))}

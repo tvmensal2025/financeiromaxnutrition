@@ -127,8 +127,15 @@ try {
   assert.strictEqual(resTools.status, 200);
   const bodyTools = await resTools.json();
   const toolNames = bodyTools.result.tools.map(t => t.name);
-  assert.strictEqual(toolNames.length, 10, 'Devem existir 10 ferramentas ativas');
-  console.log('OK: 10 ferramentas listadas no MCP.');
+  const expectedTools = [
+    'claim_job', 'complete_job', 'create_task_job', 'enqueue_job', 'fail_job',
+    'get_job', 'get_work_context', 'handoff_task', 'list_ready_jobs',
+    'queue_summary', 'record_dispatch', 'record_memory', 'record_progress',
+    'release_job', 'review_delivery', 'start_job', 'submit_delivery',
+    'waiting_helena'
+  ];
+  assert.deepStrictEqual(toolNames.sort(), expectedTools.sort(), 'Contrato MCP deve expor exatamente as 18 ferramentas esperadas');
+  console.log('OK: contrato MCP validado com as 18 ferramentas esperadas.');
 
   console.log('--- TESTE 7: complete_job sem evidence_refs (Regra V9) ---');
   const resCompleteFail = await fetch(`http://127.0.0.1:${PORT}/mcp`, {
@@ -156,7 +163,7 @@ try {
   assert.strictEqual(bodyCompleteFail.result.isError, true);
   console.log('OK: complete_job bloqueado sem evidência conforme Protocolo V9.');
 
-  console.log('--- TESTE 8: Dynamic Client Registration (DCR) no Supabase Auth ---');
+  console.log('--- TESTE 8: Dynamic Client Registration (DCR) com resposta simulada ---');
   const dcrPayload = {
     client_name: 'Helena Integration Test Client',
     redirect_uris: ['https://grok.x.ai/oauth/callback', 'http://localhost/callback'],
@@ -170,10 +177,10 @@ try {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dcrPayload)
   });
-  assert.strictEqual(dcrRes.status, 201, 'Supabase DCR deve retornar 201 Created');
+  assert.strictEqual(dcrRes.status, 201, 'DCR simulado deve retornar 201 Created');
   const dcrData = await dcrRes.json();
-  assert.ok(dcrData.client_id, 'DCR deve emitir client_id para o Grok');
-  console.log('OK: Supabase Auth DCR funcional emitindo client_id:', dcrData.client_id);
+  assert.ok(dcrData.client_id, 'DCR deve emitir client_id para o cliente OAuth');
+  console.log('OK: processamento da resposta DCR simulada validado.');
 
   console.log('--- TESTE 9: GET /health com verificação de OAuth ---');
   const resHealth = await fetch(`http://127.0.0.1:${PORT}/health`);
@@ -181,7 +188,7 @@ try {
   assert.strictEqual(bodyHealth.service, 'helena-gateway');
   assert.strictEqual(bodyHealth.oauth, true, 'OAuth JWKS deve estar verificado como true');
   assert.strictEqual(bodyHealth.mcp, true, 'MCP deve estar ativo');
-  console.log('OK: /health validando conectividade do JWKS OAuth com sucesso.');
+  console.log('OK: /health validado com resposta JWKS simulada.');
 
   console.log('--- TESTE 10: GET /api/integrations/status (Central de Integrações) ---');
   const resIntStatus = await fetch(`http://127.0.0.1:${PORT}/api/integrations/status`);
@@ -243,7 +250,11 @@ try {
   console.log('\n========================================');
   console.log('TODOS OS 11 TESTES OBRIGATÓRIOS PASSARAM!');
   console.log('========================================');
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
 } finally {
-  server.close();
-  process.exit(0);
+  server.closeAllConnections();
+  await new Promise(resolve => server.close(resolve));
+  globalThis.fetch = originalFetch;
 }

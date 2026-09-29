@@ -49,8 +49,8 @@ export function Header({ onOpenSearch }: HeaderProps) {
 
       {/* Indicador de Status Discreto */}
       <div className="hidden xl:inline-flex items-center gap-1.5 text-[11px] text-muted-foreground font-medium px-2 py-1 rounded-md bg-muted/20 border border-border/40">
-        <span className="h-1.5 w-1.5 rounded-full bg-[#007A3D] animate-pulse" />
-        <span>Sistema sincronizado</span>
+        <span className="h-1.5 w-1.5 rounded-full bg-[#007A3D] " />
+        <span>Sessão autenticada</span>
       </div>
 
       {/* Alternador de Tema */}

@@ -1,37 +1,22 @@
 import { supabase } from "@/lib/supabase";
-import { dataEfetivaTarefa, type TarefaRow } from "@/lib/agenda-unificada";
+import type { TarefaRow } from "@/lib/agenda-unificada";
 
 export async function sincronizarTarefaNoCalendario(t: TarefaRow) {
-  const dia = dataEfetivaTarefa(t);
-  const eventId = `EVT-TSK-${t.task_id}`;
-  if (!dia) {
-    await supabase.from("calendario").delete().eq("event_id", eventId);
-    return;
-  }
-  await supabase.from("calendario").upsert({
-    event_id: eventId,
-    business_id: t.business_id,
-    tipo: "TAREFA",
-    titulo: t.tarefa,
-    descricao: [t.status, t.prioridade, t.bloqueio].filter(Boolean).join(" · "),
-    inicio: `${dia}T09:00:00`,
-    fim: `${dia}T10:00:00`,
-    status: t.status || "ABERTO",
-    related_object_type: "tarefas",
-    related_object_id: t.task_id,
-    source_system: "HELENA",
+  if (!t.row_version) return "Recarregue a tarefa antes de sincronizar a agenda.";
+  const { error } = await supabase.rpc("helena_sync_calendar", {
+    p_source: "tarefas", p_id: t.task_id, p_expected_version: t.row_version,
   });
+  return error?.code === "40001" ? "A tarefa mudou; releia antes de sincronizar." : error?.message || "";
 }
 
 export async function sincronizarTodasTarefasNoCalendario(selecionadas: string[], todasLigadas: boolean) {
-  let q = supabase.from("tarefas").select(
-    "task_id,business_id,tarefa,status,prazo,occurrence_date,bloqueio,prioridade,created_at",
-  );
+  let q = supabase.from("tarefas").select("task_id,business_id,row_version");
   if (!todasLigadas && selecionadas.length) q = q.in("business_id", selecionadas);
   const { data, error } = await q;
   if (error) return error.message;
   for (const row of (data || []) as TarefaRow[]) {
-    await sincronizarTarefaNoCalendario(row);
+    const falha = await sincronizarTarefaNoCalendario(row);
+    if (falha) return falha;
   }
   return "";
 }
