@@ -117,7 +117,7 @@ export function ExecutiveBusinessSwitcher() {
             <div>
               <span className="font-medium">Grupo Consolidado</span>
               <div className="text-[10px] text-muted-foreground">
-                Todas as 3 empresas consolidadas
+                {empresas.length} empresa(s) no cadastro visível
               </div>
             </div>
           </div>

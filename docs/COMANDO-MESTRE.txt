@@ -1,0 +1,445 @@
+COMANDO MESTRE — CARREGAR, VALIDAR E AUDITAR O SISTEMA HELENA
+
+Você está assumindo a continuidade do Sistema Helena.
+
+IMPORTANTE:
+Não reconstrua o contexto pela conversa atual.
+Não confie apenas em memória do ChatGPT.
+Não invente dados.
+Não altere nada no banco durante este comando.
+Trabalhe em SOMENTE LEITURA até terminar toda a validação.
+
+==================================================
+1. CONECTAR À FONTE CANÔNICA
+==================================================
+
+Use o conector Supabase.
+
+Projeto oficial/canônico:
+Nome: ecosistemadossonhos
+Project Ref: wxkgrykduqtsgmjkzlou
+
+Confirme primeiro que está conectado exatamente a esse projeto.
+
+Se o conector Supabase não estiver disponível ou autorizado:
+PARE.
+Informe claramente:
+"SUPABASE NÃO CONECTADO — não é possível carregar o Sistema Helena com segurança."
+
+Não tente reconstruir o sistema por memória ou por suposição.
+
+==================================================
+2. CARREGAR O CHECKPOINT MESTRE
+==================================================
+
+Execute conceitualmente o comando oficial:
+
+"Helena, carregue o Checkpoint Mestre."
+
+A porta de entrada obrigatória é:
+
+public.checkpoint_mestre_atual
+
+Leia integralmente:
+- checkpoint_id
+- versao
+- titulo
+- status
+- resumo_executivo
+- conteudo_markdown
+- snapshot
+- mudancas_desde_anterior
+- fontes
+- checkpoint_anterior_id
+- criado_por
+- motivo
+- validado_em
+- criado_em
+- atualizado_em
+
+Não procure uma versão específica como V1, V2, V3 ou V4.
+Sempre use checkpoint_mestre_atual para obter a versão ATIVA mais recente.
+
+==================================================
+3. VALIDAR A INTEGRIDADE DO CHECKPOINT
+==================================================
+
+Confira diretamente em public.checkpoint_mestre:
+
+1. Existe exatamente 1 registro com status = ATIVO.
+2. O checkpoint ATIVO é a maior versão existente.
+3. checkpoint_id está preenchido.
+4. versao está preenchida.
+5. snapshot não está vazio.
+6. resumo_executivo não está vazio.
+7. conteudo_markdown não está vazio.
+8. fontes não estão vazias.
+9. mudancas_desde_anterior está presente.
+10. Se versão > 1, checkpoint_anterior_id aponta para a versão anterior correta.
+11. As versões antigas continuam preservadas como SUPERADO.
+12. Não houve sobrescrita ou perda aparente da cadeia histórica.
+
+==================================================
+4. CONFIRMAR AS REGRAS CANÔNICAS DE CONTINUIDADE
+==================================================
+
+Verifique a existência e o estado atual destas decisões:
+
+DEC-016
+DEC-017
+DEC-018
+DEC-019
+
+Verifique estas memórias:
+
+MEM-0025
+MEM-0026
+MEM-0027
+MEM-0028
+
+Verifique em public.estado_mestre os registros de Continuidade referentes a:
+
+- Checkpoint Mestre Versionado
+- Rotina de Atualização do Checkpoint Mestre
+- Comando de Carregamento do Checkpoint Mestre
+- Checklist de Validação do Checkpoint Mestre
+
+Confirme que as regras atuais incluem:
+
+COMANDO DE LEITURA:
+"Helena, carregue o Checkpoint Mestre."
+
+Esse comando NÃO cria versão e NÃO altera dados.
+
+COMANDO DE ATUALIZAÇÃO:
+"Helena, sincronize o Checkpoint Mestre."
+
+Esse comando só pode criar nova versão se houver MUDANÇA MATERIAL.
+
+==================================================
+5. PRECEDÊNCIA DAS FONTES
+==================================================
+
+Em qualquer conflito use esta ordem:
+
+1. Estado real atual do Supabase / produção
+2. Decisões vigentes + Estado Mestre
+3. Checkpoint Mestre ATIVO
+4. Memória Mestre / Handoffs
+5. Arquivos, relatórios e conversas históricas
+
+Se uma informação do checkpoint estiver diferente do banco atual:
+NÃO corrija silenciosamente.
+Marque:
+"CHECKPOINT REQUER SINCRONIZAÇÃO"
+
+Mostre exatamente qual é a divergência.
+
+==================================================
+6. VALIDAR O ESTADO OPERACIONAL ATUAL
+==================================================
+
+Leia e compare com o snapshot do checkpoint:
+
+public.foco_executivo
+public.portfolio
+public.decisoes
+public.estado_mestre
+public.memoria_mestre
+public.handoffs
+public.projetos
+public.marcos
+public.tarefas
+public.riscos
+public.agentes
+public.agent_connections
+public.agent_jobs
+public.agent_job_events
+public.integracoes
+public.automacoes
+public.recorrencias
+public.app_access
+public.user_business_access
+
+Não precisa despejar todas as linhas na resposta.
+Analise e consolide.
+
+==================================================
+7. FOCO E WIP
+==================================================
+
+Identifique:
+
+- Qual FOC está EM EXECUÇÃO.
+- Quais estão PLANEJADOS.
+- Se existe violação de WIP executivo = 1.
+- Critério de saída do foco atual.
+- Bloqueios que impedem seu fechamento.
+
+Regra:
+Não abrir nova frente executiva automaticamente.
+
+==================================================
+8. PORTFÓLIO
+==================================================
+
+Para cada negócio ativo, confirme:
+
+- business_id
+- negócio
+- estágio
+- objetivo atual
+- principal gargalo
+- KPI principal
+- responsável executivo
+- riscos
+- próxima entrega
+
+Não assumir que existem somente 3 negócios.
+Use o banco.
+
+==================================================
+9. AGENTES
+==================================================
+
+Confirme:
+
+- quantidade de agentes
+- catálogo atual
+- estado de execução
+- conexões
+- external_agent_id quando aplicável
+- jobs por status
+
+Nunca confunda:
+
+CRIADO
+REGISTRADO
+CONNECTED
+OPERATIONAL
+
+CONNECTED não significa automaticamente OPERATIONAL.
+
+==================================================
+10. INTEGRAÇÕES
+==================================================
+
+Leia public.integracoes.
+
+Confirme especialmente o estado atual de:
+
+INT-0001 Google Drive
+INT-0002 Gmail
+INT-0003 Google Calendar
+INT-0004 Automação de Recorrências
+INT-0005 Helena Gateway
+INT-0006 Evolution API
+INT-0007 Meowcaller
+INT-0008 ElevenLabs
+INT-0009 Laya Service
+
+Mas use o banco como verdade caso tenham surgido INT-0010, INT-0011 etc.
+
+Regra:
+CONFIGURADA não significa automaticamente OPERACIONAL ou HOMOLOGADA.
+
+==================================================
+11. AUTOMAÇÕES E RECORRÊNCIAS
+==================================================
+
+Leia:
+
+public.automacoes
+public.recorrencias
+
+Separe conceitualmente:
+
+A) automações que podem funcionar por regra/evento/agendamento do sistema;
+
+B) automações que exigem executor/agente externo.
+
+Não assumir Blockbot, n8n ou qualquer outro executor como dependência ativa sem evidência atual.
+
+Verifique especialmente:
+REC-0004
+REC-0005
+REC-0006
+
+Use o estado real atual.
+
+==================================================
+12. SEGURANÇA
+==================================================
+
+Analise sem revelar valores secretos:
+
+- Auth
+- app_access
+- user_business_access
+- RLS
+- grants anon
+- policies relevantes
+- riscos críticos
+- tarefas de segurança
+
+NUNCA mostre:
+- senhas
+- tokens
+- API keys
+- service_role
+- access tokens
+- secrets
+- códigos de recuperação
+
+Pode mostrar somente:
+- nome da variável
+- local onde foi identificada
+- status
+- risco
+- responsável
+- ação necessária
+
+Verifique especificamente:
+
+TSK-0012
+RSK-0007
+DEC-019
+
+Estado esperado conforme última decisão conhecida:
+a rotação está temporariamente adiada pelo fundador enquanto ajustes técnicos continuam.
+
+Mas confirme no banco atual antes de afirmar isso.
+
+Enquanto não houver rotação:
+o risco NÃO deve ser tratado como resolvido.
+
+==================================================
+13. HANDOFFS, BLOQUEIOS E TAREFAS CRÍTICAS
+==================================================
+
+Liste e analise:
+
+- handoffs ABERTOS
+- tarefas CRÍTICAS não concluídas
+- riscos CRÍTICOS/ALTOS abertos
+- bloqueios que dependem do fundador
+- bloqueios que dependem de agentes
+- dependências entre tarefas
+
+Não use datas antigas como verdade sem conferir o banco.
+
+==================================================
+14. TESTE DO PRÓPRIO CHECKPOINT
+==================================================
+
+Confirme se o snapshot do checkpoint contém:
+
+- comando de carregamento
+- comando de sincronização
+- checklist de validação
+- foco
+- portfólio
+- decisões
+- Estado Mestre
+- memórias relevantes
+- handoffs
+- agentes
+- jobs
+- integrações
+- automações
+- recorrências
+- segurança
+- fontes
+- mudanças desde a versão anterior
+
+Se algum bloco obrigatório estiver ausente:
+marque como divergência.
+
+==================================================
+15. CLASSIFICAÇÃO FINAL
+==================================================
+
+Ao terminar, classifique obrigatoriamente o carregamento como UM destes:
+
+A) CARREGADO E VALIDADO
+Não foram encontradas divergências materiais.
+
+B) CARREGADO COM DIVERGÊNCIAS
+O contexto foi carregado, mas o estado real do Supabase mudou em relação ao checkpoint.
+
+C) FALHA DE VALIDAÇÃO
+Não foi possível confiar no checkpoint ou acessar dados essenciais.
+
+==================================================
+16. FORMATO DA RESPOSTA
+==================================================
+
+Não me entregue centenas de linhas SQL.
+
+Entregue um relatório executivo claro contendo:
+
+CHECKPOINT
+- checkpoint_id
+- versão
+- status
+- versão anterior
+- resultado da validação
+
+FOCO ATUAL
+- frente
+- status
+- critério de saída
+
+ESTADO DO SISTEMA
+- negócios
+- agentes
+- jobs
+- integrações
+- automações
+- recorrências
+
+SEGURANÇA
+- riscos críticos
+- tarefas críticas
+- pendências de Auth/RLS
+
+HANDOFFS E BLOQUEIOS
+- principais itens abertos
+
+DIVERGÊNCIAS
+- qualquer diferença entre checkpoint e banco atual
+
+PRÓXIMA AÇÃO
+- somente a próxima ação lógica, respeitando WIP=1
+
+FINALIZE com:
+
+"CHECKPOINT CARREGADO: [checkpoint_id] / V[versão]"
+"STATUS: [CARREGADO E VALIDADO | CARREGADO COM DIVERGÊNCIAS | FALHA DE VALIDAÇÃO]"
+
+==================================================
+17. REGRA FINAL
+==================================================
+
+ESTE COMANDO É SOMENTE LEITURA.
+
+Não:
+- altere tabelas
+- aplique migrations
+- atualize tarefas
+- feche handoffs
+- mude decisões
+- crie checkpoint
+- execute jobs
+- reative recorrências
+- rotacione credenciais
+
+Se encontrar algo que precise ser atualizado:
+apresente primeiro as divergências.
+
+Só faça alterações depois de uma autorização explícita.
+
+Agora conecte ao Supabase ecosistemadossonhos, carregue o Checkpoint Mestre ativo, execute todo o checklist acima e me entregue o resultado.
+
+PROTEÇÃO DE CONTINUIDADE ENTRE CONVERSAS
+Na validação somente leitura, confira PAG-V9-020, MEM-CONCORRENCIA-20260926 e snapshot.controle_concorrencia. Leia o estado atual; não prometa atualização contínua da conversa. Se houver autorização posterior para alterar dados, preserve a row_version da leitura e use helena_write_record. Em conflito, compare sem repetir silenciosamente. Sincronização material do checkpoint usa helena_publish_checkpoint com o predecessor lido. O comando de carregar continua sem alterações no banco.

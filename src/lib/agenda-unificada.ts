@@ -15,9 +15,11 @@ export type EventoAgenda = {
 };
 
 export type TarefaRow = {
+  row_version?: number | string;
   task_id: string;
   business_id: string;
   tarefa: string;
+  responsavel?: string | null;
   status?: string | null;
   prazo?: string | null;
   occurrence_date?: string | null;
@@ -73,7 +75,7 @@ export function tarefaParaEvento(t: TarefaRow): EventoAgenda | null {
 export async function carregarAgenda(selecionadas: string[], todasLigadas: boolean) {
   let qCal = supabase.from("calendario").select("*").order("inicio");
   let qTsk = supabase.from("tarefas").select(
-    "task_id,business_id,tarefa,status,prazo,occurrence_date,bloqueio,prioridade,created_at",
+    "task_id,business_id,tarefa,status,prazo,occurrence_date,bloqueio,prioridade,created_at,row_version",
   );
   if (!todasLigadas && selecionadas.length) {
     qCal = qCal.in("business_id", selecionadas);

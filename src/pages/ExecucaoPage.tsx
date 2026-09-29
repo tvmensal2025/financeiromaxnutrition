@@ -1,3 +1,4 @@
+import { diaSaoPaulo } from "@/lib/comando";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -199,7 +200,7 @@ export default function ExecucaoPage() {
       }
       // Filtro de Período
       if (filtros.periodo === "HOJE") {
-        if (t.prazo !== "2026-09-25" && !t.atualizado_em?.startsWith("2026-09-25")) {
+        if (t.prazo !== diaSaoPaulo() && !t.atualizado_em?.startsWith(diaSaoPaulo())) {
           return false;
         }
       }
@@ -234,8 +235,8 @@ export default function ExecucaoPage() {
   const indicadores: IndicadoresOperacionais = useMemo(() => {
     const emExec = tarefasFiltradas.filter((t) => t.status === "EM EXECUÇÃO").length;
     const bloq = tarefasFiltradas.filter((t) => isTarefaBloqueada(t)).length;
-    const atrasadas = tarefasFiltradas.filter((t) => isTarefaAtrasada(t, "2026-09-25")).length;
-    const concHoje = tarefasFiltradas.filter((t) => isTarefaConcluidaHoje(t, "2026-09-25")).length;
+    const atrasadas = tarefasFiltradas.filter((t) => isTarefaAtrasada(t, diaSaoPaulo())).length;
+    const concHoje = tarefasFiltradas.filter((t) => isTarefaConcluidaHoje(t, diaSaoPaulo())).length;
     const handoffsPend = handoffsFiltrados.filter(
       (h) => h.status !== "CONCLUÍDO" && h.status !== "CONCLUIDO" && h.status !== "CANCELADO"
     ).length;
@@ -248,17 +249,17 @@ export default function ExecucaoPage() {
     // Agentes com atividade hoje
     const nomesAtivosHoje = new Set<string>();
     dadosBrutos.tarefas.forEach((t) => {
-      if (t.atualizado_em?.startsWith("2026-09-25") || t.prazo === "2026-09-25") {
+      if (t.atualizado_em?.startsWith(diaSaoPaulo()) || t.prazo === diaSaoPaulo()) {
         nomesAtivosHoje.add(t.responsavel);
       }
     });
     dadosBrutos.auditorias.forEach((a) => {
-      if (a.data_hora?.includes("2026-09-25") || a.criado_em?.startsWith("2026-09-25")) {
+      if (a.data_hora?.includes(diaSaoPaulo()) || a.criado_em?.startsWith(diaSaoPaulo())) {
         nomesAtivosHoje.add(a.agente_usuario);
       }
     });
     dadosBrutos.handoffs.forEach((h) => {
-      if (h.data_hora?.includes("2026-09-25") || h.criado_em?.startsWith("2026-09-25")) {
+      if (h.data_hora?.includes(diaSaoPaulo()) || h.criado_em?.startsWith(diaSaoPaulo())) {
         nomesAtivosHoje.add(h.de);
         nomesAtivosHoje.add(h.para);
       }
@@ -346,7 +347,7 @@ export default function ExecucaoPage() {
           em_execucao: emExec,
           bloqueadas: bloq,
           proxima_entrega: proximaEntrega,
-          ultima_atualizacao: p.atualizado_em || p.ultima_atualizacao || "2026-09-25",
+          ultima_atualizacao: p.atualizado_em || p.ultima_atualizacao || "Não informada",
           marcos: marcosDoProjeto,
         };
       });
@@ -391,7 +392,7 @@ export default function ExecucaoPage() {
         (a) => a.agente_usuario && (a.agente_usuario.includes(ag.agente) || a.agente_usuario.includes(ag.agent_id))
       );
 
-      const concluidasHoje = tarefasDoAgente.filter((t) => isTarefaConcluidaHoje(t, "2026-09-25")).length;
+      const concluidasHoje = tarefasDoAgente.filter((t) => isTarefaConcluidaHoje(t, diaSaoPaulo())).length;
       const tarefasPendentes = tarefasDoAgente.filter(
         (t) => t.status !== "CONCLUÍDA" && t.status !== "CANCELADA"
       ).length;
@@ -426,7 +427,7 @@ export default function ExecucaoPage() {
         tarefasDoAgente[0]?.atualizado_em ||
         conn?.last_seen_at ||
         ag.ultima_atualizacao ||
-        "2026-09-25";
+        "Não informada";
 
       return {
         agent_id: ag.agent_id,
@@ -437,7 +438,7 @@ export default function ExecucaoPage() {
         quando_ativar: ag.quando_ativar,
         area: obterAreaAgente(ag.agent_id),
         provider: conn?.provider || (ag.agent_id === "AGT-01" ? "CHATGPT" : "GROK"),
-        connection_status: conn?.connection_status || "CONNECTED",
+        connection_status: conn?.connection_status || "UNKNOWN",
         capabilities: conn?.capabilities || [],
         status_visual: statusVisual,
         tarefa_atual: tarefaAtual,
@@ -467,7 +468,7 @@ export default function ExecucaoPage() {
         chavesVistas.add(chave);
         eventos.push({
           id: a.audit_id,
-          timestamp: a.data_hora || a.criado_em || "2026-09-25 04:25",
+          timestamp: a.data_hora || a.criado_em || "Horário não informado",
           tipo: "AUDITORIA",
           autor: a.agente_usuario || "Sistema",
           titulo: `${a.acao}: ${a.sheet || a.object_id || ""}`.trim(),
@@ -485,7 +486,7 @@ export default function ExecucaoPage() {
         chavesVistas.add(chave);
         eventos.push({
           id: h.id,
-          timestamp: h.data_hora || h.criado_em || "2026-09-25 04:25",
+          timestamp: h.data_hora || h.criado_em || "Horário não informado",
           tipo: "HANDOFF",
           autor: `${h.de} → ${h.para}`,
           titulo: `Handoff: ${h.assunto}`,
@@ -504,7 +505,7 @@ export default function ExecucaoPage() {
         chavesVistas.add(chave);
         eventos.push({
           id: m.id,
-          timestamp: m.data_hora || m.criado_em || "2026-09-25 04:30",
+          timestamp: m.data_hora || m.criado_em || "Horário não informado",
           tipo: "MEMORIA",
           autor: m.agente_origem || "Helena",
           titulo: `${m.assunto || "Registro de Memória"}`,
@@ -731,7 +732,7 @@ export default function ExecucaoPage() {
   }
 
   return (
-    <div className="space-y-8 p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto pb-24 text-foreground antialiased">
+    <div className="space-y-8 max-w-[1600px] mx-auto pb-24 text-foreground antialiased">
       {/* ========================================================= */}
       {/* TOPO: CENTRAL DE EXECUÇÃO & STATUS EM TEMPO REAL          */}
       {/* ========================================================= */}
@@ -743,14 +744,14 @@ export default function ExecucaoPage() {
               Central de Comando
             </span>
             <span className="text-[11px] text-muted-foreground font-mono">
-              RLS Multiempresa Ativo
+              Dados da sessão
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
-            CENTRAL DE EXECUÇÃO
+          <h1 className="he-exec-title text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+            Central de execução
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Acompanhe pessoas, tarefas, entregas, bloqueios e handoffs do ecossistema em tempo real.
+            Acompanhe os registros de tarefas, entregas, bloqueios e passagens entre agentes.
           </p>
         </div>
 
@@ -919,7 +920,7 @@ export default function ExecucaoPage() {
               className="w-full text-xs rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
             >
               <option value="TODOS">Todo o Período</option>
-              <option value="HOJE">Hoje (25/09/2026)</option>
+              <option value="HOJE">Hoje (Brasília)</option>
             </select>
           </div>
         </div>
@@ -981,10 +982,10 @@ export default function ExecucaoPage() {
             <span className="text-[10px] text-muted-foreground">Prazo vencido</span>
           </div>
 
-          {/* 4. Concluídas Hoje */}
+          {/* 4. Concluídas atualizadas hoje */}
           <div className="rounded-xl border border-[#007A3D]/25 bg-card p-3.5 flex flex-col justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-[#007A3D] dark:text-[#22c55e]">
-              Concluídas Hoje
+              Concluídas atualizadas hoje
             </span>
             <div className="my-1.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-bold tracking-tight text-[#007A3D] dark:text-[#22c55e]">
@@ -1117,7 +1118,7 @@ export default function ExecucaoPage() {
                   <span>·</span>
                   <span>Empresa: <strong>{secaoHoje.prioridadeUm.business_id}</strong></span>
                   <span>·</span>
-                  <span>Prazo: <strong>{secaoHoje.prioridadeUm.prazo || "25/09/2026"}</strong></span>
+                  <span>Prazo: <strong>{secaoHoje.prioridadeUm.prazo || "Não informado"}</strong></span>
                 </div>
               </div>
             ) : (
@@ -1840,7 +1841,7 @@ export default function ExecucaoPage() {
               </div>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase font-bold block">
-                  Concluídas Hoje
+                  Concluídas atualizadas hoje
                 </span>
                 <span className="text-[#007A3D] font-bold">{agenteSelecionado.concluidas_hoje}</span>
               </div>
@@ -2039,7 +2040,7 @@ function CardTarefa({
   onClick: () => void;
 }) {
   const bloq = isTarefaBloqueada(tarefa);
-  const atrasada = isTarefaAtrasada(tarefa, "2026-09-25");
+  const atrasada = isTarefaAtrasada(tarefa, diaSaoPaulo());
   const inicial = tarefa.responsavel.charAt(0).toUpperCase();
 
   return (
@@ -2100,12 +2101,12 @@ function CardTarefa({
             className={`font-mono text-[10px] ${
               atrasada
                 ? "text-[#B91C1C] font-bold"
-                : tarefa.prazo === "2026-09-25"
+                : tarefa.prazo === diaSaoPaulo()
                 ? "text-[#B47D14] font-bold"
                 : ""
             }`}
           >
-            {tarefa.prazo === "2026-09-25" ? "Hoje" : tarefa.prazo}
+            {tarefa.prazo === diaSaoPaulo() ? "Hoje" : tarefa.prazo}
           </span>
         )}
       </div>

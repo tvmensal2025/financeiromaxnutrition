@@ -23,7 +23,7 @@ import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { PremiumKanbanColumn } from "@/components/pipeline/PremiumKanbanColumn";
 import { PremiumKanbanCard } from "@/components/pipeline/PremiumKanbanCard";
-import { sincronizarEventosCrm } from "@/lib/crm-calendario";
+import { escreverRegistro } from "@/lib/escrita-protegida";
 import { Link } from "react-router-dom";
 import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
 import { ExecutiveMetricCard } from "@/components/executive/ExecutiveMetricCard";
@@ -33,6 +33,7 @@ import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState"
 import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
 
 export interface Oportunidade {
+  row_version?: number | string;
   opportunity_id: string;
   business_id: string;
   empresa_lead: string;
@@ -162,7 +163,7 @@ export default function CrmPage() {
   const abrirModalNovo = (etapaInicial = "PROSPECCAO") => {
     setEditando(null);
     setForm({
-      business_id: !isConsolidated ? currentBusinessId : (selecionadas[0] || empresas[0]?.id || "BIZ-001"),
+      business_id: isConsolidated ? "" : currentBusinessId,
       etapa: etapaInicial,
       status: "ATIVO",
       probabilidade: 30,
@@ -191,9 +192,13 @@ export default function CrmPage() {
       alert("Por favor informe o Nome do Lead / Empresa.");
       return;
     }
+    const businessIdAtivo = isConsolidated ? form.business_id?.trim() : currentBusinessId;
+    if (!businessIdAtivo || !empresas.some((empresa) => empresa.id === businessIdAtivo)) {
+      setErro("Selecione uma empresa válida antes de salvar a oportunidade.");
+      return;
+    }
+    setErro("");
     setSalvando(true);
-
-    const businessIdAtivo = !isConsolidated ? currentBusinessId : (form.business_id || selecionadas[0] || "BIZ-001");
 
     const payload = {
       ...form,
@@ -204,19 +209,9 @@ export default function CrmPage() {
 
     const oppId = editando?.opportunity_id || `OPP-${Date.now().toString().slice(-6)}`;
     if (editando) {
-      let updateQuery = supabase.from("crm").update(payload).eq("opportunity_id", editando.opportunity_id);
-      if (!isConsolidated) {
-        updateQuery = updateQuery.eq("business_id", currentBusinessId);
-      }
-      const { error } = await updateQuery;
+      const { error } = await escreverRegistro('crm', editando.opportunity_id, editando.row_version, payload);
       if (error) alert("Erro ao atualizar: " + error.message);
       else {
-        await sincronizarEventosCrm({
-          ...payload,
-          opportunity_id: oppId,
-          business_id: businessIdAtivo,
-          empresa_lead: form.empresa_lead || "",
-        });
         setModalAberto(false);
         carregarOportunidades();
       }
@@ -224,12 +219,6 @@ export default function CrmPage() {
       const { error } = await supabase.from("crm").insert({ opportunity_id: oppId, ...payload });
       if (error) alert("Erro ao criar: " + error.message);
       else {
-        await sincronizarEventosCrm({
-          ...payload,
-          opportunity_id: oppId,
-          business_id: businessIdAtivo,
-          empresa_lead: form.empresa_lead || "",
-        });
         setModalAberto(false);
         carregarOportunidades();
       }
@@ -533,9 +522,11 @@ export default function CrmPage() {
                   ) : (
                     <select
                       className="mt-1 w-full rounded-xl border border-border/50 bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
-                      value={form.business_id || selecionadas[0] || ""}
+                      value={form.business_id || ""}
                       onChange={(e) => setForm({ ...form, business_id: e.target.value })}
+                      required
                     >
+                      <option value="">Selecione a empresa</option>
                       {empresas.map((empresa) => (
                         <option key={empresa.id} value={empresa.id}>
                           {empresa.nome}

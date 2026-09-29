@@ -1,0 +1,577 @@
+{
+  "project": "Helena-HUB",
+  "canonical_project": {
+    "name": "ecosistemadossonhos",
+    "ref": "wxkgrykduqtsgmjkzlou"
+  },
+  "checked_at": "2026-09-26 09:04:39.505194+00",
+  "mode": "READ ONLY",
+  "result": "CARREGADO COM DIVERGÊNCIAS",
+  "requires_sync": true,
+  "checkpoint": {
+    "id": "CP-20260925-V005",
+    "version": 5,
+    "status": "ATIVO",
+    "previous": "CP-20260925-V004",
+    "created_at": "2026-09-25 21:12:18.090754+00",
+    "snapshot_generated_at": "2026-09-25T18:31:02.201646+00:00",
+    "active_count": 1,
+    "max_version": 5
+  },
+  "history": [
+    {
+      "checkpoint_id": "CP-20260925-V001",
+      "versao": 1,
+      "status": "SUPERADO",
+      "checkpoint_anterior_id": null,
+      "criado_em": "2026-09-25 17:59:21.079569+00",
+      "atualizado_em": "2026-09-25 18:06:04.15197+00",
+      "id_ok": true,
+      "versao_ok": true,
+      "snapshot_ok": true,
+      "resumo_ok": true,
+      "markdown_ok": true,
+      "fontes_ok": true,
+      "mudancas_presentes": true,
+      "snapshot_hash": "8611184c8a1df302e622963f65d6f1d0",
+      "markdown_hash": "bc6365637502364be56da3d6443bcf37"
+    },
+    {
+      "checkpoint_id": "CP-20260925-V002",
+      "versao": 2,
+      "status": "SUPERADO",
+      "checkpoint_anterior_id": "CP-20260925-V001",
+      "criado_em": "2026-09-25 18:06:04.15197+00",
+      "atualizado_em": "2026-09-25 18:22:11.842733+00",
+      "id_ok": true,
+      "versao_ok": true,
+      "snapshot_ok": true,
+      "resumo_ok": true,
+      "markdown_ok": true,
+      "fontes_ok": true,
+      "mudancas_presentes": true,
+      "snapshot_hash": "39a02f7921f626af8c15145248d822d8",
+      "markdown_hash": "9d47590e8f51cdc27149b11a48347329"
+    },
+    {
+      "checkpoint_id": "CP-20260925-V003",
+      "versao": 3,
+      "status": "SUPERADO",
+      "checkpoint_anterior_id": "CP-20260925-V002",
+      "criado_em": "2026-09-25 18:22:11.842733+00",
+      "atualizado_em": "2026-09-25 18:31:02.201646+00",
+      "id_ok": true,
+      "versao_ok": true,
+      "snapshot_ok": true,
+      "resumo_ok": true,
+      "markdown_ok": true,
+      "fontes_ok": true,
+      "mudancas_presentes": true,
+      "snapshot_hash": "acbefc673bc609b04d63da5e725dc40d",
+      "markdown_hash": "02a7772f132ba59ceb335b1a56d3aa9c"
+    },
+    {
+      "checkpoint_id": "CP-20260925-V004",
+      "versao": 4,
+      "status": "SUPERADO",
+      "checkpoint_anterior_id": "CP-20260925-V003",
+      "criado_em": "2026-09-25 18:31:02.201646+00",
+      "atualizado_em": "2026-09-25 21:12:18.090754+00",
+      "id_ok": true,
+      "versao_ok": true,
+      "snapshot_ok": true,
+      "resumo_ok": true,
+      "markdown_ok": true,
+      "fontes_ok": true,
+      "mudancas_presentes": true,
+      "snapshot_hash": "50b76601dc951775bcad98be03b6c341",
+      "markdown_hash": "ab4253713fd70e9114a8b72a20933a95"
+    },
+    {
+      "checkpoint_id": "CP-20260925-V005",
+      "versao": 5,
+      "status": "ATIVO",
+      "checkpoint_anterior_id": "CP-20260925-V004",
+      "criado_em": "2026-09-25 21:12:18.090754+00",
+      "atualizado_em": "2026-09-25 21:12:18.090754+00",
+      "id_ok": true,
+      "versao_ok": true,
+      "snapshot_ok": true,
+      "resumo_ok": true,
+      "markdown_ok": true,
+      "fontes_ok": true,
+      "mudancas_presentes": true,
+      "snapshot_hash": "70881168fb6de0a240a28fb065fcaec0",
+      "markdown_hash": "2ff749c7dc16676ab94c56ef599fc484"
+    }
+  ],
+  "table_counts": {
+    "foco_executivo": 4,
+    "portfolio": 3,
+    "decisoes": 19,
+    "estado_mestre": 18,
+    "memoria_mestre": 27,
+    "handoffs": 26,
+    "projetos": 2,
+    "marcos": 5,
+    "tarefas": 30,
+    "riscos": 9,
+    "agentes": 21,
+    "agent_connections": 21,
+    "agent_jobs": 27,
+    "agent_job_events": 36,
+    "integracoes": 10,
+    "automacoes": 5,
+    "recorrencias": 6,
+    "app_access": 3,
+    "user_business_access": 1
+  },
+  "jobs_status": {
+    "READY": 22,
+    "COMPLETED": 5
+  },
+  "agent_catalog": [
+    {
+      "agent_id": "AGT-01",
+      "name": "Helena",
+      "role": "CEO Virtual / Central de Comando",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADA — CHATGPT OFICIAL",
+      "provider": "CHATGPT",
+      "connection_status": "CONNECTED",
+      "external_agent_id": null,
+      "last_tested_at": null
+    },
+    {
+      "agent_id": "AGT-02",
+      "name": "Laura",
+      "role": "Comunicação e Desenvolvimento do Fundador",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "5b0237ba-1ebb-40b1-9f33-435d03f98f92",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-03",
+      "name": "Augusto",
+      "role": "Estratégia Corporativa",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "4fc40fe8-8549-435b-888a-90de44456195",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-04",
+      "name": "Marina",
+      "role": "Execução e PMO",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "e000de91-c9ab-4e78-8471-e5e6b74a72ec",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-05",
+      "name": "Caio",
+      "role": "Finanças / CFO",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "9f7afb6e-32fd-412d-a257-9210293a725f",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-06",
+      "name": "Clara",
+      "role": "Risco, Jurídico e Compliance",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "34289734-122c-4b7f-9443-8f4c117bbccd",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-07",
+      "name": "Bianca",
+      "role": "Pessoas e Cultura",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "8c1f7c3b-313e-4c44-ab51-9460a2fb5fdd",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-08",
+      "name": "Daniel",
+      "role": "Dados e BI",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "bf662791-a99f-440f-bcc0-b6175283f6bb",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-09",
+      "name": "Theo",
+      "role": "Tecnologia e IA",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "93d7afb7-dfc3-4a34-a3db-0f41a83e9650",
+      "last_tested_at": "2026-09-25T05:15:28.351321+00:00"
+    },
+    {
+      "agent_id": "AGT-10",
+      "name": "Nina",
+      "role": "Produto",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "c995e57a-a1cb-4fd4-9474-8682c20e1a77",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-11",
+      "name": "Ravi",
+      "role": "Pesquisa e Insights",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "3791932a-2b25-4865-81f7-96756da2e063",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-12",
+      "name": "Maya",
+      "role": "Design / UX / UI",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "ae384ea2-6729-4120-ae18-e2845301da81",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-13",
+      "name": "Bruno",
+      "role": "Qualidade / QA",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "46a00e65-d50f-41d2-9194-39420244dcdb",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-14",
+      "name": "Olívia",
+      "role": "Operações",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "898ef3a4-d548-4f2d-b8e5-57a5ac310d87",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-15",
+      "name": "Victor",
+      "role": "Vendas",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "16ab1c47-b326-4494-a382-cca7a0086c29",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-16",
+      "name": "Camila",
+      "role": "Marketing e Growth",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "7fe17f34-4a2c-4fd7-9a8a-d472268e9f6b",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-17",
+      "name": "Isabela",
+      "role": "Marca, Conteúdo e Copy",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "7a1dda52-1089-48a9-8277-b8469317cc0a",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-18",
+      "name": "Pedro",
+      "role": "Parcerias e Desenvolvimento de Negócios",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "eb8463c6-188c-4237-b008-1ed1d5f6d0e4",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-19",
+      "name": "Renata",
+      "role": "Customer Success",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "26a3f70a-879c-4fd0-8770-0354033e02de",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-20",
+      "name": "Joana",
+      "role": "Atendimento",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "3f21b51f-7f02-4d50-86c6-1a1dea26c8c7",
+      "last_tested_at": "2026-09-25T05:24:41.723728+00:00"
+    },
+    {
+      "agent_id": "AGT-21",
+      "name": "Felipe",
+      "role": "Administração",
+      "catalog_status": "ATIVO",
+      "execution_state": "CONECTADO — GROK (teste de leitura aprovado em 2026-09-25)",
+      "provider": "GROK",
+      "connection_status": "CONNECTED",
+      "external_agent_id": "3a64e308-1ec6-45c4-9df9-db90bb956810",
+      "last_tested_at": "2026-09-25T05:24:54.358223+00:00"
+    }
+  ],
+  "snapshot_counts": {
+    "agentes": 21,
+    "tarefas": 29,
+    "decisoes": 19,
+    "handoffs": 14,
+    "projetos": 2,
+    "agent_jobs": 20,
+    "automacoes": 5,
+    "integracoes": 9,
+    "recorrencias": 6,
+    "estado_mestre": 18,
+    "memoria_mestre": 26,
+    "agent_job_events": 24,
+    "handoffs_abertos": 5,
+    "agent_connections": 21,
+    "notification_outbox": 0
+  },
+  "differences": [
+    {
+      "block": "tarefas",
+      "id": "TSK-0013",
+      "kind": "changed",
+      "fields": [
+        "bloqueio"
+      ],
+      "changes": []
+    },
+    {
+      "block": "tarefas",
+      "id": "TSK-0012",
+      "kind": "changed",
+      "fields": [
+        "status",
+        "bloqueio"
+      ],
+      "changes": [
+        {
+          "field": "status",
+          "before": "NÃO INICIADA",
+          "after": "BLOQUEADA"
+        }
+      ]
+    },
+    {
+      "block": "tarefas",
+      "id": "TSK-0030",
+      "kind": "new"
+    },
+    {
+      "block": "projetos",
+      "id": "PRJ-0002",
+      "kind": "changed",
+      "fields": [
+        "observacoes"
+      ],
+      "changes": []
+    },
+    {
+      "block": "integracoes",
+      "id": "INT-0008",
+      "kind": "changed",
+      "fields": [
+        "status",
+        "observacoes"
+      ],
+      "changes": [
+        {
+          "field": "status",
+          "before": "CONFIGURADA",
+          "after": "STANDBY"
+        }
+      ]
+    },
+    {
+      "block": "integracoes",
+      "id": "INT-0010",
+      "kind": "new"
+    },
+    {
+      "block": "recorrencias",
+      "id": "REC-0006",
+      "kind": "changed",
+      "fields": [
+        "observacoes",
+        "proxima_ocorrencia"
+      ],
+      "changes": [
+        {
+          "field": "proxima_ocorrencia",
+          "before": "2026-09-25 18:28",
+          "after": "2026-09-28 18:28"
+        }
+      ]
+    },
+    {
+      "block": "handoffs_abertos",
+      "id": "HND-0003",
+      "kind": "changed",
+      "fields": [
+        "pendencias"
+      ],
+      "changes": []
+    },
+    {
+      "block": "memorias_recentes",
+      "id": "MEM-0024",
+      "kind": "changed",
+      "fields": [
+        "proxima_acao"
+      ],
+      "changes": []
+    }
+  ],
+  "security": {
+    "tables_with_rls": 68,
+    "anon_table_grants": 0,
+    "view": {
+      "rls": false,
+      "kind": "v",
+      "name": "checkpoint_mestre_atual",
+      "options": [
+        "security_invoker=true"
+      ],
+      "force_rls": false
+    },
+    "auth_users": 4,
+    "app_access_roles": [
+      {
+        "role": "founder",
+        "active": true
+      },
+      {
+        "role": "member",
+        "active": true
+      },
+      {
+        "role": "founder",
+        "active": true
+      }
+    ],
+    "business_access": [
+      {
+        "business_id": "BIZ-002",
+        "role": "member",
+        "active": true
+      }
+    ],
+    "member_read_only_test": {
+      "grants": [
+        {
+          "table": "decisoes",
+          "delete": true,
+          "insert": true,
+          "update": true
+        },
+        {
+          "table": "estado_mestre",
+          "delete": true,
+          "insert": true,
+          "update": true
+        },
+        {
+          "table": "foco_executivo",
+          "delete": true,
+          "insert": true,
+          "update": true
+        },
+        {
+          "table": "integracoes",
+          "delete": true,
+          "insert": true,
+          "update": true
+        },
+        {
+          "table": "agent_connections",
+          "delete": true,
+          "insert": true,
+          "update": true
+        },
+        {
+          "table": "handoffs",
+          "delete": true,
+          "insert": true,
+          "update": true
+        }
+      ],
+      "is_founder": false,
+      "access_biz001": false,
+      "access_biz002": true,
+      "access_biz003": false,
+      "tarefas_visiveis": {
+        "BIZ-002": 20
+      },
+      "decisoes_visiveis": 19,
+      "handoffs_visiveis": 26,
+      "portfolio_visivel": [
+        "BIZ-001",
+        "BIZ-002",
+        "BIZ-003"
+      ],
+      "checkpoint_visivel": 0
+    },
+    "leaked_password_protection": "DISABLED according to Supabase security advisor",
+    "rsK0007": "ABERTO / CRÍTICO; recorded for BIZ-002 external production, not re-audited here"
+  },
+  "limits": [
+    "Nenhum teste externo de integração, deploy ou envio foi realizado.",
+    "O projeto imvfmjgmacrulhztrqlh foi apenas referenciado pelos registros do banco canônico; não auditado diretamente.",
+    "As leituras ocorreram em transações separadas; contagens principais e checkpoint foram reconferidos ao final.",
+    "A estrutura atual da cadeia foi verificada; ausência de alteração histórica não pode ser provada sem logs ou cópia independente."
+  ]
+}

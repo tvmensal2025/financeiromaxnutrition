@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import type { TarefaRow } from "@/lib/agenda-unificada";
-import { sincronizarTarefaNoCalendario } from "@/lib/tarefa-calendario";
+import { escreverRegistro } from "@/lib/escrita-protegida";
 
 export function proximoTaskId(ids: string[]): string {
   let max = 0;
@@ -20,14 +20,9 @@ export async function atualizarTarefa(
   patch: Record<string, unknown>,
   base?: TarefaRow,
 ): Promise<{ erro?: string; tarefa?: TarefaRow }> {
-  const { error } = await supabase.from("tarefas").update(patch).eq("task_id", taskId);
+  const { data, error } = await escreverRegistro('tarefas', taskId, base?.row_version, patch);
   if (error) return { erro: error.message };
-  if (base) {
-    const atualizada = { ...base, ...patch } as TarefaRow;
-    await sincronizarTarefaNoCalendario(atualizada);
-    return { tarefa: atualizada };
-  }
-  return {};
+  return { tarefa: data as TarefaRow };
 }
 
 export async function concluirTarefa(t: TarefaRow) {
@@ -69,9 +64,7 @@ export async function criarTarefaNova(opts: {
     prioridade: opts.prioridade || "MÉDIA",
     source_system: "HELENA",
   };
-  const { error } = await supabase.from("tarefas").insert(row);
+  const { data, error } = await supabase.from("tarefas").insert(row).select('*').single();
   if (error) return { erro: error.message };
-  const criada = row as TarefaRow;
-  await sincronizarTarefaNoCalendario(criada);
-  return { tarefa: criada };
+  return { tarefa: data as TarefaRow };
 }

@@ -1,0 +1,36 @@
+# Helena-HUB — continuidade local
+
+## Escopo
+
+Estas orientações valem para todo o projeto. Responder em português e seguir as instruções mais recentes do fundador.
+
+## Fonte canônica
+
+- Supabase oficial: `ecosistemadossonhos`, ref `wxkgrykduqtsgmjkzlou`.
+- Confirmar identidade do projeto antes de consultar dados.
+- Ao carregar contexto, começar por `public.checkpoint_mestre_atual`; nunca fixar uma versão.
+- Executar o procedimento de `docs/COMANDO-MESTRE.txt` quando solicitado o carregamento/validação.
+- Sem conexão autorizada, informar: `SUPABASE NÃO CONECTADO — não é possível carregar o Sistema Helena com segurança.`
+
+## Leitura e alterações
+
+- O comando de carregamento é somente leitura. Usar transações `READ ONLY` nas consultas SQL da auditoria.
+- Durante o carregamento, não alterar tabelas, tarefas, handoffs ou decisões; não criar checkpoint, executar jobs, reativar recorrências, aplicar migrations ou rotacionar credenciais.
+- Alterações no banco exigem autorização explícita do fundador; não pedir novamente se já concedida para a mesma ação.
+- O comando de sincronização só cria nova versão quando existe mudança material, preservando histórico.
+- Na divergência, informar `CHECKPOINT REQUER SINCRONIZAÇÃO`; não corrigir silenciosamente.
+
+## Precedência e evidência
+
+1. Estado real atual do Supabase/produção.
+2. Decisões vigentes e Estado Mestre.
+3. Checkpoint Mestre ativo.
+4. Memória Mestre e handoffs.
+5. Arquivos, relatórios e conversas históricas.
+
+- Antes de propor criação ou retrabalho, consultar o existente: JÁ EXISTE / PARCIAL / AUSENTE / DIVERGENTE. Sem verificação suficiente: NÃO CONFIRMADO.
+- Respeitar WIP executivo = 1. Não abrir outra frente automaticamente.
+- CONNECTED não comprova OPERATIONAL; CONFIGURADA não comprova homologação.
+- Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
+- Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.
+- Esta pasta é a base local de colaboração. Não reconstruir nem duplicar aplicativos existentes sem verificar o código e o escopo solicitado.

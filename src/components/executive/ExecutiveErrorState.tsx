@@ -2,6 +2,7 @@ import React from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
 interface ExecutiveErrorStateProps {
+  title?: string;
   moduleName?: string;
   message?: string;
   onRetry?: () => void;
@@ -9,6 +10,7 @@ interface ExecutiveErrorStateProps {
 }
 
 export function ExecutiveErrorState({
+  title,
   moduleName,
   message,
   onRetry,
@@ -25,7 +27,7 @@ export function ExecutiveErrorState({
         <AlertCircle className="h-5 w-5" />
       </div>
       <h3 className="text-sm font-semibold text-foreground tracking-tight">
-        {moduleName ? `Não foi possível carregar ${moduleName}` : "Falha na comunicação"}
+        {title || (moduleName ? `Não foi possível carregar ${moduleName}` : "Falha na comunicação")}
       </h3>
       <p className="mt-1 max-w-md text-xs text-muted-foreground leading-relaxed">
         {message || "Ocorreu um erro ao consultar os dados no Supabase. Verifique sua conexão e autenticação."}

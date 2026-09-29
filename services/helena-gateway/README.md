@@ -1,13 +1,25 @@
 # Helena Gateway — Backend Operacional & MCP Hub
 
 O **Helena Gateway** é o serviço backend independente do Sistema Helena, projetado para operar como canal operacional contínuo e hub de ferramentas Model Context Protocol (MCP) entre:
-- **Helena (CEO Virtual)** operando no ChatGPT oficial;
-- **Marina (PMO / Despachante)** e os **20 Bots Especialistas** operando no Grok;
+- **Helena (CEO Virtual)** preparada no Hermes com GPT-6 Sol;
+- **20 outros perfis**, incluindo Marina, preparados no Hermes com GPT-6 Luna;
 - **Supabase** como a fonte canônica e operacional de verdade (Project: `wxkgrykduqtsgmjkzlou`);
 - **EasyPanel / VPS** como ambiente de hospedagem autônomo e de alta disponibilidade;
 - **Evolution API** como canal assíncrono de notificações transacionais via WhatsApp.
 
 Este serviço foi construído de forma desacoplada, **sem alterar o aplicativo financeiro principal**, sem utilizar APIs pagas como executores automáticos e sem expor credenciais sensíveis no repositório.
+
+## Migração Hermes — estado de preparação em 27/09/2026
+
+O Grok foi desativado. A arquitetura histórica abaixo não comprova execução atual. Os 21 registros em `agent_runtime_bindings` permanecem `CONFIGURED`; não ativar nem despachar a fila durante a preparação.
+
+A autorização individual e o workflow estão publicados na branch codex/hermes-runtime-preparation (f49c88b), baseada no main 4aff8c3. O health remoto confirma hermes-workflow-v2. O servidor aceita tokens individuais pelo registro de hashes `agent_runtime_credentials` (somente backend), ou pelo formato legado `HERMES_PROFILE_TOKEN_HASHES`; consulta o vínculo ativo no Supabase a cada chamada e impõe empresa e responsável. Nenhuma credencial individual está provisionada. O fluxo no banco foi validado com rollback e 131 testes locais passaram; a execução real pelo Hermes ainda precisa de homologação. Consulte [HERMES-WORKFLOW.md](HERMES-WORKFLOW.md). Checkpoint CP-20260927-V018, regra PAG-V10-011.
+
+Especialistas consultam e atualizam apenas os próprios jobs na empresa vinculada. Marina consulta a equipe e registra despachos dessa empresa, sem concluir por outro agente. Helena consulta o grupo, sem assumir a identidade de um especialista. Laura, de escopo pessoal, não recebe acesso à fila empresarial. Enfileiramento e handoff automáticos não estão liberados por esse adaptador.
+
+Contas OAuth humanas comuns não podem fornecer um `agent_id` arbitrário para operar como bot: é exigido acesso ativo de fundador para administração, ou identidade individual Hermes. O token administrativo legado é exclusivo do servidor/administração; jamais deve ser configurado em um perfil Hermes.
+
+O MCP oficial Supabase da Helena é um acesso separado, somente leitura. Ele não autoriza escrita operacional. Para homologar execução: provisionar credencial individual por canal protegido, ativar apenas um vínculo com referência de homologação e testar uma tarefa controlada antes de ampliar. Não é permitido marcar a operação como pronta apenas por o MCP conectar.
 
 ---
 
@@ -40,7 +52,7 @@ Este serviço foi construído de forma desacoplada, **sem alterar o aplicativo f
 │                                                                        │
 │  [POST /mcp] (Bearer Auth)                                             │
 │  - Hub MCP (JSON-RPC 2.0 / Streamable HTTP)                            │
-│  - 10 Ferramentas Oficiais com Governança V9                           │
+│  - 11 Ferramentas Oficiais com Governança V9                           │
 │                                                                        │
 │  [Rotinas Periódicas de Background]                                    │
 │  - gateway_release_scheduled_jobs (Liberação de jobs agendados)        │
@@ -64,16 +76,35 @@ Este serviço foi construído de forma desacoplada, **sem alterar o aplicativo f
 
 ## 2. Governança e Protocolo Operacional V9
 
-O Gateway implementa estritamente os princípios do **Protocolo V9 (PAG-V9-001 ao PAG-V9-017)**:
+O Gateway implementa o **Protocolo V9**. A regra comum PAG-V9-019 descreve como registrar marcos de trabalho sem repetir o texto nos 21 prompts dos agentes:
 
 1. **Supabase como Fonte Única da Verdade:** Nenhuma ação é considerada concluída se não estiver gravada com chave e timestamp no Supabase. O fundador não atua como mensageiro de dados.
 2. **Marina Despachante (`record_dispatch`):** A Marina despacha o job identificando o especialista de destino, criando o evento `DISPATCHED`. O job **permanece com status `READY`** até que o especialista assuma a titularidade via `claim_job`. O despacho possui cooldown de 180 segundos para evitar redundância.
 3. **Reivindicação Atômica (`claim_job`):** Apenas o especialista de destino pode reivindicar o job (`READY` → `CLAIMED`), impedindo condições de corrida.
 4. **Execução Oficial (`start_job`):** Transição auditada (`CLAIMED` → `RUNNING`).
-5. **Conclusão Obrigatória com Evidências (`complete_job`):** É **terminantemente proibido** concluir um job sem preencher `result_summary` e informar pelo menos 1 registro em `evidence_refs` (IDs de tabelas, links, hashes ou logs). Tentativas sem evidência são bloqueadas pelo Gateway antes mesmo da gravação.
-6. **Reporte Transparente de Falhas (`fail_job`):** Se houver bloqueio técnico, a falha é registrada com `error_code` e `error_message`, sem camuflagem.
-7. **Escalonamento para a CEO (`waiting_helena`):** Em decisões fora da alçada do especialista, o job transiciona para `WAITING_HELENA` contendo `contexto`, `impacto`, `decisao_necessaria` e `recomendacao`. Helena consome isso diretamente pelo Supabase.
-8. **Handoff Direto (`enqueue_job`):** O especialista enfileira o próximo job da cadeia técnica automaticamente.
+5. **Marcos relevantes (`record_progress`):** O agente registra o que fez, por qual motivo de negócio e o próximo passo, com evidência quando houver. O registro é idempotente por `job_id` e `step_key`, exige job `RUNNING` e não chama modelo de IA.
+6. **Conclusão Obrigatória com Evidências (`complete_job`):** É **terminantemente proibido** concluir um job sem preencher `result_summary` e informar pelo menos 1 registro em `evidence_refs` (IDs de tabelas, links, hashes ou logs). Tentativas sem evidência são bloqueadas pelo Gateway antes mesmo da gravação.
+7. **Reporte Transparente de Falhas (`fail_job`):** Se houver bloqueio técnico, a falha é registrada com `error_code` e `error_message`, sem camuflagem.
+8. **Escalonamento para a CEO (`waiting_helena`):** Em decisões fora da alçada do especialista, o job transiciona para `WAITING_HELENA` contendo `contexto`, `impacto`, `decisao_necessaria` e `recomendacao`. Essa transição registra uma solicitação; a revisão efetiva da Helena exige uma execução e uma decisão comprovadas depois.
+9. **Handoff Direto (`enqueue_job`):** O especialista enfileira o próximo job da cadeia técnica automaticamente.
+
+### Rotina de equipe com custo controlado
+
+- O fundador define direção, empresa e critério de sucesso em uma tarefa canônica. Helena verifica prioridades e decisões vigentes; Marina despacha um responsável por vez.
+- O especialista assume o job, registra apenas marcos que mudam o estado ou a entrega e deixa explícitos `action`, `reason`, `next_step` e `evidence_refs` quando houver. Bloqueios usam `fail_job` ou `waiting_helena`; handoffs mantêm os IDs da tarefa e empresa.
+- Bruno ou o responsável pela validação confere o resultado com a definição de pronto e a evidência. Helena revisa exceções e decisões, sem consulta contínua por IA. A página lê eventos do Supabase para mostrar o processo ao fundador.
+- Não criar chamadas de Grok para vigiar outros agentes. Não gravar pensamentos internos, cada clique, consultas repetidas ou payloads de clientes nos eventos. Uma gravação por marco é suficiente; `step_key` impede repetição em novas tentativas.
+- Antes de afirmar cobertura operacional, homologar um fluxo real por agente e por empresa. Ainda faltam o vínculo entre identidade OAuth do bot e `agent_id`, a publicação do Gateway externo e a associação dos jobs legados a `task_id` quando houver evidência de origem.
+
+### Supervisão em lote — TSK-0031
+
+O piloto usa uma janela diária de revisão da Helena, com opção de no máximo duas por dia. Tarefas, atividade, jobs e decisões continuam nas fontes operacionais do Supabase. Acúmulo de mudanças e decisões estratégicas priorizam a próxima janela; cada tarefa ou atualização visual não chama IA. Sem mudança relevante, a revisão pode encerrar sem mensagem. Cada janela usa no máximo uma análise compacta; há custo de cota Codex por execução agendada, mas nenhuma chave OpenAI API é exigida para este piloto.
+
+O parecer é um registro `CHECKPOINT_SUPERVISAO_LOTE` em `public.auditoria`, com ID único da janela, resumo estruturado, fontes e ações. A Sala de comando lê a última revisão. Esse registro não substitui nem versiona `checkpoint_mestre_atual`, que segue o protocolo de governança para mudanças materiais.
+
+`waiting_helena` continua sendo um estado explícito de job, não um gatilho de chamada automática ao modelo. O Gateway local valida a sessão do solicitante, o vínculo declarado com o job e o acesso à empresa antes de mudar o estado. A identidade real dos bots, a publicação do Gateway e a transição de resolução desse estado ainda precisam de homologação independente.
+
+WhatsApp segue reservado a casos críticos que exigem decisão do fundador, após validação do destinatário, deduplicação e teste ponta a ponta. `notification_outbox` e Evolution API existem, mas não há envio desse checkpoint homologado. A página de Integrações não recebe chave de análise.
 
 ---
 
@@ -95,7 +126,7 @@ O Gateway implementa estritamente os princípios do **Protocolo V9 (PAG-V9-001 a
 | `GET` | `/api/integrations/meowcaller/status` | Opcional | Status de leitura; dashboard pode consultar sem login. |
 | `GET` | `/mcp` | Bearer OAuth 2.1 / Fallback | Metadados do servidor MCP e lista de ferramentas disponíveis. |
 | `POST` | `/mcp` | Bearer OAuth 2.1 / Fallback | Canal JSON-RPC 2.0 para execução (`tools/call`), listagem (`tools/list`) e handshake (`initialize`). Sem token retorna 401 com `WWW-Authenticate`. |
-| `POST` | `/api/tools/:toolName` | Bearer OAuth 2.1 / Fallback | Endpoint REST alternativo para chamada direta de qualquer uma das 10 ferramentas. |
+| `POST` | `/api/tools/:toolName` | Bearer OAuth 2.1 / Fallback | Endpoint REST alternativo para chamada direta de qualquer uma das 11 ferramentas. |
 
 ---
 
@@ -117,7 +148,7 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
 
 ---
 
-## 4. Catálogo das 10 Ferramentas MCP
+## 4. Catálogo das 11 Ferramentas MCP
 
 ### 1. `list_ready_jobs`
 - **Finalidade:** Lista jobs prontos (`status = 'READY'` e `available_at <= now()`), ordenados por prioridade (`CRITICA`, `ALTA`, `MEDIA`, `BAIXA`) e `created_at`.
@@ -155,7 +186,14 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
   - `job_id` (obrigatório)
   - `agent_id` (obrigatório)
 
-### 6. `complete_job`
+### 6. `record_progress`
+- **Finalidade:** Registra um marco operacional em `agent_job_events`, com ação, motivo objetivo, próximo passo e referências de evidência disponíveis.
+- **Regra:** O banco confirma que o job pertence ao agente informado e está em `RUNNING`. `step_key` evita duplicação em tentativas. Registrar apenas mudanças relevantes; falha de gravação deve ser reportada, nunca tratada como entrega comprovada.
+- **Acesso:** Para OAuth, o Gateway verifica o acesso ativo do usuário à empresa do job antes de usar a chave de serviço. A identidade do bot ainda precisa ser vinculada a um `agent_id` em etapa posterior; `agent_id` declarado não prova autoria individual.
+- **Parâmetros:** `job_id`, `agent_id`, `step_key`, `action`, `reason`, `next_step` obrigatórios; `evidence_refs` opcional.
+- **Custo:** Uma gravação por marco, mais leituras curtas de permissão para OAuth; sem agendamento, polling ou chamada adicional de IA. O custo da execução do próprio bot continua dependente do provedor.
+
+### 7. `complete_job`
 - **Finalidade:** Conclusão da tarefa via RPC `gateway_complete_agent_job`. Transição: `RUNNING`/`CLAIMED` → `COMPLETED`.
 - **Regra Estrita V9:** Exige `result_summary` e pelo menos 1 evidência em `evidence_refs`.
 - **Parâmetros:**
@@ -165,7 +203,7 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
   - `evidence_refs` (array obrigatório com ≥ 1 item)
   - `result_payload` (objeto opcional)
 
-### 7. `fail_job`
+### 8. `fail_job`
 - **Finalidade:** Registro transparente de falha técnica ou operacional via RPC `gateway_fail_agent_job`. Transição: → `FAILED`.
 - **Parâmetros:**
   - `job_id` (obrigatório)
@@ -174,8 +212,9 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
   - `error_message` (obrigatório)
   - `payload` (objeto opcional)
 
-### 8. `waiting_helena`
+### 9. `waiting_helena`
 - **Finalidade:** Encaminha impasse ou decisão de alçada para a CEO Virtual Helena via RPC `gateway_waiting_helena`. Transição: → `WAITING_HELENA`.
+- **Confirmação:** Exige job `CLAIMED` ou `RUNNING`, agente correspondente e acesso à empresa. O RPC recebe `p_job_id`, `p_agent_id`, `p_message` e `p_payload`; retorno nulo ou outro status é erro.
 - **Parâmetros:**
   - `job_id` (obrigatório)
   - `agent_id` (obrigatório)
@@ -184,7 +223,7 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
   - `decisao_necessaria` (obrigatório)
   - `recomendacao` (obrigatório)
 
-### 9. `enqueue_job`
+### 10. `enqueue_job`
 - **Finalidade:** Enfileiramento de novo job via RPC `gateway_enqueue_agent_job` para agendamento futuro ou handoff imediato entre agentes.
 - **Parâmetros:**
   - `agent_id` (obrigatório)
@@ -199,7 +238,7 @@ O Gateway opera como um **Resource Server OAuth 2.1**, delegando a autenticaçã
   - `idempotency_key` (opcional)
   - `correlation_id` (opcional)
 
-### 10. `queue_summary`
+### 11. `queue_summary`
 - **Finalidade:** Resumo analítico da fila por status, prioridade e agente para acompanhamento da Marina (PMO) e Daniel (BI).
 - **Parâmetros:**
   - `business_id` (opcional)
@@ -217,11 +256,15 @@ PUBLIC_HOST=DADO A CONFIGURAR (ex: gateway.seudominio.com)
 
 # Supabase (Banco de Produção)
 SUPABASE_URL=https://wxkgrykduqtsgmjkzlou.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=CONFIGURAR_SOMENTE_NO_EASYPANEL
+SUPABASE_SERVICE_ROLE_KEY=COLOQUE_SUA_CHAVE_AQUI
 
 # Autenticação de Entrada
 GATEWAY_WEBHOOK_SECRET=CONFIGURAR_SOMENTE_NO_EASYPANEL
+MEOWCALLER_TOKEN=CONFIGURAR_SOMENTE_NO_EASYPANEL
 MCP_BEARER_TOKEN=CONFIGURAR_SOMENTE_NO_EASYPANEL
+
+# MEOWCALLER_TOKEN deve ser igual a INTERNAL_API_KEY no meowcaller-service.
+# Os callbacks de voz enviam X-API-Key e são rejeitados sem essas duas variáveis.
 
 # Intervalos Operacionais
 DISPATCH_COOLDOWN_SECONDS=180
@@ -336,3 +379,5 @@ O status transiciona de `PLANEJADA` para `OPERACIONAL` apenas após o cumpriment
 - [ ] Bot Especialista executando `claim_job` com sucesso no Supabase.
 - [ ] Bot Especialista concluindo com `complete_job` anexando evidência formal.
 - [ ] Handoff automático executado com `enqueue_job`.
+- [ ] Um `waiting_helena` real vinculado a tarefa e empresa aparece no painel, com parecer posterior da Helena e evidência.
+- [ ] Um alerta crítico chega uma vez ao destinatário validado; falha e pausa ficam visíveis no painel.

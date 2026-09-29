@@ -14,6 +14,8 @@ const originalFetch = globalThis.fetch;
 const fetchCalls = [];
 const sentMessages = [];
 const webhookSetPayloads = [];
+let meowStatus = 'DISCONNECTED';
+let failCallSession = false;
 
 globalThis.fetch = async (url, options = {}) => {
   const target = String(url);
@@ -68,12 +70,16 @@ globalThis.fetch = async (url, options = {}) => {
     };
   }
 
+  if (target.includes('/v1/calls') && (options.method || 'GET') === 'POST') {
+    return { ok: true, json: async () => ({ call_id: 'CALL-TEST-1', status: 'DIALING' }) };
+  }
+
   if (target.includes('/health') || target.includes('/v1/session')) {
     return {
       ok: true,
       json: async () => ({
         status: 'healthy',
-        whatsapp_status: 'DISCONNECTED',
+        whatsapp_status: meowStatus,
         connected_jid: '',
         active_calls: 0
       })
@@ -90,7 +96,8 @@ globalThis.fetch = async (url, options = {}) => {
 
 const {
   createIntegrationsRouter,
-  safeCompareSecrets
+  safeCompareSecrets,
+  authenticateMeowcallerCallback
 } = await import('../src/routes/integrations.mjs');
 const {
   setEvolutionWebhook,
@@ -104,11 +111,15 @@ const {
 
 const AUTH_TOKEN = 'test-user-token';
 const WEBHOOK_SECRET = 'test-evo-webhook-secret';
+const FOUNDER_ID = '00000000-0000-4000-8000-000000000001';
+let identityUserId = 'test-user';
+let appAccessRows = [];
+let voiceProfiles = [];
 
 function authenticateUser(req, res, next) {
   const header = req.headers.authorization || '';
   if (header === `Bearer ${AUTH_TOKEN}`) {
-    req.identity = { userId: 'test-user', type: 'test' };
+    req.identity = { userId: identityUserId, type: 'test' };
     return next();
   }
   return res.status(401).json({
@@ -124,6 +135,17 @@ async function supabaseFetch(path, options = {}) {
     method: options.method || 'GET',
     body: options.body ? JSON.parse(options.body) : null
   });
+  if (path.startsWith('/rest/v1/app_access?')) return appAccessRows;
+  if (path === '/rest/v1/call_sessions' && options.method === 'POST') {
+    if (failCallSession) throw new Error('Registro indisponível');
+    return [JSON.parse(options.body)];
+  }
+  if (path.startsWith('/rest/v1/voice_profiles?') && options.method === 'POST') {
+    voiceProfiles = JSON.parse(options.body);
+    return voiceProfiles;
+  }
+  if (path.startsWith('/rest/v1/voice_profiles?')) return voiceProfiles;
+  if (path.includes('DEEPSEEK_API_KEY')) return [{ chave: 'DEEPSEEK_API_KEY', valor: 'secret-must-stay-server-side' }];
   return [];
 }
 
@@ -160,6 +182,11 @@ function resetSideEffects() {
   sentMessages.length = 0;
   webhookSetPayloads.length = 0;
   fetchCalls.length = 0;
+  identityUserId = 'test-user';
+  appAccessRows = [];
+  voiceProfiles = [];
+  meowStatus = 'DISCONNECTED';
+  failCallSession = false;
   resetWhatsappAutoReplyDebounce();
   delete process.env.WHATSAPP_BUSINESS_ID;
   delete process.env.WHATSAPP_BRAND_NAME;
@@ -179,6 +206,97 @@ const { server, baseUrl } = await startApp();
 
 try {
   console.log('--- Segurança Evolution webhook e rotas de conexão ---');
+
+  await test('configuração de voz exige fundador autenticado', async () => {
+    const path = `${baseUrl}/api/integrations/voice-agent/settings`;
+    assert.equal((await fetch(path)).status, 401);
+    assert.equal((await fetch(path, { headers: { Authorization: `Bearer ${AUTH_TOKEN}` } })).status, 403);
+    identityUserId = FOUNDER_ID;
+    appAccessRows = [{ role: 'member', active: true }];
+    assert.equal((await fetch(path, { headers: { Authorization: `Bearer ${AUTH_TOKEN}` } })).status, 403);
+    assert.equal(supabaseCalls.some(call => call.path.includes('voice_profiles')), false);
+  });
+
+  await test('fundador lê e grava perfil de voz sem persistir credenciais', async () => {
+    identityUserId = FOUNDER_ID;
+    appAccessRows = [{ role: 'founder', active: true }];
+    const path = `${baseUrl}/api/integrations/voice-agent/settings`;
+    const headers = { Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' };
+    const write = await fetch(path, { method: 'POST', headers, body: JSON.stringify({ persona: 'Pedro vigente', ai_api_key: 'não-gravar' }) });
+    assert.equal(write.status, 200);
+    assert.equal(voiceProfiles[0].business_id, 'BIZ-002');
+    assert.equal(voiceProfiles[0].settings.voice_agent.persona, 'Pedro vigente');
+    assert.equal(JSON.stringify(voiceProfiles).includes('não-gravar'), false);
+    const read = await fetch(path, { headers });
+    assert.equal(read.status, 200);
+    const body = await read.json();
+    assert.equal(body.config.ai_api_key, '');
+    assert.equal(JSON.stringify(body).includes('secret-must-stay-server-side'), false);
+    assert.equal(body.config.persona, 'Pedro vigente');
+    assert.equal(JSON.stringify(body).includes('não-gravar'), false);
+  });
+
+  await test('histórico de chamadas só é legível pelo fundador', async () => {
+    const path = `${baseUrl}/api/integrations/voice-agent/call-history/chamada-teste`;
+    assert.equal((await fetch(path)).status, 401);
+    identityUserId = FOUNDER_ID;
+    appAccessRows = [{ role: 'member', active: true }];
+    assert.equal((await fetch(path, { headers: { Authorization: `Bearer ${AUTH_TOKEN}` } })).status, 403);
+    appAccessRows = [{ role: 'founder', active: true }];
+    const permitted = await fetch(path, { headers: { Authorization: `Bearer ${AUTH_TOKEN}` } });
+    assert.equal(permitted.status, 200);
+    assert.deepEqual((await permitted.json()).history, []);
+  });
+
+  await test('callbacks de voz rejeitam ausência e chave incorreta sem consumir serviço', async () => {
+    for (const suffix of ['webhook', 'user-speech']) {
+      const path = `${baseUrl}/api/integrations/voice-agent/${suffix}`;
+      const body = JSON.stringify({ call_id: 'chamada-teste', audio_base64: 'dGVzdGU=' });
+      const absent = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      assert.equal(absent.status, 401);
+      const wrong = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': 'incorreta' }, body });
+      assert.equal(wrong.status, 401);
+    }
+    assert.equal(fetchCalls.length, 0);
+    assert.equal(supabaseCalls.length, 0);
+  });
+
+  await test('callback de voz aceita somente a chave interna configurada', () => {
+    let advanced = false;
+    const response = { status: () => { throw new Error('deveria aceitar'); } };
+    authenticateMeowcallerCallback({ headers: { 'x-api-key': 'test-meow-token' } }, response, () => { advanced = true; });
+    assert.equal(advanced, true);
+  });
+
+  await test('callback de voz falha fechado sem variável configurada', () => {
+    const current = process.env.MEOWCALLER_TOKEN;
+    delete process.env.MEOWCALLER_TOKEN;
+    try {
+      let status;
+      authenticateMeowcallerCallback({ headers: { 'x-api-key': 'qualquer' } }, {
+        status(code) { status = code; return { json() {} }; }
+      }, () => { throw new Error('não pode avançar'); });
+      assert.equal(status, 401);
+    } finally {
+      process.env.MEOWCALLER_TOKEN = current;
+    }
+  });
+
+  await test('chamada iniciada mostra falha de registro sem inventar sincronização', async () => {
+    meowStatus = 'CONNECTED';
+    failCallSession = true;
+    const response = await fetch(`${baseUrl}/api/integrations/meowcaller/call`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '11999999999', business_id: 'BIZ-002' })
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.call_id, 'CALL-TEST-1');
+    assert.equal(body.tracking_status, 'FALHA');
+    assert.match(body.warning, /Supabase/);
+    assert.ok(supabaseCalls.some(call => call.path === '/rest/v1/call_sessions'));
+  });
 
   await test('safeCompareSecrets rejeita tamanhos diferentes e aceita iguais', () => {
     assert.strictEqual(safeCompareSecrets('abc', 'abc'), true);

@@ -128,12 +128,13 @@ export default function OAuthConsent() {
 
         if (data) {
           // Caso a autorização já tenha sido previamente consentida e retorne redirect_url diretamente
-          if (data.redirect_url && !("client" in data)) {
-            window.location.href = data.redirect_url;
+          const details = data as AuthorizationDetails;
+          if (details.redirect_url && !details.client) {
+            window.location.href = details.redirect_url;
             return;
           }
 
-          setAuthDetails(data as AuthorizationDetails);
+          setAuthDetails(details);
         } else {
           setErrorMsg("Solicitação de autorização inválida.");
         }

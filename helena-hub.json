@@ -1,0 +1,36 @@
+{
+  "name": "Helena-HUB",
+  "purpose": "Trabalho local e continuidade do Sistema Helena",
+  "created_on": "2026-09-26",
+  "language": "pt-BR",
+  "canonical_source": {
+    "provider": "Supabase",
+    "project_name": "ecosistemadossonhos",
+    "project_ref": "wxkgrykduqtsgmjkzlou",
+    "entrypoint": "public.checkpoint_mestre_atual"
+  },
+  "initial_database_mode": "read_only",
+  "local_database_replica": false,
+  "application_source_imported": true,
+  "codex_sidebar_registration": "pending_user_folder_selection",
+  "executive_wip_limit": 1,
+  "repository": {
+    "url": "https://github.com/tvmensal2025/financeiromaxnutrition.git",
+    "local_path": "C:\\Users\\USUARIO\\Documents\\Codex\\Helena-HUB",
+    "branch": "main",
+    "head": "7a205311161867cf71c01f719f77475443f8b842",
+    "downloaded_on": "2026-09-26",
+    "tracked_files": 259
+  },
+  "local_runtime": {
+    "url": "http://localhost:8082",
+    "node_version": "22.22.0",
+    "npm_version": "10.9.4",
+    "installation": "npm ci",
+    "build": "passed",
+    "tests_passed": 41,
+    "test_files_passed": 4,
+    "started_on": "2026-09-26",
+    "authenticated_session_validated": false
+  }
+}

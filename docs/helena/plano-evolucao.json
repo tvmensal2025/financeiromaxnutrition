@@ -1,0 +1,106 @@
+{
+  "estado": "PROPOSTA; não abre tarefas nem altera WIP",
+  "data_revisao": "2026-09-26",
+  "plano_evolucao": [
+    {
+      "fase": "01",
+      "titulo": "Confiar no que a página mostra",
+      "estado": "PARCIAL",
+      "dono": "Daniel · Theo · Bruno",
+      "existe": "Sala de comando local consulta tarefas, decisões, fila, eventos e checkpoint no Supabase, com paginação e falhas de leitura explícitas.",
+      "lacuna": "A publicação dessas mudanças e o comportamento de cada integração externa ainda precisam de homologação.",
+      "ajuste": "Publicar a versão revisada e comprovar atualização de cada fonte e isolamento por empresa; conservar a distinção entre ausência, erro e zero confirmado.",
+      "aceite": "Mudar um registro autorizado e verificar sua atualização na tela; simular falha de leitura sem gerar zeros ou dados fictícios."
+    },
+    {
+      "fase": "02",
+      "titulo": "Enxergar cada execução",
+      "estado": "PARCIAL",
+      "dono": "Theo · Marina · Clara",
+      "existe": "A sala já lê a fila, os eventos, as tentativas, o resultado e as evidências de cada job.",
+      "lacuna": "Os jobs atuais não têm task_id, portanto não há histórico de execução ligado diretamente às tarefas.",
+      "ajuste": "Exigir vínculo explícito nos novos jobs e reconciliar os antigos apenas com prova de origem; validar a identidade do executor.",
+      "aceite": "Uma execução de teste aparece do início ao fim, ligada à tarefa correta, e outro usuário não acessa empresas indevidas."
+    },
+    {
+      "fase": "03",
+      "titulo": "Helena no comando, fundador no controle",
+      "estado": "PARCIAL",
+      "dono": "Helena · Marina · Theo",
+      "existe": "Foco executivo, decisões, memória, handoffs e regras de autoridade já existem. A conversa local classifica pedidos por regras.",
+      "lacuna": "O fluxo local de conversa não comprova orquestração completa dos especialistas. Aprovação, despacho e aceite não formam ainda uma trilha única na página.",
+      "ajuste": "Manter Helena no ChatGPT oficial e os especialistas no Grok, conforme decisões vigentes. Inbox persistente com pedido, contexto, recomendação, impacto e decisão. Permitir aprovar, devolver ou pausar apenas via ações autorizadas e auditadas.",
+      "aceite": "Aprovação sobrevive ao recarregamento, não executa duas vezes e gera retorno à Helena. WIP executivo = 1 permanece respeitado."
+    },
+    {
+      "fase": "04",
+      "titulo": "Acompanhar resultado, não só atividade",
+      "estado": "PARCIAL",
+      "dono": "Daniel · Caio · donos de cada área",
+      "existe": "Dados de tarefas, negócios e indicadores podem ser reaproveitados; os agentes têm entregas obrigatórias definidas.",
+      "lacuna": "Contar tarefas não mede produtividade nem qualidade. Faltam cobertura comprovada e séries históricas para duração, custo e resultado.",
+      "ajuste": "Adicionar metas, tendência, tempo de ciclo, bloqueios, custo por execução e impacto no negócio, sempre com fórmula e origem.",
+      "aceite": "Cada gráfico permite chegar aos registros que o compõem; sem dados históricos, mostrar lacuna em vez de uma curva inventada."
+    },
+    {
+      "fase": "05",
+      "titulo": "Evoluir a experiência sem perder funções",
+      "estado": "PARCIAL",
+      "dono": "Maya · Nina · Bruno",
+      "existe": "Autenticação, navegação por empresa, módulos e avatares foram preservados nesta proposta local.",
+      "lacuna": "A navegação atual é extensa, mistura gestão com detalhes técnicos e exige percorrer páginas longas para entender uma entrega.",
+      "ajuste": "Organizar a experiência em Visão geral, Agentes, Processos e Decisões. Detalhes abrem ao lado; manter os módulos atuais acessíveis durante a evolução.",
+      "aceite": "Fundador identifica prioridade, dono, bloqueio e próxima entrega em poucos passos, no computador e no celular, inclusive usando teclado."
+    }
+  ],
+  "processo": [
+    {
+      "nome": "Direção",
+      "dono": "Fundador + Helena",
+      "texto": "Registrar objetivo, empresa, prioridade e critério de sucesso. Helena verifica foco e decisões vigentes.",
+      "fonte": "Foco e decisões já existem.",
+      "falta": "Vincular cada direção à execução e à aprovação correspondente."
+    },
+    {
+      "nome": "Plano",
+      "dono": "Helena + Marina",
+      "texto": "Escolher o especialista, explicitar dependências, prazo e definição de pronto. Uma frente executiva por vez.",
+      "fonte": "Tarefas, projetos e handoffs já existem.",
+      "falta": "Substituir vínculos por texto por responsáveis e dependências estruturados."
+    },
+    {
+      "nome": "Execução",
+      "dono": "Especialista responsável",
+      "texto": "Mostrar recebimento, início, etapas, ferramentas usadas, bloqueios e novas tentativas. Cada evento precisa de horário e origem.",
+      "fonte": "Fila e eventos existem no banco.",
+      "falta": "Comprovar cobertura dos eventos de cada executor; a leitura por empresa já está disponível."
+    },
+    {
+      "nome": "Validação",
+      "dono": "Bruno + dono da entrega",
+      "texto": "Comparar o resultado com a definição de pronto. Anexar evidência, apontar falhas e devolver para correção quando necessário.",
+      "fonte": "Tarefas já contêm evidência e critério de pronto.",
+      "falta": "Separar trabalho finalizado de resultado aprovado. Status de tarefa não basta para comprovar qualidade."
+    },
+    {
+      "nome": "Decisão",
+      "dono": "Helena + fundador",
+      "texto": "Helena consolida o resultado, a recomendação e os impactos. O fundador decide o que exige sua autoridade.",
+      "fonte": "Decisões e limites dos agentes estão registrados.",
+      "falta": "Inbox persistente, trilha de aprovações e ações autorizadas com prevenção de duplicidade."
+    },
+    {
+      "nome": "Memória",
+      "dono": "Helena",
+      "texto": "Relacionar entrega, decisão e memória. Atualizar o checkpoint quando houver mudança material conforme o protocolo.",
+      "fonte": "Memória e checkpoint já existem.",
+      "falta": "Homologar o uso do checkpoint em nova conversa; a aba Cobertura já compara contagens com o banco atual."
+    }
+  ],
+  "fontes": [
+    "src/lib/comando.ts",
+    "src/pages/ComandoPage.tsx",
+    "public.tarefas",
+    "public.foco_executivo"
+  ]
+}

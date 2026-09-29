@@ -14,7 +14,62 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
+  ],
+  "agent_connections": [
+    "id",
+    "agent_id",
+    "provider",
+    "external_agent_id",
+    "connection_status",
+    "capabilities",
+    "last_seen_at",
+    "last_tested_at",
+    "approval_policy",
+    "credential_reference",
+    "created_at",
+    "updated_at"
+  ],
+  "agent_job_events": [
+    "event_id",
+    "job_id",
+    "agent_id",
+    "business_id",
+    "event_type",
+    "status",
+    "message",
+    "payload",
+    "created_at",
+    "correlation_id"
+  ],
+  "agent_jobs": [
+    "job_id",
+    "task_id",
+    "agent_id",
+    "business_id",
+    "objective",
+    "instruction",
+    "priority",
+    "status",
+    "scheduled_at",
+    "available_at",
+    "claimed_at",
+    "started_at",
+    "completed_at",
+    "approval_required",
+    "approval_status",
+    "result_summary",
+    "result_payload",
+    "evidence_refs",
+    "attempt_count",
+    "max_attempts",
+    "idempotency_key",
+    "correlation_id",
+    "error_code",
+    "error_message",
+    "created_at",
+    "updated_at"
   ],
   "agentes": [
     "numero",
@@ -34,7 +89,15 @@
     "estado_execucao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
+  ],
+  "app_access": [
+    "user_id",
+    "role",
+    "active",
+    "created_at",
+    "updated_at"
   ],
   "atendimento": [
     "ticket_id",
@@ -69,7 +132,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "ativos": [
     "asset_id",
@@ -102,7 +166,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "auditoria": [
     "audit_id",
@@ -136,7 +201,8 @@
     "resultado_anterior",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "automacoes": [
     "automation_id",
@@ -163,7 +229,8 @@
     "conflict_policy",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "backups": [
     "backup_id",
@@ -177,7 +244,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "calendario": [
     "event_id",
@@ -213,6 +281,75 @@
     "occurrence_date",
     "execution_id",
     "linha_planilha",
+    "criado_em",
+    "atualizado_em",
+    "row_version"
+  ],
+  "call_sessions": [
+    "call_id",
+    "business_id",
+    "provider",
+    "direction",
+    "remote_number",
+    "status",
+    "voice_profile_id",
+    "eleven_conversation_id",
+    "laya_trace_id",
+    "routed_agent_id",
+    "started_at",
+    "answered_at",
+    "ended_at",
+    "duration_seconds",
+    "summary",
+    "error",
+    "metadata",
+    "created_at",
+    "updated_at"
+  ],
+  "channel_connections": [
+    "connection_id",
+    "provider",
+    "business_id",
+    "purpose",
+    "instance_name",
+    "status",
+    "connected_identifier",
+    "metadata",
+    "last_seen_at",
+    "created_at",
+    "updated_at"
+  ],
+  "checkpoint_mestre": [
+    "checkpoint_id",
+    "versao",
+    "titulo",
+    "status",
+    "resumo_executivo",
+    "conteudo_markdown",
+    "snapshot",
+    "mudancas_desde_anterior",
+    "fontes",
+    "checkpoint_anterior_id",
+    "criado_por",
+    "motivo",
+    "validado_em",
+    "criado_em",
+    "atualizado_em"
+  ],
+  "checkpoint_mestre_atual": [
+    "checkpoint_id",
+    "versao",
+    "titulo",
+    "status",
+    "resumo_executivo",
+    "conteudo_markdown",
+    "snapshot",
+    "mudancas_desde_anterior",
+    "fontes",
+    "checkpoint_anterior_id",
+    "criado_por",
+    "motivo",
+    "validado_em",
     "criado_em",
     "atualizado_em"
   ],
@@ -251,7 +388,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "comunicacoes": [
     "communication_id",
@@ -289,7 +427,8 @@
     "status",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "configuracao": [
     "registro_id",
@@ -300,7 +439,8 @@
     "descricao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "consentimentos": [
     "consent_id",
@@ -331,7 +471,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "contas_financeiras": [
     "conta_id",
@@ -363,7 +504,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "contratos": [
     "contract_id",
@@ -402,7 +544,8 @@
     "opportunity_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "crm": [
     "opportunity_id",
@@ -446,7 +589,8 @@
     "recurrence_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "decisoes": [
     "decision_id",
@@ -467,7 +611,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "dicionario_dados": [
     "registro_id",
@@ -482,7 +627,8 @@
     "sensibilidade_padrao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "documentos": [
     "document_id",
@@ -515,7 +661,8 @@
     "drive_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "dre_mensal": [
     "dre_id",
@@ -533,7 +680,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "entidades": [
     "entity_id",
@@ -562,7 +710,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "equipe": [
     "numero",
@@ -573,7 +722,8 @@
     "status",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "estado_mestre": [
     "registro_id",
@@ -588,7 +738,9 @@
     "related_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "scope_type",
+    "row_version"
   ],
   "financeiro": [
     "finance_id",
@@ -641,7 +793,8 @@
     "execution_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "fluxo_caixa": [
     "cashflow_id",
@@ -658,7 +811,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "foco_executivo": [
     "id",
@@ -675,7 +829,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "fornecedores": [
     "supplier_id",
@@ -708,7 +863,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "fundador": [
     "registro_id",
@@ -726,7 +882,8 @@
     "status",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "governanca": [
     "governance_id",
@@ -746,7 +903,9 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "scope_type",
+    "row_version"
   ],
   "guia_operacao": [
     "registro_id",
@@ -756,7 +915,8 @@
     "resultado",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "handoffs": [
     "id",
@@ -776,7 +936,9 @@
     "related_object_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "scope_type",
+    "row_version"
   ],
   "helena_campos": [
     "id",
@@ -791,7 +953,8 @@
   "helena_guia": [
     "ordem",
     "assunto",
-    "regra"
+    "regra",
+    "row_version"
   ],
   "ideias": [
     "id",
@@ -820,7 +983,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "incidentes": [
     "incident_id",
@@ -854,7 +1018,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "integracoes": [
     "integration_id",
@@ -880,13 +1045,27 @@
     "backoff_seconds",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "scope_type",
+    "row_version"
+  ],
+  "integration_events": [
+    "event_id",
+    "provider",
+    "business_id",
+    "event_type",
+    "external_id",
+    "correlation_id",
+    "status",
+    "payload",
+    "created_at"
   ],
   "listas_dominio": [
     "id",
     "lista",
     "valor",
-    "ordem"
+    "ordem",
+    "row_version"
   ],
   "marcos": [
     "milestone_id",
@@ -915,7 +1094,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "marketing": [
     "campaign_id",
@@ -951,7 +1131,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "memoria_mestre": [
     "id",
@@ -973,7 +1154,9 @@
     "sensibilidade",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "scope_type",
+    "row_version"
   ],
   "metas_kpis": [
     "kpi_id",
@@ -994,7 +1177,25 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
+  ],
+  "notification_outbox": [
+    "notification_id",
+    "business_id",
+    "job_id",
+    "channel",
+    "recipient_reference",
+    "template",
+    "payload",
+    "status",
+    "scheduled_at",
+    "sent_at",
+    "provider_message_id",
+    "attempt_count",
+    "error",
+    "idempotency_key",
+    "created_at"
   ],
   "obrigacoes": [
     "obligation_id",
@@ -1029,7 +1230,8 @@
     "execution_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "orcamento": [
     "budget_id",
@@ -1059,7 +1261,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "pessoas": [
     "person_id",
@@ -1079,7 +1282,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "plano_contas": [
     "plano_conta_id",
@@ -1093,7 +1297,8 @@
     "descricao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "portfolio": [
     "business_id",
@@ -1130,7 +1335,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "processos": [
     "process_id",
@@ -1165,7 +1371,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "produto": [
     "product_item_id",
@@ -1199,7 +1406,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "projetos": [
     "project_id",
@@ -1233,7 +1441,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "protocolo_agentes": [
     "protocolo_id",
@@ -1246,7 +1455,8 @@
     "ultima_atualizacao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "recorrencias": [
     "recurrence_id",
@@ -1296,13 +1506,15 @@
     "proxima_candidata",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "regras_formula": [
     "id",
     "tabela",
     "coluna",
-    "formula"
+    "formula",
+    "row_version"
   ],
   "riscos": [
     "risk_id",
@@ -1336,7 +1548,8 @@
     "conferencia_integracao",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "sistema_vivo": [
     "registro_id",
@@ -1346,7 +1559,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "societario": [
     "stake_id",
@@ -1363,7 +1577,8 @@
     "observacoes",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
   ],
   "sync_log": [
     "sync_log_id",
@@ -1398,6 +1613,18 @@
     "criado_em",
     "atualizado_em"
   ],
+  "task_activity": [
+    "event_id",
+    "task_id",
+    "business_id",
+    "event_type",
+    "changed_fields",
+    "status_before",
+    "status_after",
+    "actor_uid",
+    "actor_role",
+    "occurred_at"
+  ],
   "tarefas": [
     "task_id",
     "project_id",
@@ -1429,6 +1656,30 @@
     "execution_id",
     "linha_planilha",
     "criado_em",
-    "atualizado_em"
+    "atualizado_em",
+    "row_version"
+  ],
+  "user_business_access": [
+    "user_id",
+    "business_id",
+    "role",
+    "active",
+    "created_at",
+    "updated_at"
+  ],
+  "voice_profiles": [
+    "profile_id",
+    "nome",
+    "business_id",
+    "provider",
+    "eleven_agent_id",
+    "voice_id",
+    "language",
+    "first_message",
+    "settings",
+    "enabled",
+    "is_default",
+    "created_at",
+    "updated_at"
   ]
 }

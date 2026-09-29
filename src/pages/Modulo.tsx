@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   Database,
@@ -20,6 +20,7 @@ import {
   Cpu,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { escreverRegistro, TABELAS_PROTEGIDAS } from '@/lib/escrita-protegida';
 import { COLUNAS_SISTEMA, MODULOS, SEM_EXCLUSAO } from "@/lib/modulos";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { sincronizarTarefaNoCalendario } from "@/lib/tarefa-calendario";
@@ -51,8 +52,13 @@ export default function Modulo() {
   const { currentBusiness, currentBusinessId, isConsolidated, selecionadas, rotulo, empresas } = useBusiness();
   const [campos, setCampos] = useState<Campo[]>([]);
   const [linhas, setLinhas] = useState<Record<string, unknown>[]>([]);
+  const [pagina, setPagina] = useState(0);
+  const [total, setTotal] = useState<number | null>(null);
+  const sequenciaLeitura = useRef(0);
   const [form, setForm] = useState<Record<string, string>>({});
   const [editando, setEditando] = useState<string | null>(null);
+  const [versaoEdicao, setVersaoEdicao] = useState<unknown>(null);
+  const [versaoExclusao, setVersaoExclusao] = useState<unknown>(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [drawerLinha, setDrawerLinha] = useState<Record<string, unknown> | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
@@ -120,6 +126,7 @@ export default function Modulo() {
   }, [editaveis, preferidas, isGovernanca, chave]);
 
   async function carregar() {
+    const sequencia = ++sequenciaLeitura.current;
     setCarregando(true);
     setErro("");
     const isGov = tabela.toLowerCase() === "governanca";
@@ -130,6 +137,8 @@ export default function Modulo() {
         .select("coluna,nome_na_planilha,chave,calculado")
         .eq("tabela", tabela);
 
+      if (sequencia !== sequenciaLeitura.current) return;
+
       let lista: Campo[] = [];
       if (!mapa.error && mapa.data) {
         lista = (mapa.data as Campo[]).filter(
@@ -138,7 +147,9 @@ export default function Modulo() {
         setCampos(lista);
       }
 
-      let consulta = supabase.from(tabela).select("*").limit(200);
+      let consulta = supabase.from(tabela).select("*", { count: "exact" }).range(pagina * 200, pagina * 200 + 199);
+      const chaveOrdenacao = lista.find(campo => campo.chave === "SIM")?.coluna;
+      if (chaveOrdenacao) consulta = consulta.order(chaveOrdenacao);
 
       if (isGov) {
         consulta = consulta.order("governance_id", { ascending: true });
@@ -171,7 +182,9 @@ export default function Modulo() {
         }
       }
 
-      const { data, error } = await consulta;
+      const { data, error, count } = await consulta;
+      if (sequencia !== sequenciaLeitura.current) return;
+      setTotal(error ? null : count);
       if (error) {
         setErro(error.message);
       } else {
@@ -197,15 +210,20 @@ export default function Modulo() {
         }
       }
     } catch (err: any) {
-      setErro(err?.message || `Não foi possível carregar os registros de ${meta.titulo}.`);
+      if (sequencia === sequenciaLeitura.current) {
+        setTotal(null);
+        setErro(err?.message || `Não foi possível carregar os registros de ${meta.titulo}.`);
+      }
     } finally {
-      setCarregando(false);
+      if (sequencia === sequenciaLeitura.current) setCarregando(false);
     }
   }
 
+  useEffect(() => { setPagina(0); setTermoBusca(""); }, [tabela, currentBusinessId, isConsolidated]);
   useEffect(() => {
     carregar();
-  }, [tabela, currentBusinessId, isConsolidated]);
+    return () => { sequenciaLeitura.current++; };
+  }, [tabela, currentBusinessId, isConsolidated, pagina]);
 
   const linhasFiltradas = useMemo(() => {
     if (!termoBusca) return linhas;
@@ -228,10 +246,12 @@ export default function Modulo() {
     }
     setForm(next);
     setEditando(String(linha[chave]));
+    setVersaoEdicao(linha.row_version);
     setModalAberto(true);
   }
 
   function solicitarExcluir(id: string) {
+    setVersaoExclusao(linhas.find(l => String(l[chave]) === id)?.row_version);
     setExcluirId(id);
     setDialogExcluirAberto(true);
   }
@@ -239,8 +259,9 @@ export default function Modulo() {
   async function confirmarExclusao() {
     if (!excluirId) return;
     try {
-      let qDel = supabase.from(tabela).delete().eq(chave, excluirId);
-      const { error } = await qDel;
+      const { error } = TABELAS_PROTEGIDAS.has(tabela)
+        ? await escreverRegistro(tabela, excluirId, versaoExclusao, {}, true)
+        : await supabase.from(tabela).delete().eq(chave, excluirId);
       if (error) {
         setErro(error.message);
       } else {
@@ -276,16 +297,17 @@ export default function Modulo() {
     if (colEmpresa) {
       if (!isConsolidated) {
         row[colEmpresa] = currentBusinessId;
-      } else if (!row[colEmpresa]) {
-        row[colEmpresa] = form[colEmpresa] || selecionadas[0] || "BIZ-001";
+      } else if (!editando && meta.escopo !== "GLOBAL" && !row[colEmpresa]) {
+        setErro("Escolha a empresa ou o escopo do registro antes de salvar.");
+        return;
       }
     }
 
-    let consulta = editando
-      ? supabase.from(tabela).update(row).eq(chave, editando)
-      : supabase.from(tabela).insert(row);
-
-    const { error } = await consulta;
+    const { error } = editando
+      ? TABELAS_PROTEGIDAS.has(tabela)
+        ? await escreverRegistro(tabela, editando, versaoEdicao, row)
+        : await supabase.from(tabela).update(row).eq(chave, editando)
+      : await supabase.from(tabela).insert(row);
     if (error) {
       setErro(error.message);
       return;
@@ -305,7 +327,7 @@ export default function Modulo() {
       ? campos.find((c) => c.coluna === "business_id" || c.coluna === "business_id_area")?.coluna
       : undefined;
     if (colEmpresa) {
-      inicial[colEmpresa] = !isConsolidated ? currentBusinessId : (selecionadas[0] || "BIZ-001");
+      inicial[colEmpresa] = isConsolidated ? "" : currentBusinessId;
     }
     setForm(inicial);
     setModalAberto(true);
@@ -384,14 +406,14 @@ export default function Modulo() {
               </div>
             )}
 
-            <button
+            {!meta.somenteLeitura && <button
               type="button"
               onClick={abrirNovo}
               className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Novo registro</span>
-            </button>
+            </button>}
           </div>
         }
       />
@@ -536,7 +558,7 @@ export default function Modulo() {
             <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder={`Filtrar registros em ${meta.titulo}…`}
+              placeholder={`Filtrar nesta página de ${meta.titulo}…`}
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
               className="w-full rounded-lg border border-border/70 bg-background py-1.5 pl-9 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
@@ -549,6 +571,13 @@ export default function Modulo() {
       )}
 
       {/* TABELA DE DADOS PADRONIZADA (48-52px de altura) */}
+      {total !== null && <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground" aria-label="Paginação dos registros">
+        <span>{total ? `${pagina * 200 + 1}–${Math.min((pagina + 1) * 200, total)}` : "0"} de {total} registros autorizados. A busca filtra esta página.</span>
+        <div className="flex gap-2">
+          <button className="rounded border px-3 py-2 disabled:opacity-40" disabled={carregando || pagina === 0} onClick={() => setPagina(p => p - 1)}>Página anterior</button>
+          <button className="rounded border px-3 py-2 disabled:opacity-40" disabled={carregando || (pagina + 1) * 200 >= total} onClick={() => setPagina(p => p + 1)}>Próxima página</button>
+        </div>
+      </div>}
       {(!isGovernanca && !isIntegracoes || modoVisualizacao === "tabela") && (
         carregando ? (
           <ExecutiveLoadingState message={`Carregando registros de ${meta.titulo}...`} />
@@ -601,15 +630,15 @@ export default function Modulo() {
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
-                          <button
+                          {!meta.somenteLeitura && <button
                             type="button"
                             onClick={() => abrirEditar(linha)}
                             className="p-1.5 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                             title="Editar registro"
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          {!SEM_EXCLUSAO.has(tabela) && (
+                          </button>}
+                          {!meta.somenteLeitura && !SEM_EXCLUSAO.has(tabela) && (
                             <button
                               type="button"
                               onClick={() => solicitarExcluir(id)}
@@ -658,7 +687,7 @@ export default function Modulo() {
             </div>
 
             <div className="pt-3 border-t border-border/40 flex justify-end gap-2">
-              <button
+              {!meta.somenteLeitura && <button
                 type="button"
                 onClick={() => {
                   setDrawerAberto(false);
@@ -668,7 +697,7 @@ export default function Modulo() {
               >
                 <Pencil className="h-3.5 w-3.5" />
                 <span>Editar</span>
-              </button>
+              </button>}
             </div>
           </div>
         )}
@@ -703,6 +732,7 @@ export default function Modulo() {
             </div>
 
             <form onSubmit={salvar} className="mt-4 space-y-4">
+              {erro && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{erro}</p>}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-h-[60vh] overflow-y-auto p-1 scrollbar-thin">
                 {editaveis.map((campo) => (
                   <div key={campo.coluna} className="space-y-1">
@@ -712,12 +742,29 @@ export default function Modulo() {
                         <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
                       )}
                     </label>
-                    <input
-                      className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
-                      value={form[campo.coluna] || ""}
-                      onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
-                      placeholder={`Informe ${campo.coluna}…`}
-                    />
+                    {isConsolidated && !editando && meta.escopo !== "GLOBAL" &&
+                      (campo.coluna === "business_id" || campo.coluna === "business_id_area") ? (
+                      <select
+                        className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                        value={form[campo.coluna] || ""}
+                        onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
+                        required
+                      >
+                        <option value="">Selecione a empresa ou escopo</option>
+                        {empresas.map((empresa) => <option key={empresa.id} value={empresa.id}>{empresa.nome}</option>)}
+                        {(meta.escopo === "MISTO" || tabela === "tarefas") && <>
+                          <option value="GRUPO">Grupo</option>
+                          <option value="Sistema">Sistema</option>
+                        </>}
+                      </select>
+                    ) : (
+                      <input
+                        className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                        value={form[campo.coluna] || ""}
+                        onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
+                        placeholder={`Informe ${campo.coluna}…`}
+                      />
+                    )}
                   </div>
                 ))}
               </div>

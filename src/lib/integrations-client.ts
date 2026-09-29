@@ -32,11 +32,8 @@ async function gatewayFetch<T>(endpoint: string, options: RequestInit = {}): Pro
     ...(options.headers as Record<string, string> || {}),
   };
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else {
-    headers["Authorization"] = `Bearer helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f`;
-  }
+  if (!token) throw new Error("Sessão autenticada necessária para consultar as integrações.");
+  headers["Authorization"] = `Bearer ${token}`;
 
   if (options.body && typeof options.body === "string" && !headers["Content-Type"]) {
     headers["Content-Type"] = "application/json";
@@ -189,7 +186,7 @@ export async function fetchMeowcallerStatus() {
 }
 
 export async function connectMeowcallerSession() {
-  return gatewayFetch<{ ok: boolean; result: any }>("/api/integrations/meowcaller/connect", {
+  return gatewayFetch<{ ok: boolean; result: any; session?: any }>("/api/integrations/meowcaller/connect", {
     method: "POST",
   });
 }
@@ -211,7 +208,7 @@ export async function disconnectMeowcallerSession() {
 }
 
 export async function makeMeowcallerCall(phone: string, businessId = "BIZ-001", voiceProfileId?: string) {
-  return gatewayFetch<{ ok: boolean; result: any; call_id: string }>("/api/integrations/meowcaller/call", {
+  return gatewayFetch<{ ok: boolean; result: any; call_id: string | null; tracking_status: string; warning?: string }>("/api/integrations/meowcaller/call", {
     method: "POST",
     body: JSON.stringify({ phone, business_id: businessId, voice_profile_id: voiceProfileId }),
   });

@@ -71,13 +71,15 @@ import {
   generateAgentSpeechText,
   DEFAULT_MAX_KNOWLEDGE_BASE,
   DEFAULT_AGENT_PERSONA,
-  DEFAULT_INBOUND_GREETING
+  DEFAULT_INBOUND_GREETING,
+  configureVoiceAgentStore
 } from '../src/integrations/voice-agent.mjs';
 
 describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () => {
   it('Configuração inicial contém o catálogo completo da Max Nutrition', async () => {
     const cfg = await getVoiceAgentConfig();
     assert.strictEqual(cfg.is_active, true);
+    assert.strictEqual(cfg.voice_provider, 'KOKORO');
     assert.ok(cfg.agent_name.includes('Pedro'));
     assert.ok(cfg.knowledge_base.includes('100% Whey Protein Concentrado'));
     assert.ok(cfg.knowledge_base.includes('Creatina Monohidratada'));
@@ -150,6 +152,52 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
       process.env.OPENAI_API_KEY = 'test-gpt';
       assert.strictEqual(await resolveAiApiKey({ ai_provider: 'DEEPSEEK', ai_api_key: 'legacy-key' }), 'test-gpt');
     } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
+  });
+
+  it('falha na leitura administrativa mas mantém a configuração em cache para chamadas', async () => {
+    let unavailable = false;
+    configureVoiceAgentStore({ load: async () => {
+      if (unavailable) throw new Error('Supabase indisponível');
+      return { agent_name: 'Pedro vigente', is_active: true };
+    } });
+    try {
+      await getVoiceAgentConfig();
+      unavailable = true;
+      await assert.rejects(getVoiceAgentConfig(), /Supabase indisponível/);
+      const cached = await getVoiceAgentConfig({ allowStale: true });
+      assert.strictEqual(cached.agent_name, 'Pedro vigente');
+      assert.strictEqual(cached.ai_api_key, '');
+    } finally {
+      configureVoiceAgentStore(null);
+    }
+  });
+
+  it('nunca entrega uma credencial de outro provedor ao modelo selecionado', async () => {
+    const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
+    const names = ['DEEPSEEK_API_KEY', 'OPENAI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
+    const original = Object.fromEntries(names.map(name => [name, process.env[name]]));
+    try {
+      process.env.DEEPSEEK_API_KEY = 'deepseek-test-only';
+      process.env.OPENAI_API_KEY = 'openai-test-only';
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      assert.strictEqual(await resolveAiApiKey({ ai_provider: 'OPENAI' }), 'openai-test-only');
+      delete process.env.DEEPSEEK_API_KEY;
+      assert.strictEqual(await resolveAiApiKey({ ai_provider: 'DEEPSEEK' }), '');
+    } finally {
+      for (const name of names) {
+        if (original[name] === undefined) delete process.env[name];
+        else process.env[name] = original[name];
+      }
+    }
+  });
+
+  it('sem leitura inicial do Supabase recusa atendimento com configuração padrão', async () => {
+    configureVoiceAgentStore({ load: async () => { throw new Error('Supabase indisponível'); } });
+    try {
+      await assert.rejects(getVoiceAgentConfig({ allowStale: true }), /Supabase indisponível/);
+    } finally {
+      configureVoiceAgentStore(null);
+    }
   });
 });
 

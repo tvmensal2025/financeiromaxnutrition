@@ -12,10 +12,11 @@ import FinanceiroPage from "@/pages/FinanceiroPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 import PortfolioPage from "@/pages/PortfolioPage";
 import EquipePage from "@/pages/EquipePage";
-import HelenaInboxPage from "@/pages/HelenaInboxPage";
 import SistemaPage from "@/pages/SistemaPage";
 import ExecucaoPage from "@/pages/ExecucaoPage";
+import EntregasPage from "@/pages/EntregasPage";
 import IntegracoesPage from "@/pages/IntegracoesPage";
+import ComandoPage from "@/pages/ComandoPage";
 import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -105,14 +106,21 @@ function Rotas() {
           </Protegida>
         }
       >
-        <Route path="/" element={<Painel />} />
+        <Route path="/" element={<ComandoPage />} />
+        <Route path="/indicadores" element={<Painel />} />
+        <Route path="/comando" element={<ComandoPage />} />
+        <Route path="/cobertura" element={<ComandoPage inicial="Cobertura" />} />
+        <Route path="/supervisao" element={<ComandoPage inicial="Supervisão" />} />
+        <Route path="/empresas" element={<ComandoPage inicial="Empresas" />} />
+        <Route path="/consumo" element={<ComandoPage inicial="Consumo" />} />
         <Route path="/execucao" element={<ExecucaoPage />} />
+        <Route path="/entregas" element={<EntregasPage />} />
         <Route path="/crm" element={<CrmPage />} />
         <Route path="/financeiro" element={<FinanceiroPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/equipe" element={<EquipePage />} />
-        <Route path="/inbox" element={<HelenaInboxPage />} />
+        <Route path="/inbox" element={<ComandoPage inicial="Supervisão" />} />
         <Route path="/sistema" element={<SistemaPage />} />
         <Route path="/integracoes" element={<IntegracoesPage />} />
 

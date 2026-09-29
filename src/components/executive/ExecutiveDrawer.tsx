@@ -12,10 +12,11 @@ interface ExecutiveDrawerProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   subtitle?: string;
+  description?: string;
   badge?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
-  width?: "normal" | "wide";
+  width?: "normal" | "wide" | "max-w-lg";
 }
 
 export function ExecutiveDrawer({
@@ -23,6 +24,7 @@ export function ExecutiveDrawer({
   onOpenChange,
   title,
   subtitle,
+  description,
   badge,
   children,
   footer,
@@ -42,9 +44,9 @@ export function ExecutiveDrawer({
               <SheetTitle className="text-base font-semibold text-foreground tracking-tight">
                 {title}
               </SheetTitle>
-              {subtitle && (
+              {(subtitle || description) && (
                 <SheetDescription className="text-xs text-muted-foreground leading-normal">
-                  {subtitle}
+                  {subtitle || description}
                 </SheetDescription>
               )}
             </div>

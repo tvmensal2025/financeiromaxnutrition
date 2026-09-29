@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { escreverRegistro } from '@/lib/escrita-protegida';
+import { useAuth } from "@/auth";
 
 export type Empresa = {
+  row_version?: number | string;
   id: string; // chave canônica business_id: BIZ-001, BIZ-002, BIZ-003, etc.
   business_id: string;
   nome: string;
@@ -58,6 +61,7 @@ export const TABELAS_COM_BUSINESS_ID: Array<[string, string]> = [
   ["riscos", "business_id"],
   ["sync_log", "business_id"],
   ["tarefas", "business_id"],
+  ["task_activity", "business_id"],
   ["memoria_mestre", "business_id_area"],
   ["handoffs", "business_id"],
 ];
@@ -136,34 +140,39 @@ export type BusinessContextType = {
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
-  const [empresas, setEmpresas] = useState<Empresa[]>(EMPRESAS_BASE);
-  const [currentBusinessId, setCurrentBusinessIdState] = useState<string>("BIZ-001");
+  const { user, loading: authLoading } = useAuth();
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [currentBusinessId, setCurrentBusinessIdState] = useState<string>("GRUPO");
+  const versaoConsulta = useRef(0);
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Valida o id salvo no localStorage contra a lista permitida
   const validarSalva = (idCandidato: string | null, lista: Empresa[]): string => {
-    if (!idCandidato) return lista[0]?.id || "BIZ-001";
+    if (!idCandidato) return "GRUPO";
     if (idCandidato === "GRUPO") return "GRUPO";
     const existe = lista.some((e) => e.id === idCandidato || e.business_id === idCandidato);
-    return existe ? idCandidato : (lista[0]?.id || "BIZ-001");
+    return existe ? idCandidato : "GRUPO";
   };
 
   const carregarEmpresas = async (selecionarAposCarga?: string) => {
+    const versao = ++versaoConsulta.current;
     setCarregandoEmpresas(true);
     setError(null);
 
     try {
       const { data, error: err } = await supabase
         .from("portfolio")
-        .select("business_id,negocio,estagio,principal_gargalo,ativo,publico")
+        .select("business_id,negocio,estagio,principal_gargalo,ativo,publico,row_version")
         .order("business_id");
+      if (versao !== versaoConsulta.current) return;
 
       let listaMapeada: Empresa[] = [];
 
       if (!err && data && data.length > 0) {
         listaMapeada = (data as Array<{
           business_id: string;
+          row_version?: number | string;
           negocio: string | null;
           estagio?: string | null;
           principal_gargalo?: string | null;
@@ -173,6 +182,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           .filter((item) => item.business_id && item.business_id !== "GRUPO")
           .map((item, indice) => ({
             id: item.business_id,
+            row_version: item.row_version,
             business_id: item.business_id,
             nome: (item.negocio || item.business_id).trim(),
             negocio: (item.negocio || item.business_id).trim(),
@@ -185,8 +195,9 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
           }));
       }
 
-      // Se banco não tiver ou deu erro de permissão (modo anon), usa EMPRESAS_BASE
-      const listaFinal = listaMapeada.length ? listaMapeada : EMPRESAS_BASE;
+      // Falha de leitura nunca deve apresentar empresas de exemplo como dados reais.
+      if (err) throw err;
+      const listaFinal = listaMapeada;
       setEmpresas(listaFinal);
 
       // Recuperar última empresa selecionada válida
@@ -210,19 +221,23 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
 
       const idValidado = validarSalva(idInicial, listaFinal);
       setCurrentBusinessIdState(idValidado);
-      localStorage.setItem(CHAVE_STORAGE, idValidado);
+      try { localStorage.setItem(CHAVE_STORAGE, idValidado); } catch { /* Preferência opcional. */ }
     } catch (e: any) {
+      if (versao !== versaoConsulta.current) return;
       setError(e?.message || "Erro ao carregar empresas");
-      setEmpresas(EMPRESAS_BASE);
-      setCurrentBusinessIdState("BIZ-001");
+      setEmpresas([]);
+      setCurrentBusinessIdState("GRUPO");
     } finally {
-      setCarregandoEmpresas(false);
+      if (versao === versaoConsulta.current) setCarregandoEmpresas(false);
     }
   };
 
   useEffect(() => {
-    carregarEmpresas();
-  }, []);
+    if (authLoading) return;
+    if (user) void carregarEmpresas();
+    else { setEmpresas([]); setCurrentBusinessIdState("GRUPO"); setCarregandoEmpresas(false); }
+    return () => { versaoConsulta.current++; };
+  }, [user?.id, authLoading]);
 
   const setCurrentBusiness = (id: string) => {
     const idValidado = validarSalva(id, empresas);
@@ -315,7 +330,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         return "Esta empresa já possui registros associados. Exclusão bloqueada para proteção de dados.";
       }
     }
-    const { error: delErr } = await supabase.from("portfolio").delete().eq("business_id", id);
+    const { error: delErr } = await escreverRegistro('portfolio', id, empresas.find(e => e.id === id)?.row_version, {}, true);
     if (delErr) return delErr.message;
     const restantes = empresas.filter((empresa) => empresa.id !== id).map((empresa) => empresa.id);
     setCurrentBusiness(restantes[0] || "BIZ-001");

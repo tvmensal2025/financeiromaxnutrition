@@ -201,13 +201,14 @@ export default function FinanceiroPage() {
         title="Financeiro"
         description="Cockpit de caixa, competência, fluxo e plano de contas"
         actions={
-          <Link
-            to="/modulo/financeiro"
+          <button
+            type="button"
+            onClick={() => setAba("lancamentos")}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/70 transition-colors"
           >
             <TableProperties className="h-3.5 w-3.5 text-muted-foreground" />
-            <span>Módulo analítico</span>
-          </Link>
+            <span>Ver lançamentos</span>
+          </button>
         }
       />
 
@@ -283,6 +284,7 @@ export default function FinanceiroPage() {
                 />
               </div>
 
+              {!erro && !lancamentosVisiveis.length && !fluxos.length && <section className="he-finance-start"><div><span className="hc-eyebrow">BASE FINANCEIRA</span><h2>Uma visão de caixa começa<br/>com registros confiáveis.</h2><p>Sem lançamentos visíveis neste recorte. Consulte as previsões, as obrigações recorrentes e a estrutura de contas para organizar a leitura financeira.</p></div><div><button onClick={() => setAba("recorrencias")}>Consultar recorrências <CalendarClock size={18}/></button><button onClick={() => setAba("orcamento")}>Ver orçamento <ArrowUpRight size={18}/></button><button onClick={() => setAba("plano_contas")}>Consultar plano de contas <TableProperties size={18}/></button></div></section>}
               {/* Fluxo de Caixa Recente (se houver dados) */}
               {fluxos.length > 0 && (
                 <div className="rounded-xl border border-border/70 bg-card p-5 space-y-3">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/contexts/BusinessContext";
+import { carregarUra, salvarUra, URA_PADRAO, type UraConfig, type UraCarregada } from "@/lib/ura-config";
 import {
   fetchIntegrationsStatus,
   fetchEvolutionStatus,
@@ -101,25 +102,18 @@ export default function IntegracoesPage() {
   const [callHistory, setCallHistory] = useState<any[]>([]);
 
   // Configurações do Administrador para URA de Voz (Meowcaller + Helena Voice)
-  const [voiceAutoAnswer, setVoiceAutoAnswer] = useState<boolean>(() => {
-    return localStorage.getItem("helena_voice_auto_answer") !== "false";
-  });
-  const [voiceGreeting, setVoiceGreeting] = useState<string>(() => {
-    return (
-      localStorage.getItem("helena_voice_greeting") ||
-      "Olá! Você ligou para a Oficial Max Nutrition. Eu sou a Helena, sua assistente executiva de inteligência artificial. Como posso ajudar com seus pedidos, assinaturas ou dúvidas?"
-    );
-  });
-  const [voiceFilter, setVoiceFilter] = useState<"all" | "registered" | "leads">(() => {
-    return (localStorage.getItem("helena_voice_filter") as any) || "all";
-  });
-  const [voiceSchedule, setVoiceSchedule] = useState<"24h" | "commercial">(() => {
-    return (localStorage.getItem("helena_voice_schedule") as any) || "24h";
-  });
-  const [voiceTransferPhone, setVoiceTransferPhone] = useState<string>(() => {
-    return localStorage.getItem("helena_voice_transfer_phone") || "11971254913";
-  });
-  const [voiceSavedFeedback, setVoiceSavedFeedback] = useState<boolean>(false);
+  const [voiceAutoAnswer, setVoiceAutoAnswer] = useState(URA_PADRAO.auto_answer);
+  const [voiceGreeting, setVoiceGreeting] = useState(URA_PADRAO.greeting);
+  const [voiceFilter, setVoiceFilter] = useState<UraConfig["filter"]>(URA_PADRAO.filter);
+  const [voiceSchedule, setVoiceSchedule] = useState<UraConfig["schedule"]>(URA_PADRAO.schedule);
+  const [voiceTransferPhone, setVoiceTransferPhone] = useState(URA_PADRAO.transfer_phone);
+  const [voiceSavedFeedback, setVoiceSavedFeedback] = useState(false);
+  const [uraLoading, setUraLoading] = useState(true);
+  const [uraSaving, setUraSaving] = useState(false);
+  const [uraBusinessLoaded, setUraBusinessLoaded] = useState("");
+  const [uraError, setUraError] = useState("");
+  const [uraVoiceProvider, setUraVoiceProvider] = useState<"KOKORO" | "ELEVENLABS">("KOKORO");
+  const [uraVoiceId, setUraVoiceId] = useState("pm_alex*0.7+am_liam*0.3");
 
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
 
@@ -147,6 +141,34 @@ export default function IntegracoesPage() {
   // Laya
   const [layaMessage, setLayaMessage] = useState("Preciso de ajuda urgente com a fatura da iGreen!");
   const [layaBusinessId, setLayaBusinessId] = useState(currentBusinessId || "BIZ-001");
+
+  useEffect(() => {
+    let ativo = true;
+    setUraLoading(true); setUraError(""); setUraBusinessLoaded(""); setVoiceSavedFeedback(false);
+    setVoiceAutoAnswer(URA_PADRAO.auto_answer); setVoiceGreeting(URA_PADRAO.greeting);
+    setVoiceFilter(URA_PADRAO.filter); setVoiceSchedule(URA_PADRAO.schedule); setVoiceTransferPhone("");
+    setUraVoiceProvider("KOKORO");
+    setUraVoiceId("pm_alex*0.7+am_liam*0.3");
+    if (!/^BIZ-[A-Za-z0-9-]+$/.test(layaBusinessId)) {
+      setUraError("Selecione uma empresa para configurar a URA."); setUraLoading(false);
+      return () => { ativo = false; };
+    }
+    void carregarUra(layaBusinessId).then(config => {
+      if (!ativo) return;
+      const c: UraCarregada = config ?? URA_PADRAO;
+      setVoiceAutoAnswer(c.auto_answer); setVoiceGreeting(c.greeting);
+      setVoiceFilter(c.filter); setVoiceSchedule(c.schedule); setVoiceTransferPhone(c.transfer_phone);
+      if (c.voice?.provider === "ELEVENLABS") {
+        setUraVoiceProvider("ELEVENLABS"); setUraVoiceId(c.voice.id);
+      } else if (c.voice?.provider === "KOKORO") {
+        setUraVoiceProvider("KOKORO"); setUraVoiceId(c.voice.id);
+      }
+      setUraBusinessLoaded(layaBusinessId);
+    }).catch(() => { if (ativo) setUraError("Não foi possível carregar a URA. A gravação está bloqueada até uma leitura válida."); })
+      .finally(() => { if (ativo) setUraLoading(false); });
+    return () => { ativo = false; };
+  }, [layaBusinessId]);
+
   const [layaChannel, setLayaChannel] = useState("whatsapp");
   const [layaResult, setLayaResult] = useState<LayaClassifyResponse | null>(null);
   const [layaLoading, setLayaLoading] = useState(false);
@@ -189,18 +211,6 @@ export default function IntegracoesPage() {
       }
       if (va) {
         setVoiceAgentConfig(va);
-      }
-      // Se a engine Meowcaller requer pareamento e o QR Code ainda não está em tela, requisita automaticamente
-      const currentQr = mc?.session?.qrcode || h?.meowcaller?.qrcode;
-      const isPairing =
-        h?.meowcaller?.whatsapp_status === "PAIRING_REQUIRED" ||
-        mc?.session?.status === "PAIRING_REQUIRED" ||
-        mc?.session?.whatsapp_status === "PAIRING_REQUIRED";
-      if (!currentQr && isPairing) {
-        connectMeowcallerSession().then((res) => {
-          const qr = res?.result?.qrcode || res?.session?.qrcode || (res as any)?.qrcode;
-          if (qr) setMeowcallerQr(qr);
-        }).catch(() => {});
       }
       setVoiceProfiles(vc);
       setEvents(evts);
@@ -387,7 +397,7 @@ export default function IntegracoesPage() {
       setMeowcallerFeedback(`Originando chamada para +${clean}...`);
       const res = await makeMeowcallerCall(clean, layaBusinessId);
       setActiveCallId(res.call_id);
-      setMeowcallerFeedback(`Chamada iniciada com sucesso (ID: ${res.call_id}).`);
+      setMeowcallerFeedback(res.warning || `Chamada iniciada e registrada no Supabase (ID: ${res.call_id}).`);
       loadAll();
     } catch (err: any) {
       setMeowcallerFeedback(`Aviso Meowcaller: ${err.message}`);
@@ -409,18 +419,18 @@ export default function IntegracoesPage() {
   };
 
   const handleSaveUraConfig = async () => {
+    if (!isFounder || uraLoading || uraSaving || uraBusinessLoaded !== layaBusinessId) return;
+    setUraSaving(true); setVoiceSavedFeedback(false); setUraError("");
     try {
-      localStorage.setItem("helena_voice_auto_answer", String(voiceAutoAnswer));
-      localStorage.setItem("helena_voice_greeting", voiceGreeting);
-      localStorage.setItem("helena_voice_filter", voiceFilter);
-      localStorage.setItem("helena_voice_schedule", voiceSchedule);
-      localStorage.setItem("helena_voice_transfer_phone", voiceTransferPhone);
-
+      await salvarUra(layaBusinessId, {
+        auto_answer: voiceAutoAnswer, greeting: voiceGreeting, filter: voiceFilter,
+        schedule: voiceSchedule, transfer_phone: voiceTransferPhone,
+      }, { id: uraVoiceId, provider: uraVoiceProvider });
       setVoiceSavedFeedback(true);
       setTimeout(() => setVoiceSavedFeedback(false), 4000);
-    } catch (err: any) {
-      alert(`Erro ao salvar configurações da URA: ${err.message}`);
-    }
+    } catch (err) {
+      setUraError(err instanceof Error ? err.message : "Não foi possível salvar a URA.");
+    } finally { setUraSaving(false); }
   };
 
   // Ações Kokoro TTS (Motor Oficial)
@@ -713,6 +723,26 @@ export default function IntegracoesPage() {
           </button>
         }
       />
+
+      <section className="rounded-2xl border border-amber-500/30 bg-card p-5 shadow-sm" aria-labelledby="supervisao-helena-titulo">
+        <div className="flex flex-wrap items-center gap-2">
+          <Info className="h-5 w-5 text-amber-600" aria-hidden="true" />
+          <h2 id="supervisao-helena-titulo" className="text-base font-semibold text-foreground">Checkpoint de supervisão da Helena</h2>
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">Em homologação</span>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          A TSK-0031 reúne a supervisão em um lote. A Helena consulta o Supabase em uma janela diária, compara o que mudou desde a última revisão e registra um parecer operacional. Acúmulo de tarefas ou decisão estratégica aumenta a prioridade da próxima janela; não chama IA por tarefa.
+        </p>
+        <div className="mt-4 grid gap-3 text-xs md:grid-cols-3">
+          <div className="rounded-xl bg-muted/40 p-3"><strong className="text-foreground">1. Acumular</strong><p className="mt-1 text-muted-foreground">Tarefas, jobs e decisões ficam no Supabase. A tela só consulta os dados; não executa revisões.</p></div>
+          <div className="rounded-xl bg-muted/40 p-3"><strong className="text-foreground">2. Revisar o lote</strong><p className="mt-1 text-muted-foreground">Uma revisão reúne mudanças relevantes, bloqueios, evidências e decisões por empresa, com limite de no máximo duas janelas por dia.</p></div>
+          <div className="rounded-xl bg-muted/40 p-3"><strong className="text-foreground">3. Dar retorno</strong><p className="mt-1 text-muted-foreground">O parecer aparece na Sala de comando. Mensagem só quando houver algo relevante; WhatsApp crítico ainda depende de homologação.</p></div>
+        </div>
+        <p className="mt-4 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">Custo e chave:</strong> o agendamento no Codex usa uma execução curta da cota do Codex por janela; não exige chave de API OpenAI nesta página. Se migrarmos para uma API própria, a chave ficará somente no servidor. WhatsApp e cota do Grok não são acionados por esta tela.
+        </p>
+        <a href="/comando" className="mt-3 inline-flex text-xs font-semibold text-primary hover:underline">Ver as tarefas na Sala de comando →</a>
+      </section>
 
       {/* Navegação por Abas Executivas com Badges */}
       <div className="flex border-b border-border overflow-x-auto no-scrollbar gap-1">
@@ -1022,7 +1052,7 @@ export default function IntegracoesPage() {
                   </div>
                   <div className="rounded-lg border border-border/70 p-3 text-xs space-y-1 bg-muted/20">
                     <span className="text-muted-foreground">Auto-Atendimento & Webhook</span>
-                    <p className="font-mono font-medium text-emerald-600 dark:text-emerald-400">ATIVO (Menu URA 1, 2, 3 + Laya IA)</p>
+                    <p className="font-mono font-medium text-amber-700 dark:text-amber-400">Sessão detectada · resposta automática requer teste</p>
                   </div>
                 </div>
 
@@ -1132,10 +1162,10 @@ export default function IntegracoesPage() {
                   <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 text-center space-y-2">
                     <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>WhatsApp de Mensagens & URA Conectado!</span>
+                      <span>WhatsApp de mensagens conectado</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      A instância <strong className="text-foreground">{evolutionStatus?.instance || "helena_mensagens"}</strong> já está online e respondendo mensagens automaticamente com URA (1, 2, 3...) e IA Laya.
+                      A instância <strong className="text-foreground">{evolutionStatus?.instance || "helena_mensagens"}</strong> está online. O menu URA e a resposta automática precisam de teste de mensagem para confirmação.
                     </p>
                     <button
                       type="button"
@@ -1199,11 +1229,11 @@ export default function IntegracoesPage() {
               <div className="w-full text-left rounded-lg border border-border/80 bg-muted/20 p-4 space-y-2 text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5 text-[#007A3D]" />
-                  Como funciona o Auto-Atendimento Helena:
+                  Fluxo previsto do Auto-Atendimento Helena:
                 </span>
                 <ul className="space-y-1.5 text-muted-foreground list-disc list-inside">
                   <li><strong className="text-foreground">Conexão:</strong> Aponte seu WhatsApp para o QR Code acima.</li>
-                  <li><strong className="text-foreground">Atendimento 24/7:</strong> Quando o cliente envia mensagem, a Helena atende sozinha.</li>
+                  <li><strong className="text-foreground">Atendimento:</strong> Mensagens recebidas seguem o fluxo configurado quando o webhook e o executor estiverem operacionais.</li>
                   <li><strong className="text-foreground">Menu de Opções (URA):</strong>
                     <div className="ml-4 mt-1 space-y-0.5 font-mono text-[11px] text-foreground">
                       <div>1️⃣ Vendas & Comercial (Victor)</div>
@@ -1340,7 +1370,7 @@ export default function IntegracoesPage() {
                     </div>
                   </div>
                   <ExecutiveBadge variant={voiceAutoAnswer ? "success" : "default"}>
-                    {voiceAutoAnswer ? "ATENDIMENTO ATIVO" : "DESATIVADO"}
+                    {voiceAutoAnswer ? "AUTOMÁTICO SOLICITADO" : "DESATIVADO"}
                   </ExecutiveBadge>
                 </div>
 
@@ -1352,7 +1382,7 @@ export default function IntegracoesPage() {
                       Atender Chamadas Recebidas Automaticamente com IA
                     </span>
                     <p className="text-[11px] text-muted-foreground">
-                      Quando um cliente ligar para este WhatsApp ({meowcallerStatus?.connected_jid ? `+${meowcallerStatus.connected_jid.split(':')[0]}` : "chip de voz"}), a Helena atende e inicia a conversa.
+                      Regra desejada para chamadas recebidas ({meowcallerStatus?.connected_jid ? `+${meowcallerStatus.connected_jid.split(':')[0]}` : "chip de voz"}). A aplicação pelo executor ainda precisa ser confirmada.
                     </p>
                   </div>
                   <button
@@ -1387,7 +1417,7 @@ export default function IntegracoesPage() {
                     className="w-full rounded-lg border border-border bg-background p-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D] leading-relaxed"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Esta frase será sintetizada com voz ultra-realista no momento exato em que a ligação for iniciada.
+                    Saudação registrada no Supabase. A aplicação automática nas chamadas ainda precisa ser confirmada no executor.
                   </p>
                 </div>
 
@@ -1471,22 +1501,60 @@ export default function IntegracoesPage() {
                   </div>
                 </div>
 
-                {/* Botão de Salvar Configurações */}
+                {/* Provedor escolhido explicitamente para evitar troca ao carregar a lista de vozes */}
+                <label className="block text-xs font-semibold text-foreground space-y-1.5">
+                  <span>Motor de voz da URA</span>
+                  <select value={uraVoiceProvider} onChange={e => {
+                    const provider = e.target.value as "KOKORO" | "ELEVENLABS";
+                    setUraVoiceProvider(provider);
+                    setUraVoiceId(provider === "KOKORO" ? "pm_alex*0.7+am_liam*0.3" : "");
+                    if (provider === "ELEVENLABS" && voices.length === 0) {
+                      setLoadingVoices(true);
+                      void fetchElevenLabsVoices().then(res => {
+                        const available = res.data?.voices ?? [];
+                        setVoices(available);
+                      }).catch(() => setUraError("Não foi possível carregar as vozes ElevenLabs."))
+                        .finally(() => setLoadingVoices(false));
+                    }
+                  }} className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
+                    <option value="KOKORO">Kokoro · motor oficial</option>
+                    <option value="ELEVENLABS">ElevenLabs · standby</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-foreground space-y-1.5">
+                  <span>Voz desta empresa</span>
+                  <select value={uraVoiceId} onChange={e => setUraVoiceId(e.target.value)} className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
+                    {uraVoiceProvider === "KOKORO" ? <>
+                      <option value="pm_alex*0.7+am_liam*0.3">Pedro · oficial</option>
+                      <option value="pm_santa">Assistente Dr. Vital</option>
+                      <option value="pf_dora*0.7+af_heart*0.3">Assistente Sirlene</option>
+                      {kokoroVoices.filter(v => !["pm_alex*0.7+am_liam*0.3", "pm_santa", "pf_dora*0.7+af_heart*0.3"].includes(v.voice_id)).map(v => <option key={v.voice_id} value={v.voice_id}>{v.name}</option>)}
+                    </> : <>
+                      <option value="" disabled>{loadingVoices ? "Carregando vozes…" : "Selecione uma voz"}</option>
+                      {voices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.name}</option>)}
+                    </>}
+                    {uraVoiceId && !(uraVoiceProvider === "KOKORO" ? ["pm_alex*0.7+am_liam*0.3", "pm_santa", "pf_dora*0.7+af_heart*0.3", ...kokoroVoices.map(v => v.voice_id)] : voices.map(v => v.voice_id)).includes(uraVoiceId) &&
+                      <option value={uraVoiceId}>Voz salva · {uraVoiceId}</option>}
+                  </select>
+                </label>
+                <p className="text-xs text-muted-foreground">Empresa da URA: {layaBusinessId}. {uraLoading ? "Consultando configuração no Supabase…" : "Configuração armazenada por empresa no Supabase."}</p>
+                {uraError && <p role="alert" className="text-xs text-red-600">{uraError}</p>}
                 <div className="pt-3 border-t border-border/60 flex items-center justify-between">
                   {voiceSavedFeedback ? (
                     <div className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30 animate-pulse">
                       <CheckCircle2 className="h-4 w-4" />
-                      <span>Configurações da URA salvas com sucesso!</span>
+                      <span>Configurações da URA confirmadas no Supabase.</span>
                     </div>
                   ) : (
                     <span className="text-[11px] text-muted-foreground">
-                      As alterações entram em vigor imediatamente para a próxima ligação.
+                      A aplicação nas ligações depende da integração do executor com este perfil.
                     </span>
                   )}
 
                   <button
                     type="button"
                     onClick={handleSaveUraConfig}
+                    disabled={!isFounder || uraLoading || uraSaving || !uraVoiceId || uraBusinessLoaded !== layaBusinessId}
                     className="inline-flex items-center gap-2 rounded-lg bg-[#007A3D] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#007A3D]/90 transition-colors"
                   >
                     <CheckCircle2 className="h-4 w-4" />
@@ -1762,6 +1830,7 @@ export default function IntegracoesPage() {
               {/* Histórico Recente de Chamadas */}
               <div className="rounded-xl border border-border bg-card p-6 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Histórico de Chamadas Recentes</h3>
+                <p className="text-[11px] text-muted-foreground">Visão consolidada; cada chamada mostra a empresa registrada no Supabase.</p>
                 {callHistory.length === 0 ? (
                   <ExecutiveEmptyState title="Nenhuma chamada recente" description="As chamadas originadas ou recebidas serão registradas aqui." />
                 ) : (
@@ -1771,7 +1840,7 @@ export default function IntegracoesPage() {
                         <div>
                           <p className="font-mono font-medium text-foreground">{c.remote_number}</p>
                           <span className="text-[11px] text-muted-foreground">
-                            {c.direction} · {new Date(c.started_at).toLocaleTimeString()} · {c.duration_seconds}s
+                            {c.business_id || "Sem empresa"} · {c.direction} · {new Date(c.started_at).toLocaleTimeString()} · {c.duration_seconds}s
                           </span>
                         </div>
                         <ExecutiveBadge variant={c.status === "ENDED" ? "default" : "success"}>
@@ -2243,6 +2312,7 @@ export default function IntegracoesPage() {
               <option value="LAYA">Laya</option>
             </select>
           </div>
+          <p className="text-xs text-muted-foreground">Visão consolidada; confira a empresa de cada evento antes de agir.</p>
 
           {events.length === 0 ? (
             <ExecutiveEmptyState title="Nenhum evento registrado" description="Eventos de conexões, chamadas e mensagens aparecerão aqui." />
@@ -2258,7 +2328,7 @@ export default function IntegracoesPage() {
                         <ExecutiveBadge variant="default">{e.provider}</ExecutiveBadge>
                       </div>
                       <span className="text-[11px] text-muted-foreground font-mono">
-                        {new Date(e.created_at).toLocaleString()} · ID: {e.event_id.slice(0, 8)}
+                        {e.business_id || "Sem empresa"} · {new Date(e.created_at).toLocaleString()} · ID: {e.event_id.slice(0, 8)}
                       </span>
                     </div>
                     <span className="font-mono text-muted-foreground text-[11px]">

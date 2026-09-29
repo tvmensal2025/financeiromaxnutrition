@@ -16,9 +16,9 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { parseDataAgenda, type TarefaRow } from "@/lib/agenda-unificada";
-import { sincronizarTarefaNoCalendario } from "@/lib/tarefa-calendario";
 import {
   concluirTarefa,
+  atualizarTarefa,
   criarTarefaNova,
   delegarTarefa,
   proximoTaskId,
@@ -89,7 +89,11 @@ export function TarefaAgendaModal({
   };
 
   useEffect(() => {
-    if (!aberto) return;
+    if (!aberto) {
+      setLista([]);
+      setForm({});
+      return;
+    }
     carregar();
     setSelId(taskIdInicial || null);
     setPainelDelegar(acaoInicial === "delegar");
@@ -139,18 +143,13 @@ export function TarefaAgendaModal({
       bloqueio: form.bloqueio || null,
       definicao_de_pronto: form.definicao_de_pronto || null,
     };
-    let updateQuery = supabase.from("tarefas").update(payload).eq("task_id", selecionada.task_id);
-    if (!isConsolidated && currentBusinessId) {
-      updateQuery = updateQuery.eq("business_id", currentBusinessId);
-    }
-    const { error } = await updateQuery;
-    if (error) {
-      setErro(error.message);
+    const { erro: falha, tarefa: confirmada } = await atualizarTarefa(selecionada.task_id, payload, form as TarefaCompleta);
+    if (falha) {
+      setErro(falha);
       setSalvando(false);
       return;
     }
-    const atualizada: TarefaCompleta = { ...selecionada, ...payload };
-    await sincronizarTarefaNoCalendario(atualizada);
+    if (confirmada) setForm(confirmada);
     await carregar();
     onAtualizado?.();
     setSalvando(false);
@@ -161,9 +160,10 @@ export function TarefaAgendaModal({
     if (tarefaConcluida(selecionada.status)) return;
     setSalvando(true);
     setErro("");
-    const { erro: msg } = await concluirTarefa(selecionada);
+    const { erro: msg, tarefa: confirmada } = await concluirTarefa(form as TarefaCompleta);
     if (msg) setErro(msg);
     else {
+      if (confirmada) setForm(atual => ({ ...atual, status: confirmada.status, row_version: confirmada.row_version }));
       await carregar();
       onAtualizado?.();
       setPainelDelegar(false);
@@ -176,9 +176,10 @@ export function TarefaAgendaModal({
     if (!selecionada) return;
     setSalvando(true);
     setErro("");
-    const { erro: msg } = await delegarTarefa(selecionada, delegadoPara);
+    const { erro: msg, tarefa: confirmada } = await delegarTarefa(form as TarefaCompleta, delegadoPara);
     if (msg) setErro(msg);
     else {
+      if (confirmada) setForm(atual => ({ ...atual, status: confirmada.status, responsavel: confirmada.responsavel, row_version: confirmada.row_version }));
       await carregar();
       onAtualizado?.();
       setPainelDelegar(false);
@@ -260,7 +261,7 @@ export function TarefaAgendaModal({
         </header>
 
         {erro && (
-          <p className="mx-5 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{erro}</p>
+          <p role="alert" className="mx-5 mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{erro}</p>
         )}
 
         <div className="pe-modal-premium-body">

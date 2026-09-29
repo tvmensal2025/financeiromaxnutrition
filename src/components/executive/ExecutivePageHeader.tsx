@@ -4,9 +4,11 @@ import { LucideIcon } from "lucide-react";
 interface ExecutivePageHeaderProps {
   title: string;
   description?: string;
+  subtitle?: string;
   icon?: LucideIcon;
   badge?: React.ReactNode;
   actions?: React.ReactNode;
+  action?: React.ReactNode;
   breadcrumb?: string;
   className?: string;
 }
@@ -14,15 +16,17 @@ interface ExecutivePageHeaderProps {
 export function ExecutivePageHeader({
   title,
   description,
+  subtitle,
   icon: Icon,
   badge,
   actions,
+  action,
   breadcrumb,
   className = "",
 }: ExecutivePageHeaderProps) {
   return (
     <div
-      className={`flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-center sm:justify-between ${className}`}
+      className={`he-page-heading flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}
     >
       <div className="space-y-1">
         {breadcrumb && (
@@ -41,16 +45,16 @@ export function ExecutivePageHeader({
           </h1>
           {badge}
         </div>
-        {description && (
+        {(description || subtitle) && (
           <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
-            {description}
+            {description || subtitle}
           </p>
         )}
       </div>
 
-      {actions && (
+      {(actions || action) && (
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {actions}
+          {actions || action}
         </div>
       )}
     </div>
