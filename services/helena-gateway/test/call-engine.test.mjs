@@ -5,7 +5,7 @@
  * 2. 3 Vozes Favoritas configuráveis
  * 3. 3 Personalidades Dinâmicas (Equilíbrio, Firme, Intenso)
  * 4. HOT-SWAP de voz e personalidade durante ligação ativa aplicado no próximo turno
- * 5. Telemetria fiel por turno: tokens DeepSeek, caracteres Chirp, latências e custos
+ * 5. Telemetria fiel por turno: tokens GPT, caracteres Chirp, latências e custos
  * 6. Histórico e Métricas
  */
 
@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 
 import {
   getCallEngineConfig,
+  calculateEstimatedCost,
   updateCallEngineConfig,
   updateFavoriteVoiceSlot,
   getPersonalitiesList,
@@ -42,6 +43,11 @@ import { routeCallAudio } from '../src/integrations/audio-router.mjs';
 import { setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
 
 describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
+
+  it('estima tokens do GPT-6 Luna sem preços legados', () => {
+    const costs = calculateEstimatedCost({ inputTokens: 2_000_000, cachedTokens: 1_000_000, outputTokens: 1_000_000 });
+    assert.equal(costs.cost_llm_usd, 0.61);
+  });
 
   beforeEach(() => {
     // Restaura configurações padrão para os testes
@@ -104,11 +110,12 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     const session = registerCallSession({
       callId,
       remoteNumber: '+5511999998888',
-      direction: 'INBOUND'
+      direction: 'INBOUND',
+      profileKey: 'sirlene_normal'
     });
 
     assert.ok(session);
-    assert.strictEqual(session.activeVoice, getActiveGlobalProfile().voice_id);
+    assert.strictEqual(session.activeVoice, getProfile('sirlene', 'normal').voice_id);
     assert.strictEqual(session.activePersonalityId, 'equilibrio');
 
     // Troca de Voz e Personalidade em tempo real durante a chamada
@@ -318,7 +325,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
 
       assert.strictEqual(swap.success, true);
       assert.strictEqual(swap.next_turn_ready, true);
-      assert.ok(swap.feedback.includes('será aplicado na próxima resposta'));
+      assert.ok(swap.feedback.includes('ativo imediatamente'));
 
       // Verifica estado em memória imediato
       const liveCall = getCallSession(callId);

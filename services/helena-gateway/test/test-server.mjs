@@ -127,7 +127,7 @@ try {
   assert.strictEqual(resTools.status, 200);
   const bodyTools = await resTools.json();
   const toolNames = bodyTools.result.tools.map(t => t.name);
-  assert.strictEqual(toolNames.length, 10, 'Devem existir 10 ferramentas ativas');
+  assert.strictEqual(toolNames.length, 11, 'Devem existir 11 ferramentas com registro de progresso');
   console.log('OK: 10 ferramentas listadas no MCP.');
 
   console.log('--- TESTE 7: complete_job sem evidence_refs (Regra V9) ---');

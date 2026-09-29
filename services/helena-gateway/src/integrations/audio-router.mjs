@@ -2,7 +2,7 @@
  * audio-router.mjs — Roteador Canônico de Contexto de Áudio
  *
  * Garante o isolamento estrito:
- * CALL     → Google Chirp 3 HD (se habilitado) com fallback controlado
+ * CALL     → Google Chirp 3 HD exclusivo; falhas são reportadas
  * VARIABLE → ElevenLabs / comportamento existente
  * FIXED    → Áudios estáticos existentes / comportamento existente
  * KOKORO   → Preservado

@@ -9,7 +9,7 @@
  *    - character_id, character_name, mode, mode_name, profile_key
  *    - voice_id (Google Cloud Chirp 3 HD)
  *    - opening_message (abertura falada SOMENTE no início da ligação caso este perfil inicie a chamada)
- *    - system_script (o SYSTEM PROMPT COMPLETO do DeepSeek — aplicado rigorosamente sem misturar personas)
+ *    - system_script (o SYSTEM PROMPT COMPLETO do GPT — aplicado rigorosamente sem misturar personas)
  * 5. Troca de Personagem e/ou Modo DURANTE chamada ativa (Hot-Swap) aplicada IMEDIATAMENTE no PRÓXIMO turno:
  *    - Sem desligar, sem reiniciar, sem reconectar, sem nova chamada.
  *    - Sem repetir opening_message.
@@ -332,9 +332,10 @@ DIRETRIZES DE ATENDIMENTO:
 // ======================================================================
 
 export const DEFAULT_PRICING = Object.freeze({
-  deepseek_input_per_million: 0.14,
-  deepseek_cached_input_per_million: 0.07,
-  deepseek_output_per_million: 0.28,
+  // GPT-6 Luna standard API, short-context token rates (USD/1M, 2026-09-28).
+  gpt_input_per_million: 0.10,
+  gpt_cached_input_per_million: 0.01,
+  gpt_output_per_million: 0.50,
   google_chirp_per_million_chars: 16.00,
   usd_to_brl: 5.80
 });
@@ -782,7 +783,7 @@ export const getActiveCallsList = listActiveCalls;
 /**
  * REQUISITO CRÍTICO — HOT-SWAP EM LIGAÇÃO:
  * Troca de Personagem e/ou Modo DURANTE a mesma ligação em andamento.
- * Aplica IMEDIATAMENTE no PRÓXIMO turno da conversa sem desligar, sem reiniciar, sem reconectar e sem repetir a opening_message.
+ * Atualiza o perfil da sessão imediatamente; o endpoint de troca retoma a resposta corrente.
  */
 export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, personalityId, profileKey, updatedBy = 'Admin' }) {
   const call = getCallSession(callId);
@@ -852,7 +853,7 @@ export function switchCallRuntime({ callId, characterId, mode, voiceId, voice, p
     });
   }
 
-  const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} será aplicado na próxima resposta.`;
+  const feedbackMessage = `${targetProfile.character_name} / ${targetProfile.mode_name} ativo imediatamente.`;
   console.log(`[CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA ${callId} por ${updatedBy}: ${feedbackMessage} (Voz: ${call.activeVoice})`);
 
   return {
@@ -977,9 +978,9 @@ export function recordTurnTelemetry({
  */
 export function calculateEstimatedCost({ inputTokens = 0, cachedTokens = 0, outputTokens = 0, ttsChars = 0 }) {
   const regularInput = Math.max(0, inputTokens - cachedTokens);
-  const costRegularInput = (regularInput / 1_000_000) * pricingConfig.deepseek_input_per_million;
-  const costCachedInput = (cachedTokens / 1_000_000) * pricingConfig.deepseek_cached_input_per_million;
-  const costOutput = (outputTokens / 1_000_000) * pricingConfig.deepseek_output_per_million;
+  const costRegularInput = (regularInput / 1_000_000) * pricingConfig.gpt_input_per_million;
+  const costCachedInput = (cachedTokens / 1_000_000) * pricingConfig.gpt_cached_input_per_million;
+  const costOutput = (outputTokens / 1_000_000) * pricingConfig.gpt_output_per_million;
   const costLlmUsd = costRegularInput + costCachedInput + costOutput;
 
   const costTtsUsd = (ttsChars / 1_000_000) * pricingConfig.google_chirp_per_million_chars;

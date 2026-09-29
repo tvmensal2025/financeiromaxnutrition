@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Transform, Readable } from 'node:stream';
-import { readSSE, extractSentences, streamReplyToCall } from '../src/integrations/call-streaming.mjs';
+import { readSSE, extractSentences, extractSpeechChunks, streamReplyToCall } from '../src/integrations/call-streaming.mjs';
 import { openChirp3CallStream, setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
 
 const event = data => Buffer.from(`data: ${JSON.stringify(data)}\r\n\r\n`);
@@ -59,6 +59,35 @@ describe('End-to-end voice streaming', () => {
     assert.ok(result.metrics.llm_first_token_ms >= 0);
     assert.ok(result.audioBytes > 0);
   });
+  it('never invents a filler while waiting for a slow GPT response', async () => {
+    const sentences = [];
+    const result = await streamReplyToCall({ ...base,
+      openTTS: ({ voice }) => { assert.equal(voice, base.voice); return fakeTTS(s => sentences.push(s)); },
+      fetchImpl: async (url, opts) => {
+        if (url.includes('api.openai.com')) return { ok: true, body: Readable.from((async function* () {
+          await new Promise(resolve => setTimeout(resolve, 800));
+          yield event(delta('A resposta está pronta.'));
+          yield event(stop);
+        })()) };
+        for await (const chunk of opts.body) assert.ok(chunk.length);
+        return Response.json({ ok: true });
+      } });
+    assert.deepEqual(sentences, ['A resposta está pronta. ']);
+    assert.equal(result.text, 'A resposta está pronta.');
+    assert.equal(result.metrics.backchannel_ms, null);
+  });
+  it('skips the acknowledgement when the answer is ready first', async () => {
+    const sentences = [];
+    const result = await streamReplyToCall({ ...base,
+      openTTS: () => fakeTTS(s => sentences.push(s)),
+      fetchImpl: async (url, opts) => {
+        if (url.includes('api.openai.com')) return { ok: true, body: Readable.from([event(delta('Claro, aqui está.')), event(stop)]) };
+        for await (const chunk of opts.body) assert.ok(chunk.length);
+        return Response.json({ ok: true });
+      } });
+    assert.deepEqual(sentences, ['Claro, aqui está. ']);
+    assert.equal(result.metrics.backchannel_ms, null);
+  });
   it('cancels both providers when transport reports barge-in; never retries batch', async () => {
     let capturedSignal;
     let calls = 0;
@@ -102,4 +131,50 @@ describe('End-to-end voice streaming', () => {
       stream.destroy();
     } finally { setGoogleTTSClientForTesting(null); }
   });
+});
+
+it('emits a meaningful clause before the rest of a long sentence is generated', async () => {
+  assert.deepEqual(extractSpeechChunks('Para entender melhor a sua situação, preciso saber mais'), {
+    sentences: ['Para entender melhor a sua situação,'], rest: ' preciso saber mais'
+  });
+  assert.deepEqual(extractSpeechChunks('O valor é de 1234,56 reais'), {sentences: [], rest: 'O valor é de 1234,56 reais'});
+  let release;
+  const heard = new Promise(resolve => { release = resolve; });
+  const sent = [];
+  await streamReplyToCall({...base, openTTS: () => fakeTTS(s => { sent.push(s); release(); }),
+    fetchImpl: async (url,opts) => {
+      if (url.includes('api.openai.com')) return {ok:true,body:Readable.from((async function*(){
+        yield event(delta('Para entender melhor a sua situação, '));
+        await heard;
+        yield event(delta('preciso saber mais.')); yield event(stop);
+      })())};
+      for await (const chunk of opts.body) assert.ok(chunk.length);
+      return Response.json({ok:true});
+    }});
+  assert.deepEqual(sent,['Para entender melhor a sua situação, ','preciso saber mais. ']);
+});
+
+it('keeps generated acknowledgements and ellipses with their following thought', async () => {
+  const sentences=[];
+  await streamReplyToCall({...base,openTTS:()=>fakeTTS(s=>sentences.push(s)),fetchImpl:async(url,opts)=>{
+    if(url.includes('api.openai.com'))return {ok:true,body:Readable.from([
+      event(delta('Hum')),event(delta('... ')),event(delta('deixa eu ver. ')),
+      event(delta('[pensando. ')),event(delta('pausa] Entendi. ')),event(delta('Nesse caso, muda um pouco.')),event(stop)
+    ])};
+    for await(const chunk of opts.body)assert.ok(chunk.length);
+    return Response.json({ok:true});
+  }});
+  assert.deepEqual(sentences,['Hum… deixa eu ver. ','Entendi. Nesse caso, muda um pouco. ']);
+});
+
+it('does not play a response containing only hesitation or internal stage directions', async () => {
+  for(const text of ['Hum…','[pensando]']) {
+    const sentences=[];
+    await assert.rejects(streamReplyToCall({...base,openTTS:()=>fakeTTS(s=>sentences.push(s)),fetchImpl:async(url,opts)=>{
+      if(url.includes('api.openai.com'))return {ok:true,body:Readable.from([event(delta(text)),event(stop)])};
+      for await(const chunk of opts.body)void chunk;
+      return Response.json({ok:true});
+    }}),/Empty streamed response|no streaming audio/);
+    assert.deepEqual(sentences,[]);
+  }
 });

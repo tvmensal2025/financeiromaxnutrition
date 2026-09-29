@@ -77,8 +77,11 @@ import {
   handleCallEndedWebhook,
   handleUserSilence,
   processUserSpeech,
+  prepareLiveSpeech,
+  restartActiveReplyForProfile,
   getCallHistory
 } from '../integrations/voice-agent.mjs';
+import { transcribeLivePCM } from '../integrations/live-transcription.mjs';
 
 import {
   getCallEngineConfig,
@@ -208,11 +211,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
   router.get('/api/integrations/status', async (req, res) => {
     try {
-      const [laya, evolution, meowcaller, elevenlabs, kokoro] = await Promise.all([
+      const [laya, evolution, meowcaller, kokoro] = await Promise.all([
         getLayaHealth().catch((err) => ({ healthy: false, error: err.message })),
         getEvolutionStatus().catch((err) => ({ configured: false, error: err.message })),
         getMeowcallerSession().catch((err) => ({ healthy: false, error: err.message })),
-        getElevenLabsVoices().catch((err) => ({ configured: false, error: err.message })),
         getKokoroVoices().catch((err) => ({ configured: false, error: err.message }))
       ]);
 
@@ -238,11 +240,11 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
           status: 'OFICIAL'
         },
         elevenlabs: {
-          configured: elevenlabs.configured ?? false,
-          reachable: elevenlabs.reachable ?? false,
-          voices_count: elevenlabs.voices_count || 0,
+          configured: false,
+          reachable: false,
+          voices_count: 0,
           is_official: false,
-          status: 'STANDBY'
+          status: 'LEGACY_AUDIO_ONLY'
         },
         call_tts: {
           provider: isGoogleChirp3CallEnabled() ? GOOGLE_CHIRP3_PROVIDER : 'legacy',
@@ -932,25 +934,6 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
   router.get('/api/integrations/voice-agent/settings', optionalAuth, async (req, res) => {
     try {
       const config = await getVoiceAgentConfig();
-      if (supabaseFetch) {
-        try {
-          const remoteConfigs = await supabaseFetch('/rest/v1/configuracao?chave=in.(DEEPSEEK_API_KEY,VOICE_AGENT_AI_PROVIDER,VOICE_AGENT_AI_MODEL)&select=*').catch(() => []);
-          if (Array.isArray(remoteConfigs)) {
-            for (const item of remoteConfigs) {
-              if (item.chave === 'DEEPSEEK_API_KEY' && item.valor) {
-                config.ai_api_key = item.valor;
-                config.has_deepseek_key = true;
-              }
-              if (item.chave === 'VOICE_AGENT_AI_PROVIDER' && item.valor) {
-                config.ai_provider = item.valor;
-              }
-              if (item.chave === 'VOICE_AGENT_AI_MODEL' && item.valor) {
-                config.ai_model = item.valor;
-              }
-            }
-          }
-        } catch {}
-      }
       return res.json({ ok: true, config });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
@@ -959,6 +942,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
   router.post('/api/integrations/voice-agent/settings', authenticateUser, async (req, res) => {
     try {
+      if ((req.body?.ai_provider && req.body.ai_provider !== 'OPENAI') ||
+          (req.body?.ai_model && req.body.ai_model !== 'gpt-6-luna') || req.body?.ai_api_key) {
+        return res.status(400).json({ ok: false, error: 'As ligações usam GPT para texto e Google Chirp 3 HD para voz.' });
+      }
       const result = await updateVoiceAgentConfig(req.body || {});
       if (supabaseFetch) {
         try {
@@ -979,33 +966,6 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
               tipo: 'TEXTO',
               responsavel: 'Admin',
               descricao: 'Personalidade e regras de atendimento do Pedro'
-            });
-          }
-          if (req.body.ai_provider) {
-            configItems.push({
-              chave: 'VOICE_AGENT_AI_PROVIDER',
-              valor: req.body.ai_provider,
-              tipo: 'CONFIG',
-              responsavel: 'Admin',
-              descricao: 'Provedor de IA do Voice Agent'
-            });
-          }
-          if (req.body.ai_model) {
-            configItems.push({
-              chave: 'VOICE_AGENT_AI_MODEL',
-              valor: req.body.ai_model,
-              tipo: 'CONFIG',
-              responsavel: 'Admin',
-              descricao: 'Modelo de IA do Voice Agent'
-            });
-          }
-          if (req.body.ai_api_key) {
-            configItems.push({
-              chave: 'DEEPSEEK_API_KEY',
-              valor: req.body.ai_api_key,
-              tipo: 'SEGREDO',
-              responsavel: 'Admin',
-              descricao: 'Chave de API DeepSeek para inteligência do Voice Agent'
             });
           }
           if (configItems.length > 0) {
@@ -1074,6 +1034,25 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       return res.json({ ok: true, result });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
+
+  // Meowcaller envia PCM16 enquanto o cliente fala; o endpoint fecha no fim do turno.
+  router.post('/api/integrations/voice-agent/user-speech-stream', authenticateVoiceGateway, async (req, res) => {
+    const callId = String(req.headers['x-call-id'] || '').trim();
+    const speechEpoch = Number(req.headers['x-speech-epoch']);
+    if (!callId || callId.length > 160 || !Number.isSafeInteger(speechEpoch) || speechEpoch < 0 ||
+        req.headers['content-type'] !== 'audio/pcm') {
+      return res.status(400).json({ ok: false, error: 'Cabeçalhos de áudio inválidos' });
+    }
+    prepareLiveSpeech(callId, speechEpoch);
+    try {
+      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY });
+      const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics });
+      return res.json({ ok: true, result, stt_metrics: transcript.metrics });
+    } catch (err) {
+      console.error('[VOICE_AGENT] Falha no STT em tempo real:', err.message);
+      return res.status(502).json({ ok: false, error: 'live_stt_unavailable' });
     }
   });
 
@@ -1586,9 +1565,15 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         updatedBy
       });
 
+      const responseRestarted = await restartActiveReplyForProfile(callId);
+
       return res.json({
         ok: true,
-        ...result
+        ...result,
+        response_restarted: responseRestarted,
+        message: responseRestarted
+          ? `${result.active_character_name} / ${result.active_mode_name} ativo; resposta atual reiniciada com a nova voz.`
+          : `${result.active_character_name} / ${result.active_mode_name} ativo imediatamente.`
       });
     } catch (err) {
       return res.status(400).json({ ok: false, error: err.message });
@@ -1651,7 +1636,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
 
   /**
    * Executa um turno conversacional completo para o aplicativo web/mobile
-   * Conexão DIRETA: processa o texto com DeepSeek (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
+   * Conexão DIRETA: processa o texto com GPT (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
    * POST /api/integrations/call-engine/turn
    */
   router.post('/api/integrations/call-engine/transcribe', async (req,res)=>{

@@ -1,7 +1,8 @@
+import { buildNaturalnessInstruction, cleanVoiceText } from './conversation-naturalness.mjs';
 import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
- * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + DeepSeek
+ * Integra: 4 Personagens x 3 Modos (12 Perfis) + Base de Conhecimento + GPT
  * + Síntese Neural Google Cloud Chirp 3 HD Exclusiva + Meowcaller (WhatsApp VoIP)
  */
 
@@ -120,9 +121,7 @@ let cachedConfig = {
   knowledge_base: DEFAULT_MAX_KNOWLEDGE_BASE,
   inbound_greeting: DEFAULT_INBOUND_GREETING,
   outbound_greeting: DEFAULT_OUTBOUND_GREETING,
-  voice_provider: 'ELEVENLABS',
-  voice_profile_id: 'VP-ELEVEN-MASC-01',
-  elevenlabs_voice: 'TX3LPaxmHKxFdv7VOQHJ', // Max Alex / Pedro (ElevenLabs Oficial)
+  voice_provider: 'GOOGLE_CHIRP3_HD',
   call_voice: 'pt-BR-Chirp3-HD-Achird',
   ai_provider: 'OPENAI',
   ai_model: 'gpt-6-luna',
@@ -131,70 +130,9 @@ let cachedConfig = {
   updated_at: new Date().toISOString()
 };
 
-let resolvedSupabaseDeepSeekKey = '';
-let lastKeyFetchTime = 0;
-
-/**
- * Resolve a API key de inteligência (prioriza DeepSeek configurada no Supabase ou env)
- */
-export async function resolveAiApiKey(cfg = {}) {
-  if ((cfg.ai_provider || 'OPENAI') === 'OPENAI') return (process.env.OPENAI_API_KEY || '').trim();
-  // 1. Chave explícita em cfg
-  if (cfg.ai_api_key && cfg.ai_api_key.trim().length > 0) {
-    return cfg.ai_api_key.trim();
-  }
-
-  // 2. Variável de ambiente DEEPSEEK_API_KEY / GOOGLE_AI_API_KEY / OPENAI_API_KEY
-  if (process.env.DEEPSEEK_API_KEY && process.env.DEEPSEEK_API_KEY.trim().length > 0) {
-    return process.env.DEEPSEEK_API_KEY.trim();
-  }
-  if (process.env.GOOGLE_AI_API_KEY && process.env.GOOGLE_AI_API_KEY.trim().length > 0) {
-    return process.env.GOOGLE_AI_API_KEY.trim();
-  }
-  if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim().length > 0) {
-    return process.env.OPENAI_API_KEY.trim();
-  }
-
-  // 3. Cache recente de chave do Supabase (1 minuto)
-  const now = Date.now();
-  if (resolvedSupabaseDeepSeekKey && (now - lastKeyFetchTime) < 60000) {
-    return resolvedSupabaseDeepSeekKey;
-  }
-
-  // 4. Consulta dinâmica no Supabase configuracao
-  try {
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co';
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    if (serviceKey) {
-      const url = `${supabaseUrl}/rest/v1/configuracao?chave=eq.DEEPSEEK_API_KEY&select=valor`;
-      const res = await fetch(url, {
-        headers: {
-          'apikey': serviceKey,
-          'Authorization': `Bearer ${serviceKey}`
-        },
-        signal: AbortSignal.timeout(3000)
-      });
-      if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0 && rows[0]?.valor) {
-          resolvedSupabaseDeepSeekKey = rows[0].valor.trim();
-          lastKeyFetchTime = now;
-          return resolvedSupabaseDeepSeekKey;
-        }
-      }
-    }
-  } catch (err) {
-    // Silencioso em caso de falha de conexão
-  }
-
-  // 5. Fallbacks para outros provedores caso DeepSeek ainda não tenha chave
-  return (
-    process.env.GOOGLE_AI_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.GROK_API_KEY ||
-    ''
-  );
+/** Resolve somente a chave GPT das ligações; chaves legadas não entram neste fluxo. */
+export async function resolveAiApiKey() {
+  return (process.env.OPENAI_API_KEY || '').trim();
 }
 
 /**
@@ -208,9 +146,14 @@ export async function getVoiceAgentConfig() {
  * Atualiza e persiste as configurações do Agente de Voz
  */
 export async function updateVoiceAgentConfig(newSettings = {}) {
+  const { ai_provider, ai_model, ai_api_key, voice_provider, voice_profile_id, elevenlabs_voice, ...allowedSettings } = newSettings;
   cachedConfig = {
     ...cachedConfig,
-    ...newSettings,
+    ...allowedSettings,
+    ai_provider: 'OPENAI',
+    ai_model: 'gpt-6-luna',
+    ai_api_key: '',
+    voice_provider: 'GOOGLE_CHIRP3_HD',
     updated_at: new Date().toISOString()
   };
   return { ok: true, config: cachedConfig };
@@ -222,7 +165,7 @@ export async function updateVoiceAgentConfig(newSettings = {}) {
 
 /**
  * Gera texto de resposta para a chamada aplicando com rigor o perfil ativo (4 Personagens x 3 Modos)
- * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no DeepSeek.
+ * O campo SCRIPT é o SYSTEM PROMPT completo daquele perfil no GPT.
  */
 export async function generateAgentSpeechTextDetailed({ prompt = '', history = [], callContext = {}, profileKeyOverride = null }) {
   const cleanPrompt = String(prompt).trim();
@@ -233,29 +176,22 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
   const profileKey = profileKeyOverride || call?.activeProfileKey || getActiveGlobalProfileKey();
   const profile = getProfileByKey(profileKey);
 
-  // REQUISITO CRÍTICO: O script selecionado é o System Prompt oficial do DeepSeek sem sobreposição
+  // O script selecionado é o System Prompt oficial do perfil, sem sobreposição.
   const systemScript = call?.activeSystemScript || profile.system_script;
   const characterName = call?.activeCharacterName || profile.character_name;
   const modeName = call?.activeModeName || profile.mode_name;
 
-  // 1. Tenta invocar IA externa (DeepSeek) se API key estiver configurada e não for teste unitário estrito
+  // 1. Tenta invocar GPT se a chave estiver configurada e não for teste unitário estrito.
   const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
   const apiKey = isTest ? '' : await resolveAiApiKey(cfg);
   if (apiKey) {
     try {
       const systemInstruction = await buildCallInstruction(call, profile);
-      let providerToUse = cfg.ai_provider || 'OPENAI';
-      let modelToUse = cfg.ai_model || 'gpt-6-luna';
-      if (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) {
-        providerToUse = 'GEMINI';
-        modelToUse = 'gemini-flash-latest';
-      }
-
       const llmResult = await callLlmProviderDetailed({
-        provider: providerToUse,
-        model: modelToUse,
+        provider: 'OPENAI',
+        model: cfg.ai_model || 'gpt-6-luna',
         apiKey,
-        systemInstruction,
+        systemInstruction, profile,
         userPrompt: cleanPrompt,
         history
       });
@@ -274,7 +210,7 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
         };
       }
     } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na chamada do DeepSeek, acionando motor inteligente local:', err.message);
+      console.warn('[VOICE_AGENT] Falha na chamada do GPT, acionando motor inteligente local:', err.message);
     }
   }
 
@@ -346,26 +282,16 @@ function generateLocalResponse(query, cfg) {
   return "Com certeza! Temos o catálogo completo da Max Nutrition com pronta entrega, pagamento no Pix com desconto e frete grátis acima de cento e noventa e nove reais. Me conta, qual o seu objetivo de treino no momento?";
 }
 
-/**
- * Remove caracteres que atrapalham a síntese de voz (Kokoro TTS)
- */
-function sanitizeSpeechText(text) {
-  if (!text) return '';
-  return text
-    .replace(/<[^>]*>/g, '') // remove tags HTML se houver
-    .replace(/[*#_~`]/g, '') // remove markdown
-    .replace(/[^\w\s\d.,!?;:áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ-]/gi, '') // remove emojis e símbolos estranhos
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// Shared speech formatting; preserves punctuation, numbers and units.
+const sanitizeSpeechText = cleanVoiceText;
 
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [], profile = {} }) {
   const start = Date.now();
   const deadline = AbortSignal.timeout(6000); // One shared budget, including model fallbacks.
-  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}`;
+  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}\n\n${buildNaturalnessInstruction({ profile, history })}`;
   const recentHistory = prepareVoiceHistory(history, userPrompt);
 
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
@@ -439,61 +365,6 @@ export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'ge
     }
   }
 
-  // Provedor DeepSeek Oficial (Compatível OpenAI v1)
-  if (userPrompt && (provider === 'DEEPSEEK' || provider.includes('DEEPSEEK'))) {
-    // The display/version name is not the API model identifier.
-    const requestedModel = !model || /^DeepSeek-V4\.1-Flash$/i.test(model) ? 'deepseek-flash' : model;
-    const uniqueModels = [...new Set([requestedModel, 'deepseek-flash'])];
-    const messages = [
-      { role: 'system', content: systemInstruction },
-      ...recentHistory,
-      { role: 'user', content: userPrompt }
-    ];
-
-    for (const m of uniqueModels) {
-      if (deadline.aborted) break;
-      try {
-        const res = await fetch('https://api.deepseek.com/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          signal: deadline,
-          body: JSON.stringify({
-            model: m,
-            messages,
-            max_tokens: 160, // Brevity comes from the prompt; leave room to finish sentences.
-            thinking: { type: 'disabled' },
-            temperature: 0.3
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const choice = data?.choices?.[0];
-          const reply = completeVoiceReply(choice?.message?.content, choice?.finish_reason);
-          if (!reply) break;
-          if (reply && reply.length > 0) {
-            console.log(`[VOICE_AGENT] 🤖 DeepSeek (${m}) gerou resposta: "${reply.slice(0, 80)}..."`);
-            return {
-              reply,
-              usage: data?.usage || null,
-              latencyMs: Date.now() - start,
-              model: m
-            };
-          }
-        } else {
-          if (![400, 404].includes(res.status)) break;
-          const errText = await res.text().catch(() => '');
-          console.warn(`[VOICE_AGENT] DeepSeek modelo ${m} retornou status ${res.status}: ${errText.slice(0, 120)}`);
-        }
-      } catch (err) {
-        console.warn(`[VOICE_AGENT] Falha na chamada DeepSeek com modelo ${m}: ${err.message}`);
-      }
-    }
-  }
-
   // Provedores OpenAI / Grok compatíveis
   if (userPrompt && (provider === 'GROK' || provider === 'OPENAI')) {
     const baseUrl = provider === 'GROK' ? 'https://api.x.ai/v1' : 'https://api.openai.com/v1';
@@ -541,144 +412,32 @@ async function callLlmProvider(params) {
 }
 
 // ======================================================================
-// MOTOR DE VOZ & CONVERSAÇÃO TELEFÔNICA (ELEVENLABS + KOKORO + MEOWCALLER)
+// MOTOR DE VOZ & CONVERSAÇÃO TELEFÔNICA (OPENAI STT + GOOGLE TTS + MEOWCALLER)
 // ======================================================================
 
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
 const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || 'helena_meow_sec_8a3c1f9d2e';
-export const ELEVENLABS_OFFICIAL_VOICE_ID = 'TX3LPaxmHKxFdv7VOQHJ'; // Pedro / Max Alex
-
-/**
- * Transcreve áudio do microfone do usuário usando ElevenLabs Scribe STT (ultra-rápido ~400ms)
- * com fallback e tolerância a ruído
- */
-export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav') {
+/** Transcreve o turno concluído usando a mesma conta OpenAI do agente. */
+export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', { signal } = {}) {
   if (!audioBuffer || audioBuffer.length < 300) {
     return null;
   }
-
-  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
-
-  // 1. ElevenLabs Scribe STT
-  if (elevenKey && elevenKey.trim().length > 0) {
-    try {
-      const blob = new Blob([audioBuffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
-      formData.append('model_id', 'scribe_v1');
-      formData.append('language_code', 'por');
-
-      const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', {
-        method: 'POST',
-        headers: { 'xi-api-key': elevenKey.trim() },
-        body: formData,
-        signal: AbortSignal.timeout(7000)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.text?.trim() || '';
-        if (text.length > 0) {
-          console.log(`[VOICE_AGENT] 🎙️ ElevenLabs Scribe STT (${text.length} chars): "${text}"`);
-          return text;
-        } else {
-          console.log(`[VOICE_AGENT] ℹ️ Scribe STT processou áudio mas não detectou palavras claras.`);
-          return '';
-        }
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.warn(`[VOICE_AGENT] ElevenLabs Scribe retornou status ${res.status}: ${errText}`);
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na transcrição Scribe STT:', err.message);
-    }
-  }
-
-  // 2. Fallback Groq Whisper (se disponível)
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey && groqKey.trim().length > 0) {
-    try {
-      const blob = new Blob([audioBuffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('file', blob, 'speech.' + (mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav'));
-      formData.append('model', 'whisper-large-v3-turbo');
-      formData.append('language', 'pt');
-
-      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${groqKey.trim()}` },
-        body: formData,
-        signal: AbortSignal.timeout(6000)
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.text?.trim() || '';
-        if (text.length > 0) {
-          console.log(`[VOICE_AGENT] 🎙️ Groq Whisper STT (${text.length} chars): "${text}"`);
-          return text;
-        }
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha no fallback Groq STT:', err.message);
-    }
-  }
-
-  return null;
-}
-
-/**
- * Sintetiza voz conversacional rápida (prioriza ElevenLabs Flash v2.5 com fallback para Kokoro)
- */
-export async function synthesizeSpeechFast({ text, voice, cfg = {} }) {
-  const elevenKey = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY;
-  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.NODE_TEST_CONTEXT);
-
-  // 1. Prioridade: ElevenLabs Flash v2.5 (latência ~650ms, voz 100% humana)
-  if (elevenKey && !isTest && cfg.voice_provider !== 'KOKORO') {
-    try {
-      const voiceId = voice || cfg.elevenlabs_voice || ELEVENLABS_OFFICIAL_VOICE_ID;
-      const startTime = performance.now();
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_22050_32`, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': elevenKey,
-          'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(4000),
-        body: JSON.stringify({
-          text: sanitizeSpeechText(text),
-          model_id: 'eleven_flash_v2_5',
-          voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.8
-          }
-        })
-      });
-
-      if (res.ok) {
-        const arrayBuf = await res.arrayBuffer();
-        const buffer = Buffer.from(arrayBuf);
-        const durationMs = Math.round(performance.now() - startTime);
-        console.log(`[VOICE_AGENT] ⚡ ElevenLabs Flash v2.5 gerado em ${durationMs}ms (${buffer.length} bytes)`);
-        return {
-          buffer,
-          durationMs,
-          sizeBytes: buffer.length,
-          format: 'mp3',
-          provider: 'ELEVENLABS',
-          voice_id: voiceId
-        };
-      } else {
-        console.warn(`[VOICE_AGENT] ElevenLabs TTS retornou status ${res.status}`);
-      }
-    } catch (err) {
-      console.warn('[VOICE_AGENT] Falha ElevenLabs TTS:', err.message);
-    }
-  }
-
-  // Em chamadas (CALL), o único TTS permitido é Google Cloud Chirp 3 HD (através de routeCallAudio).
-  throw new Error('[VOICE_AGENT] Provedor de TTS indisponível fora do contexto de chamada telefônica.');
+  const apiKey = await resolveAiApiKey();
+  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada para transcrição');
+  const extension = mimeType.includes('webm') ? 'webm' : mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'wav';
+  const formData = new FormData();
+  formData.append('file', new Blob([audioBuffer], { type: mimeType }), `speech.${extension}`);
+  formData.append('model', 'gpt-transcribe');
+  formData.append('language', 'pt');
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+    signal: AbortSignal.any([AbortSignal.timeout(10000), ...(signal ? [signal] : [])])
+  });
+  if (!res.ok) throw new Error(`OpenAI STT HTTP ${res.status}`);
+  const data = await res.json();
+  return data?.text?.trim() || '';
 }
 
 /**
@@ -802,6 +561,7 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
         text: greeting,
         voice: profile.voice_id
       });
+      await persistVoiceTurn(call, profile, '', greeting);
       return { ok: true, handled: true, call_id, greeting, character: profile.character_name, mode: profile.mode_name, ...res };
     } catch (err) {
       console.error(`[VOICE_AGENT] Erro ao disparar abertura na chamada ${call_id}:`, err.message);
@@ -870,8 +630,8 @@ export function getCallHistory(callId) {
 
 /**
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
- * 1. Transcreve a fala do cliente via ElevenLabs Scribe STT
- * 2. Raciocina com DeepSeek / Gemini aplicando a Personalidade Ativa da chamada (Equilíbrio, Firme ou Intenso)
+ * 1. Transcreve a fala do cliente via OpenAI STT
+ * 2. Gera o texto com GPT, aplicando o perfil ativo da chamada.
  * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
  * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
  */
@@ -880,6 +640,7 @@ const latestSpeechEpochs = new Map();
 
 export async function processUserSpeech(params) {
   const { callId, speechEpoch } = params;
+  if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (!callId) throw new Error('callId é obrigatório');
   if (Number.isSafeInteger(speechEpoch)) {
     if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
@@ -887,9 +648,11 @@ export async function processUserSpeech(params) {
   }
   activeVoiceTurns.get(callId)?.abort(new Error('New customer utterance'));
   const controller = new AbortController();
+  controller.speechEpoch = speechEpoch;
   activeVoiceTurns.set(callId, controller);
   try {
-    return await processUserSpeechTurn({ ...params, signal: controller.signal });
+    controller.done = processUserSpeechTurn({ ...params, signal: controller.signal });
+    return await controller.done;
   } catch (err) {
     if (controller.signal.aborted) return { ok: true, interrupted: true, call_id: callId };
     throw err;
@@ -898,13 +661,13 @@ export async function processUserSpeech(params) {
   }
 }
 
-async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
+async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
   if (!callId) throw new Error('callId é obrigatório');
-  if (!audioBase64) throw new Error('audioBase64 é obrigatório');
+  if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
   const turnStart = Date.now();
-  const audioBuffer = Buffer.from(audioBase64, 'base64');
-  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${format}, ~${Math.round(audioBuffer.length / 1024)} KB)`);
+  const audioBuffer = audioBase64 ? Buffer.from(audioBase64, 'base64') : null;
+  console.log(`[VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada ${callId} (${liveText !== undefined ? 'STT ao vivo' : format}${audioBuffer ? `, ~${Math.round(audioBuffer.length / 1024)} KB` : ''})`);
 
   const cfg = await getVoiceAgentConfig();
   if (!cfg.is_active) {
@@ -920,10 +683,10 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 
   const callHistory = getCallHistory(callId);
 
-  // 1. Transcreve fala do cliente via ElevenLabs Scribe STT
+  // 1. Transcreve fala do cliente via OpenAI STT
   const sttStart = Date.now();
-  const userText = cleanSpeechTranscript(await transcribeAudio(audioBuffer));
-  const sttMs = Date.now() - sttStart;
+  const userText = cleanSpeechTranscript(typeof liveText === 'string' ? liveText : await transcribeAudio(audioBuffer, 'audio/wav', { signal }));
+  const sttMs = typeof liveText === 'string' ? (sttMetrics?.stt_after_commit_ms ?? 0) : Date.now() - sttStart;
   signal.throwIfAborted();
   if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
 
@@ -944,7 +707,8 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
     });
     // Preserve the customer's words before generation or playback can be interrupted.
     const heardProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
-    await persistVoiceUtterance(call, heardProfile, userText);
+    void persistVoiceUtterance(call, heardProfile, userText);
+    if (activeVoiceTurns.get(callId)?.signal === signal) activeVoiceTurns.get(callId).userText = userText;
 
     const isStreamingEnabled = (process.env.CALL_VOICE_STREAMING_ENABLED ?? 'true') !== 'false';
     if (isStreamingEnabled &&
@@ -952,7 +716,7 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
       const apiKey = await resolveAiApiKey(cfg);
       signal.throwIfAborted();
       if (apiKey && !apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
-        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal });
+        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal });
       }
     }
 
@@ -1087,20 +851,46 @@ async function processUserSpeechTurn({ callId, audioBase64, format = 'wav', samp
 
 
 
-async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, turnStart, signal }) {
+/** Retoma a resposta corrente com o perfil novo após encerrar o áudio antigo. */
+export async function restartActiveReplyForProfile(callId) {
+  const previous = activeVoiceTurns.get(callId);
+  if (!previous?.userText || !Number.isSafeInteger(previous.speechEpoch)) return false;
+  previous.abort(new Error('Active profile changed'));
+  await previous.done?.catch(() => {});
+  if (activeVoiceTurns.get(callId) === previous) activeVoiceTurns.delete(callId);
+  if (activeVoiceTurns.has(callId) || latestSpeechEpochs.get(callId) !== previous.speechEpoch) return false;
+  const call = getCallSession(callId);
+  const apiKey = await resolveAiApiKey();
+  if (!call || !apiKey || process.env.CALL_VOICE_STREAMING_ENABLED !== 'true') return false;
+  const controller = new AbortController();
+  controller.speechEpoch = previous.speechEpoch;
+  controller.userText = previous.userText;
+  activeVoiceTurns.set(callId, controller);
+  controller.done = processStreamingSpeechTurn({ callId, speechEpoch: previous.speechEpoch,
+    cfg: await getVoiceAgentConfig(), apiKey, call, callHistory: getCallHistory(callId),
+    userText: previous.userText, sttMs: 0, turnStart: Date.now(), signal: controller.signal });
+  void controller.done.finally(() => {
+    if (activeVoiceTurns.get(callId) === controller) activeVoiceTurns.delete(callId);
+  }).catch(err => console.error('[VOICE_AGENT] Falha ao retomar resposta após troca de perfil:', err.message));
+  return true;
+}
+
+async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal }) {
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const voice = call?.activeVoice || profile.voice_id;
   const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
     characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
   try {
     const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
-      systemInstruction: await buildCallInstruction(call, profile),
+      systemInstruction: buildCallInstruction(call, profile), profile,
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
     void persistVoiceTurn(call, profile, '', result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
-    const metrics = { ...result.metrics, transport: result.playback.metrics, streaming: true };
+    const metrics = { ...sttMetrics, ...result.metrics,
+      input_end_to_first_audio_ms: sttMetrics?.input_ended_at && result.metrics.first_audio_sent_at
+        ? result.metrics.first_audio_sent_at - sttMetrics.input_ended_at : null, transport: result.playback.metrics, streaming: true };
     recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
       llmFirstTokenMs: metrics.llm_first_token_ms, llmTotalMs: metrics.llm_total_ms,
       ttsMs: metrics.tts_first_audio_ms || 0, turnLatencyMs: Date.now() - turnStart,
@@ -1109,9 +899,23 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
   } catch (err) {
     // Never replay a batch response after a partially spoken or interrupted stream.
     const interrupted = Boolean(err.interrupted || signal.aborted);
+    if (interrupted && err.partialText?.trim()) {
+      callHistory.push({ role: 'assistant', text: err.partialText, interrupted: true, timestamp: new Date().toISOString() });
+      if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
+    }
     recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
       turnLatencyMs: Date.now() - turnStart, streamMetrics: { ...err.streamMetrics, streaming: true, interrupted },
       error: interrupted ? 'stream_interrupted' : err.message });
     return { ok: interrupted, streaming: true, interrupted, call_id: callId, error: interrupted ? null : err.message };
   }
+}
+
+
+// Prepare context and cancel superseded generation while incoming PCM is still arriving.
+export function prepareLiveSpeech(callId, speechEpoch) {
+  const previous = activeVoiceTurns.get(callId);
+  if (previous && speechEpoch > previous.speechEpoch) previous.abort(new Error('New customer speech started'));
+  const call = getCallSession(callId);
+  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  if (call) void loadCallerContext(call, profile.character_id);
 }

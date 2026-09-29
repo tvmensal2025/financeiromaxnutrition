@@ -14,8 +14,6 @@ import {
   disconnectMeowcallerSession,
   makeMeowcallerCall,
   hangupMeowcallerCall,
-  fetchElevenLabsVoices,
-  testElevenLabsVoice,
   fetchKokoroVoices,
   testKokoroVoice,
   KokoroVoice,
@@ -26,7 +24,6 @@ import {
   fetchIntegrationEvents,
   fetchCallSessions,
   fetchVoiceProfiles,
-  saveVoiceProfile,
   fetchVoiceAgentSettings,
   updateVoiceAgentSettings,
   testVoiceAgentDialogue,
@@ -34,7 +31,6 @@ import {
   DEFAULT_MAX_KNOWLEDGE_BASE,
   DEFAULT_AGENT_PERSONA,
   AggregatedHealth,
-  ElevenLabsVoice,
   LayaClassifyResponse,
 } from "@/lib/integrations-client";
 import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
@@ -125,12 +121,6 @@ export default function IntegracoesPage() {
   });
   const [voiceSavedFeedback, setVoiceSavedFeedback] = useState<boolean>(false);
 
-  // ElevenLabs (Standby)
-  const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
-  const [loadingVoices, setLoadingVoices] = useState(false);
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
-  const [audioSampleUrl, setAudioSampleUrl] = useState<string | null>(null);
-  const [generatingSample, setGeneratingSample] = useState(false);
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
 
   // Kokoro TTS (Motor Oficial)
@@ -253,7 +243,7 @@ export default function IntegracoesPage() {
     return () => clearInterval(interval);
   }, [health?.meowcaller?.whatsapp_status, meowcallerStatus?.whatsapp_status, meowcallerStatus?.status]);
 
-  // Carrega vozes Kokoro (Oficial) e ElevenLabs (Standby) sob demanda
+  // Carrega vozes Kokoro para prévias fora de chamadas.
   useEffect(() => {
     if (activeTab === "voices") {
       if (kokoroVoices.length === 0) {
@@ -272,20 +262,6 @@ export default function IntegracoesPage() {
           .finally(() => setLoadingKokoro(false));
       }
 
-      if (voices.length === 0) {
-        setLoadingVoices(true);
-        fetchElevenLabsVoices()
-          .then((res) => {
-            if (res.data?.voices) {
-              setVoices(res.data.voices);
-              if (res.data.voices.length > 0 && !selectedVoiceId) {
-                setSelectedVoiceId(res.data.default_voice_id || res.data.voices[0].voice_id);
-              }
-            }
-          })
-          .catch((err) => console.error("Erro vozes ElevenLabs:", err))
-          .finally(() => setLoadingVoices(false));
-      }
     }
   }, [activeTab]);
 
@@ -409,7 +385,7 @@ export default function IntegracoesPage() {
     try {
       setCalling(true);
       setMeowcallerFeedback(`Originando chamada para +${clean}...`);
-      const res = await makeMeowcallerCall(clean, layaBusinessId, selectedVoiceId);
+      const res = await makeMeowcallerCall(clean, layaBusinessId);
       setActiveCallId(res.call_id);
       setMeowcallerFeedback(`Chamada iniciada com sucesso (ID: ${res.call_id}).`);
       loadAll();
@@ -439,18 +415,6 @@ export default function IntegracoesPage() {
       localStorage.setItem("helena_voice_filter", voiceFilter);
       localStorage.setItem("helena_voice_schedule", voiceSchedule);
       localStorage.setItem("helena_voice_transfer_phone", voiceTransferPhone);
-
-      // Sincroniza também no Supabase se houver perfil ou voz selecionada
-      if (selectedVoiceId) {
-        await saveVoiceProfile({
-          profile_id: `VP-${selectedVoiceId.slice(0, 8).toUpperCase()}`,
-          nome: "Helena URA de Voz Oficial",
-          business_id: layaBusinessId,
-          voice_id: selectedVoiceId,
-          first_message: voiceGreeting,
-          is_default: true,
-        }).catch(() => null);
-      }
 
       setVoiceSavedFeedback(true);
       setTimeout(() => setVoiceSavedFeedback(false), 4000);
@@ -532,41 +496,6 @@ export default function IntegracoesPage() {
       ...voiceAgentConfig,
       persona: DEFAULT_AGENT_PERSONA
     });
-  };
-
-  // Ações ElevenLabs (Standby)
-  const handleTestVoiceSample = async () => {
-    if (!selectedVoiceId) return;
-    try {
-      setGeneratingSample(true);
-      setAudioSampleUrl(null);
-      const res = await testElevenLabsVoice(selectedVoiceId, "Olá! Esta é uma demonstração da voz executiva do Sistema Helena.");
-      if (res.sample?.audio_base64) {
-        setAudioSampleUrl(res.sample.audio_base64);
-      }
-    } catch (err: any) {
-      alert(`Erro ao gerar prévia de voz: ${err.message}`);
-    } finally {
-      setGeneratingSample(false);
-    }
-  };
-
-  const handleSaveVoiceProfile = async () => {
-    if (!selectedVoiceId) return;
-    const v = voices.find((x) => x.voice_id === selectedVoiceId);
-    try {
-      await saveVoiceProfile({
-        profile_id: `VP-${selectedVoiceId.slice(0, 8).toUpperCase()}`,
-        nome: v?.name || "Voz Helena",
-        business_id: layaBusinessId,
-        voice_id: selectedVoiceId,
-        is_default: true,
-      });
-      alert("Perfil de voz salvo com sucesso no Supabase!");
-      loadAll();
-    } catch (err: any) {
-      alert(`Erro ao salvar perfil: ${err.message}`);
-    }
   };
 
   // Ações Laya
@@ -1002,26 +931,26 @@ export default function IntegracoesPage() {
               </div>
             </div>
 
-            {/* ELEVENLABS (STANDBY) */}
+            {/* Áudios históricos preservados */}
             <div className="rounded-xl border border-border bg-card/60 p-5 space-y-3 opacity-80">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <Mic className="h-5 w-5 text-zinc-400" />
-                  <span className="text-sm font-semibold text-muted-foreground">ElevenLabs</span>
+                  <span className="text-sm font-semibold text-muted-foreground">Áudios existentes</span>
                 </div>
-                <ExecutiveBadge variant="default">STANDBY (RESERVA)</ExecutiveBadge>
+                <ExecutiveBadge variant="default">ARQUIVO</ExecutiveBadge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Motor secundário em modo de reserva/contingência. O Kokoro TTS VPS assumiu a operação oficial do sistema.
+                Gravações antigas são preservadas. As ligações atuais usam GPT e voz Google Chirp 3 HD.
               </p>
               <div className="space-y-1.5 pt-2 border-t border-border/60 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status no Sistema:</span>
-                  <span className="font-mono text-xs text-muted-foreground">Reserva / Fallback</span>
+                  <span className="font-mono text-xs text-muted-foreground">Somente gravações antigas</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Prioridade de Voz:</span>
-                  <span className="text-muted-foreground">Secundária</span>
+                  <span className="text-muted-foreground">Fora das ligações</span>
                 </div>
               </div>
             </div>
@@ -1889,7 +1818,7 @@ export default function IntegracoesPage() {
                 </span>
                 <ul className="space-y-1.5 text-muted-foreground list-disc list-inside">
                   <li><strong className="text-foreground">Canal Dedicado:</strong> O Meowcaller estabelece o áudio em tempo real via WhatsApp VoIP.</li>
-                  <li><strong className="text-foreground">Voz Oficial:</strong> A fala é gerada com o motor Kokoro Neural TTS na VPS (Voz oficial padrão do Pedro - Jovem e Dinâmico).</li>
+                  <li><strong className="text-foreground">Voz Oficial:</strong> A fala das ligações é gerada pelo Google Chirp 3 HD com o perfil ativo da chamada.</li>
                   <li><strong className="text-foreground">Discagem Direta:</strong> Digite o DDD + Número (ex: 11971254913) e clique em &ldquo;Disparar Ligação&rdquo;.</li>
                   <li><strong className="text-foreground">Independência:</strong> Não interfere nas mensagens da Evolution API.</li>
                 </ul>
@@ -1915,7 +1844,7 @@ export default function IntegracoesPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Motor primário de síntese neural open-source na VPS. Latência ultra-baixa, zero custo de tokens e qualidade cinematográfica para <strong>ligações VoIP (Meowcaller)</strong> e <strong>mensagens de voz WhatsApp</strong>.
+                Prévias e áudios fora de chamadas podem usar Kokoro. <strong>Ligações VoIP (Meowcaller)</strong> usam exclusivamente Google Chirp 3 HD.
               </p>
             </div>
             <a
@@ -2134,19 +2063,19 @@ export default function IntegracoesPage() {
             )}
           </div>
 
-          {/* SEÇÃO SECUNDÁRIA: ELEVENLABS EM MODO STANDBY */}
+          {/* Gravações históricas, sem uso na ligação ativa */}
           <div className="rounded-xl border border-border/60 bg-muted/10 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Mic className="h-4 w-4 text-zinc-400" />
                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  ElevenLabs · Modo Standby (Reserva Técnica)
+                  Áudios existentes
                 </h4>
               </div>
-              <ExecutiveBadge variant="default">STANDBY / CONTINGÊNCIA</ExecutiveBadge>
+              <ExecutiveBadge variant="default">ARQUIVO</ExecutiveBadge>
             </div>
             <p className="text-xs text-muted-foreground">
-              A ElevenLabs foi retirada da operação primária do sistema e colocada em modo reserva de contingência. Toda a síntese oficial de ligações e áudios é executada de forma autônoma pelo Kokoro TTS VPS com zero custo operacional de tokens.
+              Gravações já produzidas continuam disponíveis. Nenhuma voz desse acervo é usada para sintetizar uma ligação; a voz ao vivo é Google Chirp 3 HD.
             </p>
           </div>
         </div>

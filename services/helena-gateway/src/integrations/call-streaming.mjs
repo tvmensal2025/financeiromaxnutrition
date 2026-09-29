@@ -1,3 +1,4 @@
+import { buildNaturalnessInstruction, cleanVoiceText, isStandaloneMarker } from './conversation-naturalness.mjs';
 import { Readable } from 'node:stream';
 import { once } from 'node:events';
 import { openChirp3CallStream } from './google-chirp3-hd.mjs';
@@ -32,6 +33,7 @@ export function extractSentences(text, final = false) {
     if (end === text.length && !final) continue;
     const candidate = text.slice(start, end).trim();
     if (/(?:\b(?:sr|sra|dr|dra|prof|av|etc)|\b[A-Z])\.$/iu.test(candidate)) continue;
+    if (/\.{2,}$/.test(match[0]) || isStandaloneMarker(candidate)) continue;
     if (candidate) sentences.push(candidate);
     start = end;
   }
@@ -40,13 +42,32 @@ export function extractSentences(text, final = false) {
   return { sentences, rest };
 }
 
+// Send a meaningful clause early, never split a decimal or an unfinished word.
+export function extractSpeechChunks(text, final = false) {
+  const full = extractSentences(text, final);
+  const chunks = [];
+  for (const sentence of full.sentences) chunks.push(sentence);
+  let rest = full.rest;
+  const boundary = /[,;:](?=\s)/g;
+  for (const match of rest.matchAll(boundary)) {
+    const clause = rest.slice(0, match.index + 1).trim();
+    if (clause.length >= 24 && clause.split(/\s+/).length >= 4) {
+      chunks.push(clause);
+      rest = rest.slice(match.index + 1);
+      break;
+    }
+  }
+  return { sentences: chunks, rest };
+}
+
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, profile = {} }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
   const started = performance.now();
-  const metrics = { llm_first_token_ms: null, llm_total_ms: null, tts_first_audio_ms: null, first_audio_to_transport_ms: null };
+  const metrics = { llm_first_token_ms: null, llm_total_ms: null, tts_first_audio_ms: null, first_audio_to_transport_ms: null,
+    backchannel_ms: null };
   let usage = null;
   let spokenText = '';
   let firstTextAt = null;
@@ -57,20 +78,24 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   combined.addEventListener('abort', cancelTTS, { once: true });
   const writeSentence = async sentence => {
     combined.throwIfAborted();
-    const clean = sentence.replace(/<[^>]*>|\[(?:happy|sad|laughs?|feliz|triste|rindo|sorrindo)\]/gi, '').replace(/[*#_~`]/g, '').trim();
-    if (!clean) return;
-    if (firstTextAt === null) firstTextAt = performance.now();
+    const clean = cleanVoiceText(sentence);
+    if (!clean || /^(?:hum+|hmm+|uhum)[.!?…\s]*$/iu.test(clean)) return;
+    if (firstTextAt === null) {
+      firstTextAt = performance.now();
+    }
     spokenText += `${spokenText ? ' ' : ''}${clean}`;
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
+    const resolvedInstruction = await systemInstruction;
+    combined.throwIfAborted();
     const apiModel = model || 'gpt-6-luna';
     const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
       method: 'POST', signal: AbortSignal.any([combined, AbortSignal.timeout(8000)]),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ model: apiModel, stream: true, stream_options: { include_usage: true }, reasoning_effort: 'none',
         max_completion_tokens: 200, temperature: 0.3,
-        messages: [{ role: 'system', content: `${systemInstruction}\n\n${VOICE_DELIVERY_INSTRUCTION}` },
+        messages: [{ role: 'system', content: `${resolvedInstruction}\n\n${VOICE_DELIVERY_INSTRUCTION}\n\n${buildNaturalnessInstruction({ profile, history })}` },
           ...prepareVoiceHistory(history, userPrompt), { role: 'user', content: userPrompt }] })
     });
     if (!res.ok || !res.body) throw new Error(`OpenAI streaming HTTP ${res.status}`);
@@ -88,7 +113,9 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
         totalCharacters += delta.length;
         if (totalCharacters > 2400) throw new Error('Voice response exceeds conversational limit');
         pending += delta;
-        const split = extractSentences(pending);
+        if (pending.lastIndexOf('[') > pending.lastIndexOf(']') || pending.lastIndexOf('<') > pending.lastIndexOf('>')) continue;
+        pending = pending.replace(/\[[^\]]*\]/g, ' ').replace(/<[^>]*>/g, '');
+        const split = extractSpeechChunks(pending);
         pending = split.rest;
         for (const sentence of split.sentences) await writeSentence(sentence);
       }
@@ -110,6 +137,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
         metrics.tts_first_audio_ms = firstTextAt === null ? null : Math.round(performance.now() - firstTextAt);
       }
       audioBytes += bytes.length;
+      if (metrics.first_audio_sent_at == null) metrics.first_audio_sent_at = Date.now();
       yield bytes;
     }
     if (!audioBytes) throw new Error('Google returned no streaming audio');

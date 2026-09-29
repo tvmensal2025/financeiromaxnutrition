@@ -2,6 +2,27 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert';
 import { prepareVoiceHistory, completeVoiceReply } from '../src/integrations/voice-delivery.mjs';
 import { callLlmProviderDetailed } from '../src/integrations/voice-agent.mjs';
+import { transcribeAudio } from '../src/integrations/voice-agent.mjs';
+
+it('transcribes call audio with OpenAI and never contacts ElevenLabs', async (t) => {
+  const oldKey = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = 'test-openai';
+  t.after(() => { if (oldKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = oldKey; });
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.strictEqual(String(url), 'https://api.openai.com/v1/audio/transcriptions');
+    assert.strictEqual(options.body.get('model'), 'gpt-transcribe');
+    assert.strictEqual(options.body.get('language'), 'pt');
+    assert.strictEqual(options.headers.Authorization, 'Bearer test-openai');
+    return Response.json({ text: '  Olá, tudo bem?  ' });
+  });
+  assert.strictEqual(await transcribeAudio(Buffer.alloc(320, 1)), 'Olá, tudo bem?');
+});
+
+it('keeps Google as the call voice provider when old settings arrive', async () => {
+  const cfg = await updateVoiceAgentConfig({ voice_provider: 'ELEVENLABS', elevenlabs_voice: 'old', voice_profile_id: 'old' });
+  assert.strictEqual(cfg.config.voice_provider, 'GOOGLE_CHIRP3_HD');
+  assert.strictEqual('elevenlabs_voice' in cfg.config, false);
+});
 
 describe('Conversational delivery regressions', () => {
   it('keeps four exchanges and does not repeat the current user message', () => {
@@ -21,33 +42,27 @@ describe('Conversational delivery regressions', () => {
     assert.strictEqual(completeVoiceReply('Entendo, vamos conferir. Qual sabor você prefere?', 'stop'), 'Entendo, vamos conferir. Qual sabor você prefere?');
   });
 
-  it('uses the official model, disables thinking and shares one deadline across fallback requests', async (t) => {
+  it('uses GPT with the active profile', async (t) => {
     const requests = [];
-    t.mock.method(globalThis, 'fetch', async (_url, options) => {
-      requests.push({ ...options, body: JSON.parse(options.body) });
-      if (requests.length === 1) return new Response('{}', { status: 404 });
+    t.mock.method(globalThis, 'fetch', async (url, options) => {
+      requests.push({ url: String(url), body: JSON.parse(options.body) });
       return Response.json({ choices: [{ message: { content: 'Claro, vamos conferir. Qual sabor?' }, finish_reason: 'stop' }] });
     });
-    const result = await callLlmProviderDetailed({ provider: 'DEEPSEEK', model: 'unavailable-model', apiKey: 'test', systemInstruction: 'Você é Helena.', userPrompt: 'Oi', history: [{ role: 'user', text: 'Oi' }] });
+    const result = await callLlmProviderDetailed({ provider: 'OPENAI', model: 'gpt-6-luna', apiKey: 'test', systemInstruction: 'Você é Helena.', userPrompt: 'Oi', history: [{ role: 'user', text: 'Oi' }] });
     assert.strictEqual(result.reply, 'Claro, vamos conferir. Qual sabor?');
-    assert.strictEqual(requests[1].body.model, 'deepseek-flash');
-    assert.strictEqual(requests[0].signal, requests[1].signal);
-    assert.deepStrictEqual(requests[1].body.thinking, { type: 'disabled' });
-    assert.strictEqual(requests[1].body.messages.filter(m => m.role === 'user').length, 1);
-    assert.match(requests[1].body.messages[0].content, /Você é Helena/);
-    assert.match(requests[1].body.messages[0].content, /vírgulas/);
+    assert.strictEqual(requests.length, 1);
+    assert.strictEqual(requests[0].url, 'https://api.openai.com/v1/chat/completions');
+    assert.strictEqual(requests[0].body.model, 'gpt-6-luna');
+    assert.strictEqual(requests[0].body.messages.filter(m => m.role === 'user').length, 1);
+    assert.match(requests[0].body.messages[0].content, /Você é Helena/);
   });
 
-  it('maps the display name directly without a failed request and rejects incomplete speech', async (t) => {
+  it('does not call DeepSeek for a legacy provider value', async (t) => {
     let count = 0;
-    t.mock.method(globalThis, 'fetch', async (_url, options) => {
-      count++;
-      assert.strictEqual(JSON.parse(options.body).model, 'deepseek-flash');
-      return Response.json({ choices: [{ message: { content: 'O desconto depende de' }, finish_reason: 'length' }] });
-    });
+    t.mock.method(globalThis, 'fetch', async () => { count++; throw new Error('unexpected request'); });
     const result = await callLlmProviderDetailed({ provider: 'DEEPSEEK', model: 'DeepSeek-V4.1-Flash', apiKey: 'test', userPrompt: 'Desconto?' });
     assert.strictEqual(result.reply, '');
-    assert.strictEqual(count, 1);
+    assert.strictEqual(count, 0);
   });
 });
 import {
@@ -121,20 +136,20 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
     assert.strictEqual(cfg.ai_model, 'gpt-6-luna');
   });
 
-  it('resolveAiApiKey prioriza chave explícita e respeita variáveis de ambiente', async () => {
-    const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
-    const keyCustom = await resolveAiApiKey({ ai_provider: 'DEEPSEEK', ai_api_key: 'sk-custom-test-123' });
-    assert.strictEqual(keyCustom, 'sk-custom-test-123');
+  it('mantém GPT mesmo quando chegam configurações antigas de outro provedor', async () => {
+    const result = await updateVoiceAgentConfig({ ai_provider: 'DEEPSEEK', ai_model: 'deepseek-flash', ai_api_key: 'legacy-key' });
+    assert.strictEqual(result.config.ai_provider, 'OPENAI');
+    assert.strictEqual(result.config.ai_model, 'gpt-6-luna');
+    assert.strictEqual(result.config.ai_api_key, '');
+  });
 
-    const origEnv = process.env.DEEPSEEK_API_KEY;
-    process.env.DEEPSEEK_API_KEY = 'sk-env-deepseek-test';
-    const keyEnv = await resolveAiApiKey({ ai_provider: 'DEEPSEEK' });
-    assert.strictEqual(keyEnv, 'sk-env-deepseek-test');
-    if (origEnv !== undefined) {
-      process.env.DEEPSEEK_API_KEY = origEnv;
-    } else {
-      delete process.env.DEEPSEEK_API_KEY;
-    }
+  it('resolveAiApiKey usa somente a chave OpenAI', async () => {
+    const { resolveAiApiKey } = await import('../src/integrations/voice-agent.mjs');
+    const original = process.env.OPENAI_API_KEY;
+    try {
+      process.env.OPENAI_API_KEY = 'test-gpt';
+      assert.strictEqual(await resolveAiApiKey({ ai_provider: 'DEEPSEEK', ai_api_key: 'legacy-key' }), 'test-gpt');
+    } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
   });
 });
 
