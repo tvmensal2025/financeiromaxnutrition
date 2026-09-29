@@ -241,7 +241,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         prompt_path.unlink(missing_ok=True)
 
 
-def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None) -> dict:
+def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None, auto: bool = False) -> dict:
     if gateway.rstrip("/") != GATEWAY:
         raise ValueError("Gateway fora do endpoint aprovado")
     helena_token = token_for(root, "helena--grupo")
@@ -249,12 +249,42 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     jobs = queue.get("jobs")
     if not isinstance(jobs, list):
         raise RuntimeError("Fila retornou formato invalido")
-    if approved_job is None:
+    if approved_job is None and not auto:
         return {"status": "DRY_RUN_QUEUE_ONLY", "ready_count": len(jobs)}
-    eligible = [job for job in jobs if isinstance(job, dict) and job.get("job_id") == approved_job]
+    eligible = [job for job in jobs if isinstance(job, dict) and (auto or job.get("job_id") == approved_job)]
     if not eligible:
         return {"status": "NO_APPROVED_READY_JOB", "ready_count": len(jobs)}
-    job = eligible[0]
+    detail = None
+    if auto:
+        # A READY task alone never authorizes model spending. Marina must have
+        # recorded an explicit, matching dispatch request for this exact job.
+        selected = None
+        for candidate in eligible:
+            candidate_id = candidate.get("job_id")
+            candidate_profile = candidate.get("external_agent_id")
+            if not isinstance(candidate_id, str) or not JOB_PATTERN.fullmatch(candidate_id):
+                continue
+            if not isinstance(candidate_profile, str) or not PROFILE_PATTERN.fullmatch(candidate_profile):
+                continue
+            candidate_token = token_for(root, candidate_profile)
+            current = request(gateway, candidate_token, "get_job", {"job_id": candidate_id})
+            requested = any(
+                event.get("event_type") == "DISPATCH_REQUESTED"
+                and event.get("job_id") == candidate_id
+                and event.get("business_id") == candidate.get("business_id")
+                and (event.get("payload") or {}).get("dispatcher_agent_id") == "AGT-04"
+                and (event.get("payload") or {}).get("target_agent_id") == candidate.get("agent_id")
+                and (event.get("payload") or {}).get("target_external_agent_id") == candidate_profile
+                for event in current.get("events", []) if isinstance(event, dict)
+            )
+            if requested:
+                selected, detail = candidate, current
+                break
+        if selected is None:
+            return {"status": "NO_DISPATCH_REQUEST", "ready_count": len(jobs), "model_started": False}
+        job = selected
+    else:
+        job = eligible[0]
     job_id = job["job_id"]
     profile = job.get("external_agent_id")
     agent_id = job.get("agent_id")
@@ -264,7 +294,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if not agent_id or not business_id or not job.get("task_id") or job.get("provider") != "HERMES":
         raise RuntimeError("Job sem vinculos empresariais executaveis")
     profile_token = token_for(root, profile)
-    detail = request(gateway, profile_token, "get_job", {"job_id": job_id})
+    detail = detail or request(gateway, profile_token, "get_job", {"job_id": job_id})
     source = detail.get("job") or {}
     binding = detail.get("runtime_binding") or {}
     if (source.get("status") != "READY" or source.get("agent_id") != agent_id or source.get("business_id") != business_id
@@ -332,10 +362,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Despacho pontual e controlado do Hermes")
     parser.add_argument("--profiles-root", type=Path, default=Path("/data/profiles"))
     parser.add_argument("--job-id", help="Somente este job previamente aprovado pode executar")
+    parser.add_argument("--auto", action="store_true", help="Usa apenas o primeiro READY com DISPATCH_REQUESTED valido da Marina")
     parser.add_argument("--execute", action="store_true", help="Permite claim/start e uma chamada de modelo")
     args = parser.parse_args()
-    if args.execute and (not args.job_id or not JOB_PATTERN.fullmatch(args.job_id)):
-        parser.error("--execute exige --job-id valido")
+    if args.auto and args.job_id:
+        parser.error("Use --auto ou --job-id, nunca ambos")
+    if args.execute and not (args.auto or (args.job_id and JOB_PATTERN.fullmatch(args.job_id))):
+        parser.error("--execute exige --auto ou --job-id valido")
     if fcntl is None:
         parser.error("Este despachante exige Linux no host do Hermes")
     lock_path = Path("/data/helena-runtime/dispatcher.lock")
@@ -347,10 +380,10 @@ def main() -> int:
             print(json.dumps({"status": "ALREADY_RUNNING"}))
             return 0
         try:
-            result = dispatch_once(args.profiles_root, GATEWAY, args.job_id, args.execute)
+            result = dispatch_once(args.profiles_root, GATEWAY, args.job_id, args.execute, auto=args.auto)
             save_report(lock_path.parent, result)
             print(json.dumps(result, ensure_ascii=False))
-            return 0 if result["status"] in {"DRY_RUN_QUEUE_ONLY", "NO_APPROVED_READY_JOB", "DRY_RUN", "WAITING_HELENA", "COMPLETED"} else 1
+            return 0 if result["status"] in {"DRY_RUN_QUEUE_ONLY", "NO_APPROVED_READY_JOB", "NO_DISPATCH_REQUEST", "DRY_RUN", "WAITING_HELENA", "COMPLETED"} else 1
         except (ValueError, RuntimeError, OSError) as error:
             print(json.dumps({"status": "ERROR", "message": str(error)}, ensure_ascii=False), file=sys.stderr)
             return 1

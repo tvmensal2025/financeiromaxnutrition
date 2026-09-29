@@ -56,6 +56,7 @@ class DispatchTests(unittest.TestCase):
         self.binding_status = "ACTIVE"
         self.start_confirmed = True
         self.fail_confirmed = True
+        self.events = []
 
     def request(self, gateway, token, name, payload):
         self.assertEqual(gateway, dispatcher.GATEWAY)
@@ -71,6 +72,7 @@ class DispatchTests(unittest.TestCase):
                          "definicao_de_pronto": "Entregar checklist com fontes e revisão."},
                 "runtime_binding": {"profile_slug": PROFILE, "status": self.binding_status,
                                     "business_id": "BIZ-003", "agent_id": "AGT-18"},
+                "events": self.events,
             }
         if name == "claim_job":
             self.job_status = "CLAIMED"
@@ -110,6 +112,34 @@ class DispatchTests(unittest.TestCase):
     def test_dry_run_checks_exact_job_and_active_binding(self):
         self.assertEqual(self.dispatch()["status"], "DRY_RUN")
         self.assertEqual([call[0] for call in self.calls], ["list_ready_jobs", "get_job"])
+        self.assertEqual(self.model_calls, [])
+
+    def test_auto_requires_marina_request_before_model(self):
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
+            result = dispatcher.dispatch_once(self.root, dispatcher.GATEWAY, None, True,
+                run_agent=self.run_agent, request=self.request, auto=True,
+                preflight=lambda *args: {"status": "READY"}, tool_preflight=lambda *args: {"status": "READY"})
+        self.assertEqual(result["status"], "NO_DISPATCH_REQUEST")
+        self.assertEqual(self.model_calls, [])
+        self.assertFalse(any(call[0] == "claim_job" for call in self.calls))
+
+    def test_auto_runs_only_matching_requested_job(self):
+        self.events = [{"event_type": "DISPATCH_REQUESTED", "job_id": JOB_ID,
+                        "business_id": "BIZ-003", "payload": {"dispatcher_agent_id": "AGT-04",
+                        "target_agent_id": "AGT-18", "target_external_agent_id": PROFILE}}]
+        with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
+            result = dispatcher.dispatch_once(self.root, dispatcher.GATEWAY, None, True,
+                run_agent=self.run_agent, request=self.request, auto=True,
+                preflight=lambda *args: {"status": "READY"}, tool_preflight=lambda *args: {"status": "READY"})
+        self.assertEqual(result["status"], "WAITING_HELENA")
+        self.assertEqual(len(self.model_calls), 1)
+
+    def test_auto_rejects_request_for_another_business(self):
+        self.events = [{"event_type": "DISPATCH_REQUESTED", "job_id": JOB_ID,
+                        "business_id": "BIZ-002", "payload": {"dispatcher_agent_id": "AGT-04",
+                        "target_agent_id": "AGT-18", "target_external_agent_id": PROFILE}}]
+        self.assertEqual(dispatcher.dispatch_once(self.root, dispatcher.GATEWAY, None, True,
+            run_agent=self.run_agent, request=self.request, auto=True)["status"], "NO_DISPATCH_REQUEST")
         self.assertEqual(self.model_calls, [])
 
     def test_wrong_company_or_inactive_binding_fails_closed(self):
