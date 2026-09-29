@@ -20,6 +20,7 @@ import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
 import { artifactEventId, createArtifactUpload, parseArtifactReference, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
+import { createTypeSafe } from './integrations/typesafe.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -828,8 +829,9 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 // DEFINIÇÃO E REGISTRO DAS FERRAMENTAS MCP
 // ======================================================================
 
+const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
-  ...workflowTools(callSupabaseRpc, handleGetJob),
+  ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate),
   create_artifact_upload: {
     description: 'Prepara URL de upload temporaria para PNG privado do proprio job em execucao. Nao compartilhe a URL; envie o arquivo antes de verificar.',
     schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5) }).strict(),
@@ -1363,6 +1365,7 @@ app.get('/health', async (req, res) => {
     supabase: supabaseOk,
     runtime_access: 'hermes-scoped-v1',
     workflow_version: 'hermes-workflow-v2',
+    typesafe: typeSafe.publicStatus(),
     oauth: oauthOk,
     mcp: true
   });

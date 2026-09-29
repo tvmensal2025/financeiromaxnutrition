@@ -34,3 +34,9 @@ Estas orientações valem para todo o projeto. Responder em português e seguir 
 - Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
 - Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.
 - Esta pasta é a base local de colaboração. Não reconstruir nem duplicar aplicativos existentes sem verificar o código e o escopo solicitado.
+
+## TypeSafe / Jev
+
+- Em tarefas de análise, desenho ou integração de TypeSafe/Jev, ler primeiro `.agents/skills/typesafe-ai/SKILL.md` e conferir a documentação oficial atual indicada pela skill.
+- A skill orienta o agente de desenvolvimento; sua presença não significa que Jev esteja conectado ao runtime, ao Hermes, ao Gateway ou ao Supabase.
+- Manter regras, permissões, cálculos, estado e transições no código. Tratar resultados Jev como sinais tipados, avaliar a incerteza e nunca usá-los isoladamente para aprovar ações financeiras, externas ou de publicação.

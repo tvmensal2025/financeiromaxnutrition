@@ -28,17 +28,20 @@ function property(field) {
   return { type: 'string', minLength: 1 };
 }
 
-export function workflowTools(rpc, readJob) {
+export function workflowTools(rpc, readJob, beforeRelease) {
   return Object.fromEntries(Object.entries(contracts).map(([name, [action, shape, description]]) => [name, {
     description,
     schema: z.object(shape).strict(),
     inputSchema: { type: 'object', properties: Object.fromEntries(Object.entries(shape).map(([k,v]) => [k,property(v)])), required: Object.entries(shape).filter(([,v]) => !v.isOptional()).map(([k]) => k), additionalProperties: false },
     handler: async (args, { identity } = {}) => {
+      let typesafe;
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
       if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
       if (action === 'release_job') {
         if (!readJob) throw new Error('Leitura do briefing indisponível; liberação recusada');
-        validateProfessionalBrief(await readJob({ job_id: args.job_id }));
+        const detail = await readJob({ job_id: args.job_id });
+        validateProfessionalBrief(detail);
+        if (beforeRelease) typesafe = await beforeRelease(detail, args, identity);
       }
       if (action === 'review_delivery' && args.decision === 'APPROVE') {
         if (!readJob) throw new Error('Leitura das evidencias indisponivel; aprovacao recusada');
@@ -68,7 +71,7 @@ export function workflowTools(rpc, readJob) {
         })
         : await rpc('gateway_workflow', { p_profile_slug: identity.profileSlug, p_action: action, p_payload: args });
       if (!result || (action !== 'context' && result.success !== true)) throw new Error('Supabase nao confirmou a operacao');
-      return result;
+      return typesafe ? { ...result, typesafe } : result;
     }
   }]));
 }
