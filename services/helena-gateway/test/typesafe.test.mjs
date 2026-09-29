@@ -7,7 +7,8 @@ import { BRIEF_SECTIONS } from '../src/brief-contract.mjs';
 const response = () => ({ model: TYPESAFE_MODEL, usage: { input_tokens: 2000, output_tokens: 10 }, answers: {
   role_fit: { type:'choice', choice:'MATCH', confidence:0.99, probabilities:{ MATCH:0.99, MISMATCH:0.005, UNCLEAR:0.005 } },
   brief_congruence: { type:'choice', choice:'COHERENT', confidence:0.99, probabilities:{ COHERENT:0.99, CONFLICT:0.005, UNCLEAR:0.005 } },
-  needs_clarification: { type:'noul', noul:0.01 }
+  needs_clarification: { type:'noul', noul:0.01 },
+  complexity: { type:'choice', choice:'MODERATE', confidence:0.95, probabilities:{ SIMPLE:0.02, MODERATE:0.95, COMPLEX:0.02, UNCLEAR:0.01 } }
 }});
 const identity = { type:'hermes_profile', profileSlug:'marina--biz003', bindingVerified:true, agentId:'AGT-04', businessId:'BIZ-003' };
 const args = { job_id:'job-1', expected_task_version:1, idempotency_key:'release-1' };
@@ -52,12 +53,13 @@ test('TypeSafe off or missing key never calls provider or writes audit', async (
     assert.ok(!JSON.stringify(h.service.publicStatus()).includes('test-only-secret'));
   }
 });
-test('TypeSafe batches three questions and sends only whitelisted task context', async () => {
+test('TypeSafe batches four questions and sends only whitelisted task context', async () => {
   const h=harness(); const out=await h.service.evaluate(h.current,args,identity);
   assert.equal(out.status,'EVALUATED'); assert.equal(out.recommendation,'NO_ISSUE_DETECTED');
   assert.equal(h.requests.length,1); assert.equal(h.events.size,3);
   const payload=JSON.parse(h.requests[0].init.body);
-  assert.equal(Object.keys(payload.questions).length,3); assert.equal(payload.model,TYPESAFE_MODEL);
+  assert.equal(Object.keys(payload.questions).length,4); assert.equal(payload.model,TYPESAFE_MODEL);
+  assert.equal(out.model_route.model,'gpt-6-sol');
   assert.ok(!h.requests[0].init.body.includes('NAO_ENVIAR')); assert.ok(!JSON.stringify([...h.events.values()]).includes('test-only-secret'));
   assert.ok(!JSON.stringify([...h.events.values()]).includes('Preparar copy'));
   assert.ok(out.estimated_cost_usd > 0);
@@ -113,6 +115,18 @@ test('invalid probability, missing answers, usage and model changes are rejected
 test('uncertainty recommends manager review without granting approval', () => {
   const r=response(); r.answers.needs_clarification.noul=0.7;
   const out=validateTypeSafeResponse(r); assert.equal(out.recommendation,'REVIEW_WITH_MANAGER'); assert.equal(out.approved,undefined);
+  assert.equal(out.model_route.model,null);
+});
+test('Jev complexity maps to the approved model only with sufficient confidence', () => {
+  for (const [tier, model] of [['SIMPLE','gpt-6-luna'],['MODERATE','gpt-6-sol'],['COMPLEX','gpt-6-astra']]) {
+    const r=response(); r.answers.complexity.choice=tier;
+    r.answers.complexity.probabilities={ SIMPLE:0.01, MODERATE:0.01, COMPLEX:0.01, UNCLEAR:0.01 };
+    r.answers.complexity.probabilities[tier]=0.97; r.answers.complexity.confidence=0.97;
+    assert.equal(validateTypeSafeResponse(r).model_route.model,model);
+  }
+  const r=response(); r.answers.complexity.confidence=0.79;
+  r.answers.complexity.probabilities={ SIMPLE:0.07, MODERATE:0.79, COMPLEX:0.07, UNCLEAR:0.07 };
+  assert.equal(validateTypeSafeResponse(r).model_route.model,null);
 });
 test('workflow validates briefing before Jev, keeps shadow advisory and returns audit summary', async () => {
   const h=harness(); let calls=0;

@@ -1,6 +1,7 @@
 """No network or model invocation: contract tests for the opt-in dispatcher."""
 
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -335,6 +336,51 @@ class DispatchTests(unittest.TestCase):
         self.assertEqual(report["job_id"], JOB_ID)
         self.assertRegex(report["observed_at"], r"T\d{2}:\d{2}:\d{2}\+00:00$")
         self.assertNotIn("hhs_", json.dumps(report))
+
+    def test_current_jev_result_selects_model_for_exact_brief_only(self):
+        detail = self.request(dispatcher.GATEWAY, "hhs_" + "P" * 40, "get_job", {"job_id": JOB_ID})
+        detail["task"]["row_version"] = 7
+        source = "\n".join((self.job["objective"], self.job["instruction"], detail["task"]["definicao_de_pronto"]))
+        digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        self.events.append({"event_type": "TYPESAFE_RESULT", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
+                            "payload": {"policy": dispatcher.ROUTING_POLICY, "brief_hash": digest, "task_version": 7,
+                                        "status": "EVALUATED", "recommendation": "NO_ISSUE_DETECTED",
+                                        "model_route": {"status": "ADVICE", "tier": "COMPLEX", "model": "gpt-6-astra", "confidence": 0.96}}})
+        self.assertEqual(dispatcher.model_route_for(detail)["model"], "gpt-6-astra")
+        detail["task"]["row_version"] = 8
+        self.assertEqual(dispatcher.model_route_for(detail)["status"], "PROFILE_DEFAULT")
+        detail["task"]["row_version"] = 7
+        detail["job"]["instruction"] += " changed"
+        self.assertEqual(dispatcher.model_route_for(detail)["status"], "PROFILE_DEFAULT")
+
+    def test_dispatch_passes_verified_jev_model_to_hermes_run(self):
+        definition = "Entregar checklist com fontes e revisão."
+        digest = hashlib.sha256("\n".join((self.job["objective"], self.job["instruction"], definition)).encode("utf-8")).hexdigest()
+        self.events.append({"event_type": "TYPESAFE_RESULT", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
+                            "payload": {"policy": dispatcher.ROUTING_POLICY, "brief_hash": digest, "task_version": 1,
+                                        "status": "EVALUATED", "recommendation": "NO_ISSUE_DETECTED",
+                                        "model_route": {"status": "ADVICE", "tier": "MODERATE", "model": "gpt-6-sol", "confidence": 0.95}}})
+        original = self.request
+        def versioned(gateway, token, name, payload):
+            result = original(gateway, token, name, payload)
+            if name == "get_job":
+                result["task"]["row_version"] = 1
+            return result
+        def run(*args):
+            self.assertEqual(args[-1], "gpt-6-sol")
+            self.job_status = "WAITING_HELENA"
+            return (0, None)
+        with patch.object(self, "request", side_effect=versioned), patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="hermes"):
+            result = self.dispatch(execute=True, run_agent=run)
+        self.assertEqual(result["status"], "WAITING_HELENA")
+        self.assertEqual(result["model_route"]["model"], "gpt-6-sol")
+
+    def test_jev_cannot_override_helena_or_inject_unapproved_model(self):
+        detail = self.request(dispatcher.GATEWAY, "hhs_" + "P" * 40, "get_job", {"job_id": JOB_ID})
+        detail["job"]["agent_id"] = "AGT-01"
+        self.assertEqual(dispatcher.model_route_for(detail)["reason"], "HELENA_SOL")
+        with self.assertRaises(ValueError):
+            dispatcher.run_profile("hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE, "untrusted-model")
 
 
 if __name__ == "__main__":

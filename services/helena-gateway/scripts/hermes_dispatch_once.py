@@ -6,6 +6,7 @@ script later, after the business and model-usage policy has been approved.
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,8 @@ GATEWAY = "https://helena-automation-helena-gateway.d9v63q.easypanel.host"
 TOKEN_NAME = "HELENA_GATEWAY_PROFILE_TOKEN"
 PROFILE_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,79}\Z")
 JOB_PATTERN = re.compile(r"JOB-HR-[a-f0-9]{32}\Z")
+ROUTING_POLICY = "helena-brief-routing-v2"
+ROUTING_MODELS = {"SIMPLE": "gpt-6-luna", "MODERATE": "gpt-6-sol", "COMPLEX": "gpt-6-astra"}
 TRANSPORT_ERRORS = (OSError, ValueError)
 
 
@@ -68,6 +71,33 @@ def validate_professional_brief(detail: dict) -> None:
             raise RuntimeError("Briefing profissional com secoes fora de ordem")
         if len(instruction[end:next_start].strip()) < 40:
             raise RuntimeError("Briefing profissional raso na secao: " + title)
+
+
+def model_route_for(detail: dict) -> dict:
+    """Use only a current, audited Jev recommendation; never trust task text as a model name."""
+    job, task = detail.get("job") or {}, detail.get("task") or {}
+    if job.get("agent_id") == "AGT-01":
+        return {"status": "PROFILE_DEFAULT", "reason": "HELENA_SOL"}
+    digest = hashlib.sha256("\n".join(str(value or "") for value in (
+        job.get("objective"), job.get("instruction"), task.get("definicao_de_pronto"),
+    )).encode("utf-8")).hexdigest()
+    for event in detail.get("events") or []:
+        if not isinstance(event, dict) or event.get("event_type") != "TYPESAFE_RESULT":
+            continue
+        payload = event.get("payload") or {}
+        if (event.get("job_id") != job.get("job_id") or event.get("business_id") != job.get("business_id")
+                or event.get("agent_id") != job.get("agent_id") or payload.get("policy") != ROUTING_POLICY
+                or payload.get("brief_hash") != digest or payload.get("task_version") != task.get("row_version")):
+            continue
+        route = payload.get("model_route") or {}
+        tier, model = route.get("tier"), route.get("model")
+        if (payload.get("status") == "EVALUATED" and payload.get("recommendation") == "NO_ISSUE_DETECTED"
+                and route.get("status") == "ADVICE" and ROUTING_MODELS.get(tier) == model
+                and isinstance(route.get("confidence"), (float, int))
+                and route["confidence"] >= (0.9 if tier == "COMPLEX" else 0.8)):
+            return {"status": "JEV_ADVICE", "model": model, "tier": tier}
+        return {"status": "PROFILE_DEFAULT", "reason": "JEV_UNCERTAIN"}
+    return {"status": "PROFILE_DEFAULT", "reason": "NO_CURRENT_JEV_RESULT"}
 
 
 def reconcile(job_id: str, phase: str) -> dict:
@@ -188,7 +218,9 @@ def mcp_preflight(profile_home: Path, profile_token: str, runner=subprocess.run)
 
 
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
-                profile_home: Path) -> tuple[int, str | None]:
+                profile_home: Path, model_override: str | None = None) -> tuple[int, str | None]:
+    if model_override is not None and model_override not in ROUTING_MODELS.values():
+        raise ValueError("Modelo fora da lista aprovada")
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
@@ -209,7 +241,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "helena_operacao", "--max-turns", "12"],
+                 "--toolsets", "helena_operacao", "--max-turns", "12"]
+                + (["--model", model_override] if model_override else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
                 # Hermes starts background MCP discovery before the -p switch is applied.
@@ -303,8 +336,10 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
             or source.get("task_id") != job.get("task_id") or binding.get("profile_slug") != profile or binding.get("status") != "ACTIVE"):
         raise RuntimeError("Job, tarefa e perfil divergentes; nenhuma chamada ao modelo")
     validate_professional_brief(detail)
+    route = model_route_for(detail)
     if not execute:
-        return {"status": "DRY_RUN", "job_id": job_id, "profile": profile, "business_id": business_id}
+        return {"status": "DRY_RUN", "job_id": job_id, "profile": profile, "business_id": business_id,
+                "model_route": route}
     if os.environ.get("HELENA_DISPATCH_ENABLED") != "1":
         raise RuntimeError("Execucao desligada; HELENA_DISPATCH_ENABLED=1 e obrigatorio")
     resolved_binary = resolve_hermes_binary()
@@ -334,7 +369,10 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     if started.get("running") is not True:
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
-        outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile)
+        if route.get("model"):
+            outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile, route["model"])
+        else:
+            outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except OSError:
         exit_code, diagnostic = 125, "PROCESS_START"
@@ -344,7 +382,8 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {**reconcile(job_id, "VERIFY_DELIVERY"), "exit_code": exit_code, "diagnostic": diagnostic}
     final_status = (result.get("job") or {}).get("status")
     if final_status in {"WAITING_HELENA", "COMPLETED", "FAILED"}:
-        return {"status": final_status, "job_id": job_id, "exit_code": exit_code, "diagnostic": diagnostic}
+        return {"status": final_status, "job_id": job_id, "exit_code": exit_code, "diagnostic": diagnostic,
+                "model_route": route}
     if final_status in {"RUNNING", "CLAIMED"}:
         try:
             failed = request(gateway, profile_token, "fail_job", {
