@@ -59,26 +59,26 @@ describe('End-to-end voice streaming', () => {
     assert.ok(result.metrics.llm_first_token_ms >= 0);
     assert.ok(result.audioBytes > 0);
   });
-  it('acknowledges a slow answer once in the active Google voice and keeps the answer ordered', async () => {
+  it('never invents a filler while waiting for a slow GPT response', async () => {
     const sentences = [];
-    const result = await streamReplyToCall({ ...base, backchannelDelayMs: 10,
+    const result = await streamReplyToCall({ ...base,
       openTTS: ({ voice }) => { assert.equal(voice, base.voice); return fakeTTS(s => sentences.push(s)); },
       fetchImpl: async (url, opts) => {
         if (url.includes('api.openai.com')) return { ok: true, body: Readable.from((async function* () {
-          await new Promise(resolve => setTimeout(resolve, 35));
+          await new Promise(resolve => setTimeout(resolve, 800));
           yield event(delta('A resposta está pronta.'));
           yield event(stop);
         })()) };
         for await (const chunk of opts.body) assert.ok(chunk.length);
         return Response.json({ ok: true });
       } });
-    assert.deepEqual(sentences, ['Hum, só um instante. ', 'A resposta está pronta. ']);
+    assert.deepEqual(sentences, ['A resposta está pronta. ']);
     assert.equal(result.text, 'A resposta está pronta.');
-    assert.ok(result.metrics.backchannel_ms >= 0);
+    assert.equal(result.metrics.backchannel_ms, null);
   });
   it('skips the acknowledgement when the answer is ready first', async () => {
     const sentences = [];
-    const result = await streamReplyToCall({ ...base, backchannelDelayMs: 80,
+    const result = await streamReplyToCall({ ...base,
       openTTS: () => fakeTTS(s => sentences.push(s)),
       fetchImpl: async (url, opts) => {
         if (url.includes('api.openai.com')) return { ok: true, body: Readable.from([event(delta('Claro, aqui está.')), event(stop)]) };
@@ -154,16 +154,27 @@ it('emits a meaningful clause before the rest of a long sentence is generated', 
   assert.deepEqual(sent,['Para entender melhor a sua situação, ','preciso saber mais. ']);
 });
 
-it('generates while a cached cue plays but reserves reply transport only after it ends', async () => {
-  let releaseCue, generationStarted = false, cueFinished = false;
-  const done = new Promise(resolve => { releaseCue = resolve; });
-  const waitCue = { beforeReply: async () => { assert.equal(generationStarted,true); await done; cueFinished=true; }, finish() {} };
-  const result = streamReplyToCall({...base,waitCue,openTTS:() => fakeTTS(),fetchImpl:async(url,opts)=>{
-    if(url.includes('api.openai.com')) { generationStarted=true; return {ok:true,body:Readable.from([event(delta('Aqui está.')),event(stop)])}; }
-    assert.equal(cueFinished,true);
-    for await(const chunk of opts.body) assert.ok(chunk.length);
+it('keeps generated acknowledgements and ellipses with their following thought', async () => {
+  const sentences=[];
+  await streamReplyToCall({...base,openTTS:()=>fakeTTS(s=>sentences.push(s)),fetchImpl:async(url,opts)=>{
+    if(url.includes('api.openai.com'))return {ok:true,body:Readable.from([
+      event(delta('Hum')),event(delta('... ')),event(delta('deixa eu ver. ')),
+      event(delta('[pensando. ')),event(delta('pausa] Entendi. ')),event(delta('Nesse caso, muda um pouco.')),event(stop)
+    ])};
+    for await(const chunk of opts.body)assert.ok(chunk.length);
     return Response.json({ok:true});
   }});
-  await new Promise(resolve=>setTimeout(resolve,20)); assert.equal(generationStarted,true);
-  releaseCue(); assert.equal((await result).text,'Aqui está.');
+  assert.deepEqual(sentences,['Hum… deixa eu ver. ','Entendi. Nesse caso, muda um pouco. ']);
+});
+
+it('does not play a response containing only hesitation or internal stage directions', async () => {
+  for(const text of ['Hum…','[pensando]']) {
+    const sentences=[];
+    await assert.rejects(streamReplyToCall({...base,openTTS:()=>fakeTTS(s=>sentences.push(s)),fetchImpl:async(url,opts)=>{
+      if(url.includes('api.openai.com'))return {ok:true,body:Readable.from([event(delta(text)),event(stop)])};
+      for await(const chunk of opts.body)void chunk;
+      return Response.json({ok:true});
+    }}),/Empty streamed response|no streaming audio/);
+    assert.deepEqual(sentences,[]);
+  }
 });

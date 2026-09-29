@@ -1,4 +1,4 @@
-import { warmCallWaitClip, createCallWaitCue, cancelCallWaitCue } from './call-wait-cue.mjs';
+import { buildNaturalnessInstruction, cleanVoiceText } from './conversation-naturalness.mjs';
 import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
@@ -191,7 +191,7 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
         provider: 'OPENAI',
         model: cfg.ai_model || 'gpt-6-luna',
         apiKey,
-        systemInstruction,
+        systemInstruction, profile,
         userPrompt: cleanPrompt,
         history
       });
@@ -282,26 +282,16 @@ function generateLocalResponse(query, cfg) {
   return "Com certeza! Temos o catálogo completo da Max Nutrition com pronta entrega, pagamento no Pix com desconto e frete grátis acima de cento e noventa e nove reais. Me conta, qual o seu objetivo de treino no momento?";
 }
 
-/**
- * Remove caracteres que atrapalham a síntese de voz (Kokoro TTS)
- */
-function sanitizeSpeechText(text) {
-  if (!text) return '';
-  return text
-    .replace(/<[^>]*>/g, '') // remove tags HTML se houver
-    .replace(/[*#_~`]/g, '') // remove markdown
-    .replace(/[^\w\s\d.,!?;:áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ-]/gi, '') // remove emojis e símbolos estranhos
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// Shared speech formatting; preserves punctuation, numbers and units.
+const sanitizeSpeechText = cleanVoiceText;
 
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
  */
-export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [] }) {
+export async function callLlmProviderDetailed({ provider = 'GEMINI', model = 'gemini-flash-latest', apiKey, systemInstruction, userPrompt, audioBase64 = null, mimeType = 'audio/wav', history = [], profile = {} }) {
   const start = Date.now();
   const deadline = AbortSignal.timeout(6000); // One shared budget, including model fallbacks.
-  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}`;
+  systemInstruction = `${systemInstruction || ''}\n\n${VOICE_DELIVERY_INSTRUCTION}\n\n${buildNaturalnessInstruction({ profile, history })}`;
   const recentHistory = prepareVoiceHistory(history, userPrompt);
 
   if (provider === 'GEMINI' || provider.includes('GEMINI')) {
@@ -548,7 +538,6 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   call.callerConnected = true;
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   void loadCallerContext(call, profile.character_id);
-  if (!process.env.NODE_TEST_CONTEXT) void warmCallWaitClip(call.activeVoice || profile.voice_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
   const greeting = await generateNaturalOpening(profile, call_id);
@@ -592,7 +581,6 @@ export async function handleCallEndedWebhook(payload = {}) {
   endedVoiceCalls.set(String(call_id).toUpperCase(), Date.now());
   if (endedVoiceCalls.size > 1000) endedVoiceCalls.delete(endedVoiceCalls.keys().next().value);
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
-  cancelCallWaitCue(call_id);
   activeVoiceTurns.get(call_id)?.abort(new Error('Call ended'));
   activeVoiceTurns.delete(call_id);
   latestSpeechEpochs.delete(call_id);
@@ -673,7 +661,7 @@ export async function processUserSpeech(params) {
   }
 }
 
-async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, waitCue, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
+async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
@@ -727,7 +715,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       const apiKey = await resolveAiApiKey(cfg);
       signal.throwIfAborted();
       if (apiKey && !apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
-        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, waitCue, turnStart, signal });
+        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal });
       }
     }
 
@@ -864,7 +852,6 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
 
 /** Retoma a resposta corrente com o perfil novo após encerrar o áudio antigo. */
 export async function restartActiveReplyForProfile(callId) {
-  cancelCallWaitCue(callId);
   const previous = activeVoiceTurns.get(callId);
   if (!previous?.userText || !Number.isSafeInteger(previous.speechEpoch)) return false;
   previous.abort(new Error('Active profile changed'));
@@ -887,20 +874,20 @@ export async function restartActiveReplyForProfile(callId) {
   return true;
 }
 
-async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, waitCue, turnStart, signal }) {
+async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal }) {
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const voice = call?.activeVoice || profile.voice_id;
   const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
     characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
   try {
     const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
-      systemInstruction: buildCallInstruction(call, profile), waitCue,
+      systemInstruction: buildCallInstruction(call, profile), profile,
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
     void persistVoiceTurn(call, profile, '', result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
-    const metrics = { ...sttMetrics, ...result.metrics, ...waitCue?.metrics,
+    const metrics = { ...sttMetrics, ...result.metrics,
       input_end_to_first_audio_ms: sttMetrics?.input_ended_at && result.metrics.first_audio_sent_at
         ? result.metrics.first_audio_sent_at - sttMetrics.input_ended_at : null, transport: result.playback.metrics, streaming: true };
     recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
@@ -911,6 +898,10 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
   } catch (err) {
     // Never replay a batch response after a partially spoken or interrupted stream.
     const interrupted = Boolean(err.interrupted || signal.aborted);
+    if (interrupted && err.partialText?.trim()) {
+      callHistory.push({ role: 'assistant', text: err.partialText, interrupted: true, timestamp: new Date().toISOString() });
+      if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
+    }
     recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
       turnLatencyMs: Date.now() - turnStart, streamMetrics: { ...err.streamMetrics, streaming: true, interrupted },
       error: interrupted ? 'stream_interrupted' : err.message });
@@ -919,20 +910,11 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
 }
 
 
-// Called as incoming PCM starts, so context and Google clips warm while the caller speaks.
+// Prepare context and cancel superseded generation while incoming PCM is still arriving.
 export function prepareLiveSpeech(callId, speechEpoch) {
   const previous = activeVoiceTurns.get(callId);
   if (previous && speechEpoch > previous.speechEpoch) previous.abort(new Error('New customer speech started'));
   const call = getCallSession(callId);
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
-  const voice = call?.activeVoice || profile.voice_id;
   if (call) void loadCallerContext(call, profile.character_id);
-  if (!process.env.NODE_TEST_CONTEXT) void warmCallWaitClip(voice);
-  return createCallWaitCue({ callId, speechEpoch, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN,
-    isCurrent: () => {
-      if (endedVoiceCalls.has(String(callId).toUpperCase())) return false;
-      const current = getCallSession(callId);
-      const selected = current?.activeProfileKey ? getProfileByKey(current.activeProfileKey) : getActiveGlobalProfile();
-      return (current?.activeVoice || selected.voice_id) === voice && selected.profile_key === profile.profile_key;
-    } });
 }
