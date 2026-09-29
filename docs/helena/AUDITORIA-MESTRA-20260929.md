@@ -110,3 +110,28 @@ Os commits publicados no `main` são `bb7561d`, `42c30ce` e `121fdcd`. O despach
 **Operação real de ponta a ponta: pendente.**  
 **Percentual geral honesto: não homologado como 100% enquanto não houver um job real executado e entregue.**
 
+## Evidência live registrada no Supabase — 2026-09-29
+
+O snapshot `AUD-HERMES-SKILLS-20260929-001` foi aplicado no projeto `ecosistemadossonhos` e conferido por consulta independente. O registro não armazena chaves, tokens, prompts completos nem conteúdo de clientes.
+
+| Registro | Resultado confirmado |
+|---|---:|
+| Perfis auditados | 21 |
+| Skills habilitadas, somadas por perfil | 24 |
+| Skills desabilitadas observadas | 0 |
+| Testes individuais de inicialização | 21 PASS |
+| Testes individuais com falha | 0 |
+| Perfis com MCP `READY` | 21 |
+| Perfis com guardrails | 21 |
+| Perfis com diretório de memória | 21 |
+| Perfis com cron sem job ativo confirmado | 21 |
+| Handoffs configurados | 20; Laura não possui por desenho do perfil pessoal |
+
+Cada teste individual foi um `hermes chat --oneshot` com uma resposta-marcador, limite de um turno, sem ferramentas e sem efeitos externos. Isso comprova bootstrap e invocação do modelo de cada perfil; não substitui o teste de negócio com claim, execução, handoff, revisão e entrega.
+
+O inventário detalhado, incluindo o nome de cada Skill por perfil, está em `docs/helena/hermes/auditoria-skills-20260929.json`. As tabelas de auditoria estão na migration `supabase/migrations/20260929190000_helena_agent_audit_inventory.sql` e foram criadas e preenchidas no Supabase.
+
+## Leitura operacional após o snapshot
+
+O inventário dos perfis está fechado. O próximo bloqueio não é “descobrir” Skills: é liberar um job controlado de BIZ-003, observar os eventos reais no Gateway e confirmar a entrega na página. A fila atual não possui job `READY`; portanto não foi iniciado modelo de negócio durante esta auditoria. Não se deve declarar o sistema 100% operacional antes desse ciclo.
+
