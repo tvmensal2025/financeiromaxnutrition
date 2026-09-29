@@ -1,5 +1,13 @@
 # Piloto Augusto — resultado e correção das fontes
 
+## Entrega concluída — 28/09/2026 09:51:38 America/Sao_Paulo
+
+A retomada autorizada pelo fundador executou Augusto uma vez adicional (attempt_count=2). O agente produziu o memorando estratégico MEM-HR-54de28fab0ad7ef6f88a5c44109751a3, submeteu entrega com review_pending=true e citou a própria memória e as fontes Pedro/Victor. Foi necessário corrigir a conferência dessas citações na revisão (commit 4f021bb, publicado): entradas aprovadas citadas podem compor referências, mas a aprovação continua exigindo evidência produzida pelo próprio job. Os 20 testes de transporte e revisão passaram.
+
+A revisão assistida por Codex foi registrada pelo perfil Helena, com aprovação restrita ao memorando interno. get_job confirmou COMPLETED, tarefa CONCLUÍDA, reviewed_by=AGT-01, três evidências e nenhuma ausente. Não houve terceiro disparo, nem execução autônoma do modelo Helena para revisão. O ciclo observado foi liberação pela Marina → execução real Augusto → memória/entrega no Supabase → revisão assistida → conclusão confirmada no banco. A página local ainda não foi verificada nesta retomada.
+
+Resultado comercial preparado: público inicial como hipótese (adultos interessados em renda complementar e com canal próprio), proposta transparente sem promessa de renda, jornada de entrada consentida até comissão conciliada, métricas e critérios de parada. A hipótese de 10 elegíveis/5 ativações em 14 dias não é meta aprovada nem previsão. Termos dos parceiros, custos, elegibilidade e pagamentos ainda requerem confirmação. Não houve captação, campanha, recebimento ou receita comprovados. A operação autônoma dos 21 agentes permanece sem homologação.
+
 ## Atualização confirmada — 28/09/2026 09:24:49 America/Sao_Paulo
 
 O bloqueio por decisão foi resolvido pela nova ferramenta resolve_job_block, publicada no Gateway (56a3d53) e no Supabase. A configuração de Helena e Marina foi atualizada com backup. A chamada real autenticada como Marina retornou sucesso e a consulta independente ao Supabase confirmou: mesmo job e mesma tarefa, DRAFT, attempt_count=1, task row_version=2655, exatamente um evento WORKFLOW_resolve_job_block, resolved_by=AGT-04. Nenhuma nova execução de IA foi iniciada.

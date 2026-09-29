@@ -8,7 +8,11 @@ import { supabase } from "@/lib/supabase";
 
 export type PrioridadeTarefa = "CRÍTICA" | "ALTA" | "MÉDIA" | "BAIXA";
 export type StatusTarefa = "NÃO INICIADA" | "EM EXECUÇÃO" | "BLOQUEADA" | "CONCLUÍDA" | "CANCELADA";
-export type StatusAgenteVisual = "TRABALHANDO" | "AGUARDANDO" | "BLOQUEADO" | "SEM TAREFA" | "DECISÃO PENDENTE";
+export type StatusAgenteVisual = "TRABALHANDO" | "AGUARDANDO" | "BLOQUEADO" | "SEM TAREFA" | "DECISÃO PENDENTE" | "REVISÃO PENDENTE";
+
+export function dataHojeBrasil(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
 
 export interface TarefaExecucao {
   task_id: string;
@@ -128,6 +132,7 @@ export interface AgenteExecucao {
   ultima_atividade?: string | null;
   ultimo_handoff_enviado?: HandoffExecucao | null;
   ultimo_handoff_recebido?: HandoffExecucao | null;
+  revisao_pendente?: HandoffExecucao | null;
   tarefas_atribuidas: TarefaExecucao[];
   auditorias_realizadas: AuditoriaExecucao[];
 }
@@ -263,7 +268,7 @@ export function determinarStatusVisualAgente(
   temDecisaoPendente: boolean = false
 ): StatusAgenteVisual {
   if (temDecisaoPendente) return "DECISÃO PENDENTE";
-  const emExecucao = tarefasAgente.some((t) => t.status === "EM EXECUÇÃO");
+  const emExecucao = tarefasAgente.some((t) => t.status === "EM EXECUÇÃO" && !isTarefaBloqueada(t));
   if (emExecucao) return "TRABALHANDO";
 
   const bloqueada = tarefasAgente.some((t) => isTarefaBloqueada(t));

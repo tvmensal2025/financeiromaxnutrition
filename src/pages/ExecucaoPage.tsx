@@ -37,6 +37,7 @@ import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingSt
 import {
   carregarDadosCentralExecucao,
   calcularProgressoExecutivo,
+  dataHojeBrasil,
   determinarStatusVisualAgente,
   isTarefaAtrasada,
   isTarefaBloqueada,
@@ -57,7 +58,16 @@ import {
   type TarefaExecucao,
 } from "@/lib/execucao";
 
+function empresaVisivel(empresa: string | null | undefined, filtro: string): boolean {
+  return filtro === "TODAS" || filtro === "GRUPO" || empresa === filtro || empresa === "GRUPO";
+}
+
+function exigeDecisaoFundador(bloqueio?: string | null): boolean {
+  return /^\s*(?:aguardando|pendente|depende de|decis[aã]o do|aprova[cç][aã]o do).{0,40}\bfundador\b/i.test(bloqueio || "");
+}
+
 export default function ExecucaoPage() {
+  const hoje = dataHojeBrasil();
   const navigate = useNavigate();
   const { currentBusinessId, isConsolidated, setCurrentBusiness, empresas } = useBusiness();
 
@@ -171,7 +181,7 @@ export default function ExecucaoPage() {
     return dadosBrutos.tarefas.filter((t) => {
       // Filtro de Empresa
       if (filtros.empresaId !== "TODAS" && filtros.empresaId !== "GRUPO") {
-        if (t.business_id && t.business_id !== filtros.empresaId && t.business_id !== "GRUPO") {
+        if (!empresaVisivel(t.business_id, filtros.empresaId)) {
           return false;
         }
       }
@@ -206,13 +216,13 @@ export default function ExecucaoPage() {
       }
       return true;
     });
-  }, [dadosBrutos.tarefas, filtros, dadosBrutos.agentes]);
+  }, [dadosBrutos.tarefas, filtros, dadosBrutos.agentes, hoje]);
 
   // Handoffs filtrados
   const handoffsFiltrados = useMemo(() => {
     return dadosBrutos.handoffs.filter((h) => {
       if (filtros.empresaId !== "TODAS" && filtros.empresaId !== "GRUPO") {
-        if (h.business_id_area && h.business_id_area !== filtros.empresaId && h.scope_type !== "GLOBAL") {
+        if (!empresaVisivel(h.business_id_area, filtros.empresaId) && h.scope_type !== "GLOBAL") {
           return false;
         }
       }
@@ -233,7 +243,7 @@ export default function ExecucaoPage() {
   // LINHA 1 — INDICADORES OPERACIONAIS
   // -------------------------------------------------------------
   const indicadores: IndicadoresOperacionais = useMemo(() => {
-    const emExec = tarefasFiltradas.filter((t) => t.status === "EM EXECUÇÃO").length;
+    const emExec = tarefasFiltradas.filter((t) => t.status === "EM EXECUÇÃO" && !isTarefaBloqueada(t)).length;
     const bloq = tarefasFiltradas.filter((t) => isTarefaBloqueada(t)).length;
     const atrasadas = tarefasFiltradas.filter((t) => isTarefaAtrasada(t, diaSaoPaulo())).length;
     const concHoje = tarefasFiltradas.filter((t) => isTarefaConcluidaHoje(t, diaSaoPaulo())).length;
@@ -242,7 +252,7 @@ export default function ExecucaoPage() {
     ).length;
 
     // Decisões pendentes (decisões ativas sem conclusão ou tarefas com bloqueio de decisão)
-    const decsPend = dadosBrutos.tarefas.filter(
+    const decsPend = tarefasFiltradas.filter(
       (t) => t.bloqueio && t.bloqueio.toUpperCase().includes("DECISÃO")
     ).length;
 
@@ -285,7 +295,7 @@ export default function ExecucaoPage() {
       agentes_com_atividade_hoje: agentesComAtividade,
       agentes_sem_atividade: agentesSemAtividade,
     };
-  }, [tarefasFiltradas, handoffsFiltrados, dadosBrutos]);
+  }, [tarefasFiltradas, handoffsFiltrados, dadosBrutos, filtros.empresaId, hoje]);
 
   // -------------------------------------------------------------
   // LINHA 2 — PROJETOS EM EXECUÇÃO
@@ -294,7 +304,7 @@ export default function ExecucaoPage() {
     return dadosBrutos.projetos
       .filter((p) => {
         if (filtros.empresaId !== "TODAS" && filtros.empresaId !== "GRUPO") {
-          if (p.business_id && p.business_id !== filtros.empresaId && p.business_id !== "GRUPO") {
+          if (!empresaVisivel(p.business_id, filtros.empresaId)) {
             return false;
           }
         }
@@ -304,8 +314,8 @@ export default function ExecucaoPage() {
         return true;
       })
       .map((p) => {
-        const tarefasDoProjeto = dadosBrutos.tarefas.filter((t) => t.project_id === p.project_id);
-        const marcosDoProjeto = dadosBrutos.marcos.filter((m) => m.project_id === p.project_id);
+        const tarefasDoProjeto = dadosBrutos.tarefas.filter((t) => t.project_id === p.project_id && empresaVisivel(t.business_id, filtros.empresaId));
+        const marcosDoProjeto = dadosBrutos.marcos.filter((m) => m.project_id === p.project_id && empresaVisivel(m.business_id, filtros.empresaId));
 
         const progExec = calcularProgressoExecutivo(tarefasDoProjeto);
         const progTec = obterProgressoTecnico(p, dadosBrutos.auditorias);
@@ -385,7 +395,7 @@ export default function ExecucaoPage() {
   const equipeDigital: AgenteExecucao[] = useMemo(() => {
     return dadosBrutos.agentes.map((ag) => {
       const conn = dadosBrutos.conexoes.find((c) => c.agent_id === ag.agent_id);
-      const tarefasDoAgente = dadosBrutos.tarefas.filter((t) =>
+      const tarefasDoAgente = tarefasFiltradas.filter((t) =>
         pertenceAoAgente(t.responsavel, ag.agente, ag.agent_id)
       );
       const auditoriasDoAgente = dadosBrutos.auditorias.filter(
@@ -406,8 +416,8 @@ export default function ExecucaoPage() {
         null;
 
       // Handoffs
-      const handoffsEnviados = dadosBrutos.handoffs.filter((h) => h.de && h.de.includes(ag.agente));
-      const handoffsRecebidos = dadosBrutos.handoffs.filter((h) => h.para && h.para.includes(ag.agente));
+      const handoffsEnviados = handoffsFiltrados.filter((h) => h.de && (h.de.includes(ag.agente) || h.de.includes(ag.agent_id)));
+      const handoffsRecebidos = handoffsFiltrados.filter((h) => h.para && (h.para.includes(ag.agente) || h.para.includes(ag.agent_id)));
 
       const ultimoHandoffEnviado = handoffsEnviados[0] || null;
       const ultimoHandoffRecebido = handoffsRecebidos[0] || null;
@@ -417,7 +427,13 @@ export default function ExecucaoPage() {
         (t) => t.bloqueio && t.bloqueio.toUpperCase().includes("DECISÃO")
       );
 
-      const statusVisual = determinarStatusVisualAgente(tarefasDoAgente, temDecisaoPendente);
+      const revisaoPendente = handoffsRecebidos.find((h) =>
+        !["CONCLUÍDO", "CONCLUIDO", "CANCELADO"].includes(h.status) &&
+        /revis|an[aá]lis/i.test(`${h.assunto} ${h.pergunta_tarefa_transferida || ""}`)
+      );
+      const statusVisual = revisaoPendente
+        ? "REVISÃO PENDENTE"
+        : determinarStatusVisualAgente(tarefasDoAgente, temDecisaoPendente);
 
       // Última atividade
       const ultimaAtividade =
@@ -448,11 +464,12 @@ export default function ExecucaoPage() {
         ultima_atividade: ultimaAtividade,
         ultimo_handoff_enviado: ultimoHandoffEnviado,
         ultimo_handoff_recebido: ultimoHandoffRecebido,
+        revisao_pendente: revisaoPendente || null,
         tarefas_atribuidas: tarefasDoAgente,
         auditorias_realizadas: auditoriasDoAgente,
       };
     });
-  }, [dadosBrutos]);
+  }, [dadosBrutos, tarefasFiltradas, handoffsFiltrados, hoje]);
 
   // -------------------------------------------------------------
   // LINHA 6 — TIMELINE OPERACIONAL UNIFICADA
@@ -461,8 +478,13 @@ export default function ExecucaoPage() {
     const eventos: EventoTimeline[] = [];
     const chavesVistas = new Set<string>();
 
-    // 1. Auditorias
-    dadosBrutos.auditorias.forEach((a) => {
+    // 1. Auditorias ligadas à empresa selecionada
+    dadosBrutos.auditorias.filter((a) =>
+      filtros.empresaId === "TODAS" || filtros.empresaId === "GRUPO" ||
+      tarefasFiltradas.some((t) => t.task_id === a.object_id) ||
+      handoffsFiltrados.some((h) => h.id === a.object_id) ||
+      dadosBrutos.projetos.some((p) => p.project_id === a.object_id && empresaVisivel(p.business_id, filtros.empresaId))
+    ).forEach((a) => {
       const chave = `AUD_${a.audit_id}`;
       if (!chavesVistas.has(chave)) {
         chavesVistas.add(chave);
@@ -480,7 +502,7 @@ export default function ExecucaoPage() {
     });
 
     // 2. Handoffs
-    dadosBrutos.handoffs.forEach((h) => {
+    handoffsFiltrados.forEach((h) => {
       const chave = `HND_${h.id}`;
       if (!chavesVistas.has(chave)) {
         chavesVistas.add(chave);
@@ -499,7 +521,7 @@ export default function ExecucaoPage() {
     });
 
     // 3. Memória Mestre relevante recente
-    dadosBrutos.memoria.forEach((m) => {
+    dadosBrutos.memoria.filter((m) => empresaVisivel(m.business_id_area, filtros.empresaId)).forEach((m) => {
       const chave = `MEM_${m.id}`;
       if (!chavesVistas.has(chave)) {
         chavesVistas.add(chave);
@@ -519,7 +541,7 @@ export default function ExecucaoPage() {
 
     // Ordenação decrescente por data/hora
     return eventos.sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 25);
-  }, [dadosBrutos]);
+  }, [dadosBrutos, tarefasFiltradas, handoffsFiltrados, filtros.empresaId]);
 
   // -------------------------------------------------------------
   // LINHA 7 — BLOQUEIOS E DECISÕES ("PRECISA DE ATENÇÃO")
@@ -528,7 +550,7 @@ export default function ExecucaoPage() {
     const lista: ItemAtencao[] = [];
 
     // 1. Decisões do Fundador (prioridade máxima)
-    dadosBrutos.tarefas.forEach((t) => {
+    tarefasFiltradas.forEach((t) => {
       if (t.responsavel === "Fundador" && t.status !== "CONCLUÍDA") {
         lista.push({
           id: `DEC_FUND_${t.task_id}`,
@@ -547,10 +569,9 @@ export default function ExecucaoPage() {
     });
 
     // Tarefas bloqueadas que aguardam decisão do fundador
-    dadosBrutos.tarefas.forEach((t) => {
+    tarefasFiltradas.forEach((t) => {
       if (
-        t.bloqueio &&
-        t.bloqueio.toUpperCase().includes("FUNDADOR") &&
+        exigeDecisaoFundador(t.bloqueio) &&
         t.responsavel !== "Fundador" &&
         t.status !== "CONCLUÍDA"
       ) {
@@ -571,7 +592,7 @@ export default function ExecucaoPage() {
     });
 
     // 2. Decisão da Helena
-    lista.push({
+    if (empresaVisivel("BIZ-002", filtros.empresaId)) lista.push({
       id: "DEC_HELENA_WIP",
       categoria: "DECISAO_HELENA",
       titulo: "Governança: Enquadramento de PRJ-0002 no Foco Executivo (WIP)",
@@ -585,11 +606,11 @@ export default function ExecucaoPage() {
     });
 
     // 3. Bloqueios de Agentes
-    dadosBrutos.tarefas.forEach((t) => {
+    tarefasFiltradas.forEach((t) => {
       if (
         isTarefaBloqueada(t) &&
         t.responsavel !== "Fundador" &&
-        !t.bloqueio?.toUpperCase().includes("FUNDADOR")
+        !exigeDecisaoFundador(t.bloqueio)
       ) {
         lista.push({
           id: `BLOQ_AGT_${t.task_id}`,
@@ -609,7 +630,7 @@ export default function ExecucaoPage() {
 
     // 4. Riscos Críticos
     dadosBrutos.riscos.forEach((r) => {
-      if (r.status === "ABERTO" && (r.impacto === "ALTO" || r.impacto === "CRÍTICO")) {
+      if (empresaVisivel(r.business_id, filtros.empresaId) && r.status === "ABERTO" && (r.impacto === "ALTO" || r.impacto === "CRÍTICO")) {
         lista.push({
           id: `RISCO_${r.risk_id}`,
           categoria: "RISCO_CRITICO",
@@ -625,45 +646,37 @@ export default function ExecucaoPage() {
     });
 
     return lista;
-  }, [dadosBrutos]);
+  }, [dadosBrutos, tarefasFiltradas, filtros.empresaId]);
 
   // -------------------------------------------------------------
   // LINHA 8 — "O QUE TEMOS PARA FAZER HOJE?" (SEÇÃO "HOJE")
   // -------------------------------------------------------------
   const secaoHoje = useMemo(() => {
-    // Tarefa prioritária Nº 1: TSK-0012 (rotação de segredos pelo fundador)
     const prioridadeUm =
-      dadosBrutos.tarefas.find((t) => t.task_id === "TSK-0012") ||
-      dadosBrutos.tarefas.find((t) => t.prioridade === "CRÍTICA" && t.status !== "CONCLUÍDA") ||
+      tarefasFiltradas.find((t) => t.prioridade === "CRÍTICA" && t.status !== "CONCLUÍDA") ||
+      tarefasFiltradas.find((t) => isTarefaBloqueada(t)) ||
       null;
 
     // Tarefas Críticas do dia
-    const criticas = dadosBrutos.tarefas.filter(
+    const criticas = tarefasFiltradas.filter(
       (t) => t.prioridade === "CRÍTICA" && t.status !== "CONCLUÍDA"
     );
 
     // Tarefas que destravam outras
-    const destravadoras = [
-      {
-        origem: "TSK-0012 (Fundador)",
-        destino: "TSK-0013 (Theo)",
-        motivo: "Remoção de chaves commitadas no git depende da rotação prévia nos painéis.",
-      },
-      {
-        origem: "TSK-0014 (Fundador)",
-        destino: "TSK-0017 (Theo)",
-        motivo: "Habilitação de RLS em food_aliases e user_test_groups depende da definição do projeto Supabase oficial.",
-      },
-    ];
+    const destravadoras = handoffsFiltrados.filter((h) => h.status !== "CONCLUÍDO" && h.status !== "CONCLUIDO" && h.status !== "CANCELADO").slice(0, 5).map((h) => ({
+      origem: h.de,
+      destino: h.para,
+      motivo: h.pendencias || h.pergunta_tarefa_transferida || h.assunto,
+    }));
 
     return {
       prioridadeUm,
       criticas,
       destravadoras,
-      proximaEntrega: "MIL-0002 — Contenção de segurança e base de configuração (28/09/2026)",
+      proximaEntrega: prioridadeUm?.tarefa || "Nenhuma entrega prioritária registrada",
       totalHoje: criticas.length,
     };
-  }, [dadosBrutos.tarefas]);
+  }, [tarefasFiltradas, handoffsFiltrados]);
 
   // Se houver erro de permissão / 401 / 403, renderiza explicitamente o erro sem mascarar
   if (erro) {
@@ -951,7 +964,7 @@ export default function ExecucaoPage() {
               </span>
               <span className="h-2 w-2 rounded-full bg-[#007A3D]" />
             </div>
-            <span className="text-[10px] text-muted-foreground">Em andamento ativo</span>
+            <span className="text-[10px] text-muted-foreground">Status registrado na tarefa</span>
           </div>
 
           {/* 2. Tarefas Bloqueadas */}
@@ -993,7 +1006,7 @@ export default function ExecucaoPage() {
               </span>
               <CheckCircle2 className="h-3.5 w-3.5 text-[#007A3D] dark:text-[#22c55e]" />
             </div>
-            <span className="text-[10px] text-muted-foreground">Com evidência real</span>
+            <span className="text-[10px] text-muted-foreground">Atualizadas no banco hoje</span>
           </div>
 
           {/* 5. Handoffs Pendentes */}
@@ -1027,7 +1040,7 @@ export default function ExecucaoPage() {
           {/* 7. Agentes com Atividade Hoje */}
           <div className="rounded-xl border border-border bg-card p-3.5 flex flex-col justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Agentes Ativos
+              Atividade Hoje
             </span>
             <div className="my-1.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -1041,7 +1054,7 @@ export default function ExecucaoPage() {
           {/* 8. Agentes Sem Atividade */}
           <div className="rounded-xl border border-border bg-card p-3.5 flex flex-col justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Sem Atividade
+              Sem Registro Hoje
             </span>
             <div className="my-1.5 flex items-baseline gap-1.5">
               <span className="text-2xl font-bold tracking-tight text-foreground">
@@ -1049,7 +1062,7 @@ export default function ExecucaoPage() {
               </span>
               <span className="text-xs text-muted-foreground font-mono">/ 21</span>
             </div>
-            <span className="text-[10px] text-muted-foreground">Disponíveis / fila</span>
+            <span className="text-[10px] text-muted-foreground">Sem atividade registrada</span>
           </div>
         </div>
       </div>
@@ -1086,7 +1099,7 @@ export default function ExecucaoPage() {
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#B91C1C] dark:text-[#f87171] bg-[#B91C1C]/10 px-2 py-0.5 rounded-[5px]">
                 <Flame className="h-3 w-3" />
-                PRIORIDADE Nº 1 DE HOJE (CRÍTICA)
+                PRIORIDADE Nº 1 ({secaoHoje.prioridadeUm?.prioridade || "A DEFINIR"})
               </span>
               <span className="text-[11px] font-mono text-muted-foreground">
                 Responsável: <strong className="text-foreground">Fundador</strong>
@@ -1114,7 +1127,7 @@ export default function ExecucaoPage() {
                   </button>
                 </div>
                 <div className="pt-2 border-t border-border/60 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>Projeto: <strong>{secaoHoje.prioridadeUm.project_id || "PRJ-0002"}</strong></span>
+                  <span>Projeto: <strong>{secaoHoje.prioridadeUm.project_id || "Não vinculado"}</strong></span>
                   <span>·</span>
                   <span>Empresa: <strong>{secaoHoje.prioridadeUm.business_id}</strong></span>
                   <span>·</span>
@@ -1129,7 +1142,7 @@ export default function ExecucaoPage() {
           {/* Card: Cadeia de Destravamento */}
           <div className="rounded-xl border border-border bg-card p-4 space-y-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Tarefas Que Destravam Outras
+              Passagens Pendentes Entre Agentes
             </span>
             <div className="space-y-2.5 text-xs">
               {secaoHoje.destravadoras.map((d, i) => (
@@ -1424,7 +1437,7 @@ export default function ExecucaoPage() {
               4. Equipe Digital (21 Especialistas de IA)
             </h2>
             <p className="text-xs text-muted-foreground">
-              Helena e os 20 bots Grok conectados. Clique no agente para inspecionar histórico, tarefas e handoffs.
+              Perfis cadastrados. Clique no agente para inspecionar tarefas e passagens registradas; cadastro não comprova execução ativa.
             </p>
           </div>
         </div>
@@ -1803,7 +1816,7 @@ export default function ExecucaoPage() {
                   ? "success"
                   : agenteSelecionado.status_visual === "BLOQUEADO"
                   ? "danger"
-                  : agenteSelecionado.status_visual === "DECISÃO PENDENTE"
+                  : agenteSelecionado.status_visual === "DECISÃO PENDENTE" || agenteSelecionado.status_visual === "REVISÃO PENDENTE"
                   ? "warning"
                   : agenteSelecionado.status_visual === "AGUARDANDO"
                   ? "info"
@@ -2133,6 +2146,8 @@ function CardAgente({
         return <ExecutiveBadge size="sm" variant="warning">DECISÃO</ExecutiveBadge>;
       case "AGUARDANDO":
         return <ExecutiveBadge size="sm" variant="info">AGUARDANDO</ExecutiveBadge>;
+      case "REVISÃO PENDENTE":
+        return <ExecutiveBadge size="sm" variant="warning">A REVISAR</ExecutiveBadge>;
       default:
         return <ExecutiveBadge size="sm" variant="default">SEM TAREFA</ExecutiveBadge>;
     }
@@ -2175,7 +2190,9 @@ function CardAgente({
         <div className="mb-2">{getStatusBadge()}</div>
 
         <div className="text-[10px] text-muted-foreground line-clamp-1">
-          {agente.tarefa_atual ? (
+          {agente.revisao_pendente ? (
+            <span><strong>Revisar:</strong> {agente.revisao_pendente.assunto}</span>
+          ) : agente.tarefa_atual ? (
             <span>
               <strong>Em mãos:</strong> {agente.tarefa_atual.tarefa}
             </span>
