@@ -223,8 +223,15 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         raise ValueError("Modelo fora da lista aprovada")
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
+        "Esta e uma execucao nova e isolada deste job. Ignore qualquer historico de chat, "
+        "memoria local, spillover, resposta anterior ou resumo antigo; nao reutilize decisoes "
+        "nem evidencias de outra tentativa. "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
-        "Use somente helena_operacao.get_work_context e get_job para verificar que o job esta RUNNING, e siga a instrucao registrada na tarefa. "
+        "Como primeira acao, chame helena_operacao.get_work_context e, em seguida, get_job. "
+        "Use somente as respostas dessas duas chamadas como fonte atual para confirmar que o job esta RUNNING. "
+        "O contexto valido deve ter context_version hermes-context-v2 e truncated false. "
+        "Se estiver ausente, truncado ou em versao diferente, nao avance nem repita um bloqueio antigo: "
+        "use fail_job com error_code CONTEXT_UNAVAILABLE e descreva a falha objetiva. "
         + ("Para cada PNG, chame create_artifact_upload com job_id, slot, version e svg vetorial original (ate 35 KB) nas dimensoes exigidas; sem URLs, imagens externas ou scripts. O Gateway renderiza, envia e verifica o arquivo privado. Registre cada referencia retornada como evidencia. " if profile == "maya--biz003" else "")
         +
         "Registre marcos reais em record_progress, memoria e fonte em record_memory e entregue com submit_delivery "
