@@ -42,6 +42,11 @@ class ProvisionTest(unittest.TestCase):
                     self.assertIn('adopt_existing_task', included)
                 else:
                     self.assertNotIn('adopt_existing_task', included)
+                self.assertEqual('record_dispatch' in included, profile == 'marina--biz003')
+                self.assertEqual('create_artifact_upload' in included, profile == 'maya--biz003')
+                self.assertEqual('verify_artifact_upload' in included, profile == 'maya--biz003')
+                if profile == 'laura--pessoal':
+                    self.assertEqual(included, ['get_work_context'])
             self.assertNotIn('hhs_', log.getvalue())
 
     def test_old_filter_upgrade_preserves_key_and_rejects_other_changes(self):
@@ -79,7 +84,7 @@ class ProvisionTest(unittest.TestCase):
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
             for profile in ('helena--grupo', 'marina--biz003'):
                 config = module.yaml.safe_load((home / 'profiles' / profile / 'config.yaml').read_text())
-                self.assertEqual(config['mcp_servers']['helena_operacao']['tools']['include'], module.COORDINATOR_TOOLS)
+                self.assertEqual(config['mcp_servers']['helena_operacao']['tools']['include'], module.profile_tools(profile))
 
     def test_missing_profile_fails_before_any_change(self):
         with tempfile.TemporaryDirectory() as directory:

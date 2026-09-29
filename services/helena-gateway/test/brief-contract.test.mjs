@@ -3,9 +3,17 @@ import assert from 'node:assert/strict';
 import { BRIEF_SECTIONS, validateProfessionalBrief } from '../src/brief-contract.mjs';
 import { workflowTools } from '../src/workflow.mjs';
 
-const instruction = BRIEF_SECTIONS.map(section =>
-  `## ${section}\nDefina fatos verificáveis, responsável, limite, resultado e evidência concretos desta etapa.`
-).join('\n');
+const bodies = [
+  'Empresa BIZ-003 Humano Digital. Consultar o contexto da empresa no Gateway. Condições comerciais não comprovadas continuam pendentes e não podem virar promessa.',
+  'Augusto AGT-03 define um público e uma proposta para um piloto educativo sobre trabalho em casa, permitindo que Camila prepare conteúdo coerente com o posicionamento.',
+  'Preparação interna sem contato externo, publicação, despesas ou promessa de renda. Limitar a análise ao escopo da BIZ-003 e escalar dados ausentes para Helena.',
+  '1. Consultar a tarefa e suas fontes. 2. Distinguir trabalho por tarefas e indicação. 3. Comparar públicos com premissas explícitas. 4. Recomendar um único recorte.',
+  'Entregar uma recomendação com público escolhido, problema, mensagem central, três argumentos verificáveis e lista de condições comerciais pendentes.',
+  'O recorte tem justificativa e fonte; não contém valores ou ganhos inventados; os itens pedidos estão completos e existe referência recuperável da memória.',
+  'Registrar marcos com ação, motivo, fonte e próximo passo no Supabase. Salvar a recomendação em record_memory e usar a referência confirmada em submit_delivery.',
+  'Helena revisa a coerência da estratégia e registra aprovação ou ajustes. Após aprovação, Marina organiza a etapa de Camila, sem o executor iniciar outro agente.'
+];
+const instruction = BRIEF_SECTIONS.map((section,index) => `## ${section}\n${bodies[index]}`).join('\n');
 const detail = {
   job: { job_id: 'job-1', task_id: 'task-1', business_id: 'BIZ-003', agent_id: 'AGT-03',
     objective: 'Preparar estratégia do piloto', instruction },
@@ -48,4 +56,24 @@ test('liberacao bloqueia fonte ausente antes de gastar IA ou gravar', async () =
   await assert.rejects(tools.release_job.handler({ job_id: 'job-1', expected_task_version: 1, idempotency_key: 'k' }, { identity }), /Fontes do briefing/);
   assert.equal(writes, 0);
   assert.equal(validateProfessionalBrief({ ...withSource, input_evidence_records: [{ id }], input_evidence_missing: [] }), true);
+});
+
+test('titulos duplicados, texto repetido e campos pendentes nao passam por briefing completo', () => {
+  for (const bad of [
+    instruction + '\n## Entregáveis\nUma segunda seção não pode substituir a primeira silenciosamente.',
+    BRIEF_SECTIONS.map(section => `## ${section}\n${bodies[0]}`).join('\n'),
+    instruction.replace(bodies[3], bodies[3] + ' [preencher responsável]')
+  ]) assert.throws(() => validateProfessionalBrief({ ...detail, job: { ...detail.job, instruction: bad } }), /Briefing profissional/);
+});
+
+test('criacao e handoff recusam comando raso antes da RPC e aceitam estrutura completa', async () => {
+  let writes = 0;
+  const tools = workflowTools(async () => { writes++; return { success: true }; });
+  const identity = { type: 'hermes_profile', bindingVerified: true, profileSlug: 'marina--biz003' };
+  for (const name of ['create_task_job', 'handoff_task']) {
+    await assert.rejects(tools[name].handler({ instruction: 'Faça um stories.' }, { identity }), /Briefing profissional/);
+    assert.equal(writes, name === 'create_task_job' ? 0 : 1);
+    await tools[name].handler({ instruction }, { identity });
+  }
+  assert.equal(writes, 2);
 });

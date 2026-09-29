@@ -25,6 +25,17 @@ TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'cla
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block']
+def profile_tools(profile):
+    if profile == 'laura--pessoal':
+        return ['get_work_context']
+    if profile == 'marina--biz003':
+        return COORDINATOR_TOOLS + ['record_dispatch']
+    if profile == 'helena--grupo':
+        return COORDINATOR_TOOLS.copy()
+    if profile == 'maya--biz003':
+        return TOOLS + ['create_artifact_upload', 'verify_artifact_upload']
+    return TOOLS.copy()
+
 MARKER = '## Protocolo Hermes-Supabase v2'
 RULES = '''
 ## Protocolo Hermes-Supabase v2
@@ -78,8 +89,7 @@ def prepare(home):
         token = matches[0].strip().strip('\"\'') if matches else 'hhs_' + secrets.token_urlsafe(48)
         if not re.fullmatch(r'hhs_[A-Za-z0-9_-]{40,}', token):
             raise ValueError('Credencial existente fora do padrao; nao sera substituida: ' + profile)
-        included_tools = (['get_work_context'] if profile == 'laura--pessoal' else
-                          COORDINATOR_TOOLS if profile in ('helena--grupo', 'marina--biz003') else TOOLS)
+        included_tools = profile_tools(profile)
         server = {'url': URL, 'headers': {'Authorization': 'Bearer ${' + KEY + '}'},
                   'timeout': 30, 'connect_timeout': 15, 'enabled': True,
                   'tools': {'include': included_tools, 'prompts': False}}
@@ -89,6 +99,12 @@ def prepare(home):
             prior_filters = [TOOLS, TOOLS + ['adopt_existing_task']] if profile in ('helena--grupo', 'marina--biz003') else []
             if profile != 'laura--pessoal':
                 prior_filters.append(TOOLS[:-2])
+                prior_filters.append(TOOLS)
+            if profile in ('helena--grupo', 'marina--biz003'):
+                prior_filters.append(COORDINATOR_TOOLS)
+                prior_filters.append(TOOLS + ['resolve_job_block'])
+            if profile == 'marina--biz003':
+                prior_filters.append(TOOLS + ['resolve_job_block', 'record_dispatch'])
             expected_previous = [{**server, 'tools': {**server['tools'], 'include': prior}} for prior in prior_filters]
             if servers['helena_operacao'] not in expected_previous:
                 raise ValueError('Conector existente diferente; comparar antes de gravar: ' + profile)

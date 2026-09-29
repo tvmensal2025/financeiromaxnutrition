@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { validateProfessionalBrief } from './brief-contract.mjs';
+import { validateBriefStructure, validateProfessionalBrief } from './brief-contract.mjs';
 
 const text = (max = 4000) => z.string().trim().min(1).max(max);
 const key = text(120);
 const job = { job_id: text(120), idempotency_key: key };
 const version = { expected_task_version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) };
-const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000).optional() };
+const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000) };
 const contracts = {
   resolve_job_block: ['resolve_job_block', { ...job, ...version, reason: text() }, 'Helena ou Marina registra a solucao de um bloqueio por decisao e devolve o mesmo job a DRAFT. Nao aprova entrega, nao inicia modelo e preserva limite de tentativas.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
@@ -35,6 +35,7 @@ export function workflowTools(rpc, readJob) {
     inputSchema: { type: 'object', properties: Object.fromEntries(Object.entries(shape).map(([k,v]) => [k,property(v)])), required: Object.entries(shape).filter(([,v]) => !v.isOptional()).map(([k]) => k), additionalProperties: false },
     handler: async (args, { identity } = {}) => {
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
+      if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
       if (action === 'release_job') {
         if (!readJob) throw new Error('Leitura do briefing indisponível; liberação recusada');
         validateProfessionalBrief(await readJob({ job_id: args.job_id }));
