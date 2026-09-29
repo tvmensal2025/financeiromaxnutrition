@@ -831,7 +831,7 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 
 const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
-  ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate),
+  ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate, typeSafe.recordReleaseRoute),
   create_artifact_upload: {
     description: 'Maya: com job_id, slot e version prepara URL privada de upload legado; se enviar tambem svg (ate 35 KB), converte em PNG 1080x1350/1080x1920, envia ao bucket privado sem sobrescrever, relê bytes e registra ARTIFACT_VERIFIED. SVG ativo/externo é recusado. Nunca publica a arte.',
     schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5), svg: z.string().min(1).max(35_000).optional() }).strict(),

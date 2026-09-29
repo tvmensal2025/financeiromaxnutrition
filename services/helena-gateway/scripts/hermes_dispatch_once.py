@@ -82,7 +82,7 @@ def model_route_for(detail: dict) -> dict:
         job.get("objective"), job.get("instruction"), task.get("definicao_de_pronto"),
     )).encode("utf-8")).hexdigest()
     for event in detail.get("events") or []:
-        if not isinstance(event, dict) or event.get("event_type") != "TYPESAFE_RESULT":
+        if not isinstance(event, dict) or event.get("event_type") != "TYPESAFE_ROUTE":
             continue
         payload = event.get("payload") or {}
         if (event.get("job_id") != job.get("job_id") or event.get("business_id") != job.get("business_id")
@@ -91,7 +91,7 @@ def model_route_for(detail: dict) -> dict:
             continue
         route = payload.get("model_route") or {}
         tier, model = route.get("tier"), route.get("model")
-        if (payload.get("status") == "EVALUATED" and payload.get("recommendation") == "NO_ISSUE_DETECTED"
+        if (payload.get("status") == "RECORDED" and payload.get("recommendation") == "NO_ISSUE_DETECTED"
                 and route.get("status") == "ADVICE" and ROUTING_MODELS.get(tier) == model
                 and isinstance(route.get("confidence"), (float, int))
                 and route["confidence"] >= (0.9 if tier == "COMPLEX" else 0.8)):

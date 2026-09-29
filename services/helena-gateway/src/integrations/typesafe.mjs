@@ -185,5 +185,25 @@ export function createTypeSafe({ read, readJob, env = process.env, fetchImpl = f
     lastOutcome = result.status;
     return result;
   }
-  return { evaluate, publicStatus };
+  async function recordReleaseRoute(before, outcome) {
+    if (outcome?.status !== 'EVALUATED' || outcome.policy !== TYPESAFE_POLICY) return { status: 'NO_ROUTING_ADVICE' };
+    try {
+      const fresh = await readJob({ job_id: before.job.job_id });
+      if (fresh?.job?.status !== 'READY' || fresh.job.job_id !== before.job.job_id
+          || fresh.job.agent_id !== before.job.agent_id || fresh.job.business_id !== before.job.business_id
+          || fresh.job.task_id !== before.job.task_id || !Number.isSafeInteger(fresh.task?.row_version)
+          || fresh.task.row_version === before.task.row_version
+          || typeSafeBriefHash(fresh.job, fresh.task) !== outcome.brief_hash) return { status: 'STALE_AFTER_RELEASE' };
+      const payload = { policy: TYPESAFE_POLICY, status: 'RECORDED',
+        task_version: fresh.task.row_version, brief_hash: outcome.brief_hash,
+        recommendation: outcome.recommendation, model_route: outcome.model_route };
+      await append(fresh.job, typesafeEventId(`typesafe:route:${fresh.job.job_id}:${fresh.task.row_version}:${TYPESAFE_POLICY}`),
+        'TYPESAFE_ROUTE', payload);
+      return { status: 'RECORDED', model_route: outcome.model_route };
+    } catch {
+      // The release RPC has already committed; never claim it failed and invite a duplicate.
+      return { status: 'ROUTE_AUDIT_UNAVAILABLE' };
+    }
+  }
+  return { evaluate, recordReleaseRoute, publicStatus };
 }

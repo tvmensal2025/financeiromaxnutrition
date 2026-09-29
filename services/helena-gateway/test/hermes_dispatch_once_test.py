@@ -342,9 +342,9 @@ class DispatchTests(unittest.TestCase):
         detail["task"]["row_version"] = 7
         source = "\n".join((self.job["objective"], self.job["instruction"], detail["task"]["definicao_de_pronto"]))
         digest = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        self.events.append({"event_type": "TYPESAFE_RESULT", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
+        self.events.append({"event_type": "TYPESAFE_ROUTE", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
                             "payload": {"policy": dispatcher.ROUTING_POLICY, "brief_hash": digest, "task_version": 7,
-                                        "status": "EVALUATED", "recommendation": "NO_ISSUE_DETECTED",
+                                        "status": "RECORDED", "recommendation": "NO_ISSUE_DETECTED",
                                         "model_route": {"status": "ADVICE", "tier": "COMPLEX", "model": "gpt-6-astra", "confidence": 0.96}}})
         self.assertEqual(dispatcher.model_route_for(detail)["model"], "gpt-6-astra")
         detail["task"]["row_version"] = 8
@@ -356,9 +356,9 @@ class DispatchTests(unittest.TestCase):
     def test_dispatch_passes_verified_jev_model_to_hermes_run(self):
         definition = "Entregar checklist com fontes e revisão."
         digest = hashlib.sha256("\n".join((self.job["objective"], self.job["instruction"], definition)).encode("utf-8")).hexdigest()
-        self.events.append({"event_type": "TYPESAFE_RESULT", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
+        self.events.append({"event_type": "TYPESAFE_ROUTE", "job_id": JOB_ID, "business_id": "BIZ-003", "agent_id": "AGT-18",
                             "payload": {"policy": dispatcher.ROUTING_POLICY, "brief_hash": digest, "task_version": 1,
-                                        "status": "EVALUATED", "recommendation": "NO_ISSUE_DETECTED",
+                                        "status": "RECORDED", "recommendation": "NO_ISSUE_DETECTED",
                                         "model_route": {"status": "ADVICE", "tier": "MODERATE", "model": "gpt-6-sol", "confidence": 0.95}}})
         original = self.request
         def versioned(gateway, token, name, payload):

@@ -69,6 +69,25 @@ test('repeated release and process restart reuse persisted result without provid
   const restarted=harness({events:h.events}); const b=await restarted.service.evaluate(restarted.current,{...args,idempotency_key:'different-key'},identity);
   assert.deepEqual(b,a); assert.equal(restarted.requests.length,0);
 });
+test('release records route against the post-release task version and briefing hash', async () => {
+  const h=harness(); const before=h.current;
+  const advice=await h.service.evaluate(before,args,identity);
+  h.current={...before, job:{...before.job,status:'READY'}, task:{...before.task,row_version:99}};
+  const recorded=await h.service.recordReleaseRoute(before,advice);
+  assert.equal(recorded.status,'RECORDED');
+  const route=[...h.events.values()].find(e=>e.event_type==='TYPESAFE_ROUTE');
+  assert.equal(route.payload.task_version,99);
+  assert.equal(route.payload.model_route.model,'gpt-6-sol');
+  assert.equal(route.payload.brief_hash,advice.brief_hash);
+  assert.equal(route.job_id,before.job.job_id);
+});
+test('changed briefing after release cannot record stale model advice', async () => {
+  const h=harness(); const before=h.current;
+  const advice=await h.service.evaluate(before,args,identity);
+  h.current={...before, job:{...before.job,status:'READY',instruction:before.job.instruction+' changed'}, task:{...before.task,row_version:99}};
+  assert.equal((await h.service.recordReleaseRoute(before,advice)).status,'STALE_AFTER_RELEASE');
+  assert.ok(![...h.events.values()].some(e=>e.event_type==='TYPESAFE_ROUTE'));
+});
 test('concurrent instances reserve one call for the same immutable briefing', async () => {
   const a=harness(); const b=harness({events:a.events});
   await Promise.all([a.service.evaluate(a.current,args,identity),b.service.evaluate(b.current,args,identity)]);
@@ -136,6 +155,15 @@ test('workflow validates briefing before Jev, keeps shadow advisory and returns 
   assert.equal(h.requests.length,0); assert.equal(calls,0);
   h.current=detail(); const result=await tools.release_job.handler(args,{identity});
   assert.equal(result.status,'READY'); assert.equal(result.typesafe.status,'EVALUATED'); assert.equal(calls,1);
+});
+test('workflow records the route only after release RPC succeeds', async () => {
+  const h=harness(); let called=0;
+  const rpc=async()=>{ h.current={...h.current,job:{...h.current.job,status:'READY'},task:{...h.current.task,row_version:99}}; return {success:true,status:'READY'}; };
+  const after=async(before,advice)=>{ called++; return h.service.recordReleaseRoute(before,advice); };
+  const tools=workflowTools(rpc,async()=>h.current,h.service.evaluate,after);
+  const result=await tools.release_job.handler(args,{identity});
+  assert.equal(called,1); assert.equal(result.model_routing.status,'RECORDED');
+  assert.ok([...h.events.values()].some(event=>event.event_type==='TYPESAFE_ROUTE'));
 });
 test('a stale task prevents workflow RPC even after a valid Jev answer', async () => {
   const h=harness({mutate:true}); let calls=0;
