@@ -90,6 +90,11 @@ describe("Central de Execução — Regras e Cálculos Ponderados", () => {
     ];
     expect(determinarStatusVisualAgente(tarefasBloqueadas)).toBe("BLOQUEADO");
 
+    const execucaoBloqueada: TarefaExecucao[] = [
+      { task_id: "T2", business_id: "BIZ-003", tarefa: "Revisão", prioridade: "ALTA", status: "EM EXECUÇÃO", responsavel: "Camila", bloqueio: "Aguardando revisão" }
+    ];
+    expect(determinarStatusVisualAgente(execucaoBloqueada)).toBe("BLOQUEADO");
+
     const tarefasAguardando: TarefaExecucao[] = [
       { task_id: "T1", business_id: "BIZ-001", tarefa: "A", prioridade: "ALTA", status: "NÃO INICIADA", responsavel: "Theo" }
     ];
