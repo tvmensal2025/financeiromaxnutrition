@@ -8,6 +8,14 @@ test('workflow nunca aceita identidade administrativa ou declarada pelo modelo',
     await assert.rejects(tools.get_work_context.handler({}, { identity }), /individual Hermes/);
   }
 });
+test('contexto usa RPC compacto e consultável sem misturar o payload legado', async () => {
+  const calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { context_version: 'hermes-context-v2', truncated: false }; });
+  const identity = { type: 'hermes_profile', profileSlug: 'marina--biz003', bindingVerified: true };
+  const result = await tools.get_work_context.handler({}, { identity });
+  assert.deepEqual(result, { context_version: 'hermes-context-v2', truncated: false });
+  assert.deepEqual(calls, [['gateway_context', { p_profile_slug: 'marina--biz003' }]]);
+});
 test('entrega exige referencia nao vazia e versao segura; rejeita campos extras', () => {
   const tools = workflowTools(() => {});
   const delivery = { job_id: 'j', expected_task_version: 1, idempotency_key: 'k', summary: 'feito', evidence_refs: ['ref'] };

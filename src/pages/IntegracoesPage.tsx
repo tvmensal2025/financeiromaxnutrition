@@ -16,9 +16,11 @@ import {
   makeMeowcallerCall,
   hangupMeowcallerCall,
   fetchKokoroVoices,
+  fetchElevenLabsVoices,
   testKokoroVoice,
   KokoroVoice,
   KokoroVoicesResponse,
+  ElevenLabsVoice,
   testLayaClassify,
   testLayaScore,
   testLayaRoute,
@@ -114,6 +116,8 @@ export default function IntegracoesPage() {
   const [uraError, setUraError] = useState("");
   const [uraVoiceProvider, setUraVoiceProvider] = useState<"KOKORO" | "ELEVENLABS">("KOKORO");
   const [uraVoiceId, setUraVoiceId] = useState("pm_alex*0.7+am_liam*0.3");
+  const [voices, setVoices] = useState<ElevenLabsVoice[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
 
   const [voiceProfiles, setVoiceProfiles] = useState<any[]>([]);
 

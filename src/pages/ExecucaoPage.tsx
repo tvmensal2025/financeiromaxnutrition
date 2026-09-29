@@ -571,6 +571,7 @@ export default function ExecucaoPage() {
     // Tarefas bloqueadas que aguardam decisão do fundador
     tarefasFiltradas.forEach((t) => {
       if (
+        t.task_id &&
         exigeDecisaoFundador(t.bloqueio) &&
         t.responsavel !== "Fundador" &&
         t.status !== "CONCLUÍDA"
@@ -585,7 +586,7 @@ export default function ExecucaoPage() {
           empresa: t.business_id,
           prazo: t.prazo || undefined,
           impacto: t.prioridade === "CRÍTICA" ? "CRÍTICO" : "ALTO",
-          acao_necessaria: t.bloqueio,
+          acao_necessaria: t.bloqueio || "Aguardar decisão do Fundador.",
           objeto_id: t.task_id,
         });
       }

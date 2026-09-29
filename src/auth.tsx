@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setAppAccess(accessData as AppAccess);
-      } catch (err: any) {
+      } catch {
         await supabase.auth.signOut();
         setSession(null);
         setAppAccess(null);

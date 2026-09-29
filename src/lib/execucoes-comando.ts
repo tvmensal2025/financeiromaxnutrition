@@ -50,7 +50,7 @@ export function rotuloRevisao(job: RevisaoJob) {
   return job.approval_status || "Sem status";
 }
 
-export type EtapaEntrega = "Na fila" | "Em produção" | "Em revisão" | "Ajustes solicitados" | "Aprovadas" | "Aceite a conferir" | "Bloqueadas";
+export type EtapaEntrega = "Aguardando liberação" | "Na fila" | "Em produção" | "Em revisão" | "Ajustes solicitados" | "Aprovadas" | "Aceite a conferir" | "Bloqueadas";
 
 export function etapaEntrega(job: RevisaoJob): EtapaEntrega {
   const status = normalizar(job.status);
@@ -60,7 +60,8 @@ export function etapaEntrega(job: RevisaoJob): EtapaEntrega {
   if (status === "COMPLETED") return "Aceite a conferir";
   if (status === "WAITING_HELENA" && payload?.review_pending === true) return "Em revisão";
   if (status === "DRAFT" && typeof payload?.reviewed_by === "string" && typeof payload?.review_reason === "string") return "Ajustes solicitados";
-  if (["DRAFT", "READY"].includes(status)) return "Na fila";
+  if (status === "DRAFT") return "Aguardando liberação";
+  if (status === "READY") return "Na fila";
   if (["FAILED", "CANCELLED", "CANCELED", "WAITING_USER", "WAITING_HELENA"].includes(status)) return "Bloqueadas";
   return "Em produção";
 }

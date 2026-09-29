@@ -35,6 +35,8 @@ describe("leitura dos jobs da sala de comando", () => {
   it("mostra aprovação apenas quando o job exige revisão e o banco a registra", () => {
     const draft = { ...base, status: "DRAFT" };
     expect(faseJob(draft, [])).toBe("RASCUNHO");
+    expect(etapaEntrega(draft)).toBe("Aguardando liberação");
+    expect(etapaEntrega({ ...base, status: "READY" })).toBe("Na fila");
     const emRevisao = { ...base, status: "WAITING_HELENA", approval_required: true, approval_status: "PENDING", result_payload: { review_pending: true, reviewer_agent_id: "AGT-06" } };
     expect(faseJob(emRevisao, [])).toBe("REVISAO");
     expect(faseJob({ ...emRevisao, result_payload: null }, [])).toBe("OUTROS");

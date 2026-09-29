@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PNG } from 'pngjs';
-import { artifactPath, artifactReference, createArtifactUpload, parseArtifactReference, pngDimensions, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from '../src/artifact-storage.mjs';
+import { artifactPath, artifactReference, assertArtifactContent, createArtifactUpload, parseArtifactReference, pngDimensions, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from '../src/artifact-storage.mjs';
 
 const job = { job_id: `JOB-HR-${'a'.repeat(32)}`, business_id: 'BIZ-003', status: 'RUNNING' };
 const base = 'https://example.invalid';
@@ -30,8 +30,11 @@ test('upload assinado aponta apenas para caminho privado e RUNNING', async () =>
 
 test('PNG real exige bytes decodificaveis e dimensoes do formato', async () => {
   const image = new PNG({ width: 1080, height: 1350 });
+  image.data[0] = 255;
+  image.data[3] = 255;
   const bytes = PNG.sync.write(image);
   assert.deepEqual(pngDimensions(bytes), { width: 1080, height: 1350, bytes: bytes.length });
+  assert.doesNotThrow(() => assertArtifactContent(bytes));
   const fetchImpl = async url => {
     assert.match(url, /\/storage\/v1\/object\/authenticated\/helena-deliveries\/BIZ-003\//);
     return new Response(bytes, { headers: { 'content-type': 'image/png' } });
@@ -44,6 +47,11 @@ test('PNG real exige bytes decodificaveis e dimensoes do formato', async () => {
   const oversizedHeader = Buffer.from(bytes);
   oversizedHeader.writeUInt32BE(50000, 16);
   assert.throws(() => pngDimensions(oversizedHeader), /limite seguro/);
+
+  const blank = PNG.sync.write(new PNG({ width: 1080, height: 1350 }));
+  assert.throws(() => assertArtifactContent(blank), /sem conteudo visual/);
+  await assert.rejects(verifyArtifact({ job, slot: 'post', version: 1, serviceUrl: base, serviceKey,
+    fetchImpl: async () => new Response(blank, { headers: { 'content-length': String(blank.length) } }) }), /sem conteudo visual/);
 });
 
 test('SVG seguro e convertido para PNG Story e upload privado sem sobrescrever', async () => {
@@ -76,6 +84,7 @@ test('SVG de arte recusa conteudo ativo, recurso remoto, tamanho ou formato inco
 test('repeticao do mesmo PNG apos resposta perdida e idempotente, divergir o conteudo e recusado', async () => {
   const image = new PNG({ width: 1080, height: 1920 });
   image.data.fill(255);
+  image.data[0] = 0;
   const existingBytes = PNG.sync.write(image);
   const same = await uploadRenderedArtifact({ job, slot: 'story-2', version: 1, bytes: existingBytes, serviceUrl: base, serviceKey,
     fetchImpl: async (url, options) => options.method === 'POST'
@@ -85,6 +94,8 @@ test('repeticao do mesmo PNG apos resposta perdida e idempotente, divergir o con
 
   const differentImage = new PNG({ width: 1080, height: 1920 });
   differentImage.data.fill(0);
+  differentImage.data[0] = 255;
+  differentImage.data[3] = 255;
   const differentBytes = PNG.sync.write(differentImage);
   await assert.rejects(uploadRenderedArtifact({ job, slot: 'story-2', version: 1, bytes: differentBytes, serviceUrl: base, serviceKey,
     fetchImpl: async (url, options) => options.method === 'POST'

@@ -97,7 +97,9 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
             throw new Error('Aprovacao da entrega visual exige post e tres stories verificados no Supabase');
         }
       }
-      const result = action === 'resolve_job_block'
+      const result = action === 'context'
+        ? await rpc('gateway_context', { p_profile_slug: identity.profileSlug })
+        : action === 'resolve_job_block'
         ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'revise_task_brief'
         ? await rpc('gateway_revise_task_brief', { p_profile_slug: identity.profileSlug, p_payload: args })

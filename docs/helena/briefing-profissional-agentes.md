@@ -38,4 +38,6 @@ Quem revisa, quais perguntas precisa responder, quem recebe o próximo handoff e
 
 ## Validação antes do disparo
 
+Atualização de 29/09/2026: o Gateway agora valida a estrutura também em `create_task_job` e `handoff_task`, antes da gravação. A instrução é obrigatória nessas operações. Títulos duplicados, seções com o mesmo conteúdo e marcadores como `[preencher responsável]` são recusados. Esse controle não comprova veracidade, qualidade estética ou execução: esses pontos continuam exigindo revisão com evidências.
+
 Marina confere pertinência e capacidade; Helena ou revisor designado confere congruência, riscos e fontes. O sistema verifica identidade, empresa, versão, estrutura e cota antes de chamar o modelo. Uma instrução formalmente completa ainda pode estar ruim; nesse caso, deve voltar para revisão, não ser enviada só porque passou no validador.

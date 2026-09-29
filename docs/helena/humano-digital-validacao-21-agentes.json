@@ -1,0 +1,281 @@
+{
+  "batch_id": "HD-VALIDACAO-21-AGENTES-20260929",
+  "business_id": "BIZ-003",
+  "business_name": "Humano Digital",
+  "operation_model": "Agência de trabalho com IA, conectando pessoas, empresas e agentes para produzir entregas verificáveis.",
+  "purpose": "Validar rapidamente se cada agente entende sua função, registra um checkpoint e encaminha o próximo passo sem publicar, contactar pessoas ou gastar em uma ação externa.",
+  "dispatch_agent_id": "AGT-04",
+  "quality_reviewer_id": "AGT-13",
+  "final_gate_agent_id": "AGT-01",
+  "execution_mode": "DRY_RUN_NO_MODEL_CALLS",
+  "external_actions_allowed": false,
+  "global_input": [
+    "business_id BIZ-003",
+    "objetivo da operação Humano Digital",
+    "briefing da função do agente",
+    "ordem de handoff deste lote",
+    "fonte registrada no Supabase ou indicação explícita de que a fonte está ausente"
+  ],
+  "global_output_contract": {
+    "required_fields": [
+      "agent_id",
+      "status",
+      "action",
+      "reason",
+      "next_step",
+      "evidence_refs"
+    ],
+    "minimum_result_summary_chars": 80,
+    "minimum_evidence_refs": 1,
+    "blank_artifact_is_failure": true,
+    "unverified_claims_are_failure": true,
+    "external_contact_or_publish_requires_helena": true,
+    "financial_or_legal_change_requires_helena": true
+  },
+  "flow": [
+    {
+      "sequence": 1,
+      "agent_id": "AGT-01",
+      "agent": "Helena",
+      "function": "Chief of Staff / Orquestradora",
+      "activation": "Assunto geral, prioridades, conflitos entre áreas, painel e decisões.",
+      "microtask": "Ler o objetivo do lote, confirmar empresa, limite sem ação externa e apontar a decisão que libera o fluxo.",
+      "expected_evidence": "Checkpoint com objetivo, limite, decisão necessária e referência ao briefing.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-03"
+    },
+    {
+      "sequence": 2,
+      "agent_id": "AGT-03",
+      "agent": "Augusto",
+      "function": "Estratégia Corporativa",
+      "activation": "Modelo de negócio, posicionamento, cenários e escolhas estratégicas.",
+      "microtask": "Definir a hipótese inicial da agência Humano Digital, público prioritário, valor entregue e uma condição objetiva para seguir ou parar.",
+      "expected_evidence": "Hipótese, público, proposta de valor, risco e critério de decisão, todos ligados ao BIZ-003.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-11"
+    },
+    {
+      "sequence": 3,
+      "agent_id": "AGT-11",
+      "agent": "Ravi",
+      "function": "Pesquisa e Insights",
+      "activation": "Usuários, concorrência, hipóteses e validação.",
+      "microtask": "Separar fatos, relatos e hipóteses sobre pessoas que buscam trabalho e listar as perguntas mínimas para validar a demanda.",
+      "expected_evidence": "Matriz fato/relato/hipótese e perguntas de validação; nenhuma estatística sem fonte.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-07"
+    },
+    {
+      "sequence": 4,
+      "agent_id": "AGT-07",
+      "agent": "Bianca",
+      "function": "Pessoas e Cultura",
+      "activation": "Contratação, desempenho, estrutura de equipe e cultura.",
+      "microtask": "Desenhar a separação entre pessoa candidata, pessoa executora, empresa contratante e agente de IA, sem prometer emprego ou renda.",
+      "expected_evidence": "Papéis, responsabilidades, critérios de entrada e ponto de revisão humana.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-06"
+    },
+    {
+      "sequence": 5,
+      "agent_id": "AGT-06",
+      "agent": "Clara",
+      "function": "Risco, Jurídico e Compliance",
+      "activation": "Contratos, privacidade, compliance, segurança e regulação.",
+      "microtask": "Listar riscos de privacidade, consentimento, promessa comercial e tratamento de dados no fluxo de pessoas e empresas.",
+      "expected_evidence": "Riscos classificados, bloqueios e aprovações obrigatórias; nenhum parecer jurídico inventado.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-18"
+    },
+    {
+      "sequence": 6,
+      "agent_id": "AGT-18",
+      "agent": "Pedro",
+      "function": "Parcerias e Desenvolvimento de Negócios",
+      "activation": "Parcerias, canais, afiliados e oportunidades.",
+      "microtask": "Definir o perfil de empresa parceira e os dados mínimos para registrar uma oportunidade, sem abordar nenhum parceiro.",
+      "expected_evidence": "Perfil de parceiro, campos do registro, hipótese de valor e próximo passo condicionado à aprovação.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-15"
+    },
+    {
+      "sequence": 7,
+      "agent_id": "AGT-15",
+      "agent": "Victor",
+      "function": "Vendas",
+      "activation": "Prospecção, pipeline, abordagem e fechamento.",
+      "microtask": "Especificar as etapas do pipeline empresa parceira, com critérios de qualificação e sem enviar mensagem.",
+      "expected_evidence": "Pipeline, critérios de passagem e campos de CRM necessários; nenhuma promessa de resultado.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-16"
+    },
+    {
+      "sequence": 8,
+      "agent_id": "AGT-16",
+      "agent": "Camila",
+      "function": "Marketing e Growth",
+      "activation": "Aquisição, campanhas, canais e funil.",
+      "microtask": "Montar um funil inicial para atrair pessoas e empresas, com canal, evento de entrada e métrica por etapa.",
+      "expected_evidence": "Funil com eventos, métricas e limite de teste; nada publicado.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-17"
+    },
+    {
+      "sequence": 9,
+      "agent_id": "AGT-17",
+      "agent": "Isabela",
+      "function": "Marca, Conteúdo e Copy",
+      "activation": "Narrativa, conteúdo, copy e posicionamento verbal.",
+      "microtask": "Criar o esqueleto de uma copy de captação para pessoas, com promessa verificável, prova a coletar e chamada para ação.",
+      "expected_evidence": "Copy com público, benefício, limites, CTA e campos marcados quando faltar fonte.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-12"
+    },
+    {
+      "sequence": 10,
+      "agent_id": "AGT-12",
+      "agent": "Maya",
+      "function": "Design / UX / UI",
+      "activation": "Interface, fluxo, design system e usabilidade.",
+      "microtask": "Definir o pacote visual da copy para post e story, incluindo formato, hierarquia, texto obrigatório e validação de arquivo não vazio.",
+      "expected_evidence": "Especificação visual com dimensões, conteúdo, contraste, nome do arquivo e teste de tamanho maior que zero.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-10"
+    },
+    {
+      "sequence": 11,
+      "agent_id": "AGT-10",
+      "agent": "Nina",
+      "function": "Produto",
+      "activation": "Roadmap, funcionalidades, proposta de valor e experiência.",
+      "microtask": "Transformar o fluxo da agência em uma jornada mínima de cadastro, matching, execução, revisão e entrega.",
+      "expected_evidence": "Jornada, estados, entrada e saída de cada etapa e pontos de decisão humana.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-08"
+    },
+    {
+      "sequence": 12,
+      "agent_id": "AGT-08",
+      "agent": "Daniel",
+      "function": "Dados e BI",
+      "activation": "KPIs, dashboard, métricas e análises.",
+      "microtask": "Definir eventos e indicadores para medir pessoas cadastradas, oportunidades, tarefas, aprovações, entregas e conversão.",
+      "expected_evidence": "Dicionário de eventos com origem, fórmula, periodicidade e dono; sem números fabricados.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-05"
+    },
+    {
+      "sequence": 13,
+      "agent_id": "AGT-05",
+      "agent": "Caio",
+      "function": "Finanças / CFO",
+      "activation": "Caixa, receita, despesa, margem, orçamento, runway e projeções.",
+      "microtask": "Definir campos para receita, comissão, custo de aquisição, pagamento de pessoa e despesa, separando confirmado de estimado.",
+      "expected_evidence": "Modelo de controle financeiro, regras de conciliação e bloqueio para gasto sem aprovação.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-04"
+    },
+    {
+      "sequence": 14,
+      "agent_id": "AGT-04",
+      "agent": "Marina",
+      "function": "Execução e PMO",
+      "activation": "Projetos, cronogramas, dependências, prazos e conclusão.",
+      "microtask": "Converter as definições anteriores em um checklist de tarefa com responsável, revisor, dependência, aceite, próximo handoff e idempotência.",
+      "expected_evidence": "Briefing completo nas oito seções, prioridade, status inicial e nenhuma chamada externa.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-09"
+    },
+    {
+      "sequence": 15,
+      "agent_id": "AGT-09",
+      "agent": "Theo",
+      "function": "Tecnologia e IA",
+      "activation": "Arquitetura, integrações, automações, IA e escalabilidade.",
+      "microtask": "Mapear o caminho Helena → Gateway → Supabase → agente → revisão → Entregas e apontar as verificações técnicas necessárias.",
+      "expected_evidence": "Fluxo técnico, dependências, estados, idempotência e alerta para qualquer integração ausente.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-13"
+    },
+    {
+      "sequence": 16,
+      "agent_id": "AGT-13",
+      "agent": "Bruno",
+      "function": "Qualidade / QA",
+      "activation": "Testes, bugs, aceite e releases.",
+      "microtask": "Verificar cada checkpoint do lote contra o contrato: texto não vazio, evidência, coerência, ausência de ação externa e artefato com tamanho maior que zero quando aplicável.",
+      "expected_evidence": "Matriz de aceite PASS/FAIL por agente e lista explícita de bloqueios; nenhum PASS sem evidência.",
+      "reviewer_id": "AGT-01",
+      "next_agent_id": "AGT-19"
+    },
+    {
+      "sequence": 17,
+      "agent_id": "AGT-19",
+      "agent": "Renata",
+      "function": "Customer Success",
+      "activation": "Ativação, retenção, valor e relacionamento.",
+      "microtask": "Definir como uma pessoa e uma empresa serão ativadas, acompanhadas e consideradas atendidas após a entrega.",
+      "expected_evidence": "Critérios de ativação, valor percebido, acompanhamento e sinal de risco.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-20"
+    },
+    {
+      "sequence": 18,
+      "agent_id": "AGT-20",
+      "agent": "Joana",
+      "function": "Atendimento",
+      "activation": "Suporte, dúvidas, reclamações e experiência diária.",
+      "microtask": "Criar a triagem mínima de dúvidas e reclamações, com escalonamento para Helena quando houver risco ou decisão necessária.",
+      "expected_evidence": "Categorias, resposta inicial segura, SLA proposto e regra de escalonamento.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-21"
+    },
+    {
+      "sequence": 19,
+      "agent_id": "AGT-21",
+      "agent": "Felipe",
+      "function": "Administração",
+      "activation": "Documentos, fornecedores, controles e rotinas administrativas.",
+      "microtask": "Listar os registros administrativos necessários para pessoa, empresa, tarefa, pagamento, documento e evidência.",
+      "expected_evidence": "Checklist documental, dono de cada registro e sinal de documento ausente.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-02"
+    },
+    {
+      "sequence": 20,
+      "agent_id": "AGT-14",
+      "agent": "Olívia",
+      "function": "Operações",
+      "activation": "SOPs, rotina operacional e eficiência.",
+      "microtask": "Transformar o fluxo validado em uma rotina operacional curta, com entrada, saída, responsável, exceção e frequência de acompanhamento.",
+      "expected_evidence": "SOP mínimo, indicadores de rotina e condição de parada quando houver falha ou ausência de evidência.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-02"
+    },
+    {
+      "sequence": 21,
+      "agent_id": "AGT-02",
+      "agent": "Laura",
+      "function": "Comunicação e Desenvolvimento do Fundador",
+      "activation": "Fala, clareza, hábitos, aprendizagem, leitura e desenvolvimento.",
+      "microtask": "Resumir o fluxo em linguagem simples para o fundador, destacando o que ele aprova, o que os agentes executam e onde acompanha.",
+      "expected_evidence": "Resumo curto, decisões pendentes e confirmação do próximo passo sem afirmar execução não comprovada.",
+      "reviewer_id": "AGT-13",
+      "next_agent_id": "AGT-01"
+    }
+  ],
+  "supabase_recording_plan": {
+    "job_state_before_dispatch": "DRAFT",
+    "event_sequence": ["DISPATCHED", "CLAIMED", "STARTED", "PROGRESS", "COMPLETED ou FAILED"],
+    "required_tables": ["agent_jobs", "agent_job_events"],
+    "required_completion_fields": ["result_summary", "evidence_refs", "result_payload"],
+    "never_mark_completed_when": [
+      "result_summary estiver vazio",
+      "evidence_refs estiver vazio",
+      "artefato visual tiver tamanho zero",
+      "a fonte não puder ser localizada",
+      "o agente afirmar que publicou ou contactou sem autorização"
+    ]
+  }
+}

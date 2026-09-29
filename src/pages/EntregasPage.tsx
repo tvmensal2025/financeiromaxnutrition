@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileText, Image, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { CheckCircle2, Clock3, Copy, FileText, Image, LockKeyhole, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { supabase, supabaseUrl } from "@/lib/supabase";
 import { etapaEntrega } from "@/lib/execucoes-comando";
@@ -16,7 +17,7 @@ type Job = {
   approval_required: boolean;
   approval_status: string | null;
   result_summary: string | null;
-  result_payload: { reviewer_agent_id?: string; reviewed_by?: string; review_reason?: string; review_pending?: boolean } | null;
+  result_payload: { reviewer_agent_id?: string; reviewed_by?: string; review_reason?: string; review_pending?: boolean; copy?: string; content?: string; caption?: string; message?: string } | null;
   evidence_refs: string[] | null;
   created_at: string;
   updated_at: string | null;
@@ -27,7 +28,7 @@ type Evidence = { id: string; related_object_id: string; business_id_area: strin
 type Agent = { agent_id: string; agente: string };
 
 const PAGE_SIZE = 80;
-const statuses = ["Todas", "Na fila", "Em produção", "Em revisão", "Ajustes solicitados", "Aprovadas", "Aceite a conferir", "Bloqueadas"] as const;
+const statuses = ["Todas", "Aguardando liberação", "Na fila", "Em produção", "Em revisão", "Ajustes solicitados", "Aprovadas", "Aceite a conferir", "Bloqueadas"] as const;
 type StatusFilter = typeof statuses[number];
 
 function stage(job: Job): StatusFilter {
@@ -42,6 +43,7 @@ function dateTime(value?: string | null) {
 
 export default function EntregasPage() {
   const { currentBusinessId, empresas } = useBusiness();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [evidence, setEvidence] = useState<Evidence[]>([]);
@@ -54,6 +56,7 @@ export default function EntregasPage() {
   const [hasMore, setHasMore] = useState(false);
   const [artifactUrls, setArtifactUrls] = useState<Record<string, string>>({});
   const [artifactError, setArtifactError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const requestVersion = useRef(0);
 
   const load = useCallback(async (more = false) => {
@@ -100,6 +103,13 @@ export default function EntregasPage() {
   useEffect(() => { void load(false); return () => { requestVersion.current++; }; }, [currentBusinessId]);
 
   useEffect(() => {
+    const jobId = searchParams.get("job");
+    if (!jobId) return;
+    const job = jobs.find(item => item.job_id === jobId);
+    if (job && selected?.job_id !== job.job_id) setSelected(job);
+  }, [jobs, searchParams, selected?.job_id]);
+
+  useEffect(() => {
     let active = true;
     setArtifactUrls({});
     setArtifactError(null);
@@ -139,17 +149,67 @@ export default function EntregasPage() {
     return text.includes(query.trim().toLocaleLowerCase("pt-BR"));
   }), [jobs, tasks, agents, empresas, currentBusinessId, query, filter]);
 
+  const counts = useMemo(() => ({
+    total: jobs.length,
+    review: jobs.filter(job => stage(job) === "Em revisão" || stage(job) === "Aceite a conferir").length,
+    approved: jobs.filter(job => stage(job) === "Aprovadas").length,
+    blocked: jobs.filter(job => stage(job) === "Bloqueadas" || stage(job) === "Ajustes solicitados").length,
+  }), [jobs]);
+
+  const contentFor = (job: Job) => {
+    const payload = job.result_payload;
+    return [payload?.copy, payload?.content, payload?.caption, payload?.message, job.result_summary]
+      .find(value => typeof value === "string" && value.trim())?.trim() || "O agente ainda não registrou o texto final desta entrega.";
+  };
+
+  const copiarMaterial = async (job: Job) => {
+    const content = contentFor(job);
+    if (content.startsWith("O agente ainda não")) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        const area = document.createElement("textarea");
+        area.value = content;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const copiado = document.execCommand("copy");
+        area.remove();
+        if (!copiado) throw new Error("Clipboard indisponível");
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const fecharEntrega = () => {
+    setSelected(null);
+    if (searchParams.has("job")) setSearchParams({}, { replace: true });
+  };
+
   return (
     <main className="mx-auto max-w-7xl space-y-6 px-4 py-7 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Sistema Helena / Entregas</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Tudo o que a equipe produziu</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Encontre o pedido, veja a entrega, a evidência e quem revisou. Uma entrega em revisão ainda não está aprovada.</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight">Sua caixa de entregas</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Aqui chega tudo o que a equipe produziu. Abra um cartão para ver o pedido, o material pronto, a revisão e as evidências.</p>
         </div>
         <button className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-medium" onClick={() => void load(false)} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
         </button>
+      </div>
+
+      <div className="he-delivery-summary" aria-label="Resumo das entregas">
+        <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon neutral"><FileText className="h-4 w-4" /></span><span><strong>{counts.total}</strong><small>entregas visíveis</small></span></div>
+        <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon amber"><Clock3 className="h-4 w-4" /></span><span><strong>{counts.review}</strong><small>pedem sua conferência</small></span></div>
+        <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon green"><CheckCircle2 className="h-4 w-4" /></span><span><strong>{counts.approved}</strong><small>aprovadas</small></span></div>
+        <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon rose"><LockKeyhole className="h-4 w-4" /></span><span><strong>{counts.blocked}</strong><small>com bloqueio ou ajuste</small></span></div>
       </div>
 
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -169,8 +229,9 @@ export default function EntregasPage() {
           const task = taskFor(job);
           const phase = stage(job);
           const records = evidenceFor(job);
-          return <button key={job.job_id} type="button" onClick={() => setSelected(job)} className="rounded-2xl border bg-card p-5 text-left shadow-sm transition hover:border-emerald-400 hover:shadow-md">
+           return <button key={job.job_id} type="button" onClick={() => { setSelected(job); setSearchParams({ job: job.job_id }, { replace: true }); }} className="he-delivery-card">
             <div className="flex items-start justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{companyFor(job.business_id)}</span><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${phase === "Aprovadas" ? "bg-emerald-100 text-emerald-800" : phase === "Em revisão" || phase === "Aceite a conferir" ? "bg-amber-100 text-amber-800" : phase === "Ajustes solicitados" || phase === "Bloqueadas" ? "bg-rose-100 text-rose-800" : "bg-muted text-foreground"}`}>{phase}</span></div>
+             <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.13em] text-muted-foreground">Clique para abrir a entrega completa</p>
             <h2 className="mt-3 line-clamp-2 text-lg font-semibold">{task?.tarefa || job.objective || job.job_id}</h2>
             <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{job.result_summary || job.objective || "Aguardando registro da entrega."}</p>
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 text-xs text-muted-foreground"><span>Responsável: {nameFor(job.agent_id)}</span><span>{reviewerFor(job).label}: {reviewerFor(job).name}</span><span>{records.length} registro(s) · {deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).length} arquivo(s)</span><span>{dateTime(job.updated_at || job.created_at)}</span></div>
@@ -179,12 +240,14 @@ export default function EntregasPage() {
       </div>
       {hasMore && <button disabled={loading} onClick={() => void load(true)} className="rounded-xl border bg-card px-4 py-2 text-sm font-medium">Carregar mais entregas</button>}
 
-      {selected && <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setSelected(null)}>
-        <section role="dialog" aria-modal="true" aria-label="Detalhes da entrega" onClick={event => event.stopPropagation()} className="h-full w-full max-w-2xl overflow-y-auto bg-background p-5 shadow-2xl md:p-8">
-          <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{companyFor(selected.business_id)} · {stage(selected)}</p><h2 className="mt-2 text-2xl font-semibold">{taskFor(selected)?.tarefa || selected.objective || selected.job_id}</h2></div><button onClick={() => setSelected(null)} aria-label="Fechar detalhes"><X className="h-5 w-5" /></button></div>
+      {selected && <div className="he-delivery-overlay" onClick={fecharEntrega}>
+        <section role="dialog" aria-modal="true" aria-label="Detalhes da entrega" onClick={event => event.stopPropagation()} className="he-delivery-modal">
+          <div className="he-delivery-modal-head"><div><p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">{companyFor(selected.business_id)} · {stage(selected)}</p><h2 className="mt-2 text-2xl font-semibold">{taskFor(selected)?.tarefa || selected.objective || selected.job_id}</h2><p className="mt-2 max-w-xl text-sm text-muted-foreground">Este é o espaço de conferência: veja o que foi pedido, o que foi produzido e se já existe aprovação.</p></div><button className="he-modal-close" onClick={fecharEntrega} aria-label="Fechar detalhes"><X className="h-5 w-5" /></button></div>
+          <div className="he-delivery-stepper" aria-label={`Etapa atual: ${stage(selected)}`}><span className="done">Pedido</span><span className={stage(selected) === "Aguardando liberação" ? "current" : "done"}>Despacho</span><span className={stage(selected) === "Em produção" || stage(selected) === "Na fila" ? "current" : ["Em revisão", "Ajustes solicitados", "Aprovadas", "Aceite a conferir"].includes(stage(selected)) ? "done" : ""}>Produção</span><span className={stage(selected) === "Em revisão" || stage(selected) === "Ajustes solicitados" ? "current" : stage(selected) === "Aprovadas" ? "done" : ""}>Revisão</span><span className={stage(selected) === "Aprovadas" ? "done" : ""}>Pronto</span></div>
           <div className="mt-5 grid gap-2 rounded-xl border bg-card p-4 text-sm"><p><strong>Responsável:</strong> {nameFor(selected.agent_id)}</p><p><strong>{reviewerFor(selected).label}:</strong> {reviewerFor(selected).name}</p><p><strong>Atualizado:</strong> {dateTime(selected.updated_at || selected.created_at)}</p><p><strong>Pedido:</strong> {selected.objective || "Não informado"}</p><p><strong>Critério de pronto:</strong> {taskFor(selected)?.definicao_de_pronto || "Não registrado"}</p><p className="break-all text-xs text-muted-foreground">Tarefa {selected.task_id || "—"} · Job {selected.job_id}</p></div>
+          <section className="he-copy-ready"><div className="he-section-title"><div><p className="he-eyebrow">MATERIAL PARA USAR</p><h3>Texto pronto para copiar</h3><p>Copie exatamente o conteúdo registrado pela equipe para levar ao Instagram, WhatsApp ou ao canal definido no pedido.</p></div><button type="button" className="he-copy-button" onClick={() => void copiarMaterial(selected)} disabled={contentFor(selected).startsWith("O agente ainda não")}><Copy className="h-4 w-4" />{copied ? "Copiado" : "Copiar texto"}</button></div><textarea readOnly value={contentFor(selected)} aria-label="Texto pronto da entrega" className="he-copy-textarea" /></section>
           <section className="mt-6"><h3 className="flex items-center gap-2 text-lg font-semibold"><FileText className="h-5 w-5" /> Entrega registrada</h3><p className="mt-3 whitespace-pre-wrap rounded-xl border bg-card p-4 text-sm leading-relaxed">{selected.result_summary || "O agente ainda não registrou uma entrega."}</p></section>
-          <section className="mt-6"><h3 className="flex items-center gap-2 text-lg font-semibold"><ShieldCheck className="h-5 w-5" /> Revisão</h3><p className="mt-3 rounded-xl border bg-card p-4 text-sm">{selected.result_payload?.reviewed_by ? `${nameFor(selected.result_payload.reviewed_by)}: ${selected.result_payload.review_reason || "Revisão registrada sem observação."}` : selected.result_payload?.review_pending ? `Aguardando ${reviewerFor(selected).name}.` : `Ainda não enviada para revisão. ${reviewerFor(selected).label}: ${reviewerFor(selected).name}.`}</p></section>
+          <section className="mt-6"><h3 className="flex items-center gap-2 text-lg font-semibold"><ShieldCheck className="h-5 w-5" /> Revisão</h3><p className="mt-3 rounded-xl border bg-card p-4 text-sm">{selected.result_payload?.reviewed_by ? `${nameFor(selected.result_payload.reviewed_by)}: ${selected.result_payload.review_reason || "Revisão registrada sem observação."}` : selected.result_payload?.review_pending ? `Aguardando ${reviewerFor(selected).name}.` : selected.status === "DRAFT" ? "Aguardando liberação da coordenação. O agente ainda não foi chamado." : `Ainda não enviada para revisão. ${reviewerFor(selected).label}: ${reviewerFor(selected).name}.`}</p></section>
           <section className="mt-6"><h3 className="flex items-center gap-2 text-lg font-semibold"><Image className="h-5 w-5" /> Arquivos visuais</h3>
             {artifactError && <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{artifactError}</p>}
             {deliveryArtifacts(selected.evidence_refs, selected.business_id, selected.job_id).length ? <div className="mt-3 grid gap-3 sm:grid-cols-2">{deliveryArtifacts(selected.evidence_refs, selected.business_id, selected.job_id).map(asset => <div key={asset.path} className="rounded-xl border bg-card p-3"><p className="mb-2 text-sm font-semibold">{asset.slot === "post" ? "Post" : `Story ${asset.slot.slice(-1)}`} · versão {asset.version}</p>{artifactUrls[asset.path] ? <><img src={artifactUrls[asset.path]} alt={`Arte ${asset.slot} da entrega`} className="max-h-80 w-full rounded-lg bg-muted object-contain" /><a href={artifactUrls[asset.path]} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-medium text-emerald-700 underline">Abrir arquivo</a></> : <p className="text-sm text-muted-foreground">Carregando ou indisponível.</p>}</div>)}</div> : <p className="mt-3 rounded-xl border bg-card p-4 text-sm text-muted-foreground">Ainda não há arquivos visuais vinculados a esta entrega.</p>}

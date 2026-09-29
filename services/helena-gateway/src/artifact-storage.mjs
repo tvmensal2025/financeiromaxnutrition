@@ -83,6 +83,7 @@ export function renderArtifactSvg(svg, slot) {
     throw new Error('SVG nao pode ser convertido em PNG');
   }
   const dimensions = pngDimensions(bytes);
+  assertArtifactContent(bytes);
   if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) {
     throw new Error(`PNG gerado com dimensoes incorretas: ${dimensions.width}x${dimensions.height}`);
   }
@@ -92,6 +93,7 @@ export function renderArtifactSvg(svg, slot) {
 export async function uploadRenderedArtifact({ job, slot, version, bytes, serviceUrl, serviceKey, fetchImpl = fetch }) {
   if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser enviado por job em execucao');
   const dimensions = pngDimensions(bytes);
+  assertArtifactContent(bytes);
   const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];
   if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) throw new Error('Dimensoes de PNG incorretas para o slot');
   const path = artifactPath(job, slot, version);
@@ -109,6 +111,7 @@ export async function uploadRenderedArtifact({ job, slot, version, bytes, servic
       if (existing.ok) {
         const priorBytes = Buffer.from(await existing.arrayBuffer());
         pngDimensions(priorBytes);
+        assertArtifactContent(priorBytes);
         const priorHash = crypto.createHash('sha256').update(priorBytes).digest('hex');
         const currentHash = crypto.createHash('sha256').update(bytes).digest('hex');
         if (priorHash === currentHash) return { reference: artifactReference(job, slot, version), path, ...dimensions, sha256: currentHash };
@@ -138,6 +141,31 @@ export function pngDimensions(bytes) {
   return { width, height, bytes: bytes.length };
 }
 
+// A valid PNG can still be a blank canvas. Keep the binary/dimension parser
+// generic, but require visible variation before an artifact is uploaded or
+// accepted as evidence for a delivery.
+export function assertArtifactContent(bytes) {
+  if (!Buffer.isBuffer(bytes)) throw new Error('Arquivo PNG vazio ou sem conteudo visual');
+  let image;
+  try {
+    image = PNG.sync.read(bytes);
+  } catch {
+    throw new Error('Arquivo PNG corrompido ou incompleto');
+  }
+  const first = image.data.subarray(0, 4);
+  let visiblePixels = 0;
+  let variedPixels = 0;
+  for (let offset = 0; offset < image.data.length; offset += 4) {
+    if (image.data[offset + 3] > 0) visiblePixels += 1;
+    if (image.data[offset] !== first[0]
+      || image.data[offset + 1] !== first[1]
+      || image.data[offset + 2] !== first[2]
+      || image.data[offset + 3] !== first[3]) variedPixels += 1;
+  }
+  if (!visiblePixels || !variedPixels) throw new Error('Arquivo PNG vazio ou sem conteudo visual');
+  return { visible_pixels: visiblePixels, varied_pixels: variedPixels };
+}
+
 export async function verifyArtifact({ job, slot, version, serviceUrl, serviceKey, fetchImpl = fetch }) {
   if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser validado por job em execucao');
   const path = artifactPath(job, slot, version);
@@ -149,6 +177,7 @@ export async function verifyArtifact({ job, slot, version, serviceUrl, serviceKe
   if (size > MAX_BYTES) throw new Error('Arquivo acima de 5 MB');
   const bytes = Buffer.from(await response.arrayBuffer());
   const dimensions = pngDimensions(bytes);
+  assertArtifactContent(bytes);
   const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];
   if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) throw new Error(`Dimensoes incorretas para ${slot}: ${dimensions.width}x${dimensions.height}`);
   return { reference: artifactReference(job, slot, version), path, slot, version, ...dimensions, sha256: crypto.createHash('sha256').update(bytes).digest('hex') };
