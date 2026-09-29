@@ -22,6 +22,12 @@ O estado operacional encontrado no Supabase foi:
 
 O sistema está preparado para operar, mas a homologação de ponta a ponta ainda está pendente porque nenhum job atual está liberado para despacho. Os arquivos de auditoria antigos mostram tarefas e vínculos históricos; eles não substituem a fila atual.
 
+### Conferência posterior do contexto da Helena
+
+O `get_work_context` do perfil `helena--grupo` retornou 30 tarefas atuais. A leitura mostrou tarefas `CONCLUÍDA`, `EM EXECUÇÃO`, `NÃO INICIADA` e `BLOQUEADA`, incluindo o piloto de captação do Humano Digital e tarefas de estratégia, parceiros, jurídico, tecnologia, produto, QA e conteúdo. Esse contexto comprova que as tarefas estão no núcleo operacional, mas não autoriza despacho automático: cada job precisa passar pela regra de liberação e pelo evento de despacho correspondente.
+
+Também foi confirmado que o despachante remoto continua em modo seguro: consulta a fila sem `--execute` não inicia modelo e `--auto` retorna `NO_APPROVED_READY_JOB` quando não existe job liberado.
+
 ## O que foi implantado
 
 1. Gateway do Hermes publicado no EasyPanel.
