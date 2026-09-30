@@ -130,17 +130,24 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
         upload = call_tool(GATEWAY, token, 'create_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
         parsed = urlparse(upload['upload_url'])
         expected = f'/storage/v1/object/upload/sign/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
-        if parsed.scheme != 'https' or parsed.hostname != 'wxkgrykduqtsgmjkzlou.supabase.co' or parsed.path != expected:
+        legacy = parsed.hostname == 'wxkgrykduqtsgmjkzlou.supabase.co' and parsed.path == expected
+        r2path = f'/helena-media/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
+        r2 = (upload.get('storage_provider') == 'r2'
+              and parsed.hostname == 'ae2b5f97708d13fa7e187cb470aafc40.r2.cloudflarestorage.com'
+              and parsed.path == r2path
+              and upload.get('upload_method') == 'PUT'
+              and upload.get('upload_headers') == {'Content-Type': 'image/png', 'If-None-Match': '*'})
+        if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.port not in (None, 443) or not (legacy or r2):
             raise ValueError('Unexpected upload destination')
         class NoRedirect(urllib.request.HTTPRedirectHandler):
             def redirect_request(self, *args, **kwargs): raise ValueError('Upload redirect refused')
         request = urllib.request.Request(upload['upload_url'], data=png_path.read_bytes(),
-            headers={'Content-Type': 'image/png', 'x-upsert': 'false'}, method='PUT')
+            headers=upload.get('upload_headers') if r2 else {'Content-Type': 'image/png', 'x-upsert': 'false'}, method='PUT')
         try:
             with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
                 if response.status not in (200, 201): raise ValueError('Upload not confirmed')
         except urllib.error.HTTPError as error:
-            if error.code not in (400,409): raise ValueError('Storage upload failed') from None
+            if error.code not in ((409, 412) if r2 else (400, 409)): raise ValueError('Storage upload failed') from None
         result = call_tool(GATEWAY, token, 'verify_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
         stored = call_tool(GATEWAY, token, 'get_visual_asset', {'job_id': job_id, 'reference': result['reference']})
         if stored['sha256'] != hashlib.sha256(png_path.read_bytes()).hexdigest(): raise ValueError('Stored image differs from generated image')

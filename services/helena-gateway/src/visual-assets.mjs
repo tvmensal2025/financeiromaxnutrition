@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { parseArtifactReference, pngDimensions } from './artifact-storage.mjs';
 
-export async function readVisualAsset({ job, reference, brand, verified = [], serviceUrl, serviceKey, fetchImpl = fetch }) {
+export async function readVisualAsset({ job, reference, brand, verified = [], serviceUrl, serviceKey, storage, fetchImpl = fetch }) {
   let path;
   if (reference === 'brand-logo') {
     if (brand?.status !== 'APPROVED' || !brand.logo_approved || brand.business_id !== job.business_id)
@@ -16,6 +16,11 @@ export async function readVisualAsset({ job, reference, brand, verified = [], se
       throw new Error('Imagem nao vinculada e verificada nesta tarefa');
     path = `helena-deliveries/${artifact.path}`;
   }
+  let bytes;
+  if (storage) {
+    const slash = path.indexOf('/');
+    bytes = await storage.read(path.slice(0, slash), path.slice(slash + 1));
+  } else {
   const response = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/authenticated/${path}`, {
     headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, signal: AbortSignal.timeout(15000)
   });
@@ -26,7 +31,9 @@ export async function readVisualAsset({ job, reference, brand, verified = [], se
     if (size > 5 * 1024 * 1024) throw new Error('Arquivo visual excede 5 MB');
     chunks.push(Buffer.from(chunk));
   }
-  const bytes = Buffer.concat(chunks); const dimensions = pngDimensions(bytes);
+  bytes = Buffer.concat(chunks);
+  }
+  const dimensions = pngDimensions(bytes);
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   if (path.startsWith('helena-deliveries/') && !verified.some(record => record.reference === reference && record.sha256 === sha256))
     throw new Error('Imagem mudou apos verificacao; revisao recusada');

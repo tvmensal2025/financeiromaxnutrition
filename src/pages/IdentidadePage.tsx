@@ -4,6 +4,7 @@ import { ArrowLeft, Check, Palette, Save, Upload } from 'lucide-react';
 import { useAuth } from '@/auth';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { supabase } from '@/lib/supabase';
+import { brandPreview, uploadBrand } from '@/lib/media-client';
 import { escreverRegistro } from '@/lib/escrita-protegida';
 import { BRAND_FIELDS, brandMissing, brandSchema, emptyBrand, safeBrandAsset, type BrandIdentity } from '@/lib/brand-identity';
 import humano from '@/data/humano-digital-brand.json';
@@ -17,8 +18,8 @@ function BrandImage({ path, alt, className }: { path: string; alt: string; class
     setUrl('');
     if (!safeBrandAsset(path)) return;
     if (path.startsWith('storage://helena-brand-assets/')) {
-      supabase.storage.from('helena-brand-assets').createSignedUrl(path.replace('storage://helena-brand-assets/', ''), 3600)
-        .then(({ data }) => { if (active) setUrl(data?.signedUrl || ''); }).catch(() => { if (active) setUrl(''); });
+      brandPreview(path)
+        .then(preview => { if (active) setUrl(preview); }).catch(() => { if (active) setUrl(''); });
     } else setUrl(path);
     return () => { active = false; };
   }, [path]);
@@ -85,11 +86,8 @@ export default function IdentidadePage() {
     }
     setBusy(true); setError('');
     try {
-      const ext = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
-      const path = `${selected}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('helena-brand-assets').upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadError) throw uploadError;
-      change({ logo_url: `storage://helena-brand-assets/${path}`, logo_approved: false });
+      const reference = await uploadBrand(selected, file);
+      change({ logo_url: reference, logo_approved: false });
       setMessage('Logo enviado. Confira a imagem, confirme seu uso e salve a identidade.');
     } catch { setError('Não foi possível enviar o logo. O arquivo anterior foi preservado.'); }
     finally { setBusy(false); }

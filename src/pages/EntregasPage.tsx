@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, Clock3, Copy, FileText, Image, LockKeyhole, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
 import { useBusiness } from "@/contexts/BusinessContext";
-import { supabase, supabaseUrl } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { etapaEntrega } from "@/lib/execucoes-comando";
-import { DELIVERY_BUCKET, deliveryArtifacts, isTrustedDeliveryUrl } from "@/lib/entrega-artefatos";
+import { deliveryArtifacts } from "@/lib/entrega-artefatos";
+import { signedMedia } from "@/lib/media-client";
 import { publicationFor, deliveryFor, hasVisualApproval } from "@/lib/publicacao";
 
 type Job = {
@@ -119,18 +120,18 @@ export default function EntregasPage() {
     if (!selected) return () => { active = false; };
     const assets = deliveryArtifacts(selected.evidence_refs, selected.business_id, selected.job_id);
     if (!assets.length) return () => { active = false; };
-    void supabase.storage.from(DELIVERY_BUCKET).createSignedUrls(assets.map(asset => asset.path), 300)
-      .then(({ data, error: signError }) => {
+    void signedMedia(selected.business_id, assets.map(asset => asset.reference), selected.job_id)
+      .then(data => {
         if (!active) return;
-        if (signError || !data) { setArtifactError("Não foi possível abrir os arquivos desta entrega."); return; }
+        if (!data) { setArtifactError("Não foi possível abrir os arquivos desta entrega."); return; }
         const urls: Record<string, string> = {};
         for (const item of data) {
-          if (item.error || !isTrustedDeliveryUrl(item.signedUrl, supabaseUrl) || !item.path) continue;
-          urls[item.path] = item.signedUrl;
+          if (item.error || !item.url || !item.path) continue;
+          urls[item.path] = item.url;
         }
         setArtifactUrls(urls);
         if (Object.keys(urls).length !== assets.length) setArtifactError("Alguns arquivos ainda não estão disponíveis. A entrega precisa de conferência.");
-      });
+      }).catch(() => { if (active) setArtifactError("Não foi possível abrir os arquivos desta entrega. Tente novamente."); });
     return () => { active = false; };
   }, [selected]);
 

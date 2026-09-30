@@ -13,6 +13,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY src/ ./src/
+COPY scripts/migrate-media-r2.mjs ./scripts/migrate-media-r2.mjs
 
 EXPOSE 3000
 

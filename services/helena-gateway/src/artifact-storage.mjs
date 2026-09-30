@@ -30,9 +30,10 @@ function serviceHeaders(key) {
   return { apikey: key, Authorization: `Bearer ${key}` };
 }
 
-export async function createArtifactUpload({ job, slot, version, serviceUrl, serviceKey, fetchImpl = fetch }) {
+export async function createArtifactUpload({ job, slot, version, serviceUrl, serviceKey, storage, fetchImpl = fetch }) {
   if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser enviado por job em execucao');
   const path = artifactPath(job, slot, version);
+  if (storage?.provider === 'r2') return { reference: artifactReference(job, slot, version), path, content_type: 'image/png', max_bytes: MAX_BYTES, ...await storage.signUpload(ARTIFACT_BUCKET, path) };
   const base = serviceUrl.replace(/\/$/, '');
   const response = await fetchImpl(`${base}/storage/v1/object/upload/sign/${ARTIFACT_BUCKET}/${path}`, {
     method: 'POST', headers: { ...serviceHeaders(serviceKey), 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(10000)
@@ -103,13 +104,17 @@ export function renderArtifactSvg(svg, slot) {
   return { png: bytes, ...dimensions };
 }
 
-export async function uploadRenderedArtifact({ job, slot, version, bytes, serviceUrl, serviceKey, fetchImpl = fetch }) {
+export async function uploadRenderedArtifact({ job, slot, version, bytes, serviceUrl, serviceKey, storage, fetchImpl = fetch }) {
   if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser enviado por job em execucao');
   const dimensions = pngDimensions(bytes);
   assertArtifactContent(bytes);
   const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];
   if (dimensions.width !== expected[0] || dimensions.height !== expected[1]) throw new Error('Dimensoes de PNG incorretas para o slot');
   const path = artifactPath(job, slot, version);
+  if (storage?.provider === 'r2') {
+    const result = await storage.put(ARTIFACT_BUCKET, path, bytes, 'image/png');
+    return { reference: artifactReference(job, slot, version), path, ...dimensions, sha256: result.sha256 };
+  }
   const response = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/${ARTIFACT_BUCKET}/${path}`, {
     method: 'POST', headers: { ...serviceHeaders(serviceKey), 'Content-Type': 'image/png', 'x-upsert': 'false' },
     body: bytes, signal: AbortSignal.timeout(15000)
@@ -179,16 +184,20 @@ export function assertArtifactContent(bytes) {
   return { visible_pixels: visiblePixels, varied_pixels: variedPixels };
 }
 
-export async function verifyArtifact({ job, slot, version, serviceUrl, serviceKey, fetchImpl = fetch }) {
+export async function verifyArtifact({ job, slot, version, serviceUrl, serviceKey, storage, fetchImpl = fetch }) {
   if (job.status !== 'RUNNING') throw new Error('Arquivo so pode ser validado por job em execucao');
   const path = artifactPath(job, slot, version);
-  const response = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/authenticated/${ARTIFACT_BUCKET}/${path}`, {
-    headers: serviceHeaders(serviceKey), signal: AbortSignal.timeout(15000)
-  });
-  if (!response.ok) throw new Error(`Arquivo nao encontrado no Supabase (HTTP ${response.status})`);
-  const size = Number(response.headers.get('content-length'));
-  if (size > MAX_BYTES) throw new Error('Arquivo acima de 5 MB');
-  const bytes = Buffer.from(await response.arrayBuffer());
+  let bytes;
+  if (storage) bytes = await storage.read(ARTIFACT_BUCKET, path, { allowLegacy: false });
+  else {
+    const response = await fetchImpl(`${serviceUrl.replace(/\/$/, '')}/storage/v1/object/authenticated/${ARTIFACT_BUCKET}/${path}`, {
+      headers: serviceHeaders(serviceKey), signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) throw new Error(`Arquivo nao encontrado (HTTP ${response.status})`);
+    const size = Number(response.headers.get('content-length'));
+    if (size > MAX_BYTES) throw new Error('Arquivo acima de 5 MB');
+    bytes = Buffer.from(await response.arrayBuffer());
+  }
   const dimensions = pngDimensions(bytes);
   assertArtifactContent(bytes);
   const expected = slot === 'post' ? [1080, 1350] : [1080, 1920];

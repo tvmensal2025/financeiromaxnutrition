@@ -11,6 +11,8 @@ import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
  */
 
 import express from 'express';
+import { createMediaStorage } from './media-storage.mjs';
+import { createMediaRouter } from './routes/media.mjs';
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -34,6 +36,7 @@ const PUBLIC_HOST = process.env.PUBLIC_HOST || 'helena-automation-helena-gateway
 
 const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://wxkgrykduqtsgmjkzlou.supabase.co').replace(/\/$/, '');
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const mediaStorage = createMediaStorage({ serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, fetchImpl: (...args) => fetch(...args) });
 
 const SUPABASE_AUTH_ISSUER = 'https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1';
 const SUPABASE_JWKS_URL = 'https://wxkgrykduqtsgmjkzlou.supabase.co/auth/v1/.well-known/jwks.json';
@@ -856,7 +859,7 @@ const TOOLS_CONFIG = {
       const companies = reference === 'brand-logo' ? await supabaseFetch(`/rest/v1/portfolio?business_id=eq.${encodeURIComponent(job.business_id)}&select=brand_identity&limit=1`) : [];
       const events = reference !== 'brand-logo' ? await supabaseFetch(`/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&event_type=eq.ARTIFACT_VERIFIED&select=payload&limit=20`) : [];
       const result = await readVisualAsset({ job, reference, brand: companies?.[0]?.brand_identity,
-        verified: events.map(event => event.payload), serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+        verified: events.map(event => event.payload), serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, storage: mediaStorage });
       if (identity?.agentId && reference !== 'brand-logo') {
         const eventHash = crypto.createHash('sha256').update(`${job_id}:${identity.agentId}:${result.sha256}`).digest('hex').slice(0, 32);
         const eventId = [eventHash.slice(0,8), eventHash.slice(8,12), eventHash.slice(12,16), eventHash.slice(16,20), eventHash.slice(20)].join('-');
@@ -878,8 +881,8 @@ const TOOLS_CONFIG = {
       if (!job || job.agent_id !== agent_id || job.business_id !== business_id || job.status !== 'RUNNING') throw new Error('Job nao autorizado para arquivo');
       if (svg !== undefined) {
         const rendered = renderArtifactSvg(svg, slot);
-        const uploaded = await uploadRenderedArtifact({ job, slot, version, bytes: rendered.png, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
-        const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+        const uploaded = await uploadRenderedArtifact({ job, slot, version, bytes: rendered.png, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, storage: mediaStorage });
+        const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, storage: mediaStorage });
         if (verified.sha256 !== uploaded.sha256 || verified.bytes !== uploaded.bytes) throw new Error('PNG armazenado difere dos bytes gerados');
         await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', {
           method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
@@ -888,7 +891,7 @@ const TOOLS_CONFIG = {
         });
         return { reference: verified.reference, slot, version, width: verified.width, height: verified.height, bytes: verified.bytes, sha256: verified.sha256, verified: true };
       }
-      return createArtifactUpload({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+      return createArtifactUpload({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, storage: mediaStorage });
     }
   },
   verify_artifact_upload: {
@@ -898,7 +901,7 @@ const TOOLS_CONFIG = {
       const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
       const job = Array.isArray(jobs) ? jobs[0] : null;
       if (!job || job.agent_id !== agent_id || job.business_id !== business_id || job.status !== 'RUNNING') throw new Error('Job nao autorizado para arquivo');
-      const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+      const verified = await verifyArtifact({ job, slot, version, serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, storage: mediaStorage });
       await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', {
         method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
         body: JSON.stringify({ event_id: artifactEventId(verified.reference), job_id, agent_id, business_id,
@@ -1274,6 +1277,8 @@ app.use(createIntegrationsRouter({ supabaseFetch,
   profileStore: SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createProfileStore(supabaseFetch) : null,
   authenticateUser: createVoiceAdminAuth({ fallback: authenticateMcp }) }));
 
+app.use(createMediaRouter({ storage: mediaStorage, authenticateUser: authenticateMcp, read: supabaseFetch }));
+
 // Helpers de OAuth 2.1 Protected Resource Metadata
 function getResourceHost(req) {
   return process.env.PUBLIC_HOST || req.headers.host || 'helena-automation-helena-gateway.d9v63q.easypanel.host';
@@ -1433,6 +1438,7 @@ app.get('/health', async (req, res) => {
     design_generation: 'HERMES_CODEX_IMAGE_WITH_PREFLIGHT',
     delivery_submission: 'submit-work-v1',
     visual_inspection: 'scoped-pixels-v1',
+    media_storage: mediaStorage.status(),
     typesafe: typeSafe.publicStatus(),
     oauth: oauthOk,
     mcp: true
