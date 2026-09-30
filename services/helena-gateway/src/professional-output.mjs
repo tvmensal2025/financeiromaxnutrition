@@ -15,8 +15,8 @@ export const professionalDeliverySchema = z.object({
   limitations: z.string().trim().min(20).max(1500),
   acceptance_checks: z.array(z.object({
     criterion: z.string().trim().min(15).max(300),
-    evidence_ref: z.string().trim().min(1).max(500),
-    finding: z.string().trim().min(30).max(1200)
+    evidence_ref: z.string().trim().min(1).max(500).describe('Copie literalmente UM item de evidence_refs. Para uma entrega textual, use o memory_id devolvido por record_memory. Nunca invente delivery:..., combine IDs ou use o ID da tarefa como referencia. O trecho que comprova o criterio pertence a finding.'),
+    finding: z.string().trim().min(30).max(1200).describe('Explique o trecho ou fato concreto que comprova este criterio na evidencia referenciada. Nao substitui evidence_ref.')
   }).strict()).min(1).max(8)
 }).strict();
 
@@ -33,8 +33,14 @@ export function validateProfessionalDelivery(delivery, refs) {
   if (/storage:\/\/|JOB-HR-|MEM-HR-|SHA-?256|verified\s*=|```/i.test(`${parsed.title}\n${parsed.content}`))
     throw new Error('Material para o fundador contem dados internos; separe o conteudo utilizavel do resumo tecnico');
   const criteria = parsed.acceptance_checks.map(check => check.criterion);
-  if (new Set(criteria).size !== criteria.length || parsed.acceptance_checks.some(check => !refs?.includes(check.evidence_ref)))
-    throw new Error('Cada criterio deve ser unico e apontar para uma evidencia desta entrega');
+  if (new Set(criteria).size !== criteria.length)
+    throw new Error('ACCEPTANCE_CRITERIA_DUPLICATED: cada criterion deve ser unico; combine criterios repetidos antes de reenviar.');
+  const invalid = parsed.acceptance_checks.filter(check => !refs?.includes(check.evidence_ref));
+  if (invalid.length)
+    throw new Error('EVIDENCE_REFERENCE_MISMATCH: acceptance_checks[].evidence_ref deve copiar literalmente UM item de evidence_refs. '
+      + 'Nao use IDs de tarefas, varios IDs juntos ou ancoras delivery:... . Descreva o trecho comprobatório em finding. '
+      + 'Referencias enviadas em evidence_refs: ' + JSON.stringify(refs || [])
+      + '. Valores invalidos: ' + JSON.stringify([...new Set(invalid.map(check => check.evidence_ref))]));
   return parsed;
 }
 

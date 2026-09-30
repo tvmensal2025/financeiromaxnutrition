@@ -20,6 +20,7 @@ test('contexto usa RPC compacto e consultável sem misturar o payload legado', a
 });
 test('entrega exige referencia nao vazia e versao segura; rejeita campos extras', () => {
   const tools = workflowTools(() => {});
+  assert.match(tools.submit_delivery.inputSchema.properties.delivery.properties.acceptance_checks.items.properties.evidence_ref.description,/memory_id devolvido por record_memory/);
   const delivery = { job_id: 'j', expected_task_version: 1, idempotency_key: 'k', summary: 'feito', evidence_refs: ['ref'], delivery:sampleDelivery('ref') };
   assert.ok(tools.submit_delivery.schema.safeParse(delivery).success);
   for (const change of [{ evidence_refs: [' '] }, { evidence_refs: [] }, { expected_task_version: 0 }, { expected_task_version: 1.1 }, { agent_id: 'AGT-01' }]) {

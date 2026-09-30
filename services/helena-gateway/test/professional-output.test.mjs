@@ -21,7 +21,18 @@ test('Resultado sem conteudo utilizavel ou com evidencia emprestada e recusado',
   assert.equal(validateProfessionalDelivery(delivery,['MEM-HR-1']).schema_version,1);
   assert.throws(()=>validateProfessionalDelivery(undefined,['MEM-HR-1']),/exige delivery/);
   assert.throws(()=>validateProfessionalDelivery({...delivery,content:'verified=true, SHA256 da arte conferido.'},['MEM-HR-1']),/dados internos/);
-  assert.throws(()=>validateProfessionalDelivery(delivery,['ref-alheia']),/evidencia/);
+  assert.throws(()=>validateProfessionalDelivery(delivery,['ref-alheia']),/EVIDENCE_REFERENCE_MISMATCH/);
+});
+test('referencia incorreta explica como corrigir sem inventar ou aprovar evidencia',()=>{
+  const delivery=sampleDelivery();
+  delivery.acceptance_checks[0].evidence_ref='delivery:plano:secao-1';
+  assert.throws(()=>validateProfessionalDelivery(delivery,['MEM-HR-1']), error=>
+    error.message.includes('EVIDENCE_REFERENCE_MISMATCH') && error.message.includes('MEM-HR-1')
+    && error.message.includes('delivery:plano:secao-1') && error.message.includes('finding'));
+  delivery.acceptance_checks[0].evidence_ref='MEM-HR-1';
+  assert.equal(validateProfessionalDelivery(delivery,['MEM-HR-1']).schema_version,1);
+  delivery.acceptance_checks.push({...delivery.acceptance_checks[0]});
+  assert.throws(()=>validateProfessionalDelivery(delivery,['MEM-HR-1']),/ACCEPTANCE_CRITERIA_DUPLICATED/);
 });
 test('Parecer generico ou sobre versao diferente nao aprova a entrega',()=>{
   const delivery = sampleDelivery(); const review = sampleQuality(delivery);

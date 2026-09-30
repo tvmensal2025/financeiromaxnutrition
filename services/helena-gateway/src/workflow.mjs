@@ -31,6 +31,11 @@ const contracts = {
 export const WORKFLOW_TOOLS = new Set(Object.keys(contracts));
 
 function property(field) {
+  const schema = propertyShape(field);
+  return field.description ? { ...schema, description: field.description } : schema;
+}
+
+function propertyShape(field) {
   if (field instanceof z.ZodOptional) return property(field.unwrap());
   if (field instanceof z.ZodBoolean) return { type: 'boolean' };
   if (field instanceof z.ZodLiteral) return { type: typeof field.value, const: field.value };
