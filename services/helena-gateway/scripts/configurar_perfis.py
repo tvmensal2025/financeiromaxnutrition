@@ -22,7 +22,7 @@ PROFILES = ['helena--grupo', 'laura--pessoal', 'augusto--biz003', 'marina--biz00
 URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host/mcp'
 KEY = 'HELENA_GATEWAY_PROFILE_TOKEN'
 TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'claim_job',
-         'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
+         'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'submit_work', 'get_visual_asset', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block', 'revise_task_brief']
 EXECUTOR_TOOLS = [name for name in TOOLS if name not in ('create_task_job', 'release_job')]
@@ -48,7 +48,7 @@ Este bloco substitui instrucao antiga conflitante de Grok ou conclusao direta.
 4. Antes de executar: get_job, claim_job e start_job. Sem aceite confirmado, nao execute.
 5. Registre somente marcos relevantes com record_progress: acao, motivo de negocio, fonte e proximo passo. Sem raciocinio privado, polling por IA ou relatos vazios.
 6. Use record_memory para um registro duravel com fonte. Dados ainda nao conferidos permanecem relatos, sem virar fatos validados.
-7. Entregue com submit_delivery, evidence_refs e expected_task_version obtida em get_job. Nao use complete_job para se autoaprovar.
+7. Prefira submit_work: delivery completo, acceptance_checks com criterion e finding, source e expected_task_version de get_job. O Gateway registra memoria e vincula evidencias; nao invente IDs. Arquivos exigem artifact_refs verificados e publication. Nao use complete_job para se autoaprovar.
 8. O revisor consulta pending_reviews em get_work_context, abre get_job e decide com review_delivery. Helena supervisiona todas as empresas. Autoaprovacao proibida.
 9. Apos aprovacao, handoff_task cria a tarefa do proximo responsavel e o vinculo da evidencia, em DRAFT. Marina/Helena libera com release_job. Isso ainda nao inicia o modelo.
 10. Conflito de versao: releia e compare; nao troque a versao cegamente. Reenvio identico usa a mesma idempotency_key; conteudo diferente exige nova decisao.

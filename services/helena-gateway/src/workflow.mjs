@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { workSubmissionShape, submitWork } from './work-submission.mjs';
 import { validateBriefStructure, validateDraftBrief, validateProfessionalBrief } from './brief-contract.mjs';
 import { publicationSchema, visualReviewSchema, validatePublication, validateVisualReview } from './publication-contract.mjs';
 import { validateCreativeBrief, validateRequestedArtifacts, validateBrandForDesign } from './creative-brief.mjs';
@@ -10,6 +11,7 @@ const job = { job_id: text(120), idempotency_key: key };
 const version = { expected_task_version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) };
 const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000) };
 const contracts = {
+  submit_work: ['submit_work', workSubmissionShape, 'Entrega completa em uma chamada: envie delivery com title, content, next_steps, limitations e acceptance_checks com criterion e finding. O Gateway cria a memoria e suas referencias automaticamente. Para imagens inclua artifact_refs verificados e publication. Reenvie exatamente os mesmos argumentos e chave se a conexao falhar. Aguarda revisao independente; nao aprova nem publica.'],
   resolve_job_block: ['resolve_job_block', { ...job, ...version, reason: text() }, 'Helena ou Marina registra a solucao de um bloqueio por decisao e devolve o mesmo job a DRAFT. Nao aprova entrega, nao inicia modelo e preserva limite de tentativas.'],
   revise_task_brief: ['revise_task_brief', {
     job_id: text(120), idempotency_key: key, ...version,
@@ -55,6 +57,7 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
       let typesafe;
       let releaseDetail;
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
+      if (action === 'submit_work') return submitWork(rpc, args, identity);
       if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
       if (['create_task', 'handoff'].includes(action) && args.target_agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(args.objective || ''))
         validateCreativeBrief(args.instruction, args.business_id);
@@ -128,6 +131,12 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
           validatePublication(context.job.result_payload.publication);
           if (!args.visual_review) throw new Error('Aprovacao exige revisao visual dos arquivos finais, nao apenas dimensoes');
           validateVisualReview(args.visual_review, context.artifact_records);
+          for (const artifact of context.artifact_records) {
+            if (!artifact.sha256 || !context.events?.some(event => event.event_type === 'VISUAL_ASSET_OPENED'
+              && event.agent_id === identity.agentId && event.job_id === args.job_id
+              && event.payload?.reference === artifact.reference && event.payload?.sha256 === artifact.sha256))
+              throw new Error('Abra cada imagem final com get_visual_asset antes de aprovar; falta registro de pixels para este revisor');
+          }
         }
       }
       const result = action === 'context'

@@ -18,6 +18,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
 import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
+import { readVisualAsset, toolResultContent } from './visual-assets.mjs';
 import { artifactEventId, createArtifactUpload, parseArtifactReference, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
 import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs';
@@ -244,8 +245,8 @@ PROTOCOLO OPERACIONAL HERMES V2:
 1. Consulte get_work_context e get_job para confirmar perfil, empresa, tarefa e estado atual.
 2. Se o job ainda estiver READY, use claim_job e start_job; confirme RUNNING antes de trabalhar. Se um despachante já fez essas chamadas, não as repita.
 3. Execute só no seu escopo e registre marcos reais em record_progress: ação, motivo, fonte e próximo passo.
-4. Registre a entrega durável em record_memory com fonte e grau de confirmação.
-5. Use submit_delivery com evidence_refs e expected_task_version lida em get_job. Aguarde review_delivery do revisor; o executor não se autoaprova.
+4. Registre a entrega com submit_work: source, summary, delivery completo e criterios com criterion e finding. O Gateway cria a memoria duravel e vincula suas referencias automaticamente.
+5. Inclua expected_task_version lida em get_job; imagens exigem artifact_refs verificados e publication. Aguarde review_delivery do revisor; o executor não se autoaprova.
 6. Somente após aprovação, handoff_task pode criar a tarefa do próximo responsável em DRAFT; a coordenação a libera separadamente.
 7. Se houver bloqueio, use waiting_helena ou fail_job. Não reinicie o modelo automaticamente.
 8. Não use complete_job no fluxo Hermes. Não afirme conclusão sem gravação, revisão e leitura confirmadas no Supabase.`;
@@ -468,7 +469,7 @@ async function handleGetJob({ job_id, ...readOptions }) {
   const artifactRecords = artifactRefs.flatMap(ref => {
     const parsed = parseArtifactReference(ref, job);
     const event = Array.isArray(artifactEvents) && artifactEvents.find(item => item.payload?.reference === ref && item.payload?.path === parsed?.path);
-    return parsed && event ? [{ ...parsed, width: event.payload.width, height: event.payload.height, bytes: event.payload.bytes, verified_at: event.created_at }] : [];
+    return parsed && event ? [{ ...parsed, width: event.payload.width, height: event.payload.height, bytes: event.payload.bytes, sha256: event.payload.sha256, verified_at: event.created_at }] : [];
   });
   const evidenceMissing = [
     ...memoryIds.filter(id => !evidenceRecords.some(record => record.id === id)),
@@ -846,6 +847,27 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
   ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate, typeSafe.recordReleaseRoute),
+  get_visual_asset: {
+    description: 'Abre os pixels reais de um PNG verificado desta tarefa ou seu brand-logo aprovado. Acesso restrito ao executor, coordenacao ou revisor designado. Inspecione texto, logo, cores, personagem e composicao antes de aprovar; metadados nao comprovam qualidade.',
+    schema: z.object({ job_id: z.string().min(1).max(120), reference: z.string().min(1).max(500) }).strict(),
+    handler: async ({ job_id, reference }, { identity } = {}) => {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+      const job = jobs?.[0]; if (!job) throw new Error('Job inexistente');
+      const companies = reference === 'brand-logo' ? await supabaseFetch(`/rest/v1/portfolio?business_id=eq.${encodeURIComponent(job.business_id)}&select=brand_identity&limit=1`) : [];
+      const events = reference !== 'brand-logo' ? await supabaseFetch(`/rest/v1/agent_job_events?job_id=eq.${encodeURIComponent(job_id)}&event_type=eq.ARTIFACT_VERIFIED&select=payload&limit=20`) : [];
+      const result = await readVisualAsset({ job, reference, brand: companies?.[0]?.brand_identity,
+        verified: events.map(event => event.payload), serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
+      if (identity?.agentId && reference !== 'brand-logo') {
+        const eventId = 'VIS-' + crypto.createHash('sha256').update(`${job_id}:${identity.agentId}:${result.sha256}`).digest('hex').slice(0, 32);
+        await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({
+          event_id: eventId, job_id, agent_id: identity.agentId, business_id: job.business_id,
+          event_type: 'VISUAL_ASSET_OPENED', status: job.status, message: 'Pixels disponibilizados para inspecao visual; nao representa aprovacao',
+          payload: { reference, sha256: result.sha256, width: result.width, height: result.height }
+        }) });
+      }
+      return result;
+    }
+  },
   create_artifact_upload: {
     description: 'Maya: com job_id, slot e version prepara URL privada de upload legado; se enviar tambem svg (ate 35 KB), converte em PNG 1080x1350/1080x1920, envia ao bucket privado sem sobrescrever, relê bytes e registra ARTIFACT_VERIFIED. SVG ativo/externo é recusado. Nunca publica a arte.',
     schema: z.object({ job_id: z.string().min(1), slot: z.enum(['post','story-1','story-2','story-3']), version: z.number().int().min(1).max(5), svg: z.string().min(1).max(35_000).optional() }).strict(),
@@ -1038,6 +1060,7 @@ const mcpInputs = {
   }, ['job_id', 'idempotency_key', 'expected_task_version', 'expected_job_updated_at', 'instruction', 'definition_of_done', 'revision_summary']),
   create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 }, svg: { type: 'string', minLength: 1, maxLength: 35000 } }, ['job_id','slot','version']),
   verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
+  get_visual_asset: inputObject(textFields('job_id reference'), ['job_id', 'reference']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
   record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),
   get_job: inputObject({ ...textFields('job_id'), view: { type: 'string', enum: ['full', 'manifest', 'page'] }, section: { type: 'string', enum: JOB_SECTIONS }, offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 256, maximum: 4000 }, revision: { type: 'string', minLength: 64, maxLength: 64 } }, ['job_id']),
@@ -1065,7 +1088,7 @@ for (const [name, def] of Object.entries(TOOLS_CONFIG)) {
     try {
       const result = await executeAuthorizedTool(name, args, null);
       return {
-        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        content: toolResultContent(name, result)
       };
     } catch (err) {
       return {
@@ -1078,8 +1101,8 @@ for (const [name, def] of Object.entries(TOOLS_CONFIG)) {
 
 async function executeAuthorizedTool(name, args, identity) {
   const authorized = await authorizeGatewayTool(name, args, identity, supabaseFetch);
-  if (name === 'submit_delivery') {
-    const artifactRefs = args.evidence_refs.filter(ref => ref.startsWith('storage://'));
+  if (name === 'submit_delivery' || name === 'submit_work') {
+    const artifactRefs = (name === 'submit_work' ? args.artifact_refs || [] : args.evidence_refs).filter(ref => ref.startsWith('storage://'));
     if (artifactRefs.length) {
       const jobs = await supabaseFetch(`/rest/v1/agent_jobs?job_id=eq.${encodeURIComponent(args.job_id)}&limit=1`);
       const job = Array.isArray(jobs) ? jobs[0] : null;
@@ -1406,7 +1429,9 @@ app.get('/health', async (req, res) => {
     runtime_access: 'hermes-scoped-v1',
     workflow_version: 'hermes-workflow-v2',
     quality_version: QUALITY_VERSION,
-    design_generation: 'ORIGINAL_ILLUSTRATION_ONLY',
+    design_generation: 'HERMES_CODEX_IMAGE_WITH_PREFLIGHT',
+    delivery_submission: 'submit-work-v1',
+    visual_inspection: 'scoped-pixels-v1',
     typesafe: typeSafe.publicStatus(),
     oauth: oauthOk,
     mcp: true
@@ -1573,12 +1598,7 @@ app.post('/mcp', authenticateMcp, async (req, res) => {
         jsonrpc: '2.0',
         id,
         result: {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(executionResult, null, 2)
-            }
-          ]
+          content: toolResultContent(toolName, executionResult)
         }
       });
     } catch (err) {

@@ -9,7 +9,7 @@ def required_tools(profile):
     if profile == 'laura--pessoal':
         return {'get_work_context'}
     required = {'get_work_context', 'get_job', 'claim_job', 'start_job',
-                'record_progress', 'record_memory', 'submit_delivery',
+                'record_progress', 'record_memory', 'submit_delivery', 'submit_work', 'get_visual_asset',
                 'review_delivery', 'handoff_task', 'fail_job', 'waiting_helena'}
     if profile in ('marina--biz003', 'helena--grupo'):
         required.update({'create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief'})
@@ -38,8 +38,14 @@ def inspect_tools(profile, found):
 def main() -> int:
     from tools.mcp_tool_discovery import discover_mcp_tools
     # The CLI's --toolsets filter takes configured server names, without mcp-.
-    found = discover_mcp_tools(allowed_mcp_names=["helena_operacao"])
-    report = inspect_tools(Path(os.environ.get('HERMES_HOME', '')).name, found)
+    profile = Path(os.environ.get('HERMES_HOME', '')).name
+    found = discover_mcp_tools(allowed_mcp_names=["helena_operacao"] + (["helena_visual"] if profile == 'maya--biz003' else []))
+    report = inspect_tools(profile, found)
+    if profile == 'maya--biz003':
+        from hermes_visual import load_provider
+        ready = 'mcp__helena_visual__generate_design' in found and load_provider().is_available()
+        report['image_provider_ready'] = bool(ready)
+        report['ready'] = report['ready'] and bool(ready)
     print(json.dumps(report))
     return 0 if report['ready'] else 1
 

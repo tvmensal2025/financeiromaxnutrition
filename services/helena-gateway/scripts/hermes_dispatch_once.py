@@ -242,11 +242,12 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "O contexto valido deve ter context_version hermes-context-v2 e truncated false. "
         "Se estiver ausente, truncado ou em versao diferente, nao avance nem repita um bloqueio antigo: "
         "use fail_job com error_code CONTEXT_UNAVAILABLE e descreva a falha objetiva. "
-        + ("Para cada PNG, chame create_artifact_upload com job_id, slot, version e svg vetorial original (ate 35 KB) nas dimensoes exigidas; sem URLs, imagens externas ou scripts. O Gateway renderiza, envia e verifica o arquivo privado. Registre cada referencia retornada como evidencia. " if profile == "maya--biz003" else "")
+        + ("Para GENERATED_IMAGE use helena_visual.generate_design com job_id, slot, version e design_note detalhado da peca: copy exata aprovada, personagem, cena, composicao, fontes, cores e CTA. O adaptador gera imagem nativa, aplica o logo aprovado e envia PNG privado. Para ORIGINAL_ILLUSTRATION use create_artifact_upload com svg vetorial completo. Nao troque o metodo do briefing. Abra cada resultado com get_visual_asset e confira os pixels antes de entregar. Uma falha de geracao nao autoriza tentar outra versao: registre o bloqueio. " if profile == "maya--biz003" else "")
         +
-        "Registre marcos reais em record_progress, memoria e fonte em record_memory e entregue com submit_delivery "
+        "Registre marcos reais em record_progress. Para entregar use submit_work em uma chamada com source, summary, "
+        "job_id, idempotency_key estavel e expected_task_version atual. O Gateway registra memoria e vincula evidencias. "
         "incluindo delivery: schema_version=1, title, content utilizavel sem dados internos, next_steps, limitations "
-        "e acceptance_checks (criterion, evidence_ref da entrega, finding concreto). A aprovacao independente "
+        "e acceptance_checks (criterion e finding concreto, sem inventar evidence_ref). Arte inclui artifact_refs retornados pela verificacao. A aprovacao independente "
         "exige quality_review comparando todas as evidencias e criterios ao pedido completo. "
         "separando resumo interno de material publico. Para artes, envie publication com title, caption pronta, "
         "strategy, instructions e alt_text. Leia direcao-arte: empresa, publico, fontes, personagem/produto, "
@@ -284,7 +285,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "helena_operacao", "--max-turns", "24"]
+                 "--toolsets", "helena_operacao,helena_visual" if profile == 'maya--biz003' else "helena_operacao", "--max-turns", "24"]
                 + (["--model", model_override] if model_override else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
@@ -450,9 +451,9 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
         if route.get("model"):
-            outcome = run_agent(resolved_binary, profile, job_id, 300, profile_token, root / profile, route["model"])
+            outcome = run_agent(resolved_binary, profile, job_id, 900 if profile == 'maya--biz003' else 300, profile_token, root / profile, route["model"])
         else:
-            outcome = run_agent(resolved_binary, profile, job_id, 300, profile_token, root / profile)
+            outcome = run_agent(resolved_binary, profile, job_id, 900 if profile == 'maya--biz003' else 300, profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except (OSError, ValueError, GatewayRefusal):
         exit_code, diagnostic = 125, "PROCESS_START"

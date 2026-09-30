@@ -27,7 +27,7 @@ export async function resolveHermesToken(token, read, configured = '[]') {
   } catch { return null; } // Database unavailable is never authentication success.
 }
 
-const JOB_TOOLS = new Set(['get_job', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
+const JOB_TOOLS = new Set(['get_job', 'get_visual_asset', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
 const ARTIFACT_TOOLS = new Set(['create_artifact_upload', 'verify_artifact_upload']);
 const MANAGEMENT = new Set(['AGT-01', 'AGT-04']);
 const fail = message => { throw new Error(message); };
@@ -75,10 +75,10 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
       if (binding.agent_id !== 'AGT-04') fail('Somente Marina pode despachar');
       if (args.dispatcher_agent_id && args.dispatcher_agent_id !== binding.agent_id) fail('Despachante difere da identidade autenticada');
       args.dispatcher_agent_id = binding.agent_id;
-    } else if (!(name === 'get_job' && (manager || job.result_payload?.reviewer_agent_id === binding.agent_id))) {
+    } else if (!(['get_job', 'get_visual_asset'].includes(name) && (manager || job.result_payload?.reviewer_agent_id === binding.agent_id))) {
       if (job.agent_id !== binding.agent_id) fail('Job pertence a outro agente');
       if (args.agent_id && args.agent_id !== binding.agent_id) fail('Agente difere da identidade autenticada');
-      if (name !== 'get_job') args.agent_id = binding.agent_id;
+      if (!['get_job', 'get_visual_asset'].includes(name)) args.agent_id = binding.agent_id;
     }
   } else if (name === 'list_ready_jobs' || name === 'queue_summary') {
     if (!group) {

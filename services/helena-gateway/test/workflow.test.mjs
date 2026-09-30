@@ -197,7 +197,13 @@ test('entrega visual da Maya exige os formatos pedidos, pacote publicavel e revi
   job.result_payload = { delivery,publication: {title:'Humano Digital',caption:'Conheça novas formas de trabalhar com tecnologia.',strategy:'Apresentar o projeto com clareza para despertar interesse qualificado.',instructions:'Publique apenas após conferir o canal e a autorização.',alt_text:'Pessoa trabalhando ao lado de uma representação da inteligência artificial.'} };
   await assert.rejects(tools.review_delivery.handler(input, { identity }), /revisao visual/);
   context.artifact_records.forEach(a => { a.reference = `storage://helena-deliveries/BIZ-003/JOB-MAYA/${a.slot}-v1.png`; });
-  input.visual_review = { inspected_references: context.artifact_records.map(a => a.reference), findings: 'Conferi cada imagem final: título legível, pessoa e cenário coerentes, logo correto, cores da marca e chamada para ação com bom contraste.', text_readable: true, brand_matches: true, copy_matches: true, composition_approved: true };
+    input.visual_review = { inspected_references: context.artifact_records.map(a => a.reference), findings: 'Conferi cada imagem final: título legível, pessoa e cenário coerentes, logo correto, cores da marca e chamada para ação com bom contraste.', text_readable: true, brand_matches: true, copy_matches: true, composition_approved: true };
+    await assert.rejects(tools.review_delivery.handler(input, { identity }), /Abra cada imagem/);
+    context.events = context.artifact_records.map((artifact, i) => {
+      artifact.sha256 = `verified-image-${i}`;
+      return { event_type: 'VISUAL_ASSET_OPENED', agent_id: identity.agentId, job_id: input.job_id,
+        payload: { reference: artifact.reference, sha256: artifact.sha256 } };
+    });
   await tools.review_delivery.handler(input, { identity });
   assert.equal(calls.length, 1);
 });

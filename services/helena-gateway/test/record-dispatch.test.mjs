@@ -111,7 +111,7 @@ test('mensagem de despacho Hermes exige entrega e revisao em vez de conclusao le
   assert.equal(ready.returned_count, 1);
   const message = ready.jobs[0].dispatch_message;
   assert.match(message, /HERMES V2/);
-  assert.match(message, /submit_delivery/);
+  assert.match(message, /submit_work/);
   assert.match(message, /review_delivery/);
   assert.match(message, /handoff_task/);
   assert.match(message, /Não use complete_job/);

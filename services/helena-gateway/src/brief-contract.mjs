@@ -72,8 +72,8 @@ export function validateProfessionalBrief(detail) {
   if (job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(job.objective)) {
     const creative = validateCreativeBrief(instruction, job.business_id);
     validateBrandForDesign(detail, creative);
-    if (creative.imagery_method !== 'ORIGINAL_ILLUSTRATION')
-      throw new Error('Ferramenta de foto/imagem gerada ainda nao conectada ao executor de design; liberacao recusada antes de gastar IA');
+    if (!['ORIGINAL_ILLUSTRATION', 'GENERATED_IMAGE'].includes(creative.imagery_method))
+      throw new Error('Banco de fotos licenciadas ainda nao conectado; use somente o metodo de imagem habilitado no briefing');
   }
   return true;
 }
