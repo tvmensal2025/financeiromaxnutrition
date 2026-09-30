@@ -444,7 +444,16 @@ async function handleGetJob({ job_id, ...readOptions }) {
       if (!Array.isArray(owners)) throw new Error('Consulta de revisoes retornou formato invalido');
       inputRecords = scoped.filter(record => owners.some(owner => owner.job_id === record.related_object_id
         && owner.business_id === job.business_id && owner.status === 'COMPLETED' && owner.approval_status === 'APPROVED'
-        && owner.result_payload?.reviewed_by && Array.isArray(owner.evidence_refs) && owner.evidence_refs.includes(record.id)));
+        && owner.result_payload?.reviewed_by && Array.isArray(owner.evidence_refs) && owner.evidence_refs.includes(record.id)))
+        .map(record => {
+          const owner = owners.find(item => item.job_id === record.related_object_id);
+          return { ...record, approved_output: {
+            job_id: owner.job_id, reviewed_by: owner.result_payload.reviewed_by,
+            summary: owner.result_summary || null,
+            delivery: owner.result_payload.delivery || null,
+            publication: owner.result_payload.publication || null
+          } };
+        });
     }
   }
 

@@ -109,7 +109,9 @@ test('revise_task_brief nao fica disponivel para especialista comum nem chega ao
 test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria', async () => {
   const id = 'MEM-HR-' + 'd'.repeat(32);
   const other = 'MEM-HR-' + 'e'.repeat(32);
-  const source = { job_id: 'JOB-INPUT', business_id: job.business_id, status: 'COMPLETED', approval_status: 'APPROVED', evidence_refs: [id], result_payload: { reviewed_by: 'AGT-06' } };
+  const source = { job_id: 'JOB-INPUT', business_id: job.business_id, status: 'COMPLETED', approval_status: 'APPROVED', evidence_refs: [id],
+    result_summary: 'Texto integral aprovado para a proxima etapa',
+    result_payload: { reviewed_by: 'AGT-06', delivery: { content:'Copy completa' }, private_debug:'NAO_COMPARTILHAR' } };
   const memory = { id, business_id_area: job.business_id, related_object_id: source.job_id, registro: 'Fonte interna aprovada' };
   const currentJob = { ...job, instruction: `Consultar ${id} e ${other}`, evidence_refs: [] };
   mock({ currentJob, memories: [memory, { ...memory, id: other, business_id_area: 'BIZ-001' }], inputJobs: [source] });
@@ -117,6 +119,9 @@ test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem vir
   assert.equal(result.company_identity.business_id, job.business_id);
   assert.equal(result.company_identity.row_version, 415);
   assert.deepEqual(result.input_evidence_records.map(r => r.id), [id]);
+  assert.equal(result.input_evidence_records[0].approved_output.summary, source.result_summary);
+  assert.deepEqual(result.input_evidence_records[0].approved_output.delivery, source.result_payload.delivery);
+  assert.equal(JSON.stringify(result).includes('NAO_COMPARTILHAR'), false);
   assert.deepEqual(result.input_evidence_missing, [other]);
   assert.deepEqual(result.evidence_records, []);
   mock({ currentJob: { ...currentJob, evidence_refs: [id] }, memories: [memory], inputJobs: [source] });
