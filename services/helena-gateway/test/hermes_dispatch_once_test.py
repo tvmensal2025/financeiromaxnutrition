@@ -167,7 +167,7 @@ class DispatchTests(unittest.TestCase):
         with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
             result = self.dispatch(execute=True)
         self.assertEqual(result["status"], "WAITING_HELENA")
-        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 180)])
+        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 300)])
         self.assertEqual([call[0] for call in self.calls], [
             "list_ready_jobs", "get_job", "claim_job", "start_job", "get_job",
         ])
@@ -257,7 +257,7 @@ class DispatchTests(unittest.TestCase):
             self.assertIn("execucao nova e isolada", prompt)
             self.assertIn("Como primeira acao, chame helena_operacao.get_work_context", prompt)
             self.assertIn("context_version hermes-context-v2", prompt)
-            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "12"])
+            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "24"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
             self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
             self.assertEqual(kwargs["env"]["HERMES_HOME"], str(self.root / PROFILE))

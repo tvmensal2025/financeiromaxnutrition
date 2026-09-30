@@ -44,6 +44,7 @@ class ProvisionTest(unittest.TestCase):
                 else:
                     self.assertNotIn('adopt_existing_task', included)
                 self.assertEqual('record_dispatch' in included, profile == 'marina--biz003')
+                self.assertEqual('revise_task_brief' in included, profile in ('helena--grupo', 'marina--biz003'))
                 self.assertEqual('create_artifact_upload' in included, profile == 'maya--biz003')
                 self.assertEqual('verify_artifact_upload' in included, profile == 'maya--biz003')
                 if profile == 'laura--pessoal':
@@ -79,7 +80,7 @@ class ProvisionTest(unittest.TestCase):
             for profile in ('helena--grupo', 'marina--biz003'):
                 config_path = home / 'profiles' / profile / 'config.yaml'
                 config = module.yaml.safe_load(config_path.read_text())
-                config['mcp_servers']['helena_operacao']['tools']['include'] = module.TOOLS
+                config['mcp_servers']['helena_operacao']['tools']['include'] = [name for name in module.profile_tools(profile) if name != 'revise_task_brief']
                 config_path.write_text(module.yaml.safe_dump(config))
             module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())

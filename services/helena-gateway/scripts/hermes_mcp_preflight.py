@@ -12,7 +12,7 @@ def required_tools(profile):
                 'record_progress', 'record_memory', 'submit_delivery',
                 'review_delivery', 'handoff_task', 'fail_job', 'waiting_helena'}
     if profile in ('marina--biz003', 'helena--grupo'):
-        required.update({'create_task_job', 'release_job', 'resolve_job_block'})
+        required.update({'create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief'})
     if profile == 'marina--biz003':
         required.add('record_dispatch')
     if profile == 'maya--biz003':

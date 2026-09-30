@@ -236,7 +236,9 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "o contrato nao concede permissao nem substitui o briefing. Fatos, hipoteses e pendencias devem ser separados. "
         "Para design, exija identidade APPROVED, logo autorizado e cores registradas. "
         "No direcao-arte, brand_version deve ser a row_version da empresa e logo_asset o logo cadastrado. "
-        "Use somente as respostas dessas duas chamadas como fonte atual para confirmar que o job esta RUNNING. "
+        "Use as respostas atuais do contexto e das paginas lidas para confirmar que o job esta RUNNING. "
+        "Mantenha a leitura no escopo desta etapa e reserve chamadas para registrar memoria e entrega. "
+        "Um impedimento comprovado deve ser registrado imediatamente; nao investigue toda a campanha. "
         "O contexto valido deve ter context_version hermes-context-v2 e truncated false. "
         "Se estiver ausente, truncado ou em versao diferente, nao avance nem repita um bloqueio antigo: "
         "use fail_job com error_code CONTEXT_UNAVAILABLE e descreva a falha objetiva. "
@@ -272,7 +274,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "helena_operacao", "--max-turns", "12"]
+                 "--toolsets", "helena_operacao", "--max-turns", "24"]
                 + (["--model", model_override] if model_override else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
@@ -438,9 +440,9 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
         if route.get("model"):
-            outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile, route["model"])
+            outcome = run_agent(resolved_binary, profile, job_id, 300, profile_token, root / profile, route["model"])
         else:
-            outcome = run_agent(resolved_binary, profile, job_id, 180, profile_token, root / profile)
+            outcome = run_agent(resolved_binary, profile, job_id, 300, profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except OSError:
         exit_code, diagnostic = 125, "PROCESS_START"

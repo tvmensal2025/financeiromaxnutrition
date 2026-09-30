@@ -112,8 +112,14 @@ def make_prompt(phase, detail, key):
     )
     if phase == 'REVIEW':
         return base + (
-            "Voce e o revisor independente registrado. Abra TODAS as evidencias disponibilizadas em "
-            "get_job; confronte objetivo, briefing, definicao de pronto e acceptance_checks. "
+            "Voce e o revisor independente registrado. Escopo desta chamada: somente esta entrega. "
+            "Leia briefing, definicao de pronto e a evidencia propria disponibilizada em get_job. "
+            "Se uma falha impeditiva ja estiver comprovada (ex.: plano no lugar das pecas exigidas, "
+            "ou responsaveis/IDs ausentes), registre REQUEST_CHANGES imediatamente com a prova e "
+            "correcao objetiva. Nao investigue outros jobs para adiar uma devolucao ja fundamentada. "
+            "Para APPROVE, sim, confira TODAS as evidencias e acceptance_checks desta entrega. "
+            "Reserve pelo menos quatro chamadas para descrever review_delivery, registrar e confirmar "
+            "a decisao. Nunca gaste todo o limite de chamadas em investigacao de dependencias. "
             "APPROVE somente se a entrega inteira desta etapa for utilizavel e correta, com quality_review "
             "contendo exatamente inspected_evidence_refs, verified_criteria, findings e requirements_met=true. "
             "Em artes, so aprove apos inspecao real de cada imagem e visual_review; dimensoes, hash ou relato "
@@ -141,10 +147,15 @@ def make_prompt(phase, detail, key):
         )
     return base + (
         "Voce e Helena, coordenadora. Esta fase trata decisao/ajustes/liberacao, sem produzir pecas "
-        "no lugar do especialista. Confira eventos, fontes vinculadas, evidencias e proxima acao. "
+        "no lugar do especialista. Use review_reason/reviewed_by no result_payload e as evidencias "
+        "deste job; nao pagine o historico completo de events para repetir uma decisao ja registrada. "
+        "A coerencia do evento de revisao e validada pelo consumidor e pelo RPC de revisao de briefing. "
+        "Limite a investigacao ao necessario para corrigir este briefing, reservando quatro chamadas "
+        "para a escrita e confirmacao. Nao tente auditar ou resolver toda a campanha nesta fase. "
         "Se WAITING_HELENA sem review_pending, trata-se de bloqueio: so use resolve_job_block se "
         "o motivo tiver sido realmente resolvido e cite a prova. Se DRAFT apos REQUEST_CHANGES, "
-        "leia parecer e, se necessario, revise_task_brief no mesmo job (versoes atuais); preserve "
+        "leia parecer e, se necessario, revise_task_brief no mesmo job (versoes atuais); esta correcao "
+        "pode ser persistida sem liberar o job, ainda que a capacidade visual esteja pendente. Preserve "
         "exigencias de qualidade e escopo. Distinga entregavel desta funcao do objetivo final da campanha, "
         "sem fingir que plano de coordenacao equivale a artes prontas; preserve todos os entregaveis "
         "finais nas dependencias explicitas. Nao reinicie tarefa com attempt_count >= max_attempts. "
@@ -242,7 +253,7 @@ class Workflow:
             return {'status': 'EXECUTOR_BUSY', 'model_started': False}
         # Reconcile interrupted reviews against current state, without repeating inference.
         for key, receipt in list(self.state['receipts'].items()):
-            if receipt['status'] != 'STARTED':
+            if receipt['status'] not in ('STARTED', 'NEEDS_ATTENTION'):
                 continue
             d = self.call('get_job', {'job_id': receipt['job_id']})
             follow = next_phase(receipt['phase'], {}, d)

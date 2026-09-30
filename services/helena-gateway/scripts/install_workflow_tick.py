@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import runpy
 
 source = Path(__file__).resolve().parent
 runtime = Path('/data/helena-runtime')
@@ -22,6 +23,15 @@ if target.exists(): shutil.copy2(target, backup / target.name)
 temporary = target.with_suffix('.tmp')
 temporary.write_text(incoming, encoding='utf-8', newline='\n')
 temporary.replace(target)
+probe_source = source / 'hermes_mcp_preflight.py'
+if probe_source.exists():
+    probe = runtime / probe_source.name
+    updated_probe = probe_source.read_text()
+    ast.parse(updated_probe)
+    if probe.exists(): shutil.copy2(probe, backup / probe.name)
+    staging = probe.with_suffix('.tmp')
+    staging.write_text(updated_probe, encoding='utf-8', newline='\n')
+    staging.replace(probe)
 dispatcher_source = source / 'hermes_dispatch_once.py'
 if dispatcher_source.exists():
     dispatcher = runtime / dispatcher_source.name
@@ -41,5 +51,8 @@ replacement = poll.with_suffix('.tmp')
 replacement.write_text((source / poll.name).read_text(), encoding='utf-8', newline='\n')
 replacement.chmod(poll.stat().st_mode)
 replacement.replace(poll)
+brief_tools_patch = source / 'enable_brief_revision.py'
+if brief_tools_patch.exists():
+    runpy.run_path(str(brief_tools_patch), run_name='__main__')
 print(json.dumps({'status':'INSTALLED','backup':str(backup),'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),
                   'model_calls':0,'schedule_changed':False,'state_preserved':True}))

@@ -94,7 +94,7 @@ test('briefing revisado exige feedback verificavel, identidade de coordenacao e 
   assert.equal(calls[0][1].p_payload.job_id, input.job_id);
 });
 
-test('briefing revisado recusa parecer ausente, incoerente ou fonte citada nao aprovada', async () => {
+test('rascunho exige parecer coerente mas pode corrigir fontes pendentes sem libera-las', async () => {
   const input = {
     job_id: 'JOB-CAMILA', idempotency_key: 'revise-camila-v3', expected_task_version: 2705,
     expected_job_updated_at: '2026-09-29T12:00:00.000Z', instruction: professionalInstruction,
@@ -116,8 +116,16 @@ test('briefing revisado recusa parecer ausente, incoerente ou fonte citada nao a
   await assert.rejects(tools.revise_task_brief.handler(input, { identity }), /REQUEST_CHANGES verificavel/);
   const memoryId = 'MEM-HR-' + 'a'.repeat(32);
   detail = { ...detail, events: [review], job: { ...validJob, instruction: `Fonte ${memoryId}` }, input_evidence_missing: [memoryId] };
-  await assert.rejects(tools.revise_task_brief.handler(input, { identity }), /Fontes do briefing indisponiveis/);
   assert.equal(writes, 0);
+  const revised = { ...input, instruction: professionalInstruction + `\nDependencia pendente de aceite: ${memoryId}. Nao iniciar producao antes da verificacao.` };
+  await tools.revise_task_brief.handler(revised, { identity });
+  assert.equal(writes, 1);
+  detail = { ...detail, job: { ...detail.job, instruction: revised.instruction },
+    task: { ...detail.task, definicao_de_pronto: revised.definition_of_done } };
+  await assert.rejects(tools.release_job.handler({ job_id: input.job_id, expected_task_version: 2705, idempotency_key: 'release-blocked' }, { identity }), /Fontes do briefing indisponiveis/);
+  assert.equal(writes, 1);
+  await assert.rejects(tools.revise_task_brief.handler({ ...input, instruction: 'Faca copy.' }, { identity }), /Briefing profissional/);
+  assert.equal(writes, 1);
 });
 
 test('aprovacao exige evidencia da propria tarefa recuperada do Supabase', async () => {

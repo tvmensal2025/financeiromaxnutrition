@@ -150,4 +150,43 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(worker.tick()['status'],'NO_NEW_REVIEW')
         self.assertFalse(worker.state['pending'])
 
+    def test_adopted_job_outside_compact_context_is_not_starved(self):
+        self.context['pending_reviews_detail']=[]
+        self.config['adopt_job_ids']=[JOB]
+        (self.path/'workflow-config.json').write_text(json.dumps(self.config))
+        self.assertEqual(self.run_tick()['next_phase'],'HANDOFF')
+
+    def test_full_review_handoff_and_release_across_restarts(self):
+        child=detail()
+        child['job'].update(job_id=CHILD,status='DRAFT',agent_id='AGT-12')
+        self.config['profiles']['AGT-04']=['marina--biz003']
+        (self.path/'workflow-config.json').write_text(json.dumps(self.config))
+        home=self.path/'profiles'/'marina--biz003'
+        home.mkdir()
+        (home/'.env').write_text('HELENA_GATEWAY_PROFILE_TOKEN=hhs_'+'b'*40)
+        original_request=self.request
+        def request(gateway, token, name, args):
+            if name=='get_job' and args['job_id']==CHILD: return copy.deepcopy(child)
+            if name=='get_work_context' and token.endswith('b'*40):
+                return {**self.context,'profile':{'agent_id':'AGT-04','business_id':'BIZ-003','scope_type':'BUSINESS','status':'ACTIVE'}}
+            return original_request(gateway,token,name,args)
+        self.request=request
+        def runner(binary, profile, home, token, prompt):
+            self.calls+=1
+            if 'fase REVIEW,' in prompt: approve(self.d)
+            elif 'fase HANDOFF,' in prompt:
+                self.assertEqual(profile,'marina--biz003')
+                self.d['events'].insert(0,{'event_type':'WORKFLOW_handoff','payload':{'response':{'job_id':CHILD}}})
+            elif 'fase COORDINATE,' in prompt:
+                self.assertEqual(profile,'helena--grupo')
+                child['job']['status']='READY'
+            else: self.fail('Unexpected phase')
+            return 0
+        self.runner=runner
+        self.assertEqual(self.run_tick()['next_phase'],'HANDOFF')
+        self.assertEqual(self.run_tick()['next_phase'],'RELEASE:'+CHILD)
+        self.assertEqual(self.run_tick()['observed_status'],'READY')
+        self.assertEqual(self.calls,3)
+        self.assertFalse(self.worker().state['pending'])
+
 if __name__ == '__main__': unittest.main()

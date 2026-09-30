@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { validateBriefStructure, validateProfessionalBrief } from './brief-contract.mjs';
+import { validateBriefStructure, validateDraftBrief, validateProfessionalBrief } from './brief-contract.mjs';
 import { publicationSchema, visualReviewSchema, validatePublication, validateVisualReview } from './publication-contract.mjs';
 import { validateCreativeBrief, validateRequestedArtifacts, validateBrandForDesign } from './creative-brief.mjs';
 import { agentQualityContract, QUALITY_VERSION, professionalDeliverySchema, qualityReviewSchema, validateProfessionalDelivery, validateQualityReview } from './professional-output.mjs';
@@ -82,7 +82,7 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
           || Date.parse(jobRecord.updated_at) !== Date.parse(args.expected_job_updated_at)) {
           throw new Error('Versao desatualizada; releia tarefa e job antes de revisar');
         }
-        validateProfessionalBrief({
+        validateDraftBrief({
           ...detail,
           job: { ...jobRecord, instruction: args.instruction },
           task: { ...taskRecord, definicao_de_pronto: args.definition_of_done }

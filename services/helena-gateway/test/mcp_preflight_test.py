@@ -10,6 +10,13 @@ def discovered(names):
     return {'mcp__helena_operacao__' + name: {} for name in names}
 
 class PreflightTest(unittest.TestCase):
+    def test_coordinators_require_brief_revision_before_inference(self):
+        for profile in ('helena--grupo', 'marina--biz003'):
+            names = probe.required_tools(profile) - {'revise_task_brief'}
+            report = probe.inspect_tools(profile, discovered(names))
+            self.assertFalse(report['ready'])
+            self.assertEqual(report['missing_tools'], ['revise_task_brief'])
+
     def test_count_cannot_hide_missing_dispatch(self):
         names = probe.required_tools('marina--biz003') - {'record_dispatch'}
         report = probe.inspect_tools('marina--biz003', discovered(names | {'irrelevant'}))

@@ -38,7 +38,9 @@ export function validateBriefStructure(value) {
   return true;
 }
 
-export function validateProfessionalBrief(detail) {
+// Editing a DRAFT does not approve its sources or authorize execution.
+// Readiness is checked separately on release and executor acceptance.
+export function validateDraftBrief(detail) {
   const job = detail?.job;
   const task = detail?.task;
   const binding = detail?.runtime_binding;
@@ -51,12 +53,22 @@ export function validateProfessionalBrief(detail) {
     throw new Error('Briefing incompleto: objetivo e definição de pronto são obrigatórios');
   }
   const instruction = job.instruction?.trim() || '';
+  validateBriefStructure(instruction);
+  if (job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(job.objective)) {
+    validateCreativeBrief(instruction, job.business_id);
+  }
+  return true;
+}
+
+export function validateProfessionalBrief(detail) {
+  validateDraftBrief(detail);
+  const job = detail.job;
+  const instruction = job.instruction.trim();
   const inputIds = [...new Set(instruction.match(/\bMEM-HR-[a-f0-9]{32}\b/gi) || [])];
   if (inputIds.length > 10 || inputIds.some(id => !detail.input_evidence_records?.some(record => record.id === id))
       || detail.input_evidence_missing?.length) {
     throw new Error('Fontes do briefing indisponiveis ou sem revisao aprovada; liberacao e aceite recusados antes de chamar IA');
   }
-  validateBriefStructure(instruction);
   if (job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(job.objective)) {
     const creative = validateCreativeBrief(instruction, job.business_id);
     validateBrandForDesign(detail, creative);
