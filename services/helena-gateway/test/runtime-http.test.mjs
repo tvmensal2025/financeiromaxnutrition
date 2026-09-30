@@ -238,6 +238,18 @@ test('descoberta MCP publica parametros necessarios para cliente Hermes', async 
   assert.deepEqual(revise.inputSchema.required, ['job_id', 'idempotency_key', 'expected_task_version', 'expected_job_updated_at', 'instruction', 'definition_of_done', 'revision_summary']);
 });
 
+test('paginated job uses identical authorization and supplies complete evidence with version', async () => {
+  mock();
+  const manifest = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id, view: 'manifest' }), 'mcp');
+  assert.equal(manifest.reader_version, 'job-pages-v1');
+  assert.equal(manifest.expected_task_version, 123);
+  const page = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id, view: 'page', section: 'task', revision: manifest.revision }), 'mcp');
+  assert.equal(JSON.parse(page.content).row_version, 123);
+  mock({ currentJob: { ...job, business_id: 'BIZ-001' } });
+  const denied = await invoke('mcp', 'get_job', { job_id: job.job_id, view: 'page', section: 'job', revision: manifest.revision });
+  assert.match(JSON.stringify(denied), /outra empresa/);
+});
+
 test('Hermes nao consegue concluir sem revisao', async () => {
   const calls = mock();
   const result = await invoke('mcp', 'complete_job', { job_id: job.job_id, agent_id: job.agent_id, result_summary: 'Fixture', evidence_refs: ['fixture:evidence'] });

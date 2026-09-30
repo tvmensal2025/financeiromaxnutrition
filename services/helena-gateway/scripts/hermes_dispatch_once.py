@@ -227,7 +227,10 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "memoria local, spillover, resposta anterior ou resumo antigo; nao reutilize decisoes "
         "nem evidencias de outra tentativa. "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
-        "Como primeira acao, chame helena_operacao.get_work_context e, em seguida, get_job. "
+        "Como primeira acao, chame helena_operacao.get_work_context e get_job com view=manifest. "
+        "Leia job, task, company_identity, agent_quality_contract e evidencias por get_job view=page, "
+        "section, revision do manifesto e offset=0, limit=4000; continue ate next_offset=null. "
+        "Nao use view=full que pode ser cortada. Se JOB_SNAPSHOT_CHANGED, releia antes de escrever. "
         "Leia company_identity em get_job e respeite a empresa, publico, oferta, voz, canais e restricoes. "
         "Leia agent_quality_contract e cumpra os insumos, entregaveis, verificacoes e limites da sua funcao; "
         "o contrato nao concede permissao nem substitui o briefing. Fatos, hipoteses e pendencias devem ser separados. "
@@ -249,7 +252,15 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "Se o briefing exige foto ou imagem gerada e a ferramenta nao estiver disponivel, registre "
         "bloqueio especifico; nao substitua por layout vazio nem declare qualidade visual sem ver o PNG. "
         "usando a row_version atual e evidencia. Se impedido, use waiting_helena ou fail_job. "
-        "Nao delegue, nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "
+        "Nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "
+        + ("Como coordenadora, organize e persista etapas especializadas com create_task_job em DRAFT, "
+           "reutilizando as existentes. Sua entrega e o plano executavel com IDs, dependencias, briefing completo, "
+           "executor e revisor; nao finja produzir as artes de Maya. Submeta seu plano com evidencias para revisao. "
+           "Nao libere filhos enquanto este job ocupar o WIP. Depois da revisao, a coordenacao libera a proxima etapa. "
+           if profile.startswith('marina--') or profile == 'helena--grupo' else
+           "Execute sua etapa. Apos aprovacao use handoff_task conforme briefing; nao crie agentes paralelos. ")
+        + "Para a capacidade de um executor, get_job.runtime_binding ativo prevalece sobre o resumo fleet; "
+        "MISSING no resumo de outro perfil nao prova que ele esta desconectado. "
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
     )
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="helena-job-", suffix=".txt", delete=False) as handle:
@@ -296,6 +307,43 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         prompt_path.unlink(missing_ok=True)
 
 
+def has_current_release(detail: dict) -> bool:
+    """A persisted manager release authorizes its READY execution, not a stale release."""
+    job, task = detail.get('job') or {}, detail.get('task') or {}
+    if job.get('status') != 'READY' or job.get('approval_status') != 'APPROVED':
+        return False
+    try:
+        available = datetime.fromisoformat(job['available_at'].replace('Z', '+00:00'))
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return False
+    for event in detail.get('events') or []:
+        if not isinstance(event, dict) or event.get('event_type') != 'WORKFLOW_release_job':
+            continue
+        payload = event.get('payload') or {}
+        request, response = payload.get('request') or {}, payload.get('response') or {}
+        actor = event.get('agent_id')
+        profile = payload.get('profile_slug')
+        args = request.get('payload') or {}
+        if (actor not in {'AGT-01', 'AGT-04'} or not isinstance(profile, str)
+                or (actor == 'AGT-01' and profile != 'helena--grupo')
+                or (actor == 'AGT-04' and not profile.startswith('marina--'))
+                or request.get('profile') != profile or request.get('action') != 'release_job'
+                or event.get('job_id') != job.get('job_id')
+                or event.get('business_id') != job.get('business_id')
+                or args.get('job_id') != job.get('job_id')
+                or response.get('job_id') != job.get('job_id')
+                or response.get('success') is not True or response.get('status') != 'READY'):
+            continue
+        try:
+            released = datetime.fromisoformat(event['created_at'].replace('Z', '+00:00'))
+            if (0 <= (available - released).total_seconds() <= 60
+                    and int(task['row_version']) > int(args['expected_task_version'])):
+                return True
+        except (KeyError, ValueError, TypeError, AttributeError):
+            continue
+    return False
+
+
 def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None, auto: bool = False) -> dict:
     if gateway.rstrip("/") != GATEWAY:
         raise ValueError("Gateway fora do endpoint aprovado")
@@ -311,8 +359,8 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {"status": "NO_APPROVED_READY_JOB", "ready_count": len(jobs)}
     detail = None
     if auto:
-        # A READY task alone never authorizes model spending. Marina must have
-        # recorded an explicit, matching dispatch request for this exact job.
+        # READY alone is insufficient. Require a matching dispatch request or
+        # the audited manager release for this availability window.
         selected = None
         for candidate in eligible:
             candidate_id = candidate.get("job_id")
@@ -332,7 +380,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
                 and (event.get("payload") or {}).get("target_external_agent_id") == candidate_profile
                 for event in current.get("events", []) if isinstance(event, dict)
             )
-            if requested:
+            if requested or has_current_release(current):
                 selected, detail = candidate, current
                 break
         if selected is None:

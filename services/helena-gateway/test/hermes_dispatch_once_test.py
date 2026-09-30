@@ -387,5 +387,31 @@ class DispatchTests(unittest.TestCase):
             dispatcher.run_profile("hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE, "untrusted-model")
 
 
+class ManagerReleaseTests(unittest.TestCase):
+    def detail(self):
+        return {'job': {'job_id':JOB_ID, 'business_id':'BIZ-003', 'status':'READY',
+                       'approval_status':'APPROVED', 'available_at':'2026-09-30T17:20:00.611184+00:00'},
+                'task': {'row_version':3043}, 'events': [{'event_type':'WORKFLOW_release_job',
+                  'job_id':JOB_ID, 'business_id':'BIZ-003', 'agent_id':'AGT-01',
+                  'created_at':'2026-09-30T17:20:00.596213+00:00',
+                  'payload': {'profile_slug':'helena--grupo', 'request': {'profile':'helena--grupo',
+                      'action':'release_job', 'payload': {'job_id':JOB_ID,'expected_task_version':3040}},
+                      'response': {'job_id':JOB_ID, 'success':True, 'status':'READY'}}}]}
+
+    def test_helena_release_bootstraps_marina_without_self_dispatch(self):
+        self.assertTrue(dispatcher.has_current_release(self.detail()))
+
+    def test_stale_or_cross_business_or_failed_release_cannot_authorize(self):
+        for mutation in ('old', 'business', 'actor', 'response', 'version', 'draft'):
+            with self.subTest(mutation=mutation):
+                d=self.detail(); event=d['events'][0]
+                if mutation=='old': event['created_at']='2026-09-29T17:20:00+00:00'
+                if mutation=='business': event['business_id']='BIZ-002'
+                if mutation=='actor': event['agent_id']='AGT-12'
+                if mutation=='response': event['payload']['response']['success']=False
+                if mutation=='version': d['task']['row_version']=3039
+                if mutation=='draft': d['job']['status']='DRAFT'
+                self.assertFalse(dispatcher.has_current_release(d))
+
 if __name__ == "__main__":
     unittest.main()

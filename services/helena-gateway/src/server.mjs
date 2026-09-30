@@ -22,6 +22,7 @@ import { artifactEventId, createArtifactUpload, parseArtifactReference, renderAr
 import { validateProfessionalBrief } from './brief-contract.mjs';
 import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs';
 import { createTypeSafe } from './integrations/typesafe.mjs';
+import { jobView, JOB_SECTIONS } from './job-reader.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -380,7 +381,7 @@ async function handleRecordDispatch({
 /**
  * 3. get_job
  */
-async function handleGetJob({ job_id }) {
+async function handleGetJob({ job_id, ...readOptions }) {
   if (!job_id) {
     throw new Error('job_id é obrigatório para get_job');
   }
@@ -465,7 +466,7 @@ async function handleGetJob({ job_id }) {
     ...artifactRefs.filter(ref => !artifactRecords.some(record => record.reference === ref))
   ];
 
-  return {
+  return jobView({
     job,
     quality_version: QUALITY_VERSION,
     agent_quality_contract: agentQualityContract(job.agent_id),
@@ -486,7 +487,7 @@ async function handleGetJob({ job_id }) {
     evidence_records: evidenceRecords,
     artifact_records: artifactRecords,
     evidence_missing: evidenceMissing
-  };
+  }, readOptions);
 }
 
 /**
@@ -895,9 +896,14 @@ const TOOLS_CONFIG = {
     handler: handleRecordDispatch
   },
   get_job: {
-    description: 'Recupera detalhes do agent_job, eventos e conteudo das memorias submetidas como evidencia para esse job e empresa. Verifique evidence_missing antes de revisar.',
+    description: 'Leitura autorizada da tarefa. Para evitar corte do Hermes, comece com view=manifest; depois view=page, section, revision e offset ate next_offset=null. Leia job, task, company_identity e todas as evidencias pertinentes antes de executar/revisar. Nao decida a partir de resposta truncada. Sem view retorna formato integral legado.',
     schema: z.object({
-      job_id: z.string().describe('ID do agent_job')
+      job_id: z.string().describe('ID do agent_job'),
+      view: z.enum(['full', 'manifest', 'page']).optional(),
+      section: z.enum(JOB_SECTIONS).optional(),
+      offset: z.number().int().min(0).optional(),
+      limit: z.number().int().min(256).max(4000).optional(),
+      revision: z.string().length(64).optional()
     }),
     handler: handleGetJob
   },
@@ -1025,7 +1031,7 @@ const mcpInputs = {
   verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
   record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),
-  get_job: inputObject(textFields('job_id'), ['job_id']),
+  get_job: inputObject({ ...textFields('job_id'), view: { type: 'string', enum: ['full', 'manifest', 'page'] }, section: { type: 'string', enum: JOB_SECTIONS }, offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 256, maximum: 4000 }, revision: { type: 'string', minLength: 64, maxLength: 64 } }, ['job_id']),
   claim_job: inputObject(jobFields, jobRequired),
   start_job: inputObject(jobFields, jobRequired),
   complete_job: inputObject({ ...jobFields, ...textFields('result_summary'), evidence_refs: { type: 'array', items: {}, minItems: 1 }, result_payload: { type: 'object', additionalProperties: true } }, [...jobRequired, 'result_summary', 'evidence_refs']),
