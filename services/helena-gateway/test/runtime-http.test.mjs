@@ -49,7 +49,7 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null, memories 
     if (value.pathname.includes('/storage/v1/object/authenticated/')) {
       return storedObject ? new Response(storedObject, { headers: { 'content-type': 'image/png', 'content-length': String(storedObject.length) } }) : new Response('missing', { status: 404 });
     }
-    if (value.pathname.includes('/rpc/')) result = rpcResult;
+    if (value.pathname.includes('/rpc/')) result = typeof rpcResult === 'function' ? rpcResult(JSON.parse(options.body)) : rpcResult;
     else if (value.pathname.endsWith('/agent_runtime_bindings')) result = [runtime];
     else if (value.pathname.endsWith('/agent_jobs')) result = value.searchParams.get('job_id')?.startsWith('in.') ? inputJobs : [sourceJob && value.searchParams.get('job_id') === `eq.${sourceJob.job_id}` ? sourceJob : currentJob];
     else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : value.searchParams.get('event_type') === 'eq.ARTIFACT_VERIFIED' ? artifactEvents : [];
@@ -74,6 +74,43 @@ async function invoke(transport, name, args, bearer = token) {
 function resultOf(response, transport) {
   return transport === 'mcp' ? JSON.parse(response.result.content[0].text) : response.result;
 }
+
+test('submit_work funciona nos transportes reais e usa apenas a memoria retornada pelo banco', async () => {
+  for (const transport of ['mcp', 'direct', 'rest']) {
+    const memoryId = 'MEM-HR-' + 'd'.repeat(32);
+    const calls = mock({ rpcResult: request => request.p_action === 'record_memory'
+      ? { success: true, job_id: job.job_id, memory_id: memoryId }
+      : { success: true, status: 'WAITING_HELENA', completed: false } });
+    const delivery = sampleDelivery();
+    delivery.acceptance_checks = delivery.acceptance_checks.map(({ evidence_ref, ...check }) => check);
+    const result = resultOf(await invoke(transport, 'submit_work', {
+      job_id: job.job_id, idempotency_key: 'work-http-' + transport, expected_task_version: 123,
+      summary: 'Plano profissional para revisao independente.', source: 'Briefing aprovado da empresa e tarefa atual.', delivery
+    }), transport);
+    assert.equal(result.memory_id, memoryId);
+    assert.equal(result.status, 'WAITING_HELENA');
+    assert.equal(result.completed, false);
+    const writes = calls.filter(call => call.url.pathname.includes('/rpc/')).map(call => JSON.parse(call.body));
+    assert.deepEqual(writes.map(request => request.p_action), ['record_memory', 'submit_delivery']);
+    assert.equal(writes[1].p_payload.delivery.acceptance_checks[0].evidence_ref, memoryId);
+    assert.deepEqual(writes[1].p_payload.evidence_refs, [memoryId]);
+  }
+});
+
+test('submit_work rejeita arquivo nao verificado antes de criar memoria', async () => {
+  const visualJob = { ...job, job_id: 'JOB-HR-' + 'b'.repeat(32) };
+  const calls = mock({ currentJob: visualJob });
+  const delivery = sampleDelivery();
+  delivery.acceptance_checks = delivery.acceptance_checks.map(({ evidence_ref, ...check }) => check);
+  const response = await invoke('mcp', 'submit_work', {
+    job_id: visualJob.job_id, expected_task_version: 123, idempotency_key: 'work-unverified',
+    summary: 'Arte para revisao independente.', source: 'Briefing da empresa.', delivery,
+    artifact_refs: [`storage://helena-deliveries/BIZ-003/${visualJob.job_id}/post-v1.png`]
+  });
+  assert.equal(response.result.isError, true);
+  assert.match(response.result.content[0].text, /sem verificacao/);
+  assert.equal(calls.some(call => call.url.pathname.includes('/rpc/')), false);
+});
 
 test('resolve_job_block impede executor de desbloquear e aceita coordenacao autenticada', async () => {
   const args = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'resolve-test', reason: 'Fonte recuperada' };

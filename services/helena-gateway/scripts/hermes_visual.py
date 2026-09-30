@@ -14,7 +14,7 @@ import re
 import sys
 import urllib.request
 from urllib.parse import urlparse
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageStat, ImageColor
 from hermes_dispatch_once import call_tool, GATEWAY, TOKEN_NAME, JOB_PATTERN
 
 ROOT = Path('/data/helena-runtime/visual')
@@ -41,7 +41,7 @@ def design_contract(detail, slot):
         raise ValueError('Approved current brand, generated-image brief and requested slot are required')
     return job, creative, brand
 
-def final_canvas(raw, logo, slot, background):
+def final_canvas(raw, logo, slot, background, palette=None):
     """No cropping of copy; preserve aspect ratio and composite the approved logo."""
     if len(raw) > 20 * 1024 * 1024 or len(logo) > 5 * 1024 * 1024: raise ValueError('Image too large')
     image = Image.open(io.BytesIO(raw)); logo_image = Image.open(io.BytesIO(logo))
@@ -52,11 +52,20 @@ def final_canvas(raw, logo, slot, background):
     if image.convert('L').entropy() < 2: raise ValueError('Generated image is empty or lacks content')
     if not re.fullmatch(r'#[a-fA-F0-9]{6}', background): raise ValueError('Invalid brand color')
     size = (1080, 1350 if slot == 'post' else 1920)
+    footer_height = 200 if slot == 'post' else 380
     canvas = Image.new('RGB', size, background)
-    artwork = ImageOps.contain(image, (size[0], size[1] - 150), Image.Resampling.LANCZOS)
-    canvas.paste(artwork, ((size[0] - artwork.width)//2, (size[1] - 150 - artwork.height)//2))
+    artwork = ImageOps.contain(image, (size[0], size[1] - footer_height), Image.Resampling.LANCZOS)
+    canvas.paste(artwork, ((size[0] - artwork.width)//2, (size[1] - footer_height - artwork.height)//2))
     logo_image = ImageOps.contain(logo_image.convert('RGBA'), (300, 110), Image.Resampling.LANCZOS)
-    canvas.paste(logo_image, ((1080-logo_image.width)//2, size[1]-130), logo_image)
+    colors = palette or [background]
+    if any(not re.fullmatch(r'#[a-fA-F0-9]{6}', color) for color in colors): raise ValueError('Invalid brand palette')
+    mean = ImageStat.Stat(logo_image.convert('RGB'), mask=logo_image.getchannel('A')).mean
+    contrast = lambda color: sum((value - mean[i])**2 for i, value in enumerate(ImageColor.getrgb(color)))
+    footer = Image.new('RGB', (1080, footer_height), max(colors, key=contrast))
+    canvas.paste(footer, (0, size[1]-footer_height))
+    # Original logo in the preferred lower-right corner, clear of story controls.
+    logo_top = size[1] - (50 if slot == 'post' else 250) - logo_image.height
+    canvas.paste(logo_image, (1080-60-logo_image.width, logo_top), logo_image)
     output = io.BytesIO(); canvas.save(output, format='PNG', optimize=True)
     if output.tell() > 5 * 1024 * 1024: raise ValueError('Final PNG exceeds storage limit')
     return output.getvalue()
@@ -113,7 +122,7 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
                     raise ValueError('Provider returned no valid local image')
                 colors = [color.get('hex') for color in brand.get('colors', []) if isinstance(color, dict)]
                 if not colors: raise ValueError('Approved palette missing')
-                final = final_canvas(generated.read_bytes(), logo_bytes, slot, colors[0])
+                final = final_canvas(generated.read_bytes(), logo_bytes, slot, colors[0], colors)
                 png_path.write_bytes(final); os.chmod(png_path, 0o600); save('RENDERED')
             except Exception:
                 save('FAILED'); raise
@@ -139,7 +148,7 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
         return result
 
 if __name__ == '__main__':
-    from mcp.server.fastmcp import FastMCP
-    server = FastMCP('helena_visual')
+    from mcp.server import MCPServer
+    server = MCPServer('helena_visual')
     server.tool()(generate_design)
     server.run(transport='stdio')

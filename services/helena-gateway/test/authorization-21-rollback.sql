@@ -1,7 +1,7 @@
 begin;
 set local statement_timeout='25s';
 do $audit$
-declare b record; r jsonb; p jsonb; ctx jsonb; j text; t text; v bigint; reviewer text; expected text;
+declare b record; r jsonb; p jsonb; ctx jsonb; j text; t text; v bigint; reviewer text; expected text; memory_id text;
 brief text := '';
 title text;
 begin
@@ -37,10 +37,22 @@ begin
  perform public.gateway_claim_agent_job(j,b.agent_id);
  perform public.gateway_start_agent_job(j,b.agent_id);
  select row_version into v from public.tarefas where task_id=t;
+ p:=jsonb_build_object('job_id',j,'idempotency_key','memory-audit-'||b.agent_id,
+   'summary','Material ficticio estritamente para teste transacional de permissoes; nao usar como entrega real.',
+   'source','Fixture privada de homologacao, sem inferencia e com rollback integral.',
+   'next_step','Aguardar revisao independente da entrega simulada.');
+ r:=public.gateway_workflow(b.profile_slug,'record_memory',p);
+ memory_id:=r->>'memory_id';
+ if memory_id is null or public.gateway_workflow(b.profile_slug,'record_memory',p)<>r then raise exception 'Memory replay failed %',b.agent_id; end if;
  p:=jsonb_build_object('job_id',j,'expected_task_version',v,'idempotency_key','submit-audit-'||b.agent_id,'summary','Fixture de teste; nenhuma entrega comercial.',
-  'evidence_refs',jsonb_build_array('fixture:private:rollback'),
-  'delivery',jsonb_build_object('schema_version',1,'content','Material ficticio estritamente para teste transacional de permissoes; nao usar como entrega real.','acceptance_checks',jsonb_build_array()));
+  'evidence_refs',jsonb_build_array(memory_id),
+  'delivery',jsonb_build_object('schema_version',1,'title','Entrega simulada de homologacao',
+    'content','Material ficticio estritamente para teste transacional de permissoes; nao usar como entrega real.',
+    'next_steps','Aguardar revisao independente da entrega simulada.','limitations','Nenhum modelo, publicacao ou contato externo foi acionado.',
+    'acceptance_checks',jsonb_build_array(jsonb_build_object('criterion','Registrar evidencia propria da tarefa',
+      'evidence_ref',memory_id,'finding','Memoria registrada pelo proprio perfil e vinculada a esta tarefa simulada.'))));
  r:=public.gateway_workflow(b.profile_slug,'submit_delivery',p);
+ if public.gateway_workflow(b.profile_slug,'submit_delivery',p)<>r then raise exception 'Submission replay failed %',b.agent_id; end if;
  expected:=case b.agent_id when 'AGT-01' then 'FOUNDER' when 'AGT-09' then 'AGT-13' when 'AGT-11' then 'AGT-03' when 'AGT-12' then 'AGT-10' when 'AGT-14' then 'AGT-04' when 'AGT-16' then 'AGT-03' when 'AGT-17' then 'AGT-16' when 'AGT-18' then 'AGT-06' when 'AGT-20' then 'AGT-19' when 'AGT-21' then 'AGT-14' else 'AGT-01' end;
  if r->>'reviewer_agent_id' is distinct from expected then raise exception 'Wrong reviewer %',b.agent_id; end if;
  select row_version into v from public.tarefas where task_id=t;
