@@ -41,6 +41,11 @@ jobs:
       - name: Quality protocol tests
         run: python3 -m unittest discover -s services/helena-gateway/test -p quality_protocol_test.py -v
 
+      - name: Role skill installer tests
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          python3 services/helena-gateway/test/test_role_skills.py
+
       - name: Docker Build Test
         working-directory: services/helena-gateway
         run: docker build -t helena-gateway:ci .
