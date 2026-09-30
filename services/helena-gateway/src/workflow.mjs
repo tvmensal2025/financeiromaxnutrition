@@ -68,9 +68,18 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
         const reviewEvent = detail?.events?.find(event => event.event_type === 'WORKFLOW_review_delivery');
         const reviewRequest = reviewEvent?.payload?.request?.payload;
         const reviewPayload = jobRecord?.result_payload;
+        const revision = detail?.events?.find(event => event.event_type === 'WORKFLOW_revise_task_brief');
+        const priorEdit = revision?.payload;
+        const revisedDraft = taskRecord?.status === 'NÃO INICIADA'
+          && revision?.job_id === jobRecord?.job_id && revision?.business_id === jobRecord?.business_id
+          && priorEdit?.response?.success === true && priorEdit.response.status === 'DRAFT'
+          && priorEdit.response.task_id === taskRecord.task_id
+          && Number(priorEdit.response.task_version) === Number(taskRecord.row_version)
+          && priorEdit.request?.payload?.instruction === jobRecord.instruction
+          && priorEdit.request?.payload?.definition_of_done === taskRecord.definicao_de_pronto;
         if (!jobRecord || !taskRecord || jobRecord.task_id !== taskRecord.task_id
           || jobRecord.business_id !== taskRecord.business_id || jobRecord.status !== 'DRAFT'
-          || taskRecord.status !== 'BLOQUEADA' || reviewPayload?.review_pending !== false
+          || (taskRecord.status !== 'BLOQUEADA' && !revisedDraft) || reviewPayload?.review_pending !== false
           || !reviewPayload?.reviewed_by || !reviewPayload?.review_reason
           || reviewPayload.reviewed_by === jobRecord.agent_id
           || reviewEvent?.agent_id !== reviewPayload.reviewed_by

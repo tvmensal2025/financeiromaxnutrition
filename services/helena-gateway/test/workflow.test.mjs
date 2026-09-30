@@ -128,6 +128,35 @@ test('rascunho exige parecer coerente mas pode corrigir fontes pendentes sem lib
   assert.equal(writes, 1);
 });
 
+test('segunda edicao exige recibo da mesma versao, sem transformar DRAFT inicial em revisado', async () => {
+  const job = { job_id:'JOB-EDIT',task_id:'TSK-EDIT',business_id:'BIZ-003',agent_id:'AGT-04',
+    objective:'Organizar campanha',instruction:professionalInstruction,status:'DRAFT',updated_at:'2026-09-30T20:00:00Z',
+    result_payload:{review_pending:false,reviewed_by:'AGT-01',review_reason:'Corrigir fontes.'} };
+  const task = { task_id:job.task_id,business_id:job.business_id,status:'NÃO INICIADA',row_version:10,definicao_de_pronto:'Plano com fontes e revisores definidos.' };
+  const input = {job_id:job.job_id,idempotency_key:'second-edit',expected_task_version:10,expected_job_updated_at:job.updated_at,
+    instruction:professionalInstruction,definition_of_done:task.definicao_de_pronto,revision_summary:'Atualizar as fontes aprovadas para a mesma campanha.'};
+  const review = {event_type:'WORKFLOW_review_delivery',agent_id:'AGT-01',payload:{request:{payload:{decision:'REQUEST_CHANGES',reason:'Corrigir fontes.'}}}};
+  const revision = {event_type:'WORKFLOW_revise_task_brief',job_id:job.job_id,business_id:job.business_id,payload:{
+    response:{success:true,status:'DRAFT',task_id:task.task_id,task_version:10},
+    request:{payload:{instruction:job.instruction,definition_of_done:task.definicao_de_pronto}}}};
+  const detail={job,task,events:[review],runtime_binding:{agent_id:'AGT-04',business_id:'BIZ-003',scope_type:'BUSINESS'}};
+  let writes=0;
+  const tools=workflowTools(async()=>{writes++;return {success:true};},async()=>detail);
+  const identity={type:'hermes_profile',bindingVerified:true,profileSlug:'helena--grupo',agentId:'AGT-01'};
+  await assert.rejects(tools.revise_task_brief.handler(input,{identity}),/REQUEST_CHANGES verificavel/);
+  detail.events.unshift(revision);
+  await tools.revise_task_brief.handler(input,{identity});
+  assert.equal(writes,1);
+  for (const mutate of [
+    r=>{r.payload.response.task_version=9;},r=>{r.business_id='BIZ-002';},
+    r=>{r.payload.request.payload.instruction='Texto divergente';},r=>{r.payload.response.success=false;}
+  ]) {
+    const invalid=structuredClone(revision);mutate(invalid);detail.events=[invalid,review];
+    await assert.rejects(tools.revise_task_brief.handler(input,{identity}),/REQUEST_CHANGES verificavel/);
+  }
+  assert.equal(writes,1);
+});
+
 test('aprovacao exige evidencia da propria tarefa recuperada do Supabase', async () => {
   const calls = [];
   const identity = { type: 'hermes_profile', profileSlug: 'clara--biz003', bindingVerified: true };
