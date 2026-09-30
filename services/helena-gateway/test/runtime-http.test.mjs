@@ -112,6 +112,24 @@ test('submit_work rejeita arquivo nao verificado antes de criar memoria', async 
   assert.equal(calls.some(call => call.url.pathname.includes('/rpc/')), false);
 });
 
+test('get_visual_asset retorna pixels e grava recibo com UUID valido para o banco real', async () => {
+  const visualJob = { ...job, job_id: 'JOB-HR-' + 'b'.repeat(32) };
+  const path = `BIZ-003/${visualJob.job_id}/post-v1.png`;
+  const reference = `storage://helena-deliveries/${path}`;
+  const bytes = PNG.sync.write(new PNG({ width: 1080, height: 1350 }));
+  const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+  const calls = mock({ currentJob: visualJob, storageObject: bytes,
+    artifactEvents: [{ payload: { reference, path, sha256, width: 1080, height: 1350 } }] });
+  const response = await invoke('mcp', 'get_visual_asset', { job_id: visualJob.job_id, reference });
+  assert.notEqual(response.result.isError, true);
+  assert.equal(response.result.content[1].type, 'image');
+  assert.equal(response.result.content[1].data, bytes.toString('base64'));
+  const event = JSON.parse(calls.find(call => call.method === 'POST' && call.url.pathname.endsWith('/agent_job_events')).body);
+  assert.match(event.event_id, /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/);
+  assert.equal(event.event_type, 'VISUAL_ASSET_OPENED');
+  assert.equal(event.payload.sha256, sha256);
+});
+
 test('resolve_job_block impede executor de desbloquear e aceita coordenacao autenticada', async () => {
   const args = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'resolve-test', reason: 'Fonte recuperada' };
   const deniedCalls = mock();

@@ -858,7 +858,8 @@ const TOOLS_CONFIG = {
       const result = await readVisualAsset({ job, reference, brand: companies?.[0]?.brand_identity,
         verified: events.map(event => event.payload), serviceUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY });
       if (identity?.agentId && reference !== 'brand-logo') {
-        const eventId = 'VIS-' + crypto.createHash('sha256').update(`${job_id}:${identity.agentId}:${result.sha256}`).digest('hex').slice(0, 32);
+        const eventHash = crypto.createHash('sha256').update(`${job_id}:${identity.agentId}:${result.sha256}`).digest('hex').slice(0, 32);
+        const eventId = [eventHash.slice(0,8), eventHash.slice(8,12), eventHash.slice(12,16), eventHash.slice(16,20), eventHash.slice(20)].join('-');
         await supabaseFetch('/rest/v1/agent_job_events?on_conflict=event_id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates' }, body: JSON.stringify({
           event_id: eventId, job_id, agent_id: identity.agentId, business_id: job.business_id,
           event_type: 'VISUAL_ASSET_OPENED', status: job.status, message: 'Pixels disponibilizados para inspecao visual; nao representa aprovacao',

@@ -16,7 +16,7 @@ Este registro complementa os checkpoints anteriores. A fonte operacional continu
 
 ## Evidência de testes
 
-- Gateway: 266 testes aprovados e 29 verificações adicionais de segurança aprovadas.
+- Gateway: 267 testes aprovados e 29 verificações adicionais de segurança aprovadas. Inclui UUID válido no recibo VISUAL_ASSET_OPENED; a leitura real encontrou e motivou essa correção.
 - Python local: 74 testes, 73 aprovados e um teste Linux de bloqueio de arquivo omitido no Windows. Inclui o lançamento do CLI pela ponte visual.
 - Hermes Linux: três testes finais de composição/geração idempotente e dois testes da ponte multimodal aprovados, além dos testes anteriores do instalador. CLI pela ponte inicializou com sucesso sem chamada de modelo.
 - Supabase: auditoria das 20 rotas de execução/revisão e dos 21 perfis passou dentro de transação revertida. Nenhuma tarefa de teste permaneceu no banco.
