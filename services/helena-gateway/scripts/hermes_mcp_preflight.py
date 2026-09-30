@@ -24,8 +24,15 @@ def inspect_tools(profile, found):
     prefix = 'mcp__helena_operacao__'
     names = {name[len(prefix):] for name in found if isinstance(name, str) and name.startswith(prefix)}
     missing = sorted(required_tools(profile) - names)
+    forbidden = set()
+    if profile not in ('marina--biz003', 'helena--grupo'):
+        forbidden.update({'create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief',
+                          'adopt_existing_task', 'record_dispatch'} & names)
+    if profile == 'laura--pessoal':
+        forbidden.update(names - {'get_work_context'})
     return {'server': 'helena_operacao', 'tool_count': len(names),
-            'profile': profile, 'missing_tools': missing, 'ready': not missing}
+            'profile': profile, 'missing_tools': missing, 'forbidden_tools': sorted(forbidden),
+            'ready': not missing and not forbidden}
 
 
 def main() -> int:

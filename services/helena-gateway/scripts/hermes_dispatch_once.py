@@ -18,6 +18,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
+from hermes_execution_context import packet_prompt
 
 try:
     import fcntl
@@ -227,10 +228,9 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "memoria local, spillover, resposta anterior ou resumo antigo; nao reutilize decisoes "
         "nem evidencias de outra tentativa. "
         "O despachante ja confirmou identidade e chamou claim_job/start_job; NAO repita essas chamadas. "
-        "Como primeira acao, chame helena_operacao.get_work_context e get_job com view=manifest. "
-        "Leia job, task, company_identity, agent_quality_contract e evidencias por get_job view=page, "
-        "section, revision do manifesto e offset=0, limit=4000; continue ate next_offset=null. "
-        "Nao use view=full que pode ser cortada. Se JOB_SNAPSHOT_CHANGED, releia antes de escrever. "
+        "O runtime fornece abaixo o contexto autorizado completo desta tarefa. Confirme a versao com "
+        "get_job view=manifest; nao repita a leitura de fontes e briefing que ja estao no pacote. "
+        "Se a versao mudou, use view=page com revision, section, offset e limit=4000. "
         "Leia company_identity em get_job e respeite a empresa, publico, oferta, voz, canais e restricoes. "
         "Leia agent_quality_contract e cumpra os insumos, entregaveis, verificacoes e limites da sua funcao; "
         "o contrato nao concede permissao nem substitui o briefing. Fatos, hipoteses e pendencias devem ser separados. "
@@ -265,6 +265,16 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "MISSING no resumo de outro perfil nao prova que ele esta desconectado. "
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
     )
+    context = call_tool(GATEWAY, profile_token, 'get_work_context', {})
+    if (context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False
+            or context.get('profile', {}).get('profile_slug') not in (None, profile)
+            or context.get('profile', {}).get('status') != 'ACTIVE'):
+        return 125, 'CONTEXT_UNAVAILABLE'
+    detail = call_tool(GATEWAY, profile_token, 'get_job', {'job_id': job_id})
+    if (detail.get('job', {}).get('status') != 'RUNNING'
+            or detail.get('job', {}).get('agent_id') != context['profile'].get('agent_id')):
+        return 125, 'CONTEXT_MISMATCH'
+    prompt += packet_prompt(detail)
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="helena-job-", suffix=".txt", delete=False) as handle:
         prompt_path = Path(handle.name)
         os.chmod(prompt_path, 0o600)
@@ -444,7 +454,7 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         else:
             outcome = run_agent(resolved_binary, profile, job_id, 300, profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
-    except OSError:
+    except (OSError, ValueError, GatewayRefusal):
         exit_code, diagnostic = 125, "PROCESS_START"
     try:
         result = request(gateway, profile_token, "get_job", {"job_id": job_id})

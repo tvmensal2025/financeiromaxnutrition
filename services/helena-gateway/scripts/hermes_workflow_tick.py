@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 
 import hermes_dispatch_once as dispatch
+from hermes_execution_context import packet_prompt
 
 
 def atomic_json(path, value):
@@ -96,10 +97,9 @@ def make_prompt(phase, detail, key):
         f"Fluxo autorizado: fase {phase}, empresa {j['business_id']}, job {j['job_id']}. "
         f"Chave de operacao deterministica: wf:{key[:32]}. Use esta chave em uma mutacao; "
         "adicione sufixo por acao distinta. Nao repita se a resposta for incerta; releia o estado. "
-        "Primeiro get_work_context e get_job deste ID com view=manifest. Depois get_job view=page, "
-        "section e revision do manifesto, offset=0 e limit=4000. Continue cada secao ate next_offset=null. "
-        "Leia job, task, company_identity, agent_quality_contract e evidence_records completos; "
-        "leia fontes e artefatos se presentes. Nao use view=full: a resposta pode ser cortada. "
+        "O runtime fornece o briefing e evidencias completos no pacote abaixo; confirme a versao com "
+        "get_job view=manifest. Nao releia secoes inalteradas. Se preciso, get_job view=page, section "
+        "e revision do manifesto, offset=0 e limit=4000. Nao use view=full. "
         "Se JOB_SNAPSHOT_CHANGED, releia manifesto e secoes alteradas antes da escrita. "
         "Confirme empresa, papel, status, versao e "
         "agent_quality_contract. Use apenas helena_operacao, sem SQL, shell, publicacao, mensagens, "
@@ -266,6 +266,9 @@ class Workflow:
             return {'status': 'NO_NEW_REVIEW', 'model_started': False}
         detail, phase, agent = selected
         jid = detail['job']['job_id']
+        if phase in ('COORDINATE', 'RESOLVE') and int(detail['job'].get('attempt_count') or 0) >= min(int(detail['job'].get('max_attempts') or 2), 2):
+            return {'status':'ATTEMPT_LIMIT', 'job_id':jid, 'model_started':False,
+                    'reason':'Attempt budget exhausted; no paid coordination to retry this job'}
         key = fingerprint(detail, phase)
         if key in self.state['receipts']:
             self.state['pending'].pop(jid, None)
@@ -282,12 +285,16 @@ class Workflow:
         for check in (dispatch.usage_preflight(binary, profile), dispatch.mcp_preflight(self.root / profile, token)):
             if check.get('status') != 'READY':
                 return {**check, 'job_id': jid, 'model_started': False}
+        actor_detail = self.call('get_job', {'job_id': jid}, token)
+        if fingerprint(actor_detail, phase) != key:
+            return {'status':'STATE_CHANGED', 'job_id':jid, 'model_started':False}
+        prompt = make_prompt(phase, actor_detail, key) + packet_prompt(actor_detail, phase)
         receipt = {'status': 'STARTED', 'job_id': jid, 'phase': phase, 'profile': profile,
                    'started_at': datetime.now(timezone.utc).isoformat()}
         self.state['receipts'][key] = receipt
         self.state['pending'].pop(jid, None)
         self.persist()  # Crash afterwards cannot create an uncontrolled paid retry.
-        code = self.runner(binary, profile, self.root / profile, token, make_prompt(phase, detail, key))
+        code = self.runner(binary, profile, self.root / profile, token, prompt)
         after = self.call('get_job', {'job_id': jid})
         follow = next_phase(phase, detail, after)
         if follow:

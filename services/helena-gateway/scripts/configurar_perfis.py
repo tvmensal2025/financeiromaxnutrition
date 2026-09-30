@@ -25,6 +25,7 @@ TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'cla
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block', 'revise_task_brief']
+EXECUTOR_TOOLS = [name for name in TOOLS if name not in ('create_task_job', 'release_job')]
 HERMES_SERIAL_TOOLS = False
 def profile_tools(profile):
     if profile == 'laura--pessoal':
@@ -34,8 +35,8 @@ def profile_tools(profile):
     if profile == 'helena--grupo':
         return COORDINATOR_TOOLS.copy()
     if profile == 'maya--biz003':
-        return TOOLS + ['create_artifact_upload', 'verify_artifact_upload']
-    return TOOLS.copy()
+        return EXECUTOR_TOOLS + ['create_artifact_upload', 'verify_artifact_upload']
+    return EXECUTOR_TOOLS.copy()
 
 MARKER = '## Protocolo Hermes-Supabase v2'
 RULES = '''
@@ -105,6 +106,8 @@ def prepare(home):
             if profile != 'laura--pessoal':
                 prior_filters.append(TOOLS[:-2])
                 prior_filters.append(TOOLS)
+            if profile == 'maya--biz003':
+                prior_filters.append(TOOLS + ['create_artifact_upload', 'verify_artifact_upload'])
             if profile in ('helena--grupo', 'marina--biz003'):
                 prior_filters.append(COORDINATOR_TOOLS)
                 prior_filters.append(COORDINATOR_TOOLS[:-1])

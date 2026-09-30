@@ -6,11 +6,13 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "hermes_dispatch_once.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("hermes_dispatch_once", SCRIPT)
 dispatcher = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dispatcher)
@@ -66,11 +68,14 @@ class DispatchTests(unittest.TestCase):
             self.assertTrue(token.endswith("H" * 40))
             return {"jobs": [self.job], "total_ready": 1}
         self.assertTrue(token.endswith("P" * 40))
+        if name == "get_work_context":
+            return {"context_version":"hermes-context-v2", "truncated":False,
+                    "profile":{"agent_id":"AGT-18", "status":"ACTIVE", "profile_slug":PROFILE}}
         if name == "get_job":
             return {
                 "job": {**self.job, "status": self.job_status},
                 "task": {"task_id": self.job["task_id"], "business_id": "BIZ-003",
-                         "definicao_de_pronto": "Entregar checklist com fontes e revisão."},
+                         "row_version":1, "definicao_de_pronto": "Entregar checklist com fontes e revisão."},
                 "runtime_binding": {"profile_slug": PROFILE, "status": self.binding_status,
                                     "business_id": "BIZ-003", "agent_id": "AGT-18"},
                 "events": self.events,
@@ -255,7 +260,8 @@ class DispatchTests(unittest.TestCase):
             self.assertTrue(Path(args[5]).is_file())
             prompt = Path(args[5]).read_text(encoding="utf-8")
             self.assertIn("execucao nova e isolada", prompt)
-            self.assertIn("Como primeira acao, chame helena_operacao.get_work_context", prompt)
+            self.assertIn("authorized-work-packet-v1", prompt)
+            self.assertIn(BRIEF.replace('\n', '\\n'), prompt)
             self.assertIn("context_version hermes-context-v2", prompt)
             self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "24"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
@@ -263,7 +269,8 @@ class DispatchTests(unittest.TestCase):
             self.assertEqual(kwargs["env"]["HERMES_HOME"], str(self.root / PROFILE))
             return FinishedProcess()
 
-        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
+        self.job_status = "RUNNING"
+        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
             self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE), (0, None))
 
     def test_cli_error_is_classified_without_persisting_raw_output(self):
@@ -275,7 +282,8 @@ class DispatchTests(unittest.TestCase):
             kwargs["stderr"].write(b"429 usage limit reached; token=hhs_SECRET_SHOULD_NOT_LEAK")
             return FailedProcess()
 
-        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn):
+        self.job_status = "RUNNING"
+        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
             outcome = dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE)
         self.assertEqual(outcome, (1, "RATE_LIMIT"))
         self.assertNotIn("SECRET", json.dumps(outcome))

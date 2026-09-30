@@ -16,10 +16,10 @@ JOB = 'JOB-HR-' + 'a'*32
 CHILD = 'JOB-HR-' + 'b'*32
 
 def detail():
-    return {'job': {'job_id':JOB, 'business_id':'BIZ-003', 'agent_id':'AGT-04',
+    return {'job': {'job_id':JOB, 'task_id':'TASK-TEST', 'business_id':'BIZ-003', 'agent_id':'AGT-04',
         'created_at':'2026-09-30T10:00:00Z', 'updated_at':'2026-09-30T12:00:00Z',
         'status':'WAITING_HELENA', 'result_payload':{'review_pending':True,'reviewer_agent_id':'AGT-01'}},
-        'task':{'row_version':30}, 'events':[]}
+        'task':{'task_id':'TASK-TEST','business_id':'BIZ-003','row_version':30}, 'events':[]}
 
 def approve(d, decision='APPROVE'):
     d['job']['status'] = 'COMPLETED' if decision == 'APPROVE' else 'DRAFT'
@@ -137,6 +137,13 @@ class ReviewStateTests(unittest.TestCase):
     def test_block_is_not_mistaken_for_delivery(self):
         self.d['job']['result_payload']={}
         self.assertEqual(wf.phase_for(self.d),('RESOLVE','AGT-01'))
+
+    def test_exhausted_attempts_do_not_spend_on_coordination(self):
+        self.d['job'].update(attempt_count=2,max_attempts=2,result_payload={})
+        result=self.run_tick()
+        self.assertEqual(result['status'],'ATTEMPT_LIMIT')
+        self.assertFalse(result['model_started'])
+        self.assertEqual(self.calls,0)
 
     def test_handoff_verification_uses_persisted_child(self):
         self.d['events']=[{'event_type':'WORKFLOW_handoff','payload':{'response':{'job_id':CHILD}}}]

@@ -10,6 +10,14 @@ def discovered(names):
     return {'mcp__helena_operacao__' + name: {} for name in names}
 
 class PreflightTest(unittest.TestCase):
+    def test_specialists_do_not_advertise_actions_rejected_by_authorization(self):
+        for profile in ('maya--biz003','pedro--biz003','camila--biz003','nina--biz003'):
+            with self.subTest(profile=profile):
+                names = probe.required_tools(profile) | {'create_task_job', 'release_job'}
+                report = probe.inspect_tools(profile, discovered(names))
+                self.assertFalse(report['ready'])
+                self.assertEqual(report['forbidden_tools'], ['create_task_job', 'release_job'])
+
     def test_coordinators_require_brief_revision_before_inference(self):
         for profile in ('helena--grupo', 'marina--biz003'):
             names = probe.required_tools(profile) - {'revise_task_brief'}

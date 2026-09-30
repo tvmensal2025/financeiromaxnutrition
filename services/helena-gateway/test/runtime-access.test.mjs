@@ -8,6 +8,29 @@ const entry = { profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256
 const identity = { type: 'hermes_profile', profileSlug: 'pedro--biz003' };
 const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', status: 'ACTIVE' };
 const job = { job_id: 'JOB-TEST', agent_id: 'AGT-18', business_id: 'BIZ-003', task_id: 'TSK-TEST' };
+for (let number=1; number<=21; number++) {
+  const agentId=`AGT-${String(number).padStart(2,'0')}`;
+  test(`matriz ${agentId}: leitura, escopo, coordenacao e conclusao direta`, async () => {
+    const personal=number===2, manager=[1,4].includes(number);
+    const runtime={...binding,agent_id:agentId,scope_type:number===1?'GROUP':personal?'PERSONAL':'BUSINESS',
+      business_id:number===1||personal?null:'BIZ-003'};
+    const actor={type:'hermes_profile',profileSlug:`profile-${number}`};
+    const own=reader({runtime,task:{...job,agent_id:agentId}});
+    await authorizeGatewayTool('get_work_context',{},actor,own);
+    if (personal) {
+      await assert.rejects(authorizeGatewayTool('claim_job',{job_id:job.job_id},actor,own),/escopo empresarial/);
+      return;
+    }
+    await authorizeGatewayTool('get_job',{job_id:job.job_id},actor,own);
+    await assert.rejects(authorizeGatewayTool('complete_job',{job_id:job.job_id},actor,own),/submit_delivery/);
+    if (manager) await authorizeGatewayTool('release_job',{job_id:job.job_id},actor,own);
+    else await assert.rejects(authorizeGatewayTool('release_job',{job_id:job.job_id},actor,own),/Somente/);
+    if(number!==1) await assert.rejects(authorizeGatewayTool('get_job',{job_id:job.job_id},actor,
+      reader({runtime,task:{...job,agent_id:agentId,business_id:'BIZ-OTHER'}})),/outra empresa/);
+    await assert.rejects(authorizeGatewayTool('start_job',{job_id:job.job_id},actor,
+      reader({runtime,task:{...job,agent_id:'AGT-99'}})),/outro agente/);
+  });
+}
 function reader({ runtime = binding, task = job, role = 'operator' } = {}) {
   return async url => {
     if (url.startsWith('/rest/v1/agent_runtime_bindings?')) return runtime ? [runtime] : [];

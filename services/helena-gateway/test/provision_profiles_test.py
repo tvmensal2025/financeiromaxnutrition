@@ -64,7 +64,7 @@ class ProvisionTest(unittest.TestCase):
             module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
             upgraded = module.yaml.safe_load(config_path.read_text())
-            self.assertEqual(upgraded['mcp_servers']['helena_operacao']['tools']['include'], module.TOOLS)
+            self.assertEqual(upgraded['mcp_servers']['helena_operacao']['tools']['include'], module.EXECUTOR_TOOLS)
             upgraded['mcp_servers']['helena_operacao']['url'] = 'https://unexpected.invalid/mcp'
             config_path.write_text(module.yaml.safe_dump(upgraded))
             with self.assertRaises(ValueError):
