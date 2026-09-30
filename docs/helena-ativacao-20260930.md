@@ -11,13 +11,14 @@ Este registro complementa os checkpoints anteriores. A fonte operacional continu
 - Maya dispõe de `helena_visual.generate_design`, conectado ao provedor nativo Codex autenticado do Hermes. Cada job/slot/versão admite uma solicitação de geração; falha ou resultado incerto exige reconciliação. Upload pode reutilizar o PNG já renderizado.
 - A geração usa a identidade aprovada atual, imagem protagonista e copy exata. O adaptador aplica o logo original no canto inferior direito, preserva proporções e reserva área inferior de stories.
 - A entrada MCP usa `MCPServer` do SDK Python 2.0.0 instalado no Hermes.
+- O renderizador MCP do Hermes convertia pixels em um caminho de arquivo textual. O adaptador `install_native_mcp_pixels.py` preserva o envelope multimodal nativo para PNGs privados verificados do Gateway. Ele atua somente em memória nos processos lançados pelo despachante e pelo consumidor de revisão; a instalação do Hermes permanece intacta. Uma cópia do renderizador original foi guardada para auditoria. Outros servidores e retornos continuam usando o renderizador existente. O preflight detecta ausência ou incompatibilidade antes da execução; atualizações do Hermes exigem reconciliação do adaptador.
 - Backups da instalação existem em `/data/helena-runtime/delivery-backup-*`. Relatório dos 21 perfis: `/data/helena-runtime/activation-preflight-20260930.json`.
 
 ## Evidência de testes
 
 - Gateway: 266 testes aprovados e 29 verificações adicionais de segurança aprovadas.
-- Python local: 72 testes, 71 aprovados e um teste Linux de bloqueio de arquivo omitido no Windows.
-- Hermes Linux: cinco testes do instalador/adaptador aprovados na validação anterior; repetir o teste de composição após o ajuste final de posição do logo.
+- Python local: 74 testes, 73 aprovados e um teste Linux de bloqueio de arquivo omitido no Windows. Inclui o lançamento do CLI pela ponte visual.
+- Hermes Linux: três testes finais de composição/geração idempotente e dois testes da ponte multimodal aprovados, além dos testes anteriores do instalador. CLI pela ponte inicializou com sucesso sem chamada de modelo.
 - Supabase: auditoria das 20 rotas de execução/revisão e dos 21 perfis passou dentro de transação revertida. Nenhuma tarefa de teste permaneceu no banco.
 - Descoberta das ferramentas não realizou chamadas aos modelos. Autenticação do provedor de imagens disponível não comprova uma geração real concluída.
 

@@ -36,11 +36,17 @@ def inspect_tools(profile, found):
 
 
 def main() -> int:
+    from install_native_mcp_pixels import activate
+    activate()
     from tools.mcp_tool_discovery import discover_mcp_tools
     # The CLI's --toolsets filter takes configured server names, without mcp-.
     profile = Path(os.environ.get('HERMES_HOME', '')).name
     found = discover_mcp_tools(allowed_mcp_names=["helena_operacao"] + (["helena_visual"] if profile == 'maya--biz003' else []))
     report = inspect_tools(profile, found)
+    if profile != 'laura--pessoal':
+        from tools import mcp_tool_handlers
+        report['native_pixels_ready'] = getattr(mcp_tool_handlers, 'HELENA_NATIVE_PIXELS_ACTIVE', False)
+        report['ready'] = report['ready'] and report['native_pixels_ready']
     if profile == 'maya--biz003':
         from hermes_visual import load_provider
         ready = 'mcp__helena_visual__generate_design' in found and load_provider().is_available()

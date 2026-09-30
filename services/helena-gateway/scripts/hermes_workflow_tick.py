@@ -173,7 +173,7 @@ def run_query(binary, profile, home, token, prompt, timeout=240):
         f.write(prompt)
     try:
         with tempfile.TemporaryFile() as out:
-            p = subprocess.Popen([binary, '-p', profile, 'chat', '--query-file', f.name,
+            p = subprocess.Popen(dispatch.native_cli_command(binary) + ['-p', profile, 'chat', '--query-file', f.name,
                 '--oneshot', '--toolsets', 'helena_operacao', '--max-turns', '24'],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
                 env={**os.environ, 'HERMES_HOME': str(home), dispatch.TOKEN_NAME: token})

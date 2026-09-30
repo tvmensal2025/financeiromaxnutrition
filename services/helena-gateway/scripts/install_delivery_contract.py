@@ -28,7 +28,8 @@ def install(home):
     runtime = home / 'helena-runtime'
     plans = []
     for name in ('hermes_dispatch_once.py', 'hermes_workflow_tick.py',
-                 'hermes_mcp_preflight.py', 'hermes_execution_context.py', 'hermes_visual.py'):
+                 'hermes_mcp_preflight.py', 'hermes_execution_context.py', 'hermes_visual.py',
+                 'install_native_mcp_pixels.py'):
         content = (source / name).read_text(encoding='utf-8'); ast.parse(content)
         plans.append((runtime / name, content.encode('utf-8')))
     for profile in PROFILES:

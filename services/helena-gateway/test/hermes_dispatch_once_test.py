@@ -255,6 +255,10 @@ class DispatchTests(unittest.TestCase):
                 return 0
 
         def spawn(args, **kwargs):
+            self.assertEqual(args[0], sys.executable)
+            self.assertEqual(Path(args[1]).name, 'install_native_mcp_pixels.py')
+            self.assertEqual(args[2], '--run-hermes')
+            args = args[3:]
             self.assertEqual(args[:4], ["/usr/bin/hermes", "-p", PROFILE, "chat"])
             self.assertEqual(args[4], "--query-file")
             self.assertTrue(Path(args[5]).is_file())
@@ -270,7 +274,7 @@ class DispatchTests(unittest.TestCase):
             return FinishedProcess()
 
         self.job_status = "RUNNING"
-        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
+        with patch.dict(os.environ, {'HERMES_PYTHON': sys.executable}), patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
             self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE), (0, None))
 
     def test_cli_error_is_classified_without_persisting_raw_output(self):
@@ -283,7 +287,7 @@ class DispatchTests(unittest.TestCase):
             return FailedProcess()
 
         self.job_status = "RUNNING"
-        with patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
+        with patch.dict(os.environ, {'HERMES_PYTHON': sys.executable}), patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
             outcome = dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE)
         self.assertEqual(outcome, (1, "RATE_LIMIT"))
         self.assertNotIn("SECRET", json.dumps(outcome))

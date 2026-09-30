@@ -218,6 +218,14 @@ def mcp_preflight(profile_home: Path, profile_token: str, runner=subprocess.run)
     return {"status": "MCP_UNAVAILABLE"}
 
 
+def native_cli_command(binary):
+    bridge = Path(__file__).with_name('install_native_mcp_pixels.py')
+    python = os.environ.get('HERMES_PYTHON', '/opt/hermes/.venv/bin/python')
+    if not bridge.is_file() or not Path(python).is_file():
+        raise RuntimeError('Native pixel adapter unavailable before inference')
+    return [python, str(bridge), '--run-hermes', binary]
+
+
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
                 profile_home: Path, model_override: str | None = None) -> tuple[int, str | None]:
     if model_override is not None and model_override not in ROUTING_MODELS.values():
@@ -284,7 +292,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         # Keep raw CLI output private and ephemeral. It may contain model text or credentials.
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
-                [binary, "-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
+                native_cli_command(binary) + ["-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
                  "--toolsets", "helena_operacao,helena_visual" if profile == 'maya--biz003' else "helena_operacao", "--max-turns", "24"]
                 + (["--model", model_override] if model_override else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
