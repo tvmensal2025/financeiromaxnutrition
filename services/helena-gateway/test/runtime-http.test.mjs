@@ -258,6 +258,17 @@ test('Maya prepara e confirma PNG apenas no proprio job e empresa', async () => 
   const mayaBinding = { ...binding, agent_id: 'AGT-12', profile_slug: 'maya--biz003' };
   const png = new PNG({ width: 1080, height: 1350 });
   png.data.fill(255);
+  // A solid white canvas is intentionally rejected by the artifact guard.
+  // Add a visible color block so this fixture represents a real deliverable.
+  for (let y = 0; y < 240; y += 1) {
+    for (let x = 0; x < 360; x += 1) {
+      const offset = (y * png.width + x) * 4;
+      png.data[offset] = 6;
+      png.data[offset + 1] = 59;
+      png.data[offset + 2] = 53;
+      png.data[offset + 3] = 255;
+    }
+  }
   const bytes = PNG.sync.write(png);
   const calls = mock({ runtime: mayaBinding, currentJob: visualJob, storageObject: bytes });
   const args = { job_id: visualJob.job_id, slot: 'post', version: 1 };

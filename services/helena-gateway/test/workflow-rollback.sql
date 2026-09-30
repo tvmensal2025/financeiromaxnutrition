@@ -69,12 +69,12 @@ begin
   if exists(select 1 from public.handoffs where related_object_id=j and status<>'CONCLUÍDO') then raise exception 'handoff not closed'; end if;
   select row_version into v from public.tarefas where task_id=t;
   payload:=jsonb_build_object('job_id',j,'expected_task_version',v,'idempotency_key','rollback-handoff','target_agent_id','AGT-15','objective','Fixture next stage','definition_of_done','Reviewed next delivery');
-  child:=public.gateway_workflow('pedro--biz003','handoff',payload);
+  child:=public.gateway_workflow('helena--grupo','handoff',payload);
   if child->>'status'<>'DRAFT' then raise exception 'handoff starts work automatically'; end if;
-  replay:=public.gateway_workflow('pedro--biz003','handoff',payload);
+  replay:=public.gateway_workflow('helena--grupo','handoff',payload);
   if child<>replay then raise exception 'handoff duplicated'; end if;
   begin
-    perform public.gateway_workflow('pedro--biz003','handoff',payload||'{"idempotency_key":"rollback-handoff-other"}');
+    perform public.gateway_workflow('helena--grupo','handoff',payload||'{"idempotency_key":"rollback-handoff-other"}');
     raise exception 'multiple downstream tasks accepted';
   exception when invalid_parameter_value then null; end;
   other:=public.gateway_workflow('marina--biz003','create_task','{"target_agent_id":"AGT-16","business_id":"BIZ-003","objective":"WIP fixture","definition_of_done":"Test","idempotency_key":"rollback-wip"}');
