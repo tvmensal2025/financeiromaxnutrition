@@ -20,7 +20,7 @@ export type Empresa = {
 const CORES: Record<string, string> = {
   "BIZ-001": "#007A3D",
   "BIZ-002": "#2563EB",
-  "BIZ-003": "#B45309",
+  "BIZ-003": "#075E47",
   "GRUPO": "#4F46E5",
 };
 
@@ -93,7 +93,7 @@ export const EMPRESAS_BASE: Empresa[] = [
     nome: "Humano Digital",
     negocio: "Humano Digital",
     sigla: "Humano Digital",
-    cor: "#B45309",
+    cor: "#075E47",
     estagio: "VALIDAÇÃO",
     principal_gargalo: "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
   },

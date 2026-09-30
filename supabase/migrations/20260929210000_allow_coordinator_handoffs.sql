@@ -19,7 +19,7 @@ begin
   -- The live function may already contain this guard because the change was
   -- applied manually while validating the pilot. Keep the migration safe to
   -- replay instead of failing on an already-correct production function.
-  if current_definition ~* $$p_action\s*=\s*'handoff'\s+and\s+b[.]agent_id\s+not\s+in\s*\(\s*'AGT-01'\s*,\s*'AGT-04'\s*\)$$ then
+  if current_definition ~* $guard$p_action\s*=\s*'handoff'\s+and\s+b[.]agent_id\s+not\s+in\s*\(\s*'AGT-01'\s*,\s*'AGT-04'\s*\)$guard$ then
     return;
   end if;
 

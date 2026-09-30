@@ -81,6 +81,14 @@ test('SVG de arte recusa conteudo ativo, recurso remoto, tamanho ou formato inco
   assert.throws(() => renderArtifactSvg('x'.repeat(35 * 1024 + 1), 'story-1'), /35 KB/);
 });
 
+test('moldura vazia e texto invisivel nao passam como arte pronta', () => {
+  const wrap = inner => `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><rect width="1080" height="1350" fill="#075E47"/><rect x="80" y="80" width="920" height="1190" fill="none" stroke="#BCD2B5" stroke-width="3"/>${inner}</svg>`;
+  assert.throws(() => renderArtifactSvg(wrap(''), 'post'), /texto/i);
+  for (const attributes of ['fill="#075E47"', 'fill="white" opacity="0"', 'fill="white" transform="translate(2000 0)"'])
+    assert.throws(() => renderArtifactSvg(wrap(`<text x="100" y="300" font-size="60" ${attributes}>Humano Digital</text>`), 'post'), /visivel/);
+  assert.equal(renderArtifactSvg(wrap('<text x="100" y="300" font-size="60" fill="white">Humano Digital</text>'),'post').width,1080);
+});
+
 test('repeticao do mesmo PNG apos resposta perdida e idempotente, divergir o conteudo e recusado', async () => {
   const image = new PNG({ width: 1080, height: 1920 });
   image.data.fill(255);

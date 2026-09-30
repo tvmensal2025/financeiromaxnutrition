@@ -2,6 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { PNG } from 'pngjs';
+import { sampleDelivery } from './quality-fixtures.mjs';
 
 // Credenciais ficticias; nenhum acesso ao Supabase ou Hermes real neste arquivo.
 const token = 'hhs_' + 'fixture'.repeat(8);
@@ -54,6 +55,7 @@ function mock({ runtime = binding, currentJob = job, rpcResult = null, memories 
     else if (value.pathname.endsWith('/agent_job_events')) result = value.searchParams.get('event_type') === 'eq.WORKFLOW_handoff' ? handoffLinks : value.searchParams.get('event_type') === 'eq.ARTIFACT_VERIFIED' ? artifactEvents : [];
     else if (value.pathname.endsWith('/memoria_mestre')) result = memories;
     else if (value.pathname.endsWith('/tarefas')) result = [{ task_id: job.task_id, business_id: job.business_id, row_version: 123 }];
+    else if (value.pathname.endsWith('/portfolio')) result = [{ business_id: currentJob.business_id, row_version: 415, brand_identity: { business_id: currentJob.business_id, name: 'Marca do teste', status: 'DRAFT' } }];
     else throw new Error('Requisicao nao prevista: ' + value.pathname);
     return new Response(JSON.stringify(result), { headers: { 'content-type': 'application/json' } });
   };
@@ -112,6 +114,8 @@ test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem vir
   const currentJob = { ...job, instruction: `Consultar ${id} e ${other}`, evidence_refs: [] };
   mock({ currentJob, memories: [memory, { ...memory, id: other, business_id_area: 'BIZ-001' }], inputJobs: [source] });
   const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.equal(result.company_identity.business_id, job.business_id);
+  assert.equal(result.company_identity.row_version, 415);
   assert.deepEqual(result.input_evidence_records.map(r => r.id), [id]);
   assert.deepEqual(result.input_evidence_missing, [other]);
   assert.deepEqual(result.evidence_records, []);
@@ -244,7 +248,7 @@ test('Hermes nao consegue concluir sem revisao', async () => {
 
 test('workflow HTTP passa identidade do token e chave de idempotencia ao Supabase', async () => {
   const calls = mock({ rpcResult: { success: true, status: 'WAITING_HELENA', completed: false } });
-  const payload = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'delivery-1', summary: 'Entrega', evidence_refs: ['fixture:evidence'] };
+  const payload = { job_id: job.job_id, expected_task_version: 123, idempotency_key: 'delivery-1', summary: 'Entrega', evidence_refs: ['fixture:evidence'],delivery:sampleDelivery('fixture:evidence') };
   const response = resultOf(await invoke('mcp', 'submit_delivery', payload), 'mcp');
   assert.equal(response.completed, false);
   const call = calls.find(c => c.url.pathname.endsWith('/gateway_workflow'));
@@ -304,7 +308,8 @@ test('Maya converte SVG autorizado, armazena PNG privado e registra verificacao'
 test('arquivo citado sem verificacao nao segue para revisao', async () => {
   const visualJob = { ...job, job_id: 'JOB-HR-' + 'b'.repeat(32) };
   const calls = mock({ currentJob: visualJob });
-  const args = { job_id: visualJob.job_id, expected_task_version: 123, idempotency_key: 'unverified-asset', summary: 'Imagem ainda nao conferida', evidence_refs: [`storage://helena-deliveries/BIZ-003/${visualJob.job_id}/post-v1.png`] };
+  const ref=`storage://helena-deliveries/BIZ-003/${visualJob.job_id}/post-v1.png`;
+  const args = { job_id: visualJob.job_id, expected_task_version: 123, idempotency_key: 'unverified-asset', summary: 'Imagem ainda nao conferida', evidence_refs: [ref],delivery:sampleDelivery(ref) };
   const response = await invoke('mcp', 'submit_delivery', args);
   assert.equal(response.result.isError, true);
   assert.match(response.result.content[0].text, /sem verificacao/);

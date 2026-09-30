@@ -172,6 +172,7 @@ export default function PortfolioPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Link to={`/identidade?empresa=${encodeURIComponent(emp.business_id)}`} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted">Identidade da marca</Link>
                     <button
                       type="button"
                       onClick={() => handleAbrirEmpresa(emp.business_id)}

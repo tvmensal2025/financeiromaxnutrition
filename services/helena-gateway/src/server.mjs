@@ -20,6 +20,7 @@ import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
 import { artifactEventId, createArtifactUpload, parseArtifactReference, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
+import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs';
 import { createTypeSafe } from './integrations/typesafe.mjs';
 
 // ======================================================================
@@ -466,6 +467,9 @@ async function handleGetJob({ job_id }) {
 
   return {
     job,
+    quality_version: QUALITY_VERSION,
+    agent_quality_contract: agentQualityContract(job.agent_id),
+    company_identity: (await supabaseFetch(`/rest/v1/portfolio?business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`)).map(company => ({ business_id: company.business_id, row_version: company.row_version, brand_identity: company.brand_identity || null }))[0] || null,
     task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
     runtime_binding: runtimeBinding || null,
     connection: runtimeBinding ? {
@@ -1386,6 +1390,8 @@ app.get('/health', async (req, res) => {
     supabase: supabaseOk,
     runtime_access: 'hermes-scoped-v1',
     workflow_version: 'hermes-workflow-v2',
+    quality_version: QUALITY_VERSION,
+    design_generation: 'ORIGINAL_ILLUSTRATION_ONLY',
     typesafe: typeSafe.publicStatus(),
     oauth: oauthOk,
     mcp: true

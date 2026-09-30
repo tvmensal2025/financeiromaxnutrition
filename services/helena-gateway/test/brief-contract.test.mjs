@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BRIEF_SECTIONS, validateProfessionalBrief } from '../src/brief-contract.mjs';
 import { workflowTools } from '../src/workflow.mjs';
+import { creativeContext } from './quality-fixtures.mjs';
 
 const bodies = [
   'Empresa BIZ-003 Humano Digital. Consultar o contexto da empresa no Gateway. Condições comerciais não comprovadas continuam pendentes e não podem virar promessa.',
@@ -76,4 +77,13 @@ test('criacao e handoff recusam comando raso antes da RPC e aceitam estrutura co
     await tools[name].handler({ instruction }, { identity });
   }
   assert.equal(writes, 2);
+});
+
+test('foto ou imagem gerada sem ferramenta e bloqueada antes de release e de avaliar IA',async()=>{
+  const creative = creativeContext(['post']);
+  const design = {...detail,company_identity:creative.company_identity,job:{...detail.job,agent_id:'AGT-12',objective:'Criar post profissional',instruction:instruction+'\n'+creative.instruction.replace('ORIGINAL_ILLUSTRATION','GENERATED_IMAGE')},runtime_binding:{...detail.runtime_binding,agent_id:'AGT-12'}};
+  let calls=0;
+  const tools=workflowTools(async()=>{calls++;return {success:true};},async()=>design,async()=>{calls++;});
+  await assert.rejects(tools.release_job.handler({job_id:'job-1',expected_task_version:1,idempotency_key:'k'},{identity:{type:'hermes_profile',bindingVerified:true,profileSlug:'helena--grupo'}}),/antes de gastar IA/);
+  assert.equal(calls,0);
 });

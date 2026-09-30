@@ -40,9 +40,13 @@ export async function startHermesRun({ job, task, binding, baseUrl, keysJson, fe
     `Instrucoes da tarefa: ${job.instruction}`,
     `Definicao de pronto: ${task.definicao_de_pronto}`,
     'Antes de agir, use helena_operacao.get_work_context e get_job. Confirme empresa, responsavel e versao.',
+    'Leia company_identity em get_job: esta e a ficha da empresa para todas as funcoes. Respeite publico, oferta, voz, canais, fontes e restricoes. Para design, use apenas identidade APPROVED, logo autorizado e paleta registrada; cite row_version em brand_version no bloco direcao-arte. Nunca herde marca de outra empresa. Se faltarem fatos essenciais, registre a pendencia.',
+    'Leia agent_quality_contract em get_job e cumpra required_inputs, deliverables, quality_checks e boundaries da sua funcao. Isso nao concede permissao nem substitui o briefing. Separe fatos, hipoteses e dados faltantes; nao invente fontes ou alegue pesquisa sem consulta.',
     'Depois use claim_job e start_job. Registre marcos com record_progress e fontes com record_memory.',
     ...(binding.profile_slug === 'maya--biz003' ? ['Para cada PNG, chame create_artifact_upload com job_id, slot, version e svg vetorial original (ate 35 KB), em 1080x1350 para post ou 1080x1920 para story; sem URLs, imagens externas ou scripts. O Gateway renderiza, envia e verifica o PNG privado; registre cada referencia retornada como evidencia.'] : []),
     'Entregue com submit_delivery, evidencias e versao atual. Aguarde review_delivery; nao use complete_job.',
+    'Todas as entregas exigem delivery: schema_version=1, title, content pronto para uso em linguagem clara, next_steps, limitations, acceptance_checks com criterion, evidence_ref desta entrega e finding concreto. summary e relatorio interno. Revisor deve comparar cada criterio ao pedido completo, abrir suas evidencias e fornecer quality_review antes de APPROVE.',
+    'Para arte social, cumpra direcao-arte por empresa e envie publication com title, caption pronta para publico, strategy, instructions e alt_text. Nunca substitua fotografia ou imagem gerada solicitada por moldura vetorial vazia. Se faltar ferramenta de imagem, registre bloqueio. Revisao visual exige abrir cada arquivo final; dimensoes e hash nao comprovam qualidade.',
     'Em bloqueio, registre fail_job ou waiting_helena. Nunca anuncie conclusao sem leitura confirmada do Supabase.'
   ].join('\n');
 

@@ -48,6 +48,7 @@ const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
   { to: "/execucao", label: "Central de Execução", icon: Activity },
   { to: "/entregas", label: "Entregas da equipe", icon: FileText },
+  { to: "/identidade", label: "Identidade da empresa", icon: Package },
   { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
 ];
 
@@ -138,6 +139,7 @@ export function Layout() {
     if (pathname === "/entregas") return `${empresaNome} / Entregas da equipe`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
+    if (pathname === "/identidade") return `${empresaNome} / Identidade da empresa`;
     if (pathname === "/equipe") return `Sistema Helena / Equipe Digital`;
     if (pathname === "/crm") return `${empresaNome} / CRM`;
     if (pathname === "/financeiro") return `${empresaNome} / Financeiro`;

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="144" viewBox="0 0 640 144" role="img" aria-labelledby="title">
+  <title id="title">Humano Digital — proposta de assinatura</title>
+  <g fill="none" stroke="#075E47" stroke-width="7" stroke-linecap="round">
+    <path d="M39 104V40m58 64V40M39 72h58"/>
+    <circle cx="39" cy="32" r="11" fill="#075E47"/><circle cx="97" cy="112" r="11" fill="#075E47"/>
+  </g>
+  <text x="138" y="72" font-family="Arial, sans-serif" font-weight="700" font-size="53" fill="#163D32">Humano</text>
+  <text x="140" y="113" font-family="Arial, sans-serif" font-weight="500" font-size="32" letter-spacing="9" fill="#075E47">DIGITAL</text>
+</svg>

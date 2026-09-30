@@ -11,6 +11,7 @@ import CrmPage from "@/pages/CrmPage";
 import FinanceiroPage from "@/pages/FinanceiroPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 import PortfolioPage from "@/pages/PortfolioPage";
+import IdentidadePage from "@/pages/IdentidadePage";
 import EquipePage from "@/pages/EquipePage";
 import SistemaPage from "@/pages/SistemaPage";
 import ExecucaoPage from "@/pages/ExecucaoPage";
@@ -119,6 +120,7 @@ function Rotas() {
         <Route path="/financeiro" element={<FinanceiroPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/identidade" element={<IdentidadePage />} />
         <Route path="/equipe" element={<EquipePage />} />
         <Route path="/inbox" element={<ComandoPage inicial="Supervisão" />} />
         <Route path="/sistema" element={<SistemaPage />} />

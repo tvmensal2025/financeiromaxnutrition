@@ -34,6 +34,13 @@ jobs:
         working-directory: services/helena-gateway
         run: npm run check
 
+      - name: Gateway regression tests
+        working-directory: services/helena-gateway
+        run: npm test
+
+      - name: Quality protocol tests
+        run: python3 -m unittest discover -s services/helena-gateway/test -p quality_protocol_test.py -v
+
       - name: Docker Build Test
         working-directory: services/helena-gateway
         run: docker build -t helena-gateway:ci .

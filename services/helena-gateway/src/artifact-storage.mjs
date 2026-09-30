@@ -71,16 +71,29 @@ export function renderArtifactSvg(svg, slot) {
     throw new Error(`Dimensoes SVG invalidas; width, height e viewBox devem ser ${expected[0]}x${expected[1]} para ${slot}`);
   }
 
+  // Compare the rendered image against the same design without text. Colored
+  // frames are not evidence that the caption actually survived rendering.
+  const withoutText = svg.replace(/<text\b[^>]*>[\s\S]*?<\/text\s*>/gi, '');
+  if (withoutText === svg) throw new Error('Arte social exige texto visivel; moldura vazia nao e entrega');
   let bytes;
   try {
-    const renderer = new Resvg(svg, {
+    const options = {
       fitTo: { mode: 'original' },
-      font: { loadSystemFonts: true, defaultFontFamily: 'sans-serif', sansSerifFamily: 'sans-serif' },
+      font: { loadSystemFonts: true, defaultFontFamily: 'DejaVu Sans', sansSerifFamily: 'DejaVu Sans' },
       logLevel: 'error'
-    });
-    bytes = renderer.render().asPng();
-  } catch {
-    throw new Error('SVG nao pode ser convertido em PNG');
+    };
+    const rendered = new Resvg(svg, options).render();
+    const background = new Resvg(withoutText, options).render();
+    const actual = rendered.pixels;
+    const base = background.pixels;
+    let textPixels = 0;
+    for (let i = 0; i < actual.length; i += 4) {
+      if (actual[i + 3] > 0 && Math.max(Math.abs(actual[i]-base[i]), Math.abs(actual[i+1]-base[i+1]), Math.abs(actual[i+2]-base[i+2]), Math.abs(actual[i+3]-base[i+3])) >= 24) textPixels++;
+    }
+    if (textPixels < 500) throw new Error('Texto nao ficou visivel no PNG; confira fontes, contraste e enquadramento');
+    bytes = rendered.asPng();
+  } catch (error) {
+    throw new Error(`SVG nao pode ser convertido em PNG: ${error.message}`);
   }
   const dimensions = pngDimensions(bytes);
   assertArtifactContent(bytes);

@@ -1,5 +1,6 @@
 // A deterministic quality gate: check structure before a model is dispatched.
 // The coordinator remains responsible for checking factual quality and scope.
+import { validateCreativeBrief, validateBrandForDesign } from './creative-brief.mjs';
 export const BRIEF_SECTIONS = [
   'Contexto e fontes',
   'Objetivo e impacto',
@@ -55,5 +56,12 @@ export function validateProfessionalBrief(detail) {
       || detail.input_evidence_missing?.length) {
     throw new Error('Fontes do briefing indisponiveis ou sem revisao aprovada; liberacao e aceite recusados antes de chamar IA');
   }
-  return validateBriefStructure(instruction);
+  validateBriefStructure(instruction);
+  if (job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(job.objective)) {
+    const creative = validateCreativeBrief(instruction, job.business_id);
+    validateBrandForDesign(detail, creative);
+    if (creative.imagery_method !== 'ORIGINAL_ILLUSTRATION')
+      throw new Error('Ferramenta de foto/imagem gerada ainda nao conectada ao executor de design; liberacao recusada antes de gastar IA');
+  }
+  return true;
 }
