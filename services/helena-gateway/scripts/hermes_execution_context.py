@@ -20,9 +20,13 @@ def execution_packet(detail, phase='EXECUTE'):
         for record in detail.get(section) or []:
             if record.get('business_id_area') != job.get('business_id'):
                 raise ValueError('Evidence packet scope mismatch')
-            if record.get('id') in records and records[record['id']] != record:
+            previous = records.get(record.get('id'), {})
+            if any(previous[key] != record[key] for key in previous.keys() & record.keys()):
                 raise ValueError('Conflicting evidence versions')
-            records[record['id']] = record
+            # Input evidence may include approved_output while source evidence
+            # contains the same canonical row without this enrichment.
+            # Keep all fields; reject every disagreement in shared fields.
+            records[record['id']] = {**previous, **record}
     result = job.get('result_payload') or {}
     packet = {
         'packet_version': PACKET_VERSION, 'truncated': False, 'phase': phase,

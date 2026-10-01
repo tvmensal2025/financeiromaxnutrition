@@ -300,7 +300,16 @@ class Workflow:
             detail = self.call('get_job', {'job_id': jid})
             phase = item['phase']
             status = detail['job'].get('status')
-            valid = ((phase == 'HANDOFF' and status == 'COMPLETED' and reviewed(detail)) or
+            # A stale local pending entry must not repeat a handoff already
+            # committed in the canonical event journal (e.g. after a crash).
+            if phase == 'HANDOFF' and permitted(detail, self.config):
+                follow = next_phase('HANDOFF', {}, detail)
+                if follow:
+                    self.state['pending'].pop(jid, None)
+                    self.enqueue_follow(detail, follow)
+                    self.persist()
+                    continue
+            valid = ((phase == 'HANDOFF' and phase_for(detail) == ('HANDOFF', detail['job']['agent_id'])) or
                      (phase == 'COORDINATE' and status == 'DRAFT'))
             if not valid:
                 self.state['pending'].pop(jid, None)

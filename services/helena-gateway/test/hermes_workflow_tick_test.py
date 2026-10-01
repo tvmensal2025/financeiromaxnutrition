@@ -79,6 +79,35 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(self.worker().state['pending'][JOB]['agent_id'],'AGT-04')
         self.assertEqual(self.calls,1)
 
+    def test_stale_pending_handoff_uses_existing_child_without_inference(self):
+        approve(self.d)
+        self.d['events'].append({'event_type':'WORKFLOW_handoff',
+            'payload':{'response':{'job_id':CHILD}}})
+        child = detail()
+        child['job'].update(job_id=CHILD, status='DRAFT')
+        worker = self.worker()
+        worker.state['pending'][JOB] = {'phase':'HANDOFF','agent_id':'AGT-04'}
+        original = worker.request
+        def request(gateway, token, name, args):
+            if name == 'get_job' and args['job_id'] == CHILD:
+                return copy.deepcopy(child)
+            return original(gateway, token, name, args)
+        worker.request = request
+        self.assertIsNone(worker.select())
+        self.assertNotIn(JOB, worker.state['pending'])
+        self.assertEqual(worker.state['pending'][CHILD]['phase'], 'COORDINATE')
+        self.assertEqual(worker.select()[0]['job']['job_id'], CHILD)
+        self.assertEqual(self.calls, 0)
+
+    def test_stale_pending_final_delivery_is_not_handed_off(self):
+        approve(self.d)
+        self.d['job']['result_payload']['delivery'] = {'stage':'FINAL'}
+        worker = self.worker()
+        worker.state['pending'][JOB] = {'phase':'HANDOFF','agent_id':'AGT-04'}
+        self.assertIsNone(worker.select())
+        self.assertNotIn(JOB, worker.state['pending'])
+        self.assertEqual(self.calls, 0)
+
     def test_changes_return_to_coordinator(self):
         self.runner_mode='REQUEST_CHANGES'
         self.assertEqual(self.run_tick()['next_phase'],'COORDINATE')

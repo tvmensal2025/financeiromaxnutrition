@@ -31,6 +31,21 @@ class ContextTests(unittest.TestCase):
         packet=json.loads(execution_packet(self.detail()))
         self.assertNotIn('submitted_delivery',packet)
 
+    def test_same_evidence_with_approved_output_enrichment_is_merged_losslessly(self):
+        d = self.detail()
+        enriched = {**d['evidence_records'][0], 'approved_output': {'copy':'Copy literal aprovada'}}
+        d['input_evidence_records'] = [enriched]
+        d['source_evidence_records'] = [dict(d['evidence_records'][0])]
+        self.assertEqual(json.loads(execution_packet(d))['evidence_records'], [enriched])
+
+    def test_shared_evidence_content_or_version_conflict_is_still_rejected(self):
+        for field, value in [('registro','Different content'), ('row_version',2)]:
+            d = self.detail()
+            d['evidence_records'][0]['row_version'] = 1
+            d['input_evidence_records'] = [{**d['evidence_records'][0], field:value}]
+            with self.assertRaisesRegex(ValueError, 'Conflicting evidence versions'):
+                execution_packet(d)
+
     def test_coordinator_receives_actual_block_without_reusing_delivery(self):
         d = self.detail()
         d['job']['result_payload'].update(decisao_necessaria='Confirmar acesso de Nina aos pixels',

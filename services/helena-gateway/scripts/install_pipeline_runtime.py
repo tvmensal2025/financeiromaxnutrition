@@ -9,10 +9,17 @@ import shutil
 
 FILES = ('creative_quality.py', 'hermes_execution_context.py', 'hermes_dispatch_once.py',
          'hermes_workflow_tick.py', 'hermes_pipeline.py', 'autonomy_protocol.py')
-POLL = '''#!/bin/sh
+LEGACY_POLL = '''#!/bin/sh
 # Existing hourly, no-agent poll; no new schedule and no inference for an idle queue.
 export HELENA_DISPATCH_ENABLED=1
 exec python /data/helena-runtime/hermes_pipeline.py --execute --max-actions 6
+'''
+POLL = '''#!/bin/sh
+# Existing no-agent schedule. Use the same verified launcher in cron and CLI.
+export HELENA_DISPATCH_ENABLED=1
+export HERMES_BIN=/opt/hermes/.venv/bin/hermes
+export HERMES_PYTHON=/opt/hermes/.venv/bin/python
+exec /opt/hermes/.venv/bin/python /data/helena-runtime/hermes_pipeline.py --execute --max-actions 6
 '''
 
 
@@ -22,7 +29,7 @@ def install(home=Path('/data')):
     if not runtime.is_dir() or not poll.is_file() or poll.is_symlink():
         raise ValueError('Existing runtime and poll required')
     before = poll.read_text()
-    if 'hermes_dispatch_once.py --auto --execute' not in before and before != POLL:
+    if 'hermes_dispatch_once.py --auto --execute' not in before and before not in (POLL, LEGACY_POLL):
         raise ValueError('Poll diverged; no writes')
     plans = []
     source = Path(__file__).resolve().parent

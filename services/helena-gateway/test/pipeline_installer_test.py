@@ -38,11 +38,16 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual((runtime / 'workflow-state.json').read_bytes(), before_state)
             self.assertEqual((Path(result['backup']) / 'scripts/helena_dispatch_poll.sh').read_text(), old)
             self.assertEqual(poll.read_text(), installer.POLL)
+            self.assertIn('export HERMES_BIN=/opt/hermes/.venv/bin/hermes', poll.read_text())
+            self.assertIn('exec /opt/hermes/.venv/bin/python ', poll.read_text())
             self.assertTrue(json.loads((runtime / 'workflow-config.json').read_text())['durable_continuity'])
             for profile in profiles:
                 self.assertTrue((home / 'profiles' / profile / 'SOUL.md').read_text(encoding='utf-8').startswith('Original role and scope'))
             with patch('hermes_dispatch_once.token_for', return_value='test'), patch('hermes_dispatch_once.call_tool', return_value={'success':True}):
                 self.assertEqual(installer.install(home)['changed_files'], 0)
+                poll.write_text(installer.LEGACY_POLL)
+                self.assertEqual(installer.install(home)['changed_files'], 1)
+                self.assertEqual(poll.read_text(), installer.POLL)
 
     def test_divergent_poll_is_not_overwritten(self):
         with tempfile.TemporaryDirectory() as folder:
