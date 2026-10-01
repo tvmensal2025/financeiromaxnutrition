@@ -12,9 +12,9 @@ import os
 from pathlib import Path
 import sys
 
-MARKER = '# Helena verified MCP pixels v1'
+MARKER = '# Helena verified MCP pixels v2'
 ANCHOR = '    text_result, usable_parts = _render_content_blocks(result, server_name)'
-PATCH = '''    # Helena verified MCP pixels v1
+PATCH = '''    # Helena verified MCP pixels v2
     if server_name == "helena_operacao":
         blocks = getattr(result, "content", None) or []
         images = [b for b in blocks if getattr(b, "type", "") == "image"]
@@ -29,11 +29,11 @@ PATCH = '''    # Helena verified MCP pixels v1
         except (ValueError, TypeError, AttributeError):
             eligible = False
         if eligible:
-            return json.dumps({"_multimodal": True, "content": [
+            return {"_multimodal": True, "content": [
                 {"type": "text", "text": texts[0]},
                 {"type": "image_url", "image_url": {"url": "data:image/png;base64," + images[0].data}}
             ], "text_summary": "Pixels indisponiveis neste provedor. Nao aprovar qualidade visual sem inspecao real.",
-                "meta": {"native_vision": True, "reference": reference, "sha256": metadata["sha256"]}}, ensure_ascii=False)
+                "meta": {"native_vision": True, "reference": reference, "sha256": metadata["sha256"]}}
 '''
 
 def patched(source):

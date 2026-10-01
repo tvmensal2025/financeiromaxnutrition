@@ -110,7 +110,7 @@ export default function EntregasPage() {
     const jobId = searchParams.get("job");
     if (!jobId) return;
     const job = jobs.find(item => item.job_id === jobId);
-    if (job && selected?.job_id !== job.job_id) setSelected(job);
+    if (job && selected !== job) setSelected(job);
   }, [jobs, searchParams, selected?.job_id]);
 
   useEffect(() => {
