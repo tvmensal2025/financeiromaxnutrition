@@ -307,6 +307,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "job_id, idempotency_key estavel e expected_task_version atual. O Gateway registra memoria e vincula evidencias. "
         "incluindo delivery: schema_version=1, title, content utilizavel sem dados internos, next_steps, limitations "
         "Respeite os limites antes de submit_work: delivery.content de 40 a 8000 caracteres, "
+        "Em create_task_job/handoff_task, instruction total tem limite de 8000 caracteres, incluindo copy e direcao-arte. "
+        "Planeje ate 7000; remova repeticoes, preserve copy literal e oito secoes; nao repita erro de tamanho. "
         "acceptance_checks de 1 a 8 itens; agrupe verificacoes relacionadas. Cada criterion tem 15 a 300 "
         "caracteres e cada finding 30 a 1200. Use o esquema descrito pela ferramenta, sem campos extras. "
         "e acceptance_checks (criterion e finding concreto, sem inventar evidence_ref). Arte inclui artifact_refs retornados pela verificacao. A aprovacao independente "

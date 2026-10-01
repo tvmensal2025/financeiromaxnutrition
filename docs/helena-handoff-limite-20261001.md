@@ -1,0 +1,11 @@
+# Bloqueio de encaminhamento: limite real de instruction
+
+Sessão Helena 20261001_113936_994a1d, 01/10/2026. Três chamadas handoff_task retornaram a mesma recusa: instruction aceita até 8000 caracteres. Os argumentos continham 12132, 10227 e 8735 caracteres. Helena reduziu cada versão, mas não atingiu o limite; Hermes interrompeu a terceira chamada pelo detector de loop. Não era prova de falha do modelo de imagem ou de comunicação entre perfis.
+
+As recusas ocorreram na validação dos parâmetros antes da criação da tarefa. Preservado o último rascunho no runtime em helena-rejected-handoff-20261001.json. O operador removeu repetição somente das quatro primeiras seções, preservando integralmente desde Entregáveis até o final, incluindo copy e direcao-arte. Novo tamanho conferido: 6660 caracteres, oito seções mantidas. Manifesto fonte COMPLETED/APPROVED e versão 3651 confirmados antes da escrita.
+
+Uma chamada com a mesma chave hd-final-visual-correction-20261001-v1-handoff foi aceita. Job JOB-HR-fd62fc9a1659086444127a218432d958; task TSK-HR-fd62fc9a1659086444127a218432d958; handoff HND-HR-fd62fc9a1659086444127a218432d958. Retorno success=true, status=DRAFT, started=false. Não declarar geração iniciada ou pacote entregue a partir desse retorno.
+
+Regra: limite total inclui JSON, copy e todas as seções. Alvo de planejamento de 7000 caracteres deixa margem. Nunca cortar automaticamente copy nem remover o contrato criativo para caber. Reorganizar repetição antes de reenviar; depois conferir versões e chave idempotente. Resultado incerto exige releitura, não nova tarefa. Consumidor e despachante compartilhados passam a instruir explicitamente esse limite.
+
+Regra aplicada também no runtime remoto hermes_dispatch_once.py e hermes_workflow_tick.py, com backups e compilação Python confirmada, e em SOUL.md de helena--grupo (HANDOFF_SIZE_CONTRACT_V1). Não altera permissões ou modelos. Conferência visual sem IA: check_visual_runtime ready=true, model_calls=0; hash do hermes_visual.py remoto igual ao local, ddea876d48a13bf967c0ca480f7700067a2ed02f941bfc92aa00f8925fdd386d. Manifesto da sucessora: DRAFT/PENDING, expected_task_version=3655. Não houve liberação, geração nem revisão da nova campanha nesta análise. Destino comercial de CTA continua sem confirmação no briefing.
