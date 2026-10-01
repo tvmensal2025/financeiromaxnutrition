@@ -41,6 +41,9 @@ class BinaryResolutionTests(unittest.TestCase):
 
 class DispatchTests(unittest.TestCase):
     def setUp(self):
+        launcher = patch.object(dispatcher, 'launcher_preflight', return_value={'status': 'READY'})
+        self.launcher_probe = launcher.start()
+        self.addCleanup(launcher.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
@@ -60,6 +63,15 @@ class DispatchTests(unittest.TestCase):
         self.start_confirmed = True
         self.fail_confirmed = True
         self.events = []
+
+    def test_broken_launcher_never_claims_or_consumes_attempt(self):
+        self.launcher_probe.return_value = {'status': 'LAUNCHER_UNAVAILABLE', 'diagnostic': 'RUNTIME_SYNTAX'}
+        with patch.dict(os.environ, {'HELENA_DISPATCH_ENABLED': '1'}), patch.object(dispatcher.shutil, 'which', return_value='hermes'):
+            result = self.dispatch(execute=True)
+        self.assertEqual(result['status'], 'LAUNCHER_UNAVAILABLE')
+        self.assertFalse(result['model_started'])
+        self.assertFalse(any(call[0] == 'claim_job' for call in self.calls))
+        self.assertEqual(self.model_calls, [])
 
     def request(self, gateway, token, name, payload):
         self.assertEqual(gateway, dispatcher.GATEWAY)

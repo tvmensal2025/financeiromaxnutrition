@@ -11,7 +11,8 @@ source = Path(__file__).resolve().parent
 runtime = Path('/data/helena-runtime')
 poll = Path('/data/scripts/helena_dispatch_poll.sh')
 assert runtime.is_dir() and poll.is_file() and not poll.is_symlink()
-assert 'hermes_dispatch_once.py --auto --execute' in poll.read_text()
+assert any(command in poll.read_text() for command in (
+    'hermes_dispatch_once.py --auto --execute', 'hermes_pipeline.py --execute --max-actions 6'))
 assert (runtime / 'hermes_dispatch_once.py').is_file()
 incoming = (source / 'hermes_workflow_tick.py').read_text()
 ast.parse(incoming)
@@ -23,6 +24,15 @@ if target.exists(): shutil.copy2(target, backup / target.name)
 temporary = target.with_suffix('.tmp')
 temporary.write_text(incoming, encoding='utf-8', newline='\n')
 temporary.replace(target)
+pipeline_source = source / 'hermes_pipeline.py'
+if pipeline_source.is_file():
+    pipeline = runtime / pipeline_source.name
+    updated_pipeline = pipeline_source.read_text()
+    ast.parse(updated_pipeline)
+    if pipeline.exists(): shutil.copy2(pipeline, backup / pipeline.name)
+    staging = pipeline.with_suffix('.tmp')
+    staging.write_text(updated_pipeline, encoding='utf-8', newline='\n')
+    staging.replace(pipeline)
 probe_source = source / 'hermes_mcp_preflight.py'
 if probe_source.exists():
     probe = runtime / probe_source.name

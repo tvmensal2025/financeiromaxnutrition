@@ -227,6 +227,40 @@ def native_cli_command(binary):
     return [python, str(bridge), '--run-hermes', binary]
 
 
+def process_diagnostic(text):
+    """Return only a stable category, never raw process output or credentials."""
+    text = str(text).lower()
+    categories = (
+        ('RATE_LIMIT', ('429', 'rate limit', 'usage limit', 'quota exceeded')),
+        ('AUTHENTICATION', ('401', 'unauthorized', 'authentication failed')),
+        ('CLI_CONFIGURATION', ('unrecognized arguments', 'unknown toolset', 'invalid choice')),
+        ('RUNTIME_IMPORT', ('modulenotfounderror', 'importerror')),
+        ('RUNTIME_SYNTAX', ('syntaxerror', 'indentationerror')),
+        ('RUNTIME_ADAPTER', ('hermes mcp renderer changed', 'visual bridge diverged')),
+        ('RUNTIME_PATH', ('filenotfounderror', 'permissionerror', 'isadirectoryerror')),
+    )
+    return next((category for category, terms in categories if any(term in text for term in terms)), 'UNKNOWN')
+
+
+def launcher_preflight(binary, profile, home, token, runner=subprocess.run):
+    """Exercise the exact process-local bridge and CLI parser without inference.
+
+    A normal `hermes usage` probe does not exercise the pixel adapter/runpy path.
+    Help exits before chatting; failed initialization must not consume a claim.
+    """
+    try:
+        result = runner(native_cli_command(binary) + ['-p', profile, 'chat', '--help'],
+                        env={**os.environ, 'HERMES_HOME': str(home), TOKEN_NAME: token},
+                        stdin=subprocess.DEVNULL, capture_output=True, timeout=30, check=False)
+        text = (result.stdout[-65536:] + result.stderr[-65536:]).decode('utf-8', errors='replace')
+        if result.returncode == 0 and '--query-file' in text and '--oneshot' in text:
+            return {'status': 'READY'}
+        return {'status': 'LAUNCHER_UNAVAILABLE', 'diagnostic': process_diagnostic(text),
+                'exit_code': result.returncode, 'model_started': False}
+    except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as error:
+        return {'status': 'LAUNCHER_UNAVAILABLE', 'diagnostic': type(error).__name__, 'model_started': False}
+
+
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
                 profile_home: Path, model_override: str | None = None) -> tuple[int, str | None]:
     if model_override is not None and model_override not in ROUTING_MODELS.values():
@@ -316,15 +350,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
                 stream.seek(max(0, stream.tell() - 65536))
                 sample.append(stream.read(65536).decode("utf-8", errors="replace").lower())
             diagnostic = " ".join(sample)
-            if any(term in diagnostic for term in ("429", "rate limit", "usage limit", "quota exceeded")):
-                category = "RATE_LIMIT"
-            elif any(term in diagnostic for term in ("401", "unauthorized", "authentication failed")):
-                category = "AUTHENTICATION"
-            elif any(term in diagnostic for term in ("unrecognized arguments", "unknown toolset", "invalid choice")):
-                category = "CLI_CONFIGURATION"
-            else:
-                category = "UNKNOWN"
-            return exit_code, category
+            return exit_code, process_diagnostic(diagnostic)
     finally:
         prompt_path.unlink(missing_ok=True)
 
@@ -366,7 +392,7 @@ def has_current_release(detail: dict) -> bool:
     return False
 
 
-def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None, auto: bool = False) -> dict:
+def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: bool, run_agent=run_profile, request=call_tool, preflight=None, tool_preflight=None, auto: bool = False, launch_preflight=None) -> dict:
     if gateway.rstrip("/") != GATEWAY:
         raise ValueError("Gateway fora do endpoint aprovado")
     helena_token = token_for(root, "helena--grupo")
@@ -442,6 +468,9 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
     tools = (tool_preflight or mcp_preflight)(root / profile, profile_token)
     if tools.get("status") != "READY":
         return {"status": "MCP_UNAVAILABLE", "job_id": job_id, "model_started": False}
+    launch = (launch_preflight or launcher_preflight)(resolved_binary, profile, root / profile, profile_token)
+    if launch.get('status') != 'READY':
+        return {**launch, 'job_id': job_id, 'model_started': False}
     try:
         claimed = request(gateway, profile_token, "claim_job", {"job_id": job_id, "agent_id": agent_id})
     except GatewayRefusal as error:

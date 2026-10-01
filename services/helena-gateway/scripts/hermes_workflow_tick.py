@@ -216,6 +216,14 @@ class Workflow:
         raise RuntimeError('Reviewer/coordinator profile unavailable for this business')
 
     def select(self, job_id=None):
+        self.attempt_blocked = []
+        def eligible(detail, phase):
+            j = detail['job']
+            exhausted = phase in ('COORDINATE', 'RESOLVE') and int(j.get('attempt_count') or 0) >= min(int(j.get('max_attempts') or 2), 2)
+            if exhausted and not job_id:
+                self.attempt_blocked.append(j['job_id'])
+                return False
+            return True
         # Persistent continuations are processed before fresh reviews.
         for jid, item in list(self.state['pending'].items()):
             if job_id and jid != job_id:
@@ -229,7 +237,7 @@ class Workflow:
                 self.state['pending'].pop(jid, None)
                 self.persist()
                 continue
-            if permitted(detail, self.config):
+            if permitted(detail, self.config) and eligible(detail, phase):
                 return detail, item['phase'], item['agent_id']
         context = self.call('get_work_context', {})
         if context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False:
@@ -242,6 +250,8 @@ class Workflow:
                 continue
             stage = phase_for(detail)
             if not stage:
+                continue
+            if not eligible(detail, stage[0]):
                 continue
             key = fingerprint(detail, stage[0])
             if key not in self.state['receipts']:
@@ -264,6 +274,9 @@ class Workflow:
             self.persist()
         selected = self.select(job_id)
         if selected is None:
+            if self.attempt_blocked:
+                return {'status': 'ATTEMPT_LIMIT', 'job_ids': list(dict.fromkeys(self.attempt_blocked)),
+                        'model_started': False, 'reason': 'Exhausted jobs preserved; no eligible continuation'}
             return {'status': 'NO_NEW_REVIEW', 'model_started': False}
         detail, phase, agent = selected
         jid = detail['job']['job_id']
@@ -283,7 +296,8 @@ class Workflow:
         binary = dispatch.resolve_hermes_binary()
         if not binary:
             raise RuntimeError('Hermes binary unavailable')
-        for check in (dispatch.usage_preflight(binary, profile), dispatch.mcp_preflight(self.root / profile, token)):
+        for check in (dispatch.usage_preflight(binary, profile), dispatch.mcp_preflight(self.root / profile, token),
+                      dispatch.launcher_preflight(binary, profile, self.root / profile, token)):
             if check.get('status') != 'READY':
                 return {**check, 'job_id': jid, 'model_started': False}
         actor_detail = self.call('get_job', {'job_id': jid}, token)

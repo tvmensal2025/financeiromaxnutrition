@@ -29,6 +29,9 @@ def approve(d, decision='APPROVE'):
 
 class ReviewStateTests(unittest.TestCase):
     def setUp(self):
+        launcher = patch.object(wf.dispatch, 'launcher_preflight', return_value={'status': 'READY'})
+        self.launcher_probe = launcher.start()
+        self.addCleanup(launcher.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name)
@@ -134,6 +137,12 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(self.calls,0)
         self.assertFalse(self.worker().state['receipts'])
 
+    def test_launcher_failure_does_not_start_review_or_write_receipt(self):
+        self.launcher_probe.return_value = {'status': 'LAUNCHER_UNAVAILABLE', 'diagnostic': 'RUNTIME_IMPORT'}
+        self.assertEqual(self.run_tick()['status'], 'LAUNCHER_UNAVAILABLE')
+        self.assertEqual(self.calls, 0)
+        self.assertFalse(self.worker().state['receipts'])
+
     def test_block_is_not_mistaken_for_delivery(self):
         self.d['job']['result_payload']={}
         self.assertEqual(wf.phase_for(self.d),('RESOLVE','AGT-01'))
@@ -144,6 +153,20 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(result['status'],'ATTEMPT_LIMIT')
         self.assertFalse(result['model_started'])
         self.assertEqual(self.calls,0)
+
+    def test_exhausted_job_does_not_starve_independent_review(self):
+        blocked = copy.deepcopy(self.d)
+        blocked['job'].update(job_id=CHILD, attempt_count=2, max_attempts=2, result_payload={})
+        self.context['pending_reviews_detail'] = [{'job_id': CHILD}, {'job_id': JOB}]
+        original = self.request
+        def request(gateway, token, name, args):
+            if name == 'get_job' and args['job_id'] == CHILD:
+                return copy.deepcopy(blocked)
+            return original(gateway, token, name, args)
+        self.request = request
+        self.assertEqual(self.run_tick()['next_phase'], 'HANDOFF')
+        self.assertEqual(self.calls, 1)
+        self.assertEqual(blocked['job']['attempt_count'], 2)
 
     def test_handoff_verification_uses_persisted_child(self):
         self.d['events']=[{'event_type':'WORKFLOW_handoff','payload':{'response':{'job_id':CHILD}}}]
