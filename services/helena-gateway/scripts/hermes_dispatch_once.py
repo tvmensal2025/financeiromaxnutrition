@@ -248,9 +248,9 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "Use as respostas atuais do contexto e das paginas lidas para confirmar que o job esta RUNNING. "
         "Mantenha a leitura no escopo desta etapa e reserve chamadas para registrar memoria e entrega. "
         "Um impedimento comprovado deve ser registrado imediatamente; nao investigue toda a campanha. "
-        "O contexto valido deve ter context_version hermes-context-v2 e truncated false. "
-        "Se estiver ausente, truncado ou em versao diferente, nao avance nem repita um bloqueio antigo: "
-        "use fail_job com error_code CONTEXT_UNAVAILABLE e descreva a falha objetiva. "
+        "Valide o pacote de trabalho segundo o contrato informado junto ao JSON abaixo. "
+        "Se o pacote estiver ausente ou truncado, use fail_job com error_code CONTEXT_UNAVAILABLE "
+        "e descreva a falha objetiva. Nao confunda o pacote da tarefa com o cadastro de contexto. "
         + ("Para GENERATED_IMAGE use helena_visual.generate_design com job_id, slot, version e design_note detalhado da peca: copy exata aprovada, personagem, cena, composicao, fontes, cores e CTA. O adaptador gera imagem nativa, aplica o logo aprovado e envia PNG privado. Para ORIGINAL_ILLUSTRATION use create_artifact_upload com svg vetorial completo. Nao troque o metodo do briefing. Abra cada resultado com get_visual_asset e confira os pixels antes de entregar. Uma falha de geracao nao autoriza tentar outra versao: registre o bloqueio. " if profile == "maya--biz003" else "")
         +
         "Registre marcos reais em record_progress. Para entregar use submit_work em uma chamada com source, summary, "

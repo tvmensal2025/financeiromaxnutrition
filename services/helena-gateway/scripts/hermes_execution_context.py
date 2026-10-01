@@ -1,6 +1,8 @@
 """Build a lossless, task-scoped packet before inference, without model tool loops."""
 import json
 
+PACKET_VERSION = 'authorized-work-packet-v1'
+
 
 def pick(value, fields):
     return {key: value[key] for key in fields if key in (value or {})}
@@ -22,7 +24,7 @@ def execution_packet(detail, phase='EXECUTE'):
             records[record['id']] = record
     result = job.get('result_payload') or {}
     packet = {
-        'packet_version': 'authorized-work-packet-v1', 'phase': phase,
+        'packet_version': PACKET_VERSION, 'truncated': False, 'phase': phase,
         'job': pick(job, ('job_id', 'task_id', 'business_id', 'agent_id', 'status', 'updated_at',
                          'objective', 'instruction', 'attempt_count', 'max_attempts', 'evidence_refs')),
         'task': pick(task, ('task_id', 'business_id', 'row_version', 'definicao_de_pronto', 'status', 'bloqueio')),
@@ -48,7 +50,10 @@ def packet_prompt(detail, phase='EXECUTE'):
     return (
         '\nCONTEXTO ATUAL OBTIDO PELO RUNTIME AUTENTICADO, SEM INFERENCIA:\n'
         + execution_packet(detail, phase)
-        + '\nO pacote contem briefing e fontes integrais desta etapa, sem historico duplicado. '
+        + '\nEste pacote de trabalho usa packet_version=' + PACKET_VERSION + ' e truncated=false. '
+        'Ele nao e a resposta get_work_context: a identidade e a versao desse contexto ja foram '
+        'validadas pelo runtime antes de iniciar o modelo. Nao exija context_version neste pacote. '
+        'O pacote contem briefing e fontes integrais desta etapa, sem historico duplicado. '
         'Primeira ferramenta: get_job deste ID com view=manifest. Compare expected_task_version e updated_at '
         'com task.row_version e job.updated_at do pacote. Se iguais, use o pacote: nao releia as secoes ja '
         'incluidas nem get_work_context. Se mudaram, releia somente as secoes afetadas por view=page. '

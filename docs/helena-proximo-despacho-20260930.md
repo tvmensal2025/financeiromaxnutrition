@@ -40,3 +40,6 @@ Vincular fonte aprovada, etapa anterior, recibos de geracao unica, referencias p
 ## Revisão e encaminhamento
 
 Nina decide APPROVE ou REQUEST_CHANGES com evidencias inspecionadas. Helena comunica a entrega utilizavel ou o bloqueio e sua causa. Publicacao continua sob decisao do fundador. Uma entrega homologada nao comprova todas as funcoes dos 21 agentes.
+# Atualizacao operacional apos o despacho
+
+Sucessora `JOB-HR-c392de57a9b00edb8879f291b077714d`: primeira tentativa falhou por contradicao entre o prompt e o pacote de contexto. Contrato corrigido e testado no query-file real sem inferencia. A mesma tarefa foi recuperada com evento OPERATOR_CONTEXT_RECOVERY, mantendo attempt_count=1 e max_attempts=2, e liberada pela Helena. Uma retomada foi iniciada em 2026-10-01T01:05:37.720489Z, PID 17183, sem retry automatico. Conferir `docs/helena-operacao-20260930.md` e o estado canonico; nao criar outra sucessora nem repetir o lancamento.

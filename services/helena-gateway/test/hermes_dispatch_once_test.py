@@ -269,7 +269,14 @@ class DispatchTests(unittest.TestCase):
             self.assertIn("execucao nova e isolada", prompt)
             self.assertIn("authorized-work-packet-v1", prompt)
             self.assertIn(BRIEF.replace('\n', '\\n'), prompt)
-            self.assertIn("context_version hermes-context-v2", prompt)
+            # Inspect the JSON actually delivered to Hermes, not just a phrase in the prompt.
+            packet_text = prompt.split('CONTEXTO ATUAL OBTIDO PELO RUNTIME AUTENTICADO, SEM INFERENCIA:\n', 1)[1].split('\n', 1)[0]
+            packet = json.loads(packet_text)
+            self.assertEqual(packet['packet_version'], 'authorized-work-packet-v1')
+            self.assertIs(packet['truncated'], False)
+            self.assertEqual(packet['job']['instruction'], BRIEF)
+            self.assertNotIn('context_version hermes-context-v2', prompt)
+            self.assertNotIn('context_version', packet)
             self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "24"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
             self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
@@ -279,6 +286,14 @@ class DispatchTests(unittest.TestCase):
         self.job_status = "RUNNING"
         with patch.dict(os.environ, {'HERMES_PYTHON': sys.executable}), patch.object(dispatcher.subprocess, "Popen", side_effect=spawn), patch.object(dispatcher, "call_tool", side_effect=self.request):
             self.assertEqual(dispatcher.run_profile("/usr/bin/hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE), (0, None))
+
+    def test_invalid_registry_context_still_prevents_inference(self):
+        for context in ({}, {'context_version': 'hermes-context-v1'},
+                        {'context_version': 'hermes-context-v2', 'truncated': True}):
+            with self.subTest(context=context), patch.object(dispatcher, 'call_tool', return_value=context), patch.object(dispatcher.subprocess, 'Popen') as spawn:
+                self.assertEqual(dispatcher.run_profile('hermes', PROFILE, JOB_ID, 180,
+                    'hhs_' + 'P' * 40, self.root / PROFILE), (125, 'CONTEXT_UNAVAILABLE'))
+                spawn.assert_not_called()
 
     def test_cli_error_is_classified_without_persisting_raw_output(self):
         class FailedProcess:
