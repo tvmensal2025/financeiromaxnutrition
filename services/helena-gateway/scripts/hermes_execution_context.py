@@ -31,6 +31,7 @@ def execution_packet(detail, phase='EXECUTE'):
                          'objective', 'instruction', 'attempt_count', 'max_attempts', 'evidence_refs')),
         'task': pick(task, ('task_id', 'business_id', 'row_version', 'definicao_de_pronto', 'status', 'bloqueio')),
         'review': pick(result, ('reviewer_agent_id', 'reviewed_by', 'review_reason', 'review_pending')),
+        'runtime_binding': detail.get('runtime_binding'),
         'company_identity': detail.get('company_identity'),
         'agent_quality_contract': detail.get('agent_quality_contract'),
         'evidence_records': list(records.values()),
@@ -39,6 +40,10 @@ def execution_packet(detail, phase='EXECUTE'):
         'artifact_records': detail.get('artifact_records', []),
         'source_job': pick(detail.get('source_job') or {}, ('job_id', 'result_summary')),
     }
+    if phase in ('RESOLVE', 'COORDINATE'):
+        packet['blocking_decision'] = pick(result, ('motivo', 'contexto', 'impacto',
+            'decisao_necessaria', 'recomendacao', 'proximo_passo',
+            'block_resolved_by', 'block_resolution'))
     if phase in ('REVIEW', 'HANDOFF'):
         packet['submitted_delivery'] = pick(result, ('delivery', 'publication', 'quality_review', 'visual_review'))
         packet['submission_summary'] = job.get('result_summary')

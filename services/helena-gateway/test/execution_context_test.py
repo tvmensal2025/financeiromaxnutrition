@@ -31,6 +31,18 @@ class ContextTests(unittest.TestCase):
         packet=json.loads(execution_packet(self.detail()))
         self.assertNotIn('submitted_delivery',packet)
 
+    def test_coordinator_receives_actual_block_without_reusing_delivery(self):
+        d = self.detail()
+        d['job']['result_payload'].update(decisao_necessaria='Confirmar acesso de Nina aos pixels',
+            contexto='Arquivos existentes, ainda nao submetidos', impacto='Revisao impedida')
+        d['runtime_binding'] = {'agent_id':'AGT-04','business_id':'BIZ-003','status':'ACTIVE'}
+        for phase in ('COORDINATE','RESOLVE'):
+            packet = json.loads(execution_packet(d, phase))
+            self.assertEqual(packet['blocking_decision']['decisao_necessaria'], 'Confirmar acesso de Nina aos pixels')
+            self.assertEqual(packet['runtime_binding'], d['runtime_binding'])
+            self.assertNotIn('submitted_delivery', packet)
+        self.assertNotIn('blocking_decision', json.loads(execution_packet(d)))
+
     def test_cross_company_input_or_task_is_refused(self):
         for key in ('task','evidence'):
             d=self.detail()

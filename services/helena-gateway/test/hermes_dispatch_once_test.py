@@ -424,9 +424,25 @@ class DispatchTests(unittest.TestCase):
     def test_jev_cannot_override_helena_or_inject_unapproved_model(self):
         detail = self.request(dispatcher.GATEWAY, "hhs_" + "P" * 40, "get_job", {"job_id": JOB_ID})
         detail["job"]["agent_id"] = "AGT-01"
-        self.assertEqual(dispatcher.model_route_for(detail)["reason"], "HELENA_SOL")
+        self.assertEqual(dispatcher.model_route_for(detail)["reason"], "HELENA_SOL61_MAX")
+        self.assertEqual(dispatcher.model_route_for(detail)["model"], "gpt-6.1-sol")
         with self.assertRaises(ValueError):
             dispatcher.run_profile("hermes", PROFILE, JOB_ID, 180, "hhs_" + "P" * 40, self.root / PROFILE, "untrusted-model")
+
+    def test_correction_requires_scoped_latest_rejection(self):
+        detail = self.request(dispatcher.GATEWAY, "hhs_" + "P" * 40, "get_job", {"job_id": JOB_ID})
+        detail['job']['result_payload'] = {'review_reason': 'Corrigir CTA'}
+        detail['events'] = []
+        self.assertNotEqual(dispatcher.model_route_for(detail).get('model'), 'gpt-6.1-sol')
+        rejected = {'event_type':'WORKFLOW_review_delivery', 'job_id':JOB_ID, 'business_id':'BIZ-OTHER',
+                    'created_at':'2026-10-01T01:00:00Z', 'payload':{'request':{'payload':{'decision':'REQUEST_CHANGES'}}}}
+        detail['events'].append(rejected)
+        self.assertNotEqual(dispatcher.model_route_for(detail).get('model'), 'gpt-6.1-sol')
+        rejected['business_id'] = 'BIZ-003'
+        self.assertEqual(dispatcher.model_route_for(detail).get('model'), 'gpt-6.1-sol')
+        detail['events'].append({**rejected, 'created_at':'2026-10-01T02:00:00Z',
+                                 'payload':{'request':{'payload':{'decision':'APPROVE'}}}})
+        self.assertNotEqual(dispatcher.model_route_for(detail).get('model'), 'gpt-6.1-sol')
 
 
 class ManagerReleaseTests(unittest.TestCase):

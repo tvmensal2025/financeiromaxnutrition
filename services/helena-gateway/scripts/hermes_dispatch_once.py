@@ -32,6 +32,7 @@ PROFILE_PATTERN = re.compile(r"[a-z][a-z0-9-]{2,79}\Z")
 JOB_PATTERN = re.compile(r"JOB-HR-[a-f0-9]{32}\Z")
 ROUTING_POLICY = "helena-brief-routing-v2"
 ROUTING_MODELS = {"SIMPLE": "gpt-6-luna", "MODERATE": "gpt-6-sol", "COMPLEX": "gpt-6-astra"}
+CORRECTION_MODEL = "gpt-6.1-sol"
 TRANSPORT_ERRORS = (OSError, ValueError)
 
 
@@ -78,7 +79,19 @@ def model_route_for(detail: dict) -> dict:
     """Use only a current, audited Jev recommendation; never trust task text as a model name."""
     job, task = detail.get("job") or {}, detail.get("task") or {}
     if job.get("agent_id") == "AGT-01":
-        return {"status": "PROFILE_DEFAULT", "reason": "HELENA_SOL"}
+        return {"status": "CORRECTION_POLICY", "reason": "HELENA_SOL61_MAX",
+                "model": CORRECTION_MODEL, "reasoning_effort": "max"}
+    result = job.get("result_payload") or {}
+    reviews = [event for event in detail.get("events") or [] if isinstance(event, dict) and
+        event.get("event_type") == "WORKFLOW_review_delivery"
+        and event.get("job_id") == job.get("job_id")
+        and event.get("business_id") == job.get("business_id")
+    ]
+    latest_review = max(reviews, key=lambda e: str(e.get("created_at") or ""), default={})
+    decision = (((latest_review.get("payload") or {}).get("request") or {}).get("payload") or {}).get("decision")
+    if result.get("review_reason") and decision == "REQUEST_CHANGES":
+        return {"status": "CORRECTION_POLICY", "reason": "REVIEW_REQUEST_CHANGES",
+                "model": CORRECTION_MODEL, "reasoning_effort": "max"}
     digest = hashlib.sha256("\n".join(str(value or "") for value in (
         job.get("objective"), job.get("instruction"), task.get("definicao_de_pronto"),
     )).encode("utf-8")).hexdigest()
@@ -263,7 +276,7 @@ def launcher_preflight(binary, profile, home, token, runner=subprocess.run):
 
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
                 profile_home: Path, model_override: str | None = None) -> tuple[int, str | None]:
-    if model_override is not None and model_override not in ROUTING_MODELS.values():
+    if model_override is not None and model_override not in (*ROUTING_MODELS.values(), CORRECTION_MODEL):
         raise ValueError("Modelo fora da lista aprovada")
     prompt = (
         "Piloto interno autorizado da empresa vinculada ao job " + job_id + ". "
