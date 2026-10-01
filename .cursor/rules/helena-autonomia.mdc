@@ -1,0 +1,13 @@
+---
+description: Autonomia limitada e recuperacao de falhas previsiveis da equipe Helena
+globs: services/helena-gateway/**
+alwaysApply: false
+---
+
+- Fonte atual do Supabase e permissoes do Gateway prevalecem; preserve empresa, papel, versoes e historico.
+- Aplicar services/helena-gateway/scripts/autonomy_protocol.py ao runtime e aos perfis, com backup e recibo.
+- Antes de encaminhar, conferir limites com brief_preflight.py; preservar copy exata, marca e contrato criativo.
+- Falha deterministica exige corrigir causa antes de reenviar. Falha incerta exige reconciliar estado/chave.
+- Nunca aumentar tentativas, elevar acesso, repetir geracao incerta ou criar campanhas para contornar falha.
+- Pareceres ficam internos; fundador recebe pacote final revisado e decisoes especificamente reservadas a ele.
+- Configuracao/instalacao nao comprova homologacao dos 21 agentes ou recuperacao automatica apos queda.

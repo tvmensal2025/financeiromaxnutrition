@@ -289,7 +289,7 @@ class DispatchTests(unittest.TestCase):
             self.assertEqual(packet['job']['instruction'], BRIEF)
             self.assertNotIn('context_version hermes-context-v2', prompt)
             self.assertNotIn('context_version', packet)
-            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao", "--max-turns", "24"])
+            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao,helena_contracts", "--max-turns", "24"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
             self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
             self.assertEqual(kwargs["env"]["HERMES_HOME"], str(self.root / PROFILE))

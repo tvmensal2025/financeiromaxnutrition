@@ -16,6 +16,7 @@ import tempfile
 
 import hermes_dispatch_once as dispatch
 from hermes_execution_context import packet_prompt
+from autonomy_protocol import RULE as AUTONOMY_RULE
 
 
 def atomic_json(path, value):
@@ -110,6 +111,7 @@ def make_prompt(phase, detail, key):
         "Todas as escritas exigem expected_task_version atual e confirmacao seguida de get_job. "
         "Somente altere esta tarefa ou a proxima etapa diretamente autorizada por seu briefing. "
     )
+    base += AUTONOMY_RULE
     if phase == 'REVIEW':
         return base + (
             "Voce e o revisor independente registrado. Escopo desta chamada: somente esta entrega. "
@@ -177,7 +179,7 @@ def run_query(binary, profile, home, token, prompt, timeout=240):
     try:
         with tempfile.TemporaryFile() as out:
             p = subprocess.Popen(dispatch.native_cli_command(binary) + ['-p', profile, 'chat', '--query-file', f.name,
-                '--oneshot', '--toolsets', 'helena_operacao', '--max-turns', '24'],
+                '--oneshot', '--toolsets', 'helena_operacao,helena_contracts', '--max-turns', '24'],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
                 env={**os.environ, 'HERMES_HOME': str(home), dispatch.TOKEN_NAME: token})
             try:

@@ -76,8 +76,10 @@ def main() -> int:
     from tools.mcp_tool_discovery import discover_mcp_tools
     # The CLI's --toolsets filter takes configured server names, without mcp-.
     profile = Path(os.environ.get('HERMES_HOME', '')).name
-    found = discover_mcp_tools(allowed_mcp_names=["helena_operacao"] + (["helena_visual"] if profile == 'maya--biz003' else []))
+    found = discover_mcp_tools(allowed_mcp_names=["helena_operacao", "helena_contracts"] + (["helena_visual"] if profile == 'maya--biz003' else []))
     report = inspect_tools(profile, found)
+    report['contracts_preflight_ready'] = 'mcp__helena_contracts__check_task_brief' in found
+    report['ready'] = report['ready'] and report['contracts_preflight_ready']
     if profile != 'laura--pessoal':
         from tools import mcp_tool_handlers
         report['native_pixels_ready'] = getattr(mcp_tool_handlers, 'HELENA_NATIVE_PIXELS_ACTIVE', False)

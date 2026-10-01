@@ -19,6 +19,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from hermes_execution_context import packet_prompt
+from autonomy_protocol import RULE as AUTONOMY_RULE
 
 try:
     import fcntl
@@ -330,6 +331,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "MISSING no resumo de outro perfil nao prova que ele esta desconectado. "
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
     )
+    prompt += AUTONOMY_RULE
     context = call_tool(GATEWAY, profile_token, 'get_work_context', {})
     if (context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False
             or context.get('profile', {}).get('profile_slug') not in (None, profile)
@@ -349,7 +351,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 native_cli_command(binary) + ["-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "helena_operacao,helena_visual" if profile == 'maya--biz003' else "helena_operacao", "--max-turns", "24"]
+                 "--toolsets", "helena_operacao,helena_visual,helena_contracts" if profile == 'maya--biz003' else "helena_operacao,helena_contracts", "--max-turns", "24"]
                 + (["--model", model_override] if model_override else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
