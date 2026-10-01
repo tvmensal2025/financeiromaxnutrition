@@ -9,7 +9,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from PIL import Image
+from PIL import Image, ImageChops, ImageOps
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
@@ -28,6 +28,11 @@ class VisualTests(unittest.TestCase):
                 provider.return_value.is_available.return_value = True
                 report = visual.check_visual_runtime()
                 self.assertTrue(report['ready']); self.assertEqual(report['model_calls'], 0)
+                self.assertEqual(report['renderer']['source_sha256'],
+                                 hashlib.sha256(Path(visual.__file__).read_bytes()).hexdigest())
+                self.assertEqual(report['renderer']['visual_approval'], 'REQUIRES_INDEPENDENT_PIXEL_REVIEW')
+                self.assertFalse(report['renderer']['adds_logo_backing'])
+                self.assertFalse(report['renderer']['adds_footer'])
                 provider.return_value.generate.assert_not_called()
                 os.environ[visual.TOKEN_NAME] = 'different'
                 self.assertEqual(visual.check_visual_runtime()['reason'], 'PROFILE_TOKEN_MISMATCH')
@@ -65,6 +70,24 @@ class VisualTests(unittest.TestCase):
             visual.final_canvas(art.getvalue(),logo.getvalue(),'story-1','#075E47')
         empty = io.BytesIO(); Image.new('RGB',(800,1000),'white').save(empty, format='PNG')
         with self.assertRaisesRegex(ValueError, 'empty'): visual.final_canvas(empty.getvalue(),logo.getvalue(),'post','#075E47')
+
+    def test_official_logo_alpha_preserves_artwork_without_added_plate(self):
+        logo_image = Image.new('RGBA', (260, 96), (0, 0, 0, 0))
+        logo_image.paste((255, 0, 0, 255), (30, 20, 230, 76))
+        logo = io.BytesIO(); logo_image.save(logo, format='PNG')
+        for slot, size, bottom in [('post', (1080,1350), 50), ('story-1', (1080,1920), 250)]:
+            with self.subTest(slot=slot):
+                source = Image.linear_gradient('L').resize(size).convert('RGB')
+                raw = io.BytesIO(); source.save(raw, format='PNG')
+                final = Image.open(io.BytesIO(visual.final_canvas(raw.getvalue(), logo.getvalue(), slot,
+                        '#075E47', ['#075E47', '#F4F5EB'])))
+                left, top = 760, size[1] - bottom - 96
+                mask = Image.new('L', size, 0)
+                mask.paste(logo_image.getchannel('A'), (left, top))
+                diff = ImageChops.difference(source, final).convert('L')
+                self.assertIsNone(ImageChops.multiply(diff, ImageOps.invert(mask)).getbbox(),
+                                  'No artwork pixels outside the official logo alpha may change')
+                self.assertEqual(final.getpixel((left+100, top+40)), (255,0,0))
 
     @unittest.skipIf(sys.platform == 'win32', 'fcntl receipt lock is validated on Hermes Linux')
     def test_generation_once_upload_retry_reuses_private_png(self):

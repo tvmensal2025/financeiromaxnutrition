@@ -14,12 +14,30 @@ import re
 import sys
 import urllib.request
 from urllib.parse import urlparse
-from PIL import Image, ImageOps, ImageStat, ImageColor
+from PIL import Image, ImageOps
 from creative_quality import CREATIVE_QUALITY_RULES
 from hermes_dispatch_once import call_tool, GATEWAY, TOKEN_NAME, JOB_PATTERN
 
 ROOT = Path('/data/helena-runtime/visual')
 PROVIDER = Path('/opt/hermes/plugins/image_gen/openai-codex/__init__.py')
+RENDERER_VERSION = 'official-logo-overlay-v2'
+
+
+def renderer_contract():
+    """Report installed composition behavior, not a claim of creative approval."""
+    return {
+        'version': RENDERER_VERSION,
+        'source_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        'logo_source': 'brand-logo',
+        'logo_applications': 1,
+        'preserves_official_logo_alpha': True,
+        'adds_logo_backing': False,
+        'adds_footer': False,
+        'crops_artwork': False,
+        'mismatched_aspect_ratio': 'REJECT',
+        'safe_bottom_px': {'post': 50, 'story': 250},
+        'visual_approval': 'REQUIRES_INDEPENDENT_PIXEL_REVIEW',
+    }
 
 def load_provider():
     sys.path.insert(0, '/opt/hermes')
@@ -63,13 +81,11 @@ def final_canvas(raw, logo, slot, background, palette=None):
     logo_image = ImageOps.contain(logo_image.convert('RGBA'), (260, 96), Image.Resampling.LANCZOS)
     colors = palette or [background]
     if any(not re.fullmatch(r'#[a-fA-F0-9]{6}', color) for color in colors): raise ValueError('Invalid brand palette')
-    mean = ImageStat.Stat(logo_image.convert('RGB'), mask=logo_image.getchannel('A')).mean
-    contrast = lambda color: sum((value - mean[i])**2 for i, value in enumerate(ImageColor.getrgb(color)))
-    # A compact contrast backing inside the planned safe area, never a full-width band.
+    # The artwork owns the reserved background. Preserve the official logo pixels
+    # and alpha without adding a plate that contradicts the creative brief.
+    # Contrast belongs to composition and independent visual review.
     logo_top = size[1] - (50 if slot == 'post' else 250) - logo_image.height
     logo_left = 1080 - 60 - logo_image.width
-    backing = Image.new('RGB', (logo_image.width + 24, logo_image.height + 24), max(colors, key=contrast))
-    canvas.paste(backing, (logo_left - 12, logo_top - 12))
     canvas.paste(logo_image, (logo_left, logo_top), logo_image)
     output = io.BytesIO(); canvas.save(output, format='PNG', optimize=True)
     if output.tell() > 5 * 1024 * 1024: raise ValueError('Final PNG exceeds storage limit')
@@ -94,7 +110,8 @@ def check_visual_runtime() -> dict:
     except Exception:
         provider_ready = False
     return {'ready': provider_ready, 'profile': home.name,
-            'reason': 'READY' if provider_ready else 'IMAGE_AUTH_UNAVAILABLE', 'model_calls': 0}
+            'reason': 'READY' if provider_ready else 'IMAGE_AUTH_UNAVAILABLE', 'model_calls': 0,
+            'renderer': renderer_contract()}
 
 
 def generate_design(job_id: str, slot: str, version: int, design_note: str) -> dict:
