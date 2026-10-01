@@ -18,6 +18,8 @@ import hermes_dispatch_once as dispatch
 from hermes_execution_context import packet_prompt
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
+# Stay below the canonical ten-minute lease, leaving time to confirm and finish.
+WORKFLOW_TIMEOUT_SECONDS = 480
 
 
 def atomic_json(path, value):
@@ -123,6 +125,10 @@ def make_prompt(phase, detail, key):
         "Nas transicoes cujo esquema exige expected_task_version, use a versao atual e confirme com get_job. "
         "Registros de memoria/progresso usam seu proprio esquema e ACL; nao invente campo de versao ausente. "
         "Se uma ferramenta nao permite atuar sobre este job/status/papel, nao a force para registrar bloqueio. "
+        "Para inspecionar o logo oficial use get_visual_asset com job_id desta tarefa e reference='brand-logo', "
+        "literalmente; nao passe company_identity.logo_url como referencia de entrega. Se usou a URL e recebeu "
+        "Imagem nao vinculada, corrija uma vez para o alias brand-logo antes de declarar falta de acesso. "
+        "Ao usar tool_call para ferramentas locais, envie uma unica entrada por chamada. "
         "Somente altere esta tarefa ou a proxima etapa diretamente autorizada por seu briefing. "
     )
     base += AUTONOMY_RULE
@@ -186,7 +192,7 @@ def make_prompt(phase, detail, key):
     )
 
 
-def run_query(binary, profile, home, token, prompt, timeout=240):
+def run_query(binary, profile, home, token, prompt, timeout=WORKFLOW_TIMEOUT_SECONDS):
     with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
         os.chmod(f.name, 0o600)
         f.write(prompt)

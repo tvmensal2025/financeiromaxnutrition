@@ -356,4 +356,24 @@ class CanonicalContinuityTests(ReviewStateTests):
         self.assertFalse(wf.permitted(self.d, self.config))
 
 
+class WorkflowDeadlineTests(unittest.TestCase):
+    def test_reasoning_budget_is_bounded_below_canonical_lease(self):
+        with patch.object(wf.dispatch, 'native_cli_command', return_value=['hermes']), \
+             patch.object(wf.subprocess, 'Popen') as spawn:
+            spawn.return_value.wait.return_value = 0
+            self.assertEqual(wf.run_query('hermes', 'helena--grupo', Path('.'), 'test', 'test'), 0)
+            spawn.return_value.wait.assert_called_once_with(timeout=480)
+            self.assertLess(wf.WORKFLOW_TIMEOUT_SECONDS, 600)
+
+    def test_deadline_stops_process_and_reports_uncertain_result(self):
+        with patch.object(wf.dispatch, 'native_cli_command', return_value=['hermes']), \
+             patch.object(wf.subprocess, 'Popen') as spawn, \
+             patch.object(wf.os, 'killpg', create=True) as kill, \
+             patch.object(wf.signal, 'SIGKILL', 9, create=True):
+            spawn.return_value.pid = 123
+            spawn.return_value.wait.side_effect = [wf.subprocess.TimeoutExpired('hermes', 480), 0]
+            self.assertEqual(wf.run_query('hermes', 'helena--grupo', Path('.'), 'test', 'test'), 124)
+            kill.assert_called_once_with(123, 9)
+
+
 if __name__ == '__main__': unittest.main()

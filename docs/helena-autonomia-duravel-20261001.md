@@ -55,3 +55,15 @@ Suíte final desta atualização: 150 casos Python, 149 passaram no Windows; o c
 ## Retomada confirmada — 01/10/2026, 11:16 de Brasília
 
 Depois da decisão, Helena gravou WORKFLOW_release_job às 14:14:07 UTC; o despachante assumiu às 14:15:18 UTC e iniciou Maya às 14:15:19 UTC. Estado observado RUNNING, tentativa 1/2, tarefa versão 3660. Às 14:16:03 UTC Maya registrou que conferiu manifesto, runtime READY e abriu os pixels do logo oficial. Nenhuma arte final ainda estava registrada nesse instante. A liberação e o início foram automáticos pelo fluxo; o operador não chamou release_job nem start_job manualmente. Revisão da Nina e aprovação final ainda precisam de comprovação.
+
+## Produção e devolução comprovadas — 01/10/2026
+
+Maya gerou os quatro PNGs v1, abriu seus pixels e submeteu o pacote às 14:22:54 UTC. Nina foi acionada automaticamente, abriu as quatro imagens entre 14:24:26 e 14:24:33 UTC e registrou REQUEST_CHANGES às 14:25:10 UTC. Apontamentos: placa clara no logo, CTA com aparência de botão, repetição narrativa no Story 3 e impossibilidade de comparar o logo oficial usando a referência fornecida. O pacote voltou ao mesmo job DRAFT, tentativa 1/2, versão 3666. Isso comprova produção → revisão → devolução, mas ainda não comprova aprovação final.
+
+Diagnóstico confirmado nos argumentos da sessão Nina `20261001_142348_137e77`: foi passada a URL storage do logo em vez do alias literal `brand-logo`. A coordenação Helena seguinte conseguiu abrir esse alias, porém foi interrompida por timeout de 240 segundos (exit 124), sem escrita confirmada. O recibo ficou NEEDS_ATTENTION e não houve repetição paga automática.
+
+Correção instalada: prazo de coordenação/revisão 480 segundos, abaixo da lease canônica de 600; orientação explícita do alias do logo e correção de uma chamada malformada; uma ferramenta local por tool_call. Backup `pipeline-backup-20261001T143315349807Z`, um arquivo alterado, zero modelos iniciados pelo instalador. Suíte Python: 152 casos, 151 passaram no Windows e um teste POSIX previamente validado no Linux permanece excluído no Windows. Novos testes verificam prazo efetivo e encerramento do processo com resultado incerto ao excedê-lo.
+
+A página local foi restabelecida em 127.0.0.1:8080 e os quatro arquivos R2 foram visualizados no modal de produção. Evidência: `artifacts/continuity-20261001/revisao-quatro-artes.png`. A devolução permanece interna, fora da caixa de materiais finais aprovados.
+
+Às 14:40:36 UTC, o operador aplicou `revise_task_brief` pela autorização da Helena, com guardas de versão 3666, timestamp da revisão e tentativa 1/2. Retorno confirmado: success=true, DRAFT, versão 3669, sem início/liberação manual. A revisão preserva copy literal e v1; exige arquivos v2, logo integrado sem placa, CTA editorial sem botão e conclusão narrativa focada nas ressalvas. Às 14:43:45 UTC, Helena realizou `WORKFLOW_release_job` automaticamente. Estado seguinte confirmado READY, ainda tentativa 1/2. Essa retomada comprova devolução → briefing corrigido → liberação pela coordenação; produção v2 e aprovação independente ainda estavam pendentes nesse instante.
