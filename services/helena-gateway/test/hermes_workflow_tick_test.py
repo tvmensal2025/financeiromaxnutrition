@@ -108,6 +108,20 @@ class ReviewStateTests(unittest.TestCase):
         self.assertNotIn(JOB, worker.state['pending'])
         self.assertEqual(self.calls, 0)
 
+    def test_executor_probe_requires_exact_business_and_identity(self):
+        self.d['runtime_binding'] = {'profile_slug':'maya--biz003', 'status':'ACTIVE',
+                                    'agent_id':'AGT-04', 'business_id':'BIZ-003'}
+        worker = self.worker()
+        with patch.object(wf.dispatch, 'token_for', return_value='fixture'), \
+             patch.object(wf.dispatch, 'mcp_preflight', return_value={'status':'READY'}) as probe:
+            self.assertEqual(worker.executor_readiness(self.d)['reason'], 'EXECUTOR_SCOPE')
+            probe.assert_not_called()
+            self.context['profile'].update(scope_type='BUSINESS', agent_id='AGT-04', business_id='BIZ-003')
+            report = worker.executor_readiness(self.d)
+            self.assertEqual(report['status'], 'READY')
+            self.assertEqual(report['model_calls'], 0)
+            self.assertEqual(report['job_id'], JOB)
+
     def test_changes_return_to_coordinator(self):
         self.runner_mode='REQUEST_CHANGES'
         self.assertEqual(self.run_tick()['next_phase'],'COORDINATE')

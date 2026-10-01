@@ -43,3 +43,11 @@ Três problemas reais foram reproduzidos e corrigidos no runtime:
 Suíte após as correções: 148 casos Python, 147 passaram no Windows e um teste POSIX ficou reservado ao Linux. Esse teste foi executado separadamente no Hermes Linux e passou (geração única e reaproveitamento do PNG na repetição do envio, com provedor simulado e zero geração paga no teste).
 
 Às 13:59:52 UTC o agendador iniciou COORDINATE do sucessor existente e registrou STARTED no diário canônico antes da inferência. Uma invocação concorrente foi recusada com ALREADY_RUNNING. Esse recibo comprova início e exclusão mútua, não comprova entrega final.
+
+A sessão `20261001_135955_fe29bd` terminou sem liberar o job e registrou NEEDS_ATTENTION, sem repetir IA. Impedimentos relatados: destino de CTA ausente; preflight visual não incluído; instrução genérica exigia expected_task_version até para ferramentas que não aceitam esse campo.
+
+Correções seguintes: o prompt exige versão nas transições cujo esquema realmente a prevê; a coordenação recebe agora preflight gratuito do executor, validando vínculo, identidade e empresa antes de usar seu token. READY não equivale a aprovação criativa. Maya retornou READY em 14:08:07 UTC; Nina também READY; cinco testes do renderizador instalado passaram no Linux, sem chamadas pagas.
+
+O fundador respondeu explicitamente: **“Somente revisão interna; sem link ou publicação”**. Aplicado `scripts/clarify-private-review-20261001.sql`, uma transação operacional de escopo único, sem mudança de schema: guarda status DRAFT, tentativa 0, timestamp e versão 3655; preserva briefing anterior no evento FOUNDER_SCOPE_CLARIFIED; inclui autorização de revisão privada e evidências técnicas; nova versão da tarefa 3658. Não libera, não aprova, não zera tentativas nem apaga recibos. A nova versão documenta informação material nova, não uma repetição da tentativa anterior.
+
+Suíte final desta atualização: 150 casos Python, 149 passaram no Windows; o caso POSIX excluído no Windows passou no Linux, junto aos outros quatro testes visuais. Comprovante da decisão no banco: `artifacts/continuity-20261001/decisao-revisao-interna.png`.
