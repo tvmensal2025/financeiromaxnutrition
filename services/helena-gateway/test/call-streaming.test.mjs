@@ -103,7 +103,8 @@ describe('End-to-end voice streaming', () => {
             else opts.signal.addEventListener('abort', () => reject(opts.signal.reason), { once: true });
           });
         })()) };
-      } }), err => err.interrupted === true);
+      } }), err => err.interrupted === true && err.interruptionReason === 'playback_superseded' &&
+        err.playbackHttpStatus === 409 && err.streamMetrics?.interruption_reason === 'playback_superseded');
     assert.equal(capturedSignal.aborted, true);
     assert.equal(tts.destroyed, true);
     assert.equal(calls, 2);

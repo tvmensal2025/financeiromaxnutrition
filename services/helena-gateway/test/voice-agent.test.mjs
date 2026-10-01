@@ -213,7 +213,7 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   } finally { if (original === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = original; }
  });
 
- it('ends a registered call and ignores repeated termination events', async () => {
+it('ends a registered call and ignores repeated termination events', async () => {
   const { registerCallSession, getActiveCallsList } = await import('../src/integrations/call-engine.mjs');
   const { handleCallEndedWebhook, handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
   const call_id = 'TERMINATION-REGRESSION';
@@ -225,6 +225,76 @@ describe('Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition', () =>
   assert.equal((await handleCallEndedWebhook({ call_id })).summary, null);
   assert.equal((await handleCallConnectedWebhook({ call_id })).reason, 'already_ended');
  });
+
+it('answers inbound WhatsApp calls as Sirlene even when the global or preloaded profile is another character', async () => {
+ const {
+  endCallSession, getActiveGlobalProfileKey, getCallSession, registerCallSession, setActiveGlobalProfile
+ } = await import('../src/integrations/call-engine.mjs');
+ const { handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
+ const previousProfileKey = getActiveGlobalProfileKey();
+ const [previousCharacter, previousMode] = previousProfileKey.split('_');
+ const callId = `inbound-sirlene-${Date.now()}`;
+ const spoken = [];
+ try {
+  setActiveGlobalProfile('vital', 'normal', 'Teste de ligação WhatsApp');
+  registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'vital_normal' });
+  const result = await handleCallConnectedWebhook({ call_id: callId, direction: 'INBOUND' }, {
+   generateOpening: async profile => {
+    assert.equal(profile.profile_key, 'sirlene_normal');
+    return 'Olá, aqui é a Sirlene.';
+   },
+   speak: async args => { spoken.push(args); return { ok: true }; }
+  });
+  assert.equal(result.character, 'Sirlene');
+  assert.equal(getCallSession(callId).activeProfileKey, 'sirlene_normal');
+  assert.equal(spoken[0].voice, getCallSession(callId).activeVoice);
+ } finally {
+  endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  setActiveGlobalProfile(previousCharacter, previousMode, 'Restauração de teste');
+ }
+});
+
+it('keeps selected outbound characters and hot-swapped profiles on duplicate connected webhooks', async () => {
+ const {
+  endCallSession, getCallSession, registerCallSession, switchCallRuntime
+ } = await import('../src/integrations/call-engine.mjs');
+ const { handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
+ for (const { direction, initialProfile, openingProfile, replacementProfile } of [
+  { direction: 'INBOUND', initialProfile: 'vital_intense', openingProfile: 'sirlene_normal', replacementProfile: 'vital_firm' },
+  { direction: 'OUTBOUND', initialProfile: 'alex_intense', openingProfile: 'alex_normal', replacementProfile: 'rafael_intense' }
+ ]) {
+  const callId = `duplicate-connected-${direction}-${Date.now()}`;
+  let openings = 0;
+  let spoken = 0;
+  try {
+   registerCallSession({ callId, direction, profileKey: initialProfile });
+   const handlers = {
+    generateOpening: async profile => {
+     openings++;
+     assert.equal(profile.profile_key, openingProfile);
+     return `Olá, aqui é ${profile.character_name}.`;
+    },
+    speak: async () => { spoken++; return { ok: true }; }
+   };
+   await handleCallConnectedWebhook({ call_id: callId, direction }, handlers);
+   assert.equal(getCallSession(callId).activeProfileKey, openingProfile);
+   assert.equal(getCallSession(callId).direction, direction);
+
+   switchCallRuntime({ callId, profileKey: replacementProfile, voice: 'pt-BR-Chirp3-HD-Charon' });
+   const timelineLength = getCallSession(callId).timeline.length;
+   const result = await handleCallConnectedWebhook({ call_id: callId, direction }, handlers);
+
+   assert.equal(result.greeting_already_played, true);
+   assert.equal(getCallSession(callId).activeProfileKey, replacementProfile);
+   assert.equal(getCallSession(callId).activeVoice, 'pt-BR-Chirp3-HD-Charon');
+   assert.equal(getCallSession(callId).timeline.length, timelineLength);
+   assert.equal(openings, 1);
+   assert.equal(spoken, 1);
+  } finally {
+   endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
+ }
+});
 
 it('removes every alias of an ended session', async () => {
  const { registerCallSession, getActiveCallsList, endCallSession } = await import('../src/integrations/call-engine.mjs');
