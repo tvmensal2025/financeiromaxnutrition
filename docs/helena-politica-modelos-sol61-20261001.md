@@ -19,7 +19,11 @@ Uma tarefa simples e isolada continua elegivel para Luna; a classificacao habitu
 
 ## Evidencia e limites
 
-106 testes Python executados: 105 passaram e um teste de lock POSIX foi pulado no Windows. Instalacao remota compilada e configuracoes relidas. Uma unica chamada somente leitura foi iniciada para consultar o contexto e o bloqueio real da Marina, sem liberar tarefas nem gerar imagens. Registrar seu resultado antes de declarar o modelo validado em execucao.
+106 testes Python executados: 105 passaram e um teste de lock POSIX foi pulado no Windows. Instalacao remota compilada e configuracoes relidas. Uma unica chamada somente leitura terminou na sessao `20261001_092206_c8ead3`, com `--model gpt-6.1-sol` e perfil configurado em max. Duracao exibida pelo Hermes: 3m46s; 33 chamadas de ferramentas. A resposta identificou o estado WAITING_HELENA 2/2 da Marina e da Maya, a divergencia historica MISSING versus ACTIVE atual, a falta de comprovacao de acesso efetivo da Nina aos pixels e a diferenca entre autorizacao de execucao e aprovacao visual. Nenhuma liberacao, imagem ou aprovacao foi solicitada nessa chamada. Este teste comprova uma consulta real com ferramentas, nao a conclusao da campanha.
+
+O numero de consultas mostra que trocar o modelo nao basta para reduzir custo e tempo. Nas execucoes de fluxo, reutilizar o pacote preparado pelo runtime, pedir manifest primeiro e consultar somente lacunas; nao repetir fontes que ja constam integralmente no pacote.
+
+Registro inicial confirmado no Supabase: `MEM-HR-7c98e8d3b83eff6cd933a4006d3290f5`. Ele registra a instalacao e a validacao ainda pendente naquele instante; o resultado final deve ser acrescentado em um novo registro, preservando a cronologia.
 
 Configuracao salva nao comprova ciclo completo. A inspeção anterior a submissao, a resolucao de jobs esgotados e a entrega visual revisada ainda exigem conclusao especifica; nao anunciar que todos os 21 agentes estao operacionalmente homologados por esta troca de modelo.
 
