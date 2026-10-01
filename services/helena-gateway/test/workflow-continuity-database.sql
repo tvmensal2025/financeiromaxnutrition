@@ -2,6 +2,8 @@
 do $$
 declare j public.agent_jobs; t public.tarefas; p jsonb; r jsonb; failed boolean;
 begin
+ if public.gateway_workflow_checkpoint('helena--grupo','{"action":"list"}'::jsonb)->>'success' <> 'true' then
+  raise exception 'Journal read failed'; end if;
  begin
   perform public.gateway_workflow_candidates('maya--biz003',now(),'{}',null,25);
   raise exception 'Specialist incorrectly accepted';

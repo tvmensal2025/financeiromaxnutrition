@@ -83,10 +83,10 @@ begin
   raise exception 'Coordenacao ativa obrigatoria' using errcode='42501'; end if;
  if action='list' then
   return jsonb_build_object('success',true,'runs',coalesce((select jsonb_agg(to_jsonb(x)) from (
-   select r.* from public.agent_workflow_runs r where r.status in ('STARTED','NEEDS_ATTENTION')
-   and ((b.scope_type='GROUP' and b.agent_id='AGT-01') or r.business_id=b.business_id)
-   and (p_payload->>'after_run_id' is null or r.run_id>(p_payload->>'after_run_id')::uuid)
-   order by r.run_id limit 100) x),'[]'::jsonb));
+   select q.* from public.agent_workflow_runs q where q.status in ('STARTED','NEEDS_ATTENTION')
+   and ((b.scope_type='GROUP' and b.agent_id='AGT-01') or q.business_id=b.business_id)
+   and (p_payload->>'after_run_id' is null or q.run_id>(p_payload->>'after_run_id')::uuid)
+   order by q.run_id limit 100) x),'[]'::jsonb));
  end if;
  if action='reserve' then
   if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended('hermes:global-wip',0)) then

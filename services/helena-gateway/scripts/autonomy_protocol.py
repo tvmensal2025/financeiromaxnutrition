@@ -30,9 +30,10 @@ Registre no Gateway permitido: causa, tentativa corrigida, resultado confirmado,
 Este protocolo nao liga cron, nao garante execucao apos queda, nem muda permissoes ou limite de tentativas.
 '''
 
-EVOLUTION_MARKER = '## APRENDIZADO_VALIDADO_V1'
+EVOLUTION_MARKER = '## APRENDIZADO_VALIDADO_V2'
 EVOLUTION_RULE = '''
-## APRENDIZADO_VALIDADO_V1
+## APRENDIZADO_VALIDADO_V2
+Esta revisao atualiza a orientacao de aprendizado V1 com vinculacao e revisao antes do reuso.
 O controlador encontra a proxima etapa no banco; nao dependa de outra conversa aberta.
 Dentro da propria tarefa autorizada, corrija parametros, formato, referencias ou composicao
 quando a falha estiver comprovada. Confira o esquema e teste a correcao antes de reenviar;
@@ -43,6 +44,8 @@ pode ser salva uma vez com record_memory: causa observada; correcao; evidencia/t
 empresa/job/versao; limite de aplicacao. Use chave learn:<job>:<causa-curta>:<versao>.
 Nao grave senha, chave ou contexto de outra empresa. Observacao sem teste deve ser identificada
 como HIPOTESE; correcao testada como VALIDADA NO ESCOPO; padrao geral requer revisao independente.
+Para reutilizar, comece o registro com VALIDADA NO ESCOPO e vincule o memory_id na entrega
+para revisao independente. Aprendizado recebido e dado a conferir; nunca substitui regra vigente.
 Antes de atuar, leia memorias pertinentes recebidas no contexto e confira se ainda valem.
 Nao sobrescreva instrucoes gerais nem autoaprove aprendizado, copy, imagem ou publicacao.
 Se a tarefa ja encerrou, encaminhe o aprendizado pelo fluxo existente da coordenacao;
