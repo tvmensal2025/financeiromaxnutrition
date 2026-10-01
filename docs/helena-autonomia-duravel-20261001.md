@@ -51,3 +51,7 @@ Correções seguintes: o prompt exige versão nas transições cujo esquema real
 O fundador respondeu explicitamente: **“Somente revisão interna; sem link ou publicação”**. Aplicado `scripts/clarify-private-review-20261001.sql`, uma transação operacional de escopo único, sem mudança de schema: guarda status DRAFT, tentativa 0, timestamp e versão 3655; preserva briefing anterior no evento FOUNDER_SCOPE_CLARIFIED; inclui autorização de revisão privada e evidências técnicas; nova versão da tarefa 3658. Não libera, não aprova, não zera tentativas nem apaga recibos. A nova versão documenta informação material nova, não uma repetição da tentativa anterior.
 
 Suíte final desta atualização: 150 casos Python, 149 passaram no Windows; o caso POSIX excluído no Windows passou no Linux, junto aos outros quatro testes visuais. Comprovante da decisão no banco: `artifacts/continuity-20261001/decisao-revisao-interna.png`.
+
+## Retomada confirmada — 01/10/2026, 11:16 de Brasília
+
+Depois da decisão, Helena gravou WORKFLOW_release_job às 14:14:07 UTC; o despachante assumiu às 14:15:18 UTC e iniciou Maya às 14:15:19 UTC. Estado observado RUNNING, tentativa 1/2, tarefa versão 3660. Às 14:16:03 UTC Maya registrou que conferiu manifesto, runtime READY e abriu os pixels do logo oficial. Nenhuma arte final ainda estava registrada nesse instante. A liberação e o início foram automáticos pelo fluxo; o operador não chamou release_job nem start_job manualmente. Revisão da Nina e aprovação final ainda precisam de comprovação.
