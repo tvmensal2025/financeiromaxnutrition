@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 
 FILES = ('creative_quality.py', 'hermes_execution_context.py', 'hermes_dispatch_once.py',
-         'hermes_workflow_tick.py', 'hermes_pipeline.py')
+         'hermes_workflow_tick.py', 'hermes_pipeline.py', 'autonomy_protocol.py')
 POLL = '''#!/bin/sh
 # Existing hourly, no-agent poll; no new schedule and no inference for an idle queue.
 export HELENA_DISPATCH_ENABLED=1
@@ -34,6 +34,35 @@ def install(home=Path('/data')):
         ast.parse(data)
         plans.append((target, data))
     plans.append((poll, POLL.encode('utf-8')))
+    from autonomy_protocol import RULE, MARKER, EVOLUTION_RULE, EVOLUTION_MARKER
+    import hermes_dispatch_once as dispatch
+    config_path = runtime / 'workflow-config.json'
+    config = json.loads(config_path.read_text())
+    token = dispatch.token_for(home / 'profiles', 'helena--grupo')
+    probe = dispatch.call_tool(dispatch.GATEWAY, token, 'workflow_candidates', {
+        'created_after': config['new_jobs_after'], 'adopt_job_ids': config.get('adopt_job_ids', []), 'limit': 1})
+    if probe.get('success') is not True:
+        raise RuntimeError('Canonical Gateway not ready; no installation')
+    profiles = json.loads((source / 'autonomy-profiles.json').read_text())
+    if len(profiles) != 21 or len(set(profiles)) != 21 or any('/' in p or '\\' in p or '..' in p for p in profiles):
+        raise ValueError('Fleet registry diverged')
+    for profile in profiles:
+        soul_path = home / 'profiles' / profile / 'SOUL.md'
+        soul = soul_path.read_text()
+        if MARKER not in soul:
+            soul = soul.rstrip() + '\n' + RULE
+        elif RULE.strip() not in soul:
+            raise ValueError('Autonomy rule diverged: ' + profile)
+        if EVOLUTION_MARKER not in soul:
+            soul = soul.rstrip() + '\n' + EVOLUTION_RULE
+        elif EVOLUTION_RULE.strip() not in soul:
+            raise ValueError('Evolution rule diverged: ' + profile)
+        plans.append((soul_path, soul.encode('utf-8')))
+    config['durable_continuity'] = True
+    plans.append((config_path, json.dumps(config, ensure_ascii=False, indent=2).encode('utf-8')))
+    for target, _ in plans:
+        if target.is_symlink() or not target.resolve().is_relative_to(home):
+            raise ValueError('Unexpected target')
     backup = runtime / ('pipeline-backup-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
     backup.mkdir(mode=0o700)
     changed = []
@@ -64,7 +93,7 @@ def install(home=Path('/data')):
         raise
     result = {'status': 'INSTALLED', 'backup': str(backup), 'changed_files': len(changed),
               'model_calls': 0, 'jobs_changed': False, 'schedule_changed': False,
-              'permissions_changed': False, 'max_actions': 6,
+              'permissions_changed': False, 'max_actions': 6, 'durable_continuity': True, 'evolution_profiles': 21,
               'hashes': {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p, _ in plans}}
     (runtime / 'pipeline-install-receipt.json').write_text(json.dumps(result), encoding='utf-8')
     return result

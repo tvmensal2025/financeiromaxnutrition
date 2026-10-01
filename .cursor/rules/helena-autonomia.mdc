@@ -11,3 +11,5 @@ alwaysApply: false
 - Nunca aumentar tentativas, elevar acesso, repetir geracao incerta ou criar campanhas para contornar falha.
 - Pareceres ficam internos; fundador recebe pacote final revisado e decisoes especificamente reservadas a ele.
 - Configuracao/instalacao nao comprova homologacao dos 21 agentes ou recuperacao automatica apos queda.
+- Descobrir DRAFT e proximas etapas da fila canonica; reservar workflow_checkpoint antes de IA. Recibo local e cache, nunca autorizacao para repetir resultado incerto.
+- Registrar aprendizado comprovado no escopo da propria tarefa ativa; distinguir hipotese, correcao validada e padrao revisado. Nao alterar instrucoes gerais, permissoes ou orcamento autonomamente.

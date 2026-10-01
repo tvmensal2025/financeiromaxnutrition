@@ -177,8 +177,9 @@ class ReviewStateTests(unittest.TestCase):
         worker=self.worker()
         worker.state['pending'][JOB]={'phase':'HANDOFF','agent_id':'AGT-04'}
         worker.persist()
-        self.assertEqual(worker.tick()['status'],'NO_NEW_REVIEW')
+        self.assertEqual(worker.tick()['phase'],'COORDINATE')
         self.assertFalse(worker.state['pending'])
+        self.assertEqual(self.calls, 0)
 
     def test_adopted_job_outside_compact_context_is_not_starved(self):
         self.context['pending_reviews_detail']=[]
@@ -236,5 +237,80 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(self.run_tick()['observed_status'],'READY')
         self.assertEqual(self.calls,3)
         self.assertFalse(self.worker().state['pending'])
+
+class CanonicalContinuityTests(ReviewStateTests):
+    def setUp(self):
+        super().setUp()
+        self.config['durable_continuity'] = True
+        (self.path/'workflow-config.json').write_text(json.dumps(self.config))
+        self.remote_runs = {}
+
+    def request(self, gateway, token, name, args):
+        if name == 'workflow_candidates':
+            key = wf.fingerprint(self.d, (wf.phase_for(self.d) or ('NONE',))[0])
+            candidates = [] if key in self.remote_runs or not wf.phase_for(self.d) else [{'job_id': self.d['job']['job_id']}]
+            return {'success': True, 'candidates': candidates, 'next_cursor': None}
+        if name == 'workflow_checkpoint':
+            action = args['action']
+            if action == 'list':
+                return {'success': True, 'runs': [copy.deepcopy(r) for r in self.remote_runs.values() if r['status'] in ('STARTED','NEEDS_ATTENTION')]}
+            if action == 'reserve':
+                if args['fingerprint'] in self.remote_runs:
+                    return {'success': True, 'reserved': False, 'status': 'UNCHANGED_NO_RETRY'}
+                run = {'fingerprint': args['fingerprint'], 'job_id': args['job_id'], 'phase': args['phase'],
+                       'profile_slug': 'helena--grupo', 'status': 'STARTED', 'started_at': '2026-10-01T00:00:00Z',
+                       'run_id': '11111111-1111-4111-8111-111111111111', 'run_token': '22222222-2222-4222-8222-222222222222'}
+                self.remote_runs[args['fingerprint']] = run
+                return {'success': True, 'reserved': True, 'status': 'RESERVED', 'run': copy.deepcopy(run)}
+            if action == 'finish':
+                run = next(r for r in self.remote_runs.values() if r['run_id'] == args['run_id'])
+                run['status'] = args['status']
+                return {'success': True, 'status': run['status']}
+        return super().request(gateway, token, name, args)
+
+    def test_external_draft_discovered_without_adoption_or_local_pending(self):
+        self.d['job'].update(status='DRAFT', result_payload={})
+        self.context['pending_reviews_detail'] = []
+        report = self.worker().tick(False)
+        self.assertEqual(report['phase'], 'COORDINATE')
+        self.assertEqual(self.calls, 0)
+        self.assertFalse(self.remote_runs)
+
+    def test_loss_of_local_cache_never_repeats_uncertain_inference(self):
+        self.runner_mode = 'NO_EFFECT'
+        self.assertEqual(self.run_tick()['status'], 'NEEDS_ATTENTION')
+        (self.path/'workflow-state.json').unlink()
+        self.assertEqual(self.run_tick()['status'], 'NO_NEW_REVIEW')
+        self.assertEqual(self.calls, 1)
+
+    def test_reservation_in_bank_precedes_inference_and_token_never_printed(self):
+        original = self.runner
+        def runner(*args):
+            self.assertTrue(any(r['status'] == 'STARTED' for r in self.remote_runs.values()))
+            return original(*args)
+        self.runner = runner
+        report = self.run_tick()
+        self.assertNotIn('run_token', json.dumps(report))
+        self.assertEqual(next(iter(self.remote_runs.values()))['status'], 'CONFIRMED')
+
+    def test_canonical_unavailable_does_not_fall_back_to_paid_execution(self):
+        original = self.request
+        def request(gateway, token, name, args):
+            if name == 'workflow_checkpoint': raise RuntimeError('Unavailable')
+            return original(gateway, token, name, args)
+        self.request = request
+        with self.assertRaises(RuntimeError): self.run_tick()
+        self.assertEqual(self.calls, 0)
+
+    def test_final_package_does_not_generate_unnecessary_handoff(self):
+        approve(self.d)
+        self.d['job']['result_payload']['delivery'] = {'stage': 'FINAL', 'audience': 'FOUNDER'}
+        self.assertIsNone(wf.phase_for(self.d))
+
+    def test_personal_scope_not_adopted_into_business_continuity(self):
+        self.d['job']['scope_type'] = 'PERSONAL'
+        self.config['adopt_job_ids'] = [JOB]
+        self.assertFalse(wf.permitted(self.d, self.config))
+
 
 if __name__ == '__main__': unittest.main()

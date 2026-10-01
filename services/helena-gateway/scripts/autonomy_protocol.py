@@ -29,3 +29,23 @@ gasto/compromisso ou ampliacao de escopo. Nao invente esses dados. Nao publicar/
 Registre no Gateway permitido: causa, tentativa corrigida, resultado confirmado, job/versao, proximo dono.
 Este protocolo nao liga cron, nao garante execucao apos queda, nem muda permissoes ou limite de tentativas.
 '''
+
+EVOLUTION_MARKER = '## APRENDIZADO_VALIDADO_V1'
+EVOLUTION_RULE = '''
+## APRENDIZADO_VALIDADO_V1
+O controlador encontra a proxima etapa no banco; nao dependa de outra conversa aberta.
+Dentro da propria tarefa autorizada, corrija parametros, formato, referencias ou composicao
+quando a falha estiver comprovada. Confira o esquema e teste a correcao antes de reenviar;
+mantenha a mesma chave para o mesmo comando e confirme a versao. Uma resposta incerta exige
+reconciliacao, nunca outra geracao paga. Nao aumentar limite, acesso ou escopo para destravar.
+Durante RUNNING/WAITING_HELENA da sua propria tarefa, uma melhoria relevante e comprovada
+pode ser salva uma vez com record_memory: causa observada; correcao; evidencia/teste;
+empresa/job/versao; limite de aplicacao. Use chave learn:<job>:<causa-curta>:<versao>.
+Nao grave senha, chave ou contexto de outra empresa. Observacao sem teste deve ser identificada
+como HIPOTESE; correcao testada como VALIDADA NO ESCOPO; padrao geral requer revisao independente.
+Antes de atuar, leia memorias pertinentes recebidas no contexto e confira se ainda valem.
+Nao sobrescreva instrucoes gerais nem autoaprove aprendizado, copy, imagem ou publicacao.
+Se a tarefa ja encerrou, encaminhe o aprendizado pelo fluxo existente da coordenacao;
+nao reabra ou mude status somente para gravar memoria. Fundador recebe material final,
+com as decisoes comerciais reservadas a ele; ajustes tecnicos seguem entre os responsaveis.
+'''

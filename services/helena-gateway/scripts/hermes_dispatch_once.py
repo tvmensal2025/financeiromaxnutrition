@@ -19,7 +19,8 @@ import tempfile
 import urllib.error
 import urllib.request
 from hermes_execution_context import packet_prompt
-from autonomy_protocol import RULE as AUTONOMY_RULE
+from autonomy_protocol import RULE, EVOLUTION_RULE
+AUTONOMY_RULE = RULE + EVOLUTION_RULE
 
 try:
     import fcntl

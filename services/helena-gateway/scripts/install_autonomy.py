@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import yaml
-from autonomy_protocol import RULE, MARKER
+from autonomy_protocol import RULE, MARKER, EVOLUTION_RULE, EVOLUTION_MARKER
 
 
 def install(home, source):
@@ -27,7 +27,7 @@ def install(home, source):
     ):
         path = runtime / name
         content = path.read_text(encoding='utf-8')
-        if 'from autonomy_protocol import RULE as AUTONOMY_RULE' not in content:
+        if 'from autonomy_protocol import RULE' not in content:
             assert content.count('from hermes_execution_context import packet_prompt\n') == 1
             content = content.replace('from hermes_execution_context import packet_prompt\n', 'from hermes_execution_context import packet_prompt\n' + imported)
         if insertion not in content:
@@ -61,6 +61,12 @@ def install(home, source):
             plans.append((soul_path, (soul.rstrip() + '\n' + RULE).encode('utf-8')))
         elif RULE.strip() not in soul:
             raise ValueError('Existing autonomy rule diverged: ' + profile)
+        if EVOLUTION_MARKER not in soul:
+            updated = soul.rstrip() + '\n' + (RULE if MARKER not in soul else '') + EVOLUTION_RULE
+            plans = [(p, v) for p, v in plans if p != soul_path]
+            plans.append((soul_path, updated.encode('utf-8')))
+        elif EVOLUTION_RULE.strip() not in soul:
+            raise ValueError('Existing evolution rule diverged: ' + profile)
     for path, _ in plans:
         if path.is_symlink() or not path.resolve().is_relative_to(home):
             raise ValueError('Unexpected path')

@@ -20,6 +20,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { createIntegrationsRouter } from './routes/integrations.mjs';
 import { authorizeGatewayTool, resolveHermesToken } from './runtime-access.mjs';
 import { workflowTools } from './workflow.mjs';
+import { workflowJournalTools } from './workflow-journal.mjs';
 import { readVisualAsset, toolResultContent } from './visual-assets.mjs';
 import { artifactEventId, createArtifactUpload, parseArtifactReference, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from './artifact-storage.mjs';
 import { validateProfessionalBrief } from './brief-contract.mjs';
@@ -883,6 +884,7 @@ async function handleRecordQueueAttention(args, context = {}) {
 
 const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
+  ...workflowJournalTools(callSupabaseRpc),
   ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate, typeSafe.recordReleaseRoute),
   queue_attention: {
     description: 'Helena/Marina: lista jobs FAILED ou com execucao antiga para verificacao. Nao inicia modelo e nao expoe briefing completo.',
@@ -1102,6 +1104,8 @@ const inputObject = (properties, required = []) => ({ type: 'object', properties
 const jobFields = textFields('job_id agent_id');
 const jobRequired = ['job_id', 'agent_id'];
 const mcpInputs = {
+  workflow_candidates: inputObject({ created_after: { type: 'string', format: 'date-time' }, adopt_job_ids: { type: 'array', items: { type: 'string', pattern: '^JOB-HR-[a-f0-9]{32}$' }, maxItems: 100 }, after_job_id: { type: 'string', pattern: '^JOB-HR-[a-f0-9]{32}$' }, limit: { type: 'integer', minimum: 1, maximum: 25 } }, ['created_after']),
+  workflow_checkpoint: inputObject({ ...textFields('job_id fingerprint expected_status diagnostic'), after_run_id: { type: 'string', format: 'uuid' }, action: { type: 'string', enum: ['list', 'reserve', 'finish'] }, phase: { type: 'string', enum: ['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE'] }, expected_task_version: { type: 'integer', minimum: 0 }, expected_updated_at: { type: 'string', format: 'date-time' }, run_id: { type: 'string', format: 'uuid' }, run_token: { type: 'string', format: 'uuid' }, status: { type: 'string', enum: ['CONFIRMED', 'RECONCILED', 'NEEDS_ATTENTION'] } }, ['action']),
   revise_task_brief: inputObject({
     job_id: { type: 'string', minLength: 1, maxLength: 120 },
     idempotency_key: { type: 'string', minLength: 1, maxLength: 120 },
