@@ -213,10 +213,13 @@ class DispatchTests(unittest.TestCase):
         probe = Path(dispatcher.__file__).with_name("hermes_mcp_preflight.py")
         self.assertTrue(probe.is_file())
         with patch.object(dispatcher.Path, "is_file", return_value=True):
-            run = lambda *args, **kwargs: Mock(returncode=0, stdout=b'{"server":"helena_operacao","tool_count":15}')
+            run = lambda *args, **kwargs: Mock(returncode=0, stdout=json.dumps({'server': 'helena_operacao', 'tool_count': 15, 'ready': True, 'profile': PROFILE}).encode())
             self.assertEqual(dispatcher.mcp_preflight(self.root / PROFILE, "hhs_" + "P" * 40, run), {"status": "READY"})
             run = lambda *args, **kwargs: Mock(returncode=0, stdout=b'{"server":"helena_operacao","tool_count":0}')
             self.assertEqual(dispatcher.mcp_preflight(self.root / PROFILE, "hhs_" + "P" * 40, run), {"status": "MCP_UNAVAILABLE"})
+            for report in ({'ready': False, 'profile': PROFILE}, {'ready': True, 'profile': 'wrong-profile'}, {}):
+                run = lambda *args, **kwargs: Mock(returncode=0, stdout=json.dumps({'server': 'helena_operacao', 'tool_count': 15, **report}).encode())
+                self.assertEqual(dispatcher.mcp_preflight(self.root / PROFILE, "hhs_" + "P" * 40, run), {"status": "MCP_UNAVAILABLE"})
 
     def test_usage_preflight_fails_closed_on_unknown_and_reports_limit(self):
         from unittest.mock import Mock

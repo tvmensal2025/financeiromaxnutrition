@@ -211,7 +211,8 @@ def mcp_preflight(profile_home: Path, profile_token: str, runner=subprocess.run)
         if result.returncode != 0 or len(result.stdout) > 1024:
             return {"status": "MCP_UNAVAILABLE"}
         report = json.loads(result.stdout)
-        if report.get("server") == "helena_operacao" and report.get("tool_count", 0) >= 10:
+        if (report.get("ready") is True and report.get("profile") == profile_home.name
+            and report.get("server") == "helena_operacao" and report.get("tool_count", 0) >= 10):
             return {"status": "READY"}
     except (OSError, ValueError, subprocess.TimeoutExpired):
         pass

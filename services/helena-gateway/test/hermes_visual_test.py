@@ -14,6 +14,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
 class VisualTests(unittest.TestCase):
+    def test_stdio_readiness_rejects_missing_identity_before_loading_provider(self):
+        with patch.dict(os.environ, {'HERMES_HOME': ''}), patch.object(visual, 'load_provider') as provider:
+            self.assertEqual(visual.check_visual_runtime()['reason'], 'PROFILE_MISSING')
+            provider.assert_not_called()
+
+    def test_stdio_readiness_verifies_same_scoped_token_without_generation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory) / 'maya--biz003'; home.mkdir()
+            token = 'hhs_' + 'P' * 40
+            (home / '.env').write_text(visual.TOKEN_NAME + '=' + token + '\n')
+            with patch.dict(os.environ, {'HERMES_HOME': str(home), visual.TOKEN_NAME: token}), patch.object(visual, 'load_provider') as provider:
+                provider.return_value.is_available.return_value = True
+                report = visual.check_visual_runtime()
+                self.assertTrue(report['ready']); self.assertEqual(report['model_calls'], 0)
+                provider.return_value.generate.assert_not_called()
+                os.environ[visual.TOKEN_NAME] = 'different'
+                self.assertEqual(visual.check_visual_runtime()['reason'], 'PROFILE_TOKEN_MISMATCH')
+                provider.return_value.generate.assert_not_called()
+
     def detail(self):
         brand = {'status': 'APPROVED', 'logo_approved': True, 'name': 'Empresa teste', 'business_id': 'BIZ-003',
                  'logo_url': 'storage://helena-brand-assets/BIZ-003/logo.png', 'colors': [{'hex': '#075E47'}]}

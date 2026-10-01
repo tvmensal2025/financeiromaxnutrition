@@ -70,6 +70,28 @@ def final_canvas(raw, logo, slot, background, palette=None):
     if output.tell() > 5 * 1024 * 1024: raise ValueError('Final PNG exceeds storage limit')
     return output.getvalue()
 
+def check_visual_runtime() -> dict:
+    """Check this MCP child identity and image authentication without generation."""
+    from hermes_dispatch_once import token_for
+    import hmac
+    home = Path(os.environ.get('HERMES_HOME', ''))
+    if not home.is_absolute() or home.name != 'maya--biz003':
+        return {'ready': False, 'reason': 'PROFILE_MISSING', 'model_calls': 0}
+    try:
+        expected = token_for(home.parent, home.name)
+        token_ready = hmac.compare_digest(os.environ.get(TOKEN_NAME, ''), expected)
+    except (OSError, ValueError):
+        token_ready = False
+    if not token_ready:
+        return {'ready': False, 'reason': 'PROFILE_TOKEN_MISMATCH', 'model_calls': 0}
+    try:
+        provider_ready = bool(load_provider().is_available())
+    except Exception:
+        provider_ready = False
+    return {'ready': provider_ready, 'profile': home.name,
+            'reason': 'READY' if provider_ready else 'IMAGE_AUTH_UNAVAILABLE', 'model_calls': 0}
+
+
 def generate_design(job_id: str, slot: str, version: int, design_note: str) -> dict:
     """Generate one finished social artwork using the approved brief, then store it privately.
 
@@ -157,5 +179,6 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
 if __name__ == '__main__':
     from mcp.server import MCPServer
     server = MCPServer('helena_visual')
+    server.tool()(check_visual_runtime)
     server.tool()(generate_design)
     server.run(transport='stdio')

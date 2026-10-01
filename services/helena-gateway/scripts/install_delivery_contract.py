@@ -49,12 +49,21 @@ def install(home):
         if changed:
             server['tools']['include'] = expected
         if profile == 'maya--biz003':
+            # Stdio MCP does not guarantee inheritance of the profile-specific
+            # environment. Bind the same existing scoped identity explicitly.
+            from hermes_dispatch_once import token_for
+            visual_token = token_for(config_path.parent.parent, profile)
             visual = {'command': '/opt/hermes/.venv/bin/python',
                       'args': ['/data/helena-runtime/hermes_visual.py'], 'enabled': True,
                       'timeout': 300, 'connect_timeout': 20,
-                      'tools': {'include': ['generate_design'], 'prompts': False}}
+                      'tools': {'include': ['generate_design', 'check_visual_runtime'], 'prompts': False},
+                      'env': {'HERMES_HOME': str(config_path.parent),
+                              'HELENA_GATEWAY_PROFILE_TOKEN': visual_token}}
             current = config['mcp_servers'].get('helena_visual')
-            if current is not None and current != visual: raise ValueError('Visual connector diverged')
+            legacy_visual = {key: value for key, value in visual.items() if key != 'env'}
+            legacy_visual['tools'] = {'include': ['generate_design'], 'prompts': False}
+            bound_legacy = {**legacy_visual, 'env': visual['env']}
+            if current is not None and current not in (visual, legacy_visual, bound_legacy): raise ValueError('Visual connector diverged')
             image = config.get('image_gen') or {}
             if image.get('provider') not in (None, '', 'openai-codex'): raise ValueError('Image provider diverged')
             config['mcp_servers']['helena_visual'] = visual
