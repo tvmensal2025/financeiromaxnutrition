@@ -37,7 +37,7 @@ def install(home=Path('/data')):
     config['mcp_servers']['helena_visual'] = allowed[-1]
     plans = [(config_path, yaml.safe_dump(config, allow_unicode=True, sort_keys=False).encode('utf-8'))]
     source = Path(__file__).resolve().parent
-    for name in ('hermes_visual.py', 'hermes_mcp_preflight.py', 'hermes_dispatch_once.py'):
+    for name in ('creative_quality.py', 'hermes_visual.py', 'hermes_mcp_preflight.py', 'hermes_dispatch_once.py'):
         data = (source / name).read_bytes(); ast.parse(data)
         plans.append((runtime / name, data))
     for path, _ in plans:

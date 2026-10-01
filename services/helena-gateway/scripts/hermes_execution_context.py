@@ -1,5 +1,6 @@
 """Build a lossless, task-scoped packet before inference, without model tool loops."""
 import json
+from creative_quality import CREATIVE_QUALITY_VERSION, CREATIVE_QUALITY_RULES
 
 PACKET_VERSION = 'authorized-work-packet-v1'
 
@@ -25,6 +26,7 @@ def execution_packet(detail, phase='EXECUTE'):
     result = job.get('result_payload') or {}
     packet = {
         'packet_version': PACKET_VERSION, 'truncated': False, 'phase': phase,
+        'creative_quality': {'version': CREATIVE_QUALITY_VERSION, 'rules': CREATIVE_QUALITY_RULES},
         'job': pick(job, ('job_id', 'task_id', 'business_id', 'agent_id', 'status', 'updated_at',
                          'objective', 'instruction', 'attempt_count', 'max_attempts', 'evidence_refs')),
         'task': pick(task, ('task_id', 'business_id', 'row_version', 'definicao_de_pronto', 'status', 'bloqueio')),

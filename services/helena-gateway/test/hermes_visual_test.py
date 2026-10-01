@@ -54,10 +54,15 @@ class VisualTests(unittest.TestCase):
         logo = io.BytesIO(); Image.new('RGBA',(100,40),(255,0,0,255)).save(logo, format='PNG')
         final = Image.open(io.BytesIO(visual.final_canvas(art.getvalue(), logo.getvalue(), 'post', '#075E47')))
         self.assertEqual(final.size, (1080, 1350)); self.assertEqual(final.getpixel((900, 1240)), (255,0,0))
-        story = Image.open(io.BytesIO(visual.final_canvas(art.getvalue(), logo.getvalue(), 'story-1', '#075E47', ['#075E47', '#F4F5EB'])))
+        self.assertGreater(final.crop((0,1150,600,1350)).convert('L').entropy(), 2, 'No appended empty footer')
+        story_art = io.BytesIO(); Image.effect_noise((900,1600),80).convert('RGB').save(story_art,format='PNG')
+        story = Image.open(io.BytesIO(visual.final_canvas(story_art.getvalue(), logo.getvalue(), 'story-1', '#075E47', ['#075E47', '#F4F5EB'])))
         self.assertEqual(story.size, (1080, 1920))
         self.assertEqual(story.getpixel((900, 1600)), (255,0,0))
         self.assertNotEqual(story.getpixel((900, 1700)), (255,0,0), 'Logo must clear the bottom 250px story overlay')
+        self.assertGreater(story.crop((0,1540,600,1920)).convert('L').entropy(), 2, 'Story artwork must continue to the bottom')
+        with self.assertRaisesRegex(ValueError, 'aspect ratio'):
+            visual.final_canvas(art.getvalue(),logo.getvalue(),'story-1','#075E47')
         empty = io.BytesIO(); Image.new('RGB',(800,1000),'white').save(empty, format='PNG')
         with self.assertRaisesRegex(ValueError, 'empty'): visual.final_canvas(empty.getvalue(),logo.getvalue(),'post','#075E47')
 

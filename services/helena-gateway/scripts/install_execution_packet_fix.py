@@ -11,9 +11,9 @@ import shutil
 def install(runtime=Path('/data/helena-runtime')):
     source = Path(__file__).resolve().parent
     plans = []
-    for name in ('hermes_execution_context.py', 'hermes_dispatch_once.py'):
+    for name in ('creative_quality.py', 'hermes_execution_context.py', 'hermes_dispatch_once.py', 'hermes_visual.py'):
         target = runtime / name
-        if not target.is_file() or target.is_symlink():
+        if target.is_symlink() or (target.exists() and not target.is_file()):
             raise ValueError('Unexpected target; no writes')
         data = (source / name).read_bytes()
         ast.parse(data)
@@ -23,11 +23,11 @@ def install(runtime=Path('/data/helena-runtime')):
     changed = []
     try:
         for target, data in plans:
-            if target.read_bytes() == data:
+            if target.exists() and target.read_bytes() == data:
                 continue
             saved = backup / target.name
-            shutil.copy2(target, saved)
-            changed.append((target, saved))
+            if target.exists(): shutil.copy2(target, saved)
+            changed.append((target, saved if saved.exists() else None))
             temp = target.with_suffix('.packet-tmp')
             with temp.open('xb') as stream:
                 os.chmod(temp, 0o600)
@@ -37,7 +37,8 @@ def install(runtime=Path('/data/helena-runtime')):
                 raise RuntimeError('Write verification failed')
     except Exception:
         for target, saved in reversed(changed):
-            shutil.copy2(saved, target)
+            if saved: shutil.copy2(saved, target)
+            else: target.unlink(missing_ok=True)
         raise
     result = {'installed': True, 'backup': str(backup), 'model_calls': 0,
               'jobs_changed': False, 'changed_files': len(changed),

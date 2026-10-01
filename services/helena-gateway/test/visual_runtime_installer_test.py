@@ -12,7 +12,7 @@ import install_visual_runtime_fix as installer
 class VisualRuntimeInstallerTests(unittest.TestCase):
     def fixture(self, home):
         runtime = home / 'helena-runtime'; runtime.mkdir()
-        for name in ('hermes_visual.py', 'hermes_mcp_preflight.py', 'hermes_dispatch_once.py'):
+        for name in ('creative_quality.py', 'hermes_visual.py', 'hermes_mcp_preflight.py', 'hermes_dispatch_once.py'):
             (runtime / name).write_text('# Previous runtime\n')
         profile = home / 'profiles/maya--biz003'; profile.mkdir(parents=True)
         (profile / '.env').write_text('HELENA_GATEWAY_PROFILE_TOKEN=hhs_' + 'P' * 40 + '\n')
@@ -30,7 +30,7 @@ class VisualRuntimeInstallerTests(unittest.TestCase):
             original = (profile / 'config.yaml').read_bytes()
             credentials = (profile / '.env').read_bytes()
             result = installer.install(home)
-            self.assertEqual(result['changed_files'], 4)
+            self.assertEqual(result['changed_files'], 5)
             backup = Path(result['backup']) / 'profiles/maya--biz003/config.yaml'
             self.assertEqual(backup.read_bytes(), original)
             updated = yaml.safe_load((profile / 'config.yaml').read_text())
