@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { supabase } from "@/lib/supabase";
+import { isFinalDelivery, publicationFor } from "@/lib/publicacao";
+import { deliveryArtifacts } from "@/lib/entrega-artefatos";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
@@ -44,20 +46,21 @@ export function Header({ onOpenSearch }: HeaderProps) {
       try {
         let consulta = supabase
           .from("agent_jobs")
-          .select("job_id,business_id,objective,status,result_payload,updated_at,created_at")
+          .select("job_id,business_id,objective,status,result_payload,evidence_refs,updated_at,created_at")
           .in("status", ["WAITING_HELENA", "COMPLETED", "DRAFT"])
           .order("updated_at", { ascending: false })
-          .limit(12);
+          .limit(100);
         if (!isConsolidated && currentBusinessId) consulta = consulta.eq("business_id", currentBusinessId);
         const { data } = await consulta;
         if (!ativo) return;
         const itens = ((data || []) as HeaderJob[]).filter(job => {
           const payload = isObject(job.result_payload) ? job.result_payload : {};
-          return job.status === "DRAFT" || job.status === "COMPLETED" || payload.review_pending === true;
+          return isFinalDelivery(job, deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).map(a => a.reference)) ||
+            (job.status === "WAITING_HELENA" && payload.review_pending === true && payload.reviewer_agent_id === "FOUNDER");
         });
         setAlertas(itens.slice(0, 6).map(job => ({
           jobId: job.job_id,
-          title: job.objective?.trim() || "Entrega aguardando conferência",
+          title: publicationFor(job.result_payload)?.title || job.objective?.trim() || "Entrega aguardando conferência",
           status: job.status === "DRAFT" ? "Aguardando liberação" : isObject(job.result_payload) && job.result_payload.review_pending === true ? "Revisão pendente" : "Entrega disponível",
           date: job.updated_at || job.created_at,
           urgent: job.status === "WAITING_HELENA" || (isObject(job.result_payload) && job.result_payload.review_pending === true),
@@ -170,7 +173,7 @@ export function Header({ onOpenSearch }: HeaderProps) {
   );
 }
 
-type HeaderJob = { job_id: string; business_id: string; objective: string | null; status: string; result_payload: unknown; updated_at: string | null; created_at: string };
+type HeaderJob = { job_id: string; business_id: string; objective: string | null; status: string; result_payload: unknown; evidence_refs: string[] | null; updated_at: string | null; created_at: string };
 type HeaderAlert = { jobId: string; title: string; status: string; date: string | null; urgent: boolean };
 
 function isObject(value: unknown): value is Record<string, unknown> {

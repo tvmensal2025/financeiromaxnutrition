@@ -25,3 +25,17 @@ export function hasVisualApproval(payload: unknown, references: string[]) {
     && typeof review.findings === 'string' && review.findings.trim().length >= 80
     && ['text_readable','brand_matches','copy_matches','composition_approved'].every(key => review[key] === true);
 }
+
+// Approval of an intermediate report does not make a customer deliverable.
+export function isFounderDecision(job: {status: string; result_payload?: unknown}) {
+  const payload = job.result_payload as Record<string, unknown> | null;
+  return job.status === 'WAITING_HELENA' && payload?.review_pending === true && payload.reviewer_agent_id === 'FOUNDER';
+}
+export function isFinalDelivery(job: {status: string; result_payload?: unknown}, references: string[]) {
+  if (job.status !== 'COMPLETED' || !job.result_payload || typeof job.result_payload !== 'object') return false;
+  const payload = job.result_payload as Record<string, unknown>;
+  if (payload.review_pending !== false || typeof payload.reviewed_by !== 'string' || !payload.reviewed_by.trim()) return false;
+  if (payload.delivery_audience === 'INTERNAL') return false;
+  if (publicationFor(payload)) return hasVisualApproval(payload, references);
+  return payload.delivery_audience === 'FOUNDER' && payload.delivery_stage === 'FINAL' && Boolean(deliveryFor(payload));
+}

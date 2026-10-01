@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { etapaEntrega } from "@/lib/execucoes-comando";
 import { deliveryArtifacts } from "@/lib/entrega-artefatos";
 import { signedMedia } from "@/lib/media-client";
-import { publicationFor, deliveryFor, hasVisualApproval } from "@/lib/publicacao";
+import { publicationFor, deliveryFor, hasVisualApproval, isFinalDelivery, isFounderDecision } from "@/lib/publicacao";
 
 type Job = {
   job_id: string;
@@ -53,6 +53,7 @@ export default function EntregasPage() {
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [query, setQuery] = useState("");
+  const [productionView, setProductionView] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>("Todas");
   const [selected, setSelected] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,8 +111,9 @@ export default function EntregasPage() {
     const jobId = searchParams.get("job");
     if (!jobId) return;
     const job = jobs.find(item => item.job_id === jobId);
-    if (job && selected !== job) setSelected(job);
-  }, [jobs, searchParams, selected?.job_id]);
+    if (job && !productionView && !isFounderDecision(job) && !isFinalDelivery(job, deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).map(a => a.reference))) { setSelected(null); return; }
+    if (job && selected !== job && (productionView || isFounderDecision(job) || isFinalDelivery(job, deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).map(a => a.reference)))) setSelected(job);
+  }, [jobs, searchParams, selected?.job_id, productionView]);
 
   useEffect(() => {
     let active = true;
@@ -147,11 +149,12 @@ export default function EntregasPage() {
   const companyFor = (id: string) => empresas.find(company => company.business_id === id)?.nome || id;
   const evidenceFor = (job: Job) => evidence.filter(item => item.related_object_id === job.job_id && item.business_id_area === job.business_id && job.evidence_refs?.includes(item.id));
   const visible = useMemo(() => jobs.filter(job => {
+    if (!productionView && !isFounderDecision(job) && !isFinalDelivery(job, deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).map(a => a.reference))) return false;
     if (!["TODAS", "GRUPO"].includes(currentBusinessId) && job.business_id !== currentBusinessId) return false;
     if (filter !== "Todas" && stage(job) !== filter) return false;
     const text = [job.objective, job.job_id, job.result_summary, taskFor(job)?.tarefa, companyFor(job.business_id), nameFor(job.agent_id)].join(" ").toLocaleLowerCase("pt-BR");
     return text.includes(query.trim().toLocaleLowerCase("pt-BR"));
-  }), [jobs, tasks, agents, empresas, currentBusinessId, query, filter]);
+  }), [jobs, tasks, agents, empresas, currentBusinessId, query, filter, productionView]);
 
   const counts = useMemo(() => ({
     total: jobs.length,
@@ -200,19 +203,24 @@ export default function EntregasPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Sistema Helena / Entregas</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">Sua caixa de entregas</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Aqui chega tudo o que a equipe produziu. Abra um cartão para ver o pedido, o material pronto, a revisão e as evidências.</p>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Aqui chegam suas entregas finais aprovadas. Para campanhas, imagens e copy ficam juntas, prontas para você usar. A equipe cuida das revisões durante a produção.</p>
         </div>
         <button className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2 text-sm font-medium" onClick={() => void load(false)} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
         </button>
       </div>
 
-      <div className="he-delivery-summary" aria-label="Resumo das entregas">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Escolher visão de entregas">
+        <button className="rounded-full border px-4 py-2 text-sm" aria-pressed={!productionView} onClick={() => { setProductionView(false); setSelected(null); setSearchParams({}, { replace: true }); }}>Material pronto para usar</button>
+        <button className="rounded-full border px-4 py-2 text-sm" aria-pressed={productionView} onClick={() => setProductionView(true)}>Acompanhar produção</button>
+      </div>
+      {productionView && <p className="rounded-xl border bg-muted p-4 text-sm">Estas são etapas internas da equipe. Um parecer aprovado não significa que a campanha está pronta.</p>}
+      {productionView && <div className="he-delivery-summary" aria-label="Resumo das entregas">
         <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon neutral"><FileText className="h-4 w-4" /></span><span><strong>{counts.total}</strong><small>entregas visíveis</small></span></div>
         <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon amber"><Clock3 className="h-4 w-4" /></span><span><strong>{counts.review}</strong><small>pedem sua conferência</small></span></div>
         <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon green"><CheckCircle2 className="h-4 w-4" /></span><span><strong>{counts.approved}</strong><small>aprovadas</small></span></div>
         <div className="he-delivery-summary-card"><span className="he-delivery-summary-icon rose"><LockKeyhole className="h-4 w-4" /></span><span><strong>{counts.blocked}</strong><small>com bloqueio ou ajuste</small></span></div>
-      </div>
+      </div>}
 
       <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="relative">
@@ -220,12 +228,12 @@ export default function EntregasPage() {
           <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar tarefa, post, agente ou empresa" aria-label="Buscar entregas" className="w-full rounded-xl border bg-background py-2.5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar entregas">
-          {statuses.map(status => <button key={status} onClick={() => setFilter(status)} aria-pressed={filter === status} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === status ? "bg-emerald-800 text-white" : "bg-muted text-muted-foreground"}`}>{status}</button>)}
+          {(productionView ? statuses : statuses.filter(status => ["Todas", "Aprovadas", "Em revisão"].includes(status))).map(status => <button key={status} onClick={() => setFilter(status)} aria-pressed={filter === status} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === status ? "bg-emerald-800 text-white" : "bg-muted text-muted-foreground"}`}>{status}</button>)}
         </div>
       </div>
 
       {error && <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Falha ao consultar o Supabase: {error}</div>}
-      {!loading && !error && visible.length === 0 && <div className="rounded-2xl border bg-card p-10 text-center text-sm text-muted-foreground">Nenhuma entrega encontrada para este filtro.</div>}
+      {!loading && !error && visible.length === 0 && <div className="rounded-2xl border bg-card p-10 text-center text-sm text-muted-foreground">{productionView ? "Nenhuma etapa encontrada para este filtro." : "Ainda não há material final aprovado neste filtro. Os pareceres e ajustes ficam no acompanhamento da produção."}</div>}
       <div className="grid gap-3 lg:grid-cols-2">
         {visible.map(job => {
           const task = taskFor(job);
