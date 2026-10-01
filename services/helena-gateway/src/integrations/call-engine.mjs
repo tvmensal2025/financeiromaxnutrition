@@ -17,6 +17,7 @@
  * 6. Telemetria fiel por chamada e por turno (STT, LLM tokens reais, TTS chars, latências).
  */
 
+import { randomUUID } from 'node:crypto';
 import {
   getActiveCallVoice,
   setActiveCallVoice,
@@ -634,7 +635,7 @@ function maskPhoneNumber(phone) {
 /**
  * Registra o início ou conexão de uma chamada no motor quente
  */
-export function registerCallSession({ callId, remoteNumber = '', direction = 'OUTBOUND', businessId = 'BIZ-001', profileKey = null }) {
+export function registerCallSession({ callId, remoteNumber = '', direction = 'INBOUND', businessId = 'BIZ-001', profileKey = null }) {
   if (!callId) return null;
 
   const normId = normalizeCallId(callId);
@@ -664,14 +665,17 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'OU
     return existing;
   }
 
-  const effectiveProfileKey = profileKey && profiles12State[profileKey] ? profileKey : activeGlobalProfileKey;
+  const normalizedDirection = String(direction || 'INBOUND').trim().toUpperCase();
+  const fallbackProfileKey = normalizedDirection === 'INBOUND' ? 'sirlene_normal' : activeGlobalProfileKey;
+  const effectiveProfileKey = profileKey && profiles12State[profileKey] ? profileKey : fallbackProfileKey;
   const profile = profiles12State[effectiveProfileKey] || profiles12State.rafael_normal;
 
   const session = {
     callId,
+    callInstanceId: randomUUID(),
     normId,
     businessId,
-    direction,
+    direction: normalizedDirection,
     remoteNumber,
     maskedNumber: maskPhoneNumber(remoteNumber),
     startedAt: Date.now(),
@@ -749,13 +753,18 @@ export function getCallSession(callId) {
 export function listActiveCalls() {
   const now = Date.now();
   const list = [];
+  const seenSessions = new Set();
 
-  for (const [callId, call] of activeCallsMap.entries()) {
+  for (const call of activeCallsMap.values()) {
+    if (seenSessions.has(call.callInstanceId)) continue;
+    seenSessions.add(call.callInstanceId);
     const durationSeconds = Math.max(0, Math.round((now - (call.startedAt || now)) / 1000));
     const lastTurn = call.turns[call.turns.length - 1] || null;
 
     list.push({
-      call_id: callId,
+      call_id: call.callId,
+      call_instance_id: call.callInstanceId,
+      call_aliases: [...activeCallsMap].filter(([, session]) => session === call).map(([id]) => id),
       phone_masked: call.maskedNumber,
       direction: call.direction,
       status: call.status,
@@ -1026,6 +1035,7 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
 
   const record = {
     call_id: call.callId,
+    call_instance_id: call.callInstanceId,
     business_id: call.businessId,
     direction: call.direction,
     phone_masked: call.maskedNumber,
@@ -1136,11 +1146,14 @@ export function getCallsHistoryMetrics({ filter = 'today', limit = 30 }) {
 
 export function getCallDetailById(callId) {
   // 1. Procura nas chamadas ativas
-  const active = activeCallsMap.get(callId);
+  const normalizedId = normalizeCallId(callId);
+  const active = activeCallsMap.get(normalizedId) ||
+    [...new Set(activeCallsMap.values())].find(call => call.callInstanceId === callId);
   if (active) {
     return {
       is_active: true,
       call_id: active.callId,
+      call_instance_id: active.callInstanceId,
       phone_masked: active.maskedNumber,
       status: active.status,
       started_at: new Date(active.startedAt).toISOString(),
@@ -1155,7 +1168,8 @@ export function getCallDetailById(callId) {
   }
 
   // 2. Procura nas concluídas
-  const completed = completedCallsBuffer.find(c => c.call_id === callId);
+  const completed = completedCallsBuffer.find(c => c.call_instance_id === callId) ||
+    completedCallsBuffer.find(c => normalizeCallId(c.call_id) === normalizedId);
   if (completed) {
     return {
       is_active: false,

@@ -541,35 +541,38 @@ export async function generateNaturalOpening(profile, callId, webCall = null) {
     ? result.text.trim() : `Olá, aqui é ${profile.character_name}. Como você está hoje?`;
 }
 
-export async function handleCallConnectedWebhook(payload = {}, { speak = speakInCall } = {}) {
+export async function handleCallConnectedWebhook(payload = {}, { speak = speakInCall, generateOpening = generateNaturalOpening } = {}) {
   const endedKey = String(payload.call_id || "").toUpperCase();
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: "already_ended" };
-  const { call_id, direction, remote_number } = payload;
+  const { call_id, remote_number } = payload;
+  let call = getCallSession(call_id);
+  const direction = String(payload.direction || call?.direction || 'INBOUND').trim().toUpperCase();
+  const isInbound = direction === 'INBOUND';
   console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}`);
 
   // Registra no call-engine em memória com sincronização
-  let call = getCallSession(call_id);
-  if (!call || (direction === 'INBOUND' && !call.callerConnected)) {
+  if (!call) {
     call = registerCallSession({
       callId: call_id,
       remoteNumber: remote_number,
-      direction: direction || 'OUTBOUND',
-      profileKey: direction === 'INBOUND' ? 'sirlene_normal' : null
+      direction,
+      profileKey: isInbound ? 'sirlene_normal' : null
     });
   }
 
   if (remote_number) call.remoteNumber = remote_number;
   if (call.greetingPlayed) return { ok: true, handled: true, call_id, greeting_already_played: true };
   if (!call.callerConnected) {
-    const characterId = direction === 'INBOUND' ? 'sirlene' : getProfileByKey(call.activeProfileKey).character_id;
+    call.direction = direction;
+    const characterId = isInbound ? 'sirlene' : getProfileByKey(call.activeProfileKey).character_id;
     switchCallRuntime({ callId: call_id, characterId, mode: 'normal' });
   }
   call.callerConnected = true;
-  const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
+  const profile = getProfileByKey(call.activeProfileKey);
   void loadCallerContext(call, profile.character_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
-  const greeting = await generateNaturalOpening(profile, call_id);
+  const greeting = await generateOpening(profile, call_id);
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
 
   // Inicializa histórico com a abertura oficial do perfil ativo
@@ -610,7 +613,7 @@ export async function handleCallEndedWebhook(payload = {}) {
   endedVoiceCalls.set(String(call_id).toUpperCase(), Date.now());
   if (endedVoiceCalls.size > 1000) endedVoiceCalls.delete(endedVoiceCalls.keys().next().value);
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
-  activeVoiceTurns.get(call_id)?.abort(new Error('Call ended'));
+  abortActiveVoiceTurn(call_id, 'call_ended', 'Call ended');
   activeVoiceTurns.delete(call_id);
   latestSpeechEpochs.delete(call_id);
   const summary = endCallSession({ callId: call_id, reason: reason || 'normal_hangup' });
@@ -621,11 +624,11 @@ export async function handleCallEndedWebhook(payload = {}) {
  * Trata detecção de silêncio prolongado (nudge conversacional)
  */
 export async function handleUserSilence({ callId }) {
-  const session = getCallSession(callId);
-  const profile = session?.activeProfileKey ? getProfileByKey(session.activeProfileKey) : getActiveGlobalProfile();
+  if (!callId) throw new Error('callId é obrigatório');
+  const session = getCallSession(callId) || registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+  const profile = session?.activeProfileKey ? getProfileByKey(session.activeProfileKey) : getProfileByKey('sirlene_normal');
   if (profile.opening_enabled !== true && !getCallHistory(callId).some(turn => turn.role === 'user')) return { ok: true, ignored: true, reason: 'waiting_for_customer' };
   if (activeVoiceTurns.has(callId)) return { ok: true, ignored: true, reason: 'response_in_progress' };
-  if (!callId) throw new Error('callId é obrigatório');
   console.log(`[VOICE_AGENT] ⏳ Silêncio do cliente na chamada ${callId}. Disparando cutucada cortês...`);
   const text = "Olá! Você consegue me ouvir? Pode falar, estou aqui para te ajudar!";
   const callHistory = getCallHistory(callId);
@@ -667,6 +670,23 @@ export function getCallHistory(callId) {
 const activeVoiceTurns = new Map();
 const latestSpeechEpochs = new Map();
 
+function abortActiveVoiceTurn(callId, interruptionReason, message) {
+  const controller = activeVoiceTurns.get(callId);
+  if (!controller || controller.signal.aborted) return false;
+  const reason = new Error(message);
+  reason.interruptionReason = interruptionReason;
+  controller.abort(reason);
+  return true;
+}
+
+function resolveVoiceInterruptionReason(error, signal) {
+  if (error?.interruptionReason) return error.interruptionReason;
+  if (signal?.reason?.interruptionReason) return signal.reason.interruptionReason;
+  if (error?.name === 'TimeoutError' || signal?.reason?.name === 'TimeoutError') return 'stream_timeout';
+  if (signal?.aborted) return 'stream_cancelled';
+  return 'stream_error';
+}
+
 export async function processUserSpeech(params) {
   const { callId, speechEpoch } = params;
   if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
@@ -675,15 +695,29 @@ export async function processUserSpeech(params) {
     if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
     latestSpeechEpochs.set(callId, speechEpoch);
   }
-  activeVoiceTurns.get(callId)?.abort(new Error('New customer utterance'));
+  abortActiveVoiceTurn(callId, 'new_user_speech', 'New customer utterance');
   const controller = new AbortController();
   controller.speechEpoch = speechEpoch;
+  controller.startedAt = Date.now();
   activeVoiceTurns.set(callId, controller);
   try {
     controller.done = processUserSpeechTurn({ ...params, signal: controller.signal });
     return await controller.done;
   } catch (err) {
-    if (controller.signal.aborted) return { ok: true, interrupted: true, call_id: callId };
+    if (controller.signal.aborted) {
+      const interruptionReason = resolveVoiceInterruptionReason(err, controller.signal);
+      const call = getCallSession(callId);
+      if (call && !endedVoiceCalls.has(String(callId).toUpperCase())) {
+        const profile = getProfileByKey(call.activeProfileKey);
+        recordTurnTelemetry({ callId, userText: controller.userText || '', replyText: '',
+          characterId: profile.character_id, characterName: profile.character_name, mode: profile.mode,
+          modeName: profile.mode_name, profileKey: profile.profile_key, voice: call.activeVoice,
+          turnLatencyMs: Date.now() - controller.startedAt,
+          streamMetrics: { streaming: false, interrupted: true, interruption_reason: interruptionReason },
+          error: 'stream_interrupted' });
+      }
+      return { ok: true, interrupted: true, interruption_reason: interruptionReason, call_id: callId };
+    }
     throw err;
   } finally {
     if (activeVoiceTurns.get(callId) === controller) activeVoiceTurns.delete(callId);
@@ -707,7 +741,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   // Garante que a chamada está registrada no gerenciador quente de chamadas
   let call = getCallSession(callId);
   if (!call) {
-    call = registerCallSession({ callId });
+    call = registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
   }
 
   const callHistory = getCallHistory(callId);
@@ -884,7 +918,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
 export async function restartActiveReplyForProfile(callId) {
   const previous = activeVoiceTurns.get(callId);
   if (!previous?.userText || !Number.isSafeInteger(previous.speechEpoch)) return false;
-  previous.abort(new Error('Active profile changed'));
+  abortActiveVoiceTurn(callId, 'profile_changed', 'Active profile changed');
   await previous.done?.catch(() => {});
   if (activeVoiceTurns.get(callId) === previous) activeVoiceTurns.delete(callId);
   if (activeVoiceTurns.has(callId) || latestSpeechEpochs.get(callId) !== previous.speechEpoch) return false;
@@ -928,14 +962,21 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
   } catch (err) {
     // Never replay a batch response after a partially spoken or interrupted stream.
     const interrupted = Boolean(err.interrupted || signal.aborted);
+    const interruptionReason = resolveVoiceInterruptionReason(err, signal);
     if (interrupted && err.partialText?.trim()) {
       callHistory.push({ role: 'assistant', text: err.partialText, interrupted: true, timestamp: new Date().toISOString() });
       if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
     }
     recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
-      turnLatencyMs: Date.now() - turnStart, streamMetrics: { ...err.streamMetrics, streaming: true, interrupted },
+      turnLatencyMs: Date.now() - turnStart,
+      streamMetrics: { ...err.streamMetrics, streaming: true, interrupted,
+        interruption_reason: interrupted ? interruptionReason : null,
+        failure_reason: interrupted ? null : interruptionReason,
+        playback_http_status: err.playbackHttpStatus ?? err.streamMetrics?.playback_http_status ?? null },
       error: interrupted ? 'stream_interrupted' : err.message });
-    return { ok: interrupted, streaming: true, interrupted, call_id: callId, error: interrupted ? null : err.message };
+    return { ok: interrupted, streaming: true, interrupted,
+      ...(interrupted ? { interruption_reason: interruptionReason } : {}),
+      call_id: callId, error: interrupted ? null : err.message };
   }
 }
 
@@ -943,7 +984,9 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
 // Prepare context and cancel superseded generation while incoming PCM is still arriving.
 export function prepareLiveSpeech(callId, speechEpoch) {
   const previous = activeVoiceTurns.get(callId);
-  if (previous && speechEpoch > previous.speechEpoch) previous.abort(new Error('New customer speech started'));
+  if (previous && speechEpoch > previous.speechEpoch) {
+    abortActiveVoiceTurn(callId, 'new_user_speech', 'New customer speech started');
+  }
   const call = getCallSession(callId);
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   if (call) void loadCallerContext(call, profile.character_id);

@@ -10,7 +10,7 @@ test('all profiles greet in Normal and wait for customer before silence nudge', 
   for (const p of Object.values(DEFAULT_PROFILES_12)) {
     assert.equal(p.opening_enabled,false);
     const callId=`silent-${p.profile_key}`;
-    registerCallSession({callId,profileKey:p.profile_key});
+    registerCallSession({callId,profileKey:p.profile_key,direction:'OUTBOUND'});
     const spoken=[];
     const result=await handleCallConnectedWebhook({call_id:callId},{speak:async args => {spoken.push(args.text);return {ok:true};}});
     assert.equal(result.ok,true);

@@ -105,6 +105,21 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.strictEqual(slot2.voice_id, 'pt-BR-Chirp3-HD-Aoede');
   });
 
+  it('usa Sirlene como perfil de fallback mesmo quando o perfil global é outro personagem', () => {
+    const previousProfileKey = getActiveGlobalProfileKey();
+    const [previousCharacter, previousMode] = previousProfileKey.split('_');
+    const callId = `inbound-fallback-${Date.now()}`;
+    try {
+      setActiveGlobalProfile('vital', 'normal', 'Teste de ligação recebida');
+      const call = registerCallSession({ callId });
+      assert.equal(call.direction, 'INBOUND');
+      assert.equal(call.activeProfileKey, 'sirlene_normal');
+      endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    } finally {
+      setActiveGlobalProfile(previousCharacter, previousMode, 'Restauração de teste');
+    }
+  });
+
   it('5. HOT-SWAP: Troca de voz e personalidade durante ligação ativa é aplicada no próximo turno sem derrubar a chamada', () => {
     const callId = 'test-call-live-101';
     const session = registerCallSession({
@@ -200,6 +215,34 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     const detail = getCallDetailById(callId);
     assert.ok(detail);
     assert.strictEqual(detail.tokens.total, 435);
+  });
+
+  it('distingue chamadas concluídas que reutilizam o mesmo ID externo', () => {
+    const callId = `reused-call-id-${Date.now()}`;
+    const firstSession = registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+    const firstInstanceId = firstSession.callInstanceId;
+    endCallSession({ callId, reason: 'FIRST_LEG' });
+
+    const secondSession = registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'vital_normal' });
+    const secondInstanceId = secondSession.callInstanceId;
+    endCallSession({ callId, reason: 'SECOND_LEG' });
+
+    assert.notEqual(firstInstanceId, secondInstanceId);
+    assert.equal(getCallDetailById(firstInstanceId).direction, 'INBOUND');
+    assert.equal(getCallDetailById(firstInstanceId).active_profile_key, 'sirlene_normal');
+    assert.equal(getCallDetailById(secondInstanceId).direction, 'OUTBOUND');
+    assert.equal(getCallDetailById(secondInstanceId).active_profile_key, 'vital_normal');
+    assert.equal(getCallDetailById(callId).call_instance_id, secondInstanceId);
+  });
+
+  it('persiste no histórico o motivo específico de uma interrupção do áudio', () => {
+    const callId = `interrupted-turn-${Date.now()}`;
+    registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+    recordTurnTelemetry({ callId, userText: 'Pode repetir?', replyText: '', error: 'stream_interrupted',
+      streamMetrics: { streaming: true, interrupted: true, interruption_reason: 'new_user_speech' } });
+    const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    assert.equal(summary.turns[0].error, 'stream_interrupted');
+    assert.equal(summary.turns[0].metrics.stream.interruption_reason, 'new_user_speech');
   });
 
   it('7. routeCallAudio utiliza estritamente Google Chirp 3 HD no fluxo de ligação', async () => {

@@ -151,6 +151,9 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     if (!res.ok) {
       const err = new Error(`Meowcaller streaming HTTP ${res.status}`);
       err.interrupted = res.status === 409 || res.status === 404;
+      err.interruptionReason = res.status === 409 ? 'playback_superseded' :
+        res.status === 404 ? 'playback_call_not_found' : 'playback_http_error';
+      err.playbackHttpStatus = res.status;
       throw err;
     }
     return await res.json();
@@ -164,7 +167,11 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     tts.destroy();
     await Promise.allSettled([llmTask, playbackTask]);
     err.interrupted = Boolean(err.interrupted || signal?.aborted);
-    err.streamMetrics = metrics;
+    err.interruptionReason ||= signal?.reason?.interruptionReason || null;
+    err.streamMetrics = { ...metrics,
+      interruption_reason: err.interrupted ? err.interruptionReason : null,
+      failure_reason: err.interrupted ? null : err.name === 'TimeoutError' ? 'stream_timeout' : 'stream_error',
+      playback_http_status: err.playbackHttpStatus ?? null };
     err.partialText = spokenText;
     throw err;
   } finally {
