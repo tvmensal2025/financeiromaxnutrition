@@ -31,3 +31,8 @@ Limitação ao final: o shell recusou uma leitura em /opt/hermes por forbidden p
 ## Próximo passo obrigatório
 
 Retomar o terminal autorizado, obter diagnóstico do encerramento usando os logs permitidos e validar o driver instalado em dry-run. Conferir preflight dos demais perfis sem inferência. Recuperar a mesma tarefa somente após diagnóstico, por ação auditada autorizada e sem resetar tentativas, e acompanhar execução real, revisão e handoff. FAILED não pode ser reaprovado via resolve_job_block, que exige WAITING_HELENA; não contornar essa regra silenciosamente nem criar sucessores para esconder o erro. Não repetir instalação ou testes locais já aprovados sem nova alteração.
+
+
+## Atualizacao de diagnostico
+
+A rotina horaria foi observada e parou em WORKFLOW_ERROR/GatewayRefusal. Probe sem IA localizou get_job HTTP 400 para JOB-WPP-MUHP2BE0. Filtros de IDs legados instalados com backup em 2026-10-01T08:17:33Z. Dry-run remoto passou a ATTEMPT_LIMIT, sem iniciar modelo. Marina 794692b1 continua FAILED 1/2; nao reiniciada. Ver docs/helena-fluxo-padrao-agentes-20261001.md para protocolo, evidencias e pendencias. A nova fila de atencao e migracao estao apenas no codigo local; nao declarar implantacao no Supabase/Gateway.

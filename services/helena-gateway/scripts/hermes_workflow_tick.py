@@ -226,6 +226,11 @@ class Workflow:
             return True
         # Persistent continuations are processed before fresh reviews.
         for jid, item in list(self.state['pending'].items()):
+            # The compact queue also indexes legacy WhatsApp/Grok jobs. Their
+            # IDs are not accepted by get_job's Hermes contract. Do not let an
+            # unrelated legacy row terminate selection of eligible work.
+            if not dispatch.JOB_PATTERN.fullmatch(str(jid)):
+                continue
             if job_id and jid != job_id:
                 continue
             detail = self.call('get_job', {'job_id': jid})
@@ -245,6 +250,8 @@ class Workflow:
         ids = [job_id] if job_id else list(dict.fromkeys(
             [j['job_id'] for j in context.get('pending_reviews_detail', [])] + self.config.get('adopt_job_ids', [])))
         for jid in ids:
+            if not dispatch.JOB_PATTERN.fullmatch(str(jid)):
+                continue
             detail = self.call('get_job', {'job_id': jid})
             if not permitted(detail, self.config):
                 continue
@@ -265,6 +272,8 @@ class Workflow:
         # Reconcile interrupted reviews against current state, without repeating inference.
         for key, receipt in list(self.state['receipts'].items()):
             if receipt['status'] not in ('STARTED', 'NEEDS_ATTENTION'):
+                continue
+            if not dispatch.JOB_PATTERN.fullmatch(str(receipt.get('job_id', ''))):
                 continue
             d = self.call('get_job', {'job_id': receipt['job_id']})
             follow = next_phase(receipt['phase'], {}, d)

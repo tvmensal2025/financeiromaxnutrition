@@ -28,6 +28,7 @@ export async function resolveHermesToken(token, read, configured = '[]') {
 }
 
 const JOB_TOOLS = new Set(['get_job', 'get_visual_asset', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
+const RECOVERY_TOOLS = new Set(['queue_attention', 'record_queue_attention']);
 const ARTIFACT_TOOLS = new Set(['create_artifact_upload', 'verify_artifact_upload']);
 const MANAGEMENT = new Set(['AGT-01', 'AGT-04']);
 const fail = message => { throw new Error(message); };
@@ -53,7 +54,10 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
   const manager = MANAGEMENT.has(binding.agent_id);
   const args = { ...originalArgs };
 
-  if (WORKFLOW_TOOLS.has(name)) {
+  if (RECOVERY_TOOLS.has(name)) {
+    if (!manager) fail('Somente Helena ou Marina supervisiona recuperacao');
+    if (args.business_id && !group && args.business_id !== binding.business_id) fail('Empresa fora do escopo');
+  } else if (WORKFLOW_TOOLS.has(name)) {
     // The RPC repeats scope/role checks and locks the authoritative rows.
     // profile_slug comes only from the authenticated token, never the payload.
     if (['create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
@@ -67,7 +71,7 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
     args.business_id = job.business_id;
   } else if (JOB_TOOLS.has(name)) {
     if (name === 'complete_job') fail('Use submit_delivery para revisao; conclusao direta nao liberada para Hermes');
-    const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,result_payload&job_id=eq.${enc(args.job_id || '')}&limit=1`));
+    const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,status,result_payload&job_id=eq.${enc(args.job_id || '')}&limit=1`));
     if (!job?.business_id || !job.task_id) fail('Job exige tarefa e empresa vinculadas');
     if (!group && job.business_id !== binding.business_id) fail('Job pertence a outra empresa');
 

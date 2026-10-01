@@ -186,6 +186,24 @@ class ReviewStateTests(unittest.TestCase):
         (self.path/'workflow-config.json').write_text(json.dumps(self.config))
         self.assertEqual(self.run_tick()['next_phase'],'HANDOFF')
 
+    def test_legacy_whatsapp_job_does_not_abort_valid_review(self):
+        self.context['pending_reviews_detail'] = [{'job_id':'JOB-WPP-MUHP2BE0'}, {'job_id':JOB}]
+        original = self.request
+        def request(gateway, token, name, args):
+            if name == 'get_job' and args['job_id'].startswith('JOB-WPP-'):
+                self.fail('Legacy ID must be filtered before the Gateway call')
+            return original(gateway, token, name, args)
+        self.request = request
+        self.assertEqual(self.run_tick()['next_phase'], 'HANDOFF')
+        self.assertEqual(self.calls, 1)
+
+    def test_legacy_pending_and_receipt_do_not_abort_selection(self):
+        worker = self.worker()
+        worker.state['pending']['JOB-WPP-MUHP2BE0'] = {'phase':'HANDOFF','agent_id':'AGT-04'}
+        worker.state['receipts']['legacy'] = {'status':'STARTED','phase':'REVIEW','job_id':'JOB-WPP-MUHP2BE0'}
+        worker.persist()
+        self.assertEqual(self.run_tick()['next_phase'], 'HANDOFF')
+
     def test_full_review_handoff_and_release_across_restarts(self):
         child=detail()
         child['job'].update(job_id=CHILD,status='DRAFT',agent_id='AGT-12')

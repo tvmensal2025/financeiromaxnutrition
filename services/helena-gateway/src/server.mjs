@@ -843,6 +843,40 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
   };
 }
 
+/**
+ * Watchdog da fila. Le somente jobs que precisam de atencao, sem
+ * briefing, payload ou evidencia. A decisao de escrita continua no RPC.
+ */
+async function handleQueueAttention({ limit = 25, after_job_id, created_after } = {}, context = {}) {
+  const profileSlug = context.identity?.profileSlug;
+  if (!profileSlug) throw new Error('Perfil Hermes obrigatorio para queue_attention');
+  const result = await callSupabaseRpc('gateway_list_recovery_candidates', {
+    p_profile_slug: profileSlug,
+    p_limit: limit,
+    p_after_job_id: after_job_id || null,
+    p_created_after: created_after || null
+  });
+  if (!result || result.success !== true || !Array.isArray(result.candidates)) {
+    throw new Error('Supabase nao confirmou a fila de recuperacao');
+  }
+  return result;
+}
+
+/**
+ * Registra somente alertas internos previamente classificados pelo
+ * watchdog. Snapshot e idempotencia sao validados no banco.
+ */
+async function handleRecordQueueAttention(args, context = {}) {
+  const profileSlug = context.identity?.profileSlug;
+  if (!profileSlug) throw new Error('Perfil Hermes obrigatorio para record_queue_attention');
+  const result = await callSupabaseRpc('gateway_record_queue_attention', {
+    p_profile_slug: profileSlug,
+    p_payload: args
+  });
+  if (!result || result.success !== true) throw new Error('Supabase nao confirmou a recuperacao');
+  return result;
+}
+
 // ======================================================================
 // DEFINIÇÃO E REGISTRO DAS FERRAMENTAS MCP
 // ======================================================================
@@ -850,6 +884,21 @@ async function handleQueueSummary({ business_id, agent_id } = {}) {
 const typeSafe = createTypeSafe({ read: supabaseFetch, readJob: handleGetJob });
 const TOOLS_CONFIG = {
   ...workflowTools(callSupabaseRpc, handleGetJob, typeSafe.evaluate, typeSafe.recordReleaseRoute),
+  queue_attention: {
+    description: 'Helena/Marina: lista jobs FAILED ou com execucao antiga para verificacao. Nao inicia modelo e nao expoe briefing completo.',
+    schema: z.object({ limit: z.number().int().min(1).max(25).optional().default(25), after_job_id: z.string().max(120).optional(), created_after: z.string().datetime({ offset: true }).optional() }).strict(),
+    handler: handleQueueAttention
+  },
+  record_queue_attention: {
+    description: 'Helena/Marina: registra alerta interno unico de falha ou execucao antiga com responsavel. Preserva status, tentativas e evidencias; nao repete IA.',
+    schema: z.object({
+      job_id: z.string().min(1).max(120),
+      idempotency_key: z.string().min(1).max(120),
+      expected_status: z.string().min(1).max(40),
+      expected_updated_at: z.string().datetime({ offset: true })
+    }).strict(),
+    handler: handleRecordQueueAttention
+  },
   get_visual_asset: {
     description: 'Abre os pixels reais de um PNG verificado desta tarefa ou seu brand-logo aprovado. Acesso restrito ao executor, coordenacao ou revisor designado. Inspecione texto, logo, cores, personagem e composicao antes de aprovar; metadados nao comprovam qualidade.',
     schema: z.object({ job_id: z.string().min(1).max(120), reference: z.string().min(1).max(500) }).strict(),
@@ -1066,6 +1115,8 @@ const mcpInputs = {
   verify_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 } }, ['job_id','slot','version']),
   get_visual_asset: inputObject(textFields('job_id reference'), ['job_id', 'reference']),
   list_ready_jobs: inputObject({ ...textFields('agent_id business_id'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
+  queue_attention: inputObject({ ...textFields('after_job_id created_after'), limit: { type: 'integer', minimum: 1, maximum: 25 } }),
+  record_queue_attention: inputObject(textFields('job_id idempotency_key expected_status expected_updated_at'), ['job_id', 'idempotency_key', 'expected_status', 'expected_updated_at']),
   record_dispatch: inputObject(textFields('job_id dispatcher_agent_id target_agent_id target_external_agent_id notes'), ['job_id', 'dispatcher_agent_id']),
   get_job: inputObject({ ...textFields('job_id'), view: { type: 'string', enum: ['full', 'manifest', 'page'] }, section: { type: 'string', enum: JOB_SECTIONS }, offset: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 256, maximum: 4000 }, revision: { type: 'string', minLength: 64, maxLength: 64 } }, ['job_id']),
   claim_job: inputObject(jobFields, jobRequired),

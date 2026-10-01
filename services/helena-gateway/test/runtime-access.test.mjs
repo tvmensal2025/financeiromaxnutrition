@@ -8,6 +8,22 @@ const entry = { profile_slug: 'pedro--biz003', sha256: crypto.createHash('sha256
 const identity = { type: 'hermes_profile', profileSlug: 'pedro--biz003' };
 const binding = { agent_id: 'AGT-18', business_id: 'BIZ-003', scope_type: 'BUSINESS', provider: 'HERMES', status: 'ACTIVE' };
 const job = { job_id: 'JOB-TEST', agent_id: 'AGT-18', business_id: 'BIZ-003', task_id: 'TSK-TEST' };
+test('supervisao tecnica exige coordenacao ativa e nao concede execucao alheia', async () => {
+  for (let number = 1; number <= 21; number++) {
+    const agentId = `AGT-${String(number).padStart(2,'0')}`;
+    const runtime = { ...binding, agent_id: agentId,
+      scope_type: number === 1 ? 'GROUP' : 'BUSINESS' };
+    const read = reader({runtime});
+    for (const name of ['queue_attention', 'record_queue_attention']) {
+      if ([1,4].includes(number))
+        await authorizeGatewayTool(name, {job_id: job.job_id}, identity, read);
+      else
+        await assert.rejects(authorizeGatewayTool(name, {job_id: job.job_id}, identity, read), /Somente/);
+    }
+    await assert.rejects(authorizeGatewayTool('start_job', {job_id: job.job_id}, identity,
+      reader({runtime,task:{...job,agent_id:'AGT-99'}})), /outro agente/);
+  }
+});
 for (let number=1; number<=21; number++) {
   const agentId=`AGT-${String(number).padStart(2,'0')}`;
   test(`matriz ${agentId}: leitura, escopo, coordenacao e conclusao direta`, async () => {
