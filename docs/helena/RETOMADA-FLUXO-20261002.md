@@ -59,6 +59,8 @@ Campanha `HD-CASA-POST-STORY-20261002`, Humano Digital/BIZ-003: **um post 1080×
 
 ## O que ainda precisa de prova
 
+**Atualização posterior:** a retomada textual foi criada e concluiu devolução/correção/aprovação real em 02/10 às 20:38 UTC. A continuação vigente está em `RETOMADA-COPY-CASA-20261002.md`: copy `JOB-HR-f4968945ad0ab31bfccc6b611b86b0a8`, visual `JOB-HR-ee3060f449310194fda5b585c192332c`. Ler essa continuação antes de agir; as pendências abaixo registram o estado anterior. Não duplicar campanha nem recuperar o job de copy antigo esgotado.
+
 1. Implantação da PR #9 concluída e conferida. Ainda falta uma execução real com entrega aprovada utilizando o novo limite; testes controlados não substituem essa prova.
 2. A tarefa de copy atingiu o teto de duas tentativas. Preparar replanejamento explícito e finito da etapa pendente, reaproveitando estratégia aprovada e apontamentos de Camila. Não há autorização implícita para apagar tentativas, repetir indefinidamente ou chamar de homologado o que não chegou ao fim.
 3. Abrir os pixels de cada imagem e confirmar marca, composição, variedade, texto e legenda antes de dizer que o pedido terminou.

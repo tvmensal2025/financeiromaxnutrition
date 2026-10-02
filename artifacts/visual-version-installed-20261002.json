@@ -1,0 +1,16 @@
+{
+  "backup": "/data/helena-runtime/visual-version-backup-20261002T210853Z",
+  "module": "hermes_visual.py",
+  "sha256": "5ad56a45c5c28f6e315ef72b21b82e34fdf05939d5515e4bccfc2ca8675c2f2d",
+  "linux_tests_passed": 8,
+  "windows_tests_passed": 7,
+  "windows_tests_skipped": 1,
+  "model_calls": 0,
+  "recovery_job": "JOB-HR-ee3060f449310194fda5b585c192332c",
+  "recovery_status_observed": "DRAFT",
+  "approval_status_observed": "PENDING",
+  "attempt_count_preserved": 1,
+  "max_attempts_preserved": 2,
+  "generation_receipts_at_failure": 0,
+  "canonical_artifacts_at_failure": 0
+}
