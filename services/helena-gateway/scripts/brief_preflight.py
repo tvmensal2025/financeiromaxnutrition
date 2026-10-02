@@ -6,6 +6,12 @@ SECTIONS = ('Contexto e fontes', 'Objetivo e impacto', 'Escopo e limites',
             'Plano de trabalho', 'Entregáveis', 'Critérios de pronto',
             'Evidências e registro', 'Revisão e encaminhamento')
 
+BRIEF_LIMITS = {
+    'instruction': {'min': 700, 'target': 6000, 'max': 7000, 'transport_max': 8000},
+    'objective': {'min': 1, 'target': 280, 'max': 350, 'transport_max': 400},
+    'definition_of_done': {'min': 1, 'target': 2400, 'max': 3000, 'transport_max': 4000},
+}
+
 
 def utf16_length(value):
     # Match JavaScript/Zod length, including two units for emoji.
@@ -23,7 +29,8 @@ def check_task_brief(instruction: str, objective: str, definition_of_done: str,
     errors = []
     sizes = {key: utf16_length(value.strip()) for key, value in
              [('instruction', instruction), ('objective', objective), ('definition_of_done', definition_of_done)]}
-    for key, low, high in [('instruction', 700, 8000), ('objective', 1, 400), ('definition_of_done', 1, 4000)]:
+    for key, limits in BRIEF_LIMITS.items():
+        low, high = limits['min'], limits['max']
         if not low <= sizes[key] <= high:
             errors.append({'field': key, 'code': 'SIZE', 'actual': sizes[key], 'min': low, 'max': high})
     # Bound further processing and never echo the input in the response.
@@ -59,7 +66,10 @@ def check_task_brief(instruction: str, objective: str, definition_of_done: str,
     elif any(not text or text not in searchable for text in protected_texts or []):
         errors.append({'field': 'protected_texts', 'code': 'EXACT_COPY_MISSING'})
     return {'status': 'CORRECT_BEFORE_SUBMIT' if errors else 'TECHNICAL_CHECK_PASSED',
-            'sizes': sizes, 'errors': errors, 'recommended_instruction_max': 7000,
+            'sizes': sizes, 'errors': errors, 'recommended_instruction_max': 6000,
+            'limits': BRIEF_LIMITS,
+            'remaining': {key: limits['max'] - sizes[key] for key, limits in BRIEF_LIMITS.items()},
+            'recovery': 'Reescreva repeticoes e use fontes acessiveis; preserve copy e requisitos. Nunca trunque. Revalide antes de enviar.',
             'gateway_validation_still_required': True, 'model_calls': 0}
 
 

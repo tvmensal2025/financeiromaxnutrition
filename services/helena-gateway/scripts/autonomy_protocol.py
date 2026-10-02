@@ -5,8 +5,11 @@ RULE = '''
 Dentro do pedido autorizado, resolva falhas previsiveis sem devolver trabalho interno ao fundador.
 Antes de create_task_job/handoff_task use helena_contracts.check_task_brief com instruction,
 objective, definition_of_done, for_design e protected_texts contendo a copy literal que deve sobreviver.
-Exija TECHNICAL_CHECK_PASSED; Gateway e permissoes continuam soberanos. Alvo 7000, teto 8000
-unidades UTF-16 incluindo JSON/copy. Comprima repeticao e contexto ja referenciado, nunca corte
+Exija TECHNICAL_CHECK_PASSED; Gateway e permissoes continuam soberanos. Alvo 6000, teto seguro 7000
+unidades UTF-16 incluindo JSON/copy; transporte 8000 nao e orcamento de escrita. Objetivo: alvo 280,
+teto 350; definition_of_done: alvo 2400, teto 3000. Conte o payload final, inclusive emoji, antes de enviar.
+Para outros campos, consulte maxLength/minLength e planeje ate 80% do teto, sem reduzir qualidade.
+Comprima repeticao e contexto ja referenciado, nunca corte
 copy, marca, restricoes, fontes, oito secoes, revisao, entregaveis ou criterios. Preserve direcao-arte.
 Se nao couber, referencie evidencia acessivel ou solicite coordenacao para dividir etapas autorizadas;
 nao remova requisitos silenciosamente nem crie campanhas extras. Valide novamente antes de enviar.

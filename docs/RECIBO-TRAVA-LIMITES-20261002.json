@@ -1,0 +1,52 @@
+{
+  "version": "helena-brief-safe-limits-v1",
+  "status": "DEPLOYED_AND_VERIFIED",
+  "date": "2026-10-02",
+  "scope": "21 Hermes profiles and new Gateway briefing writes",
+  "limits": {
+    "instruction": {"min": 700, "target": 6000, "max": 7000, "transport_max": 8000},
+    "objective": {"min": 1, "target": 280, "max": 350, "transport_max": 400},
+    "definition_of_done": {"min": 1, "target": 2400, "max": 3000, "transport_max": 4000}
+  },
+  "counting": "UTF-16 of final trimmed field; includes JSON, copy and emoji",
+  "runtime": {
+    "status": "INSTALLED",
+    "installed_at": "2026-10-02T14:17:53.119597+00:00",
+    "profile_count": 21,
+    "profiles_audit": {"verified": 21, "rule_present_all": true, "shared_checker_all": true, "checker_enabled_all": true, "checker_exposed_all": true},
+    "changed_files": 25,
+    "backup": "/data/helena-runtime/brief-safe-backup-20261002T141753110624Z",
+    "receipt": "/data/helena-runtime/brief-safe-receipt.json",
+    "native_mcp_receipt": "/data/helena-runtime/brief-safe-native-check.json",
+    "hashes": {
+      "brief_preflight.py": "834e705906a85769710709d6f0f63ffb80384270d9e2fc0e8b9346cfa281b3ae",
+      "autonomy_protocol.py": "b4d0023893472b605bb292b19ba12333e180729ea81ea0ce6813192def7eae09",
+      "hermes_workflow_tick.py": "eafd46a40ac12ce7b24c44aa07dbd702812c9576e08108d457d655db45d7582c"
+    }
+  },
+  "gateway": {
+    "status": "DEPLOYED",
+    "commit": "8fbe139",
+    "predecessor_fix": "e12efdc",
+    "easypanel_success_at": "2026-10-02T14:32:47Z",
+    "source_branch": "main",
+    "build_path": "/services/helena-gateway",
+    "live_receipt": "/data/helena-runtime/brief-safe-gateway-check.json",
+    "tools_with_instruction_max_7000": ["create_task_job", "handoff_task", "revise_task_brief", "adopt_existing_task"],
+    "live_oversize_response": "Parâmetros inválidos: instruction: String must contain at most 7000 character(s)"
+  },
+  "verification": {
+    "node_final_suite": {"tests": 298, "pass": 298, "fail": 0, "skipped": 0},
+    "python_preflight_tests": 8,
+    "python_workflow_tests": 86,
+    "mocked_integration_tests": {"tests": 29, "pass": 29},
+    "native_mcp": {"7000": "TECHNICAL_CHECK_PASSED", "7001": "CORRECT_BEFORE_SUBMIT", "7041": "CORRECT_BEFORE_SUBMIT", "8873": "CORRECT_BEFORE_SUBMIT"},
+    "live_gateway_7001": "BLOCKED_BEFORE_WRITE",
+    "test_job_created": false,
+    "model_calls": 0
+  },
+  "canonical_memory_id": "MEM-BRIEF-SAFE-LIMITS-20261002-V1",
+  "canonical_memory_verified": {"status": "ATIVA", "scope": "GLOBAL", "profiles": 21, "gateway_commit": "8fbe139", "test_jobs_count": 0},
+  "preserved": ["approved copy", "historical jobs", "independent review", "business isolation", "attempt limits", "permissions", "schedules"],
+  "remaining_outside_scope": "Recover the previously interrupted campaign handoff separately, reconciling canonical state before any paid retry. This receipt does not certify campaign completion or all-agent production readiness."
+}

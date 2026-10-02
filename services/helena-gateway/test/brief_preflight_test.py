@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from brief_preflight import check_task_brief, SECTIONS, utf16_length
+from brief_preflight import check_task_brief, SECTIONS, utf16_length, BRIEF_LIMITS
 
 
 def brief():
@@ -23,6 +23,33 @@ class BriefPreflightTests(unittest.TestCase):
         for size in (12132, 10227, 8735):
             text = brief() + ' ' + 'x' * (size - len(brief()) - 1)
             self.assertEqual(self.check(text)['errors'][0]['actual'], size)
+
+    def test_safe_ceiling_prevents_the_previously_accepted_handoff(self):
+        for size in (7001, 7041, 7999, 8000, 8873):
+            text = brief() + '\n' + 'x' * (size - len(brief()) - 1)
+            report = self.check(text)
+            self.assertEqual(report['status'], 'CORRECT_BEFORE_SUBMIT')
+            self.assertIn({'field': 'instruction', 'code': 'SIZE', 'actual': size,
+                           'min': 700, 'max': 7000}, report['errors'])
+            self.assertLess(report['remaining']['instruction'], 0)
+            self.assertEqual(report['model_calls'], 0)
+
+    def test_exact_safe_boundaries_and_other_fields(self):
+        text = brief() + '\n' + 'x' * (7000 - len(brief()) - 1)
+        report = check_task_brief(text, 'o' * 350, 'd' * 3000)
+        self.assertEqual(report['status'], 'TECHNICAL_CHECK_PASSED')
+        self.assertEqual(report['remaining'], dict.fromkeys(BRIEF_LIMITS, 0))
+        for objective, done, field in [('o' * 351, 'd', 'objective'), ('o', 'd' * 3001, 'definition_of_done')]:
+            self.assertTrue(any(e['field'] == field for e in check_task_brief(text, objective, done)['errors']))
+
+    def test_emoji_at_safe_boundary_is_counted_without_truncating_copy(self):
+        copy = 'Copy aprovada: robô 🤖'
+        text = brief() + '\n' + copy
+        text += 'x' * (6999 - utf16_length(text)) + '🤖'
+        self.assertEqual(utf16_length(text), 7001)
+        report = self.check(text, protected_texts=[copy])
+        self.assertEqual(report['status'], 'CORRECT_BEFORE_SUBMIT')
+        self.assertFalse(any(e['field'] == 'protected_texts' for e in report['errors']))
 
     def test_unicode_uses_gateway_length_not_python_characters(self):
         self.assertEqual(utf16_length('a🤖'), 3)
