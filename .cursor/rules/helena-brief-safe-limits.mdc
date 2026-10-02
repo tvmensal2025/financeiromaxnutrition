@@ -1,0 +1,17 @@
+---
+description: Margem obrigatoria de tamanho nos comandos de todos os agentes Helena
+alwaysApply: true
+---
+
+# Limites seguros dos pedidos
+
+- Regra global `helena-brief-safe-limits-v1`, aplicável aos 21 perfis e a qualquer empresa/área.
+- `instruction`: alvo 6000 e teto 7000 unidades UTF-16, incluindo oito seções, JSON, copy e referências.
+- `objective`: alvo 280 e teto 350; `definition_of_done`: alvo 2400 e teto 3000.
+- O teto de transporte 8000/400/4000 permanece para dados históricos; não é orçamento para novas escritas.
+- Conte o payload final e execute `helena_contracts.check_task_brief` antes de criar, revisar ou encaminhar.
+- Só envie após `TECHNICAL_CHECK_PASSED`. Ferramentas expõem `maxLength` e Gateway recusa excedentes antes da escrita.
+- Acima do teto, reescreva redundância; não trunque texto, copy aprovada, logo, fontes, restrições, critérios ou JSON.
+- Se conteúdo indispensável não couber, use evidência acessível ou coordene divisão de etapas dentro do escopo autorizado.
+- Para demais campos, respeite o esquema atual e planeje até 80% do máximo; não encurte entregas em prejuízo da qualidade.
+- Preserve chave de idempotência, versões, revisão independente, empresa, permissões e limites de tentativas.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { workSubmissionShape, submitWork } from './work-submission.mjs';
-import { validateBriefStructure, validateDraftBrief, validateProfessionalBrief } from './brief-contract.mjs';
+import { BRIEF_LIMITS, validateOutgoingBrief, validateBriefStructure, validateDraftBrief, validateProfessionalBrief } from './brief-contract.mjs';
 import { publicationSchema, visualReviewSchema, validatePublication, validateVisualReview } from './publication-contract.mjs';
 import { validateCreativeBrief, validateRequestedArtifacts, validateBrandForDesign } from './creative-brief.mjs';
 import { agentQualityContract, QUALITY_VERSION, professionalDeliverySchema, qualityReviewSchema, validateProfessionalDelivery, validateQualityReview } from './professional-output.mjs';
@@ -9,20 +9,20 @@ const text = (max = 4000) => z.string().trim().min(1).max(max);
 const key = text(120);
 const job = { job_id: text(120), idempotency_key: key };
 const version = { expected_task_version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) };
-const task = { target_agent_id: text(80), objective: text(400), definition_of_done: text(), instruction: text(8000) };
+const task = { target_agent_id: text(80), objective: text(BRIEF_LIMITS.objective.max), definition_of_done: text(BRIEF_LIMITS.definition_of_done.max), instruction: text(BRIEF_LIMITS.instruction.max) };
 const contracts = {
   submit_work: ['submit_work', workSubmissionShape, 'Entrega completa em uma chamada: envie delivery com title, content, next_steps, limitations e acceptance_checks com criterion e finding. O Gateway cria a memoria e suas referencias automaticamente. Para imagens inclua artifact_refs verificados e publication. Reenvie exatamente os mesmos argumentos e chave se a conexao falhar. Aguarda revisao independente; nao aprova nem publica.'],
   resolve_job_block: ['resolve_job_block', { ...job, ...version, reason: text() }, 'Helena ou Marina registra a solucao de um bloqueio por decisao e devolve o mesmo job a DRAFT. Nao aprova entrega, nao inicia modelo e preserva limite de tentativas.'],
   revise_task_brief: ['revise_task_brief', {
     job_id: text(120), idempotency_key: key, ...version,
     expected_job_updated_at: z.string().datetime({ offset: true }),
-    instruction: z.string().trim().min(700).max(8000),
-    definition_of_done: z.string().trim().min(80).max(4000),
+    instruction: z.string().trim().min(700).max(BRIEF_LIMITS.instruction.max),
+    definition_of_done: z.string().trim().min(80).max(BRIEF_LIMITS.definition_of_done.max),
     revision_summary: text(1200).min(20)
   }, 'Helena ou Marina corrige o briefing da mesma tarefa apos REQUEST_CHANGES, com versoes conferidas e historico preservado. Mantem DRAFT; nao cria tarefa, nao libera e nao inicia modelo.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
-  adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(8000).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
+  adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(BRIEF_LIMITS.instruction.max).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
   submit_delivery: ['submit_delivery', { ...job, ...version, summary: text(8000), evidence_refs: z.array(text(500)).min(1).max(10), delivery: professionalDeliverySchema, publication: publicationSchema.optional() }, 'Registra entrega e aguarda revisao. Todas as funcoes exigem delivery: schema_version=1, title, content utilizavel, next_steps, limitations e acceptance_checks (criterion, evidence_ref, finding). Material social tambem exige publication: title, caption, strategy, instructions, alt_text. summary e interno.'],
   review_delivery: ['review_delivery', { ...job, ...version, decision: z.enum(['APPROVE', 'REQUEST_CHANGES']), reason: text(), quality_review: qualityReviewSchema.optional(), visual_review: visualReviewSchema.optional() }, 'Revisor designado ou Helena revisa. APPROVE exige quality_review: inspected_evidence_refs, verified_criteria, findings, requirements_met=true; compare o pedido completo. Arte tambem exige visual_review de cada imagem final. Sem ferramenta ou fonte, pedir ajustes. Proibida autoaprovacao.'],
   handoff_task: ['handoff', { ...job, ...version, ...task }, 'Depois da revisao aprovada, cria a proxima tarefa, com fonte, evidencia e responsavel; permanece DRAFT.'],
@@ -45,6 +45,12 @@ function propertyShape(field) {
   if (field instanceof z.ZodNumber) return { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
   if (field instanceof z.ZodEnum) return { type: 'string', enum: field.options };
   if (field instanceof z.ZodArray) return { type: 'array', items: property(field.element), minItems: 1, maxItems: 10 };
+  if (field instanceof z.ZodString) {
+    const minimums = field._def.checks.filter(check => check.kind === 'min').map(check => check.value);
+    const maximums = field._def.checks.filter(check => check.kind === 'max').map(check => check.value);
+    return { type: 'string', minLength: Math.max(1, ...minimums),
+      ...(maximums.length ? { maxLength: Math.min(...maximums) } : {}) };
+  }
   return { type: 'string', minLength: 1 };
 }
 
@@ -57,6 +63,7 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
       let typesafe;
       let releaseDetail;
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
+      if (['create_task', 'handoff', 'revise_task_brief', 'adopt_existing_task'].includes(action)) validateOutgoingBrief(args);
       if (action === 'submit_work') return submitWork(rpc, args, identity);
       if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
       if (['create_task', 'handoff'].includes(action) && args.target_agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(args.objective || ''))

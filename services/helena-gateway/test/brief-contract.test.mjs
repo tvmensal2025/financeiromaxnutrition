@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BRIEF_SECTIONS, validateProfessionalBrief } from '../src/brief-contract.mjs';
+import { BRIEF_LIMITS, BRIEF_SECTIONS, validateProfessionalBrief, validateOutgoingBrief } from '../src/brief-contract.mjs';
 import { workflowTools } from '../src/workflow.mjs';
 import { creativeContext } from './quality-fixtures.mjs';
 
@@ -21,6 +21,44 @@ const detail = {
   task: { task_id: 'task-1', business_id: 'BIZ-003', definicao_de_pronto: 'Entregar estratégia revisável.' },
   runtime_binding: { agent_id: 'AGT-03', business_id: 'BIZ-003' }
 };
+
+test('safe brief limits agree with MCP, count UTF-16 and preserve historical briefs', () => {
+  for (const size of [7001, 7041, 8000, 8873]) {
+    const value = instruction + '\n' + 'x'.repeat(size - instruction.length - 1);
+    assert.throws(() => validateOutgoingBrief({instruction:value}), /BRIEF_SAFE_LIMIT/);
+    if (size <= 8000) assert.equal(validateProfessionalBrief({...detail,job:{...detail.job,instruction:value}}), true);
+  }
+  assert.equal(validateOutgoingBrief({instruction:'x'.repeat(7000), objective:'o'.repeat(350), definition_of_done:'d'.repeat(3000)}),true);
+  assert.throws(() => validateOutgoingBrief({instruction:'x'.repeat(6999)+'🤖'}), /7001/);
+});
+
+test('all new brief write paths reject excess before read, RPC, model or mutation', async () => {
+  let calls = 0;
+  const forbidden = async () => { calls++; throw new Error('Must not run'); };
+  const tools = workflowTools(forbidden,forbidden,forbidden);
+  for (const profileSlug of ['helena--grupo','marina--biz003','caio--biz003','clara--biz003','laura--personal']) {
+    const identity={type:'hermes_profile',bindingVerified:true,profileSlug};
+    for (const name of ['create_task_job','handoff_task','revise_task_brief','adopt_existing_task']) {
+      await assert.rejects(tools[name].handler({instruction:'x'.repeat(7001)}, {identity}), /BRIEF_SAFE_LIMIT/);
+    }
+  }
+  assert.equal(calls,0);
+});
+
+test('MCP schemas publish the actual string budgets, including optional fields', () => {
+  const tools=workflowTools(()=>{});
+  for (const name of ['create_task_job','handoff_task','revise_task_brief','adopt_existing_task']) {
+    assert.equal(tools[name].inputSchema.properties.instruction.maxLength,BRIEF_LIMITS.instruction.max);
+  }
+  for (const name of ['create_task_job','handoff_task']) {
+    for (const field of ['instruction','objective','definition_of_done']) {
+      assert.equal(tools[name].inputSchema.properties[field].maxLength, BRIEF_LIMITS[field].max);
+    }
+  }
+  assert.equal(tools.revise_task_brief.inputSchema.properties.instruction.minLength,700);
+  assert.equal(tools.record_memory.inputSchema.properties.summary.maxLength,8000);
+  assert.equal(tools.handoff_task.inputSchema.properties.idempotency_key.maxLength,120);
+});
 
 test('briefing profissional exige estrutura, conteúdo e vínculos', () => {
   assert.equal(validateProfessionalBrief(detail), true);

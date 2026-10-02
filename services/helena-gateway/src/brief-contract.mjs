@@ -1,6 +1,23 @@
 // A deterministic quality gate: check structure before a model is dispatched.
 // The coordinator remains responsible for checking factual quality and scope.
 import { validateCreativeBrief, validateBrandForDesign } from './creative-brief.mjs';
+export const BRIEF_LIMITS = Object.freeze({
+  instruction: Object.freeze({ min: 700, target: 6000, max: 7000, transport_max: 8000 }),
+  objective: Object.freeze({ min: 1, target: 280, max: 350, transport_max: 400 }),
+  definition_of_done: Object.freeze({ min: 1, target: 2400, max: 3000, transport_max: 4000 })
+});
+
+// Applies to new writes; existing canonical briefs retain the transport contract.
+export function validateOutgoingBrief(args) {
+  for (const [field, limit] of Object.entries(BRIEF_LIMITS)) {
+    if (typeof args[field] !== 'string') continue;
+    const actual = args[field].trim().length;
+    if (actual > limit.max) {
+      throw new Error(`BRIEF_SAFE_LIMIT: ${field} tem ${actual}; teto ${limit.max}, alvo ${limit.target} unidades UTF-16. Reorganize sem cortar copy/requisitos e revalide; nenhuma escrita realizada.`);
+    }
+  }
+  return true;
+}
 export const BRIEF_SECTIONS = [
   'Contexto e fontes',
   'Objetivo e impacto',
