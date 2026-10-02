@@ -9,11 +9,34 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from PIL import Image
+from PIL import Image, ImageChops
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
 class ReuseTests(unittest.TestCase):
+    def test_reposition_preserves_pixels_outside_logo_and_rejects_unsafe_area(self):
+        base=Image.linear_gradient('L').resize((1080,1920)).convert('RGB')
+        b=io.BytesIO();base.save(b,format='PNG')
+        mark=Image.new('RGBA',(260,96),(0,0,0,0));mark.paste((255,0,0,255),(30,20,230,76))
+        m=io.BytesIO();mark.save(m,format='PNG')
+        result=Image.open(io.BytesIO(visual.reposition_logo(b.getvalue(),m.getvalue(),'story-1',250,895)))
+        mask=Image.new('L',base.size,0);mask.paste(mark.getchannel('A'),(250,895))
+        diff=ImageChops.difference(base,result).convert('L')
+        self.assertIsNone(ImageChops.multiply(diff,ImageChops.invert(mask)).getbbox())
+        self.assertEqual(result.getpixel((300,925)),(255,0,0))
+        self.assertEqual(result.getpixel((900,1600)),base.getpixel((900,1600)))
+        for left,top in [(0,895),(250,10),(250,1800),(1000,895)]:
+            with self.assertRaises(ValueError):visual.reposition_logo(b.getvalue(),m.getvalue(),'story-1',left,top)
+
+    def test_recompose_refuses_unproven_base_before_upload_or_model(self):
+        self.detail['company_identity']['brand_identity']['colors']=[{'hex':'#075E47'}]
+        with tempfile.TemporaryDirectory() as folder, \
+             patch.dict(os.environ,{'HERMES_HOME':'/data/profiles/maya--biz003',visual.TOKEN_NAME:'fixture'}), \
+             patch.object(visual,'ROOT',Path(folder)),patch.object(visual,'call_tool',self.gateway), \
+             patch.object(visual,'upload_existing_png') as upload,patch.object(visual,'load_provider') as provider:
+            with self.assertRaises(FileNotFoundError):visual.recompose_design(self.target,'post',1,2,100,100)
+            upload.assert_not_called();provider.assert_not_called()
+
     def setUp(self):
         self.target = 'JOB-HR-' + 'a'*32
         self.source = 'JOB-HR-' + 'b'*32
