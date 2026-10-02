@@ -14,6 +14,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
 class VisualTests(unittest.TestCase):
+    def test_generation_context_excludes_registry_and_unrelated_business_examples(self):
+        copy = 'A Humano Digital orienta e conecta pessoas. Participação depende do projeto.'
+        creative = {'business_id': 'BIZ-003', 'brand': 'Humano Digital',
+                    'brand_version': 3038, 'logo_asset': 'storage://private/logo.png',
+                    'sources': ['MEM-HR-private'], 'verified_facts': ['Registry context'],
+                    'review': 'Upstream workflow', 'exact_copy': copy,
+                    'scene': 'Pessoa adulta dobra roupas numa sala clara.', 'palette': '#075E47'}
+        direction = 'Preservar fotografia, composição e copy aprovada para story.'
+        context = visual.generation_context(creative, 'story-1', direction)
+        encoded = json.dumps(context, ensure_ascii=False)
+        for forbidden in ('business_id', 'brand_version', 'logo_asset', 'storage://',
+                          'MEM-HR-private', 'robo amigavel', 'Saude', 'Upstream workflow'):
+            self.assertNotIn(forbidden, encoded)
+        self.assertEqual(context['art_direction']['exact_copy'], copy)
+        self.assertEqual(context['direction'], direction)
+        self.assertEqual(context['art_direction']['scene'], creative['scene'])
+        self.assertEqual(context['slot'], 'story-1')
+
     def test_task_version_is_refused_before_network_and_can_be_corrected(self):
         with patch.dict(os.environ, {'HERMES_HOME': '/data/profiles/maya--biz003'}), \
              patch.object(visual, 'call_tool') as gateway, patch.object(visual, 'load_provider') as provider:
