@@ -1,0 +1,14 @@
+{
+  "backup": "/data/helena-runtime/render-context-backup-20261002T213056Z",
+  "sha256": "8659b324c821453e1a7754ae3763822bf1975cf8862b17f53a2b0ec4f8cba365",
+  "linux_tests_passed": 9,
+  "windows_tests_passed": 8,
+  "windows_tests_skipped": 1,
+  "model_calls": 0,
+  "visual_result": "REQUEST_CHANGES",
+  "visual_job": "JOB-HR-ee3060f449310194fda5b585c192332c",
+  "attempt_count": 2,
+  "max_attempts": 2,
+  "task_version": 3791,
+  "final_delivery_approved": false
+}
