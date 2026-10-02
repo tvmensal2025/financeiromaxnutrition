@@ -130,6 +130,37 @@ def check_visual_runtime() -> dict:
             'renderer': renderer_contract()}
 
 
+def upload_existing_png(job, slot, version, png_path, token):
+    """Upload exact bytes through the assigned job without generation or approval."""
+    job_id = job["job_id"]
+    # Upload retries reuse the already-rendered image and never call the model again.
+    upload = call_tool(GATEWAY, token, 'create_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
+    parsed = urlparse(upload['upload_url'])
+    expected = f'/storage/v1/object/upload/sign/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
+    legacy = parsed.hostname == 'wxkgrykduqtsgmjkzlou.supabase.co' and parsed.path == expected
+    r2path = f'/helena-media/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
+    r2 = (upload.get('storage_provider') == 'r2'
+          and parsed.hostname == 'ae2b5f97708d13fa7e187cb470aafc40.r2.cloudflarestorage.com'
+          and parsed.path == r2path
+          and upload.get('upload_method') == 'PUT'
+          and upload.get('upload_headers') == {'Content-Type': 'image/png', 'If-None-Match': '*'})
+    if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.port not in (None, 443) or not (legacy or r2):
+        raise ValueError('Unexpected upload destination')
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs): raise ValueError('Upload redirect refused')
+    request = urllib.request.Request(upload['upload_url'], data=png_path.read_bytes(),
+        headers=upload.get('upload_headers') if r2 else {'Content-Type': 'image/png', 'x-upsert': 'false'}, method='PUT')
+    try:
+        with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
+            if response.status not in (200, 201): raise ValueError('Upload not confirmed')
+    except urllib.error.HTTPError as error:
+        if error.code not in ((409, 412) if r2 else (400, 409)): raise ValueError('Storage upload failed') from None
+    result = call_tool(GATEWAY, token, 'verify_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
+    stored = call_tool(GATEWAY, token, 'get_visual_asset', {'job_id': job_id, 'reference': result['reference']})
+    if stored['sha256'] != hashlib.sha256(png_path.read_bytes()).hexdigest(): raise ValueError('Stored image differs from generated image')
+    return result
+
+
 def generate_design(job_id: str, slot: str, version: int, design_note: str) -> dict:
     """Generate one finished social artwork using the approved brief, then store it privately.
 
@@ -205,37 +236,82 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
                 png_path.write_bytes(final); os.chmod(png_path, 0o600); save('RENDERED')
             except Exception:
                 save('FAILED'); raise
-        # Upload retries reuse the already-rendered image and never call the model again.
-        upload = call_tool(GATEWAY, token, 'create_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
-        parsed = urlparse(upload['upload_url'])
-        expected = f'/storage/v1/object/upload/sign/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
-        legacy = parsed.hostname == 'wxkgrykduqtsgmjkzlou.supabase.co' and parsed.path == expected
-        r2path = f'/helena-media/helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{version}.png'
-        r2 = (upload.get('storage_provider') == 'r2'
-              and parsed.hostname == 'ae2b5f97708d13fa7e187cb470aafc40.r2.cloudflarestorage.com'
-              and parsed.path == r2path
-              and upload.get('upload_method') == 'PUT'
-              and upload.get('upload_headers') == {'Content-Type': 'image/png', 'If-None-Match': '*'})
-        if parsed.scheme != 'https' or parsed.username or parsed.password or parsed.port not in (None, 443) or not (legacy or r2):
-            raise ValueError('Unexpected upload destination')
-        class NoRedirect(urllib.request.HTTPRedirectHandler):
-            def redirect_request(self, *args, **kwargs): raise ValueError('Upload redirect refused')
-        request = urllib.request.Request(upload['upload_url'], data=png_path.read_bytes(),
-            headers=upload.get('upload_headers') if r2 else {'Content-Type': 'image/png', 'x-upsert': 'false'}, method='PUT')
-        try:
-            with urllib.request.build_opener(NoRedirect).open(request, timeout=30) as response:
-                if response.status not in (200, 201): raise ValueError('Upload not confirmed')
-        except urllib.error.HTTPError as error:
-            if error.code not in ((409, 412) if r2 else (400, 409)): raise ValueError('Storage upload failed') from None
-        result = call_tool(GATEWAY, token, 'verify_artifact_upload', {'job_id': job_id, 'slot': slot, 'version': version})
-        stored = call_tool(GATEWAY, token, 'get_visual_asset', {'job_id': job_id, 'reference': result['reference']})
-        if stored['sha256'] != hashlib.sha256(png_path.read_bytes()).hexdigest(): raise ValueError('Stored image differs from generated image')
+        result = upload_existing_png(job, slot, version, png_path, token)
         save('VERIFIED', result=result)
         return result
+
+def reuse_design(job_id: str, source_job_id: str, slot: str, source_version: int, version: int) -> dict:
+    """Reuse exact verified pixels from a linked Maya job in the same business.
+
+    The active target brief must explicitly name source_job_id and preserve its
+    exact_copy, brand_version and logo_asset. No model, edit or approval occurs.
+    The returned reference must be submitted in artifact_refs and independently
+    reviewed with the other deliverables. Source approval is never inherited.
+    """
+    if Path(os.environ.get('HERMES_HOME', '')).name != 'maya--biz003':
+        raise ValueError('Maya only')
+    if (not all(isinstance(j, str) and JOB_PATTERN.fullmatch(j) for j in (job_id, source_job_id))
+            or job_id == source_job_id or slot not in ('post', 'story-1', 'story-2', 'story-3')
+            or any(type(v) is not int or v not in range(1, 6) for v in (source_version, version))):
+        raise ValueError('Invalid reuse identifiers or image versions')
+    token = os.environ[TOKEN_NAME]
+    target = call_tool(GATEWAY, token, 'get_job', {'job_id': job_id})
+    job, creative, _ = design_contract(target, slot)
+    if source_job_id not in job.get('instruction', ''):
+        raise ValueError('Source job must be explicitly linked in target brief')
+    source = call_tool(GATEWAY, token, 'get_job', {'job_id': source_job_id})['job']
+    if source.get('agent_id') != job['agent_id'] or source.get('business_id') != job['business_id']:
+        raise ValueError('Reuse requires the same assigned agent and business')
+    blocks = re.findall(r'```direcao-arte\s*\n([\s\S]*?)```', source.get('instruction', ''))
+    if len(blocks) != 1:
+        raise ValueError('Source creative brief missing')
+    original = json.loads(blocks[0])
+    if (not creative.get('exact_copy') or slot not in original.get('formats', [])
+            or any(original.get(key) != creative.get(key) for key in ('exact_copy', 'brand_version', 'logo_asset'))):
+        raise ValueError('Reuse requires unchanged approved copy and brand')
+    reference = f'storage://helena-deliveries/{job["business_id"]}/{source_job_id}/{slot}-v{source_version}.png'
+    asset = call_tool(GATEWAY, token, 'get_visual_asset', {'job_id': source_job_id, 'reference': reference})
+    raw = base64.b64decode(asset['data'], validate=True)
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != asset.get('sha256') or len(raw) > 5*1024*1024:
+        raise ValueError('Source pixels differ from verified artifact')
+    with Image.open(io.BytesIO(raw)) as img:
+        if img.format != 'PNG' or img.size != (1080, 1350 if slot == 'post' else 1920):
+            raise ValueError('Source dimensions invalid')
+        img.verify()
+    directory = ROOT / job_id / f'{slot}-v{version}'
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    import fcntl
+    with (directory/'lock').open('a+') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        receipt_path = directory/'receipt.json'; png_path = directory/'final.png'
+        fingerprint = hashlib.sha256(json.dumps(['REUSE', reference, digest, creative], sort_keys=True).encode()).hexdigest()
+        receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
+        if receipt and receipt.get('fingerprint') != fingerprint:
+            raise ValueError('Target version already belongs to another operation')
+        if receipt and receipt.get('result'):
+            return receipt['result']
+        if png_path.exists() and hashlib.sha256(png_path.read_bytes()).hexdigest() != digest:
+            raise ValueError('Target pixels differ; no overwrite')
+        def save(state, **extra):
+            payload = {'fingerprint': fingerprint, 'state': state, 'operation': 'REUSE',
+                       'source_reference': reference, 'source_sha256': digest, 'model_calls': 0, **extra}
+            temp = receipt_path.with_suffix('.tmp')
+            temp.write_text(json.dumps(payload)); os.chmod(temp, 0o600); temp.replace(receipt_path)
+        save('RENDERED')
+        if not png_path.exists():
+            png_path.write_bytes(raw); os.chmod(png_path, 0o600)
+        result = upload_existing_png(job, slot, version, png_path, token)
+        result = {**result, 'source_reference': reference, 'source_sha256': digest,
+                  'model_calls': 0, 'approval_inherited': False}
+        save('VERIFIED', result=result)
+        return result
+
 
 if __name__ == '__main__':
     from mcp.server import MCPServer
     server = MCPServer('helena_visual')
     server.tool()(check_visual_runtime)
     server.tool()(generate_design)
+    server.tool()(reuse_design)
     server.run(transport='stdio')
