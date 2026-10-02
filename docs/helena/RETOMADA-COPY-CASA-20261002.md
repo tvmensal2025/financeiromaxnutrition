@@ -21,7 +21,16 @@ Registro real: criada `JOB-HR-f4968945ad0ab31bfccc6b611b86b0a8`, inicialmente DR
 - **21:01:36 UTC:** Helena liberou automaticamente a tarefa visual, READY, versão 3780; sessão `20261002_210028_a22e4f`. A liberação normal retomou após o handoff recuperado.
 - Instalação final do preflight: backup `/data/helena-runtime/creative-contract-backup-20261002T210104Z`, SHA256 `0230cb7d4b02d4b64f406d951ebe7fcf6a5478658ce40129ba82595c7a819559`; dez testes Python no Hermes e localmente, cinco testes Node criativos/paridade aprovados, sem modelos. Recibo local `artifacts/creative-contract-installed-20261002.json`.
 
-Pendência: acompanhar a liberação da tarefa visual acima, a produção de Maya e a revisão independente de Nina. Não confundir copy aprovada ou handoff aceito com campanha entregue.
+### Falha de argumento visual e recuperação limitada
+
+- 21:02:36 UTC: Maya iniciou a tarefa visual, tentativa 1, versão da tarefa 3781. Usou `version=3781` em `generate_design`, confundindo versão do registro com versão da imagem. A primeira imagem de cada slot usa **1**; intervalo permitido 1..5.
+- 21:04:11 UTC: job FAILED, código `VISUAL_GENERATION_PARAMETER_REJECTED`, tentativa 1/2, tarefa versão 3782. Verificado no Hermes: zero recibos de geração, zero arquivos finais e zero artefatos canônicos. A recusa ocorreu antes de chamar o provedor de imagem.
+- Corrigido o adaptador compartilhado `hermes_visual.py`: documentação explícita da versão por slot; argumentos inválidos recebem `INVALID_ARGUMENTS`, `phase=PREFLIGHT`, nomes dos campos e `generation_started=false`. O agente pode corrigir esse argumento uma vez na mesma execução. Após geração iniciada ou resultado incerto, reconciliar recibo; essa regra NÃO autoriza repetir geração paga.
+- Testes da camada visual: oito no Linux/Hermes aprovados; no Windows, sete aprovados e um teste específico de `fcntl` ignorado. Nenhum modelo consumido pelos testes. Backup `/data/helena-runtime/visual-version-backup-20261002T210853Z`; SHA256 `5ad56a45c5c28f6e315ef72b21b82e34fdf05939d5515e4bccfc2ca8675c2f2d`.
+- Aplicado `scripts/recover-visual-version-20261002.sql` ao mesmo job, com trava global, versão/data/erro exatos, chave idempotente e histórico `OPERATOR_CONTROLLED_RETRY`. Resultado confirmado: DRAFT, aprovação PENDING, tentativa **1/2 preservada**. Não foi criado novo job nem zerado contador. Helena ainda precisa liberar; Nina permanece revisora independente. Recuperação assistida, não prova de autonomia completa.
+- PR #10 incorporada em `8d503039999fd460931acb0f2c05906c7a5f878e`; CI aprovado para o preflight criativo. A correção visual acima é posterior e deve ser versionada separadamente.
+
+Pendência atual: acompanhar a liberação normal, a única tentativa restante de Maya e a revisão independente de Nina. Não confundir copy aprovada ou handoff aceito com campanha entregue. Se a tentativa restante falhar, preservar o bloqueio e diagnosticar; não criar sucessora ou aumentar teto automaticamente.
 
 ## Contexto e fontes
 Humano Digital/BIZ-003. Reaproveitar exclusivamente a estratégia atual aprovada em JOB-HR-20b2a6f253ee5c5377e994e8da2b8595, fonte MEM-HR-8f76450c2f464ef4def3521b8781c5f8. A identidade da empresa aprovada é a referência de fatos e voz. Esta etapa substitui somente a copy interrompida por TIMEOUT da tarefa JOB-HR-070661329e98fdb5f1c39c81e0cbabe7; não herda aprovação nem apaga seu histórico. Fundador autorizou a retomada planejada após a correção do executor.

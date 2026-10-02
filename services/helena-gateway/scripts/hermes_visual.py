@@ -111,19 +111,35 @@ def check_visual_runtime() -> dict:
         provider_ready = False
     return {'ready': provider_ready, 'profile': home.name,
             'reason': 'READY' if provider_ready else 'IMAGE_AUTH_UNAVAILABLE', 'model_calls': 0,
+            'artifact_version': {'first': 1, 'min': 1, 'max': 5,
+                                 'meaning': 'Version of this image slot, NEVER task.row_version or brand_version'},
             'renderer': renderer_contract()}
 
 
 def generate_design(job_id: str, slot: str, version: int, design_note: str) -> dict:
     """Generate one finished social artwork using the approved brief, then store it privately.
 
+    version is the IMAGE version for this slot: integer 1..5. Use 1 for the FIRST
+    image of each new slot. It is NEVER task.row_version, expected_task_version,
+    or brand_version. slot is post, story-1, story-2 or story-3 from the brief.
     design_note must specify this slot's exact approved copy, composition and visual direction.
+    INVALID_ARGUMENTS with phase=PREFLIGHT and model_calls=0 means generation
+    did NOT start: correct the named argument once in this same execution.
+    Do not mark the job failed for that correctable pre-generation refusal.
+    After generation starts or its outcome is uncertain, do not change versions
+    or retry generation; reconcile the stored receipt instead.
     Returns verified artifact reference; no publication or approval occurs.
     """
     if Path(os.environ.get('HERMES_HOME', '')).name != 'maya--biz003': raise ValueError('Maya only')
-    if not JOB_PATTERN.fullmatch(job_id) or slot not in ('post','story-1','story-2','story-3') or version not in range(1, 6):
-        raise ValueError('Invalid job, slot or version')
-    if not 80 <= len(design_note) <= 4000: raise ValueError('Detailed slot direction required: 80 to 4000 characters')
+    fields = []
+    if not isinstance(job_id, str) or not JOB_PATTERN.fullmatch(job_id): fields.append('job_id')
+    if slot not in ('post','story-1','story-2','story-3'): fields.append('slot')
+    if type(version) is not int or version not in range(1, 6): fields.append('version')
+    if not isinstance(design_note, str) or not 80 <= len(design_note) <= 4000: fields.append('design_note')
+    if fields:
+        return {'status': 'INVALID_ARGUMENTS', 'phase': 'PREFLIGHT', 'fields': fields,
+                'model_calls': 0, 'generation_started': False,
+                'recovery': 'Correct the listed arguments once, without changing job or slot. version is image version 1..5; first image per slot uses 1, never task.row_version. design_note requires 80..4000 characters. No generation occurred.'}
     token = os.environ[TOKEN_NAME]
     detail = call_tool(GATEWAY, token, 'get_job', {'job_id': job_id})
     job, creative, brand = design_contract(detail, slot)

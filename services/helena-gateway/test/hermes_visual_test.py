@@ -14,6 +14,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
 class VisualTests(unittest.TestCase):
+    def test_task_version_is_refused_before_network_and_can_be_corrected(self):
+        with patch.dict(os.environ, {'HERMES_HOME': '/data/profiles/maya--biz003'}), \
+             patch.object(visual, 'call_tool') as gateway, patch.object(visual, 'load_provider') as provider:
+            for version in (3781, True, 1.0, 0, 6):
+                report = visual.generate_design('JOB-HR-' + 'a' * 32, 'post', version, 'Direcao aprovada para esta imagem. ' * 4)
+                self.assertEqual(report['status'], 'INVALID_ARGUMENTS')
+                self.assertEqual(report['fields'], ['version'])
+                self.assertFalse(report['generation_started'])
+                self.assertEqual(report['model_calls'], 0)
+                self.assertIn('never task.row_version', report['recovery'])
+            gateway.assert_not_called(); provider.assert_not_called()
+
+    def test_other_argument_errors_are_named_before_any_generation(self):
+        with patch.dict(os.environ, {'HERMES_HOME': '/data/profiles/maya--biz003'}), \
+             patch.object(visual, 'call_tool') as gateway:
+            report = visual.generate_design('bad-job', 'story', 1, 'short')
+            self.assertEqual(report['fields'], ['job_id', 'slot', 'design_note'])
+            gateway.assert_not_called()
+
     def test_stdio_readiness_rejects_missing_identity_before_loading_provider(self):
         with patch.dict(os.environ, {'HERMES_HOME': ''}), patch.object(visual, 'load_provider') as provider:
             self.assertEqual(visual.check_visual_runtime()['reason'], 'PROFILE_MISSING')
