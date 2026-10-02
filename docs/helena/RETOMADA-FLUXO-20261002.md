@@ -20,10 +20,14 @@ Campanha `HD-CASA-POST-STORY-20261002`, Humano Digital/BIZ-003: **um post 1080×
    - Gateway implantado. Consumidor instalado às 18:56:41 UTC, após aguardar a trava da rodada; recibo `completion-install.json`, três arquivos alterados e backup `review-contract-backup-20261002T185641276661Z`.
 4. **Correção dependia da aprovação do próprio material reprovado.** A memória própria da copy devolvida aparecia em `evidence_records`, mas o leitor classificava qualquer MEM citado no briefing como fonte externa aprovada. Isso gerava `input_evidence_missing` e a Helena reeditou o briefing três vezes sem liberar.
    - Commit `f89dedf`, implantado no Gateway (16 segundos). `revision_evidence_records` separa memórias explicitamente citadas da própria tarefa/empresa, marcadas `REVISION_ONLY`, sem `approved_output`. Podem servir à correção; nunca se tornam fonte externa aprovada por esse mecanismo. Outra tarefa/empresa continua recusada. Os testes preservam esses limites.
-   - O pacote do controlador informa se o briefing já foi corrigido para o parecer atual. Orienta conferir e liberar, sem reescrever para repetir a mesma pendência. Conferir recibo `revision-evidence-install.json` para o estado da instalação remota mais recente.
+   - O pacote do controlador informa se o briefing já foi corrigido para o parecer atual. Orienta conferir e liberar, sem reescrever para repetir a mesma pendência. Instalação remota confirmada às **19:39:44 UTC**, dois arquivos, backup `revision-evidence-backup-20261002T193944Z`, recibo `revision-evidence-install.json`, sem nova chamada de modelo. Hash do controlador `bd5cd7094c51130cc20a23ff72c0731515b52bf94169348c22921cca95741515`; contexto `c5df5b7fcf2040e70b5243fd2f81d0c6f1fdffa58b72a500a72c88090dbe6bc6`.
 5. **Vigilância de exceções não estava instalada.** Migration `20261002190500_queue_attention_workflow.sql` aplicada e testes com rollback aprovados. Leitor e escritor aceitam apenas coordenação autorizada, registram alerta idempotente e não mudam jobs, tentativas ou aprovações. Recibos antigos de snapshots já superados não geram falso bloqueio.
    - `hermes_queue_watchdog.py` instalado às 19:07:24 UTC, integrado ao poll existente; recibo `queue-watchdog-install.json`. Hash `ada93f1f04ce59d4b0f008781c059dc4336de3419625c71ec0da1c0754b83ef6`.
-   - O monitor não chama IA e não repete automaticamente falhas desconhecidas. Sua falha não deve impedir o dispatcher: invocação contém `|| true`. É necessário conferir a execução automática pelo arquivo `queue-watchdog-last-result.json`; instalação sozinha não comprova agendamento executado.
+   - O monitor não chama IA e não repete automaticamente falhas desconhecidas. Sua falha não deve impedir o dispatcher: invocação contém `|| true`. Execução automática conferida em `queue-watchdog-last-result.json`: nove ocorrências, `model_started=false`. Depois de duas varreduras adicionais controladas, consulta ao Supabase confirmou **um único QUEUE_ATTENTION** para a copy atual, sem mudar job ou tentativas. Isso comprova detecção e deduplicação; não comprova correção automática de qualquer erro.
+6. **Prazo do modelo de correção insuficiente.** A segunda execução da Isabela expirou em 300 segundos, sem nova submissão confirmada. O produtor não chegara à etapa de imagens.
+   - Commit `fec8ed2`, proposta [PR #9](https://github.com/tvmensal2025/financeiromaxnutrition/pull/9): limite finito de 600 segundos para o modelo de correção configurado; 300 segundos para demais produtores e 900 para Maya. O tempo não se renova automaticamente.
+   - A mesma proposta bloqueia inferência se o briefing já foi corrigido para o parecer atual e continua faltando fonte. Ao resolver a fonte, a condição deixa de bloquear. Teste comprova ausência de chamada ao modelo e de alteração de estado.
+   - **Pendente de incorporação e instalação.** A revisão automática bloqueou push direto à main por falta de autorização específica para esse envio à produção. Branch `codex/helena-execution-policy-20261002` publicada e PR #9 aberta; autorização solicitada ao fundador. Não confundir proposta testada com código instalado. Main está em `07dc240`; Gateway implantado contém `f89dedf`.
 
 ## Provas da execução real
 
@@ -34,11 +38,17 @@ Campanha `HD-CASA-POST-STORY-20261002`, Humano Digital/BIZ-003: **um post 1080×
 - **18:46:10 UTC:** Isabela submeteu a copy; memória própria `MEM-HR-34f03999c5c41f33fca2eef599815166`.
 - **18:47:40 UTC:** Camila (AGT-16) fez revisão independente e pediu ajustes; a mesma tarefa voltou a DRAFT, versão 3739. A devolução é uma decisão de qualidade, não uma falha de transporte.
 - **18:48:31 UTC:** consumidor iniciou COORDINATE com Helena para tratar os apontamentos. Não há prova de arte final aprovada neste ponto.
+- Cinco revisões do briefing ficaram registradas antes da correção da classificação das fontes; preservar esse histórico como evidência do ciclo improdutivo.
+- **19:29:54 UTC:** Isabela iniciou a segunda tentativa, sessão `20261002_193002_94b349`.
+- **19:32:49 UTC:** registro de progresso. Progresso não equivale a entrega.
+- **19:35:05.630646 UTC:** estado **FAILED**, motivo **TIMEOUT**, **2/2 tentativas**, tarefa versão **3749**. Não houve nova copy submetida nem imagem final desta campanha. Não reiniciar tentativas nem criar sucessora só para ultrapassar o teto.
+- Prova visual da consulta: `artifacts/campaign-timeout-and-watchdog-proof-20261002.png`; `alertas_unicos=1`.
 
 ## Verificações
 
 - Suíte atual do Gateway: 319 testes Node aprovados; servidor e 29 verificações de integração também passaram.
-- Python atual: 237 testes executados, 236 aprovados e um teste visual específico de fcntl omitido no Windows. Não contar esse skip como aprovação.
+- Python final desta rodada: **243 testes executados, 242 aprovados** e um teste visual específico de fcntl omitido no Windows. Não contar esse skip como aprovação. Resultado em `artifacts/execution-policy-python-tests-final.txt`.
+- CI do commit `fec8ed2`: verificação e build de contêiner concluídos com sucesso no GitHub. Isso não comprova implantação nem entrega da campanha.
 - Hermes Linux: 146 testes do fluxo, contexto, recuperação e encerramento aprovados, sem inferência.
 - Hermes Linux: seis testes visuais passaram com o runtime real e provedor simulado, incluindo o teste omitido no Windows; nenhuma geração paga foi disparada por essa suíte. Oito testes do watchdog também passaram.
 - Supabase: oito asserções de recuperação executadas com rollback; coordenação, identidade, snapshot, token, histórico, teto de uma recuperação e ausência de mudança no job conferidos.
@@ -46,8 +56,8 @@ Campanha `HD-CASA-POST-STORY-20261002`, Humano Digital/BIZ-003: **um post 1080×
 
 ## O que ainda precisa de prova
 
-1. Conferir recibo da última correção `revision-evidence-install.json` e primeiro ciclo automático do watchdog; o runtime de encerramento de 18:56 foi confirmado.
-2. Acompanhar correção da copy, segunda revisão e encaminhamento ao design, sem substituir os agentes nem gastar tentativas sem diagnóstico.
+1. Incorporar PR #9 e instalar a política de execução somente após a autorização pendente; conferir hashes e testes no Hermes sem inferência.
+2. A tarefa de copy atingiu o teto de duas tentativas. Preparar replanejamento explícito e finito da etapa pendente, reaproveitando estratégia aprovada e apontamentos de Camila. Não há autorização implícita para apagar tentativas, repetir indefinidamente ou chamar de homologado o que não chegou ao fim.
 3. Abrir os pixels de cada imagem e confirmar marca, composição, variedade, texto e legenda antes de dizer que o pedido terminou.
 4. Não há homologação individual de todos os 21 agentes. Financeiro ainda não tem ferramenta própria de lançamento no conector; parecer jurídico não é assinatura. Preservar essas distinções.
 5. Uma falha desconhecida gera atenção, não permissão para retentar sem limite. Recuperação autônoma comprovada nesta rodada é específica do contrato de revisão, com teto de uma tentativa e evidência do erro original.
@@ -59,4 +69,4 @@ Campanha `HD-CASA-POST-STORY-20261002`, Humano Digital/BIZ-003: **um post 1080×
 - Verificar versão, empresa, papel, evidências e efeito confirmado de cada escrita. Mantém-se revisão independente e WIP 1.
 - Usar o contrato vigente e corrigir argumentos recusados uma vez. Uma resposta incerta exige reconciliação, não repetição paga.
 - O material do fundador contém imagens, copy e instruções de uso. Logs, IDs e diagnósticos pertencem à auditoria.
-- Há alterações locais anteriores preservadas, ainda não incluídas nos dois commits citados. Não usar `git add .` nem descartar essas alterações.
+- Há alterações locais anteriores preservadas, ainda não incluídas nos commits desta correção. Não usar `git add .` nem descartar essas alterações.
