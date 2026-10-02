@@ -79,6 +79,19 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(self.worker().state['pending'][JOB]['agent_id'],'AGT-01')
         self.assertEqual(self.calls,1)
 
+    def test_corrected_brief_with_missing_inputs_does_not_start_another_model(self):
+        approve(self.d, 'REQUEST_CHANGES')
+        review = self.d['job']['result_payload']
+        review['brief_revision_history'] = [{'reviewed_by':review['reviewed_by'],
+                                             'review_reason':review['review_reason']}]
+        self.d['input_evidence_missing'] = ['MEM-MISSING']
+        before = copy.deepcopy(self.d)
+        report = self.run_tick()
+        self.assertEqual(report['status'], 'CORRECTED_BRIEF_INPUTS_UNAVAILABLE')
+        self.assertFalse(report['model_started'])
+        self.assertEqual(self.calls, 0)
+        self.assertEqual(self.d, before)
+
     def test_stale_pending_handoff_uses_existing_child_without_inference(self):
         approve(self.d)
         self.d['events'].append({'event_type':'WORKFLOW_handoff',

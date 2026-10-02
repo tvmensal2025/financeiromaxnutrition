@@ -19,6 +19,7 @@ import tempfile
 
 import hermes_dispatch_once as dispatch
 from hermes_execution_context import packet_prompt
+from execution_policy import coordination_blocker
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
 # Stay below the canonical ten-minute lease, leaving time to confirm and finish.
@@ -461,6 +462,11 @@ class Workflow:
             return {'status': 'NO_NEW_REVIEW', 'model_started': False}
         detail, phase, agent = selected
         jid = detail['job']['job_id']
+        blocker = coordination_blocker(detail) if phase == 'COORDINATE' else None
+        if blocker:
+            return {'status': blocker, 'job_id': jid, 'phase': phase,
+                    'model_started': False, 'automatic_retry': False,
+                    'responsible_agent_id': 'AGT-01', 'technical_agent_id': 'AGT-09'}
         if phase in ('HANDOFF', 'COORDINATE', 'RESOLVE') and agent not in ('AGT-01', 'AGT-04'):
             return {'status': 'ACTION_ACTOR_MISMATCH', 'job_id': jid,
                     'phase': phase, 'model_started': False}
