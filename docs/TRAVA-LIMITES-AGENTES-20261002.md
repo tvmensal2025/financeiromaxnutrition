@@ -38,6 +38,7 @@ Briefings históricos já gravados continuam compatíveis com o transporte anter
 - Código Gateway: `e12efdc` e ajuste do contrato remoto `8fbe139`.
 - Testes locais finais: 298 testes Node aprovados, zero falhas e zero pulados; 8 testes do verificador Python aprovados; 86 testes do fluxo Python aprovados; 29 testes de integrações com dados simulados aprovados.
 - Estado final da publicação e teste remoto: consultar `RECIBO-TRAVA-LIMITES-20261002.json` e `MEM-BRIEF-SAFE-LIMITS-20261002-V1` no Supabase.
+- Comprovante visual dos recibos reais: `COMPROVANTE-TRAVA-21-PERFIS-20261002.jpg`; 21 perfis PASS, Gateway PASS, excesso bloqueado e zero chamadas de IA.
 - Pacote de instalação verificável: `artifacts/brief-safe-limits-20261002.zip`. Instalar somente após conferir hashes, configuração compartilhada e cópia de segurança; não iniciar agentes durante a instalação.
 
 ## Limites desta correção
