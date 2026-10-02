@@ -147,5 +147,7 @@ class VisualTests(unittest.TestCase):
                 args = (jid,'post',1,'Use a copy aprovada com imagem protagonista e paleta da marca, preservando contraste e legibilidade em celular.')
                 first = visual.generate_design(*args); self.assertEqual(visual.generate_design(*args), first)
                 self.assertEqual(len(calls), 1)
+                self.assertEqual((root/jid/'post-v1/original.png').read_bytes(), raw.read_bytes())
+                self.assertEqual((root/jid/'post-v1/logo.png').read_bytes(), logo.getvalue())
 
 if __name__ == '__main__': unittest.main()
