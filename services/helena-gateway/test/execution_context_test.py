@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from hermes_execution_context import execution_packet
+from hermes_execution_context import execution_packet, compact_exact_values
 
 
 class ContextTests(unittest.TestCase):
@@ -68,5 +68,37 @@ class ContextTests(unittest.TestCase):
     def test_large_packet_is_refused_instead_of_silently_truncated(self):
         d=self.detail();d['job']['instruction']='x'*66000
         with self.assertRaises(ValueError):execution_packet(d)
+
+    def test_large_repeated_context_is_compacted_losslessly(self):
+        d = self.detail()
+        repeated = 'Copy literal com acentos e condições. ' * 1000
+        d['job']['instruction'] = repeated
+        d['company_identity'] = {'approved_copy': repeated}
+        packet = json.loads(execution_packet(d, 'HANDOFF'))
+        self.assertEqual(packet['job']['instruction'], repeated)
+        self.assertEqual(packet['company_identity']['approved_copy'], {'$ref':'#/job/instruction'})
+        self.assertEqual(packet['exact_references']['/company_identity/approved_copy'], '/job/instruction')
+        self.assertFalse(len(json.dumps(packet, ensure_ascii=False)) > 65000)
+        self.assertIs(packet['truncated'], False)
+
+    def test_exact_reference_roundtrip_nested_values_and_pointer_escaping(self):
+        from copy import deepcopy
+        text = 'Texto integral, sem resumo. ' * 50
+        original = {'a/b~c':{'items':[text, {'$ref':'original business data', 'value':text}]},
+                    'copy':{'items':[text, {'$ref':'original business data', 'value':text}]},
+                    'different':text+'X'}
+        packet = compact_exact_values(original)
+        references = packet.pop('exact_references')
+        packet.pop('packet_encoding')
+        def locate(path):
+            keys = [part.replace('~1','/').replace('~0','~') for part in path.split('/')[1:]]
+            current = packet
+            for key in keys[:-1]: current = current[int(key)] if isinstance(current,list) else current[key]
+            return current, int(keys[-1]) if isinstance(current,list) else keys[-1]
+        for target, source in references.items():
+            source_parent, source_key = locate(source)
+            target_parent, target_key = locate(target)
+            target_parent[target_key] = deepcopy(source_parent[source_key])
+        self.assertEqual(packet, original)
 
 if __name__=='__main__':unittest.main()

@@ -55,6 +55,14 @@ class PipelineTests(unittest.TestCase):
         result, calls = self.run_sequence([{'status': 'DRY_RUN'}])
         self.assertEqual(calls, [('hermes_dispatch_once', False)])
 
+    def test_final_independent_approval_stops_without_extra_paid_coordination(self):
+        result, calls = self.run_sequence([
+            {'status':'WAITING_HELENA'},
+            {'status':'CONFIRMED','next_phase':'DELIVERED','observed_status':'COMPLETED'}
+        ], execute=True)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result['steps'][-1]['next_phase'], 'DELIVERED')
+
     def test_action_budget_is_strict(self):
         for budget in (0, 7, True, -1):
             with self.assertRaises(ValueError): advance(max_actions=budget)

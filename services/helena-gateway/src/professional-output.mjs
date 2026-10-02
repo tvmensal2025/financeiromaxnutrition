@@ -11,6 +11,7 @@ export function agentQualityContract(agentId) {
 
 export const professionalDeliverySchema = z.object({
   schema_version: z.literal(1),
+  stage: z.enum(['INTERMEDIATE', 'FINAL']).optional().describe('INTERMEDIATE quando outra etapa de producao esta prevista. FINAL somente para o pacote completo destinado ao fundador, sem producao pendente no pedido. Continua exigindo revisao independente; nao publica nem aprova.'),
   title: z.string().trim().min(5).max(140),
   content: z.string().trim().min(40).max(12000),
   next_steps: z.string().trim().min(20).max(1500),

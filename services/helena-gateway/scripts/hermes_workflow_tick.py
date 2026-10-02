@@ -132,6 +132,8 @@ def next_phase(phase, before, after):
     j = after['job']
     if phase == 'REVIEW' and reviewed(after):
         if j['status'] == 'COMPLETED':
+            if (j.get('result_payload') or {}).get('delivery', {}).get('stage') == 'FINAL':
+                return 'DELIVERED'
             return 'HANDOFF'
         if j['status'] == 'DRAFT':
             return 'COORDINATE'
@@ -535,6 +537,9 @@ class Workflow:
         return {**{k: v for k, v in receipt.items() if not k.startswith('_')}, 'model_started': True, 'next_phase': follow}
 
     def enqueue_follow(self, detail, follow):
+        if follow == 'DELIVERED':
+            self.state['pending'].pop(detail['job']['job_id'], None)
+            return
         j = detail['job']
         jid = j['job_id']
         if follow.startswith('RELEASE:'):

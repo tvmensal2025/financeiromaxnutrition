@@ -51,6 +51,8 @@ def advance(execute=False, max_actions=6, runner=run_component):
             if status in DISPATCH_IDLE | DISPATCH_PROGRESS:
                 component = 'hermes_workflow_tick'
                 continue
+        elif status in {'CONFIRMED', 'RECONCILED'} and report.get('next_phase') == 'DELIVERED':
+            break  # Final independent approval is terminal, not another handoff.
         elif status in {'CONFIRMED', 'RECONCILED'} and report.get('next_phase'):
             # Review -> handoff -> child release stays with the workflow consumer.
             component = 'hermes_workflow_tick'

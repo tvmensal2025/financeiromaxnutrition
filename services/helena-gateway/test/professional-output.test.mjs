@@ -24,6 +24,13 @@ test('Resultado sem conteudo utilizavel ou com evidencia emprestada e recusado',
   assert.throws(()=>validateProfessionalDelivery({...delivery,content:'verified=true, SHA256 da arte conferido.'},['MEM-HR-1']),/dados internos/);
   assert.throws(()=>validateProfessionalDelivery(delivery,['ref-alheia']),/EVIDENCE_REFERENCE_MISMATCH/);
 });
+test('etapa final explicita preserva evidencias e exige revisao independente',()=>{
+  const final = {...sampleDelivery(), stage:'FINAL'};
+  assert.equal(validateProfessionalDelivery(final,['MEM-HR-1']).stage,'FINAL');
+  assert.throws(()=>validateProfessionalDelivery({...final,stage:'APPROVED'},['MEM-HR-1']));
+  assert.throws(()=>validateQualityReview(undefined,final,['MEM-HR-1']),/quality_review/);
+  assert.ok(buildReviewContract({job:{evidence_refs:['MEM-HR-1'],result_payload:{delivery:final}},task:{row_version:1}}));
+});
 test('referencia incorreta explica como corrigir sem inventar ou aprovar evidencia',()=>{
   const delivery=sampleDelivery();
   delivery.acceptance_checks[0].evidence_ref='delivery:plano:secao-1';

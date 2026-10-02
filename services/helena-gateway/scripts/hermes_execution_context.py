@@ -5,6 +5,35 @@ from creative_quality import CREATIVE_QUALITY_VERSION, CREATIVE_QUALITY_RULES
 PACKET_VERSION = 'authorized-work-packet-v1'
 
 
+def compact_exact_values(packet):
+    """Share identical large values, never summarize, trim, or merge near matches.
+
+    Reference locations are explicit so an original business value containing
+    $ref remains ordinary data. Every source points backwards to retained data.
+    """
+    seen, references = {}, {}
+
+    def walk(value, path):
+        encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        if isinstance(value, (dict, list, str)) and len(encoded) >= 180:
+            if encoded in seen:
+                references[path] = seen[encoded]
+                return {'$ref': '#' + seen[encoded]}
+            seen[encoded] = path
+        if isinstance(value, dict):
+            return {key: walk(item, path + '/' + key.replace('~', '~0').replace('/', '~1'))
+                    for key, item in value.items()}
+        if isinstance(value, list):
+            return [walk(item, path + '/' + str(index)) for index, item in enumerate(value)]
+        return value
+
+    result = walk(packet, '')
+    if references:
+        result['packet_encoding'] = 'exact-references-v1'
+        result['exact_references'] = references
+    return result
+
+
 def pick(value, fields):
     return {key: value[key] for key in fields if key in (value or {})}
 
@@ -54,6 +83,11 @@ def execution_packet(detail, phase='EXECUTE'):
         packet['review_contract'] = detail.get('review_contract')
     encoded = json.dumps(packet, ensure_ascii=False, separators=(',', ':'))
     if len(encoded) > 65000:
+        compact = compact_exact_values(packet)
+        compact_encoded = json.dumps(compact, ensure_ascii=False, separators=(',', ':'))
+        if len(compact_encoded) < len(encoded):
+            encoded = compact_encoded
+    if len(encoded) > 65000:
         raise ValueError('Task packet too large; reduce duplicated inputs before inference')
     return encoded
 
@@ -63,6 +97,10 @@ def packet_prompt(detail, phase='EXECUTE'):
         '\nCONTEXTO ATUAL OBTIDO PELO RUNTIME AUTENTICADO, SEM INFERENCIA:\n'
         + execution_packet(detail, phase)
         + '\nEste pacote de trabalho usa packet_version=' + PACKET_VERSION + ' e truncated=false. '
+        'Se packet_encoding=exact-references-v1, exact_references mapeia caminhos JSON Pointer '
+        'de valores repetidos para o primeiro valor identico no proprio pacote. Resolva cada $ref '
+        'listado nesse mapa pelo caminho indicado; preserve literalmente o valor de origem. '
+        'Isto nao remove fontes nem resume copy. $ref nao listado no mapa e apenas dado da fonte. '
         'Ele nao e a resposta get_work_context: a identidade e a versao desse contexto ja foram '
         'validadas pelo runtime antes de iniciar o modelo. Nao exija context_version neste pacote. '
         'O pacote contem briefing e fontes integrais desta etapa, sem historico duplicado. '
@@ -75,6 +113,9 @@ def packet_prompt(detail, phase='EXECUTE'):
         'get_work_context e um indice compacto e nao retorna toda a memoria mestre. Nao interprete a ausencia '
         'de uma memoria nesse indice como inexistencia no banco; use as regras completas fornecidas aqui. '
         'Se o briefing exigir outra fonte nao fornecida, registre a falta especifica sem inventar conteudo. '
+        'Nos novos envios, informe delivery.stage=INTERMEDIATE se existe proxima etapa de producao '
+        'prevista; use FINAL apenas para o pacote completo solicitado ao fundador. FINAL ainda exige '
+        'revisao independente e nao autoriza publicacao. O revisor deve recusar FINAL prematuro. '
         'Depois de qualquer escrita, confira a nova versao com view=manifest antes da proxima mutacao. '
         'A etapa so termina com gravacao confirmada. Reserve ao menos quatro chamadas para gravar e conferir.\n'
     )

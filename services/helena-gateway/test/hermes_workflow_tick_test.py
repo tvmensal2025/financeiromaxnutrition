@@ -108,6 +108,21 @@ class ReviewStateTests(unittest.TestCase):
         self.assertNotIn(JOB, worker.state['pending'])
         self.assertEqual(self.calls, 0)
 
+    def test_actual_final_review_confirms_and_never_enqueues_handoff(self):
+        self.d['job']['result_payload']['delivery'] = {'stage':'FINAL'}
+        report = self.run_tick()
+        self.assertEqual(report['status'], 'CONFIRMED')
+        self.assertEqual(report['next_phase'], 'DELIVERED')
+        state = json.loads((self.path/'workflow-state.json').read_text())
+        self.assertNotIn(JOB, state['pending'])
+        self.assertEqual(self.calls, 1)
+
+    def test_rejected_final_package_returns_to_coordination(self):
+        self.d['job']['result_payload']['delivery'] = {'stage':'FINAL'}
+        self.runner_mode = 'REQUEST_CHANGES'
+        report = self.run_tick()
+        self.assertEqual(report['next_phase'], 'COORDINATE')
+
     def test_executor_probe_requires_exact_business_and_identity(self):
         self.d['runtime_binding'] = {'profile_slug':'maya--biz003', 'status':'ACTIVE',
                                     'agent_id':'AGT-04', 'business_id':'BIZ-003'}
