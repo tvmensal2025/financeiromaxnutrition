@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 
 FILES = ('creative_quality.py', 'hermes_execution_context.py', 'hermes_dispatch_once.py',
-         'hermes_workflow_tick.py', 'hermes_pipeline.py', 'hermes_queue_watchdog.py', 'autonomy_protocol.py')
+         'hermes_workflow_tick.py', 'hermes_pipeline.py', 'hermes_queue_watchdog.py', 'execution_policy.py', 'autonomy_protocol.py')
 LEGACY_POLL = '''#!/bin/sh
 # Existing hourly, no-agent poll; no new schedule and no inference for an idle queue.
 export HELENA_DISPATCH_ENABLED=1

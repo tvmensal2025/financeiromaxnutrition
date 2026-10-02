@@ -19,6 +19,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from hermes_execution_context import packet_prompt
+from execution_policy import execution_timeout
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
 
@@ -333,6 +334,10 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
     )
     prompt += AUTONOMY_RULE
+    prompt += (f'\nOrcamento desta execucao: {timeout} segundos, sem extensao automatica. '
+               'Use o pacote da tarefa ja validado. Nao releia contexto geral, memoria historica ou '
+               'jobs de outras etapas para executar a correcao pontual. Priorize produzir, conferir e '
+               'submeter o material pedido; reserve as chamadas finais para submit_work e confirmacao.\n')
     context = call_tool(GATEWAY, profile_token, 'get_work_context', {})
     if (context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False
             or context.get('profile', {}).get('profile_slug') not in (None, profile)
@@ -515,9 +520,9 @@ def dispatch_once(root: Path, gateway: str, approved_job: str | None, execute: b
         return {**reconcile(job_id, "START_NOT_CONFIRMED"), "status": "CLAIMED_START_FAILED_RECONCILE"}
     try:
         if route.get("model"):
-            outcome = run_agent(resolved_binary, profile, job_id, 900 if profile == 'maya--biz003' else 300, profile_token, root / profile, route["model"])
+            outcome = run_agent(resolved_binary, profile, job_id, execution_timeout(profile, route.get('model'), CORRECTION_MODEL), profile_token, root / profile, route["model"])
         else:
-            outcome = run_agent(resolved_binary, profile, job_id, 900 if profile == 'maya--biz003' else 300, profile_token, root / profile)
+            outcome = run_agent(resolved_binary, profile, job_id, execution_timeout(profile, None, CORRECTION_MODEL), profile_token, root / profile)
         exit_code, diagnostic = outcome if isinstance(outcome, tuple) else (outcome, None)
     except (OSError, ValueError, GatewayRefusal):
         exit_code, diagnostic = 125, "PROCESS_START"
