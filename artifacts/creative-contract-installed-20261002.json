@@ -1,0 +1,16 @@
+{
+  "runtime": "/data/helena-runtime",
+  "backup": "/data/helena-runtime/creative-contract-backup-20261002T210104Z",
+  "brief_preflight_sha256": "0230cb7d4b02d4b64f406d951ebe7fcf6a5478658ce40129ba82595c7a819559",
+  "remote_tests": {"executed": 10, "failed": 0, "skipped": 0},
+  "local_tests": {"python": 10, "node_creative_and_parity": 5},
+  "test_model_calls": 0,
+  "old_preflight_gap": "Checked JSON syntax but not the strict creative schema",
+  "copy_job": "JOB-HR-f4968945ad0ab31bfccc6b611b86b0a8",
+  "copy_approved_at": "2026-10-02T20:38:32.503107+00:00",
+  "visual_job": "JOB-HR-ee3060f449310194fda5b585c192332c",
+  "visual_created_at": "2026-10-02T20:58:58.770332+00:00",
+  "visual_released_at": "2026-10-02T21:01:36.005247+00:00",
+  "handoff_recovery": "Assisted schema normalization; no new model call; five approved copy segments preserved",
+  "all_21_agents_homologated": false
+}

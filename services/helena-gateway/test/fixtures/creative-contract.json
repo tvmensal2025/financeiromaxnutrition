@@ -1,0 +1,41 @@
+{
+  "valid": {
+    "business_id": "BIZ-003",
+    "brand": "Humano Digital",
+    "brand_version": 3038,
+    "logo_asset": "storage://helena-brand-assets/BIZ-003/logo.png",
+    "audience": "Adultos interessados em projetos de IA.",
+    "objective": "Explicar atividades reais e aprendizado de IA.",
+    "verified_facts": ["A marca orienta e conecta pessoas a projetos."],
+    "sources": ["MEM-HR-fonte-aprovada"],
+    "subject": "Pessoa adulta realizando atividade cotidiana.",
+    "scene": "Cozinha iluminada com pessoa preparando ingredientes.",
+    "composition": "Plano medio lateral com espaco limpo para texto.",
+    "typography": "Manrope com pesos 700 e 400 e leitura no celular.",
+    "palette": "Verdes #075E47 e #163D32, #F4F5EB e #BCD2B5.",
+    "imagery_method": "GENERATED_IMAGE",
+    "formats": ["post", "story-1"],
+    "exact_copy": "Registros reais podem ajudar a IA a aprender.",
+    "cta": "Encerramento editorial sem link nem publicacao.",
+    "constraints": "Usar apenas uma logo oficial, sem redesenhar.",
+    "review": "Nina inspeciona os pixels das duas imagens."
+  },
+  "invalid_patches": [
+    {"exact_copy": {"post": "Texto aprovado"}},
+    {"palette": ["#075E47", "#163D32"]},
+    {"sources": "MEM-HR-fonte-aprovada"},
+    {"verified_facts": ["curto"]},
+    {"brand_version": "3038"},
+    {"brand_version": true},
+    {"brand_version": 0},
+    {"brand_version": 1.5},
+    {"formats": ["post", "post"]},
+    {"formats": ["story"]},
+    {"formats": []},
+    {"formats": [{"slot": "post"}]},
+    {"imagery_method": "PHOTO"},
+    {"business_id": "BIZ-9999"},
+    {"scene": "breve"},
+    {"extra_field": "Nao aceito no contrato estrito"}
+  ]
+}
