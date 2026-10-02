@@ -30,6 +30,12 @@ class MirrorContract(unittest.TestCase):
         self.assertIn('não execute', item['body'])
         self.assertNotIn('instruction', item['body'])
 
+    def test_historical_job_ids_are_displayed_without_execution(self):
+        for job_id in ('JOB-WPP-MUHDJGA7', 'JOB-20260927043930112-AC7353'):
+            job = self.fixture('COMPLETED')
+            job['job_id'] = job_id
+            self.assertEqual(card(job)['idempotency_key'], 'helena-mirror:' + job_id)
+
     def test_missing_profile_is_visible_and_unknown_state_stops_sync(self):
         invalid = self.fixture('READY')
         invalid['binding_status'] = 'UNAVAILABLE'

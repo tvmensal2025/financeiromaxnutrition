@@ -12,6 +12,8 @@ O quadro é somente acompanhamento. `scripts/install_kanban_mirror_guard.py` con
 
 Estados espelhados: DRAFT/WAITING_APPROVAL/FAILED/CANCELLED → blocked; SCHEDULED → scheduled; READY → ready; CLAIMED/RUNNING → running; WAITING_HELENA → review; COMPLETED → done. O status no cartão mostra o estado técnico do job, não a aprovação comercial da entrega. O quadro `default` do Hermes continua separado; selecionar `helena-biz-003` para Humano Digital.
 
+Implantação de 02/10/2026: Gateway `ff21f96` publicado pelo EasyPanel. No Hermes, o instalador verificou exatamente 21 perfis e aplicou a lista vazia de despacho em 22 arquivos de configuração (sistema + perfis), com 22 backups. Um ensaio sem escrita encontrou 42 jobs de duas empresas; a primeira sincronização criou 7 cartões em `helena-biz-001` e 35 em `helena-biz-003`. Repetição idempotente manteve 35 no quadro do Humano Digital. O Hermes cron `3fc108674435`, `helena-kanban-mirror`, foi criado em modo `no-agent` a cada 5 minutos. Seu script é `/data/scripts/helena_kanban_mirror.sh`; o último recibo bem-sucedido fica em `/data/helena-runtime/kanban-last-sync.json`. O cron técnico anterior `helena-gateway-poll` continua independente. Verificar o `Last run` do novo cron após a primeira rodada automática antes de afirmar continuidade agendada.
+
 1. `get_work_context`: identidade, papel, checkpoint atual, tarefas, encaminhamentos e revisões pendentes.
 2. `create_task_job`: Helena/Marina cria, na mesma transação, tarefa visível, job em DRAFT e handoff.
 3. `release_job`: coordenação libera uma execução com executor ativo. WIP global 1 e máximo de duas tentativas.

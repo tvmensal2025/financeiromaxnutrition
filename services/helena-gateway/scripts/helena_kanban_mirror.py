@@ -14,7 +14,7 @@ import sys
 
 ROOT = Path('/data/helena-runtime')
 PROFILES = Path('/data/profiles')
-VALID_JOB = re.compile(r'JOB-HR-[a-f0-9]{32}\Z')
+VALID_JOB = re.compile(r'JOB-[A-Za-z0-9-]{4,80}\Z')
 VALID_BUSINESS = re.compile(r'[A-Za-z0-9_-]{2,80}\Z')
 LANES = {
     'DRAFT': 'blocked', 'SCHEDULED': 'scheduled', 'READY': 'ready',
