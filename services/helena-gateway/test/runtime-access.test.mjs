@@ -146,7 +146,16 @@ test('Helena supervisiona empresas sem executar pelo agente especialista', async
   await authorizeGatewayTool('get_job', { job_id: job.job_id }, identity, read);
   const result = await authorizeGatewayTool('queue_summary', {}, identity, read);
   assert.deepEqual(result.args, {});
+  const board = await authorizeGatewayTool('kanban_snapshot', { business_id: 'BIZ-003' }, identity, read);
+  assert.deepEqual(board.args, { business_id: 'BIZ-003' });
   await assert.rejects(authorizeGatewayTool('complete_job', { job_id: job.job_id, agent_id: 'AGT-18' }, identity, read), /submit_delivery/);
+});
+
+test('nenhum especialista, inclusive Marina, pode ler o quadro consolidado', async () => {
+  for (let number = 2; number <= 21; number++) {
+    const runtime = { ...binding, agent_id: `AGT-${String(number).padStart(2, '0')}` };
+    await assert.rejects(authorizeGatewayTool('kanban_snapshot', {}, identity, reader({ runtime })), /Somente Helena/);
+  }
 });
 
 test('workflow exige escopo empresarial e coordenacao para liberar', async () => {

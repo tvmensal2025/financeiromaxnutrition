@@ -54,7 +54,9 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
   const manager = MANAGEMENT.has(binding.agent_id);
   const args = { ...originalArgs };
 
-  if (RECOVERY_TOOLS.has(name)) {
+  if (name === 'kanban_snapshot') {
+    if (!group) fail('Somente Helena pode consultar o quadro consolidado');
+  } else if (RECOVERY_TOOLS.has(name)) {
     if (!manager) fail('Somente Helena ou Marina supervisiona recuperacao');
     if (args.business_id && !group && args.business_id !== binding.business_id) fail('Empresa fora do escopo');
   } else if (WORKFLOW_TOOLS.has(name)) {

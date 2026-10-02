@@ -2,7 +2,15 @@
 
 ## Fluxo implementado
 
-Supabase é a fonte canônica. Não há fila paralela no Kanban.
+Supabase é a fonte canônica. Não há fila paralela executável no Kanban.
+
+### Quadro Hermes de acompanhamento (02/10/2026)
+
+O Kanban nativo do Hermes é um banco separado e começa vazio; não recebe automaticamente os jobs do Gateway. O espelho `scripts/helena_kanban_mirror.py` lê `kanban_snapshot` com a credencial individual da Helena, cria um quadro por empresa e um cartão por `job_id` usando chave idempotente. Copia apenas objetivo e metadados curtos; não copia instrução, resultado, evidências nem jobs pessoais. O perfil vinculado aparece no cartão. Se o vínculo estiver ausente, o cartão fica bloqueado e sem responsável; nunca presume outro agente.
+
+O quadro é somente acompanhamento. `scripts/install_kanban_mirror_guard.py` configura `kanban.dispatch_profiles: []` no sistema e nos 21 perfis, preservando backups, e mantém `dispatch_in_gateway: false`. A cada sincronização, a trava é revalidada antes de escrever. Assim, inclusive o comando manual de despacho do Kanban não deve escolher estes cartões; apenas o Gateway/Supabase pode liberar e executar trabalho. Alterar o cartão no Kanban não aprova, delega, reprime ou atualiza o job original: a próxima sincronização repõe a situação oficial. A aprovação e a revisão continuam pelas ferramentas do Gateway. Se a leitura falhar, o quadro conserva o último retrato e a sincronização sai com erro; não inventa estado novo.
+
+Estados espelhados: DRAFT/WAITING_APPROVAL/FAILED/CANCELLED → blocked; SCHEDULED → scheduled; READY → ready; CLAIMED/RUNNING → running; WAITING_HELENA → review; COMPLETED → done. O status no cartão mostra o estado técnico do job, não a aprovação comercial da entrega. O quadro `default` do Hermes continua separado; selecionar `helena-biz-003` para Humano Digital.
 
 1. `get_work_context`: identidade, papel, checkpoint atual, tarefas, encaminhamentos e revisões pendentes.
 2. `create_task_job`: Helena/Marina cria, na mesma transação, tarefa visível, job em DRAFT e handoff.

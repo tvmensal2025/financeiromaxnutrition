@@ -27,6 +27,7 @@ import { BRIEF_LIMITS, validateProfessionalBrief } from './brief-contract.mjs';
 import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs';
 import { createTypeSafe } from './integrations/typesafe.mjs';
 import { jobView, JOB_SECTIONS } from './job-reader.mjs';
+import { kanbanSnapshot } from './kanban-snapshot.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -1094,6 +1095,15 @@ const TOOLS_CONFIG = {
       agent_id: z.string().optional().describe('Filtro opcional por agente')
     }),
     handler: handleQueueSummary
+  },
+  kanban_snapshot: {
+    description: 'Leitura paginada e compacta da fila oficial para o quadro visual Hermes. Somente Helena; nao despacha nem altera jobs.',
+    schema: z.object({
+      business_id: z.string().regex(/^[A-Za-z0-9_-]{2,80}$/).optional(),
+      offset: z.number().int().min(0).max(10000).optional(),
+      limit: z.number().int().min(1).max(100).optional()
+    }).strict(),
+    handler: args => kanbanSnapshot(supabaseFetch, args)
   }
 };
 
@@ -1129,7 +1139,8 @@ const mcpInputs = {
   fail_job: inputObject({ ...jobFields, ...textFields('error_code error_message'), payload: { type: 'object', additionalProperties: true } }, [...jobRequired, 'error_code', 'error_message']),
   waiting_helena: inputObject({ ...jobFields, ...textFields('contexto impacto decisao_necessaria recomendacao') }, [...jobRequired, 'contexto', 'impacto', 'decisao_necessaria', 'recomendacao']),
   enqueue_job: inputObject({ ...textFields('agent_id objective instruction business_id task_id scheduled_at available_at idempotency_key correlation_id'), priority: { type: 'string', enum: ['CRITICA', 'ALTA', 'MEDIA', 'BAIXA'] }, approval_required: { type: 'boolean' } }, ['agent_id', 'objective']),
-  queue_summary: inputObject(textFields('business_id agent_id'))
+  queue_summary: inputObject(textFields('business_id agent_id')),
+  kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } })
 };
 for (const [name, inputSchema] of Object.entries(mcpInputs)) TOOLS_CONFIG[name].inputSchema = inputSchema;
 
