@@ -240,6 +240,71 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
         save('VERIFIED', result=result)
         return result
 
+def reposition_logo(base, logo, slot, left, top):
+    """Recompose from original pixels; only the official logo changes position."""
+    size = (1080, 1350 if slot == 'post' else 1920)
+    image = ImageOps.exif_transpose(Image.open(io.BytesIO(base))).convert('RGB')
+    if image.width * image.height > 16_000_000 or abs((image.width/image.height)/(size[0]/size[1])-1) > .04:
+        raise ValueError('Original image dimensions invalid')
+    canvas = Image.new('RGB', size, '#075E47')
+    art = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
+    canvas.paste(art, ((size[0]-art.width)//2, (size[1]-art.height)//2))
+    mark = ImageOps.contain(Image.open(io.BytesIO(logo)).convert('RGBA'), (260,96), Image.Resampling.LANCZOS)
+    margin = 250 if slot != 'post' else 50
+    if (type(left) is not int or type(top) is not int or left < 60 or top < margin
+            or left+mark.width > size[0]-60 or top+mark.height > size[1]-margin):
+        raise ValueError('Logo outside safe area')
+    canvas.paste(mark, (left,top), mark)
+    out = io.BytesIO(); canvas.save(out, format='PNG', optimize=True)
+    return out.getvalue()
+
+
+def recompose_design(job_id: str, slot: str, source_version: int, version: int, left: int, top: int) -> dict:
+    """Move official logo using a proven original base, with ZERO image model calls.
+
+    Requires original.png saved beside the source final.png. Re-renders the old
+    composition to verify that this base and current logo produced those exact
+    verified pixels. Refuses any mismatch. Does not retouch text or photography.
+    New image version must be source_version+1. Submit both final artifact_refs
+    for independent pixel review. This does not approve or publish anything.
+    """
+    if Path(os.environ.get('HERMES_HOME','')).name != 'maya--biz003': raise ValueError('Maya only')
+    if (not isinstance(job_id,str) or not JOB_PATTERN.fullmatch(job_id)
+            or slot not in ('post','story-1','story-2','story-3')
+            or type(source_version) is not int or type(version) is not int
+            or not 1 <= source_version < version <= 5 or version != source_version+1):
+        raise ValueError('Invalid recomposition identifiers')
+    token = os.environ[TOKEN_NAME]
+    job, creative, brand = design_contract(call_tool(GATEWAY,token,'get_job',{'job_id':job_id}),slot)
+    source = ROOT/job_id/f'{slot}-v{source_version}'
+    base = (source/'original.png').read_bytes(); logo = (source/'logo.png').read_bytes()
+    current = call_tool(GATEWAY,token,'get_visual_asset',{'job_id':job_id,'reference':'brand-logo'})
+    if base64.b64decode(current['data'],validate=True) != logo: raise ValueError('Official logo changed')
+    palette = [c['hex'] for c in brand['colors']]
+    old = final_canvas(base,logo,slot,palette[0],palette)
+    reference = f'storage://helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{source_version}.png'
+    asset = call_tool(GATEWAY,token,'get_visual_asset',{'job_id':job_id,'reference':reference})
+    if hashlib.sha256(old).hexdigest() != asset['sha256']: raise ValueError('Original base does not reproduce verified source')
+    final = reposition_logo(base,logo,slot,left,top)
+    directory = ROOT/job_id/f'{slot}-v{version}'; directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+    import fcntl
+    with (directory/'lock').open('a+') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        fingerprint = hashlib.sha256(json.dumps(['RECOMPOSE',reference,asset['sha256'],left,top,creative],sort_keys=True).encode()).hexdigest()
+        rp=directory/'receipt.json'; path=directory/'final.png'
+        prior=json.loads(rp.read_text()) if rp.exists() else None
+        if prior and prior.get('fingerprint') != fingerprint: raise ValueError('Version belongs to another operation')
+        if prior and prior.get('result'): return prior['result']
+        if path.exists() and path.read_bytes()!=final: raise ValueError('Existing image differs; no overwrite')
+        def save(state,**extra):
+            p=rp.with_suffix('.tmp');p.write_text(json.dumps({'fingerprint':fingerprint,'operation':'RECOMPOSE','state':state,'model_calls':0,'source_reference':reference,'source_sha256':asset['sha256'],'base_sha256':hashlib.sha256(base).hexdigest(),'logo_position':[left,top],**extra}));os.chmod(p,0o600);p.replace(rp)
+        save('RENDERED')
+        if not path.exists(): path.write_bytes(final);os.chmod(path,0o600)
+        result=upload_existing_png(job,slot,version,path,token)
+        result={**result,'model_calls':0,'approval_inherited':False};save('VERIFIED',result=result)
+        return result
+
+
 def reuse_design(job_id: str, source_job_id: str, slot: str, source_version: int, version: int) -> dict:
     """Reuse exact verified pixels from a linked Maya job in the same business.
 
@@ -314,4 +379,5 @@ if __name__ == '__main__':
     server.tool()(check_visual_runtime)
     server.tool()(generate_design)
     server.tool()(reuse_design)
+    server.tool()(recompose_design)
     server.run(transport='stdio')
