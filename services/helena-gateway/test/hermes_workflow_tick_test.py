@@ -76,7 +76,7 @@ class ReviewStateTests(unittest.TestCase):
     def test_review_then_durable_handoff(self):
         r = self.run_tick()
         self.assertEqual(r['next_phase'],'HANDOFF')
-        self.assertEqual(self.worker().state['pending'][JOB]['agent_id'],'AGT-04')
+        self.assertEqual(self.worker().state['pending'][JOB]['agent_id'],'AGT-01')
         self.assertEqual(self.calls,1)
 
     def test_stale_pending_handoff_uses_existing_child_without_inference(self):
@@ -129,7 +129,7 @@ class ReviewStateTests(unittest.TestCase):
     def test_no_effect_not_paid_again(self):
         self.runner_mode='NO_EFFECT'
         self.assertEqual(self.run_tick()['status'],'NEEDS_ATTENTION')
-        self.assertEqual(self.run_tick()['status'],'NO_NEW_REVIEW')
+        self.assertEqual(self.run_tick()['status'],'WORKFLOW_NEEDS_ATTENTION')
         self.assertEqual(self.calls,1)
 
     def test_crash_reconciles_without_second_review(self):
@@ -139,7 +139,9 @@ class ReviewStateTests(unittest.TestCase):
         worker.persist()
         approve(self.d)
         # Dry-run cannot mutate jobs, but reconciles the durable local receipt.
-        with self.assertRaises(RuntimeError): worker.tick(False)
+        report = worker.tick(False)
+        self.assertEqual(report['status'], 'WORKFLOW_DRY_RUN')
+        self.assertEqual(report['profile'], 'helena--grupo')
         self.assertEqual(worker.state['receipts'][key]['status'],'RECONCILED')
         self.assertEqual(self.calls,0)
 
@@ -267,7 +269,7 @@ class ReviewStateTests(unittest.TestCase):
             self.calls+=1
             if 'fase REVIEW,' in prompt: approve(self.d)
             elif 'fase HANDOFF,' in prompt:
-                self.assertEqual(profile,'marina--biz003')
+                self.assertEqual(profile,'helena--grupo')
                 self.d['events'].insert(0,{'event_type':'WORKFLOW_handoff','payload':{'response':{'job_id':CHILD}}})
             elif 'fase COORDINATE,' in prompt:
                 self.assertEqual(profile,'helena--grupo')
@@ -280,6 +282,54 @@ class ReviewStateTests(unittest.TestCase):
         self.assertEqual(self.run_tick()['observed_status'],'READY')
         self.assertEqual(self.calls,3)
         self.assertFalse(self.worker().state['pending'])
+
+class FleetActionOwnershipTests(ReviewStateTests):
+    def test_all_21_producers_handoff_via_coordinator(self):
+        for number in range(1, 22):
+            with self.subTest(agent=number):
+                d = detail()
+                d['job']['agent_id'] = f'AGT-{number:02}'
+                approve(d)
+                self.assertEqual(wf.phase_for(d), ('HANDOFF', 'AGT-01'))
+                worker = self.worker()
+                worker.enqueue_follow(d, 'HANDOFF')
+                self.assertEqual(worker.state['pending'][JOB]['agent_id'], 'AGT-01')
+
+    def test_stale_finance_legal_marketing_pending_reselects_coordinator(self):
+        approve(self.d)
+        for agent in ('AGT-05', 'AGT-06', 'AGT-16'):
+            self.d['job']['agent_id'] = agent
+            worker = self.worker()
+            worker.state['pending'][JOB] = {'phase':'HANDOFF','agent_id':agent}
+            self.assertEqual(worker.select(JOB)[2], 'AGT-01')
+
+    def test_wrong_actor_blocked_before_model_or_profile_lookup(self):
+        approve(self.d)
+        worker = self.worker()
+        with patch.object(worker, 'select', return_value=(self.d, 'HANDOFF', 'AGT-05')), \
+             patch.object(worker, 'profile') as lookup:
+            self.assertEqual(worker.tick(True)['status'], 'ACTION_ACTOR_MISMATCH')
+            lookup.assert_not_called()
+        self.assertEqual(self.calls, 0)
+
+    def test_personal_scope_not_adopted_even_explicitly(self):
+        self.d['job']['scope_type'] = 'PERSONAL'
+        self.config['adopt_job_ids'] = [JOB]
+        self.assertFalse(wf.permitted(self.d, self.config))
+
+    def test_specialists_cannot_review_their_own_delivery(self):
+        for number in range(1, 22):
+            d = detail()
+            d['job']['agent_id'] = f'AGT-{number:02}'
+            d['job']['result_payload']['reviewer_agent_id'] = d['job']['agent_id']
+            self.assertIsNone(wf.phase_for(d))
+
+    def test_handoff_prompt_matches_coordinator_authorization(self):
+        approve(self.d)
+        prompt = wf.make_prompt('HANDOFF', self.d, 'a'*64)
+        self.assertIn('Somente a coordenacao pode chamar handoff_task', prompt)
+        self.assertNotIn('Voce continua como executor para encaminhar', prompt)
+
 
 class CanonicalContinuityTests(ReviewStateTests):
     def setUp(self):
@@ -323,7 +373,7 @@ class CanonicalContinuityTests(ReviewStateTests):
         self.runner_mode = 'NO_EFFECT'
         self.assertEqual(self.run_tick()['status'], 'NEEDS_ATTENTION')
         (self.path/'workflow-state.json').unlink()
-        self.assertEqual(self.run_tick()['status'], 'NO_NEW_REVIEW')
+        self.assertEqual(self.run_tick()['status'], 'WORKFLOW_NEEDS_ATTENTION')
         self.assertEqual(self.calls, 1)
 
     def test_reservation_in_bank_precedes_inference_and_token_never_printed(self):

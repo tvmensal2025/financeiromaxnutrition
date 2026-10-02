@@ -24,7 +24,7 @@ const contracts = {
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
   adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(BRIEF_LIMITS.instruction.max).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
   submit_delivery: ['submit_delivery', { ...job, ...version, summary: text(8000), evidence_refs: z.array(text(500)).min(1).max(10), delivery: professionalDeliverySchema, publication: publicationSchema.optional() }, 'Registra entrega e aguarda revisao. Todas as funcoes exigem delivery: schema_version=1, title, content utilizavel, next_steps, limitations e acceptance_checks (criterion, evidence_ref, finding). Material social tambem exige publication: title, caption, strategy, instructions, alt_text. summary e interno.'],
-  review_delivery: ['review_delivery', { ...job, ...version, decision: z.enum(['APPROVE', 'REQUEST_CHANGES']), reason: text(), quality_review: qualityReviewSchema.optional(), visual_review: visualReviewSchema.optional() }, 'Revisor designado ou Helena revisa. APPROVE exige quality_review: inspected_evidence_refs, verified_criteria, findings, requirements_met=true; compare o pedido completo. Arte tambem exige visual_review de cada imagem final. Sem ferramenta ou fonte, pedir ajustes. Proibida autoaprovacao.'],
+  review_delivery: ['review_delivery', { ...job, ...version, decision: z.enum(['APPROVE', 'REQUEST_CHANGES']), reason: text(), quality_review: qualityReviewSchema.optional(), visual_review: visualReviewSchema.optional() }, 'Revisor designado ou Helena revisa. APPROVE exige quality_review: inspected_evidence_refs exatas, findings e requirements_met=true, com exatamente um modo: verified_check_ids do review_contract de get_job OU verified_criteria literais legados. Copie approval_fields_seed e acrescente seu parecer apos inspecao; o seed nao aprova. Compare o pedido completo. Arte tambem exige visual_review de cada imagem final. Sem ferramenta ou fonte, pedir ajustes. Proibida autoaprovacao.'],
   handoff_task: ['handoff', { ...job, ...version, ...task }, 'Depois da revisao aprovada, cria a proxima tarefa, com fonte, evidencia e responsavel; permanece DRAFT.'],
   release_job: ['release_job', { ...job, ...version }, 'Helena ou Marina libera um DRAFT. Exige executor ativo, limite de tentativas e WIP global 1. Nao inicia o modelo.'],
   record_memory: ['record_memory', { ...job, summary: text(8000), source: text(1000), next_step: text(1000) }, 'Persiste memoria operacional da propria tarefa e empresa, com fonte e proximo passo. Nao altera fatos de outras tabelas.']
@@ -39,17 +39,22 @@ function property(field) {
 
 function propertyShape(field) {
   if (field instanceof z.ZodOptional) return property(field.unwrap());
+  if (field instanceof z.ZodUnion) return { oneOf: field.options.map(property) };
   if (field instanceof z.ZodBoolean) return { type: 'boolean' };
   if (field instanceof z.ZodLiteral) return { type: typeof field.value, const: field.value };
   if (field instanceof z.ZodObject) return { type: 'object', properties: Object.fromEntries(Object.entries(field.shape).map(([k,v]) => [k, property(v)])), required: Object.entries(field.shape).filter(([,v]) => !v.isOptional()).map(([k]) => k), additionalProperties: false };
   if (field instanceof z.ZodNumber) return { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER };
   if (field instanceof z.ZodEnum) return { type: 'string', enum: field.options };
-  if (field instanceof z.ZodArray) return { type: 'array', items: property(field.element), minItems: 1, maxItems: 10 };
+  if (field instanceof z.ZodArray) return { type: 'array', items: property(field.element),
+    ...(field._def.minLength ? { minItems: field._def.minLength.value } : {}),
+    ...(field._def.maxLength ? { maxItems: field._def.maxLength.value } : {}) };
   if (field instanceof z.ZodString) {
-    const minimums = field._def.checks.filter(check => check.kind === 'min').map(check => check.value);
-    const maximums = field._def.checks.filter(check => check.kind === 'max').map(check => check.value);
+    const minimums = field._def.checks.filter(check => ['min', 'length'].includes(check.kind)).map(check => check.value);
+    const maximums = field._def.checks.filter(check => ['max', 'length'].includes(check.kind)).map(check => check.value);
+    const regex = field._def.checks.find(check => check.kind === 'regex');
     return { type: 'string', minLength: Math.max(1, ...minimums),
-      ...(maximums.length ? { maxLength: Math.min(...maximums) } : {}) };
+      ...(maximums.length ? { maxLength: Math.min(...maximums) } : {}),
+      ...(regex ? { pattern: regex.regex.source } : {}) };
   }
   return { type: 'string', minLength: 1 };
 }
@@ -130,7 +135,7 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
           throw new Error('Aprovacao exige entrega em revisao e evidencia da propria tarefa localizada no Supabase');
         }
         const delivery = validateProfessionalDelivery(context.job.result_payload?.delivery, refs);
-        validateQualityReview(args.quality_review, delivery, refs);
+        args = { ...args, quality_review: validateQualityReview(args.quality_review, delivery, refs) };
         if (context.job.agent_id === 'AGT-12' && /post|stor(y|ies)|arte/i.test(context.job.objective || '')) {
           validateRequestedArtifacts(context);
           validateBrandForDesign(context, validateCreativeBrief(context.job.instruction, context.job.business_id));

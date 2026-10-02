@@ -39,3 +39,18 @@ test('journal failure is closed and an unconfirmed reservation is never invented
   await assert.rejects(tools.workflow_checkpoint.handler({ action: 'list' }, { identity: { profileSlug: 'helena--grupo' } }), /nao confirmado/);
   await assert.rejects(tools.workflow_checkpoint.handler({ action: 'list' }, {}), /coordenacao/);
 });
+
+test('recovery requires bounded review repair with original receipt and exact snapshot', () => {
+  const schema = workflowJournalTools(() => {}).workflow_checkpoint.schema;
+  const args = { action: 'recover', job_id: 'JOB-HR-'+'a'.repeat(32), phase: 'REVIEW',
+    fingerprint: 'b'.repeat(64), expected_task_version: 3, expected_status: 'WAITING_HELENA',
+    expected_updated_at: '2026-10-01T00:00:00Z', run_id: '11111111-1111-4111-8111-111111111111',
+    run_token: '22222222-2222-4222-8222-222222222222', diagnostic: 'REVIEW_CONTRACT_REJECTED', repair_version: 'review-contract-v2' };
+  assert.deepEqual(schema.parse(args), args);
+  for (const field of ['run_id','run_token','repair_version','diagnostic','expected_task_version']) {
+    const missing = { ...args }; delete missing[field]; assert.throws(() => schema.parse(missing));
+  }
+  for (const patch of [{ phase:'HANDOFF' }, { diagnostic:'TIMEOUT' }, { expected_status:'COMPLETED' }, { max_attempts:10 }]) {
+    assert.throws(() => schema.parse({ ...args,...patch }));
+  }
+});

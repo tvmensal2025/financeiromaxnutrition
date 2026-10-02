@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { workflowTools } from '../src/workflow.mjs';
-import { QUALITY_VERSION } from '../src/professional-output.mjs';
+import { QUALITY_VERSION, buildReviewContract } from '../src/professional-output.mjs';
 import { sampleDelivery, sampleQuality, creativeContext } from './quality-fixtures.mjs';
 
 test('workflow nunca aceita identidade administrativa ou declarada pelo modelo', async () => {
@@ -206,4 +206,124 @@ test('entrega visual da Maya exige os formatos pedidos, pacote publicavel e revi
     });
   await tools.review_delivery.handler(input, { identity });
   assert.equal(calls.length, 1);
+});
+
+function approvalFixture() {
+  const delivery = sampleDelivery();
+  delivery.acceptance_checks[0].criterion = 'Conferir todos os requisitos da copy e suas fontes. '.padEnd(300, 'x');
+  delivery.acceptance_checks.push({ ...delivery.acceptance_checks[0], criterion: 'Conferir a proxima etapa e seus limites' });
+  const refs = ['MEM-HR-1', 'MEM-HR-2'];
+  const detail = { job: { job_id: 'JOB-CAMILA', status: 'WAITING_HELENA', agent_id: 'AGT-16', evidence_refs: refs, result_payload: { delivery } },
+    task: { row_version: 87 }, evidence_records: refs.map(id => ({ id, related_object_id: 'JOB-CAMILA' })), evidence_missing: [] };
+  const contract = buildReviewContract(detail);
+  const input = { job_id: 'JOB-CAMILA', idempotency_key: 'review-with-ids', decision: 'APPROVE', reason: 'Conferi a copy e as fontes da versao vigente.',
+    ...contract.approval_fields_seed,
+    quality_review: { ...contract.approval_fields_seed.quality_review, findings: sampleQuality(delivery).findings, requirements_met: true } };
+  const identity = { type: 'hermes_profile', profileSlug: 'augusto--biz003', agentId: 'AGT-03', bindingVerified: true };
+  return { detail, delivery, input, identity };
+}
+
+test('aprovacao por IDs normaliza criteria e refs ANTES RPC sem alterar entrada ou identidade', async () => {
+  const { detail, delivery, input, identity } = approvalFixture();
+  input.quality_review.verified_check_ids.reverse();
+  input.quality_review.inspected_evidence_refs.reverse();
+  const original = structuredClone(input), calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true }; }, async () => detail);
+  assert.equal(tools.review_delivery.schema.safeParse(input).success, true);
+  await tools.review_delivery.handler(input, { identity });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], 'gateway_workflow');
+  const request = calls[0][1];
+  assert.equal(request.p_profile_slug, 'augusto--biz003');
+  assert.equal(request.p_action, 'review_delivery');
+  assert.equal(request.p_payload.expected_task_version, 87);
+  assert.equal(request.p_payload.decision, 'APPROVE');
+  assert.deepEqual(request.p_payload.quality_review.verified_criteria, delivery.acceptance_checks.map(check => check.criterion));
+  assert.equal(request.p_payload.quality_review.verified_criteria[0].length, 300);
+  assert.deepEqual(request.p_payload.quality_review.inspected_evidence_refs, detail.job.evidence_refs);
+  assert.equal(Object.hasOwn(request.p_payload.quality_review, 'verified_check_ids'), false);
+  assert.equal(request.p_payload.quality_review.findings, input.quality_review.findings);
+  assert.equal(request.p_payload.quality_review.requirements_met, true);
+  assert.deepEqual(input, original);
+});
+
+test('IDs nao corrigem versao obsoleta e preservam rejeicao da RPC autoritativa', async () => {
+  const { detail, input, identity } = approvalFixture();
+  input.expected_task_version = 86;
+  const calls = [];
+  const tools = workflowTools(async (name, request) => {
+    calls.push(request);
+    if (request.p_payload.expected_task_version !== detail.task.row_version) throw new Error('40001: Versao desatualizada');
+    return { success: true };
+  }, async () => detail);
+  await assert.rejects(tools.review_delivery.handler(input, { identity }), /40001.*Versao desatualizada/);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].p_payload.expected_task_version, 86);
+  assert.equal(input.expected_task_version, 86);
+  assert.equal(Object.hasOwn(calls[0].p_payload.quality_review, 'verified_check_ids'), false);
+});
+
+test('review_delivery recusa ref, ID, criterio parafraseado e modo misto antes da RPC', async () => {
+  const { detail, input, identity, delivery } = approvalFixture();
+  let calls = 0;
+  const tools = workflowTools(async () => { calls++; return { success: true }; }, async () => detail);
+  for (const quality_review of [
+    { ...input.quality_review, inspected_evidence_refs: ['REF-ERRADA'] },
+    { ...input.quality_review, verified_check_ids: ['C-0000000000000000'] },
+    { ...input.quality_review, verified_criteria: delivery.acceptance_checks.map(check => check.criterion) },
+    { ...sampleQuality(delivery, detail.job.evidence_refs), verified_criteria: ['Conferir requisitos e fontes da copy'] }
+  ]) await assert.rejects(tools.review_delivery.handler({ ...input, quality_review }, { identity }), /QUALITY_REVIEW_(MISMATCH|MODE)/);
+  assert.equal(calls, 0);
+  const tooLong = { ...sampleQuality(delivery, detail.job.evidence_refs), verified_criteria: [delivery.acceptance_checks[0].criterion + '.'] };
+  const rejected = tools.review_delivery.schema.safeParse({ ...input, quality_review: tooLong });
+  assert.equal(rejected.success, false);
+  assert.match(rejected.error.message, /REVIEW_CONTRACT_MISMATCH/);
+});
+
+test('REQUEST_CHANGES dispensa contrato de aprovacao e continua usando versao e perfil originais', async () => {
+  const { input, identity } = approvalFixture();
+  const { quality_review, ...change } = input;
+  change.decision = 'REQUEST_CHANGES';
+  change.reason = 'A copy precisa distinguir fonte comprovada de promessa.';
+  const calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true, decision: 'REQUEST_CHANGES' }; },
+    async () => { throw new Error('REQUEST_CHANGES nao exige leitura para APPROVE'); });
+  assert.equal(tools.review_delivery.schema.safeParse(change).success, true);
+  const result = await tools.review_delivery.handler(change, { identity });
+  assert.equal(result.decision, 'REQUEST_CHANGES');
+  assert.equal(calls[0][1].p_profile_slug, identity.profileSlug);
+  assert.deepEqual(calls[0][1].p_payload, change);
+  assert.equal(Object.hasOwn(calls[0][1].p_payload, 'quality_review'), false);
+});
+
+test('MCP anuncia dois modos exclusivos e limites reais de IDs, criterios, refs e findings', () => {
+  const tools = workflowTools(() => {});
+  const choices = tools.review_delivery.inputSchema.properties.quality_review.oneOf;
+  assert.equal(choices.length, 2);
+  const ids = choices.find(choice => choice.properties.verified_check_ids);
+  const legacy = choices.find(choice => choice.properties.verified_criteria);
+  for (const choice of choices) {
+    assert.equal(choice.additionalProperties, false);
+    assert.equal(choice.properties.inspected_evidence_refs.minItems, 1);
+    assert.equal(choice.properties.inspected_evidence_refs.maxItems, 10);
+    assert.equal(choice.properties.inspected_evidence_refs.items.maxLength, 500);
+    assert.equal(choice.properties.findings.minLength, 80);
+    assert.equal(choice.properties.findings.maxLength, 2000);
+    assert.equal(choice.properties.requirements_met.const, true);
+  }
+  assert.ok(ids.required.includes('verified_check_ids'));
+  assert.equal(Object.hasOwn(ids.properties, 'verified_criteria'), false);
+  assert.equal(ids.properties.verified_check_ids.minItems, 1);
+  assert.equal(ids.properties.verified_check_ids.maxItems, 8);
+  assert.equal(ids.properties.verified_check_ids.items.minLength, 18);
+  assert.equal(ids.properties.verified_check_ids.items.maxLength, 18);
+  assert.equal(ids.properties.verified_check_ids.items.pattern, '^C-[a-f0-9]{16}$');
+  assert.ok(legacy.required.includes('verified_criteria'));
+  assert.equal(legacy.properties.verified_criteria.maxItems, 8);
+  assert.equal(legacy.properties.verified_criteria.items.maxLength, 300);
+  assert.equal(tools.submit_delivery.inputSchema.properties.delivery.properties.acceptance_checks.maxItems, 8);
+  const fixture = approvalFixture();
+  assert.equal(tools.review_delivery.schema.safeParse({ ...fixture.input, quality_review: {
+    ...fixture.input.quality_review, verified_criteria: fixture.delivery.acceptance_checks.map(check => check.criterion)
+  } }).success, false);
 });

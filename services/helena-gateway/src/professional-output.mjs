@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
 export const QUALITY_VERSION = 'helena-delivery-quality-v1';
+export const REVIEW_CONTRACT_VERSION = 'review-contract-v2';
 const registry = JSON.parse(readFileSync(new URL('./agent-quality-contracts.json', import.meta.url), 'utf8'));
 export function agentQualityContract(agentId) {
   return registry.agents.find(agent => agent.agent_id === agentId) || null;
@@ -20,12 +22,45 @@ export const professionalDeliverySchema = z.object({
   }).strict()).min(1).max(8)
 }).strict();
 
-export const qualityReviewSchema = z.object({
+const qualityReviewFields = {
   inspected_evidence_refs: z.array(z.string().min(1).max(500)).min(1).max(10),
-  verified_criteria: z.array(z.string().min(15).max(300)).min(1).max(8),
   findings: z.string().trim().min(80).max(2000),
   requirements_met: z.literal(true)
-}).strict();
+};
+export const qualityReviewSchema = z.union([
+  z.object({ ...qualityReviewFields,
+    verified_check_ids: z.array(z.string().length(18, 'REVIEW_CONTRACT_MISMATCH: copie o check_id completo de review_contract.criteria.')
+      .regex(/^C-[a-f0-9]{16}$/, 'REVIEW_CONTRACT_MISMATCH: use o check_id exato C-<16hex> de review_contract.criteria.')).min(1).max(8)
+  }).strict('REVIEW_CONTRACT_MISMATCH: use somente verified_check_ids OU verified_criteria, sem campos extras; releia get_job.review_contract.'),
+  z.object({ ...qualityReviewFields,
+    verified_criteria: z.array(z.string().min(15).max(300,
+      'REVIEW_CONTRACT_MISMATCH: criterion excede 300 caracteres. Copie o texto canonico ou use verified_check_ids de review_contract; nao parafraseie.')).min(1).max(8)
+  }).strict('REVIEW_CONTRACT_MISMATCH: use somente verified_check_ids OU verified_criteria, sem campos extras; releia get_job.review_contract.')
+], { errorMap: () => ({ message: 'REVIEW_CONTRACT_MISMATCH: use exatamente um modo, verified_check_ids OU verified_criteria. Copie o approval_fields_seed do get_job.review_contract vigente e adicione seu parecer apos inspecao.' }) });
+
+export function qualityCheckId(criterion) {
+  return 'C-' + createHash('sha256').update(criterion, 'utf8').digest('hex').slice(0, 16);
+}
+
+// Only mechanical fields are supplied. A contract is never an approval or proof of inspection.
+export function buildReviewContract(detail) {
+  const version = detail?.task?.row_version;
+  const refs = detail?.job?.evidence_refs;
+  if (!Number.isSafeInteger(version) || version <= 0 || !Array.isArray(refs)
+    || refs.length < 1 || refs.length > 10 || new Set(refs).size !== refs.length
+    || refs.some(ref => typeof ref !== 'string' || ref.length < 1 || ref.length > 500)) return null;
+  let delivery;
+  try { delivery = validateProfessionalDelivery(detail.job.result_payload?.delivery, refs); }
+  catch { return null; } // Legacy or invalid deliveries remain readable; they cannot acquire an approval seed.
+  const criteria = delivery.acceptance_checks.map(check => ({
+    check_id: qualityCheckId(check.criterion), criterion: check.criterion, evidence_ref: check.evidence_ref
+  }));
+  return { version: REVIEW_CONTRACT_VERSION, schema_version: 1, expected_task_version: version, criteria, evidence_refs: [...refs],
+    approval_fields_seed: { expected_task_version: version, quality_review: {
+      inspected_evidence_refs: [...refs], verified_check_ids: criteria.map(check => check.check_id)
+    } }
+  };
+}
 
 export function validateProfessionalDelivery(delivery, refs) {
   if (!delivery) throw new Error('Entrega exige delivery: material utilizavel, proximos passos, limites e criterios com evidencias');
@@ -45,10 +80,30 @@ export function validateProfessionalDelivery(delivery, refs) {
 }
 
 export function validateQualityReview(review, delivery, refs) {
-  if (!review) throw new Error('Aprovacao exige quality_review com evidencias abertas e criterios conferidos');
-  const parsed = qualityReviewSchema.parse(review);
-  const sameSet = (actual, expected) => actual.length === new Set(actual).size && actual.length === expected.length && expected.every(item => actual.includes(item));
-  if (!sameSet(parsed.inspected_evidence_refs, refs) || !sameSet(parsed.verified_criteria, delivery.acceptance_checks.map(check => check.criterion)))
-    throw new Error('Revisor deve conferir exatamente as evidencias e todos os criterios da versao entregue');
-  return parsed;
+  if (!review) throw new Error('REVIEW_CONTRACT_MISMATCH: aprovacao exige quality_review com evidencias abertas e criterios conferidos; releia get_job.review_contract e acrescente seu parecer.');
+  const idsMode = Object.hasOwn(review, 'verified_check_ids');
+  const legacyMode = Object.hasOwn(review, 'verified_criteria');
+  if (idsMode === legacyMode)
+    throw new Error('REVIEW_CONTRACT_MISMATCH: QUALITY_REVIEW_MODE: envie exatamente um modo: verified_check_ids OU verified_criteria; remova o outro campo. Releia get_job.review_contract.');
+  const parsed = qualityReviewSchema.safeParse(review);
+  if (!parsed.success)
+    throw new Error('REVIEW_CONTRACT_MISMATCH: QUALITY_REVIEW_SHAPE: ' + parsed.error.message
+      + '. Releia get_job.review_contract.approval_fields_seed; copie IDs completos e refs exatas. Adicione findings de 80 a 2000 caracteres e requirements_met=true somente apos inspecao real.');
+  const compare = (field, actual, expected) => {
+    const missing = expected.filter(item => !actual.includes(item));
+    const unexpected = [...new Set(actual.filter(item => !expected.includes(item)))];
+    const duplicates = [...new Set(actual.filter((item, index) => actual.indexOf(item) !== index))];
+    if (missing.length || unexpected.length || duplicates.length || actual.length !== expected.length)
+      throw new Error('REVIEW_CONTRACT_MISMATCH: QUALITY_REVIEW_MISMATCH: ' + field + ' deve corresponder exatamente a versao entregue. '
+        + JSON.stringify({ missing, unexpected, duplicates, expected_count: expected.length, received_count: actual.length })
+        + '. Releia get_job.review_contract e copie approval_fields_seed sem alterar refs ou IDs. No modo legado, copie cada criterion literalmente; nao parafraseie. Mantenha findings baseado na inspecao e confira a versao antes de reenviar.');
+  };
+  const criteria = delivery.acceptance_checks.map(check => check.criterion);
+  compare('inspected_evidence_refs', parsed.data.inspected_evidence_refs, refs);
+  compare(idsMode ? 'verified_check_ids' : 'verified_criteria',
+    idsMode ? parsed.data.verified_check_ids : parsed.data.verified_criteria,
+    idsMode ? criteria.map(qualityCheckId) : criteria);
+  // The SQL contract remains canonical text; IDs are an input aid, never persisted as criteria.
+  return { inspected_evidence_refs: [...refs], verified_criteria: criteria,
+    findings: parsed.data.findings, requirements_met: parsed.data.requirements_met };
 }

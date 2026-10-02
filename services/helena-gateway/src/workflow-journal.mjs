@@ -24,7 +24,8 @@ export function workflowJournalTools(rpc) {
     workflow_checkpoint: {
       description: 'Coordenacao/runtime: reserva e confirma uma etapa com snapshot e deduplicacao. Nao altera status, aprovacao ou tentativas do job.',
       schema: z.object({
-        action: z.enum(['list', 'reserve', 'finish']),
+        action: z.enum(['list', 'reserve', 'finish', 'recover']),
+        repair_version: z.literal('review-contract-v2').optional(),
         job_id: job.optional(), phase: z.enum(['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE']).optional(),
         fingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(),
         expected_task_version: z.number().int().nonnegative().optional(),
@@ -35,9 +36,14 @@ export function workflowJournalTools(rpc) {
         diagnostic: z.string().max(100).optional()
         ,after_run_id: z.string().uuid().optional()
       }).strict().superRefine((a, ctx) => {
-        const required = a.action === 'reserve' ? ['job_id', 'phase', 'fingerprint', 'expected_task_version', 'expected_status', 'expected_updated_at']
+        const snapshot = ['job_id', 'phase', 'fingerprint', 'expected_task_version', 'expected_status', 'expected_updated_at'];
+        const required = a.action === 'recover' ? [...snapshot, 'run_id', 'run_token', 'repair_version', 'diagnostic']
+          : a.action === 'reserve' ? snapshot
           : a.action === 'finish' ? ['run_id', 'run_token', 'status'] : [];
         for (const key of required) if (a[key] === undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'Campo obrigatorio para esta acao' });
+        if (a.action === 'recover' && (a.phase !== 'REVIEW' || a.expected_status !== 'WAITING_HELENA' || a.diagnostic !== 'REVIEW_CONTRACT_REJECTED')) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Recuperacao limitada a revisao recusada por contrato, com snapshot completo' });
+        }
       }),
       handler: async (args, { identity } = {}) => {
         if (!identity?.profileSlug) throw new Error('Perfil de coordenacao obrigatorio');

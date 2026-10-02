@@ -51,6 +51,7 @@ def execution_packet(detail, phase='EXECUTE'):
     if phase in ('REVIEW', 'HANDOFF'):
         packet['submitted_delivery'] = pick(result, ('delivery', 'publication', 'quality_review', 'visual_review'))
         packet['submission_summary'] = job.get('result_summary')
+        packet['review_contract'] = detail.get('review_contract')
     encoded = json.dumps(packet, ensure_ascii=False, separators=(',', ':'))
     if len(encoded) > 65000:
         raise ValueError('Task packet too large; reduce duplicated inputs before inference')

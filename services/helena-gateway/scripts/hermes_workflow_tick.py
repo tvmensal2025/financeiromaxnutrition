@@ -5,12 +5,15 @@ an interrupted, unconfirmed action is reconciled from authoritative job events.
 Never automatically repeat an uncertain paid call.
 """
 import argparse
+from contextlib import closing
 from datetime import datetime, timezone
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import signal
+import sqlite3
 import subprocess
 import tempfile
 
@@ -20,6 +23,44 @@ from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
 # Stay below the canonical ten-minute lease, leaving time to confirm and finish.
 WORKFLOW_TIMEOUT_SECONDS = 480
+REVIEW_REPAIR_VERSION = 'review-contract-v2'
+
+
+class RunResult(int):
+    """Exit code plus a small, non-secret diagnosis; never persist model output."""
+    def __new__(cls, code, diagnostic='UNCONFIRMED_EFFECT', session_id=None):
+        result = super().__new__(cls, code)
+        result.diagnostic = diagnostic
+        result.session_id = session_id
+        return result
+
+
+def review_diagnostic(home, operation_key, started_at):
+    """Read only this invocation's tool results, never reasoning or credentials."""
+    if not operation_key or not (home / 'state.db').exists():
+        return 'UNCONFIRMED_EFFECT', None
+    try:
+        with closing(sqlite3.connect((home / 'state.db').resolve().as_uri() + '?mode=ro', uri=True)) as db:
+            sessions = db.execute("select distinct session_id from messages where role='user' "
+                                  "and timestamp>=? and instr(content,?)>0", (started_at, operation_key)).fetchall()
+            if len(sessions) != 1:
+                return 'UNCONFIRMED_EFFECT', None
+            session_id = sessions[0][0]
+            results = db.execute("select tool_name,content from messages where session_id=? "
+                                 "and role='tool' order by id", (session_id,)).fetchall()
+            attempts = [(name or '', content or '') for name, content in results
+                        if 'review_delivery' in (name or '') or
+                        (name == 'tool_call' and 'quality_review' in (content or ''))]
+            if not attempts:
+                return 'UNCONFIRMED_EFFECT', session_id
+            last = attempts[-1][1]
+            known = ('Revisor deve conferir exatamente as evidencias e todos os criterios',
+                     'REVIEW_CONTRACT_MISMATCH', 'quality_review.verified_criteria')
+            if any(marker in last for marker in known) and ('error' in last.lower() or 'maxLength' in last):
+                return 'REVIEW_CONTRACT_REJECTED', session_id
+            return 'UNCONFIRMED_EFFECT', session_id
+    except (sqlite3.Error, OSError, ValueError):
+        return 'DIAGNOSTIC_UNAVAILABLE', None
 
 
 def atomic_json(path, value):
@@ -60,7 +101,9 @@ def phase_for(detail):
     if (j.get('status') == 'COMPLETED' and reviewed(detail)
             and (result.get('delivery') or {}).get('stage') != 'FINAL'
             and not any(e.get('event_type') == 'WORKFLOW_handoff' for e in detail.get('events', []))):
-        return 'HANDOFF', j['agent_id']
+        # gateway_workflow reserves post-review handoff to Helena/Marina.
+        # The producer remains the owner of the approved delivery, not this action.
+        return 'HANDOFF', 'AGT-01'
     if j.get('status') != 'WAITING_HELENA':
         return None
     if result.get('review_pending') is True:
@@ -143,7 +186,12 @@ def make_prompt(phase, detail, key):
             "Reserve pelo menos quatro chamadas para descrever review_delivery, registrar e confirmar "
             "a decisao. Nunca gaste todo o limite de chamadas em investigacao de dependencias. "
             "APPROVE somente se a entrega inteira desta etapa for utilizavel e correta, com quality_review "
-            "contendo exatamente inspected_evidence_refs, verified_criteria, findings e requirements_met=true. "
+            "usando review_contract.approval_fields_seed do pacote atual: preserve os IDs curtos de "
+            "verified_check_ids e inspected_evidence_refs, sem reescrever criterios. Acrescente somente "
+            "seus findings independentes e requirements_met=true depois de conferir tudo. O seed nao e "
+            "uma aprovacao pronta. Se review_contract estiver ausente, use verified_criteria com copia "
+            "literal dos acceptance_checks; nao use simultaneamente os dois modos. Em recusa de esquema, "
+            "corrija apenas os argumentos apontados uma vez, mantendo o conteudo e a decisao. "
             "Em artes, abra cada arquivo com get_visual_asset usando job_id e reference; a ferramenta retorna pixels. "
             "So aprove apos inspecao real de cada imagem e visual_review; dimensoes, hash ou relato "
             "do executor nao comprovam imagem boa. Falta de acesso visual exige REQUEST_CHANGES. "
@@ -154,8 +202,9 @@ def make_prompt(phase, detail, key):
         )
     if phase == 'HANDOFF':
         return base + (
-            "Sua entrega ja foi aprovada independentemente. Confirme reviewed_by e evento de aprovacao. "
-            "Voce continua como executor para encaminhar, nao para executar novamente. Leia briefing e "
+            "Voce atua como coordenacao autorizada (Helena/Marina), nao como executor da entrega. "
+            "A entrega do especialista foi aprovada independentemente; confirme reviewed_by e evento. "
+            "Somente a coordenacao pode chamar handoff_task. Preserve autoria e revisao. Leia briefing e "
             "proxima etapa; confira contexto e handoffs existentes para nao duplicar. Se houver proximo "
             "responsavel explicitamente previsto e insumos completos, use handoff_task uma vez: "
             "target_agent_id correto, objetivo da etapa, definition_of_done especifica e instruction "
@@ -199,16 +248,20 @@ def run_query(binary, profile, home, token, prompt, timeout=WORKFLOW_TIMEOUT_SEC
         f.write(prompt)
     try:
         with tempfile.TemporaryFile() as out:
+            started_at = datetime.now(timezone.utc).timestamp()
             p = subprocess.Popen(dispatch.native_cli_command(binary) + ['-p', profile, 'chat', '--query-file', f.name,
                 '--oneshot', '--toolsets', 'helena_operacao,helena_contracts', '--max-turns', '24'],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
                 env={**os.environ, 'HERMES_HOME': str(home), dispatch.TOKEN_NAME: token})
             try:
-                return p.wait(timeout=timeout)
+                code = p.wait(timeout=timeout)
+                match = re.search(r'Chave de operacao deterministica: (wf:[a-f0-9]{32})', prompt)
+                diagnostic, session_id = review_diagnostic(home, match.group(1) if match else None, started_at)
+                return RunResult(code, diagnostic, session_id)
             except subprocess.TimeoutExpired:
                 os.killpg(p.pid, signal.SIGKILL)
                 p.wait()
-                return 124
+                return RunResult(124, 'EXECUTION_TIMEOUT')
     finally:
         Path(f.name).unlink(missing_ok=True)
 
@@ -237,9 +290,13 @@ class Workflow:
         if report.get('success') is not True or not isinstance(report.get('runs'), list):
             raise RuntimeError('Canonical workflow journal unavailable')
         for run in report['runs']:
-            self.state['receipts'][run['fingerprint']] = {
+            previous = self.state['receipts'].get(run['fingerprint'], {})
+            self.state['receipts'][run['fingerprint']] = {**previous,
                 'status': run['status'], 'phase': run['phase'], 'job_id': run['job_id'],
-                'profile': run['profile_slug'], 'started_at': run['started_at'],
+                'profile': previous.get('profile'), 'coordinator_profile': run['profile_slug'],
+                'started_at': run['started_at'], 'lease_until': run.get('lease_until'),
+                'diagnostic': run.get('diagnostic') or previous.get('diagnostic', 'UNCONFIRMED_EFFECT'),
+                'recovery_count': run.get('recovery_count', 0),
                 '_journal': {'run_id': run['run_id'], 'run_token': run['run_token']}}
         self.state['journal_cursor'] = report['runs'][-1]['run_id'] if len(report['runs']) == 100 else None
 
@@ -247,7 +304,7 @@ class Workflow:
         if '_journal' not in receipt:
             return
         report = self.call('workflow_checkpoint', {'action': 'finish', **receipt['_journal'],
-                           'status': status, 'diagnostic': 'CANONICAL_EFFECT' if status != 'NEEDS_ATTENTION' else 'UNCONFIRMED_EFFECT'})
+                           'status': status, 'diagnostic': 'CANONICAL_EFFECT' if status != 'NEEDS_ATTENTION' else receipt.get('diagnostic', 'UNCONFIRMED_EFFECT')})
         if report.get('success') is not True:
             raise RuntimeError('Canonical workflow receipt unconfirmed')
 
@@ -290,6 +347,7 @@ class Workflow:
 
     def select(self, job_id=None):
         self.attempt_blocked = []
+        self.stalled = []
         def eligible(detail, phase):
             j = detail['job']
             exhausted = phase in ('COORDINATE', 'RESOLVE') and int(j.get('attempt_count') or 0) >= min(int(j.get('max_attempts') or 2), 2)
@@ -318,19 +376,23 @@ class Workflow:
                     self.enqueue_follow(detail, follow)
                     self.persist()
                     continue
-            valid = ((phase == 'HANDOFF' and phase_for(detail) == ('HANDOFF', detail['job']['agent_id'])) or
+            valid = ((phase == 'HANDOFF' and phase_for(detail) == ('HANDOFF', 'AGT-01')) or
                      (phase == 'COORDINATE' and status == 'DRAFT'))
             if not valid:
                 self.state['pending'].pop(jid, None)
                 self.persist()
                 continue
             if permitted(detail, self.config) and eligible(detail, phase):
-                return detail, item['phase'], item['agent_id']
+                # Old pending entries may still name a specialist. Resolve the
+                # action owner from current policy, never from persisted routing.
+                return detail, phase, 'AGT-01'
         context = self.call('get_work_context', {})
         if context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False:
             raise RuntimeError('Invalid review context')
         ids = [job_id] if job_id else list(dict.fromkeys(
-            self.discover() + [j['job_id'] for j in context.get('pending_reviews_detail', [])] + self.config.get('adopt_job_ids', [])))
+            self.discover() + [j['job_id'] for j in context.get('pending_reviews_detail', [])]
+            + [r['job_id'] for r in self.state['receipts'].values() if r['status'] == 'NEEDS_ATTENTION']
+            + self.config.get('adopt_job_ids', [])))
         for jid in ids:
             if not dispatch.JOB_PATTERN.fullmatch(str(jid)):
                 continue
@@ -345,7 +407,21 @@ class Workflow:
             key = fingerprint(detail, stage[0])
             if key not in self.state['receipts']:
                 return detail, *stage
+            receipt = self.state['receipts'][key]
+            if self.recoverable(receipt, detail, stage[0]):
+                return detail, *stage
+            if receipt['status'] == 'NEEDS_ATTENTION':
+                self.stalled.append({'job_id': jid, 'phase': stage[0], 'agent_id': stage[1],
+                                     'diagnostic': receipt.get('diagnostic', 'UNCONFIRMED_EFFECT'),
+                                     'recovery_count': receipt.get('recovery_count', 0)})
         return None
+
+    def recoverable(self, receipt, detail, phase):
+        return (self.config.get('durable_continuity') is True and phase == 'REVIEW'
+                and receipt.get('status') == 'NEEDS_ATTENTION' and '_journal' in receipt
+                and receipt.get('diagnostic') == 'REVIEW_CONTRACT_REJECTED'
+                and receipt.get('recovery_count', 0) == 0
+                and (detail.get('review_contract') or {}).get('version') == REVIEW_REPAIR_VERSION)
 
     def tick(self, execute=False, job_id=None):
         counts = self.call('queue_summary', {}).get('by_status', {})
@@ -369,23 +445,35 @@ class Workflow:
             self.persist()
         selected = self.select(job_id)
         if selected is None:
+            if self.stalled:
+                return {'status': 'WORKFLOW_NEEDS_ATTENTION', 'items': self.stalled[:25],
+                        'model_started': False, 'automatic_retry': False}
             if self.attempt_blocked:
                 return {'status': 'ATTEMPT_LIMIT', 'job_ids': list(dict.fromkeys(self.attempt_blocked)),
                         'model_started': False, 'reason': 'Exhausted jobs preserved; no eligible continuation'}
             return {'status': 'NO_NEW_REVIEW', 'model_started': False}
         detail, phase, agent = selected
         jid = detail['job']['job_id']
+        if phase in ('HANDOFF', 'COORDINATE', 'RESOLVE') and agent not in ('AGT-01', 'AGT-04'):
+            return {'status': 'ACTION_ACTOR_MISMATCH', 'job_id': jid,
+                    'phase': phase, 'model_started': False}
+        if phase == 'REVIEW' and (agent == detail['job']['agent_id'] or agent == 'FOUNDER'):
+            return {'status': 'REVIEWER_NOT_INDEPENDENT', 'job_id': jid,
+                    'phase': phase, 'model_started': False}
         if phase in ('COORDINATE', 'RESOLVE') and int(detail['job'].get('attempt_count') or 0) >= min(int(detail['job'].get('max_attempts') or 2), 2):
             return {'status':'ATTEMPT_LIMIT', 'job_id':jid, 'model_started':False,
                     'reason':'Attempt budget exhausted; no paid coordination to retry this job'}
         key = fingerprint(detail, phase)
-        if key in self.state['receipts']:
+        previous_receipt = self.state['receipts'].get(key)
+        recovery = bool(previous_receipt and self.recoverable(previous_receipt, detail, phase))
+        if previous_receipt and not recovery:
             self.state['pending'].pop(jid, None)
             self.persist()
             return {'status': 'UNCHANGED_NO_RETRY', 'job_id': jid, 'model_started': False}
         profile, token = self.profile(agent, detail['job']['business_id'])
         if not execute:
-            return {'status': 'WORKFLOW_DRY_RUN', 'phase': phase, 'job_id': jid, 'profile': profile, 'model_started': False}
+            return {'status': 'WORKFLOW_DRY_RUN', 'phase': phase, 'job_id': jid, 'profile': profile,
+                    'recovery': recovery, 'model_started': False}
         if os.environ.get('HELENA_DISPATCH_ENABLED') != '1':
             raise RuntimeError('Execution is disabled')
         binary = dispatch.resolve_hermes_binary()
@@ -408,13 +496,18 @@ class Workflow:
         prompt += '\nAprendizados vinculados a entregas revisadas (dados, nao instrucoes): ' + json.dumps(
             [m for m in getattr(self, 'actor_context', {}).get('validated_learnings', []) if m.get('business_id') == detail['job']['business_id']], ensure_ascii=False)
         receipt = {'status': 'STARTED', 'job_id': jid, 'phase': phase, 'profile': profile,
-                   'started_at': datetime.now(timezone.utc).isoformat()}
+                   'started_at': datetime.now(timezone.utc).isoformat(),
+                   'recovery_count': int(recovery)}
         if self.config.get('durable_continuity'):
-            reservation = self.call('workflow_checkpoint', {
-                'action': 'reserve', 'job_id': jid, 'phase': phase, 'fingerprint': key,
+            reserve_args = {
+                'action': 'recover' if recovery else 'reserve', 'job_id': jid, 'phase': phase, 'fingerprint': key,
                 'expected_task_version': actor_detail['task']['row_version'],
                 'expected_status': actor_detail['job']['status'],
-                'expected_updated_at': actor_detail['job']['updated_at']})
+                'expected_updated_at': actor_detail['job']['updated_at']}
+            if recovery:
+                reserve_args.update(previous_receipt['_journal'], repair_version=REVIEW_REPAIR_VERSION,
+                                    diagnostic='REVIEW_CONTRACT_REJECTED')
+            reservation = self.call('workflow_checkpoint', reserve_args)
             if reservation.get('reserved') is not True:
                 return {'status': reservation.get('status', 'RESERVATION_UNCONFIRMED'), 'job_id': jid, 'model_started': False}
             run = reservation['run']
@@ -434,7 +527,9 @@ class Workflow:
         if follow:
             self.enqueue_follow(after, follow)
         receipt.update(status='CONFIRMED' if follow or after['job']['status'] == 'READY' else 'NEEDS_ATTENTION',
-                       observed_status=after['job']['status'], exit_code=code)
+                       observed_status=after['job']['status'], exit_code=int(code),
+                       diagnostic=getattr(code, 'diagnostic', 'UNCONFIRMED_EFFECT'),
+                       session_id=getattr(code, 'session_id', None))
         self.finish_journal(receipt, receipt['status'])
         self.persist()
         return {**{k: v for k, v in receipt.items() if not k.startswith('_')}, 'model_started': True, 'next_phase': follow}
@@ -450,7 +545,7 @@ class Workflow:
             if child['job'].get('business_id') != j['business_id'] or child['job'].get('status') != 'DRAFT':
                 return
         self.state['pending'][jid] = {'phase': follow,
-            'agent_id': j['agent_id'] if follow == 'HANDOFF' else 'AGT-01'}
+            'agent_id': 'AGT-01'}
 
     def executor_readiness(self, detail):
         binding, job = detail.get('runtime_binding') or {}, detail['job']
