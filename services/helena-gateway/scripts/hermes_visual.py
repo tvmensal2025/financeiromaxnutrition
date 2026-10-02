@@ -232,7 +232,12 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
                     raise ValueError('Provider returned no valid local image')
                 colors = [color.get('hex') for color in brand.get('colors', []) if isinstance(color, dict)]
                 if not colors: raise ValueError('Approved palette missing')
-                final = final_canvas(generated.read_bytes(), logo_bytes, slot, colors[0], colors)
+                original = generated.read_bytes()
+                original_path = directory / 'original.png'
+                if original_path.exists() and original_path.read_bytes() != original:
+                    raise ValueError('Original base already exists with different pixels')
+                original_path.write_bytes(original); os.chmod(original_path, 0o600)
+                final = final_canvas(original, logo_bytes, slot, colors[0], colors)
                 png_path.write_bytes(final); os.chmod(png_path, 0o600); save('RENDERED')
             except Exception:
                 save('FAILED'); raise
@@ -240,13 +245,14 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
         save('VERIFIED', result=result)
         return result
 
-def reposition_logo(base, logo, slot, left, top):
+def reposition_logo(base, logo, slot, left, top, background='#075E47'):
     """Recompose from original pixels; only the official logo changes position."""
     size = (1080, 1350 if slot == 'post' else 1920)
     image = ImageOps.exif_transpose(Image.open(io.BytesIO(base))).convert('RGB')
     if image.width * image.height > 16_000_000 or abs((image.width/image.height)/(size[0]/size[1])-1) > .04:
         raise ValueError('Original image dimensions invalid')
-    canvas = Image.new('RGB', size, '#075E47')
+    if not re.fullmatch(r'#[a-fA-F0-9]{6}', background): raise ValueError('Invalid brand color')
+    canvas = Image.new('RGB', size, background)
     art = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
     canvas.paste(art, ((size[0]-art.width)//2, (size[1]-art.height)//2))
     mark = ImageOps.contain(Image.open(io.BytesIO(logo)).convert('RGBA'), (260,96), Image.Resampling.LANCZOS)
@@ -285,7 +291,7 @@ def recompose_design(job_id: str, slot: str, source_version: int, version: int, 
     reference = f'storage://helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{source_version}.png'
     asset = call_tool(GATEWAY,token,'get_visual_asset',{'job_id':job_id,'reference':reference})
     if hashlib.sha256(old).hexdigest() != asset['sha256']: raise ValueError('Original base does not reproduce verified source')
-    final = reposition_logo(base,logo,slot,left,top)
+    final = reposition_logo(base,logo,slot,left,top,palette[0])
     directory = ROOT/job_id/f'{slot}-v{version}'; directory.mkdir(parents=True,exist_ok=True,mode=0o700)
     import fcntl
     with (directory/'lock').open('a+') as lock:

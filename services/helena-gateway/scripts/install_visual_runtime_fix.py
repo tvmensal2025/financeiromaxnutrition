@@ -31,7 +31,11 @@ def install(home=Path('/data')):
     binding = {'HERMES_HOME': str(profile), 'HELENA_GATEWAY_PROFILE_TOKEN': token}
     allowed = [expected, {**expected, 'env': binding},
                {**expected, 'env': binding,
-                'tools': {'include': ['generate_design', 'check_visual_runtime'], 'prompts': False}}]
+                'tools': {'include': ['generate_design', 'check_visual_runtime'], 'prompts': False}},
+               {**expected, 'env': binding,
+                'tools': {'include': ['generate_design', 'check_visual_runtime', 'reuse_design'], 'prompts': False}},
+               {**expected, 'env': binding,
+                'tools': {'include': ['generate_design', 'check_visual_runtime', 'reuse_design', 'recompose_design'], 'prompts': False}}]
     if visual not in allowed:
         raise ValueError('Unexpected visual connector; no writes')
     config['mcp_servers']['helena_visual'] = allowed[-1]
