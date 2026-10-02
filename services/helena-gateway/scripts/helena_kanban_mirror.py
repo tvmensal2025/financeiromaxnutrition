@@ -126,15 +126,21 @@ def sync(jobs):
             task = kanban_db.get_task(conn, task_id)
             if not task or task.idempotency_key != item['idempotency_key']:
                 raise RuntimeError('Cartão retornado sem identidade esperada')
-            if task.title != item['title'] or task.body != item['body']:
-                kanban_db.edit_task(conn, task_id, title=item['title'], body=item['body'],
-                                    priority=item['priority'])
+            changed = (task.status != item['status'] or task.title != item['title']
+                       or task.body != item['body'] or task.assignee != item['assignee']
+                       or task.priority != item['priority'])
             # This is a display-only projection. Native transitions would create
             # fake worker runs / reviews and could consume execution capacity.
-            conn.execute('UPDATE tasks SET status = ?, assignee = ?, priority = ? '
-                         'WHERE id = ? AND idempotency_key = ?',
-                         (item['status'], item['assignee'], item['priority'], task_id,
-                          item['idempotency_key']))
+            if changed:
+                conn.execute('UPDATE tasks SET status = ?, assignee = ?, priority = ? '
+                             'WHERE id = ? AND idempotency_key = ?',
+                             (item['status'], item['assignee'], item['priority'], task_id,
+                              item['idempotency_key']))
+                conn.commit()  # edit_task opens its own transaction
+                # The native edit emits a task event/board notification after
+                # the display state changes. No worker run is synthesized.
+                kanban_db.edit_task(conn, task_id, title=item['title'], body=item['body'],
+                                    priority=item['priority'], board=slug)
             if kanban_db.get_task(conn, task_id).status != item['status']:
                 raise RuntimeError('Cartão não refletiu a situação oficial')
         counts[slug] = counts.get(slug, 0) + 1
