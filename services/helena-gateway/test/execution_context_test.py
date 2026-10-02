@@ -65,6 +65,22 @@ class ContextTests(unittest.TestCase):
             else:d['evidence_records'][0]['business_id_area']='BIZ-OTHER'
             with self.assertRaises(ValueError):execution_packet(d)
 
+    def test_revision_is_distinct_scoped_and_existing_correction_is_explicit(self):
+        d = self.detail()
+        record = {'id':'MEM-OLD', 'related_object_id':'JOB-X', 'business_id_area':'BIZ-003',
+                  'use':'REVISION_ONLY', 'approved_output':None, 'registro':'Texto a corrigir'}
+        d['revision_evidence_records'] = [record]
+        d['job']['result_payload'].update(reviewed_by='AGT-16', brief_revision_history=[
+            {'reviewed_by':'AGT-16', 'review_reason':'Corrigir o CTA', 'revision_summary':'CTA corrigido'}])
+        packet = json.loads(execution_packet(d, 'COORDINATE'))
+        self.assertEqual(packet['revision_evidence_records'], [record])
+        self.assertTrue(packet['brief_correction']['already_revised_for_current_review'])
+        self.assertNotIn(record, packet['evidence_records'])
+        for changes in ({'related_object_id':'OTHER'}, {'business_id_area':'BIZ-002'}, {'use':'APPROVED'}):
+            d['revision_evidence_records'] = [{**record, **changes}]
+            with self.assertRaisesRegex(ValueError, 'Revision evidence packet scope mismatch'):
+                execution_packet(d)
+
     def test_large_packet_is_refused_instead_of_silently_truncated(self):
         d=self.detail();d['job']['instruction']='x'*66000
         with self.assertRaises(ValueError):execution_packet(d)

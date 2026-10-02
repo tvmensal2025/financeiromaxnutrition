@@ -229,6 +229,26 @@ test('briefing carrega apenas fontes explicitamente citadas e aprovadas, sem vir
   }
 });
 
+test('own work cited for correction is readable without becoming an approved external source', async () => {
+  const id = 'MEM-HR-' + '9'.repeat(32);
+  const memory = { id, business_id_area: job.business_id, related_object_id: job.job_id, registro: 'Texto devolvido a corrigir' };
+  const currentJob = { ...job, status: 'DRAFT', instruction: `Corrigir ${id}`, evidence_refs: [id] };
+  mock({ currentJob, memories: [memory] });
+  const result = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+  assert.deepEqual(result.input_evidence_records, []);
+  assert.deepEqual(result.input_evidence_missing, []);
+  assert.equal(result.revision_evidence_records[0].use, 'REVISION_ONLY');
+  assert.equal(result.revision_evidence_records[0].approved_output, null);
+  assert.equal(result.evidence_records[0].registro, memory.registro);
+  assert.equal(result.job.status, 'DRAFT');
+  for (const invalid of [{ ...memory, business_id_area: 'BIZ-001' }, { ...memory, related_object_id: 'JOB-OTHER' }]) {
+    mock({ currentJob, memories: [invalid] });
+    const rejected = resultOf(await invoke('mcp', 'get_job', { job_id: job.job_id }), 'mcp');
+    assert.deepEqual(rejected.revision_evidence_records, []);
+    assert.deepEqual(rejected.input_evidence_missing, [id]);
+  }
+});
+
 for (const transport of ['mcp', 'direct', 'rest']) {
   test(`${transport}: job de outra empresa nao chega a RPC`, async () => {
     const calls = mock({ currentJob: { ...job, business_id: 'BIZ-001' } });

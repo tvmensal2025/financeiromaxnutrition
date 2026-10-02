@@ -238,7 +238,12 @@ def make_prompt(phase, detail, key):
         "sem fingir que plano de coordenacao equivale a artes prontas; preserve todos os entregaveis "
         "finais nas dependencias explicitas. Nao reinicie tarefa com attempt_count >= max_attempts. "
         "Se insumos, briefing completo, ferramentas e escopo estiverem confirmados, use release_job "
-        "uma vez. Se falta evidencia, capacidade, dado do fundador ou limite de tentativa, NAO libere: "
+        "uma vez. revision_evidence_records com use=REVISION_ONLY e material anterior DESTA tarefa "
+        "a corrigir, nao fonte externa aprovada: pode ser usado para corrigir, sem exigir sua aprovacao previa. "
+        "A nova entrega continua exigindo evidencias proprias e revisao independente. "
+        "Se brief_correction.already_revised_for_current_review=true, a correcao ja esta gravada: "
+        "confira-a e avance para release_job se pronta. Nao reescreva o briefing para repetir o mesmo parecer "
+        "ou registrar a mesma pendencia. Se falta evidencia, capacidade, dado do fundador ou limite de tentativa, NAO libere: "
         "informe exatamente o bloqueio e proximo responsavel. Nao reabra trabalhos concluidos nem "
         "aprove arte antiga por heranca de status. Nao crie tarefas substitutas para contornar limites."
     )

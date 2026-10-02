@@ -82,7 +82,10 @@ export function validateProfessionalBrief(detail) {
   const job = detail.job;
   const instruction = job.instruction.trim();
   const inputIds = [...new Set(instruction.match(/\bMEM-HR-[a-f0-9]{32}\b/gi) || [])];
-  if (inputIds.length > 10 || inputIds.some(id => !detail.input_evidence_records?.some(record => record.id === id))
+  const revisionIds = new Set((detail.revision_evidence_records || []).filter(record =>
+    record.use === 'REVISION_ONLY' && record.approved_output === null
+    && record.related_object_id === job.job_id && record.business_id_area === job.business_id).map(record => record.id));
+  if (inputIds.length > 10 || inputIds.some(id => !detail.input_evidence_records?.some(record => record.id === id) && !revisionIds.has(id))
       || detail.input_evidence_missing?.length) {
     throw new Error('Fontes do briefing indisponiveis ou sem revisao aprovada; liberacao e aceite recusados antes de chamar IA');
   }

@@ -57,6 +57,12 @@ def execution_packet(detail, phase='EXECUTE'):
             # Keep all fields; reject every disagreement in shared fields.
             records[record['id']] = {**previous, **record}
     result = job.get('result_payload') or {}
+    revision_records = detail.get('revision_evidence_records') or []
+    if any(record.get('business_id_area') != job.get('business_id') or
+           record.get('related_object_id') != job.get('job_id') or
+           record.get('use') != 'REVISION_ONLY' or record.get('approved_output') is not None
+           for record in revision_records):
+        raise ValueError('Revision evidence packet scope mismatch')
     packet = {
         'packet_version': PACKET_VERSION, 'truncated': False, 'phase': phase,
         'creative_quality': {'version': CREATIVE_QUALITY_VERSION, 'rules': CREATIVE_QUALITY_RULES},
@@ -68,12 +74,21 @@ def execution_packet(detail, phase='EXECUTE'):
         'company_identity': detail.get('company_identity'),
         'agent_quality_contract': detail.get('agent_quality_contract'),
         'evidence_records': list(records.values()),
+        'revision_evidence_records': revision_records,
         'input_evidence_missing': detail.get('input_evidence_missing', []),
         'evidence_missing': detail.get('evidence_missing', []),
         'artifact_records': detail.get('artifact_records', []),
         'source_job': pick(detail.get('source_job') or {}, ('job_id', 'result_summary')),
     }
     if phase in ('RESOLVE', 'COORDINATE'):
+        history = result.get('brief_revision_history') or []
+        latest = history[-1] if history else {}
+        packet['brief_correction'] = {
+            'already_revised_for_current_review': bool(latest and
+                latest.get('review_reason') == result.get('review_reason') and
+                latest.get('reviewed_by') == result.get('reviewed_by')),
+            'latest_revision': pick(latest, ('revised_at', 'revision_summary', 'reviewed_by', 'review_reason')),
+        }
         packet['blocking_decision'] = pick(result, ('motivo', 'contexto', 'impacto',
             'decisao_necessaria', 'recomendacao', 'proximo_passo',
             'block_resolved_by', 'block_resolution'))

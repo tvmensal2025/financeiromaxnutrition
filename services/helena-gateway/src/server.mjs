@@ -439,9 +439,16 @@ async function handleGetJob({ job_id, ...readOptions }) {
   // Only the explicitly named, reviewed output of a completed same-company job is returned.
   const inputIds = [...new Set(String(job.instruction || '').match(/\bMEM-HR-[a-f0-9]{32}\b/gi) || [])].slice(0, 10);
   let inputRecords = [];
+  let revisionRecords = [];
   if (inputIds.length) {
     const candidates = await supabaseFetch(`/rest/v1/memoria_mestre?select=id,assunto,registro,evidencia_origem,proxima_acao,status,confianca,business_id_area,related_object_id&business_id_area=eq.${encodeURIComponent(job.business_id)}&id=in.(${inputIds.join(',')})&limit=10`);
     if (!Array.isArray(candidates)) throw new Error('Consulta de fontes retornou formato invalido');
+    // The job's own previous work can be corrected without being approved first.
+    // Keep it separate from approved external inputs: this grants no approval,
+    // does not adopt another job's memory and cannot prove a new delivery.
+    revisionRecords = candidates.filter(record => inputIds.includes(record.id)
+      && record.business_id_area === job.business_id && record.related_object_id === job_id)
+      .map(record => ({ ...record, use: 'REVISION_ONLY', approved_output: null }));
     const scoped = candidates.filter(record => inputIds.includes(record.id) && record.business_id_area === job.business_id
       && typeof record.related_object_id === 'string' && record.related_object_id !== job_id);
     const ownerIds = [...new Set(scoped.map(record => record.related_object_id))];
@@ -498,7 +505,8 @@ async function handleGetJob({ job_id, ...readOptions }) {
     source_job: sourceJob ? { job_id: sourceJob.job_id, result_summary: sourceJob.result_summary, review: sourceJob.result_payload } : null,
     source_evidence_records: evidenceRecords.filter(record => record.related_object_id === sourceJob?.job_id),
     input_evidence_records: inputRecords,
-    input_evidence_missing: inputIds.filter(id => !inputRecords.some(record => record.id === id)),
+    revision_evidence_records: revisionRecords,
+    input_evidence_missing: inputIds.filter(id => ![...inputRecords, ...revisionRecords].some(record => record.id === id)),
     evidence_records: evidenceRecords,
     artifact_records: artifactRecords,
     evidence_missing: evidenceMissing

@@ -31,7 +31,7 @@ def scan(directory, root, execute=False, request=dispatch.call_tool, max_pages=4
                 continue
             kind = job.get('attention_kind')
             exhausted = int(job.get('attempt_count') or 0) >= min(int(job.get('max_attempts') or 2), 2)
-            if kind not in ('FAILURE', 'STALE_EXECUTION') and not (kind == 'MANAGER_DECISION' and exhausted):
+            if kind not in ('FAILURE', 'STALE_EXECUTION', 'WORKFLOW_STALLED') and not (kind == 'MANAGER_DECISION' and exhausted):
                 continue
             jid = job['job_id']
             if jid in seen:

@@ -62,6 +62,15 @@ class WatchdogTests(unittest.TestCase):
         self.job.update(status='WAITING_HELENA', attention_kind='PENDING_REVIEW', attempt_count=2)
         self.assertFalse(scan(self.root, self.root / 'profiles', True, self.request)['findings'])
 
+    def test_stalled_review_or_handoff_is_reported_even_for_completed_producer(self):
+        for status in ('WAITING_HELENA', 'COMPLETED'):
+            self.job.update(status=status, attention_kind='WORKFLOW_STALLED', attempt_count=1)
+            result = scan(self.root, self.root / 'profiles', True, self.request)
+            self.assertEqual(result['recorded'], 1)
+            self.assertEqual(result['findings'][0]['kind'], 'WORKFLOW_STALLED')
+            self.assertFalse(result['model_started'])
+            self.assertFalse(result['jobs_changed'])
+
     def test_unknown_result_does_not_advance_cursor(self):
         def lost(gateway, token, name, args):
             if name == 'record_queue_attention':

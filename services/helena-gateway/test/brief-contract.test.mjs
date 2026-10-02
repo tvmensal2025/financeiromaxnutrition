@@ -97,6 +97,19 @@ test('liberacao bloqueia fonte ausente antes de gastar IA ou gravar', async () =
   assert.equal(validateProfessionalBrief({ ...withSource, input_evidence_records: [{ id }], input_evidence_missing: [] }), true);
 });
 
+test('correction can read own prior work but never borrow unapproved work from another job', () => {
+  const id = 'MEM-HR-' + '9'.repeat(32);
+  const record = { id, related_object_id: detail.job.job_id, business_id_area: detail.job.business_id,
+    use: 'REVISION_ONLY', approved_output: null };
+  const correction = { ...detail, job: { ...detail.job, instruction: instruction + `\nCorrigir: ${id}` },
+    revision_evidence_records: [record], input_evidence_records: [], input_evidence_missing: [] };
+  assert.equal(validateProfessionalBrief(correction), true);
+  for (const invalid of [{...record, related_object_id:'other'}, {...record,business_id_area:'BIZ-001'},
+    {...record,use:'APPROVED'}, {...record,approved_output:{}}]) {
+    assert.throws(() => validateProfessionalBrief({...correction,revision_evidence_records:[invalid]}), /Fontes do briefing/);
+  }
+});
+
 test('titulos duplicados, texto repetido e campos pendentes nao passam por briefing completo', () => {
   for (const bad of [
     instruction + '\n## Entregáveis\nUma segunda seção não pode substituir a primeira silenciosamente.',

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { buildReviewContract } from './professional-output.mjs';
 
 export const JOB_SECTIONS = ['job', 'task', 'company_identity', 'agent_quality_contract', 'review_contract',
-  'evidence_records', 'input_evidence_records', 'source_evidence_records', 'artifact_records',
+  'evidence_records', 'input_evidence_records', 'revision_evidence_records', 'source_evidence_records', 'artifact_records',
   'source_job', 'events', 'runtime_binding'];
 
 // Read the same authorized result in bounded, lossless pages. No extra data access.
