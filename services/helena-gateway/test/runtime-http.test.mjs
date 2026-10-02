@@ -75,6 +75,43 @@ function resultOf(response, transport) {
   return transport === 'mcp' ? JSON.parse(response.result.content[0].text) : response.result;
 }
 
+test('HTTP tools/list announces safe budgets even when server overrides workflow schemas', async () => {
+  mock();
+  const response = await originalFetch(base + '/mcp', {
+    method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+  });
+  assert.equal(response.status, 200);
+  const { result } = await response.json();
+  const tools = Object.fromEntries(result.tools.map(tool => [tool.name, tool]));
+  for (const name of ['create_task_job', 'handoff_task', 'revise_task_brief', 'adopt_existing_task']) {
+    assert.equal(tools[name].inputSchema.properties.instruction.maxLength, 7000, name);
+  }
+  assert.equal(tools.revise_task_brief.inputSchema.properties.definition_of_done.maxLength, 3000);
+  for (const name of ['create_task_job', 'handoff_task']) {
+    assert.equal(tools[name].inputSchema.properties.objective.maxLength, 350);
+    assert.equal(tools[name].inputSchema.properties.definition_of_done.maxLength, 3000);
+  }
+});
+
+test('all HTTP briefing writes reject 7001 before any canonical mutation', async () => {
+  for (const transport of ['mcp', 'direct', 'rest']) {
+    for (const name of ['create_task_job', 'handoff_task', 'revise_task_brief', 'adopt_existing_task']) {
+      const calls = mock({ runtime: { ...binding, agent_id: 'AGT-04' } });
+      const args = {
+        job_id: job.job_id, task_id: job.task_id, business_id: 'BIZ-003', target_agent_id: 'AGT-12',
+        expected_task_version: 123, expected_job_updated_at: '2026-10-02T12:00:00.000Z',
+        idempotency_key: 'safe-' + name + '-' + transport,
+        objective: 'Validar a trava antes de escrever', definition_of_done: 'Critério de pronto completo. '.repeat(4),
+        instruction: 'x'.repeat(7001), revision_summary: 'Corrigir conforme a revisão independente.'
+      };
+      const response = await invoke(transport, name, args);
+      assert.match(JSON.stringify(response), /7000/, name + ':' + transport);
+      assert.equal(calls.some(call => call.method !== 'GET'), false, name + ':' + transport);
+    }
+  }
+});
+
 test('submit_work funciona nos transportes reais e usa apenas a memoria retornada pelo banco', async () => {
   for (const transport of ['mcp', 'direct', 'rest']) {
     const memoryId = 'MEM-HR-' + 'd'.repeat(32);

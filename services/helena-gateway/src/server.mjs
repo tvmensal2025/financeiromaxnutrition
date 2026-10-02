@@ -23,7 +23,7 @@ import { workflowTools } from './workflow.mjs';
 import { workflowJournalTools } from './workflow-journal.mjs';
 import { readVisualAsset, toolResultContent } from './visual-assets.mjs';
 import { artifactEventId, createArtifactUpload, parseArtifactReference, renderArtifactSvg, uploadRenderedArtifact, verifyArtifact } from './artifact-storage.mjs';
-import { validateProfessionalBrief } from './brief-contract.mjs';
+import { BRIEF_LIMITS, validateProfessionalBrief } from './brief-contract.mjs';
 import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs';
 import { createTypeSafe } from './integrations/typesafe.mjs';
 import { jobView, JOB_SECTIONS } from './job-reader.mjs';
@@ -1111,8 +1111,8 @@ const mcpInputs = {
     idempotency_key: { type: 'string', minLength: 1, maxLength: 120 },
     expected_task_version: { type: 'integer', minimum: 1, maximum: Number.MAX_SAFE_INTEGER },
     expected_job_updated_at: { type: 'string', format: 'date-time' },
-    instruction: { type: 'string', minLength: 700, maxLength: 8000 },
-    definition_of_done: { type: 'string', minLength: 80, maxLength: 4000 },
+    instruction: { type: 'string', minLength: 700, maxLength: BRIEF_LIMITS.instruction.max },
+    definition_of_done: { type: 'string', minLength: 80, maxLength: BRIEF_LIMITS.definition_of_done.max },
     revision_summary: { type: 'string', minLength: 20, maxLength: 1200 }
   }, ['job_id', 'idempotency_key', 'expected_task_version', 'expected_job_updated_at', 'instruction', 'definition_of_done', 'revision_summary']),
   create_artifact_upload: inputObject({ ...textFields('job_id slot'), version: { type: 'integer', minimum: 1, maximum: 5 }, svg: { type: 'string', minLength: 1, maxLength: 35000 } }, ['job_id','slot','version']),
