@@ -1,0 +1,35 @@
+{
+  "status": "INSTALLED_VERIFIED",
+  "installed_at": "2026-10-02T20:05:22.919879+00:00",
+  "merge_commit": "f758ba243508f1b0742a4b7364862d7c643cca2c",
+  "pull_request": "https://github.com/tvmensal2025/financeiromaxnutrition/pull/9",
+  "backup": "/data/helena-runtime/execution-policy-backup-20261002T200521Z",
+  "remote_receipt": "/data/helena-runtime/execution-policy-verification.json",
+  "runtime_hashes": {
+    "execution_policy.py": "c674fb4a97951f14705699dc7cc057399496d46b030edbc1e35115ba861d6491",
+    "hermes_workflow_tick.py": "1dc963e0ba226814b108ad418dcab500b8435099660ced0fa9ba502f4a4c6f84",
+    "hermes_dispatch_once.py": "55f9e8da0ae566b4d5b8c3a1e745c0837370076c92117b3406b975b4a08050bd"
+  },
+  "remote_tests": {
+    "run": 97,
+    "passed": 97,
+    "skipped": 0
+  },
+  "timeouts_seconds": {
+    "common": 300,
+    "production_correction": 600,
+    "maya": 900,
+    "coordination": 480
+  },
+  "model_started": false,
+  "jobs_changed": false,
+  "attempts_changed": false,
+  "campaign": {
+    "job_id": "JOB-HR-070661329e98fdb5f1c39c81e0cbabe7",
+    "status": "FAILED",
+    "attempt_count": 2,
+    "max_attempts": 2,
+    "task_version": 3749,
+    "updated_at": "2026-10-02T19:35:05.630646+00:00"
+  }
+}
