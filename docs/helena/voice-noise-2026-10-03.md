@@ -1,5 +1,17 @@
 # Voz: ruído, recuperação e calibração — 03/10/2026
 
+## Estado atual comprovado: publicado na VPS
+
+- Código enviado por avanço normal (sem force push) a `main` e `codex/voice-noise-release-20261003`: **`fd17c0e297d20dc2ee3c758b2626ee3b7cdf33c3`**, confirmado com consulta ao remoto. Base preservada `02cbdc05cc7c2e0aeb559a9b78e33b1cec5f424e`.
+- Easypanel `helena-automation/helena-gateway`: build Docker concluído em **03/10/2026 09:29:06 UTC**. Imagem: `sha256:818fccf93aaf23d3a2474c76b41116b029aee0fc54f8bd261b4b408deadd30e2`.
+- Easypanel `helena-automation/meowcaller-service`: build Linux concluído em **03/10/2026 09:32:04 UTC**. Imagem: `sha256:1c0a98e28fbdcdf924d5cd6ec37e6da5d05dbfbcf97c5e73e081ea5f7ea9a7c6`.
+- Verificação HTTP após os dois deploys, **03/10/2026 06:32:46 -03:00**: ambos informaram **`voice_revision=20261003-noise-r1`**. Gateway saudável, banco e OAuth respondendo; transporte saudável com PCM streaming disponível. Consulta de sessão pelo gateway configurada e sem erro HTTP. Perfil ativo **`sirlene_normal`**.
+- **Ligação física ainda não executada.** Meowcaller continua em **`PAIRING_REQUIRED`**, QR disponível e zero chamadas ativas. Histórico de hoje vazio. É necessário parear o WhatsApp da plataforma no Meowcaller pelo celular; só depois o usuário inicia a chamada de calibração. Não redefinida/deletada sessão, não enviada mensagem nem originada chamada.
+- Testes antes da publicação: **335 testes Node + 29 verificações de segurança**, verificação do servidor/sintaxe, `go test -mod=mod ./...` e build Go aprovados. Confirmação remota de saúde/configuração não equivale a STT/TTS e latência audível validados por telefone.
+- Evidência local sem telefone, QR ou credenciais: `work/voice-release-smoke-20261003.json`; comprovantes `work/voice-gateway-deployed-20261003.jpg` e `work/voice-meowcaller-deployed-20261003.jpg`, sob `C:\Users\plata\Documents\Codex\2026-09-27\preciso-que-voc-fa-a-o`. O checkout de publicação está em `work/voice-release-20261003`. Os checkouts anteriores permanecem preservados; não reaplicar este mesmo patch como se ainda não estivesse no GitHub.
+
+As seções seguintes conservam o histórico anterior à publicação. Afirmações de “não publicado” nelas são datadas da rodada correspondente e foram superadas pelo estado acima. A publicação do backend não inclui o frontend MAX desta conversa.
+
 ## Escopo e estado da primeira rodada
 
 Alterações locais desta conversa lateral, restritas à voz. Backend: `C:\Users\plata\financeiromaxnutrition`. Frontend: `C:\Users\plata\Documents\Codex\2026-09-27\preciso-que-voc-fa-a-o\integration-max-20261003`. Preservadas as alterações de streaming que já existiam de outra frente. Não houve push, implantação, reinício ou alteração de Supabase por esta conversa. Não equivale à integração dos lotes do aplicativo.
