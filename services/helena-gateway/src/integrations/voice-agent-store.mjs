@@ -29,16 +29,22 @@ export function createVoiceAgentStore(supabaseFetch) {
       // Os registros legados do "Comando Gigante" usam chave sem índice único.
       // A leitura da última versão preserva os ajustes anteriores à migração.
       const legacy = {};
-      for (const [key, field] of [
+      const fields = [
         ['VOICE_AGENT_KNOWLEDGE_BASE', 'knowledge_base'],
         ['VOICE_AGENT_PERSONA', 'persona'],
         ['VOICE_AGENT_AI_PROVIDER', 'ai_provider'],
         ['VOICE_AGENT_AI_MODEL', 'ai_model']
-      ]) {
+      ];
+      // These reads have no ordering dependency. Keep fresh configuration and
+      // fail on any read error, without adding four sequential round trips.
+      const values = await Promise.all(fields.map(async ([key, field]) => {
         const rows = await supabaseFetch(
           `/rest/v1/configuracao?select=valor&chave=eq.${key}&order=registro_id.desc&limit=1`
         );
-        if (rows?.[0]?.valor) legacy[field] = rows[0].valor;
+        return [field, rows?.[0]?.valor];
+      }));
+      for (const [field, value] of values) {
+        if (value) legacy[field] = value;
       }
       return legacy;
     },

@@ -117,6 +117,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"status":          "healthy",
 		"service":         "meowcaller-service",
 		"version":         "2.0.0",
+		"voice_revision":  "20261003-noise-r1",
 		"whatsapp_status": string(status),
 		"connected_jid":   jid,
 		"has_qr_code":     qr != "",

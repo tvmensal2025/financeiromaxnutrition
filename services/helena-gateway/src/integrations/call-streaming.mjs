@@ -10,15 +10,16 @@ export async function* readSSE(body) {
   let pending = '';
   for await (const bytes of body) {
     pending += decoder.decode(bytes, { stream: true });
-    if (pending.length > 131072) throw new Error('Oversized SSE event');
     let boundary;
     while ((boundary = /\r?\n\r?\n/.exec(pending))) {
+      if (boundary.index > 131072) throw new Error('Oversized SSE event');
       const event = pending.slice(0, boundary.index);
       pending = pending.slice(boundary.index + boundary[0].length);
       const data = event.split(/\r?\n/).filter(l => l.startsWith('data:')).map(l => l.slice(5).trimStart()).join('\n');
       if (data === '[DONE]') return;
       if (data) yield JSON.parse(data);
     }
+    if (pending.length > 131072) throw new Error('Oversized SSE event');
   }
   if (pending.trim()) throw new Error('Incomplete SSE event');
 }
@@ -61,16 +62,17 @@ export function extractSpeechChunks(text, final = false) {
 }
 
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, profile = {} }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, profile = {}, consumeAudio }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
   const started = performance.now();
   const metrics = { llm_first_token_ms: null, llm_total_ms: null, tts_first_audio_ms: null, first_audio_to_transport_ms: null,
-    backchannel_ms: null };
+    context_wait_ms: null, llm_provider_first_token_ms: null, text_chunk_wait_ms: null, backchannel_ms: null };
   let usage = null;
   let spokenText = '';
   let firstTextAt = null;
+  let firstTokenAt = null;
   let audioBytes = 0;
   const tts = openTTS({ voice, context: 'CALL', signal: combined });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
@@ -82,14 +84,18 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     if (!clean || /^(?:hum+|hmm+|uhum)[.!?…\s]*$/iu.test(clean)) return;
     if (firstTextAt === null) {
       firstTextAt = performance.now();
+      metrics.text_chunk_wait_ms = firstTokenAt === null ? null : Math.round(firstTextAt - firstTokenAt);
     }
     spokenText += `${spokenText ? ' ' : ''}${clean}`;
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
+    const contextStarted = performance.now();
     const resolvedInstruction = await systemInstruction;
+    metrics.context_wait_ms = Math.round(performance.now() - contextStarted);
     combined.throwIfAborted();
     const apiModel = model || 'gpt-6-luna';
+    const llmRequestedAt = performance.now();
     const res = await fetchImpl('https://api.openai.com/v1/chat/completions', {
       method: 'POST', signal: AbortSignal.any([combined, AbortSignal.timeout(8000)]),
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -109,7 +115,11 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
       const choice = event.choices?.[0];
       const delta = choice?.delta?.content;
       if (delta) {
-        if (metrics.llm_first_token_ms === null) metrics.llm_first_token_ms = Math.round(performance.now() - started);
+        if (firstTokenAt === null) {
+          firstTokenAt = performance.now();
+          metrics.llm_first_token_ms = Math.round(firstTokenAt - started);
+          metrics.llm_provider_first_token_ms = Math.round(firstTokenAt - llmRequestedAt);
+        }
         totalCharacters += delta.length;
         if (totalCharacters > 2400) throw new Error('Voice response exceeds conversational limit');
         pending += delta;
@@ -144,6 +154,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   })(), { highWaterMark: 4096, objectMode: false });
   audio.on('error', () => {});
   const playbackTask = (async () => {
+    if (consumeAudio) return await consumeAudio(audio, combined);
     const res = await fetchImpl(`${baseUrl}/v1/calls/${encodeURIComponent(callId)}/play/stream`, {
       method: 'POST', signal: combined, duplex: 'half', body: audio,
       headers: { 'Content-Type': 'audio/pcm', 'X-Audio-Sample-Rate': '16000', 'X-Speech-Epoch': String(speechEpoch), 'X-API-Key': token }

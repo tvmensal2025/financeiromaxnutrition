@@ -16,6 +16,31 @@ function fakeTTS(onSentence = () => {}) {
   } });
 }
 
+it('separates context loading, provider response and text buffering in latency metrics', async () => {
+  const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const result = await streamReplyToCall({ ...base,
+    systemInstruction: wait(45).then(() => 'Atenda com gentileza.'),
+    openTTS: () => fakeTTS(),
+    fetchImpl: async (url, opts) => {
+      if (url.includes('api.openai.com')) return { ok: true, body: Readable.from((async function* () {
+        await wait(15);
+        yield event(delta('Tudo '));
+        await wait(25);
+        yield event(delta('pronto. '));
+        yield event(stop);
+      })()) };
+      for await (const chunk of opts.body) assert.ok(chunk.length);
+      return Response.json({ ok: true });
+    },
+  });
+  assert.ok(result.metrics.context_wait_ms >= 30);
+  assert.ok(result.metrics.llm_provider_first_token_ms >= 10);
+  assert.ok(result.metrics.llm_first_token_ms - result.metrics.llm_provider_first_token_ms >= 30);
+  assert.ok(result.metrics.text_chunk_wait_ms >= 15);
+  assert.ok(result.metrics.tts_first_audio_ms >= 0);
+  assert.equal(result.text, 'Tudo pronto.');
+});
+
 describe('End-to-end voice streaming', () => {
   it('decodes UTF-8 and SSE records across arbitrary network boundaries', async () => {
     const payload = Buffer.concat([event(delta('Olá, João!')), Buffer.from('data: [DONE]\r\n\r\n')]);
@@ -178,4 +203,11 @@ it('does not play a response containing only hesitation or internal stage direct
     }}),/Empty streamed response|no streaming audio/);
     assert.deepEqual(sentences,[]);
   }
+});
+
+it('SSE framing accepts coalesced small events but rejects one oversized event',async()=>{
+ const events=Array.from({length:2500},()=>event(delta('Olá.')));let count=0;
+ for await(const _ of readSSE(Readable.from([Buffer.concat(events)]))) count++;
+ assert.equal(count,2500);
+ await assert.rejects(async()=>{for await(const _ of readSSE(Readable.from([Buffer.from('data: '+ 'x'.repeat(131073))]))){}},/Oversized/);
 });

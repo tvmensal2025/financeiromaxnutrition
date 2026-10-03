@@ -1,6 +1,7 @@
 package voice
 
 import (
+	"math"
 	"testing"
 
 	"github.com/purpshell/meowcaller"
@@ -19,7 +20,7 @@ func testVoiceSink() (*ConversationalSink, *meowcaller.Player) {
 func voiceFrame(level float32) []float32 {
 	frame := make([]float32, 960)
 	for i := range frame {
-		frame[i] = level
+		frame[i] = level * float32(math.Sin(2*math.Pi*200*float64(i)/16000))
 	}
 	return frame
 }
@@ -156,4 +157,45 @@ func TestShortSpeechEndsAt720msAndContinuationAdvancesEpoch(t *testing.T) {
 	if !sink.isSpeaking || sink.speechEpoch != epoch+1 {
 		t.Fatal("resumed speech did not invalidate the pending answer")
 	}
+}
+
+func TestLoudNonSpeechDoesNotInterruptOrExtendListening(t *testing.T) {
+	sink, player := testVoiceSink()
+	hum := make([]float32, 960)
+	for i := range hum {
+		hum[i] = float32(0.05 * math.Sin(2*math.Pi*40*float64(i)/16000))
+	}
+	for i := 0; i < 30; i++ {
+		_ = sink.WriteFrame(hum)
+	}
+	if sink.isSpeaking || player.State() != meowcaller.PlayerPlaying {
+		t.Fatal("loud hum interrupted assistant")
+	}
+	for i := 0; i < 3; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	if !sink.isSpeaking {
+		t.Fatal("voice must still interrupt after rejected noise")
+	}
+	for i := 0; i < 10; i++ {
+		_ = sink.WriteFrame(hum)
+	}
+	if sink.silenceFrames != 10 {
+		t.Fatal("loud hum extended listening")
+	}
+	_ = sink.Close()
+}
+
+func TestBargeInPreRollDoesNotIncludeEarlierAssistantEcho(t *testing.T) {
+	sink, _ := testVoiceSink()
+	for i := 0; i < 6; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.001))
+	}
+	for i := 0; i < 3; i++ {
+		_ = sink.WriteFrame(voiceFrame(0.02))
+	}
+	if !sink.isSpeaking || len(sink.speechSamples) != 3*960 {
+		t.Fatalf("onset included old echo: %d", len(sink.speechSamples))
+	}
+	_ = sink.Close()
 }

@@ -1,5 +1,7 @@
 import { cleanSpeechTranscript } from '../integrations/voice-delivery.mjs';
-import { loadCallerContext, persistVoiceTurn, persistVoiceUtterance } from '../integrations/caller-context.mjs';
+import { buildCallInstruction, loadCallerContext, persistVoiceTurn, persistVoiceUtterance } from '../integrations/caller-context.mjs';
+import { streamBrowserTurn } from '../integrations/browser-call-stream.mjs';
+import { isVoiceStreamingEnabled } from '../integrations/voice-streaming-config.mjs';
 /**
  * Routes / Integrations
  * Endpoints REST administrativos e webhooks para Central de Canais, Voz e Roteamento
@@ -67,6 +69,7 @@ import {
 
 import {
   getVoiceAgentConfig,
+  resolveAiApiKey,
   updateVoiceAgentConfig,
   generateAgentSpeechText,
   generateAgentSpeechTextDetailed,
@@ -1074,13 +1077,25 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       return res.status(400).json({ ok: false, error: 'Cabeçalhos de áudio inválidos' });
     }
     prepareLiveSpeech(callId, speechEpoch);
+    const capture = new AbortController();
+    const disconnect = () => capture.abort(new Error('Microphone stream disconnected'));
+    req.once('aborted', disconnect);
+    res.once('close', disconnect);
     try {
-      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY });
+      const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY, signal: capture.signal });
+      capture.signal.throwIfAborted();
       const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics });
       return res.json({ ok: true, result, stt_metrics: transcript.metrics });
     } catch (err) {
       console.error('[VOICE_AGENT] Falha no STT em tempo real:', err.message);
+      if (err.transcriptionMetrics) console.warn('[VOICE_STT_METRICS]', JSON.stringify({
+        call_id: callId, reason: err.code || 'live_stt_unavailable', ...err.transcriptionMetrics,
+      }));
+      if (res.destroyed) return;
       return res.status(502).json({ ok: false, error: 'live_stt_unavailable' });
+    } finally {
+      req.removeListener('aborted', disconnect);
+      res.removeListener('close', disconnect);
     }
   });
 
@@ -1707,6 +1722,17 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       }
       let replyText = '';
       const opening = webOpening(profile, is_start, user_text);
+      if (opening === null && !is_start && isVoiceStreamingEnabled() &&
+          req.accepts('application/x-ndjson') && String(req.headers.accept || '').includes('application/x-ndjson')) {
+        const config = await getVoiceAgentConfig();
+        const apiKey = await resolveAiApiKey(config);
+        if (!apiKey) return res.status(503).json({ error: 'A central de voz está indisponível. Tente novamente.' });
+        return await streamBrowserTurn(res, {
+          callId, apiKey, model: config.ai_model, profile, voice: characterVoice,
+          systemInstruction: buildCallInstruction(webCall, profile),
+          userPrompt: String(user_text).trim(), history,
+        }, text => persistVoiceTurn(webCall, profile, '', text));
+      }
       if (opening !== null) {
         replyText = opening;
       } else if (is_start) {

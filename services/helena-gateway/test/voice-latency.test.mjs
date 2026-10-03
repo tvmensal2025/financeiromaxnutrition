@@ -4,6 +4,7 @@ import { Readable, Transform } from 'node:stream';
 import { registerCallSession } from '../src/integrations/call-engine.mjs';
 import { processUserSpeech } from '../src/integrations/voice-agent.mjs';
 import { setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
+import { createVoiceAgentStore } from '../src/integrations/voice-agent-store.mjs';
 
 test('a blocked history write does not block GPT, Google or playback', async t => {
   const env = Object.fromEntries(['MAX_VOICE_CONTEXT_URL','MAX_VOICE_CONTEXT_TOKEN','OPENAI_API_KEY','CALL_VOICE_STREAMING_ENABLED'].map(k=>[k,process.env[k]]));
@@ -52,4 +53,41 @@ test('a blocked history write does not block GPT, Google or playback', async t =
     setGoogleTTSClientForTesting(null);
     for(const [k,v] of Object.entries(env)) { if(v===undefined)delete process.env[k];else process.env[k]=v; }
   }
+});
+
+test('loads independent legacy voice settings concurrently without changing their mapping', async () => {
+  let release;
+  const barrier = new Promise(resolve => { release = resolve; });
+  const requested = [];
+  const store = createVoiceAgentStore(async url => {
+    if (url.startsWith('/rest/v1/voice_profiles')) return [];
+    requested.push(url);
+    await barrier;
+    return [{ valor: new URL(`http://local${url}`).searchParams.get('chave').slice(3) }];
+  });
+  const loading = store.load();
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(requested.length, 4, 'all independent reads must start before one finishes');
+  } finally { release(); }
+  assert.deepEqual(await loading, {
+    knowledge_base: 'VOICE_AGENT_KNOWLEDGE_BASE', persona: 'VOICE_AGENT_PERSONA',
+    ai_provider: 'VOICE_AGENT_AI_PROVIDER', ai_model: 'VOICE_AGENT_AI_MODEL',
+  });
+});
+
+test('keeps the canonical voice profile authoritative and surfaces legacy read errors', async () => {
+  let reads = 0;
+  const store = createVoiceAgentStore(async () => {
+    reads++;
+    return [{ profile_id: 'VP-VOICE-AGENT-BIZ-002', business_id: 'BIZ-002', settings: { voice_agent: { is_active: false } } }];
+  });
+  assert.deepEqual(await store.load(), { is_active: false });
+  assert.equal(reads, 1);
+  const failing = createVoiceAgentStore(async url => {
+    if (url.startsWith('/rest/v1/voice_profiles')) return [];
+    if (url.includes('VOICE_AGENT_PERSONA')) throw new Error('read failed');
+    return [];
+  });
+  await assert.rejects(failing.load(), /read failed/);
 });

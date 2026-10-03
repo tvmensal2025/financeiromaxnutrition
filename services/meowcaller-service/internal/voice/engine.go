@@ -1028,9 +1028,9 @@ func (e *Engine) registerConversationalSink(callID string, call *meowcaller.Call
 		callID:           callID,
 		engine:           e,
 		noiseFloor:       0.00008,
-		rmsThreshold:     0.003, // Separate quiet room noise from conversational speech.
-		silenceThreshold: 12,    // 12 frames * 60ms = ~720ms de silêncio pós-fala (pausa conversacional humana natural)
-		minSpeechSamples: 2400,  // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
+		rmsThreshold:     0.003,                  // Separate quiet room noise from conversational speech.
+		silenceThreshold: speechEndpointFrames(), // Default 720ms, calibrated explicitly per deployment.
+		minSpeechSamples: 2400,                   // Mínimo de 150ms de fala sustentada (rejeita cliques e respirações curtas)
 		speechSamples:    make([]int16, 0, 16000*5),
 		preSpeechRing:    make([][]int16, 0, 6),
 	}
@@ -1111,8 +1111,9 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			Msg("📡 Telemetria de áudio WhatsApp VoIP (frames recebidos e processados)")
 	}
 
-	// 3. Classificação de voz
-	if rms >= effectiveThreshold {
+	// Energy alone accepts fans, DC offsets and clicks as speech.
+	// This conservative gate rejects obvious noise; it is not speaker identification.
+	if rms >= effectiveThreshold && plausibleSpeechFrame(frame) {
 		s.consecutiveSpeech++
 		s.initialSilenceFrames = 0 // Reseta silêncio inicial já que detectou voz
 
@@ -1135,6 +1136,11 @@ func (s *ConversationalSink) WriteFrame(frame []float32) error {
 			s.engine.recordDiagEvent(fmt.Sprintf("Voz detectada: rms=%.4f (limiar=%.4f)", rms, effectiveThreshold))
 
 			// Incorpora o buffer de pré-fala para preservar a primeira sílaba ("Oi", "Qual", "Pedro")
+			// During playback, older pre-roll may contain the assistant's echo.
+			// Keep every confirmed onset frame, not the preceding playback tail.
+			if activePlayer && len(s.preSpeechRing) > requiredFrames-1 {
+				s.preSpeechRing = s.preSpeechRing[len(s.preSpeechRing)-(requiredFrames-1):]
+			}
 			for _, preFrame := range s.preSpeechRing {
 				s.speechSamples = append(s.speechSamples, preFrame...)
 			}

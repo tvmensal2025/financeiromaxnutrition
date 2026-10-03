@@ -9,6 +9,7 @@ import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory, completeVoiceReply, cleanSpeechTranscript } from './voice-delivery.mjs';
 import { buildCallInstruction, loadCallerContext, persistVoiceTurn, persistVoiceUtterance } from './caller-context.mjs';
 import { streamReplyToCall } from './call-streaming.mjs';
+import { isVoiceStreamingEnabled } from './voice-streaming-config.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import {
   registerCallSession,
@@ -773,7 +774,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
     void persistVoiceUtterance(call, heardProfile, userText);
     if (activeVoiceTurns.get(callId)?.signal === signal) activeVoiceTurns.get(callId).userText = userText;
 
-    const isStreamingEnabled = (process.env.CALL_VOICE_STREAMING_ENABLED ?? 'true') !== 'false';
+    const isStreamingEnabled = isVoiceStreamingEnabled();
     if (isStreamingEnabled &&
         (cfg.ai_provider || 'OPENAI') === 'OPENAI' && Number.isSafeInteger(speechEpoch)) {
       const apiKey = await resolveAiApiKey(cfg);
@@ -924,7 +925,7 @@ export async function restartActiveReplyForProfile(callId) {
   if (activeVoiceTurns.has(callId) || latestSpeechEpochs.get(callId) !== previous.speechEpoch) return false;
   const call = getCallSession(callId);
   const apiKey = await resolveAiApiKey();
-  if (!call || !apiKey || process.env.CALL_VOICE_STREAMING_ENABLED !== 'true') return false;
+  if (!call || !apiKey || !isVoiceStreamingEnabled()) return false;
   const controller = new AbortController();
   controller.speechEpoch = previous.speechEpoch;
   controller.userText = previous.userText;
