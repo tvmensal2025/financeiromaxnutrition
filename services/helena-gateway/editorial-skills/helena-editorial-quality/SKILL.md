@@ -3,7 +3,7 @@ name: helena-editorial-quality
 description: "Revisar estrategia, copy e aplicacao visual de campanhas por empresa; usar em posts, stories, legendas e revisoes editoriais. Nao se aplica a tarefas financeiras ou tecnicas sem conteudo de campanha."
 ---
 
-# Qualidade editorial de campanhas — v2, 2026-10-03
+# Qualidade editorial de campanhas — v3, 2026-10-03
 
 ## Aplicacao e contexto
 Antes de escrever ou revisar campanhas, consulte empresa, identidade, publico, objetivo, oferta, fatos comprovados, canal e uso autorizado. Nao transportar voz, logo, promessa ou condicoes de outra empresa. Esta skill orienta qualidade: nao cria ferramentas, permissao de publicacao, revisor ou disponibilidade comercial.
@@ -21,7 +21,12 @@ Isabela escreve para o leitor: gancho especifico, proposta compreensivel, benefi
 Em uma revisao de campanha, propor ate tres headlines com angulos distintos, escolher uma com justificativa breve e desenvolver um pacote. Em ajustes pequenos, corrigir diretamente. Stories devem avancar a narrativa — interesse, explicacao, proximo passo — sem repetir o post ou trocar apenas algumas palavras. Adaptar quantidade, extensao e estrutura ao pedido; nao impor tres stories a qualquer tarefa.
 Legenda complementa a arte; separar texto publicavel de estrategia, fontes e pareceres internos. Usar linguagem natural da marca, verbos concretos e leitura confortavel no celular. Nao substituir clareza por adjetivos, superlativos, urgencia artificial ou promessa de resultado.
 Manter condicoes materiais proximas das afirmacoes que qualificam; detalhes complementares podem ir na legenda. Nao esconder ressalvas, acrescentar avisos sem necessidade nem deixar condicoes genericas substituirem a proposta. Alegacoes, disponibilidade, numeros, depoimentos, renda, saude e parceiros precisam de fontes adequadas.
-CTA corresponde ao canal e estagio reais. Em revisao interna sem destino, usar encerramento editorial, sem link/contato ou botao funcional ficticio. Se o objetivo contratado exige captacao externa, destino ausente e pendencia comercial, nao um detalhe que a copy possa inventar.
+CTA corresponde ao canal e estagio reais. Em revisao interna, manter convite comercial textual, por exemplo "Quero participar", mesmo sem URL definida. Registrar destino pendente somente no briefing; nao substituir o convite por advertencia ou encerramento burocratico. Antes de publicar ou captar dados, confirmar destino funcional e autorizacao. Nunca inventar link, contato ou disponibilidade de cadastro.
+
+### Criterio comercial — 2026-10-03
+A copywriter deve vender a proposta: gancho ligado a um desejo real, atividade concreta, beneficio sustentado, explicacao simples do mecanismo e um CTA. Para BIZ-003, falar de oportunidade, ganhar dinheiro, renda extra e trabalho em casa quando coerentes com os fatos do projeto. A identidade vigente no cadastro da empresa e a fonte; recarregar seus campos voice, cta, restrictions e review antes de preparar novo briefing. Nao reutilizar uma versao antiga da marca como se fosse atual.
+Condicoes descritas no cadastro orientam a operacao; nao sao rodape obrigatorio em toda peca. Nao exigir "analise se serve para voce", "depende da compatibilidade" ou avisos genericos para aprovar. Uma condicao material deve acompanhar a afirmacao que qualifica, de maneira especifica e proporcional. Sem oferta ativa confirmada, apresentar o mecanismo real e o interesse comercial da marca; nao afirmar vagas abertas ou valor de pagamento. Se o pedido exige uma oferta especifica, perguntar internamente pela atividade, remuneracao e destino que faltam, sem fabricar esses dados nem transforma-los na headline.
+Revisao editorial deve reprovar texto vago, sem beneficio, sem mecanismo, repetitivo ou sem proximo passo, com orientacao objetiva de melhoria. Persuasao nao dispensa fatos; fatos nao exigem copy defensiva. A entrega publica contem arte, texto e legenda limpos; pesquisa, pareceres, versoes e pendencias ficam separados.
 
 ## Revisao solicitada e passagem entre agentes
 Helena/Marina separam revisao textual de aplicacao visual e usam tarefas, dependencias e revisor designado do fluxo vigente. Pedido explicito do fundador para melhorar copy autoriza nova versao textual no escopo solicitado: preservar historico, registrar a revisao no briefing pelo fluxo existente e nao continuar exigindo a versao antiga literal. Sem essa revisao registrada, Maya preserva o texto aprovado; nao altera oferta ou copy por conta propria.

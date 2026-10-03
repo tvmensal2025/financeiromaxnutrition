@@ -1,0 +1,22 @@
+{
+  "business_id": "BIZ-003",
+  "approved_in_ui": true,
+  "fields": {
+    "voice": "Copy comercial, humana, direta e persuasiva. A missão é despertar interesse e levar ao próximo passo. Abrir com um desejo ou benefício concreto; explicar a atividade e como ela se conecta à oportunidade; fechar com um convite claro. Para Humano Digital, conectar pessoas a projetos remunerados de dados para IA, usando apenas condições confirmadas. Falar de oportunidade, ganhar dinheiro, renda extra e trabalhar em casa quando coerente com a oferta. Usar verbos ativos, exemplos do cotidiano e linguagem que qualquer pessoa entenda. Evitar abstrações como \"iniciativa relacionada a trabalho\" e encerramentos como \"analise se serve para você\", \"depende da compatibilidade\" ou \"quando as informações estiverem validadas\". Não acrescentar ressalvas genéricas automaticamente. Se uma condição mudar o sentido da oferta, explicar apenas essa condição, com clareza. Criar desejo com especificidade e identificação, sem inventar prova, urgência ou renda. Estratégia e pendências ficam no briefing interno; a entrega ao público contém somente a mensagem da campanha.",
+    "cta": "Usar uma chamada para ação simples e coerente com a campanha: QUERO PARTICIPAR, QUERO TRABALHAR COM IA ou VER OPORTUNIDADES. Escolher uma por peça. Em revisão interna, a copy pode conter o convite mesmo sem URL definida; registrar o destino pendente somente no briefing. A ausência de link não obriga a encerrar com uma advertência nem impede revisar texto e arte. Antes de publicar ou captar dados, confirmar o canal oficial e o destino funcional. Não inventar URL, WhatsApp, cadastro disponível ou contato. A revisão interna continua sem publicação. Se o projeto ainda não tem oferta ativa, convidar a conhecer a Humano Digital sem anunciar inscrições ou vagas abertas.",
+    "restrictions": "É permitido vender e comunicar oportunidade de ganhar dinheiro, renda extra, trabalho em casa e remuneração quando essas afirmações correspondem ao projeto e aos fatos confirmados. Não existe proibição genérica de falar de dinheiro ou oportunidade. O limite é inventar vaga aberta, pagamento, valor, prazo, parceria, depoimento ou resultado garantido. Valores e condições específicas devem vir de fonte confirmada. Não tratar possibilidade como garantia. Não inserir automaticamente frases defensivas, avisos genéricos ou rodapés burocráticos em toda arte. Uma condição material deve ser explicada de forma específica, proporcional e próxima da afirmação que ela qualifica. Dúvidas sobre a oferta são resolvidas internamente; não viram a mensagem principal do anúncio. Publicação e contato externo continuam sujeitos à autorização vigente.",
+    "review": "Revisar a campanha como comunicação comercial: 1) o gancho prende a atenção e conversa com um desejo real; 2) o leitor entende o que é oferecido e qual atividade faria; 3) o benefício é claro e sustentado; 4) o mecanismo e os exemplos correspondem ao negócio; 5) existe uma chamada para ação simples; 6) não há jargão interno nem ressalvas genéricas ocupando a proposta; 7) números, disponibilidade, remuneração e provas têm fonte quando utilizados; 8) imagens, logo, cores, hierarquia e texto são legíveis no celular; 9) cada peça tem um ângulo e uma função, sem repetição mecânica. Separar revisão interna de liberação para publicação: falta de URL não reprova um rascunho com CTA textual; o destino real e a autorização são obrigatórios antes da publicação. Campanha de oferta específica exige projeto confirmado; peça institucional pode apresentar o mecanismo real sem afirmar vaga aberta. Ao reprovar, apontar trecho/problema, mudança esperada e critério de aceite, encaminhando à responsável. Não exigir as frases \"depende do projeto\", \"analise se dá certo para você\" ou avisos de renda como fórmula de aprovação."
+  },
+  "policy": "helena-editorial-quality-v3",
+  "profiles": [
+    "helena--grupo",
+    "marina--biz003",
+    "camila--biz003",
+    "isabela--biz003",
+    "maya--biz003",
+    "nina--biz003"
+  ],
+  "skill_sha256": "e01218271de3b0efbf427b0e40bd9bb3b786513de81100d5dae554f7b4772682",
+  "backup": "/data/helena-runtime/editorial-backup-20261003T072405930328Z",
+  "campaign_executed": false
+}
