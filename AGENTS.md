@@ -29,7 +29,7 @@ Estas orientações valem para todo o projeto. Responder em português e seguir 
 5. Arquivos, relatórios e conversas históricas.
 
 - Antes de propor criação ou retrabalho, consultar o existente: JÁ EXISTE / PARCIAL / AUSENTE / DIVERGENTE. Sem verificação suficiente: NÃO CONFIRMADO.
-- Respeitar WIP executivo = 1. Não abrir outra frente automaticamente.
+- Respeitar WIP executivo = 1 na esteira autônoma de agentes. Comandos diretos do Fundador para criar empresas, contas ou entidades têm precedência soberana (DEC-022) e devem ser materializados imediatamente na tabela de destino (public.portfolio para empresas, etc.).
 - CONNECTED não comprova OPERATIONAL; CONFIGURADA não comprova homologação.
 - Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
 - Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.

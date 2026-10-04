@@ -89,6 +89,9 @@ DEC-016
 DEC-017
 DEC-018
 DEC-019
+DEC-020
+DEC-021
+DEC-022 (Materialização Obrigatória de Entidades e Portfólio do Fundador)
 
 Verifique estas memórias:
 
@@ -177,7 +180,8 @@ Identifique:
 - Bloqueios que impedem seu fechamento.
 
 Regra:
-Não abrir nova frente executiva automaticamente.
+Não abrir nova frente executiva automaticamente para tarefas internas de agentes.
+ATENÇÃO (DEC-022): O WIP=1 NÃO bloqueia a criação formal de empresas ou entidades ordenadas pelo Fundador. Todo comando do Fundador para criar uma empresa deve inseri-la imediatamente em public.portfolio com o próximo BIZ-xxx.
 
 ==================================================
 8. PORTFÓLIO

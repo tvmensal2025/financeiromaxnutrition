@@ -360,6 +360,32 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(plano.entrega_conteudo?.stories[3].titulo).toContain("Story 4");
     expect(plano.escritas.some((item) => item.tabela === "tarefas")).toBe(true);
   });
+
+  it("ao falar 'criar a empresa E-living' a Helena gera escrita em portfolio e tarefas vinculadas (DEC-022)", () => {
+    const plano = classificar("criar a empresa E-living", ctx, agora);
+    expect(plano.conclusao).toContain("Empresa \"E-living\" criada formalmente no portfólio");
+    expect(plano.decisao).toContain("DEC-022");
+    const port = plano.escritas.find((item) => item.tabela === "portfolio");
+    expect(port).toBeDefined();
+    expect(port?.row).toMatchObject({
+      business_id: "{{BIZ}}",
+      negocio: "E-living",
+      ativo: "SIM",
+      estagio: "VALIDAÇÃO",
+    });
+    const task = plano.escritas.find((item) => item.tabela === "tarefas");
+    expect(task).toBeDefined();
+    expect(task?.row).toMatchObject({
+      task_id: "{{TSK}}",
+      business_id: "{{BIZ}}",
+      status: "ABERTA",
+    });
+  });
+
+  it("calcula proximoId para BIZ com 3 dígitos (ex: BIZ-005)", async () => {
+    const id = await proximoId(["BIZ-001", "BIZ-002", "BIZ-003", "BIZ-004"], "BIZ");
+    expect(id).toBe("BIZ-005");
+  });
 });
 
 

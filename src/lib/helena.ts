@@ -687,6 +687,47 @@ Se você tem atenção aos detalhes e quer aprender na prática como a IA se des
     return plano;
   }
 
+  const matchEmpresa = texto.match(/(?:cria[rz]?|fazer?|fa[cç]a|cadastr(?:ar?|e)|adicionar?|nova)\s+(?:a\s+)?empresa\s+([A-Za-z0-9À-ÿ\s\-_]+)/i);
+  if (matchEmpresa) {
+    const nomeBruto = matchEmpresa[1].trim();
+    const nomeEmpresa = nomeBruto.replace(/[.,;!?].*$/, "").replace(/\s+(?:hoje|por favor|agora|urgente).*$/i, "").trim();
+    if (nomeEmpresa.length >= 2) {
+      plano.conclusao = `Empresa "${nomeEmpresa}" criada formalmente no portfólio oficial como {{BIZ}}! Tarefa de estruturação gerada e vinculada.`;
+      plano.decisao = "DEC-022: Materialização soberana de comando do fundador. Empresa inserida em portfolio e ativa no seletor.";
+      plano.responsavel = AGENTES.helena;
+      plano.proxima = "Helena coordena a equipe de 21 agentes para desenhar o blueprint enquanto o negócio já está ativo no sistema.";
+      plano.escritas.push({
+        tabela: "portfolio",
+        row: {
+          business_id: "{{BIZ}}",
+          negocio: nomeEmpresa,
+          ativo: "SIM",
+          estagio: "VALIDAÇÃO",
+          source_system: "HELENA",
+          sync_status: "INTERNO",
+        },
+      });
+      plano.escritas.push({
+        tabela: "tarefas",
+        row: {
+          task_id: "{{TSK}}",
+          business_id: "{{BIZ}}",
+          tarefa: `Estruturar blueprint estratégico, marca e operação da empresa ${nomeEmpresa}`,
+          tipo: "PLANEJAMENTO",
+          responsavel: "Helena",
+          prioridade: "ALTA",
+          status: "ABERTA",
+          definicao_de_pronto: `Blueprint completo de ${nomeEmpresa} com arquitetura de produto, modelo de receita, proposta de valor e governança.`,
+          source_system: "HELENA",
+          sync_status: "INTERNO",
+        },
+      });
+      handoff(plano, agora, "AGT-01", `Nova empresa ${nomeEmpresa}`, `Criação formal autorizada pelo fundador. Empresa ativa no portfólio como {{BIZ}}.`, "{{BIZ}}");
+      memoria(plano, agora, "Criação de Empresa", plano.conclusao, "{{BIZ}}", plano.proxima);
+      return plano;
+    }
+  }
+
   if (/ideia|quero criar|vamos criar|nova funcao|novo modulo|poderia/.test(n)) {
     const decisao = homolog ? "DEPOIS" : "PRECISA VALIDAR";
     plano.conclusao = `Ideia classificada como ${decisao}. Nada foi construído.`;
@@ -717,6 +758,7 @@ const PREFIXO: Record<string, [string, string]> = {
   "{{JOB}}": ["agent_jobs", "job_id"],
   "{{OPP}}": ["crm", "opportunity_id"],
   "{{TKT}}": ["atendimento", "ticket_id"],
+  "{{BIZ}}": ["portfolio", "business_id"],
 };
 
 export async function proximoId(
@@ -729,7 +771,8 @@ export async function proximoId(
     const m = String(id).match(re);
     if (m) max = Math.max(max, Number(m[1]));
   }
-  return `${prefixo}-${String(max + 1).padStart(4, "0")}`;
+  const digits = prefixo === "BIZ" ? 3 : 4;
+  return `${prefixo}-${String(max + 1).padStart(digits, "0")}`;
 }
 
 export function prefixoDe(token: string) {
@@ -744,6 +787,7 @@ export function prefixoDe(token: string) {
     agent_jobs: "JOB",
     crm: "OPP",
     atendimento: "TKT",
+    portfolio: "BIZ",
   };
   return { tabela: tabela[0], coluna: tabela[1], prefixo: prefixos[tabela[0]] };
 }
