@@ -11,10 +11,10 @@ export function ExecutiveLogo({ collapsed = false, className = "", size = "md" }
   const isSm = size === "sm";
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`he-brand flex items-center gap-3 ${className}`}>
       {/* Monograma H executivo e discreto */}
       <div
-        className={`grid place-items-center rounded-lg bg-[#007A3D] text-white shadow-sm font-semibold tracking-tight transition-transform ${
+        className={`he-brand-mark grid place-items-center rounded-lg bg-[#007A3D] text-white shadow-sm font-semibold tracking-tight transition-transform ${
           isLg ? "h-11 w-11 text-xl rounded-xl" : isSm ? "h-7 w-7 text-xs" : "h-8 w-8 text-sm"
         }`}
       >
@@ -22,7 +22,7 @@ export function ExecutiveLogo({ collapsed = false, className = "", size = "md" }
       </div>
 
       {!collapsed && (
-        <div className="flex flex-col leading-tight">
+        <div className="he-brand-copy flex flex-col leading-tight">
           <div className="flex items-center gap-1.5">
             <span
               className={`font-semibold tracking-tight text-white ${

@@ -1,0 +1,54 @@
+{
+  "publication": {
+    "id": "CP-20261001-V034",
+    "version": 34,
+    "status": "ATIVO",
+    "predecessor": "CP-20260928-V033",
+    "created_at": "2026-10-01 15:38:46.536174+00",
+    "database_markdown_characters": 80571,
+    "database_markdown_md5": "3a90352699773288c8369eb1cb0e8c99"
+  },
+  "verification": {
+    "active": {
+      "id": "CP-20261001-V034",
+      "status": "ATIVO",
+      "version": 34,
+      "previous": "CP-20260928-V033",
+      "created_at": "2026-10-01T15:38:46.536174+00:00",
+      "agent_count": 21,
+      "skill_count": 45,
+      "delta_present": true,
+      "sources_present": true,
+      "snapshot_not_empty": true,
+      "markdown_characters": 80571,
+      "normalized_markdown_md5": "d18dd4af592e7197878d9f612e28f9f4"
+    },
+    "counts": {
+      "jobs": 59,
+      "tasks": 80,
+      "events": 488,
+      "memories": 139
+    },
+    "current_job": {
+      "max": 2,
+      "status": "FAILED",
+      "updated": "2026-10-01T14:47:44.372078+00:00",
+      "version": 3672,
+      "attempts": 2,
+      "task_status": "BLOQUEADA"
+    },
+    "max_version": 34,
+    "observed_at": "2026-10-01T15:40:24.941318+00:00",
+    "active_count": 1,
+    "previous_status": "SUPERADO"
+  },
+  "local_master_sha256": "9fbd814a6f8268d26d1f2e547338e36b61d04bf1bcfdd31e9b6dbe9676685d22",
+  "local_master_md5": "d18dd4af592e7197878d9f612e28f9f4",
+  "line_endings": "Supabase SQL Editor converteu LF em CRLF; conteúdo normalizado integralmente igual ao arquivo local.",
+  "model_calls_for_checkpoint": 0,
+  "paid_image_generations_for_checkpoint": 0,
+  "jobs_changed": false,
+  "new_jobs": 0,
+  "authorization_expanded": false,
+  "canonical_record": "public.checkpoint_mestre / CP-20261001-V034"
+}

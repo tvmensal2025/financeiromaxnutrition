@@ -1,0 +1,43 @@
+PROGRAMA HUMANO DIGITAL — 03/10/2026
+
+Estado: implementado e testado LOCALMENTE. Nao instalado no Hermes, nao agendado,
+nao homologado com IA. Os testes usam estados simulados; nao atestam os 21 agentes.
+
+Helena coordena, define briefing, confere empresa/escopo, procura tarefas existentes
+e libera cada job pelo Gateway. Marina organiza o acompanhamento. Especialistas
+executam; o revisor designado no contrato canonico aprova ou solicita correcao.
+O programa seleciona somente os jobs vinculados ao manifesto, na ordem definida.
+
+Arquivos:
+services/helena-gateway/scripts/hermes_fleet_program.py
+docs/helena/programa-humano-digital-20261003.json
+
+LOCAL: validar plano sem rede/IA
+.venv\Scripts\python.exe services/helena-gateway/scripts/hermes_fleet_program.py --plan docs/helena/programa-humano-digital-20261003.json
+
+NO HERMES, APOS INSTALAR JUNTO DOS SCRIPTS EXISTENTES:
+python3 /data/helena-runtime/hermes_fleet_program.py --plan /data/helena-runtime/programa-humano-digital-20261003.json --live
+
+EXECUCAO PONTUAL, APOS VINCULOS E LEITURA CONFIRMADOS:
+HELENA_DISPATCH_ENABLED=1 python3 /data/helena-runtime/hermes_fleet_program.py --plan /data/helena-runtime/programa-humano-digital-20261003.json --live --execute --max-actions 1
+
+Nao instalar um segundo cron enquanto o controlador existente estiver ativo.
+O programa nao usa --auto: passa o job_id explicito ao controlador/fluxo existentes.
+Preserva locks, permissoes e limites de tentativas desses componentes. Le o estado
+canonico depois de cada acao. Resultado incerto ou falta de progresso cria trava
+persistente fleet-program-attention.json; requer reconciliacao antes de remover.
+Consulta --live continua disponivel durante essa trava e nao consome IA.
+
+Pendencias reais antes de executar a frota:
+1. Corrigir/homologar recuperacao do job de copy FAILED, sem reset arbitrario.
+2. Helena conferir/criar os jobs do plano pelo Gateway e vincular seus IDs; 20
+   vinculos ainda ausentes. Um campo local nunca equivale a aprovacao remota.
+3. Conferir escopo pessoal de Laura e de grupo de Helena. Se o runtime recusar,
+   registrar incompatibilidade; nao transformar esses perfis em BUSINESS.
+4. Revisores, ferramentas, fontes e dependencias devem constar tambem nos briefings
+   canonicos. O manifesto local seleciona ordem, mas nao injeta evidencias faltantes.
+5. Implantar no host Hermes e testar uma etapa real antes de ativar agenda.
+
+O programa para o lote quando identifica FAILED; nao soluciona sozinho a falha
+ja existente nem aprova entregas. Ele nao cria jobs automaticamente e nao e uma
+fila autonoma pronta para producao enquanto os vinculos e itens acima faltarem.

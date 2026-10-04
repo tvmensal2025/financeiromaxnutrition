@@ -6,9 +6,17 @@ const mock = vi.hoisted(()=>({ user: null as {id:string}|null, from: vi.fn(), or
 vi.mock('@/auth',()=>({useAuth:()=>({user:mock.user,loading:false})}));
 vi.mock('@/lib/supabase',()=>({supabase:{from:mock.from}}));
 import { BusinessProvider, useBusiness } from './BusinessContext';
-function Probe(){const b=useBusiness();return <div>{b.loading?'carregando':'pronto'}<span>{b.empresas.map(e=>e.nome).join(',')}</span>{b.error&&<p role="alert">Falha de leitura</p>}</div>;}
+function Probe(){const b=useBusiness();return <div>{b.loading?'carregando':'pronto'}<span>{b.empresas.map(e=>e.nome+' '+e.cor).join(',')}</span>{b.error&&<p role="alert">Falha de leitura</p>}</div>;}
 beforeEach(()=>{mock.user=null;mock.from.mockReset();mock.order.mockReset();mock.from.mockReturnValue({select:()=>({order:mock.order})});localStorage.clear();});
 describe('Empresas da sessão',()=>{
+  it('usa a cor aprovada da propria empresa e ignora identidade de outra empresa',async()=>{
+    mock.user={id:'u1'};mock.order.mockResolvedValue({data:[
+      {business_id:'BIZ-003',negocio:'Marca atual',brand_identity:{business_id:'BIZ-003',status:'APPROVED',colors:[{hex:'#123456'}]}},
+      {business_id:'BIZ-002',negocio:'Outra marca',brand_identity:{business_id:'BIZ-003',status:'APPROVED',colors:[{hex:'#123456'}]}},
+    ],error:null});
+    render(<BusinessProvider><Probe/></BusinessProvider>);
+    expect(await screen.findByText('Marca atual #123456,Outra marca #2563EB')).toBeInTheDocument();
+  });
   it('aguarda autenticação e não apresenta empresas fictícias',async()=>{
     render(<BusinessProvider><Probe/></BusinessProvider>);
     await screen.findByText('pronto');

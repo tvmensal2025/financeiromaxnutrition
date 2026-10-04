@@ -108,7 +108,12 @@ function siglaDe(nome: string) {
   return `${texto.slice(0, 22)}…`;
 }
 
-function corDe(id: string, indice: number) {
+function corDe(id: string, indice: number, identity?: unknown) {
+  if (identity && typeof identity === 'object') {
+    const brand = identity as { business_id?: string; status?: string; colors?: { hex?: string }[] };
+    const primary = Array.isArray(brand.colors) ? brand.colors[0]?.hex : undefined;
+    if (brand.business_id === id && brand.status === 'APPROVED' && typeof primary === 'string' && /^#[a-f0-9]{6}$/i.test(primary)) return primary;
+  }
   return CORES[id] || CORES_EXTRA[indice % CORES_EXTRA.length];
 }
 
@@ -163,7 +168,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error: err } = await supabase
         .from("portfolio")
-        .select("business_id,negocio,estagio,principal_gargalo,ativo,publico,row_version")
+        .select("business_id,negocio,estagio,principal_gargalo,ativo,publico,row_version,brand_identity")
         .order("business_id");
       if (versao !== versaoConsulta.current) return;
 
@@ -172,6 +177,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
       if (!err && data && data.length > 0) {
         listaMapeada = (data as Array<{
           business_id: string;
+          brand_identity?: unknown;
           row_version?: number | string;
           negocio: string | null;
           estagio?: string | null;
@@ -187,7 +193,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
             nome: (item.negocio || item.business_id).trim(),
             negocio: (item.negocio || item.business_id).trim(),
             sigla: siglaDe(item.negocio || item.business_id),
-            cor: corDe(item.business_id, indice),
+            cor: corDe(item.business_id, indice, item.brand_identity),
             estagio: item.estagio || undefined,
             principal_gargalo: item.principal_gargalo || undefined,
             ativo: item.ativo || undefined,

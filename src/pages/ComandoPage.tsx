@@ -1,3 +1,4 @@
+import { ActivityTimeline } from "@/components/executive/ActivityTimeline";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, RefreshCw, Search, ShieldCheck, Waypoints, CircleHelp, ChevronLeft, ChevronRight, X, Layers3 } from "lucide-react";
@@ -14,6 +15,8 @@ import { SupervisionPanel } from "@/components/executive/SupervisionPanel";
 import { requerFundador, agruparStatus, atribuidoA, atrasada, encerrada, fonteResultado, indicadoresPropostos, noEscopo, normalizar, planoEvolucao, planoDoCheckpoint, resumoExecutivoTarefa, type DadosComando, type TarefaComando } from "@/lib/comando";
 import { CoveragePanel } from "@/components/executive/CoveragePanel";
 import { ProcessBoard } from "@/components/executive/ProcessBoard";
+import { ExecutiveWelcome } from "@/components/executive/ExecutiveWelcome";
+import { ExecutiveAnalytics } from "@/components/executive/ExecutiveAnalytics";
 import { ExecutionPanel } from "@/components/executive/ExecutionPanel";
 import { desfechoJob, eventosDoJob, faseJob, rotuloFase } from "@/lib/execucoes-comando";
 import { DecisionPanel } from "@/components/executive/DecisionPanel";
@@ -131,7 +134,6 @@ export default function ComandoPage({ inicial = "Visão geral" }: { inicial?: Ab
   const jobsNaFila = dados?.eventos.estado === "ok" ? jobsVisiveis.filter(j => faseJob(j, eventosDoJob(j, dados.eventos.rows)) === "FILA").length : null;
   const jobsEncerrados = jobsVisiveis.filter(j => faseJob(j, []) === "ENCERRADO").length;
   const tarefa = tarefas.find(t => t.task_id === tarefaId);
-  const porAgente = agentes.map(a => ({ a, n: abertos.filter(t => atribuidoA(t.responsavel, a)).length })).filter(x => x.n > 0).sort((a,b) => b.n - a.n);
   const listaTarefas = tarefas.filter(t => filtroAtencao === "TODOS" || (filtroAtencao === "FUNDADOR" ? requerFundador(t) : atrasada(t))).filter(t => normalizar(`${t.task_id} ${t.tarefa} ${t.responsavel}`).includes(normalizar(buscaTarefa))).filter(t => filtroStatus === "TODOS" || (filtroStatus === "OUTROS" ? !grupos.slice(0,5).some(g => normalizar(g.id) === normalizar(t.status)) : normalizar(t.status) === normalizar(filtroStatus)));
   const recentes = tarefas.filter(t => t.atualizado_em).slice().sort((a,b) => Date.parse(b.atualizado_em!) - Date.parse(a.atualizado_em!)).slice(0,5);
 
@@ -153,7 +155,7 @@ export default function ComandoPage({ inicial = "Visão geral" }: { inicial?: Ab
 
   return <section className="hc" aria-label="Sala de comando da Helena">
     <header className="hc-heading hc-heading-compact">
-      <div><h1>Sala de comando<span>.</span></h1><p><strong>{isConsolidated ? "Grupo consolidado" : rotulo}</strong><span> · {isConsolidated ? "Visão dos negócios" : "Empresa selecionada + grupo e sistema"}</span></p></div>
+      <div><span className="he-page-kicker">CENTRAL EXECUTIVA</span><h1>{aba === 'Visão geral' ? 'Sala de comando' : aba === 'Supervisão' ? 'Supervisão da Helena' : aba === 'Empresas' ? 'Operação por empresa' : aba === 'Consumo' ? 'Consumo e rotinas' : aba}<span>.</span></h1><p><strong>{isConsolidated ? "Grupo consolidado" : rotulo}</strong><span> · {isConsolidated ? "Visão dos negócios" : "Visão da empresa e das atividades compartilhadas"}</span></p></div>
       <div className="hc-header-actions"><details className="hc-update-details"><summary><ShieldCheck size={15}/> Consulta e fonte</summary><div><strong>Última consulta: {dataHora(leitura)}</strong><p>Consulta a cada 30 s enquanto a página está visível. As leituras não acionam agentes nem aprovam tarefas.</p><p>Dados permitidos pela sua sessão. A leitura do banco e as regras de execução permanecem separadas da apresentação.</p></div></details><button className="hc-button" aria-label="Atualizar dados" disabled={carregando} onClick={() => setCiclo(n => n + 1)}><RefreshCw size={16} className={carregando ? "animate-spin" : ""}/><span>{carregando ? "Consultando…" : "Atualizar"}</span></button></div>
     </header>
     {falhas.length > 0 && <div className="hc-warning" role="alert">Leitura incompleta: {falhas.join(", ")}. Indicadores podem estar indisponíveis ou parciais; isso não significa ausência de trabalho. Tente atualizar.</div>}
@@ -162,21 +164,14 @@ export default function ComandoPage({ inicial = "Visão geral" }: { inicial?: Ab
     {(aba === 'Supervisão' || aba === 'Empresas' || aba === 'Consumo') && <SupervisionPanel key={`${aba}-${escopo}`} dados={dados} tarefas={tarefas} modo={aba} abrirTarefa={abrirTarefa} abrirAgente={abrirAgente}/>}
 
     {aba === "Visão geral" && <div className="hc-stack">
+      <ExecutiveWelcome company={isConsolidated ? 'Grupo consolidado' : rotulo}/>
+      <ActivityTimeline events={(dados?.atividade.rows ?? []).filter(e => noEscopo(e.business_id, escopo))} available={dados?.atividade.estado === "ok"}/>
+      <ExecutiveAnalytics tarefas={tarefas} agentes={agentes} disponivel={disponivel} agentesDisponiveis={dados?.agentes.estado === 'ok'} nomeEmpresa={id => ['GRUPO','SISTEMA'].includes(normalizar(id)) ? (normalizar(id) === 'GRUPO' ? 'Grupo' : 'Sistema') : (nomeDe?.(id) || id)} abrirStatus={mostrarTarefas} abrirAgente={abrirAgente} abrirEmpresas={() => setAba('Empresas')}/>
+      <ExecutiveWelcome company={isConsolidated ? 'Grupo consolidado' : rotulo} part="navigation"/>
       <CommandPriorities tarefas={tarefas} disponivel={disponivel} abrirTarefa={abrirTarefa} verFila={verFila}/>
       <ProcessBoard tarefas={tarefas} disponivel={disponivel} consolidado={isConsolidated} escopo={escopo} nomeEmpresa={nomeDe} abrirTarefa={abrirTarefa}/>
       <div className="hc-flow-links"><button onClick={() => {setAgenteAcompanhamento(null);setAcompanhamento("Execuções");setAba("Acompanhamento");}}><span>JOBS DOS AGENTES</span><strong>{dados?.jobs.estado === "ok" ? jobsVisiveis.length : "—"} jobs registrados</strong><small>{dados?.jobs.estado === "ok" && jobsNaFila !== null ? `${jobsNaFila} na fila · ${jobsEncerrados} encerrados · abrir origem e passos` : "Ver origem, etapas e evidências"} <ArrowUpRight size={14}/></small></button><button onClick={() => {setAcompanhamento("Decisões");setAba("Acompanhamento");}}><span>DECISÕES REGISTRADAS</span><strong>{dados?.decisoes.estado === "ok" ? dados.decisoes.rows.filter(d => noEscopo(d.business_id, escopo)).length : "—"} decisões</strong><small>Ver decisor, motivo e fonte <ArrowUpRight size={14}/></small></button></div>
       <section className="hc-company-overview" aria-label="Entregas por empresa"><div className="hc-section-heading hc-row"><div><span className="hc-eyebrow">ENTREGAS POR EMPRESA</span><h2>Cada negócio com sua própria fila</h2></div><button className="hc-text-button" onClick={()=>setAba('Empresas')}>Ver distribuição completa <ArrowRight size={16}/></button></div><div className="hc-company-strip">{distribuirEmpresas(tarefas).map(f=><button key={f.id} onClick={()=>setAba('Empresas')}><small>{f.id}</small><strong>{normalizar(f.id) === 'GRUPO' ? 'Compartilhado do grupo' : normalizar(f.id) === 'SISTEMA' ? 'Operação do sistema' : nomeDe?.(f.id) || f.id}</strong><span>{disponivel ? f.abertas : '—'} abertas · {disponivel ? f.bloqueadas : '—'} bloqueadas</span></button>)}</div>{!tarefas.length && <p className="hc-empty">{disponivel ? 'Sem entregas visíveis neste recorte.' : 'Aguardando leitura das entregas.'}</p>}</section>
-      <div className="hc-two">
-        <article className="hc-card"><div className="hc-section-heading"><div className="hc-eyebrow">PANORAMA DA OPERAÇÃO</div><h2>Distribuição das tarefas</h2><p>Clique em uma faixa para inspecionar os registros.</p></div>
-          {disponivel ? <div className="hc-bars">{grupos.filter(g => g.n || g.id !== "OUTROS").map(g => <button key={g.id} className="hc-bar-item" aria-pressed={filtroStatus === g.id} onClick={() => mostrarTarefas(g.id)}><span>{g.id}<strong>{g.n}</strong></span><span className="hc-track"><span style={{ width: `${tarefas.length ? g.n / tarefas.length * 100 : 0}%`, background: g.cor }} /></span></button>)}</div> : <p className="hc-empty">Distribuição indisponível até a leitura completa.</p>}
-          <small>{tarefas.length} registros visíveis{!disponivel ? " (leitura não confirmada)" : ""}. Esta contagem não é percentual de qualidade.</small>
-        </article>
-        <article className="hc-card"><div className="hc-section-heading"><div className="hc-eyebrow">EQUIPE EM FOCO</div><h2>Onde o trabalho se concentra</h2><p>Tarefas abertas atribuídas; não mede esforço ou produtividade.</p></div>
-          {disponivel && dados?.agentes.estado === "ok" ? <div className="hc-workload">{porAgente.slice(0,6).map(({a,n}) => <button key={a.agent_id} onClick={() => abrirAgente(a.agent_id)}><AgentAvatar agentId={a.agent_id} nome={a.agente} size={32}/><span>{a.agente}<span className="hc-track"><span style={{width: `${n / Math.max(...porAgente.map(p => p.n),1)*100}%`}} /></span></span><strong>{n}</strong><ArrowUpRight size={15}/></button>)}{!porAgente.length && <p className="hc-empty">Sem atribuições reconhecidas neste recorte.</p>}</div> : <p className="hc-empty">Atribuições indisponíveis até a leitura completa.</p>}
-          <small>Mostra até 6 agentes. Uma tarefa compartilhada conta para cada participante. Vínculos inferidos do campo responsável.</small>
-        </article>
-      </div>
-
         <article className="hc-focus hc-direction-summary">
           <div className="hc-focus-head"><span>PRIORIDADE EXECUTIVA</span><Status>{dados?.focos.estado === "ok" ? `${foco.length} frente(s) registrada(s) em execução` : "Frentes não confirmadas"}</Status></div>
           <h2>{!dados || dados.focos.estado !== "ok" ? "Consultando a direção atual" : foco[0]?.frente || "Foco em execução não visível"}</h2>

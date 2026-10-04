@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import shutil
 
-VERSION = 'helena-editorial-quality-v3'
+VERSION = 'helena-editorial-quality-v4'
 START = '<!-- helena-editorial-quality:start -->'
 END = '<!-- helena-editorial-quality:end -->'
 PROFILES = ('helena--grupo', 'marina--biz003', 'camila--biz003',

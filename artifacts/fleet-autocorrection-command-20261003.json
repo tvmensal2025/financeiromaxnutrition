@@ -1,0 +1,16 @@
+{
+  "program": "HD-FLEET-20261003",
+  "specialists": 20,
+  "coordinator": "AGT-01",
+  "command": "docs/helena/COMANDO-AUTOCORRECAO-20-AGENTES-20261003.txt",
+  "command_utf16_characters": 5583,
+  "status": "PREPARED_NOT_SENT",
+  "reason": "Browser control transport closed",
+  "authorization": "Founder authorized specialists to correct their own work and complete internal deliverables",
+  "model_calls": 0,
+  "external_actions_allowed": false,
+  "concurrency": 1,
+  "attempts_reset_allowed": false,
+  "last_delivery_check": "2026-10-03T11:39:07.0980501+00:00",
+  "last_delivery_result": "NOT_SENT_BROWSER_TRANSPORT_CLOSED"
+}

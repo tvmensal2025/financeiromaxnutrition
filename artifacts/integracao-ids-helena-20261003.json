@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-10-03",
+  "frontend_project": "C:/Users/plata/financeiromaxnutrition",
+  "orchestration_project": "C:/Users/plata/Documents/Codex/Helena-HUB",
+  "supabase_project_ref": "wxkgrykduqtsgmjkzlou",
+  "frontend_tests": {"test_files": 24, "tests": 142, "passed": 142, "failed": 0},
+  "gateway_python_tests": {"tests": 278, "passed": 278, "failed": 0, "skipped": 2},
+  "frontend_build": "PASSED",
+  "supabase_anonymous_probe": {
+    "status": "SUPABASE_REACHABLE_AUTH_REQUIRED",
+    "tables_checked": ["agentes", "tarefas", "agent_jobs", "agent_job_events", "handoffs", "checkpoint_mestre_atual"],
+    "writes_performed": false,
+    "interpretation": "RLS is protecting canonical tables; authenticated browser verification is still required."
+  },
+  "hermes_fleet": {
+    "profiles_context_read": 21,
+    "individual_end_to_end_homologation": "PENDING",
+    "current_tracker_state": "IN_PROGRESS_SUPERVISION_BLOCKED"
+  },
+  "status": "LOCAL_CONTRACT_ALIGNED_AUTHENTICATED_E2E_PENDING",
+  "next_proof": "Validate the existing authenticated browser session, then read current agent_jobs and delivery/review evidence without creating duplicate jobs."
+}

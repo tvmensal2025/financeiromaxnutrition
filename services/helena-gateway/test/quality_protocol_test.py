@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -29,6 +30,8 @@ class QualityProtocolTest(unittest.TestCase):
             self.assertFalse((home/'helena-runtime').exists())
             module.run(home,registry,True)
             before={p:(home/'profiles'/p/'SOUL.md').read_bytes() for p in PROFILES}
+            manifest_path=home/'helena-runtime'/'quality-manifest.json'
+            first_manifest=manifest_path.read_bytes()
             module.run(home,registry,True)
             for p in PROFILES:
                 path=home/'profiles'/p
@@ -39,7 +42,7 @@ class QualityProtocolTest(unittest.TestCase):
                 self.assertEqual((path/'.env').read_text(),'FIXTURE_SETTING=not-a-secret\n')
             manifest=json.loads((home/'helena-runtime'/'quality-manifest.json').read_text())
             self.assertEqual(manifest['profiles'],21);self.assertEqual(manifest['ai_calls'],0)
-            self.assertEqual(manifest['updated'],0)
+            self.assertEqual(manifest_path.read_bytes(),first_manifest)
             self.assertNotIn('FIXTURE_SETTING',log.getvalue())
 
     def test_all_profiles_preflight_before_first_write(self):
@@ -49,5 +52,30 @@ class QualityProtocolTest(unittest.TestCase):
             with self.assertRaises(ValueError):module.run(home,registry,True)
             self.assertEqual((home/'profiles'/PROFILES[0]/'SOUL.md').read_text(encoding='utf-8'),'Missao original preservada\n')
             self.assertFalse((home/'helena-runtime').exists())
+
+    def test_upgrade_preserves_other_manifest_versions_and_rejects_drift(self):
+        with tempfile.TemporaryDirectory() as folder,contextlib.redirect_stdout(io.StringIO()):
+            home=Path(folder);self.profiles(home)
+            module.run(home,registry,True)
+            manifest_path=home/'helena-runtime'/'quality-manifest.json'
+            manifest=json.loads(manifest_path.read_text())
+            manifest['role_skills_version']='existing-role-version'
+            manifest['action_ownership_version']='existing-ownership-version'
+            soul_path=home/'profiles'/PROFILES[0]/'SOUL.md'
+            soul_path.write_text(soul_path.read_text().replace('1a. Antes de delegar', '1a. Antes de delegar antigo'),encoding='utf-8')
+            manifest['soul_hashes'][PROFILES[0]]=hashlib.sha256(soul_path.read_bytes()).hexdigest()
+            manifest_path.write_text(json.dumps(manifest),encoding='utf-8')
+            module.run(home,None,True)
+            updated=json.loads(manifest_path.read_text())
+            self.assertEqual(updated['role_skills_version'],'existing-role-version')
+            self.assertEqual(updated['action_ownership_version'],'existing-ownership-version')
+            self.assertEqual(updated['updated'],1)
+            self.assertNotIn('antigo',soul_path.read_text(encoding='utf-8'))
+            other=home/'profiles'/PROFILES[-1]/'SOUL.md'
+            other.write_text(other.read_text(encoding='utf-8')+'drift',encoding='utf-8')
+            before=manifest_path.read_bytes()
+            with self.assertRaisesRegex(ValueError,'SOUL_CHANGED_SINCE_VALIDATION'):
+                module.run(home,None,True)
+            self.assertEqual(before,manifest_path.read_bytes())
 
 if __name__=='__main__':unittest.main()

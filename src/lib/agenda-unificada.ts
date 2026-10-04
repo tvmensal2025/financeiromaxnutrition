@@ -1,3 +1,4 @@
+import { lerPaginas } from "@/lib/leitura-paginada";
 import { supabase } from "@/lib/supabase";
 
 export type EventoAgenda = {
@@ -72,17 +73,23 @@ export function tarefaParaEvento(t: TarefaRow): EventoAgenda | null {
   };
 }
 
-export async function carregarAgenda(selecionadas: string[], todasLigadas: boolean) {
-  let qCal = supabase.from("calendario").select("*").order("inicio");
-  let qTsk = supabase.from("tarefas").select(
-    "task_id,business_id,tarefa,status,prazo,occurrence_date,bloqueio,prioridade,created_at,row_version",
-  );
-  if (!todasLigadas && selecionadas.length) {
-    qCal = qCal.in("business_id", selecionadas);
-    qTsk = qTsk.in("business_id", selecionadas);
-  }
-  const [cal, tsk] = await Promise.all([qCal, qTsk]);
-  const erro = cal.error || tsk.error;
+export async function carregarAgenda(selecionadas: string[], todasLigadas: boolean, signal?: AbortSignal) {
+  if (!todasLigadas && !selecionadas.length) return { eventos: [], semData: [], erro: "" };
+  const [cal, tsk] = await Promise.all([
+    lerPaginas<EventoAgenda>((inicio, fim) => {
+      let query = supabase.from("calendario").select("*", { count: "exact" });
+      if (!todasLigadas) query = query.in("business_id", selecionadas);
+      const page = query.order("event_id").range(inicio, fim);
+      return signal ? page.abortSignal(signal) : page;
+    }, signal),
+    lerPaginas<TarefaRow>((inicio, fim) => {
+      let query = supabase.from("tarefas").select("task_id,business_id,tarefa,responsavel,status,prazo,occurrence_date,bloqueio,prioridade,created_at,row_version", { count: "exact" });
+      if (!todasLigadas) query = query.in("business_id", selecionadas);
+      const page = query.order("task_id").range(inicio, fim);
+      return signal ? page.abortSignal(signal) : page;
+    }, signal),
+  ]);
+  if (cal.error || tsk.error) return { eventos: [], semData: [], erro: "Não foi possível consultar a agenda completa. Atualize para tentar novamente." };
 
   const doCalendario = ((cal.data || []) as EventoAgenda[]).map((e) => ({
     ...e,
@@ -105,6 +112,5 @@ export async function carregarAgenda(selecionadas: string[], todasLigadas: boole
   }
 
   const eventos = [...doCalendario, ...doTarefas];
-  const ehPermissao = erro && /permission denied|jwt|unauthorized|not allowed/i.test(erro.message);
-  return { eventos, semData, erro: ehPermissao ? "" : erro?.message || "" };
+  return { eventos, semData, erro: "" };
 }

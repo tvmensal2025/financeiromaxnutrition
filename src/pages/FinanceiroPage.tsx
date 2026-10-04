@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Wallet,
@@ -10,6 +10,7 @@ import {
   Layers,
   TableProperties,
 } from "lucide-react";
+import { lerPaginas } from "@/lib/leitura-paginada";
 import { supabase } from "@/lib/supabase";
 import { lerCaixa, lerDre, type Lancamento } from "@/lib/caixa";
 import { useBusiness } from "@/contexts/BusinessContext";
@@ -99,52 +100,48 @@ export default function FinanceiroPage() {
   const [erro, setErro] = useState("");
   const [carregando, setCarregando] = useState(true);
 
+  const readVersion = useRef(0);
+  const leitura = useRef<AbortController | null>(null);
   const filtro = todasLigadas ? undefined : selecionadas;
 
   async function carregarDados() {
-    setCarregando(true);
-    setErro("");
-    setLancamentos([]);
-    setRecorrencias([]);
-    setFluxos([]);
-    setPlanoContas([]);
-
+    const version = ++readVersion.current;
+    leitura.current?.abort();
+    const controller = new AbortController(); leitura.current = controller;
+    const timeout = window.setTimeout(() => controller.abort(), 25000);
+    setCarregando(true); setErro("");
+    setLancamentos([]); setRecorrencias([]); setFluxos([]); setPlanoContas([]);
+    const read = (table: string, order: string, scoped = true) => lerPaginas<Record<string, any>>((start, end) => {
+      let query = supabase.from(table).select("*", { count: "exact" }).order(order).range(start, end).abortSignal(controller.signal);
+      if (scoped) {
+        if (!isConsolidated && currentBusinessId) query = query.eq("business_id", currentBusinessId);
+        else query = query.in("business_id", selecionadas.length ? selecionadas : ['__NONE__']);
+      }
+      return query;
+    }, controller.signal);
     try {
-      let qFin = supabase.from("financeiro").select("*").order("vencimento", { ascending: false }).limit(200);
-      let qRec = supabase.from("recorrencias").select("*").order("proxima_ocorrencia");
-      let qFluxo = supabase.from("fluxo_caixa").select("*").order("periodo_inicio", { ascending: false }).limit(12);
-      let qPlano = supabase.from("plano_contas").select("*").order("plano_conta_id");
-
-      if (!isConsolidated && currentBusinessId) {
-        qFin = qFin.eq("business_id", currentBusinessId);
-        qRec = qRec.eq("business_id", currentBusinessId);
-        qFluxo = qFluxo.eq("business_id", currentBusinessId);
-      } else if (isConsolidated && selecionadas.length) {
-        qFin = qFin.in("business_id", selecionadas);
-        qRec = qRec.in("business_id", selecionadas);
-        qFluxo = qFluxo.in("business_id", selecionadas);
-      }
-
-      const [fin, rec, flux, plano] = await Promise.all([qFin, qRec, qFluxo, qPlano]);
-      const falha = fin.error || rec.error || flux.error || plano.error;
-      if (falha) {
-        setErro(falha.message);
-      }
-
-      setLancamentos((fin.data || []) as LancamentoCompleto[]);
+      const [fin, rec, flux, plano] = await Promise.all([
+        read('financeiro', 'finance_id'), read('recorrencias', 'recurrence_id'),
+        read('fluxo_caixa', 'periodo_inicio'), read('plano_contas', 'plano_conta_id', false),
+      ]);
+      if (version !== readVersion.current) return;
+      if (fin.error || rec.error || flux.error || plano.error) throw new Error('Não foi possível consultar todos os dados financeiros. Tente atualizar novamente.');
+      setLancamentos((fin.data || []).sort((a,b) => String(b.vencimento || "").localeCompare(String(a.vencimento || ""))) as LancamentoCompleto[]);
       setRecorrencias((rec.data || []) as Recorrencia[]);
-      setFluxos((flux.data || []) as Fluxo[]);
+      setFluxos((flux.data || []).sort((a,b) => String(b.periodo_inicio).localeCompare(String(a.periodo_inicio))) as Fluxo[]);
       setPlanoContas((plano.data || []) as PlanoConta[]);
-    } catch (err: any) {
-      setErro(err?.message || "Não foi possível carregar os dados financeiros.");
+    } catch {
+      if (version === readVersion.current) setErro("Não foi possível consultar todos os dados financeiros. Tente atualizar novamente.");
     } finally {
-      setCarregando(false);
+      window.clearTimeout(timeout);
+      if (version === readVersion.current) setCarregando(false);
     }
   }
 
   useEffect(() => {
-    carregarDados();
-  }, [currentBusinessId, isConsolidated]);
+    void carregarDados();
+    return () => { readVersion.current++; leitura.current?.abort(); };
+  }, [currentBusinessId, isConsolidated, selecionadas.join('|')]);
 
   const caixa = useMemo(() => lerCaixa(lancamentos, filtro), [lancamentos, filtro]);
   const dre = useMemo(() => lerDre(lancamentos, filtro), [lancamentos, filtro]);
@@ -195,7 +192,7 @@ export default function FinanceiroPage() {
   }, [lancamentos, filtro]);
 
   return (
-    <div className="space-y-6">
+    <div className="he-finance-page space-y-6">
       <ExecutivePageHeader
         icon={Wallet}
         title="Financeiro"
@@ -240,12 +237,12 @@ export default function FinanceiroPage() {
 
       {carregando ? (
         <ExecutiveLoadingState message="Consultando lançamentos e demonstrativos..." />
-      ) : (
+      ) : erro ? null : (
         <>
           {/* TAB 1: VISÃO GERAL */}
           {aba === "visao_geral" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="he-finance-metrics grid grid-cols-2 lg:grid-cols-3 gap-4">
                 <ExecutiveMetricCard
                   label="Caixa realizado"
                   value={cockpit.caixaRealizado !== null ? moeda(cockpit.caixaRealizado) : null}

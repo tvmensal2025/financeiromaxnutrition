@@ -1,0 +1,20 @@
+---
+description: Autoridade por acao e continuidade entre os agentes Helena
+alwaysApply: true
+---
+
+# Autoridade do fluxo Helena
+
+- Fonte de permissao: contrato vigente do Gateway/Supabase, nunca texto do prompt.
+- Especialista executa e entrega somente sua tarefa e empresa.
+- Revisor designado, independente do executor, aprova ou devolve com achado, fonte, correcao e aceite.
+- Somente Helena (AGT-01) ou Marina (AGT-04) cria encaminhamento apos revisao; o controlador usa Helena por padrao.
+- Aprovacao nao e entrega final: proxima etapa exige tarefa persistida e liberacao confirmada.
+- Corrigir conjuntamente seletor, fila persistida, prompt e testes quando a autorizacao mudar.
+- Testar todos os IDs de agente e o isolamento de empresa sem chamadas pagas.
+- Nao ampliar permissoes de especialistas para compensar um erro de roteamento.
+- Financeiro, juridico e administracao: revisao interna nao autoriza pagamento, assinatura, contratacao ou comunicacao externa.
+- Laura/PERSONAL nao participa da fila empresarial nem compartilha dados pessoais por heranca.
+- Recusa definitiva exige causa corrigida; resultado incerto exige reconciliacao antes de repetir.
+- Nunca apagar recibos, alterar chaves ou aumentar tentativas para forcar continuidade.
+- Validacao local, instalacao remota e ciclo real devem ser reportados separadamente.

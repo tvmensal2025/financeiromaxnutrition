@@ -1,0 +1,282 @@
+[
+  {
+    "heading": "Portfólio de Negócios",
+    "overflow": false,
+    "path": "/modulo/portfolio"
+  },
+  {
+    "heading": "Foco Executivo",
+    "overflow": false,
+    "path": "/modulo/foco_executivo"
+  },
+  {
+    "heading": "Estado Mestre",
+    "overflow": false,
+    "path": "/modulo/estado_mestre"
+  },
+  {
+    "heading": "Ledger de Decisões",
+    "overflow": false,
+    "path": "/modulo/decisoes"
+  },
+  {
+    "heading": "Banco de Ideias",
+    "overflow": false,
+    "path": "/modulo/ideias"
+  },
+  {
+    "heading": "Metas & KPIs",
+    "overflow": false,
+    "path": "/modulo/metas_kpis"
+  },
+  {
+    "heading": "CRM & Pipeline",
+    "overflow": false,
+    "path": "/crm"
+  },
+  {
+    "heading": "Marketing",
+    "overflow": false,
+    "path": "/modulo/marketing"
+  },
+  {
+    "heading": "Clientes",
+    "overflow": false,
+    "path": "/modulo/clientes"
+  },
+  {
+    "heading": "Atendimento & Suporte",
+    "overflow": false,
+    "path": "/modulo/atendimento"
+  },
+  {
+    "heading": "Projetos",
+    "overflow": false,
+    "path": "/modulo/projetos"
+  },
+  {
+    "heading": "Marcos",
+    "overflow": false,
+    "path": "/modulo/marcos"
+  },
+  {
+    "heading": "Tarefas",
+    "overflow": false,
+    "path": "/modulo/tarefas"
+  },
+  {
+    "heading": "Calendário",
+    "overflow": false,
+    "path": "/modulo/calendario"
+  },
+  {
+    "heading": "Produto & Features",
+    "overflow": false,
+    "path": "/modulo/produto"
+  },
+  {
+    "heading": "Financeiro",
+    "overflow": false,
+    "path": "/financeiro"
+  },
+  {
+    "heading": "Contas Bancárias",
+    "overflow": false,
+    "path": "/modulo/contas_financeiras"
+  },
+  {
+    "heading": "Orçamento",
+    "overflow": false,
+    "path": "/modulo/orcamento"
+  },
+  {
+    "heading": "Recorrências",
+    "overflow": false,
+    "path": "/modulo/recorrencias"
+  },
+  {
+    "heading": "Plano de Contas",
+    "overflow": false,
+    "path": "/modulo/plano_contas"
+  },
+  {
+    "heading": "Processos",
+    "overflow": false,
+    "path": "/modulo/processos"
+  },
+  {
+    "heading": "Obrigações & Compliance",
+    "overflow": false,
+    "path": "/modulo/obrigacoes"
+  },
+  {
+    "heading": "Fornecedores",
+    "overflow": false,
+    "path": "/modulo/fornecedores"
+  },
+  {
+    "heading": "Ativos",
+    "overflow": false,
+    "path": "/modulo/ativos"
+  },
+  {
+    "heading": "Documentos",
+    "overflow": false,
+    "path": "/modulo/documentos"
+  },
+  {
+    "heading": "Matriz de Riscos",
+    "overflow": false,
+    "path": "/modulo/riscos"
+  },
+  {
+    "heading": "Rituais de Governança",
+    "overflow": false,
+    "path": "/modulo/governanca"
+  },
+  {
+    "heading": "Incidentes",
+    "overflow": false,
+    "path": "/modulo/incidentes"
+  },
+  {
+    "heading": "Contratos",
+    "overflow": false,
+    "path": "/modulo/contratos"
+  },
+  {
+    "heading": "Consentimentos & LGPD",
+    "overflow": false,
+    "path": "/modulo/consentimentos"
+  },
+  {
+    "heading": "Societário",
+    "overflow": false,
+    "path": "/modulo/societario"
+  },
+  {
+    "heading": "Equipe Digital",
+    "overflow": false,
+    "path": "/equipe"
+  },
+  {
+    "heading": "Catálogo de Agentes",
+    "overflow": false,
+    "path": "/modulo/agentes"
+  },
+  {
+    "heading": "Passagens (Handoffs)",
+    "overflow": false,
+    "path": "/modulo/handoffs"
+  },
+  {
+    "heading": "Memória Mestre",
+    "overflow": false,
+    "path": "/modulo/memoria_mestre"
+  },
+  {
+    "heading": "Pessoas & Contatos",
+    "overflow": false,
+    "path": "/modulo/pessoas"
+  },
+  {
+    "heading": "Fundador",
+    "overflow": false,
+    "path": "/modulo/fundador"
+  },
+  {
+    "heading": "Central de Canais, Voz e Roteamento",
+    "overflow": false,
+    "path": "/integracoes"
+  },
+  {
+    "heading": "Automações",
+    "overflow": false,
+    "path": "/modulo/automacoes"
+  },
+  {
+    "heading": "Fila de Tarefas dos Agentes",
+    "overflow": false,
+    "path": "/modulo/agent_jobs"
+  },
+  {
+    "heading": "Histórico das Tarefas",
+    "overflow": false,
+    "path": "/modulo/task_activity"
+  },
+  {
+    "heading": "Conexões dos Agentes",
+    "overflow": false,
+    "path": "/modulo/agent_connections"
+  },
+  {
+    "heading": "Fila de Notificações",
+    "overflow": false,
+    "path": "/modulo/notification_outbox"
+  },
+  {
+    "heading": "Auditoria de Operações",
+    "overflow": false,
+    "path": "/modulo/auditoria"
+  },
+  {
+    "heading": "Auditoria do Sistema",
+    "overflow": false,
+    "path": "/modulo/auditoria_sistema"
+  },
+  {
+    "heading": "Controle de Acessos",
+    "overflow": false,
+    "path": "/modulo/acessos"
+  },
+  {
+    "heading": "Backups & Snapshots",
+    "overflow": false,
+    "path": "/modulo/backups"
+  },
+  {
+    "heading": "Configurações Gerais",
+    "overflow": false,
+    "path": "/modulo/configuracao"
+  },
+  {
+    "heading": "Guia da Helena",
+    "overflow": false,
+    "path": "/modulo/helena_guia"
+  },
+  {
+    "heading": "Dicionário de Campos",
+    "overflow": false,
+    "path": "/modulo/helena_campos"
+  },
+  {
+    "heading": "Dicionário de Dados",
+    "overflow": false,
+    "path": "/modulo/dicionario_dados"
+  },
+  {
+    "heading": "Regras de Negócio",
+    "overflow": false,
+    "path": "/modulo/regras_formula"
+  },
+  {
+    "heading": "Listas de Domínio",
+    "overflow": false,
+    "path": "/modulo/listas_dominio"
+  },
+  {
+    "heading": "Sistema Vivo",
+    "overflow": false,
+    "path": "/modulo/sistema_vivo"
+  },
+  {
+    "heading": "Protocolo dos Agentes",
+    "overflow": false,
+    "path": "/modulo/protocolo_agentes"
+  },
+  {
+    "heading": "Comunicações",
+    "overflow": false,
+    "path": "/modulo/comunicacoes"
+  }
+]

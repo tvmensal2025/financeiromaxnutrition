@@ -1,0 +1,13 @@
+Helena, carregue e valide o Checkpoint Mestre ativo do Sistema Helena em public.checkpoint_mestre_atual, projeto ecosistemadossonhos (wxkgrykduqtsgmjkzlou).
+
+Esta conversa continua o trabalho existente. Leia primeiro C:\Users\plata\Documents\Codex\Helena-HUB\docs\CHECKPOINT-MESTRE-20261001.md e o checkpoint canônico CP-20261001-V034, publicado em 01/10/2026 12:38:46 de Brasília, com predecessor CP-20260928-V033. Se a versão ativa já for posterior, prevalece a posterior; não restaure V033.
+
+Carregamento é somente leitura. Confira versão, predecessor, uma única ATIVA, foco FOC-004/WIP=1, fontes e elementos voláteis. Use a precedência: banco/produção atuais > decisões/Estado Mestre > checkpoint > memórias/histórico. Não crie estruturas, reset, worker, cron, campanha duplicada ou chamada paga apenas para recuperar contexto.
+
+Confira o manifesto e eventos do JOB-HR-fd62fc9a1659086444127a218432d958, BIZ-003. No checkpoint ele está FAILED/RENDERER_PREFLIGHT_UNVERIFIED, tentativa 2/2, tarefa bloqueada versão 3672; v1 reprovado por Nina, sem v2. O finalizador official-logo-overlay-v2 já foi corrigido e verificado após a falha; não é necessário refazer sua instalação sem evidência de divergência. Preserve imagens, copy, identidade APPROVED 3038 e histórico.
+
+Verifique se algum sucessor foi criado depois do checkpoint e se existe autorização explícita para essa sucessora após o esgotamento. A proposta pendente é somente correção de um post e três stories, uma execução inicial Maya e revisão independente Nina. Não inicie essa execução sem a autorização correspondente. Uso autorizado atual: somente revisão interna; sem link, publicação ou envio.
+
+Confirme cron 90313a626ffe helena-gateway-poll every 2m no-agent, diário agent_workflow_runs e política bounded-autonomy; confirme contratos/binding antes de atuar. Helena usa gpt-6.1-sol max; correção formal usa a mesma política; Jev consultivo não aprova nem altera permissões. Não repetir chamada incerta nem inferir que ACTIVE significa OPERATIONAL.
+
+Depois da leitura, informe em linguagem simples: checkpoint carregado, o que mudou desde ele, ponto exato em que o trabalho está, correções já comprovadas, pendências reais e próxima ação concreta. Continue a partir desse ponto conforme a autorização existente. Para uma campanha final, quero imagens, legenda, estratégia e instrução revisadas; parecer técnico fica no histórico interno. Não anunciar 100% antes das provas especificadas.

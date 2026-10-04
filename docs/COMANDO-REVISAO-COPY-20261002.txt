@@ -1,0 +1,33 @@
+HELENA — REVISÃO EDITORIAL DO HUMANO DIGITAL / BIZ-003
+
+Contexto e fontes
+O fundador gostou das imagens atuais, mas rejeitou a qualidade persuasiva da copy e autorizou sua melhoria. Consulte a entrega mais recente, a identidade vigente e os fatos comerciais confirmados. O briefing de 01/10 preservava literalmente a copy do JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7. Esta instrução autoriza uma NOVA VERSÃO TEXTUAL: o texto antigo é histórico e não deve impedir a revisão. Não presumir que os jobs históricos representam o estado atual.
+
+Objetivo e impacto
+Fazer uma pessoa entender rapidamente o que é a Humano Digital, por que isso pode interessá-la e qual próximo passo faz sentido. Usar persuasão baseada em identificação, benefício concreto, explicação e confiança. Substituir linguagem burocrática como “iniciativa relacionada a trabalho” e “informações quando estiverem validadas” por uma proposta compreensível. Não compensar a falta de fatos com promessas.
+
+Escopo e limites
+Revisar 1 post, 3 stories em sequência e a legenda. Preservar a direção visual aprovada, logo oficial único, paleta verde, personagens e imagens úteis. Não gerar novas imagens antes da aprovação textual. Continua autorizado somente o uso para revisão interna, sem publicação, mensagens externas ou links inventados. Exemplos de atividades não comprovam projetos disponíveis. Não inventar vagas, remuneração, parceiros, depoimentos, números, urgência, facilidade ou resultados.
+
+Plano de trabalho
+Helena coordena; Camila AGT-16 define público, objetivo, benefício e ângulo em um resumo curto; Isabela AGT-17 escreve; Helena faz revisão editorial independente da autora. Consultar Ravi ou o responsável comercial apenas se houver uma lacuna factual que realmente impeça a mensagem.
+1. Identificar o que o público ganha ao compreender ou participar da proposta, distinguindo posicionamento da marca de oferta já disponível.
+2. Isabela cria três headlines com ângulos diferentes e recomenda uma com justificativa breve. Desenvolver um único pacote final, evitando três campanhas completas.
+3. Post: uma ideia central forte, apoio concreto e encerramento coerente. Stories: identificação/curiosidade; explicação do funcionamento; síntese de valor e próximo passo. Cada tela deve avançar a narrativa, sem repetir o post.
+4. Escrever como uma marca conversa com pessoas. Evitar “sem compromisso implícito”, “divulgação aprovada”, “iniciativa em validação” e descrições de processos internos no texto público.
+5. Manter condições essenciais perto das afirmações que qualificam. Detalhar condições complementares na legenda quando necessário. Não esconder ressalvas materiais nem transformar a arte em um bloco de avisos genéricos.
+6. Após revisão textual, Maya AGT-12 aplica a nova copy às peças, reaproveitando os materiais quando viável. Se o texto estiver incorporado à imagem, avaliar a edição necessária sem cobrir conteúdo de forma improvisada. Nina AGT-10 inspeciona os arquivos finais e devolve ajustes específicos à Maya; problemas textuais voltam à Isabela, coordenados pela Helena.
+
+Entregáveis
+Entregar uma headline escolhida e os textos exatos de post, story 1, story 2, story 3 e legenda, cada qual separado. A legenda deve complementar a arte, explicar a proposta e encerrar de forma coerente. Incluir uma estratégia curta em linguagem simples, fora da copy publicável.
+Referência de direção, sujeita à conferência dos fatos: “A IA também aprende com a vida real.” Apoio possível: “A Humano Digital conecta pessoas a projetos de dados para inteligência artificial.” Desenvolver o mecanismo e o interesse para o público com informações confirmadas; não usar apenas frases de efeito.
+Enquanto o uso for interno, usar um encerramento editorial, como “Conheça a proposta da Humano Digital”, sem simular botão funcional ou inventar contato. Quando houver destino oficial e autorização externa, adaptar o CTA ao canal real. Não escrever “vagas abertas” ou “veja os projetos disponíveis” sem comprovação.
+
+Critérios de pronto
+A revisão deve responder: quem lê entende o negócio? A mensagem explica um benefício ou interesse concreto? Existe uma razão para continuar lendo? O texto é específico desta empresa? Os stories avançam a história? As afirmações têm fonte? O encerramento corresponde ao uso autorizado? A leitura funciona no celular, sem excesso de texto ou termos técnicos? Reprovar texto vago, repetitivo, burocrático ou sustentado em oferta não confirmada. Não aprovar com base apenas em tamanho de arquivo, presença de palavras ou autoavaliação numérica.
+
+Evidências e registro
+Preservar versões anteriores, registrar nova versão textual, fontes, parecer editorial e alterações. Vincular a revisão ao pedido atual usando o fluxo existente, sem duplicar tarefas ativas nem reiniciar tarefas esgotadas. Guardar explicações e dados técnicos no histórico; na entrega ao fundador, apresentar imagens, textos finais e estratégia breve. Registrar como aprendizado que aprovação antiga não impede revisão expressamente solicitada pelo fundador.
+
+Revisão e encaminhamento
+Isabela não se autoaprova. Helena deve devolver apontamentos acionáveis: trecho, problema, correção esperada e critério de aceitação. A equipe trata os ajustes rotineiros internamente, respeitando os limites de tentativas e consumo vigentes. Diante de falha de formato ou tamanho, corrigir o payload preservando os requisitos; não repetir a mesma chamada rejeitada. Se uma decisão comercial realmente faltar, fazer uma pergunta específica, sem fabricar a resposta. Concluir com o pacote revisado para avaliação interna do fundador; aprovação editorial ou visual não autoriza publicação.

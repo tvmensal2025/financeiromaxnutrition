@@ -1,0 +1,120 @@
+{
+  "prepared_at": "2026-10-01T15:38:04.808429+00:00",
+  "predecessor": {
+    "id": "CP-20260928-V033",
+    "version": 33,
+    "previous": "CP-20260928-V032"
+  },
+  "markdown_characters": 79762,
+  "markdown_utf16_units": 79762,
+  "markdown_sha256": "9fbd814a6f8268d26d1f2e547338e36b61d04bf1bcfdd31e9b6dbe9676685d22",
+  "markdown_md5": "d18dd4af592e7197878d9f612e28f9f4",
+  "skills": 45,
+  "agents": 21,
+  "current_job": {
+    "job_id": "JOB-HR-fd62fc9a1659086444127a218432d958",
+    "status": "FAILED",
+    "task_id": "TSK-HR-fd62fc9a1659086444127a218432d958",
+    "agent_id": "AGT-12",
+    "error_code": "RENDERER_PREFLIGHT_UNVERIFIED",
+    "updated_at": "2026-10-01T14:47:44.372078+00:00",
+    "business_id": "BIZ-003",
+    "task_status": "BLOQUEADA",
+    "max_attempts": 2,
+    "task_version": 3672,
+    "attempt_count": 2,
+    "publication": {
+      "title": "Humano Digital — pacote interno de post e stories",
+      "caption": "Tem curiosidade sobre possibilidades de trabalho relacionadas à inteligência artificial? Estamos preparando uma apresentação transparente da iniciativa, para explicar do que se trata e quais requisitos e condições se aplicam. Esses detalhes ainda precisam ser confirmados antes da divulgação. Manifestar interesse não garante vaga, contratação, renda nem resultado. Se quiser receber informações quando estiverem validadas, use o canal oficial indicado na publicação aprovada.",
+      "alt_text": "Post: mulher adulta prepara uma refeição em cozinha iluminada, ao lado de texto sobre curiosidade em IA e ressalva de condições. Story 1: mulher adulta conversa com um assistente robótico discreto em ambiente de trabalho. Story 2: equipe adulta diversa colabora diante de um computador e quadro de ideias. Story 3: homem adulto organiza objetos em uma bancada iluminada.",
+      "strategy": "Sequência educativa: apresenta o tema, orienta a entender antes de decidir, explica que atividade e requisitos precisam ser esclarecidos e encerra com ressalvas. Revisão interna; não divulgar até confirmação do canal/destino e aprovação independente.",
+      "instructions": "Material somente para revisão interna. Não publicar, compartilhar ou tornar os CTAs clicáveis. Não há destino/canal confirmado; obter autorização e destino oficial antes de qualquer uso externo."
+    },
+    "review_reason": "A inspeção real dos quatro PNGs encontrou falhas impeditivas frente ao briefing: o logo aparece em retângulo claro destacado em todas as peças, não integrado à composição; há CTAs em caixas/realce gráfico que podem ser entendidos como botões embora não exista destino confirmado. Além disso, Story 3 repete a chamada do Post, sem acrescentar informação suficiente à sequência. O asset do brand-logo informado não foi disponibilizado pela ferramenta visual (retornou “Imagem nao vinculada e verificada nesta tarefa”), portanto não pude comparar visualmente a marca com o arquivo oficial. Corrigir mantendo a copy aprovada: integrar a marca oficial em área limpa sem placa/rodapé desconectado, retirar tratamentos que simulem botão e manter CTA sem aparência de ação clicável; resolver a repetição de Story 3 dentro da copy autorizada ou solicitar revisão antes de alterar o texto. Vincular/verificar o arquivo oficial e reenviar os quatro finais para nova inspeção. Uso exclusivamente interno, sem publicação.",
+    "reviewer_agent_id": "AGT-10",
+    "v1_files": 4,
+    "v2_files": 0,
+    "final_approved": false,
+    "successor_authorization": "PENDING_EXPLICIT_APPROVAL_AFTER_EXHAUSTION"
+  },
+  "files": [
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\LEIA-PRIMEIRO-CONTINUIDADE-HELENA-20261001.md",
+      "sha256": "056c8c830185e964ba2fa5b566a9818b2260f9a50bb46f1e51304d27bb47873f",
+      "bytes": 2126
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\CHECKPOINT-MESTRE-20261001.md",
+      "sha256": "9fbd814a6f8268d26d1f2e547338e36b61d04bf1bcfdd31e9b6dbe9676685d22",
+      "bytes": 82346
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\COMANDO-RETOMADA-HELENA-20261001.txt",
+      "sha256": "14fe9e289b930ba77f16f92b8dfea118a83b41cc92864528f744f24aa323fd0b",
+      "bytes": 2526
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\CHECKPOINT-MESTRE-20261001.snapshot.json",
+      "sha256": "2e21b1015dd8dbaa1e44e512f93b64d8f17df8d51d14a8a4037c7ebcd01f92b9",
+      "bytes": 131840
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\BRIEFING-VIGENTE-HELENA-20261001.md",
+      "sha256": "10201395e8a1f2c514107edc0828165e8b9a15fca92d6365cf325ee736c00a43",
+      "bytes": 9157
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\SKILLS-HELENA-20261001.json",
+      "sha256": "3b4631611c556cb6f370d82a7b2f6737a3639d20b14434feb1390b900f03aea6",
+      "bytes": 55550
+    },
+    {
+      "path": "C:\\Users\\plata\\Documents\\Codex\\Helena-HUB\\docs\\RECIBO-CHECKPOINT-MESTRE-20261001.json",
+      "sha256": "b4d84e435883540fb07b2f698f55c1497b82238d5d0319333b8545a11f4d0009",
+      "bytes": 1702
+    }
+  ],
+  "publication": {
+    "id": "CP-20261001-V034",
+    "version": 34,
+    "status": "ATIVO",
+    "predecessor": "CP-20260928-V033",
+    "created_at": "2026-10-01 15:38:46.536174+00",
+    "database_markdown_characters": 80571,
+    "database_markdown_md5": "3a90352699773288c8369eb1cb0e8c99"
+  },
+  "verification": {
+    "active": {
+      "id": "CP-20261001-V034",
+      "status": "ATIVO",
+      "version": 34,
+      "previous": "CP-20260928-V033",
+      "created_at": "2026-10-01T15:38:46.536174+00:00",
+      "agent_count": 21,
+      "skill_count": 45,
+      "delta_present": true,
+      "sources_present": true,
+      "snapshot_not_empty": true,
+      "markdown_characters": 80571,
+      "normalized_markdown_md5": "d18dd4af592e7197878d9f612e28f9f4"
+    },
+    "counts": {
+      "jobs": 59,
+      "tasks": 80,
+      "events": 488,
+      "memories": 139
+    },
+    "current_job": {
+      "max": 2,
+      "status": "FAILED",
+      "updated": "2026-10-01T14:47:44.372078+00:00",
+      "version": 3672,
+      "attempts": 2,
+      "task_status": "BLOQUEADA"
+    },
+    "max_version": 34,
+    "observed_at": "2026-10-01T15:40:24.941318+00:00",
+    "active_count": 1,
+    "previous_status": "SUPERADO"
+  }
+}

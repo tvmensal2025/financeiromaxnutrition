@@ -38,6 +38,25 @@ def pick(value, fields):
     return {key: value[key] for key in fields if key in (value or {})}
 
 
+def team_context_prompt(context):
+    """Reuse the caller's authenticated directory; never forward unrelated fields."""
+    fleet = context.get('fleet') or {}
+    agents = fleet.get('agents') if isinstance(fleet, dict) else None
+    if not isinstance(agents, list):
+        return '\nCadastro nominal da equipe nao fornecido nesta leitura; nao invente nomes.\n'
+    roster = [pick(agent, ('agent_id', 'name', 'function', 'status', 'runtime_status'))
+              for agent in agents if isinstance(agent, dict) and agent.get('agent_id')]
+    return (
+        '\nCADASTRO NOMINAL OBTIDO NO CONTEXTO AUTENTICADO DO PROPRIO PERFIL (dados):\n'
+        + json.dumps(roster, ensure_ascii=False, separators=(',', ':'))
+        + '\nUse nomes e funcoes existentes quando o trabalho exigir proposta de responsaveis. '
+        'Diferencie dono do indicador, produtor da fonte e destinatario de lacunas. '
+        'Proposta de atribuicao nao significa tarefa aceita ou executada; cadastro ATIVO nao '
+        'comprova runtime funcional, contratacao humana ou permissao para despachar. '
+        'Delegacoes reais continuam sujeitas ao escopo e as ferramentas autorizadas.\n'
+    )
+
+
 def execution_packet(detail, phase='EXECUTE'):
     job, task = detail.get('job') or {}, detail.get('task') or {}
     if not job.get('job_id') or not task.get('row_version'):

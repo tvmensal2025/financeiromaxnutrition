@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { lerPaginas } from "@/lib/leitura-paginada";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Target,
   Plus,
@@ -97,35 +98,38 @@ export default function CrmPage() {
     probabilidade: 30,
   });
 
+  const leituraAtual = useRef(0);
+  const selecaoKey = selecionadas.join("|");
   const carregarOportunidades = async () => {
+    const leitura = ++leituraAtual.current;
     setCarregando(true);
     setErro("");
     setOportunidades([]);
 
     try {
-      let query = supabase.from("crm").select("*");
-      if (!isConsolidated && currentBusinessId) {
-        query = query.eq("business_id", currentBusinessId);
-      } else if (isConsolidated && selecionadas.length > 0) {
-        query = query.in("business_id", selecionadas);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await lerPaginas<Oportunidade>((inicio, fim) => {
+        let query = supabase.from("crm").select("*", { count: "exact" });
+        if (!isConsolidated && currentBusinessId) query = query.eq("business_id", currentBusinessId);
+        else if (isConsolidated && selecionadas.length > 0) query = query.in("business_id", selecionadas);
+        return query.order("opportunity_id").range(inicio, fim);
+      });
+      if (leitura !== leituraAtual.current) return;
       if (error) {
-        setErro(error.message);
+        setErro('Não foi possível consultar as oportunidades. Atualize a página para tentar novamente.');
       } else {
         setOportunidades((data || []) as Oportunidade[]);
       }
     } catch (e: any) {
-      setErro(e?.message || "Erro inesperado ao consultar oportunidades.");
+      if (leitura === leituraAtual.current) setErro(e?.message || "Erro inesperado ao consultar oportunidades.");
     } finally {
-      setCarregando(false);
+      if (leitura === leituraAtual.current) setCarregando(false);
     }
   };
 
   useEffect(() => {
     carregarOportunidades();
-  }, [currentBusinessId, isConsolidated]);
+    return () => { leituraAtual.current++; };
+  }, [currentBusinessId, isConsolidated, selecaoKey]);
 
   // Filtragem local por busca
   const filtradas = useMemo(() => {

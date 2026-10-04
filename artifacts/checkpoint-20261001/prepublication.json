@@ -1,0 +1,92 @@
+{
+  "active": {
+    "id": "CP-20260928-V033",
+    "version": 33,
+    "previous": "CP-20260928-V032"
+  },
+  "counts": {
+    "jobs": 59,
+    "tasks": 80,
+    "events": 488,
+    "memories": 139
+  },
+  "current_job": {
+    "id": "JOB-HR-fd62fc9a1659086444127a218432d958",
+    "max": 2,
+    "status": "FAILED",
+    "updated": "2026-10-01T14:47:44.372078+00:00",
+    "attempts": 2,
+    "task_status": "BLOQUEADA",
+    "task_version": 3672
+  },
+  "observed_at": "2026-10-01T15:36:45.834426+00:00",
+  "active_count": 1,
+  "integrations": [
+    {
+      "id": "INT-0001",
+      "status": "PLANEJADA",
+      "system": "Google Drive",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0002",
+      "status": "PLANEJADA",
+      "system": "Gmail",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0003",
+      "status": "PLANEJADA",
+      "system": "Google Calendar",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0004",
+      "status": "PLANEJADA",
+      "system": "Automação de Recorrências",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0006",
+      "status": "CONFIGURADA",
+      "system": "Evolution API",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0007",
+      "status": "CONFIGURADA",
+      "system": "Meowcaller",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0009",
+      "status": "CONFIGURADA",
+      "system": "Laya Service",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0008",
+      "status": "STANDBY",
+      "system": "ElevenLabs",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0010",
+      "status": "OFICIAL",
+      "system": "Kokoro TTS VPS",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0011",
+      "status": "PAUSADA",
+      "system": "Codex Automations",
+      "last_sync": null
+    },
+    {
+      "id": "INT-0005",
+      "status": "PLANEJADA",
+      "system": "Helena Gateway",
+      "last_sync": null
+    }
+  ]
+}

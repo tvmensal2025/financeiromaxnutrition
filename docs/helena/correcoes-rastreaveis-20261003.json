@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "business_id": "BIZ-003",
+  "purpose": "Registro de causas, prevencao e evidencias. Nao substitui o estado atual do Supabase.",
+  "closure_policy": {
+    "required": [
+      "reproducao",
+      "causa_comprovada",
+      "correcao",
+      "teste_regressao",
+      "revisao_independente",
+      "versao_implantada",
+      "resultado_real"
+    ],
+    "states": [
+      "MAPEADA",
+      "CORRIGIDA_LOCAL",
+      "TESTADA_LOCAL",
+      "IMPLANTADA",
+      "VALIDADA_EM_EXECUCAO"
+    ],
+    "unknown_outcome": "RECONCILIAR antes de repetir; nunca zerar tentativas ou criar duplicata",
+    "owner": "AGT-09",
+    "reviewer": "AGT-13",
+    "coordinator": "AGT-01",
+    "cross_business_reuse": "Somente regra tecnica revisada; preservar permissao, marca e dados de cada empresa"
+  },
+  "incidents": [
+    {
+      "id": "REC-001",
+      "status": "VALIDADA_EM_EXECUCAO",
+      "job_id": "JOB-HR-84c9b8d298379035cde814191a3a6905",
+      "symptom": "Isabela terminou sem submit_work; coordenacao tentou resolve_job_block e recebeu recusa.",
+      "confirmed_cause": "gateway_resolve_job_block aceita WAITING_HELENA com decisao, mas a tarefa estava FAILED. Nao existe nessa RPC uma transicao de recuperacao de falha.",
+      "unconfirmed_cause": "Motivo de o modelo parar depois de record_progress nao demonstrado. TIMEOUT comprova encerramento pelo controlador, nao a causa original.",
+      "prevention": "Distinguir falha de execucao de bloqueio por decisao. Recuperacao deve preservar job, evidencias, tentativas, versao e autorizacao; verificar efeitos antes de repetir.",
+      "evidence": [
+        "supabase/migrations/20260928122113_helena_resolve_job_block.sql",
+        "Sessao Hermes 20261003_075245_00f2c0"
+      ],
+      "pending": [
+        "Outros tipos de falha exigem procedimentos especificos e testes antes da ativacao; este resultado nao homologa toda a frota."
+      ],
+      "correction": "Controlador do Theo integrado ao pipeline existente, receita text-timeout-sol61-v1 e transicao FAILED -> DRAFT limitada a copy sem entrega. Coordenacao continua responsavel por liberar. Sol 6.1 com --reasoning max para a tentativa restante.",
+      "tests": "7 testes SQL transacionais aprovados com rollback; 9 testes de autocorrecao, 35 de despacho e 7 de pipeline aprovados.",
+      "observed": "JOB-HR-84c9b8d298379035cde814191a3a6905 COMPLETED, tentativa 2/2, review_pending=false, reviewed_by=AGT-16. Revisao automatica pelo pipeline confirmou duas copies. Nenhum job duplicado."
+    },
+    {
+      "id": "REC-002",
+      "status": "MAPEADA",
+      "symptom": "Programa da frota tenta representar todos os 21 como executores da BIZ-003.",
+      "confirmed_cause": "Helena tem escopo GROUP e Laura PERSONAL; o despachante de tarefas empresariais exige BUSINESS.",
+      "prevention": "Separar coordenacao, execucao empresarial e atividade pessoal no plano; jamais ampliar permissao para fazer o teste passar.",
+      "evidence": [
+        "services/helena-gateway/scripts/hermes_fleet_program.py",
+        "services/helena-gateway/src/agent-quality-contracts.json"
+      ],
+      "pending": [
+        "Adequar plano e validacao de escopo antes de habilitar o programa completo"
+      ]
+    },
+    {
+      "id": "REC-003",
+      "status": "MAPEADA",
+      "symptom": "Falha em etapa posterior impede ate o planejamento e diagnostico anteriores.",
+      "confirmed_cause": "inspect do programa retorna NEEDS_ATTENTION se qualquer job vinculado estiver FAILED.",
+      "prevention": "Permitir diagnostico sem IA ou atividade de reparo explicitamente autorizada, mantendo bloqueados os dependentes e a repeticao do job falho.",
+      "evidence": [
+        "services/helena-gateway/scripts/hermes_fleet_program.py"
+      ],
+      "pending": [
+        "Testar selecao de diagnostico sem contornar dependencias ou WIP"
+      ]
+    },
+    {
+      "id": "REC-004",
+      "status": "IMPLANTADA",
+      "symptom": "Limites de briefing podem divergir entre instrucao antiga do executor e regra vigente.",
+      "confirmed_cause": "O prompt remoto observado menciona transporte de 8000 caracteres e alvo 7000; a regra atual exige teto seguro 7000 unidades UTF-16, alvo 6000.",
+      "prevention": "Usar uma fonte de limites, verificar payload final com emojis e preservar textos protegidos antes da chamada.",
+      "evidence": [
+        "services/helena-gateway/scripts/autonomy_protocol.py",
+        "services/helena-gateway/scripts/hermes_dispatch_once.py"
+      ],
+      "pending": [
+        "Observar proxima delegacao real respeitando o teto e preservando copy"
+      ],
+      "tests": "10 testes de briefing e 35 testes do despachante aprovados localmente; sem chamadas pagas.",
+      "deployment": {
+        "file": "/data/helena-runtime/hermes_dispatch_once.py",
+        "sha256": "e6246d23d0f1c3f97e687e8ab287f473e37bb62b0d65373233ef70847411df67",
+        "verified": true
+      }
+    },
+    {
+      "id": "REC-005",
+      "status": "IMPLANTADA",
+      "symptom": "Uma orientacao escrita pode ser anunciada como correcao concluida.",
+      "confirmed_cause": "Instalacao e validacao ponta a ponta sao etapas distintas; faltava explicitar o ciclo completo no bloco profissional comum.",
+      "prevention": "Exigir causa, teste, versao implantada, revisao e observacao real. Reabrir verificacao quando houver recorrencia.",
+      "evidence": [
+        "services/helena-gateway/scripts/apply_quality_protocol.py",
+        "services/helena-gateway/test/quality_protocol_test.py"
+      ],
+      "tests": "3 testes locais aprovados: preflight integral, backup/idempotencia, preservacao de configuracao e deteccao de divergencia.",
+      "pending": [
+        "Observar registro de uma correcao real pelo fluxo autorizado"
+      ],
+      "deployment": {
+        "profiles": 21,
+        "updated": 21,
+        "ai_calls": 0,
+        "backup": "/data/helena-runtime/quality-backup-20261003T083534446601Z"
+      }
+    },
+    {
+      "id": "REC-006",
+      "status": "VALIDADA_EM_EXECUCAO",
+      "symptom": "Watchdog alertava Theo e Helena, mas nao iniciava recuperacao.",
+      "confirmed_cause": "hermes_queue_watchdog apenas record_queue_attention; pipeline nao consumia falhas de execucao.",
+      "correction": "hermes_autocorrection chamado antes do pipeline; procedimento permitido por tipo de erro e empresa, uma retomada, sem job duplicado.",
+      "scope": "Receita inicial: texto de Isabela, timeout comprovado do despachante, sem entrega, tentativa 1/2. Outros erros continuam com atencao registrada.",
+      "pending": [
+        "Outros tipos de falha exigem procedimentos especificos e testes antes da ativacao; este resultado nao homologa toda a frota."
+      ],
+      "observed": "JOB-HR-84c9b8d298379035cde814191a3a6905 COMPLETED, tentativa 2/2, review_pending=false, reviewed_by=AGT-16. Revisao automatica pelo pipeline confirmou duas copies. Nenhum job duplicado."
+    },
+    {
+      "id": "REC-TRANSPORT-20261003",
+      "status": "IMPLANTADA",
+      "job_id": "JOB-HR-f096e861e4c0b4e569b4a654e4707113",
+      "symptom": "Terminal retornou apos 420s; job permaneceu RUNNING, sem processo e sem entrega nova.",
+      "confirmed_cause": "Despachante nao possuia limpeza para SIGTERM/SIGINT enquanto esperava executor em grupo separado. Limite sincronico observado de 420s e menor que orcamento de correcao 600s.",
+      "unconfirmed_cause": "Sinal exato ou motivo que encerrou a execucao Marina nao capturado; nao afirmar SIGTERM como causa do incidente.",
+      "correction": "wait_executor captura SIGTERM/SIGINT, encerra e coleta filho e retorna TRANSPORT_INTERRUPTED ao caminho existente de fail_job. Timeout normal preservado.",
+      "tests": "38 testes locais de despacho; 3 testes de interrupcao no Linux remoto, sem IA.",
+      "deployed_sha256": "55701d6786af7c7d52846f8ac0b82fa7d7ab3c6ff111e2404eb10663b3c292d2",
+      "backup": "/data/helena-runtime/hermes_dispatch_once.pre-transport-20261003.py",
+      "observed": "Marina reconciliada FAILED pelo fail_job existente com identidade do executor, tentativa 2/2 preservada, updated_at 2026-10-03T10:36:30.114286+00:00.",
+      "pending": [
+        "Revisao independente Theo/Bruno",
+        "Validar em execucao real a protecao contra interrupcao",
+        "Lancamentos longos devem usar mecanismo documentado persistente; nao chamada sincronica de 420s",
+        "SIGKILL, perda do host e falha de rede ainda exigem reconciliacao independente"
+      ],
+      "owner": "AGT-09",
+      "reviewer": "AGT-13"
+    },
+    {
+      "id": "REC-TEAM-CONTEXT-20261003",
+      "status": "IMPLANTADA",
+      "symptom": "Daniel deixou donos sem nome embora cadastro autenticado contenha nomes e funcoes.",
+      "confirmed_cause": "Pacote do executor nao incluia fleet.agents; orientacao evita reler get_work_context. Cadastro existia no contexto ja consultado pelo despachante.",
+      "unconfirmed_cause": "O comportamento individual do modelo tambem depende de briefing e interpretacao; nao atribuir toda falha apenas ao pacote.",
+      "correction": "Adicionar team_context_prompt com agent_id,name,function,status,runtime_status do contexto autenticado do proprio perfil, sem novas consultas ou permissoes. Cadastro nao implica runtime homologado ou delegacao efetivada.",
+      "tests": "13 testes locais de contexto e 38 de despacho aprovados. Teste remoto combinado enviado, resultado ainda nao lido por perda do canal do navegador.",
+      "deployed_context_sha256": "67b0009b02d0c9f651247b9d6c5de3255d076e1734632143ec6bccb4eb08af3c",
+      "deployed_dispatch_sha256": "6800615598f4c4028873efaecf86e9817b7a5e6b9c5b3b5d3b4778f3032d16a0",
+      "pending": [
+        "Ler resultado remoto dos seis testes",
+        "Revisao independente",
+        "Verificar entrega real posterior com nomes corretos"
+      ],
+      "owner": "AGT-09",
+      "reviewer": "AGT-13"
+    }
+  ]
+}

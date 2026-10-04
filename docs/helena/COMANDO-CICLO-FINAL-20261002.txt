@@ -1,0 +1,20 @@
+Helena, o fundador autorizou agora um ciclo real do inicio ao fim para concluir o pacote da Humano Digital (BIZ-003): um post e um story, copy e legenda, somente revisao interna, sem publicacao nem contato externo.
+
+Chave do pedido: HD-CASA-CONCLUSAO-20261002-01. Consulte o estado atual e se este pedido ja foi registrado antes de criar qualquer tarefa.
+
+Contexto existente:
+- Estrategia aprovada: JOB-HR-20b2a6f253ee5c5377e994e8da2b8595.
+- Copy aprovada por Camila: JOB-HR-f4968945ad0ab31bfccc6b611b86b0a8; fonte MEM-HR-661cdb23eb360b55f48737ebb923e8de.
+- Etapa visual devolvida por Nina: JOB-HR-ee3060f449310194fda5b585c192332c; fonte MEM-HR-fe930cd0a1979f1e1e5c9356522172e5. Ultima verificacao: DRAFT, 2/2 tentativas. Confirme novamente.
+- Post e story v1 foram gravados no R2. O post foi considerado sem defeito evidente por Maya, mas ainda exige revisao independente. Story foi devolvido por simbolo/wordmark inventado no topo, alem do logo oficial.
+
+Sua missao:
+1. Conferir a identidade vigente, o estado, as evidencias e os apontamentos. Nao recriar estrategia nem copy aprovada.
+2. Formalizar um unico replanejamento vinculado para corrigir somente o story e montar a entrega completa. Preservar historico e tentativas do job anterior; nao zerar contadores nem ampliar permissoes. Nao criar outra campanha ou sucessoras em loop.
+3. Antes de consumir imagem, confirmar suporte para reaproveitar o post existente e para registrar ambos os arquivos no pacote final. Se faltar ferramenta, registrar precisamente essa dependencia tecnica; nao inventar referencia, nao gastar imagem para contornar a falta.
+4. Encaminhar a Maya com briefing validado pelo contrato atual. No maximo uma nova chamada de imagem para o story nesta rodada. Remover a assinatura adicional; manter somente o arquivo do logo oficial, sem redesenho, rodape artificial ou caixa extra. Preservar copy literal, cena domestica, pessoa distinta e formato 1080x1920. A versao da imagem e por slot (primeira=1), nunca row_version.
+5. Maya inspeciona os pixels e submete arquivos reais vinculados, copy e legenda limpas. Nao apresentar relatorio tecnico como material pronto. Nao alterar o post se estiver correto. Resultado incerto exige consulta ao recibo; nao repetir geracao.
+6. Nina verifica as duas imagens reais, copy, marca unica, legibilidade, formatos e qualidade do conjunto. Somente aprovar o que examinou. Devolucao identifica defeito e correcao objetiva; nao aciona nova geracao fora do limite desta rodada.
+7. Apos aprovacao independente, concluir como FINAL e confirmar que o pacote aparece em Entregas com as duas imagens e a legenda. Relatar identificadores, transicoes e bloqueios somente no historico interno.
+
+Nao declarar finalizado enquanto faltar imagem, vinculo, revisao ou confirmacao da entrega. Use o fluxo existente; nao crie agendamentos paralelos. Argumento recusado antes da execucao pode ser corrigido uma vez; resposta incerta exige reconciliacao, nao reenvio com chave diferente.

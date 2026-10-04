@@ -1,0 +1,29 @@
+Helena, o fundador autorizou refazer o pacote Humano Digital BIZ-003 com nova copy comercial. Pedido HD-NOVA-COPY-20261003-01. Entrega: 1 post 1080x1350, 1 story 1080x1920 e legenda, somente revisão interna; sem publicação ou contato externo.
+
+Antes de criar tarefa, conferir se esta chave já existe, consultar estado atual e identidade aprovada. Último registro local: JOB-HR-df9121ea1e74887866f5906b90001319 esgotado em 2/2; confirmar no Gateway. Não reiniciar nem zerar tentativas. Este pedido autoriza uma única sucessora vinculada para a nova versão, se ainda não existir.
+
+Isabela deve revisar a nova copy abaixo, com Camila como revisora textual conforme o fluxo vigente. A copy antiga não é obrigatória nesta revisão autorizada. Tema: oportunidade de renda gravando atividades reais para IA. Referências públicas fornecidas pelo fundador: https://mimix.video/pt e https://hubdata.org/. Consultar condições atuais; não misturar remunerações, modalidades, vínculos ou contatos das empresas. Não afirmar parceria ou vaga aberta não confirmada. Dúvidas operacionais ficam no briefing; não adicionar avisos genéricos automaticamente às artes.
+
+POST — proposta para revisão:
+Título: Sua rotina pode virar renda extra.
+Apoio: Cozinhar, organizar, cuidar da casa. Descubra como atividades da sua rotina podem conectar você a projetos remunerados de inteligência artificial.
+Assinatura editorial: Humano Digital conecta você a essas oportunidades.
+CTA textual: Quero conhecer os projetos.
+
+STORY — proposta para revisão:
+Título: A IA precisa aprender com gente como você.
+Apoio: Cozinhar, organizar, dobrar roupas: tarefas reais podem virar dados para projetos remunerados de IA.
+CTA textual: Conheça as oportunidades com a Humano Digital.
+
+LEGENDA — proposta para revisão:
+Você já faz muita coisa que a inteligência artificial ainda precisa aprender.
+Projetos de coleta de dados remuneram gravações aprovadas de atividades reais. A Humano Digital conecta pessoas a essas oportunidades e orienta os próximos passos para participar.
+Quer conhecer essa forma de gerar renda? Conheça os projetos com a Humano Digital.
+
+Após revisão textual, Maya consulta identidade e versão atuais. check_visual_runtime deve retornar official-logo-fixed-v3. Não iniciar com módulo antigo. Logo oficial único no canto superior esquerdo: x64; y64 no post e y250 no story; caixa máxima proporcional 360x120, respiro24, fundo claro na área reservada. Sem assinatura inventada, rodapé extra, cortes ou alteração do slogan. Não repetir apenas pessoa e pose: post pode mostrar organização de roupas; story, atividade na cozinha. Ajustar cenas às tarefas reais mencionadas, sem sugerir que toda atividade está liberada.
+
+Planejar a copy fora da reserva do logo. Reaproveitar somente elementos compatíveis; arquivo antigo com texto incorporado não serve como peça final da nova copy. Limite desta rodada: até uma geração por peça, duas no total; sem repetir chamada de resultado incerto. O módulo de recomposição só aplica logo: não inventar capacidade de editar texto incorporado.
+
+Nina revisa arquivos reais: texto aprovado, marca única, slogan legível no celular, contraste, enquadramento, CTA, variedade e dimensões. Devoluções devem apontar defeito e ajuste; cumprir limites de tentativas, sem sucessoras em loop. Imagens e legenda ficam separadas dos relatórios internos. FINAL apenas após revisão independente e arquivos vinculados visíveis em Entregas.
+
+Não colar toda a identidade no briefing: consultar a fonte e sintetizar direção específica. Instrução alvo6000/máximo7000 caracteres; campos criativos máximo1200. Corrigir argumentos inválidos antes de executar, sem cortar copy ou JSON. Ausência de URL não bloqueia CTA textual na revisão interna; confirmação do destino é necessária antes da publicação.

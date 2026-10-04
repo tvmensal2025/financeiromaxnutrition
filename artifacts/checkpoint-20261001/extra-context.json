@@ -1,0 +1,427 @@
+{
+  "rls": [
+    {
+      "table": "agent_job_events",
+      "enabled": true,
+      "policies": 1
+    },
+    {
+      "table": "agent_jobs",
+      "enabled": true,
+      "policies": 1
+    },
+    {
+      "table": "agent_runtime_bindings",
+      "enabled": true,
+      "policies": 1
+    },
+    {
+      "table": "agent_workflow_policies",
+      "enabled": true,
+      "policies": 0
+    },
+    {
+      "table": "agent_workflow_runs",
+      "enabled": true,
+      "policies": 0
+    },
+    {
+      "table": "agentes",
+      "enabled": true,
+      "policies": 2
+    },
+    {
+      "table": "checkpoint_mestre",
+      "enabled": true,
+      "policies": 3
+    },
+    {
+      "table": "memoria_mestre",
+      "enabled": true,
+      "policies": 2
+    }
+  ],
+  "job_events": [
+    {
+      "at": "2026-10-01T14:09:45.173387+00:00",
+      "type": "FOUNDER_SCOPE_CLARIFIED",
+      "agent": "FOUNDER",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:14:04.804739+00:00",
+      "type": "TYPESAFE_REQUEST",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:14:05.534705+00:00",
+      "type": "TYPESAFE_BUDGET_RESERVED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:14:06.163055+00:00",
+      "type": "TYPESAFE_RESULT",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:14:07.794611+00:00",
+      "type": "WORKFLOW_release_job",
+      "agent": "AGT-01",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:14:09.965715+00:00",
+      "type": "TYPESAFE_ROUTE",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:15:18.522097+00:00",
+      "type": "CLAIMED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:15:19.698765+00:00",
+      "type": "STARTED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:16:03.443728+00:00",
+      "type": "PROGRESS",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:17:25.368641+00:00",
+      "type": "ARTIFACT_VERIFIED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:17:27.293004+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:18:37.074559+00:00",
+      "type": "ARTIFACT_VERIFIED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:18:38.771757+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:20:01.853654+00:00",
+      "type": "ARTIFACT_VERIFIED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:20:04.072185+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:21:27.914483+00:00",
+      "type": "ARTIFACT_VERIFIED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:21:29.698115+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:21:50.713473+00:00",
+      "type": "PROGRESS",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:22:54.133531+00:00",
+      "type": "WORKFLOW_record_memory",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:22:54.309281+00:00",
+      "type": "WORKFLOW_submit_delivery",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:24:26.417551+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-10",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:24:29.056389+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-10",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:24:31.340871+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-10",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:24:33.810486+00:00",
+      "type": "VISUAL_ASSET_OPENED",
+      "agent": "AGT-10",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:25:10.686656+00:00",
+      "type": "WORKFLOW_review_delivery",
+      "agent": "AGT-10",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:40:36.069412+00:00",
+      "type": "WORKFLOW_revise_task_brief",
+      "agent": "AGT-01",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:43:41.801849+00:00",
+      "type": "TYPESAFE_REQUEST",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:43:42.722469+00:00",
+      "type": "TYPESAFE_BUDGET_RESERVED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:43:43.169358+00:00",
+      "type": "TYPESAFE_RESULT",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:43:45.429254+00:00",
+      "type": "WORKFLOW_release_job",
+      "agent": "AGT-01",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:43:47.411412+00:00",
+      "type": "TYPESAFE_ROUTE",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:44:58.678663+00:00",
+      "type": "CLAIMED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:45:00.069382+00:00",
+      "type": "STARTED",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:46:59.644487+00:00",
+      "type": "PROGRESS",
+      "agent": "AGT-12",
+      "message": null
+    },
+    {
+      "at": "2026-10-01T14:47:44.372078+00:00",
+      "type": "FAILED",
+      "agent": "AGT-12",
+      "message": null
+    }
+  ],
+  "event_types": [
+    {
+      "n": 4,
+      "type": "ARTIFACT_VERIFIED"
+    },
+    {
+      "n": 2,
+      "type": "CLAIMED"
+    },
+    {
+      "n": 1,
+      "type": "FAILED"
+    },
+    {
+      "n": 1,
+      "type": "FOUNDER_SCOPE_CLARIFIED"
+    },
+    {
+      "n": 3,
+      "type": "PROGRESS"
+    },
+    {
+      "n": 2,
+      "type": "STARTED"
+    },
+    {
+      "n": 2,
+      "type": "TYPESAFE_BUDGET_RESERVED"
+    },
+    {
+      "n": 2,
+      "type": "TYPESAFE_REQUEST"
+    },
+    {
+      "n": 2,
+      "type": "TYPESAFE_RESULT"
+    },
+    {
+      "n": 2,
+      "type": "TYPESAFE_ROUTE"
+    },
+    {
+      "n": 8,
+      "type": "VISUAL_ASSET_OPENED"
+    },
+    {
+      "n": 1,
+      "type": "WORKFLOW_record_memory"
+    },
+    {
+      "n": 2,
+      "type": "WORKFLOW_release_job"
+    },
+    {
+      "n": 1,
+      "type": "WORKFLOW_review_delivery"
+    },
+    {
+      "n": 1,
+      "type": "WORKFLOW_revise_task_brief"
+    },
+    {
+      "n": 1,
+      "type": "WORKFLOW_submit_delivery"
+    }
+  ],
+  "legacy_jobs": [
+    {
+      "id": "JOB-HR-4c1ad7a12227adf8c2ab535120692df5",
+      "max": 2,
+      "task": "TSK-HR-4c1ad7a12227adf8c2ab535120692df5",
+      "agent": "AGT-10",
+      "error": null,
+      "status": "COMPLETED",
+      "updated": "2026-10-01T10:35:09.373398+00:00",
+      "approval": "APPROVED",
+      "attempts": 1,
+      "reviewed_by": "AGT-01",
+      "review_reason": "APPROVE somente da consolidação documental de Nina. O manifesto confirmou BIZ-003, executor AGT-10, WAITING_HELENA, versão 3648 e updated_at correspondente ao pacote; o contexto confirmou Helena AGT-01 como revisora independente. O parecer contém os achados anteriores e ações concretas para Post e Story 1/2/3, fonte preservada e quatro checks conferidos. Esta etapa não pede artes novas ou reinspeção visual. A campanha e as artes continuam pendentes de correção e não aprovadas para publicar. Sem criação, liberação, handoff, nova execução ou aumento de tentativas.",
+      "review_pending": "false"
+    },
+    {
+      "id": "JOB-HR-a3ac89587826124257ccace27fe5cef8",
+      "max": 2,
+      "task": "TSK-HR-a3ac89587826124257ccace27fe5cef8",
+      "agent": "AGT-03",
+      "error": null,
+      "status": "COMPLETED",
+      "updated": "2026-09-30T00:05:38.255531+00:00",
+      "approval": "APPROVED",
+      "attempts": 1,
+      "reviewed_by": "AGT-01",
+      "review_reason": "Helena conferiu a estrategia entregue no job e a evidencia localizada: publico, proposta, angulos, CTA, metricas, riscos, limites e briefings completos para Victor e Maya. Aprovada somente a etapa estrategica; o proximo passo autorizado e criar a tarefa DRAFT de copy para Victor, sem publicar, contatar pessoas ou prometer renda.",
+      "review_pending": "false"
+    },
+    {
+      "id": "JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7",
+      "max": 2,
+      "task": "TSK-HR-7aa2ab1e4f80b68bccaac535dda850e7",
+      "agent": "AGT-15",
+      "error": null,
+      "status": "COMPLETED",
+      "updated": "2026-09-30T05:42:50.189759+00:00",
+      "approval": "APPROVED",
+      "attempts": 1,
+      "reviewed_by": "AGT-01",
+      "review_reason": "Entrega completa e revisável: post principal, duas variações A/B, legenda, três stories com três telas cada, CTA seguro, direção para Maya, métricas, riscos, pendências e separação entre fatos e hipóteses. Sem publicação nem contato externo.",
+      "review_pending": "false"
+    },
+    {
+      "id": "JOB-HR-c392de57a9b00edb8879f291b077714d",
+      "max": 2,
+      "task": "TSK-HR-c392de57a9b00edb8879f291b077714d",
+      "agent": "AGT-12",
+      "error": null,
+      "status": "WAITING_HELENA",
+      "updated": "2026-10-01T09:59:22.598061+00:00",
+      "approval": "APPROVED",
+      "attempts": 2,
+      "reviewed_by": null,
+      "review_reason": null,
+      "review_pending": null
+    },
+    {
+      "id": "JOB-HR-d4b5b488e4716e749cb7b1392e308424",
+      "max": 2,
+      "task": "TSK-HR-d4b5b488e4716e749cb7b1392e308424",
+      "agent": "AGT-12",
+      "error": null,
+      "status": "WAITING_HELENA",
+      "updated": "2026-09-30T23:52:28.807994+00:00",
+      "approval": "APPROVED",
+      "attempts": 2,
+      "reviewed_by": null,
+      "review_reason": null,
+      "review_pending": null
+    },
+    {
+      "id": "JOB-HR-794692b1e94a8ee7aa1b0f1268b1ed2b",
+      "max": 2,
+      "task": "TSK-HR-794692b1e94a8ee7aa1b0f1268b1ed2b",
+      "agent": "AGT-04",
+      "error": null,
+      "status": "WAITING_HELENA",
+      "updated": "2026-10-01T08:50:15.921614+00:00",
+      "approval": "APPROVED",
+      "attempts": 2,
+      "reviewed_by": null,
+      "review_reason": null,
+      "review_pending": null
+    },
+    {
+      "id": "JOB-HR-6e9e2c7f008a9993f7689e5e0defb53f",
+      "max": 2,
+      "task": "TSK-HR-6e9e2c7f008a9993f7689e5e0defb53f",
+      "agent": "AGT-04",
+      "error": "HERMES_NO_DELIVERY",
+      "status": "FAILED",
+      "updated": "2026-09-30T20:46:29.064811+00:00",
+      "approval": "APPROVED",
+      "attempts": 2,
+      "reviewed_by": "AGT-01",
+      "review_reason": "A entrega é somente um plano PMO e declara não ter produzido as peças. No job, publication=null e artifact_records=[], sem post, três stories, legenda, texto WhatsApp, estratégia final ou inspeção visual comprovada; a definição de pronto da campanha não foi atendida. Falta encaminhamento executável: estratégia e copy aparecem como 'responsável já designado', sem nomes e IDs verificáveis por etapa, aceite das dependências e confirmação de executor, revisor, ferramentas e handoffs. Correções nesta tarefa, sem duplicar ou liberar etapas: (1) identificar responsáveis/revisores canônicos, IDs e estado/evidência de aceite das tarefas existentes de estratégia, copy e visual, distinguindo concluído, pendente e bloqueado; (2) indicar sequência, dependências, ação imediata, dono, critério de pronto e handoff verificável, resolvendo a revisão de copy antes do design; (3) entregar o pacote solicitado — quatro imagens reais visualizáveis, legenda, WhatsApp e estratégia curta, com evidências e revisão independente — ou, se insumo/ferramenta essencial impedir essa etapa, registrar bloqueio específico, responsável e integração/decisão necessária, sem declarar pronta a campanha. Não publicar/enviar. Fontes conferidas: briefing, definição de pronto, delivery/limitations, evidence_records e artifact_records deste job.",
+      "review_pending": "false"
+    }
+  ],
+  "jobs_version": "2026-10-01T15:18:31.678444+00:00",
+  "connection_status": {
+    "CONNECTED": 1,
+    "NOT_CONNECTED": 20
+  }
+}

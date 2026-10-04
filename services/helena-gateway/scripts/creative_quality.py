@@ -1,12 +1,12 @@
 """Shared editorial requirements, injected into execution and review packets."""
-CREATIVE_QUALITY_VERSION = 'creative-quality-v2'
+CREATIVE_QUALITY_VERSION = 'creative-quality-v3'
 CREATIVE_QUALITY_RULES = {
     'brand': 'Uma unica assinatura visual: arquivo oficial, sem redesenhar, inventar simbolo, segundo logotipo ou wordmark. Nome em frase editorial nao e logo; nao repeti-lo como assinatura.',
     'composition': 'Arte integrada no formato pedido, sem rodape acrescentado, barras laterais largas ou reducao da imagem para acomodar marca. Planejar area de respiro para logo oficial, sem cobrir texto, rosto ou CTA.',
     'content_first': 'Antes do design, definir objetivo, publico, mensagem unica, fato confirmado e proxima acao de cada peca. Cada story deve acrescentar informacao; nao repetir apenas a chamada com outra quebra de linha.',
     'variation': 'No pacote, especificar por peca: assunto, protagonista ou objeto, acao, cenario, enquadramento e composicao. Variar ao menos tres dimensoes entre pecas; nao repetir a mesma pessoa/pose/cenario como padrao. Continuidade intencional exige justificativa narrativa.',
     'business_fit': 'Consultar identidade e contexto da empresa. Humano Digital pode usar pessoas diversas, robo amigavel, colaboracao humano-IA, objetos ou explicacao visual quando pertinentes. Isso nao autoriza robos em toda empresa nem inventar mascote oficial. Saude e outros negocios exigem pesquisa e imagens adequadas ao tema.',
-    'copy': 'Headline curta, apoio direto e CTA executavel em canal confirmado. Nao criar botao ficticio, contato ou link. Meta editorial: titulo ate 10 palavras e apoio ate 25 por story, com excecao justificada. Ressalvas necessarias devem ser legiveis e proporcionais; nao apagar condicoes materiais nem alterar copy aprovada sem revisao.',
+    'copy': 'Abrir pelo desejo, beneficio sustentado e identificacao; explicar a atividade com linguagem direta. Nao iniciar por advertencias ou processo de aprovacao. Condicoes materiais acompanham as afirmacoes que qualificam, especialmente valores e pagamentos; nao oculta-las. CTA textual permitido na revisao interna sem URL; destino funcional confirmado antes de publicar. Nao inventar contato ou link. Meta editorial: titulo ate 10 palavras e apoio ate 25 por story, com excecao justificada. Nao alterar copy aprovada sem revisao.',
     'review': 'Inspecionar pixels de cada arquivo e comparar o conjunto. Rejeitar logo duplicado/inventado, rodape desconectado, arte vazia, texto ilegivel/cortado, repeticao injustificada ou mensagem sem objetivo. Hash/dimensoes nao comprovam qualidade. Se nao receber pixels, bloquear sem aprovar.',
     'delivery': 'Publico ve somente arte, legenda, estrategia pratica e instrucoes de uso. Logs, IDs, hashes e diagnosticos ficam no historico interno. Entrega requer revisao independente e evidencias reais.'
 }

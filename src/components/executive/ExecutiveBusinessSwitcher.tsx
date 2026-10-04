@@ -27,7 +27,7 @@ export function ExecutiveBusinessSwitcher() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:bg-muted/50 hover:border-border/80 focus:outline-none"
+          className="he-business-switcher inline-flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-all hover:bg-muted/50 hover:border-border/80"
           style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
         >
           {isConsolidated ? (

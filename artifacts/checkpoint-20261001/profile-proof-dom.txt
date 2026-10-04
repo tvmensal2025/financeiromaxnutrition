@@ -1,0 +1,21 @@
+ne.utc).isofo"
+- generic: "rmat(),'\"'\"'profiles'\"'\"':rows}\\npathlib.Path('\"'\"'/d"
+- generic: ata/helena-runtime/checkpoint-profile-proof-20261001.
+- generic: json'"'"').write_text(json.dumps(r,ensure_ascii=False
+- generic: ",indent=2))\\nprint(json.dumps({'\"'\"'profiles'\"'\"':len"
+- generic: (rows),'"'"'skills_files'"'"':sum(x['"'"'skills_files
+- generic: "'\"'\"'] for x in rows),'\"'\"'autonomy_all'\"'\"':all(x['\""
+- generic: "'\"'autonomy'\"'\"'] for x in rows),'\"'\"'learning_all'\"'"
+- generic: "\"':all(x['\"'\"'learning'\"'\"'] for x in rows),'\"'\"'sol6"
+- generic: 1_max_all'"'"':all(x['"'"'sol61_override'"'"']=='"'"'
+- generic: max'"'"' for x in rows),'"'"'helena'"'"':rows[0],'"'"
+- generic: "'other_models'\"'\"':sorted(set(x['\"'\"'default_model'\"'"
+- generic: "\"'] for x in rows[1:]))},ensure_ascii=False))\")'"
+- generic: "{\"profiles\": 21, \"skills_files\": 45, \"autonomy_all\":"
+- generic: "true, \"learning_all\": true, \"sol61_max_all\": true, \"h"
+- generic: "elena\": {\"profile\": \"helena--grupo\", \"default_model\":"
+- generic: "\"gpt-6.1-sol\", \"effort\": \"max\", \"sol61_override\": \"m"
+- generic: "ax\", \"autonomy\": true, \"learning\": true, \"skills_file"
+- generic: "s\": 4}, \"other_models\": [\"gpt-6-luna\"]}"
+- generic: $ :~$
+- generic: $ :~$

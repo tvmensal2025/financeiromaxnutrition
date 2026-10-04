@@ -93,11 +93,11 @@ export default function IdentidadePage() {
     finally { setBusy(false); }
   }
   const missing = brand ? brandMissing(brand) : [];
-  return <div className="mx-auto max-w-6xl space-y-6 pb-16">
+  return <div className="he-brandbook mx-auto max-w-6xl space-y-6 pb-16">
     <Link to="/portfolio" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Empresas</Link>
     <header className="flex flex-wrap items-end justify-between gap-5">
       <div><p className="text-xs font-semibold uppercase tracking-[.22em] text-primary">A essência de cada negócio</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Identidade da empresa</h1><p className="mt-2 max-w-xl text-muted-foreground">Tudo o que a equipe precisa para criar com a sua marca, a sua voz e o seu propósito.</p></div>
-      <label className="min-w-52 text-sm">Empresa<select className={`${control} mt-1`} value={selected} disabled={busy} onChange={event => {
+      <label className="min-w-52 text-sm">Empresa<select aria-label="Empresa da identidade" className={`${control} mt-1`} value={selected} disabled={busy} onChange={event => {
         if (dirty && !window.confirm('Há alterações não salvas. Deseja trocar de empresa e descartar este rascunho?')) return;
         setParams({ empresa: event.target.value });
       }}><option value="GRUPO">Selecione uma empresa</option>{businesses.filter(b => /^BIZ-\d{3}$/.test(b.business_id)).map(b => <option key={b.business_id} value={b.business_id}>{b.nome}</option>)}</select></label>

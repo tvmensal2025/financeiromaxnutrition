@@ -24,7 +24,7 @@ class ContextTests(unittest.TestCase):
         self.assertNotIn('events',packet)
         self.assertEqual(packet['packet_version'], 'authorized-work-packet-v1')
         self.assertIs(packet['truncated'], False)
-        self.assertEqual(packet['creative_quality']['version'], 'creative-quality-v2')
+        self.assertEqual(packet['creative_quality']['version'], 'creative-quality-v3')
         self.assertIn('review', packet['creative_quality']['rules'])
 
     def test_does_not_smuggle_previous_submission_into_new_execution(self):

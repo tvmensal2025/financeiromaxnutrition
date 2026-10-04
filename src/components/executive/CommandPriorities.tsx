@@ -15,7 +15,7 @@ export function CommandPriorities({ tarefas, disponivel, abrirTarefa, verFila }:
     .sort((a,b) => scorePrioridade(b) - scorePrioridade(a) || (a.prazo || '9999').localeCompare(b.prazo || '9999') || a.task_id.localeCompare(b.task_id))
     .slice(0, 6);
   return <section className="hc-priorities" aria-label="Prioridades de agora">
-    <div className="hc-priorities-heading"><div><span className="hc-eyebrow">COMECE POR AQUI</span><h2>Fila executiva única</h2><p>Sem repetir tarefa. Cada item mostra todas as etiquetas que explicam por que ele subiu.</p></div><span>{disponivel ? `${fila.length} destaque(s)` : 'Leitura pendente'}</span></div>
+    <div className="hc-priorities-heading"><div><span className="hc-eyebrow">SUA ATENÇÃO, NO LUGAR CERTO</span><h2>O que merece atenção agora</h2><p>Decisões, bloqueios e prazos reunidos em um só lugar.</p></div><span>{disponivel ? `${fila.length} destaques` : 'Leitura pendente'}</span></div>
     <div className="hc-priority-counters">{contadores.map(f=><button key={f.id} aria-label={f.cta} className={`hc-priority-counter is-${f.id.toLowerCase()}`} onClick={()=>verFila(f.id)} disabled={!disponivel || !f.itens.length}><f.icon size={18}/><span>{f.titulo}</span><strong>{disponivel ? f.itens.length : '—'}</strong><small>{f.cta}</small></button>)}</div>
     <div className="hc-executive-queue">
       {fila.map(t => <button key={t.task_id} onClick={()=>abrirTarefa(t.task_id)} className="hc-executive-item" aria-label={`Abrir prioridade: ${t.tarefa}`}>

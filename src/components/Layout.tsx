@@ -1,3 +1,4 @@
+import { PageBoundary } from "@/components/executive/PageBoundary";
 import React, { useState, type ComponentType } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
@@ -194,7 +195,8 @@ export function Layout() {
   );
 
   return (
-    <div className="painel-elite flex min-h-screen bg-background text-foreground antialiased">
+    <div className="painel-elite he-studio flex min-h-screen bg-background text-foreground antialiased">
+      <a className="he-skip-link" href="#conteudo-principal">Ir para o conteúdo</a>
       {/* Sidebar Desktop */}
       <aside className="pe-sidebar sticky top-0 hidden h-[100dvh] flex-col overflow-hidden md:flex">
         {menuContent}
@@ -242,7 +244,7 @@ export function Layout() {
             </button>
 
             {/* Breadcrumb curto */}
-            <div className="hidden lg:flex items-center text-xs font-medium text-muted-foreground mr-2 truncate">
+            <div className="he-topbar-breadcrumb hidden xl:flex items-center text-xs font-medium text-muted-foreground mr-2 truncate">
               <span>{getBreadcrumb()}</span>
             </div>
 
@@ -255,9 +257,9 @@ export function Layout() {
         </header>
 
         {/* Conteúdo Principal com Max Width Executivo */}
-        <main className="pe-main flex-1 w-full">
+        <main id="conteudo-principal" tabIndex={-1} className="pe-main flex-1 w-full">
           {businessError && <div className="hc-warning" role="alert">Cadastro de empresas indisponível. Atualize a página para tentar novamente.</div>}
-          <Outlet />
+          <PageBoundary><Outlet /></PageBoundary>
         </main>
       </div>
 

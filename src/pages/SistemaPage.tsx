@@ -1,260 +1,50 @@
-import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
-import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
-import {
-  Activity,
-  Database,
-  Bot,
-  Zap,
-  CheckCircle2,
-  Clock,
-  Layers,
-  Radio,
-  Server,
-  RefreshCw,
-} from "lucide-react";
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Activity, ArrowUpRight, RefreshCw, PlugZap } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { lerPaginas } from '@/lib/leitura-paginada';
+import { ExecutivePageHeader } from '@/components/executive/ExecutivePageHeader';
+import { ExecutiveMetricCard } from '@/components/executive/ExecutiveMetricCard';
+import { ExecutiveBadge } from '@/components/executive/ExecutiveBadge';
+import { dataHora } from '@/lib/data-hora';
 
+type Connection = {agent_id:string; connection_status:string|null;provider:string|null;last_tested_at:string|null};
 export default function SistemaPage() {
-  const [agentesCount, setAgentesCount] = useState<number>(21);
-  const [botsConnected, setBotsConnected] = useState<number>(20);
-  const [focoAtivo, setFocoAtivo] = useState<string>("FOC-004");
-  const [carregando, setCarregando] = useState(true);
-
-  useEffect(() => {
-    async function carregarStatus() {
-      setCarregando(true);
+  const [connections,setConnections]=useState<Connection[]|null>(null);
+  const [loading,setLoading]=useState(true);
+  const [error,setError]=useState(false);
+  const [cycle,setCycle]=useState(0);
+  const [readAt,setReadAt]=useState<string|null>(null);
+  useEffect(()=>{
+    const controller=new AbortController();
+    let active=true;
+    setLoading(true);setError(false);setConnections(null);
+    const timeout=window.setTimeout(()=>controller.abort(),15000);
+    (async()=>{
       try {
-        const { data: conns } = await supabase
-          .from("agent_connections")
-          .select("agent_id,connection_status,provider");
-
-        if (conns) {
-          const connected = conns.filter(
-            (c) => c.connection_status === "CONNECTED" && c.agent_id !== "AGT-01"
-          ).length;
-          setBotsConnected(connected || 20);
-        }
-      } catch (err) {
-        console.error("Erro ao verificar conexões:", err);
-      } finally {
-        setCarregando(false);
-      }
-    }
-
-    carregarStatus();
-  }, []);
-
-  return (
-    <div className="space-y-6">
-      <ExecutivePageHeader
-        title="Saúde do Sistema & Conexões"
-        description="Monitoramento operacional de banco de dados, provedores de IA, mensageria e infraestrutura do Sistema Helena."
-        icon={Activity}
-        breadcrumb="Sistema Helena / Infraestrutura"
-      />
-
-      {/* Grid de Serviços */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Supabase */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#007A3D]/10 text-[#007A3D]">
-                <Database className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Supabase</h3>
-                <p className="text-[11px] text-muted-foreground">Fonte de Verdade Canônica</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="success" dot>
-              OPERACIONAL
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Instância:</span>
-              <strong className="font-mono text-foreground">ecosistemadossonhos</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>RLS Multiempresa:</span>
-              <strong className="text-[#007A3D] dark:text-[#22c55e]">Ativo (13 tabelas)</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Helena / ChatGPT */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
-                <Bot className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Helena (AGT-01)</h3>
-                <p className="text-[11px] text-muted-foreground">CEO Virtual / Comando</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="success" dot>
-              CONNECTED
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Provider:</span>
-              <strong className="text-foreground">ChatGPT Oficial</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Última Sincronização:</span>
-              <strong className="text-foreground">25/09/2026</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Grok Bots (20 Especialistas) */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-foreground">
-                <Radio className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Especialistas Grok</h3>
-                <p className="text-[11px] text-muted-foreground">AGT-02 até AGT-21</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="success" dot>
-              {botsConnected}/20 CONNECTED
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Provider:</span>
-              <strong className="text-foreground">xAI Grok Bot</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Último Teste:</span>
-              <strong className="text-foreground">25/09/2026 02:24</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Fila agent_jobs */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted text-foreground">
-                <Layers className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Fila de Jobs</h3>
-                <p className="text-[11px] text-muted-foreground">public.agent_jobs</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="default">
-              0 JOBS NA FILA
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Status Técnico:</span>
-              <strong className="text-foreground">Infraestrutura Reservada</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Acesso:</span>
-              <strong className="text-foreground">Fechado / RLS Ativo</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Notificações (Outbox / Evolution API) */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#B47D14]/10 text-[#B47D14]">
-                <Zap className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Evolution API</h3>
-                <p className="text-[11px] text-muted-foreground">WhatsApp Outbox</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="warning">
-              PLANEJADA
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Outbox Pendente:</span>
-              <strong className="text-foreground">0 mensagens</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Homologação no Fluxo:</span>
-              <strong className="text-foreground">Aguardando Credenciais</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Foco Ativo */}
-        <div
-          className="rounded-xl border border-border bg-card p-5 space-y-3"
-          style={{ boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.03)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#007A3D]/10 text-[#007A3D]">
-                <CheckCircle2 className="h-4 w-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Foco Executivo</h3>
-                <p className="text-[11px] text-muted-foreground">WIP Executivo = 1</p>
-              </div>
-            </div>
-            <ExecutiveBadge variant="success" dot>
-              EM EXECUÇÃO
-            </ExecutiveBadge>
-          </div>
-          <div className="border-t border-border/50 pt-2.5 space-y-1 text-xs text-muted-foreground">
-            <div className="flex justify-between">
-              <span>Frente Ativa:</span>
-              <strong className="text-foreground">FOC-004 (Homologação)</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Próxima Prioridade:</span>
-              <strong className="text-muted-foreground">FOC-002 (Caixa)</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Legenda Operacional */}
-      <div className="rounded-xl border border-border/80 bg-muted/20 p-4 text-xs text-muted-foreground space-y-1.5">
-        <p className="font-semibold text-foreground">Critérios de Classificação Operacional:</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div>
-            <strong className="text-foreground">● Connected:</strong> Conectividade e testes de leitura individuais validados com sucesso.
-          </div>
-          <div>
-            <strong className="text-foreground">● Operational:</strong> Execução operacional e processamento contínuo em produção homologados.
-          </div>
-        </div>
-      </div>
+        const result=await lerPaginas<Connection>((start,end)=>supabase.from('agent_connections').select('agent_id,connection_status,provider,last_tested_at',{count:'exact'}).order('agent_id').range(start,end).abortSignal(controller.signal),controller.signal);
+        if(!active) return;
+        if(result.error) setError(true); else {setConnections(result.data??[]);setReadAt(new Date().toISOString());}
+      } catch {if(active) setError(true);}
+      finally {window.clearTimeout(timeout);if(active)setLoading(false);}
+    })();
+    return ()=>{active=false;controller.abort();window.clearTimeout(timeout);};
+  },[cycle]);
+  const connected=connections?.filter(c=>c.connection_status==='CONNECTED').length;
+  const other=connections?connections.length-(connected??0):null;
+  return <div className="he-system-page space-y-6">
+    <ExecutivePageHeader title="Conexões em perspectiva." description="Veja o que está registrado, quando foi verificado e o que ainda precisa de atenção." icon={Activity} breadcrumb="SISTEMA / VISIBILIDADE" actions={<button className="he-action-button" disabled={loading} onClick={()=>setCycle(c=>c+1)}><RefreshCw size={15}/>{loading?'Consultando…':'Atualizar'}</button>}/>
+    {error&&<div role="alert" className="he-system-notice">Não foi possível consultar as conexões. Tente atualizar. Nenhum status de funcionamento foi presumido.</div>}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <ExecutiveMetricCard label="Conexões cadastradas" value={connections?.length} subtext={loading?'Consultando os registros':'Visíveis para sua conta'}/>
+      <ExecutiveMetricCard label="Marcadas como conectadas" value={connected} subtext="Conforme o último registro"/>
+      <ExecutiveMetricCard label="Outros estados" value={other} subtext="Consultar os detalhes abaixo"/>
     </div>
-  );
+    <div className="he-system-panel"><header><div><span className="he-page-kicker">MAPA DE CONEXÕES</span><h2>Clareza para acompanhar.</h2></div><Link to="/integracoes">Gerenciar integrações <ArrowUpRight size={16}/></Link></header>
+      <p>Uma conexão registrada não comprova que o agente concluiu uma tarefa. Acompanhe o resultado na <Link to="/entregas">biblioteca de entregas</Link>.</p>
+      {loading?<p role="status">Carregando conexões…</p>:connections?.length===0?<div className="he-chart-empty"><PlugZap/><p>Nenhuma conexão cadastrada está visível para sua conta.</p></div>:connections&&<div className="he-system-list">{connections.map(c=><article key={c.agent_id}><span className="he-connection-icon"><PlugZap size={19}/></span><div><h3>{c.agent_id==='AGT-01'?'Helena':c.agent_id}</h3><p>{c.provider||'Provedor não informado'}</p></div><div><ExecutiveBadge variant={c.connection_status==='CONNECTED'?'success':'neutral'}>{c.connection_status==='CONNECTED'?'Conectada':c.connection_status==='DISCONNECTED'?'Desconectada':c.connection_status==='ERROR'?'Requer atenção':'A conferir'}</ExecutiveBadge><p>{c.last_tested_at?`Último teste: ${dataHora(c.last_tested_at)}`:'Sem teste registrado'}</p></div></article>)}</div>}
+      <footer>{readAt&&!error?`Consulta realizada em ${dataHora(readAt)}`:'Aguardando consulta confirmada'} · Nenhum teste pago é disparado nesta página.</footer>
+    </div>
+    <div className="he-system-notice"><strong>O que este painel confirma</strong><p>Mostra os registros de conexão autorizados para sua conta. Disponibilidade dos provedores, permissões do banco e execução completa dos agentes exigem verificações próprias.</p></div>
+  </div>;
 }

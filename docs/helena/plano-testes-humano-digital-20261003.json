@@ -1,0 +1,156 @@
+{
+  "date": "2026-10-03",
+  "business_id": "BIZ-003",
+  "scope": "Planejamento de validacao funcional; nao comprova homologacao dos perfis",
+  "existing_copy_job": "JOB-HR-84c9b8d298379035cde814191a3a6905",
+  "concurrency_proposal": "Um executor inicialmente; ampliar somente apos validar recuperacao e capacidades",
+  "agents": [
+    {
+      "agent_id": "AGT-01",
+      "name": "Helena",
+      "role": "Chief of Staff / Orquestradora",
+      "proposed_task": "Organizar um pedido piloto com etapas, dependencias e criterios de aceite",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-02",
+      "name": "Laura",
+      "role": "Comunicação e Desenvolvimento do Fundador",
+      "proposed_task": "Preparar apresentacao de 60 segundos do fundador sobre Humano Digital",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-03",
+      "name": "Augusto",
+      "role": "Estratégia Corporativa",
+      "proposed_task": "Definir proposta de valor, publico e tres hipoteses comerciais",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-04",
+      "name": "Marina",
+      "role": "Execução e PMO",
+      "proposed_task": "Montar sequencia de tarefas e responsaveis do piloto",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-05",
+      "name": "Caio",
+      "role": "Finanças / CFO",
+      "proposed_task": "Criar controle de custos com o gasto de R$100 tratado como pendente de classificacao, sem lancamento real",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-06",
+      "name": "Clara",
+      "role": "Risco, Jurídico e Compliance",
+      "proposed_task": "Mapear cinco questoes de consentimento e direitos de uso das gravacoes, com fontes e pendencias",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-07",
+      "name": "Bianca",
+      "role": "Pessoas e Cultura",
+      "proposed_task": "Definir papeis humanos e checklist de integracao sem selecionar candidatos",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-08",
+      "name": "Daniel",
+      "role": "Dados e BI",
+      "proposed_task": "Definir seis indicadores e suas formulas, sem inventar resultados",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-09",
+      "name": "Theo",
+      "role": "Tecnologia e IA",
+      "proposed_task": "Diagnosticar timeout e especificar retomada idempotente do mesmo job",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-10",
+      "name": "Nina",
+      "role": "Produto",
+      "proposed_task": "Desenhar jornada de interesse ate primeira atividade e retorno",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-11",
+      "name": "Ravi",
+      "role": "Pesquisa e Insights",
+      "proposed_task": "Comparar fatos publicos Mimix e HubData em ate cinco criterios com fontes",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-12",
+      "name": "Maya",
+      "role": "Design / UX / UI",
+      "proposed_task": "Criar uma arte de post usando exclusivamente copy revisada e logo oficial",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-13",
+      "name": "Bruno",
+      "role": "Qualidade / QA",
+      "proposed_task": "Testar entrega, reprovacao, correcao, aprovacao e timeout com evidencias",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-14",
+      "name": "Olívia",
+      "role": "Operações",
+      "proposed_task": "Criar procedimento de uma pagina para receber e acompanhar participante",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-15",
+      "name": "Victor",
+      "role": "Vendas",
+      "proposed_task": "Criar abordagem comercial e respostas a tres objecoes, sem enviar",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-16",
+      "name": "Camila",
+      "role": "Marketing e Growth",
+      "proposed_task": "Definir uma campanha, publico, mensagem e proximo passo",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-17",
+      "name": "Isabela",
+      "role": "Marca, Conteúdo e Copy",
+      "proposed_task": "Recuperar tarefa existente das duas copies; nao duplicar pedido",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-18",
+      "name": "Pedro",
+      "role": "Parcerias e Desenvolvimento de Negócios",
+      "proposed_task": "Preparar checklist de cinco perguntas para validar uma parceria, sem contato externo",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-19",
+      "name": "Renata",
+      "role": "Customer Success",
+      "proposed_task": "Criar roteiro de acompanhamento ate primeira atividade",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-20",
+      "name": "Joana",
+      "role": "Atendimento",
+      "proposed_task": "Escrever cinco respostas de FAQ coerentes com fatos confirmados",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    },
+    {
+      "agent_id": "AGT-21",
+      "name": "Felipe",
+      "role": "Administração",
+      "proposed_task": "Organizar indice de documentos, versoes e responsaveis",
+      "status": "PROPOSTA_NAO_DISPARADA"
+    }
+  ]
+}

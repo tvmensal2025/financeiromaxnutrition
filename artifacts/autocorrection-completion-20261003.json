@@ -1,0 +1,16 @@
+{
+  "job_id": "JOB-HR-84c9b8d298379035cde814191a3a6905",
+  "status": "COMPLETED",
+  "attempt_count": 2,
+  "review_pending": false,
+  "reviewed_by": "AGT-16",
+  "evidence_refs": [
+    "MEM-HR-31364cebb90ea83a339e9f5f9c5b0971"
+  ],
+  "delivery_title": "Humano Digital — duas propostas de copy comercial",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "max",
+  "automatic_review_session": "20261003_090826_625622",
+  "publication_authorized": false,
+  "verified_from": "get_job and pipeline-last-result on Hermes / official Gateway"
+}

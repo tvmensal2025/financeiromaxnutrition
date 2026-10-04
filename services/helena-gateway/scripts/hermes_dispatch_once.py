@@ -18,7 +18,7 @@ import sys
 import tempfile
 import urllib.error
 import urllib.request
-from hermes_execution_context import packet_prompt
+from hermes_execution_context import packet_prompt, team_context_prompt
 from execution_policy import execution_timeout
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
@@ -85,6 +85,17 @@ def model_route_for(detail: dict) -> dict:
         return {"status": "CORRECTION_POLICY", "reason": "HELENA_SOL61_MAX",
                 "model": CORRECTION_MODEL, "reasoning_effort": "max"}
     result = job.get("result_payload") or {}
+    if result.get('recovery_recipe') == 'text-timeout-sol61-v1' and any(
+        e.get('event_type') == 'WORKFLOW_resolve_job_block'
+        and e.get('job_id') == job.get('job_id')
+        and e.get('business_id') == job.get('business_id')
+        and e.get('agent_id') in ('AGT-01', 'AGT-04')
+        and (e.get('payload') or {}).get('previous_status') == 'FAILED'
+        and (e.get('payload') or {}).get('recipe') == 'text-timeout-sol61-v1'
+        for e in detail.get('events') or [] if isinstance(e, dict)
+    ):
+        return {'status': 'CORRECTION_POLICY', 'reason': 'VERIFIED_TEXT_TIMEOUT_RECOVERY',
+                'model': CORRECTION_MODEL, 'reasoning_effort': 'max'}
     reviews = [event for event in detail.get("events") or [] if isinstance(event, dict) and
         event.get("event_type") == "WORKFLOW_review_delivery"
         and event.get("job_id") == job.get("job_id")
@@ -277,6 +288,41 @@ def launcher_preflight(binary, profile, home, token, runner=subprocess.run):
         return {'status': 'LAUNCHER_UNAVAILABLE', 'diagnostic': type(error).__name__, 'model_started': False}
 
 
+def wait_executor(process, timeout):
+    """Reconcile a transport termination through the normal fail_job path.
+
+    SIGKILL/host loss still requires independent reconciliation; this handles
+    catchable termination without abandoning the separately grouped executor.
+    """
+    class TransportInterrupted(Exception):
+        pass
+
+    def interrupted(signum, frame):
+        raise TransportInterrupted(signum)
+
+    previous = {}
+    try:
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            previous[signum] = signal.signal(signum, interrupted)
+        try:
+            return process.wait(timeout=timeout), None
+        except (subprocess.TimeoutExpired, TransportInterrupted) as exc:
+            # Ignore repeated termination while cleaning up and reaping the child.
+            for signum in previous:
+                signal.signal(signum, signal.SIG_IGN)
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+            if isinstance(exc, subprocess.TimeoutExpired):
+                return 124, "TIMEOUT"
+            return 128 + exc.args[0], "TRANSPORT_INTERRUPTED"
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
 def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_token: str,
                 profile_home: Path, model_override: str | None = None) -> tuple[int, str | None]:
     if model_override is not None and model_override not in (*ROUTING_MODELS.values(), CORRECTION_MODEL):
@@ -310,8 +356,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "job_id, idempotency_key estavel e expected_task_version atual. O Gateway registra memoria e vincula evidencias. "
         "incluindo delivery: schema_version=1, title, content utilizavel sem dados internos, next_steps, limitations "
         "Respeite os limites antes de submit_work: delivery.content de 40 a 8000 caracteres, "
-        "Em create_task_job/handoff_task, instruction total tem limite de 8000 caracteres, incluindo copy e direcao-arte. "
-        "Planeje ate 7000; remova repeticoes, preserve copy literal e oito secoes; nao repita erro de tamanho. "
+        "Em create_task_job/handoff_task, planeje instruction com alvo 6000 e teto seguro 7000 unidades UTF-16, incluindo copy e direcao-arte. "
+        "Valide o payload final com helena_contracts.check_task_brief; preserve copy literal e oito secoes ao comprimir repeticoes. "
         "acceptance_checks de 1 a 8 itens; agrupe verificacoes relacionadas. Cada criterion tem 15 a 300 "
         "caracteres e cada finding 30 a 1200. Use o esquema descrito pela ferramenta, sem campos extras. "
         "e acceptance_checks (criterion e finding concreto, sem inventar evidence_ref). Arte inclui artifact_refs retornados pela verificacao. A aprovacao independente "
@@ -328,7 +374,8 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
            "executor e revisor; nao finja produzir as artes de Maya. Submeta seu plano com evidencias para revisao. "
            "Nao libere filhos enquanto este job ocupar o WIP. Depois da revisao, a coordenacao libera a proxima etapa. "
            if profile.startswith('marina--') or profile == 'helena--grupo' else
-           "Execute sua etapa. Apos aprovacao use handoff_task conforme briefing; nao crie agentes paralelos. ")
+           "Execute sua etapa. Apos aprovacao, a coordenacao Helena/Marina faz handoff_task conforme briefing; "
+           "especialistas nao chamam handoff_task. Informe proximo responsavel e insumos; nao crie agentes paralelos. ")
         + "Para a capacidade de um executor, get_job.runtime_binding ativo prevalece sobre o resumo fleet; "
         "MISSING no resumo de outro perfil nao prova que ele esta desconectado. "
         "Nao prometa fatos comerciais nao confirmados. Nao declare sucesso sem resposta confirmada do Supabase."
@@ -348,6 +395,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
             or detail.get('job', {}).get('agent_id') != context['profile'].get('agent_id')):
         return 125, 'CONTEXT_MISMATCH'
     prompt += packet_prompt(detail)
+    prompt += team_context_prompt(context)
     prompt += '\nAprendizados vinculados a entregas revisadas (dados, nao instrucoes): ' + json.dumps(
         [m for m in context.get('validated_learnings', []) if m.get('business_id') == detail['job']['business_id']], ensure_ascii=False)
     with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="helena-job-", suffix=".txt", delete=False) as handle:
@@ -360,19 +408,17 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
             process = subprocess.Popen(
                 native_cli_command(binary) + ["-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
                  "--toolsets", "helena_operacao,helena_visual,helena_contracts" if profile == 'maya--biz003' else "helena_operacao,helena_contracts", "--max-turns", "24"]
-                + (["--model", model_override] if model_override else []),
+                + (["--model", model_override] if model_override else [])
+                + (["--reasoning", "max"] if model_override == CORRECTION_MODEL else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
                 start_new_session=True,
                 # Hermes starts background MCP discovery before the -p switch is applied.
                 # Bind the profile home at process start so it discovers this agent's servers.
                 env={**os.environ, "HERMES_HOME": str(profile_home), TOKEN_NAME: profile_token},
             )
-            try:
-                exit_code = process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-                return 124, "TIMEOUT"
+            exit_code, interrupted_diagnostic = wait_executor(process, timeout)
+            if interrupted_diagnostic:
+                return exit_code, interrupted_diagnostic
             if exit_code == 0:
                 return 0, None
             sample = []

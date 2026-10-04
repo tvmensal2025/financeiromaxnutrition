@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-03",
+  "status": "local frontend verified; whole product audit remains partial",
+  "tests": {
+    "files": 28,
+    "passed": 151,
+    "failed": 0,
+    "log": "full-tests.log"
+  },
+  "typecheck": "passed after final changes",
+  "productionDeployment": false,
+  "performance": {
+    "previousEntryKB": 1515.73,
+    "currentEntryKB": 530.68,
+    "changePercent": 65.0,
+    "meaning": "minified entry JavaScript file size, not all chunks or measured load time",
+    "remaining": "entry and command-page chunks still exceed 500 kB"
+  },
+  "ui": {
+    "moduleUrls": 56,
+    "moduleHeadingAndOverflowCheck": "passed",
+    "mobileViewport": [
+      390,
+      844
+    ],
+    "mobileRoutesChecked": 7,
+    "actions": [
+      "timeline presets",
+      "invalid custom date range rejection",
+      "calendar next and previous month",
+      "calendar Cadastro navigation",
+      "portfolio detailed-table destination",
+      "record form open, edit draft, cancel, Escape, focus restoration"
+    ],
+    "dataWritesInTests": "No save, delete or agent dispatch action submitted. Legacy calendar auto-sync discovered during opening and removed from the read path."
+  },
+  "preserve": [
+    "Supabase Auth and app_access",
+    "company scope",
+    "versioned write API and conflict handling",
+    "existing agent runtime integrations"
+  ],
+  "corrected": [
+    "hard-coded system status",
+    "eager route imports",
+    "calendar opening writes",
+    "CRM pagination and stale company response",
+    "portfolio pagination",
+    "portfolio/calendar self-redirecting detail links",
+    "login failure recovery",
+    "record-modal focus and labels"
+  ],
+  "rebuilt": [
+    "activity timeline and date controls",
+    "system connection screen",
+    "login composition",
+    "shared record editor"
+  ],
+  "nextRequired": [
+    "Individual form persistence checks with isolated test records and multiple roles",
+    "Database EXPLAIN, index deployment and RLS verification in the actual project",
+    "Gateway runtime end-to-end validation by the owning main workstream",
+    "Server-side aggregation and bounded reads for the command screen",
+    "Published version browser smoke tests",
+    "Independent visual review of every secondary state, modal and error state"
+  ],
+  "scopeNote": "Opening all modules does not prove all CRUD flows or a complete security audit.",
+  "build": "passed after final changes"
+}

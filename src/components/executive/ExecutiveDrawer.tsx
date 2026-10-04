@@ -34,7 +34,7 @@ export function ExecutiveDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className={`w-full ${
+        className={`he-studio-drawer w-full ${
           width === "wide" ? "sm:max-w-[540px]" : "sm:max-w-[460px]"
         } p-0 flex flex-col bg-card border-l border-border shadow-xl`}
       >

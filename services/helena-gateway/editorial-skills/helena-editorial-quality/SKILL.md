@@ -3,7 +3,7 @@ name: helena-editorial-quality
 description: "Revisar estrategia, copy e aplicacao visual de campanhas por empresa; usar em posts, stories, legendas e revisoes editoriais. Nao se aplica a tarefas financeiras ou tecnicas sem conteudo de campanha."
 ---
 
-# Qualidade editorial de campanhas — v3, 2026-10-03
+# Qualidade editorial de campanhas — v4, 2026-10-03
 
 ## Aplicacao e contexto
 Antes de escrever ou revisar campanhas, consulte empresa, identidade, publico, objetivo, oferta, fatos comprovados, canal e uso autorizado. Nao transportar voz, logo, promessa ou condicoes de outra empresa. Esta skill orienta qualidade: nao cria ferramentas, permissao de publicacao, revisor ou disponibilidade comercial.
@@ -12,6 +12,9 @@ Antes de escrever ou revisar campanhas, consulte empresa, identidade, publico, o
 Camila define publico, interesse/necessidade, objetivo, beneficio sustentado, angulo, motivo para acreditar e proximo passo possivel. Distinguir posicionamento da empresa de oferta ativa. Se faltam fatos, consultar fontes existentes; pedir apenas a informacao que muda o resultado. Uma peca institucional pode explicar a proposta confirmada sem inventar vagas ou bloquear por um canal que nao e necessario para revisao interna.
 
 ## Copy utilizavel e persuasiva
+### Abertura comercial: desejo antes do processo
+Na Humano Digital, abrir pelo desejo de renda extra, identificacao com a rotina e possibilidade concreta. Usar linguagem persuasiva, visualizacao e verbos ativos; nao iniciar com "aprovadas", criterios de selecao ou advertencias. Preferir "Sua rotina pode abrir uma nova fonte de renda" e explicar em seguida a atividade real. Nao transformar a palavra "aprovada" em palavra proibida: se anunciar pagamento ou valor por hora, a condicao de aprovacao continua proxima da afirmacao, de forma breve e legivel. Uma headline de interesse sem promessa de pagamento pode deixar a explicacao do processo para o corpo/legenda. Nao esconder condicoes essenciais no rodape ou somente depois do cadastro. A revisora deve avaliar a mensagem completa, sem exigir aviso generico na abertura. PNL aqui significa recursos de linguagem, nao garantia de persuasao ou controle do leitor.
+
 ### Diretriz do fundador — Humano Digital, 2026-10-03
 Para BIZ-003, comunicar diretamente a oportunidade de trabalhar em casa e participar de projetos com IA como tema de interesse, sem proibir a palavra oportunidade. Usar identificacao com a rotina, visualizacao de uma possibilidade real, beneficio concreto, verbos ativos e convite claro. O fundador chama essa abordagem de PNL: aplicar como recurso de linguagem persuasiva, sem alegar eficacia cientifica, controle mental ou conversao garantida.
 Retirar do padrao os encerramentos genericos "dependem do projeto e da compatibilidade", "informacoes quando estiverem validadas" e ressalvas defensivas sem fato material concreto. Nao exigir essas frases para aprovar uma copy. Informacao ausente vira pergunta interna objetiva da Helena, nao texto burocratico na arte. Quando houver condicao real essencial para compreender a oferta, explicar essa condicao especifica em linguagem simples; nunca inventar vaga aberta, salario, contratacao ou disponibilidade remota. "Oportunidade de trabalhar em casa" e um tema autorizado, nao prova por si so de vaga aberta. As condicoes ja verificadas da empresa continuam valendo. Exemplo editorial sem oferta inventada: "Quer trabalhar de casa com inteligencia artificial? Conheca a Humano Digital e descubra como suas habilidades podem se conectar a essa nova forma de trabalhar."

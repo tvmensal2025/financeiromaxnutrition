@@ -1,3 +1,4 @@
+import * as RecordDialog from "@radix-ui/react-dialog";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
@@ -60,6 +61,7 @@ export default function Modulo() {
   const [versaoEdicao, setVersaoEdicao] = useState<unknown>(null);
   const [versaoExclusao, setVersaoExclusao] = useState<unknown>(null);
   const [modalAberto, setModalAberto] = useState(false);
+  const origemEditor = useRef<HTMLElement | null>(null);
   const [drawerLinha, setDrawerLinha] = useState<Record<string, unknown> | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [excluirId, setExcluirId] = useState<string | null>(null);
@@ -69,9 +71,12 @@ export default function Modulo() {
   const [aviso, setAviso] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [modoVisualizacao, setModoVisualizacao] = useState<"cards" | "tabela">("cards");
+  const [mostrarTabelaFoco, setMostrarTabelaFoco] = useState(false);
 
   const isGovernanca = tabela.toLowerCase() === "governanca";
   const isIntegracoes = tabela.toLowerCase() === "integracoes";
+  const isFoco = tabela === "foco_executivo";
+  const rotuloCampo = (coluna: string) => ({business_id:'Empresa',business_id_area:'Empresa ou escopo',project_id:'Projeto',event_id:'Identificador do evento',task_id:'Identificador da tarefa',recurrence_id:'Recorrência',occurrence_date:'Data da ocorrência',execution_id:'Execução vinculada',lembrete_min:'Lembrete (minutos)'} as Record<string,string>)[coluna] || campos.find(c => c.coluna === coluna)?.nome_na_planilha || coluna.replace(/_/g, " ");
 
   const chave = useMemo(() => {
     const marcada = campos.find((campo) => campo.chave === "SIM")?.coluna;
@@ -571,6 +576,18 @@ export default function Modulo() {
       )}
 
       {/* TABELA DE DADOS PADRONIZADA (48-52px de altura) */}
+      {isFoco && !carregando && <>
+        <div className="he-focus-grid" aria-label="Frentes de trabalho">
+          {linhasFiltradas.map((linha, index) => <button key={String(linha[chave] ?? index)} className={`he-focus-card ${String(linha.status).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase() === 'EM EXECUCAO' ? 'is-current' : ''}`} onClick={() => abrirDrawer(linha)}>
+            <div><small>PRIORIDADE {String(linha.ordem || index + 1)}</small>{formatarValorCelula('status', linha.status)}</div>
+            <h2>{String(linha.frente || 'Frente de trabalho')}</h2>
+            <p>{String(linha.objetivo || 'Abra os detalhes para conhecer esta frente.')}</p>
+            <footer><span>{String(linha.responsavel || 'Responsável a definir')}</span><span>Ver detalhes →</span></footer>
+          </button>)}
+        </div>
+        {!linhasFiltradas.length && <ExecutiveEmptyState icon={Layers} title="Nenhuma frente encontrada" description="Ajuste sua busca ou cadastre uma frente de trabalho."/>}
+        <button className="hc-button" aria-expanded={mostrarTabelaFoco} onClick={() => setMostrarTabelaFoco(v => !v)}><TableProperties size={16}/>{mostrarTabelaFoco ? 'Ocultar tabela completa' : 'Ver tabela completa'}</button>
+      </>}
       {total !== null && <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground" aria-label="Paginação dos registros">
         <span>{total ? `${pagina * 200 + 1}–${Math.min((pagina + 1) * 200, total)}` : "0"} de {total} registros autorizados. A busca filtra esta página.</span>
         <div className="flex gap-2">
@@ -578,7 +595,7 @@ export default function Modulo() {
           <button className="rounded border px-3 py-2 disabled:opacity-40" disabled={carregando || (pagina + 1) * 200 >= total} onClick={() => setPagina(p => p + 1)}>Próxima página</button>
         </div>
       </div>}
-      {(!isGovernanca && !isIntegracoes || modoVisualizacao === "tabela") && (
+      {(!isGovernanca && !isIntegracoes || modoVisualizacao === "tabela") && (!isFoco || mostrarTabelaFoco || carregando) && (
         carregando ? (
           <ExecutiveLoadingState message={`Carregando registros de ${meta.titulo}...`} />
         ) : linhasFiltradas.length === 0 ? (
@@ -596,10 +613,10 @@ export default function Modulo() {
             <table className="w-full min-w-[700px] text-left text-xs">
               <thead className="bg-muted/40 border-b border-border/60 text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
                 <tr className="h-10">
-                  <th className="px-4 font-semibold">{chave}</th>
+                  <th className="px-4 font-semibold">Referência</th>
                   {colunasTabela.map((coluna) => (
                     <th key={coluna} className="px-4 font-semibold">
-                      {coluna}
+                      {rotuloCampo(coluna)}
                     </th>
                   ))}
                   <th className="px-4 text-right font-semibold">Ações</th>
@@ -664,7 +681,7 @@ export default function Modulo() {
         open={drawerAberto}
         onOpenChange={setDrawerAberto}
         title={drawerLinha ? `${String(drawerLinha[chave] || "Registro")}` : "Detalhes"}
-        description={`Módulo ${meta.titulo} · Dados Canônicos`}
+        description={`${meta.titulo} · Informações do registro`}
         width="max-w-lg"
       >
         {drawerLinha && (
@@ -678,7 +695,7 @@ export default function Modulo() {
             <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin">
               {Object.entries(drawerLinha).map(([col, val]) => (
                 <div key={col} className="rounded-md border border-border/40 bg-background/50 p-2.5 space-y-0.5">
-                  <span className="text-[11px] font-medium text-muted-foreground">{col}</span>
+                  <span className="text-[11px] font-medium text-muted-foreground capitalize">{rotuloCampo(col)}</span>
                   <p className="text-xs text-foreground font-mono break-all">
                     {val === null || val === undefined ? "—" : String(val)}
                   </p>
@@ -715,36 +732,26 @@ export default function Modulo() {
       />
 
       {/* MODAL DE EDIÇÃO / INSERÇÃO */}
-      {modalAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-xl rounded-xl border border-border/80 bg-card p-5 shadow-lg my-8">
-            <div className="flex items-center justify-between border-b border-border/50 pb-3">
-              <h3 className="text-sm font-semibold text-foreground">
-                {editando ? `Atualizar ${editando}` : `Novo Registro em ${meta.titulo}`}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalAberto(false)}
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
+      <RecordDialog.Root open={modalAberto} onOpenChange={setModalAberto}>
+        <RecordDialog.Portal>
+          <RecordDialog.Overlay className="he-record-overlay"/>
+          <RecordDialog.Content className="he-record-editor" onInteractOutside={e=>e.preventDefault()} onOpenAutoFocus={()=>{origemEditor.current=document.activeElement as HTMLElement;}} onCloseAutoFocus={e=>{e.preventDefault();origemEditor.current?.focus();}}>
+            <header><span className="he-page-kicker">{meta.titulo}</span><RecordDialog.Title>{editando ? 'Editar registro' : 'Um novo registro.'}</RecordDialog.Title><RecordDialog.Description>Preencha as informações abaixo. Revise antes de salvar.</RecordDialog.Description><RecordDialog.Close aria-label="Fechar formulário"><X size={18}/></RecordDialog.Close></header>
             <form onSubmit={salvar} className="mt-4 space-y-4">
               {erro && <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{erro}</p>}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 max-h-[60vh] overflow-y-auto p-1 scrollbar-thin">
                 {editaveis.map((campo) => (
                   <div key={campo.coluna} className="space-y-1">
-                    <label className="text-[11px] font-medium text-foreground flex items-center justify-between">
-                      <span>{campo.nome_na_planilha || campo.coluna}</span>
+                    <label htmlFor={`registro-${campo.coluna}`} className="text-[11px] font-medium text-foreground flex items-center justify-between">
+                      <span>{rotuloCampo(campo.coluna)}</span>
                       {campo.chave === "SIM" && (
-                        <span className="text-[10px] text-primary font-mono font-bold">CHAVE</span>
+                        <span className="text-[10px] text-primary font-mono font-bold">Identificador</span>
                       )}
                     </label>
                     {isConsolidated && !editando && meta.escopo !== "GLOBAL" &&
                       (campo.coluna === "business_id" || campo.coluna === "business_id_area") ? (
                       <select
+                        id={`registro-${campo.coluna}`}
                         className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
                         value={form[campo.coluna] || ""}
                         onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
@@ -762,7 +769,8 @@ export default function Modulo() {
                         className="w-full rounded-lg border border-border/70 bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
                         value={form[campo.coluna] || ""}
                         onChange={(e) => setForm({ ...form, [campo.coluna]: e.target.value })}
-                        placeholder={`Informe ${campo.coluna}…`}
+                        id={`registro-${campo.coluna}`}
+                        placeholder={`Informe ${rotuloCampo(campo.coluna).toLocaleLowerCase("pt-BR")}…`}
                       />
                     )}
                   </div>
@@ -785,9 +793,9 @@ export default function Modulo() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+          </RecordDialog.Content>
+        </RecordDialog.Portal>
+      </RecordDialog.Root>
     </div>
   );
 }
