@@ -44,6 +44,7 @@ type NavItemConfig = {
 
 const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/", label: "Sala de comando", icon: LayoutDashboard, end: true },
+  { to: "/financeiro", label: "Cockpit Financeiro", icon: Receipt, badge: "8 Abas" },
   { to: "/conversa", label: "Conversa com Helena", icon: MessageSquare },
   { to: "/supervisao", label: "Supervisão da Helena", icon: Shield },
   { to: "/empresas", label: "Operação por empresa", icon: Building2 },

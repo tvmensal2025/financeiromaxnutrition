@@ -497,3 +497,49 @@
 @media(max-width:700px) { .hc-exec-overview { grid-template-columns:1fr; padding:20px; } .hc-exec-overview>span { grid-column:1; } .hc-exec-sources { grid-template-columns:repeat(2,minmax(0,1fr)); } .hc-exec-stage-wrap { flex:none; } .hc-exec-ledger-head { align-items:flex-start; flex-direction:column; } .hc-exec-cohort { padding:0 12px 12px; } .hc-exec-cohort>summary { min-height:96px; } }
 .hc-agent-runs>.hc-text-button { margin-top:10px; }
 .hc-agent-runs>small { margin-top:10px; }
+
+/* Quick Card Executivo Financeiro */
+.hc-finance-quick {
+  border: 1px solid hsl(var(--border));
+  background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)/0.3) 100%);
+  border-radius: 16px;
+  padding: 24px;
+}
+.hc-finance-pills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.hc-pill-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.hc-pill-item:hover {
+  border-color: var(--hc-green);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.hc-pill-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+.hc-pill-desc {
+  font-size: 11px;
+  color: var(--hc-muted);
+  line-height: 1.45;
+}
+@media (max-width: 768px) {
+  .hc-finance-pills {
+    grid-template-columns: 1fr;
+  }
+}
+
