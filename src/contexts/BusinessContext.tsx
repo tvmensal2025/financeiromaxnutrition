@@ -21,6 +21,7 @@ const CORES: Record<string, string> = {
   "BIZ-001": "#007A3D",
   "BIZ-002": "#2563EB",
   "BIZ-003": "#075E47",
+  "BIZ-004": "#0EA5E9",
   "GRUPO": "#4F46E5",
 };
 
@@ -104,6 +105,7 @@ function siglaDe(nome: string) {
   if (/igreen/i.test(texto)) return "iGreen";
   if (/sa[uú]de|max|nutrition|refit/i.test(texto)) return "Saúde & Nutrição";
   if (/humano/i.test(texto)) return "Humano Digital";
+  if (/living/i.test(texto)) return "E-living";
   if (texto.length <= 25) return texto;
   return `${texto.slice(0, 22)}…`;
 }
@@ -357,6 +359,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     if (id === "BIZ-001") return "iGreen Energy";
     if (id === "BIZ-002") return "Ecossistema de Saúde";
     if (id === "BIZ-003") return "Humano Digital";
+    if (id === "BIZ-004") return "E-living";
     return id || "Geral";
   };
 

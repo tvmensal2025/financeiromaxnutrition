@@ -137,6 +137,7 @@ function empresas(texto: string) {
   if (/\bigreen\b|\bi green\b|\bbiz-001\b|\bbiz 001\b/.test(n)) achou.push("BIZ-001");
   if (/\bsaude\b|\becossistema\b|\bbiz-002\b|\bbiz 002\b/.test(n)) achou.push("BIZ-002");
   if (/\bhumano digital\b|\bbiz-003\b|\bbiz 003\b/.test(n)) achou.push("BIZ-003");
+  if (/\beliving\b|\be living\b|\biliving\b|\bi living\b|\bbiz-004\b|\bbiz 004\b/.test(n)) achou.push("BIZ-004");
   if (/\bgrupo\b/.test(n)) achou.push("GRUPO");
   if (/\bpessoal\b|\bpro-labore\b|\bprolabore\b|\bparticular\b/.test(n)) achou.push("PESSOAL");
   return achou;
@@ -601,6 +602,7 @@ Se você tem atenção aos detalhes e quer aprender na prática como a IA se des
       "BIZ-001": "iGreen Energy",
       "BIZ-002": "Ecossistema de Saúde",
       "BIZ-003": "Humano Digital",
+      "BIZ-004": "E-living",
       "GRUPO": "Holding / Grupo",
     };
 
