@@ -18,6 +18,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Cpu,
+  Building2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { escreverRegistro, TABELAS_PROTEGIDAS } from '@/lib/escrita-protegida';
@@ -69,6 +70,7 @@ export default function Modulo() {
   const [aviso, setAviso] = useState("");
   const [carregando, setCarregando] = useState(true);
   const [modoVisualizacao, setModoVisualizacao] = useState<"cards" | "tabela">("cards");
+  const [ignorarFiltroEmpresa, setIgnorarFiltroEmpresa] = useState(false);
 
   const isGovernanca = tabela.toLowerCase() === "governanca";
   const isIntegracoes = tabela.toLowerCase() === "integracoes";
@@ -161,7 +163,7 @@ export default function Modulo() {
         )?.coluna;
         const escopo = meta.escopo;
 
-        if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "integracoes") {
+        if (tabela !== "portfolio" && colEmpresa && escopo !== "GLOBAL" && tabela !== "integracoes" && !ignorarFiltroEmpresa) {
           if (escopo === "MISTO") {
             if (!isConsolidated && currentBusinessId) {
               consulta = consulta.or(
@@ -219,11 +221,11 @@ export default function Modulo() {
     }
   }
 
-  useEffect(() => { setPagina(0); setTermoBusca(""); }, [tabela, currentBusinessId, isConsolidated]);
+  useEffect(() => { setPagina(0); setTermoBusca(""); }, [tabela, currentBusinessId, isConsolidated, ignorarFiltroEmpresa]);
   useEffect(() => {
     carregar();
     return () => { sequenciaLeitura.current++; };
-  }, [tabela, currentBusinessId, isConsolidated, pagina]);
+  }, [tabela, currentBusinessId, isConsolidated, pagina, ignorarFiltroEmpresa]);
 
   const linhasFiltradas = useMemo(() => {
     if (!termoBusca) return linhas;
@@ -406,6 +408,22 @@ export default function Modulo() {
               </div>
             )}
 
+            {meta.escopo !== "GLOBAL" && (
+              <button
+                type="button"
+                onClick={() => setIgnorarFiltroEmpresa(v => !v)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors shadow-sm ${
+                  ignorarFiltroEmpresa
+                    ? "bg-emerald-800 text-white border-emerald-900"
+                    : "border-border/70 bg-card text-foreground hover:bg-muted"
+                }`}
+                title={ignorarFiltroEmpresa ? "Clique para filtrar pela empresa ativa" : "Clique para ver registros de todas as empresas"}
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                <span>{ignorarFiltroEmpresa ? "Todas as Empresas" : (currentBusiness?.sigla || "Empresa Ativa")}</span>
+              </button>
+            )}
+
             {!meta.somenteLeitura && <button
               type="button"
               onClick={abrirNovo}
@@ -420,8 +438,12 @@ export default function Modulo() {
 
       {erro && (
         <ExecutiveErrorState
-          title={`Erro ao consultar ${meta.titulo}`}
-          message={erro}
+          title={`Acesso aos dados de ${meta.titulo}`}
+          message={
+            erro.includes("42501") || erro.toLowerCase().includes("permission denied")
+              ? "Esta tabela está protegida pela política RLS do Supabase. Certifique-se de estar autenticado com credenciais autorizadas de Fundador ou Administrador."
+              : erro
+          }
           onRetry={carregar}
         />
       )}
@@ -582,15 +604,29 @@ export default function Modulo() {
         carregando ? (
           <ExecutiveLoadingState message={`Carregando registros de ${meta.titulo}...`} />
         ) : linhasFiltradas.length === 0 ? (
-          <ExecutiveEmptyState
-            icon={Layers}
-            title={`Nenhum registro em ${meta.titulo}`}
-            description={
-              termoBusca
-                ? `Nenhum resultado corresponde à busca "${termoBusca}".`
-                : `Ainda não há registros cadastrados para este contexto.`
-            }
-          />
+          <div className="space-y-3">
+            <ExecutiveEmptyState
+              icon={Layers}
+              title={`Nenhum registro em ${meta.titulo}`}
+              description={
+                termoBusca
+                  ? `Nenhum resultado corresponde à busca "${termoBusca}".`
+                  : `Ainda não há registros cadastrados para ${ignorarFiltroEmpresa ? "o sistema global" : (currentBusiness?.sigla || "este contexto")}.`
+              }
+            />
+            {!ignorarFiltroEmpresa && meta.escopo !== "GLOBAL" && (
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIgnorarFiltroEmpresa(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted shadow-sm transition-colors"
+                >
+                  <Building2 className="h-3.5 w-3.5 text-emerald-600" />
+                  <span>Ver registros de todas as empresas do grupo</span>
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">
             <table className="w-full min-w-[700px] text-left text-xs">
