@@ -74,3 +74,16 @@ A estrutura de banco `notification_outbox` foi criada com campos para template, 
 1. Validar a conclusão de **FOC-004** (Homologação técnica) para deliberar sobre a ativação de **FOC-002** (Caixa).
 2. Fornecer os parâmetros/credenciais para conexão da Evolution API quando desejar ativar os alertas por WhatsApp.
 3. Definir o cronograma de ativação gradual dos 20 especialistas no Grok Bot.
+
+---
+
+### 17. Como está o Módulo Financeiro hoje (04/10/2026)?
+**100% OPERACIONAL, HOMOLOGADO LOCALMENTE E COM DADOS SEPARADOS POR EMPRESA.**
+* **Cockpit com 8 Abas:** Visão Geral (6 KPIs de Caixa e Competência), Lançamentos, Fluxo de Caixa, DRE, Orçamento, Recorrências, Plano de Contas e Contas Bancárias.
+* **Criação e Edição:** Criado o `LancamentoModal` para cadastro e edição rápida de receitas, despesas e transferências, com validação de número positivo no `valor_original` e concorrência otimista (`escreverRegistro`).
+* **Planejamento Orçamentário:** Criado o `OrcamentoModal` integrado à tabela `public.orcamento`, com acompanhamento de metas por centro de custo, barra de progresso e cálculo de desvio em R$.
+* **Motor Contábil (`caixa.ts`):** Regime de Caixa estrito (exclui abertos, previstos, cancelados e transferências) e Regime de Competência para apuração de DRE mensal.
+* **Filtros e Busca:** Busca textual em tempo real, filtros por tipo/status, baixa rápida em 1 clique e exportação instantânea para CSV (Excel).
+* **Qualidade Técnica:** 154 testes unitários automatizados passando (100% verde) e build de produção aprovado.
+* **Governança do Agente Caio (AGT-05):** Modo consultivo e analítico preservado; proibida a criação de despesas fictícias ou assunção de dívidas sem aprovação formal do fundador.
+
