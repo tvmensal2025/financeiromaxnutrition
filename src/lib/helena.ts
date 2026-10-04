@@ -602,7 +602,7 @@ Se você tem atenção aos detalhes e quer aprender na prática como a IA se des
       "BIZ-001": "iGreen Energy",
       "BIZ-002": "Ecossistema de Saúde",
       "BIZ-003": "Humano Digital",
-      "BIZ-004": "E-living",
+      "BIZ-004": "eLiving",
       "GRUPO": "Holding / Grupo",
     };
 
@@ -690,7 +690,8 @@ Se você tem atenção aos detalhes e quer aprender na prática como a IA se des
   const matchEmpresa = texto.match(/(?:cria[rz]?|fazer?|fa[cç]a|cadastr(?:ar?|e)|adicionar?|nova)\s+(?:a\s+)?empresa\s+([A-Za-z0-9À-ÿ\s\-_]+)/i);
   if (matchEmpresa) {
     const nomeBruto = matchEmpresa[1].trim();
-    const nomeEmpresa = nomeBruto.replace(/[.,;!?].*$/, "").replace(/\s+(?:hoje|por favor|agora|urgente).*$/i, "").trim();
+    const nomeLimpo = nomeBruto.replace(/[.,;!?].*$/, "").replace(/\s+(?:hoje|por favor|agora|urgente).*$/i, "").trim();
+    const nomeEmpresa = /^(?:e-?living|iliving)$/i.test(nomeLimpo) ? "eLiving" : nomeLimpo;
     if (nomeEmpresa.length >= 2) {
       plano.conclusao = `Empresa "${nomeEmpresa}" criada formalmente no portfólio oficial como {{BIZ}}! Tarefa de estruturação gerada e vinculada.`;
       plano.decisao = "DEC-022: Materialização soberana de comando do fundador. Empresa inserida em portfolio e ativa no seletor.";

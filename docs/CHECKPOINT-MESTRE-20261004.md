@@ -20,7 +20,7 @@ O ecossistema conta formalmente com 4 negócios ativos:
 1. **BIZ-001 — iGreen Energy:** Energia solar e sustentabilidade. Foco em validação e aquisição comercial.
 2. **BIZ-002 — Ecossistema de Saúde:** Saúde, nutrição, longevidade e medicina preventiva.
 3. **BIZ-003 — Humano Digital:** Plataforma/agência que conecta pessoas adultas a oportunidades de dados para Inteligência Artificial.
-4. **BIZ-004 — E-living:** *"Onde sua evolução ganha direção."* Plataforma global de evolução pessoal, saúde, hábitos, comportamento e inteligência artificial. Missão: transformar dados em decisão, informação em evolução e tecnologia em cuidado contínuo.
+4. **BIZ-004 — eLiving™:** *"Onde sua evolução ganha direção."* Plataforma global de evolução pessoal, saúde, hábitos, nutrição, movimento e inteligência artificial. Posicionada soberanamente como inteligência pessoal de evolução sustentada por 4 pilares: Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos). Cores oficiais: Azul Profundo (#0B192C), Azul Luminoso (#0EA5E9), Dourado Luz (#F59E0B) e Branco (#FFFFFF). Marca formalmente homologada por DEC-023.
 
 ---
 

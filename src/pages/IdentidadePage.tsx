@@ -8,6 +8,7 @@ import { brandPreview, uploadBrand } from '@/lib/media-client';
 import { escreverRegistro } from '@/lib/escrita-protegida';
 import { BRAND_FIELDS, brandMissing, brandSchema, emptyBrand, safeBrandAsset, type BrandIdentity } from '@/lib/brand-identity';
 import humano from '@/data/humano-digital-brand.json';
+import eliving from '@/data/eliving-brand.json';
 
 const control = 'w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30';
 
@@ -49,7 +50,7 @@ export default function IdentidadePage() {
       setLoading(false);
       if (readError || !data) { setError('Não foi possível carregar a identidade desta empresa. Tente abrir novamente.'); return; }
       const saved = data.brand_identity;
-      const candidate = saved || (selected === 'BIZ-003' ? humano : emptyBrand(selected, data.negocio || selected));
+      const candidate = saved || (selected === 'BIZ-003' ? humano : selected === 'BIZ-004' ? eliving : emptyBrand(selected, data.negocio || selected));
       if (saved && (!brandSchema.safeParse(saved).success || saved.business_id !== selected)) {
         setError('O cadastro da marca precisa de conferência antes de ser editado. Nenhum dado foi substituído.'); return;
       }

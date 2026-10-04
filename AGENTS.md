@@ -30,6 +30,7 @@ Estas orientações valem para todo o projeto. Responder em português e seguir 
 
 - Antes de propor criação ou retrabalho, consultar o existente: JÁ EXISTE / PARCIAL / AUSENTE / DIVERGENTE. Sem verificação suficiente: NÃO CONFIRMADO.
 - Respeitar WIP executivo = 1 na esteira autônoma de agentes. Comandos diretos do Fundador para criar empresas, contas ou entidades têm precedência soberana (DEC-022) e devem ser materializados imediatamente na tabela de destino (public.portfolio para empresas, etc.).
+- Marca Oficial eLiving™ (DEC-023): A empresa é formalmente eLiving™ (com "e" minúsculo e "L" maiúsculo, sem hífen, jamais "E-living" ou "Iliving"). Slogan: "Onde sua evolução ganha direção." Posicionamento inegociável: inteligência pessoal de evolução, nunca app fitness comum ou contador de calorias. Quatro pilares obrigatórios: Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos). Consultar `docs/COMANDO-MASTER-ELIVING.md`.
 - CONNECTED não comprova OPERATIONAL; CONFIGURADA não comprova homologação.
 - Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
 - Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.

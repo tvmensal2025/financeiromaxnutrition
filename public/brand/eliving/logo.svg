@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="150" viewBox="0 0 680 150" role="img" aria-labelledby="eliving-title eliving-desc">
+  <title id="eliving-title">eLiving™ — Onde sua evolução ganha direção</title>
+  <desc id="eliving-desc">Logo oficial da eLiving com símbolo do círculo de evolução, luz no horizonte e caminho saindo em direção ao futuro.</desc>
+  <defs>
+    <linearGradient id="blueGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0EA5E9" />
+      <stop offset="100%" stop-color="#0B192C" />
+    </linearGradient>
+    <linearGradient id="goldGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Símbolo da Marca: Círculo da Vida + Luz do Horizonte + Estrada para o Futuro -->
+  <g transform="translate(20, 15)">
+    <!-- Círculo de evolução contínua com abertura superior para a luz -->
+    <path d="M 60 15 A 45 45 0 1 0 100 80" fill="none" stroke="url(#blueGlow)" stroke-width="7" stroke-linecap="round" />
+    
+    <!-- Luz do horizonte (raio de transformação no topo) -->
+    <circle cx="60" cy="15" r="7" fill="url(#goldGlow)" filter="url(#softGlow)" />
+    <line x1="60" y1="5" x2="60" y2="25" stroke="#FDE047" stroke-width="2.5" stroke-linecap="round" />
+    <line x1="50" y1="15" x2="70" y2="15" stroke="#FDE047" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Caminho saindo do círculo em curva ascendente para o futuro -->
+    <path d="M 50 72 C 60 72, 85 68, 105 45" fill="none" stroke="url(#goldGlow)" stroke-width="6" stroke-linecap="round" />
+    <path d="M 52 82 C 64 82, 92 78, 115 52" fill="none" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+  </g>
+
+  <!-- Tipografia Oficial eLiving™ -->
+  <g transform="translate(160, 20)">
+    <!-- Letra 'e' minúscula em Azul Luminoso -->
+    <text x="0" y="65" font-family="'Sora', 'Inter', -apple-system, sans-serif" font-weight="400" font-size="62" fill="#0EA5E9" letter-spacing="-1">e</text>
+    <!-- 'Living' com peso 700 em Azul Profundo -->
+    <text x="36" y="65" font-family="'Sora', 'Inter', -apple-system, sans-serif" font-weight="700" font-size="62" fill="#0B192C" letter-spacing="-0.5">Living</text>
+    <!-- Símbolo TM -->
+    <text x="250" y="32" font-family="'Sora', 'Inter', -apple-system, sans-serif" font-weight="600" font-size="18" fill="#F59E0B">™</text>
+    
+    <!-- Slogan Oficial: Onde sua evolução ganha direção. -->
+    <text x="3" y="98" font-family="'Inter', -apple-system, sans-serif" font-weight="500" font-size="16" fill="#475569" letter-spacing="1.2">Onde sua evolução ganha direção.</text>
+  </g>
+</svg>

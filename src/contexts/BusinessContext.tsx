@@ -105,7 +105,7 @@ function siglaDe(nome: string) {
   if (/igreen/i.test(texto)) return "iGreen";
   if (/sa[uú]de|max|nutrition|refit/i.test(texto)) return "Saúde & Nutrição";
   if (/humano/i.test(texto)) return "Humano Digital";
-  if (/living/i.test(texto)) return "E-living";
+  if (/living/i.test(texto)) return "eLiving";
   if (texto.length <= 25) return texto;
   return `${texto.slice(0, 22)}…`;
 }
@@ -359,7 +359,7 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
     if (id === "BIZ-001") return "iGreen Energy";
     if (id === "BIZ-002") return "Ecossistema de Saúde";
     if (id === "BIZ-003") return "Humano Digital";
-    if (id === "BIZ-004") return "E-living";
+    if (id === "BIZ-004") return "eLiving";
     return id || "Geral";
   };
 

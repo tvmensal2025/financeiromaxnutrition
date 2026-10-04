@@ -361,15 +361,15 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(plano.escritas.some((item) => item.tabela === "tarefas")).toBe(true);
   });
 
-  it("ao falar 'criar a empresa E-living' a Helena gera escrita em portfolio e tarefas vinculadas (DEC-022)", () => {
+  it("ao falar 'criar a empresa E-living' ou 'criar a empresa eLiving' a Helena gera escrita em portfolio com o nome canônico eLiving (DEC-022 e DEC-023)", () => {
     const plano = classificar("criar a empresa E-living", ctx, agora);
-    expect(plano.conclusao).toContain("Empresa \"E-living\" criada formalmente no portfólio");
+    expect(plano.conclusao).toContain("Empresa \"eLiving\" criada formalmente no portfólio");
     expect(plano.decisao).toContain("DEC-022");
     const port = plano.escritas.find((item) => item.tabela === "portfolio");
     expect(port).toBeDefined();
     expect(port?.row).toMatchObject({
       business_id: "{{BIZ}}",
-      negocio: "E-living",
+      negocio: "eLiving",
       ativo: "SIM",
       estagio: "VALIDAÇÃO",
     });
