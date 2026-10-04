@@ -49,6 +49,13 @@ async function aplicarIds(plano: Plano) {
       escrita.row[campo] = usados.get(valor) || valor;
     }
   }
+
+  if (plano.comprovante_financeiro && plano.comprovante_financeiro.finance_id.startsWith("{{")) {
+    const finId = usados.get("{{FIN}}");
+    if (finId) {
+      plano.comprovante_financeiro.finance_id = finId;
+    }
+  }
 }
 
 export async function falarComHelena(texto: string) {
@@ -86,7 +93,7 @@ export async function falarComHelena(texto: string) {
   for (const escrita of plano.escritas) {
     const { error } = await supabase.from(escrita.tabela).insert(escrita.row);
     if (error) throw new Error(`${escrita.tabela}: ${error.message}`);
-    const id = escrita.row.id || escrita.row.finance_id || escrita.row.task_id || escrita.row.opportunity_id || escrita.row.ticket_id;
+    const id = escrita.row.id || escrita.row.finance_id || escrita.row.task_id || escrita.row.job_id || escrita.row.opportunity_id || escrita.row.ticket_id;
     gravou.push(`${escrita.tabela} ${id || ""}`.trim());
   }
 

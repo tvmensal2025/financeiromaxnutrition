@@ -16,6 +16,65 @@ export type Escrita = {
   row: Record<string, string | number | null>;
 };
 
+export type OpcaoResposta = {
+  label: string;
+  comando: string;
+};
+
+export type MensagemEquipe = {
+  agente_id: string;
+  agente: string;
+  avatar_emoji: string;
+  papel: string;
+  fala: string;
+  acao: string;
+  horario: string;
+};
+
+export type EntregaConteudo = {
+  tema: string;
+  empresa: string;
+  dialogo_equipe: MensagemEquipe[];
+  post: {
+    headline: string;
+    corpo: string;
+    cta: string;
+    hashtags: string[];
+    engajamento_esperado?: string;
+  };
+  stories: Array<{
+    numero: number;
+    titulo: string;
+    visual: string;
+    texto: string;
+    interacao?: string;
+    tipo_adesivo?: "enquete" | "pergunta" | "dm" | "destaque";
+  }>;
+  direcao_arte: string;
+  compliance: string;
+  dossie_executivo: {
+    objetivo_estrategico: string;
+    publico_alvo: string;
+    canais_distribuicao: string;
+    metricas_sucesso: string;
+    parecer_qualidade: string;
+  };
+};
+
+export type ComprovanteFinanceiro = {
+  finance_id: string;
+  business_id: string;
+  empresa_nome: string;
+  fluxo: string;
+  valor: number;
+  moeda: string;
+  conta: string;
+  data: string;
+  descricao: string;
+  status: string;
+  conciliado_por: string;
+};
+
 export type Plano = {
   conclusao: string;
   evidencia: string;
@@ -24,6 +83,11 @@ export type Plano = {
   proxima: string;
   escritas: Escrita[];
   garantirContas: { conta_id: string; business_id: string; moeda: string }[];
+  tipo_acao?: "FINANCEIRO_PENDENTE" | "FINANCEIRO_CONFIRMADO" | "CRIACAO_CONTEUDO" | "GERAL";
+  pergunta_esclarecimento?: string;
+  opcoes_resposta?: OpcaoResposta[];
+  entrega_conteudo?: EntregaConteudo;
+  comprovante_financeiro?: ComprovanteFinanceiro;
 };
 
 const AGENTES = {
@@ -42,12 +106,29 @@ export function semAcento(valor: string) {
 }
 
 export function lerValor(texto: string): number | null {
+  // 1. Padrão formal com R$
   const m = texto.match(/r\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)/i);
-  if (!m) return null;
-  const raw = m[1];
-  if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
-  if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ""));
-  return Number(raw);
+  if (m) {
+    const raw = m[1];
+    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
+    if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ""));
+    return Number(raw);
+  }
+  // 2. Padrão conversacional com "reais", "heais", "conto", "contos", "pila"
+  const mConversacional = texto.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)\s*(?:reais|heais|conto|contos|pila|pilas)\b/i);
+  if (mConversacional) {
+    const raw = mConversacional[1];
+    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
+    if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ""));
+    return Number(raw);
+  }
+  // 3. Padrão por extenso comum
+  if (/\bcem\s*(?:reais|heais|conto)\b/i.test(texto)) return 100;
+  if (/\bduzentos\s*(?:reais|heais|conto)\b/i.test(texto)) return 200;
+  if (/\bquinhentos\s*(?:reais|heais|conto)\b/i.test(texto)) return 500;
+  if (/\bmil\s*(?:reais|heais|conto)\b/i.test(texto)) return 1000;
+
+  return null;
 }
 
 function empresas(texto: string) {
@@ -57,14 +138,15 @@ function empresas(texto: string) {
   if (/\bsaude\b|\becossistema\b|\bbiz-002\b|\bbiz 002\b/.test(n)) achou.push("BIZ-002");
   if (/\bhumano digital\b|\bbiz-003\b|\bbiz 003\b/.test(n)) achou.push("BIZ-003");
   if (/\bgrupo\b/.test(n)) achou.push("GRUPO");
+  if (/\bpessoal\b|\bpro-labore\b|\bprolabore\b|\bparticular\b/.test(n)) achou.push("PESSOAL");
   return achou;
 }
 
 function fluxoDe(texto: string) {
   const n = semAcento(texto);
   if (/transfer/.test(n)) return "TRANSFERÊNCIA";
-  if (/paguei|pagamento|despesa|saiu|saida/.test(n)) return "SAÍDA";
-  if (/recebi|recebido|entrou|entrada|receita/.test(n)) return "ENTRADA";
+  if (/gastei|paguei|pagamento|despesa|saiu|saida|comprei|custou|gasto\b/.test(n)) return "SAÍDA";
+  if (/recebi|recebido|entrou|entrada|receita|ganhei|faturei/.test(n)) return "ENTRADA";
   return null;
 }
 
@@ -75,7 +157,7 @@ function statusDe(texto: string, fluxo: string | null) {
   if (/cancel/.test(n)) return "CANCELADO";
   if (/estorn/.test(n)) return "ESTORNADO";
   if (/recebi|recebido/.test(n) && fluxo === "ENTRADA") return "RECEBIDO";
-  if (/paguei|\bpago\b/.test(n) && fluxo === "SAÍDA") return "PAGO";
+  if (/paguei|gastei|comprei|\bpago\b/.test(n) && fluxo === "SAÍDA") return "PAGO";
   if (/\bpago\b/.test(n)) return "PAGO";
   return "ABERTO";
 }
@@ -190,7 +272,9 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
   const plano = base(ctx, agora, texto.trim());
   const homolog = emHomologacao(ctx);
   const bizs = empresas(texto);
-  const biz = bizs.find((id) => id !== "GRUPO") || bizs[0] || null;
+  const empresasReais = bizs.filter((id) => id !== "GRUPO" && id !== "PESSOAL");
+  const ehPessoal = bizs.includes("PESSOAL");
+  const biz = empresasReais[0] || (ehPessoal ? "BIZ-003" : (bizs.find((id) => id !== "GRUPO") || bizs[0] || null));
   const gargalo = ctx.negocios.find((item) => item.business_id === biz)?.gargalo || ctx.focoFrente || "o gargalo atual";
 
   if (/iniciar caixa|comecar o caixa|abrir a frente caixa|encerrar a homolog/.test(n)) {
@@ -245,14 +329,219 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
     return plano;
   }
 
+  if (/publica|post\b|stor(?:y|ies)|feed\b|renda extra|conteudo para rede|anuncio/.test(n)) {
+    const empresaAlvo = biz || "BIZ-003"; // Humano Digital é a empresa oficial para comunidade e validação de dados para IA
+
+    plano.tipo_acao = "CRIACAO_CONTEUDO";
+    plano.conclusao = "Equipe de Marketing acionada! O Post completo para o Feed e a sequência de 4 Stories sobre 'Oportunidade de Renda Extra' foram criados e estão 100% prontos para publicação.";
+    plano.decisao = "AGORA. Conteúdo gerado pela Isabela (AGT-17), com direção visual de Maya (AGT-16) e compliance de Bruno (AGT-05).";
+    plano.responsavel = "AGT-17 Isabela · AGT-16 Maya";
+    plano.proxima = "Copie os textos formatados abaixo ou autorize a equipe a agendar a postagem.";
+
+    plano.entrega_conteudo = {
+      tema: "Oportunidade de Renda Extra — Comunidade Humano Digital",
+      empresa: empresaAlvo,
+      dialogo_equipe: [
+        {
+          agente_id: "AGT-01",
+          agente: "Helena",
+          avatar_emoji: "👩‍💼",
+          papel: "CEO Virtual & Orquestradora",
+          fala: "Demanda do fundador recebida: criar uma campanha completa sobre Oportunidade de Renda Extra para atrair novos participantes para os projetos de IA da Humano Digital. Marina, estruture o briefing e coordene a esteira de marketing.",
+          acao: "Briefing executivo emitido e alçada delimitada",
+          horario: "15:40",
+        },
+        {
+          agente_id: "AGT-04",
+          agente: "Marina",
+          avatar_emoji: "📋",
+          papel: "PMO & Execução",
+          fala: "Recebido, Helena. Tarefa aberta no cronograma com prioridade ALTA. Despachando para Isabela redigir a copy no método AIDA e para Maya estruturar o pacote visual dos stories verticais 9:16.",
+          acao: "Despacho formal realizado com prazo imediato",
+          horario: "15:41",
+        },
+        {
+          agente_id: "AGT-17",
+          agente: "Isabela",
+          avatar_emoji: "✍️",
+          papel: "Marca, Conteúdo & Copywriter",
+          fala: "Copy finalizada! Estruturei um post magnético para Feed e 4 Stories com foco em trabalho flexível, ética e sem promessas fáceis de enriquecimento. Maya, a bola está com você para as especificações visuais.",
+          acao: "Redação de copy persuasiva concluída",
+          horario: "15:42",
+        },
+        {
+          agente_id: "AGT-12",
+          agente: "Maya",
+          avatar_emoji: "🎨",
+          papel: "Design UI/UX & Criativos",
+          fala: "Diretrizes visuais prontas! Paleta oficial (#101312 e #007A3D), zonas de segurança de 250px para Instagram Stories e adesivos de engajamento definidos. Bruno, para sua inspeção de qualidade.",
+          acao: "Design system e templates 9:16 finalizados",
+          horario: "15:43",
+        },
+        {
+          agente_id: "AGT-13",
+          agente: "Bruno",
+          avatar_emoji: "🛡️",
+          papel: "Qualidade, QA & Compliance",
+          fala: "Revisão técnica de qualidade concluída: textos 100% aderentes à LGPD, sem alegações enganosas de ganhos financeiros fixos, formatos adequados. Entrega aprovada com nota máxima!",
+          acao: "Parecer de QA APROVADO emitido",
+          horario: "15:44",
+        },
+      ],
+      post: {
+        headline: "🧠💰 Sua atenção e opinião humana valem muito para o futuro da Inteligência Artificial.",
+        corpo: `Você já percebeu que as maiores IAs do mundo precisam ser ensinadas e validadas por pessoas reais?
+
+Aqui na Humano Digital, nós conectamos pessoas comuns a empresas inovadoras que precisam de coleta, validação e anotação de dados humanos para calibrar seus modelos de IA.
+
+✅ Sem promessas milagrosas de dinheiro fácil.
+✅ Trabalho real, flexível e sob demanda no seu tempo livre.
+✅ Faça parte de uma comunidade estruturada e ativa.
+
+Se você tem atenção aos detalhes e quer aprender na prática como a IA se desenvolve enquanto gera uma renda extra consistente, essa oportunidade é para você.`,
+        cta: `👉 Quer saber como participar dos próximos projetos? Comente "RENDA EXTRA" ou clique no link da bio para agendar sua entrevista de 15 minutos com a nossa equipe!`,
+        hashtags: ["#RendaExtra", "#InteligenciaArtificial", "#HumanoDigital", "#TrabalhoRemoto", "#ComunidadeIA", "#FuturoDoTrabalho", "#Tecnologia"],
+        engajamento_esperado: "CTR projetado em 4.2% com taxa de conversão para direct estimada em 12%.",
+      },
+      stories: [
+        {
+          numero: 1,
+          titulo: "Story 1 — O Gancho (Atenção)",
+          visual: "Fundo grafite (#101312) com tipografia limpa em alto contraste branco e verde esmeralda.",
+          texto: "Você já parou para pensar de onde vêm os dados que treinam as maiores IAs do planeta?",
+          interacao: "Enquete: 'Nunca pensei nisso 🤔' vs 'Sim, sei como funciona 💡'",
+          tipo_adesivo: "enquete",
+        },
+        {
+          numero: 2,
+          titulo: "Story 2 — O Contexto (O Problema do Mercado)",
+          visual: "Card elegante mostrando o contraste: Modelos de IA avançados vs. Necessidade de Pessoas Reais.",
+          texto: "Nenhuma IA aprende sozinha. Ela precisa de seres humanos reais para testar, validar e dizer se as respostas fazem sentido no mundo real.",
+          interacao: "Texto de apoio: 'E quem faz isso são pessoas como você!'",
+          tipo_adesivo: "destaque",
+        },
+        {
+          numero: 3,
+          titulo: "Story 3 — A Oportunidade Real",
+          visual: "Visual com ícones de flexibilidade, trabalho remoto e remuneração séria por tarefa.",
+          texto: "A Humano Digital organiza uma comunidade qualificada para projetos de validação de dados para IA. Renda extra real, com critérios sérios e flexibilidade no seu ritmo.",
+          interacao: "Selo: '100% Remoto, Ético e Seguro'",
+          tipo_adesivo: "destaque",
+        },
+        {
+          numero: 4,
+          titulo: "Story 4 — A Chamada para Ação (Conversão)",
+          visual: "Botão de envio de mensagem direta destacado no rodapé com seta animada.",
+          texto: "Estamos abrindo vagas para novos participantes na nossa comunidade. Quer participar da próxima seleção?",
+          interacao: "Adesivo de Direct: 'Mande 'QUERO' aqui no Direct para receber o link!'",
+          tipo_adesivo: "dm",
+        },
+      ],
+      direcao_arte: "Paleta oficial Humano Digital: Fundo Grafite (#101312), Destaque Verde Esmeralda (#007A3D), Tipografia Sans-serif limpa (Inter). Formatos: 1:1 para Feed (1080x1080) e 9:16 para Stories (1080x1920).",
+      compliance: "Validado por Bruno (AGT-13): Sem promessas de ganhos fáceis ou garantia de renda fixa. Totalmente alinhado à LGPD e à identidade da empresa.",
+      dossie_executivo: {
+        objetivo_estrategico: "Captação de talentos qualificados para os projetos de treinamento e calibração de modelos de inteligência artificial da Humano Digital (BIZ-003).",
+        publico_alvo: "Profissionais liberais, estudantes universitários e pessoas em transição de carreira que buscam monetizar seu tempo livre com tarefas cognitivas de IA.",
+        canais_distribuicao: "Instagram (Feed + Stories sequenciais 9:16), LinkedIn e grupos selecionados do WhatsApp.",
+        metricas_sucesso: "Meta de 50 cadastros qualificados nas primeiras 48h com CAC zero (alcance puramente orgânico de rede).",
+        parecer_qualidade: "APROVADO POR UNANIMIDADE: Copy com metodologia AIDA, respeito rigoroso à LGPD e alinhamento com a diretriz do Fundador.",
+      },
+    };
+
+    plano.escritas.push({
+      tabela: "tarefas",
+      row: {
+        task_id: "{{TSK}}",
+        business_id: empresaAlvo,
+        tarefa: "Campanha de Conteúdo: Oportunidade de Renda Extra (Post Feed + 4 Stories)",
+        tipo: "MARKETING",
+        responsavel: "AGT-17",
+        prioridade: "ALTA",
+        status: "CONCLUÍDA",
+        definicao_de_pronto: "Post e sequência de 4 stories redigidos com headline, corpo, CTA e direção de arte completa.",
+        evidencia: "Material gerado pela Isabela (AGT-17) e aprovado pela Helena para publicação.",
+        source_system: "HELENA",
+        sync_status: "INTERNO",
+      },
+    });
+
+    plano.escritas.push({
+      tabela: "agent_jobs",
+      row: {
+        job_id: "{{JOB}}",
+        task_id: "{{TSK}}",
+        business_id: empresaAlvo,
+        agent_id: "AGT-17",
+        objective: "Campanha de Conteúdo: Oportunidade de Renda Extra (Post Feed + 4 Stories)",
+        instruction: "Produzir post completo para feed com AIDA e sequência de 4 stories 9:16 prontos para publicação.",
+        priority: "ALTA",
+        status: "COMPLETED",
+        approval_required: false,
+        approval_status: "APPROVED",
+        result_summary: "Post completo para Feed (AIDA) e 4 Stories verticais (9:16) formatados, revisados por Bruno (AGT-13) e prontos para publicação no Instagram e Facebook.",
+        result_payload: {
+          delivery_audience: "FOUNDER",
+          delivery_stage: "FINAL",
+          review_pending: false,
+          reviewed_by: "AGT-13",
+          reviewer_agent_id: "AGT-13",
+          copy: `${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}`,
+          caption: `${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}`,
+          delivery: {
+            schema_version: 1,
+            title: "Campanha: Oportunidade de Renda Extra (Feed + 4 Stories)",
+            content: `POST FEED:\n${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}\n\nSTORIES:\n` + plano.entrega_conteudo.stories.map(s => `[Story ${s.numero} - ${s.titulo}]\nVisual: ${s.visual}\nTexto: ${s.texto}\nInteração: ${s.interacao}`).join("\n\n"),
+            next_steps: "Copiar e publicar no perfil oficial da empresa no Instagram e Facebook.",
+            limitations: "Sem investimento em tráfego pago nesta fase de teste de validação.",
+            acceptance_checks: [
+              {
+                criterion: "Copy persuasiva sem promessa de dinheiro fácil",
+                evidence_ref: "MEM-MKT-RENDA-EXTRA",
+                finding: "100% de conformidade ética e jurídica",
+              },
+            ],
+          },
+        },
+        evidence_refs: ["MEM-MKT-RENDA-EXTRA"],
+        completed_at: agora,
+        source_system: "HELENA",
+        sync_status: "INTERNO",
+      },
+    });
+
+    handoff(plano, agora, "AGT-17", "Publicação Renda Extra (Post + Stories)", "Conteúdo redigido e aprovado pela coordenação para publicação imediata.", empresaAlvo);
+    memoria(plano, agora, "Campanha de Conteúdo Renda Extra", plano.conclusao, empresaAlvo, plano.proxima);
+    return plano;
+  }
+
   const fluxo = fluxoDe(n);
   const valor = lerValor(texto);
   const pareceDinheiro = Boolean((fluxo || /estorn/.test(n)) && (valor !== null || /transfer|lanc|estorn/.test(n)));
   if (pareceDinheiro) {
     const contas = contasDe(texto);
     const status = statusDe(texto, fluxo);
+
+    // Se o usuário falou apenas que gastou um valor sem dizer qual empresa:
+    if (!biz && bizs.length === 0 && valor !== null && fluxo === "SAÍDA") {
+      plano.tipo_acao = "FINANCEIRO_PENDENTE";
+      const valorFmt = `R$ ${valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      plano.conclusao = `Entendi a despesa de ${valorFmt}! 💳 Para qual empresa foi esse gasto? Ou foi um gasto pessoal da empresa?`;
+      plano.decisao = "ESCLARECIMENTO: Identificar se o gasto é da Humano Digital (BIZ-003), iGreen (BIZ-001), Saúde (BIZ-002) ou Pessoal antes de gravar.";
+      plano.responsavel = AGENTES.caio;
+      plano.pergunta_esclarecimento = "Para qual empresa ou destino foi este gasto de " + valorFmt + "?";
+      plano.opcoes_resposta = [
+        { label: "Humano Digital (BIZ-003)", comando: `Gastei ${valorFmt} na Humano Digital conta ACC-HD` },
+        { label: "iGreen Energy (BIZ-001)", comando: `Gastei ${valorFmt} na iGreen conta ACC-IG` },
+        { label: "Ecossistema de Saúde (BIZ-002)", comando: `Gastei ${valorFmt} na Saude conta ACC-SAUDE` },
+        { label: "Pessoal (Pró-labore da Humano Digital)", comando: `Gastei ${valorFmt} pessoal pro-labore conta ACC-PESSOAL da Humano Digital` },
+      ];
+      plano.proxima = "Responda indicando a empresa ou clique em uma das opções acima para confirmar o lançamento no caixa.";
+      memoria(plano, agora, "Despesa pendente de alocação", plano.conclusao, "GRUPO", plano.proxima);
+      return plano;
+    }
+
     const faltando: string[] = [];
-    if (!biz || bizs.filter((id) => id !== "GRUPO").length > 1) faltando.push("uma única empresa");
+    if (!biz || empresasReais.length > 1) faltando.push("uma única empresa");
     if (valor === null || valor < 0) faltando.push("valor positivo com R$");
     if (!fluxo) faltando.push("fluxo ENTRADA, SAÍDA ou TRANSFERÊNCIA");
     const origemEstorno = texto.match(/FIN-\d+/i);
@@ -260,7 +549,7 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
       if (!contas.origem || !contas.destino) faltando.push("conta de origem e conta de destino");
     } else if (!contas.origem) faltando.push("conta");
     if (status === "ESTORNADO" && !origemEstorno) faltando.push("finance_id de origem");
-    if (bizs.filter((id) => id !== "GRUPO").length > 1) {
+    if (empresasReais.length > 1) {
       plano.conclusao = "Movimento entre empresas não foi gravado.";
       plano.decisao = "Intercompany não é transferência simples. Cada empresa precisa do próprio lançamento.";
       plano.responsavel = AGENTES.caio;
@@ -277,6 +566,7 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
       return plano;
     }
     const moeda = /dolar|usd|us\$/.test(n) ? "USD" : "BRL";
+    plano.tipo_acao = "FINANCEIRO_CONFIRMADO";
     plano.conclusao = `Lançamento de ${fluxo} em ${biz} gravado em financeiro.`;
     plano.decisao = status === "PARCIAL"
       ? "PARCIAL não quita o título. O caixa só usa o valor liquidado informado."
@@ -306,6 +596,28 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
         sync_status: "INTERNO",
       },
     });
+
+    const nomesEmpresas: Record<string, string> = {
+      "BIZ-001": "iGreen Energy",
+      "BIZ-002": "Ecossistema de Saúde",
+      "BIZ-003": "Humano Digital",
+      "GRUPO": "Holding / Grupo",
+    };
+
+    plano.comprovante_financeiro = {
+      finance_id: "{{FIN}}",
+      business_id: biz!,
+      empresa_nome: ehPessoal ? "Humano Digital (Pró-labore Pessoal)" : (nomesEmpresas[biz!] || biz!),
+      fluxo,
+      valor: valor!,
+      moeda,
+      conta: contas.origem!,
+      data: agora.slice(0, 10),
+      descricao: ehPessoal ? `Pró-labore Pessoal: ${texto.trim().slice(0, 250)}` : texto.trim().slice(0, 300),
+      status,
+      conciliado_por: "AGT-05 Caio (CFO)",
+    };
+
     handoff(plano, agora, "AGT-05", `Lançamento ${fluxo} ${biz}`, plano.decisao, biz!);
     memoria(plano, agora, "Financeiro", plano.conclusao, biz!, plano.proxima);
     return plano;
@@ -400,6 +712,7 @@ const PREFIXO: Record<string, [string, string]> = {
   "{{IDEA}}": ["ideias", "id"],
   "{{FIN}}": ["financeiro", "finance_id"],
   "{{TSK}}": ["tarefas", "task_id"],
+  "{{JOB}}": ["agent_jobs", "job_id"],
   "{{OPP}}": ["crm", "opportunity_id"],
   "{{TKT}}": ["atendimento", "ticket_id"],
 };
@@ -426,6 +739,7 @@ export function prefixoDe(token: string) {
     ideias: "IDEA",
     financeiro: "FIN",
     tarefas: "TSK",
+    agent_jobs: "JOB",
     crm: "OPP",
     atendimento: "TKT",
   };

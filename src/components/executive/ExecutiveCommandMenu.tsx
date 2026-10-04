@@ -24,6 +24,7 @@ import {
   Activity,
   Search,
   Zap,
+  MessageSquare,
 } from "lucide-react";
 
 interface ExecutiveCommandMenuProps {
@@ -65,6 +66,13 @@ export function ExecutiveCommandMenu({ open, onOpenChange }: ExecutiveCommandMen
           >
             <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
             <span>Sala de comando</span>
+          </CommandItem>
+          <CommandItem
+            onSelect={() => runCommand(() => navigate("/conversa"))}
+            className="flex items-center gap-2.5 px-3 py-2 text-xs"
+          >
+            <MessageSquare className="h-4 w-4 text-[#007A3D]" />
+            <span>Conversa com Helena (Voz & Chat Direto)</span>
           </CommandItem>
           <CommandItem
             onSelect={() => runCommand(() => navigate("/execucao"))}

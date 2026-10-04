@@ -25,6 +25,7 @@ import {
   UserCheck,
   Package,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
@@ -43,6 +44,7 @@ type NavItemConfig = {
 
 const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/", label: "Sala de comando", icon: LayoutDashboard, end: true },
+  { to: "/conversa", label: "Conversa com Helena", icon: MessageSquare },
   { to: "/supervisao", label: "Supervisão da Helena", icon: Shield },
   { to: "/empresas", label: "Operação por empresa", icon: Building2 },
   { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },

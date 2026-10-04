@@ -334,6 +334,32 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     ];
     expect(tabelasBusinessBound).toHaveLength(13);
   });
+
+  it("ao falar 'gastei 100 heais' a Helena pergunta qual empresa e se foi pessoal ou da empresa com opções", () => {
+    const plano = classificar("gastei 100 heais", ctx, agora);
+    expect(plano.tipo_acao).toBe("FINANCEIRO_PENDENTE");
+    expect(plano.conclusao).toContain("Entendi a despesa de R$ 100,00");
+    expect(plano.conclusao).toContain("Para qual empresa foi esse gasto?");
+    expect(plano.pergunta_esclarecimento).toBeDefined();
+    expect(plano.opcoes_resposta).toHaveLength(4);
+    expect(plano.opcoes_resposta?.map((o) => o.label)).toContain("Humano Digital (BIZ-003)");
+    expect(plano.opcoes_resposta?.map((o) => o.label)).toContain("Pessoal (Pró-labore da Humano Digital)");
+    expect(plano.escritas.some((item) => item.tabela === "financeiro")).toBe(false);
+  });
+
+  it("ao falar 'quero fazer uma publicacao hoje sobre OPORTUNDIADE DE RENDA EXTRA' cria post e stories 100% prontos", () => {
+    const plano = classificar("quero fazer uma publicacao hoje sobre OPORTUNDIADE DE RENDA EXTRA, eles criam o story 100% e o post", ctx, agora);
+    expect(plano.tipo_acao).toBe("CRIACAO_CONTEUDO");
+    expect(plano.conclusao).toContain("Equipe de Marketing acionada");
+    expect(plano.entrega_conteudo).toBeDefined();
+    expect(plano.entrega_conteudo?.post.headline).toBeDefined();
+    expect(plano.entrega_conteudo?.post.corpo).toContain("Humano Digital");
+    expect(plano.entrega_conteudo?.post.cta).toContain("RENDA EXTRA");
+    expect(plano.entrega_conteudo?.stories).toHaveLength(4);
+    expect(plano.entrega_conteudo?.stories[0].titulo).toContain("Story 1");
+    expect(plano.entrega_conteudo?.stories[3].titulo).toContain("Story 4");
+    expect(plano.escritas.some((item) => item.tabela === "tarefas")).toBe(true);
+  });
 });
 
 

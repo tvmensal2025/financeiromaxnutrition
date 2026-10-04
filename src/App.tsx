@@ -18,6 +18,7 @@ import ExecucaoPage from "@/pages/ExecucaoPage";
 import EntregasPage from "@/pages/EntregasPage";
 import IntegracoesPage from "@/pages/IntegracoesPage";
 import ComandoPage from "@/pages/ComandoPage";
+import Conversa from "@/pages/Conversa";
 import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -123,6 +124,8 @@ function Rotas() {
         <Route path="/identidade" element={<IdentidadePage />} />
         <Route path="/equipe" element={<EquipePage />} />
         <Route path="/inbox" element={<ComandoPage inicial="Supervisão" />} />
+        <Route path="/conversa" element={<Conversa />} />
+        <Route path="/chat" element={<Navigate to="/conversa" replace />} />
         <Route path="/sistema" element={<SistemaPage />} />
         <Route path="/integracoes" element={<IntegracoesPage />} />
 
