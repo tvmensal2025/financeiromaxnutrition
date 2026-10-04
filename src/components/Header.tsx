@@ -26,6 +26,7 @@ export function Header({ onOpenSearch }: HeaderProps) {
   const navigate = useNavigate();
   const [alertas, setAlertas] = useState<HeaderAlert[]>([]);
   const [alertasCarregando, setAlertasCarregando] = useState(false);
+  const [alertasErro, setAlertasErro] = useState(false);
   const [temaEscuro, setTemaEscuro] = useState(() =>
     document.documentElement.classList.contains("dark")
   );
@@ -41,7 +42,11 @@ export function Header({ onOpenSearch }: HeaderProps) {
 
   useEffect(() => {
     let ativo = true;
+    let consultando = false;
+    setAlertas([]); setAlertasErro(false);
     const carregarAlertas = async () => {
+      if (consultando || document.hidden) return;
+      consultando = true;
       setAlertasCarregando(true);
       try {
         let consulta = supabase
@@ -51,8 +56,10 @@ export function Header({ onOpenSearch }: HeaderProps) {
           .order("updated_at", { ascending: false })
           .limit(100);
         if (!isConsolidated && currentBusinessId) consulta = consulta.eq("business_id", currentBusinessId);
-        const { data } = await consulta;
+        const { data, error } = await consulta;
+        if (error) throw error;
         if (!ativo) return;
+        setAlertasErro(false);
         const itens = ((data || []) as HeaderJob[]).filter(job => {
           const payload = isObject(job.result_payload) ? job.result_payload : {};
           return isFinalDelivery(job, deliveryArtifacts(job.evidence_refs, job.business_id, job.job_id).map(a => a.reference)) ||
@@ -65,7 +72,10 @@ export function Header({ onOpenSearch }: HeaderProps) {
           date: job.updated_at || job.created_at,
           urgent: job.status === "WAITING_HELENA" || (isObject(job.result_payload) && job.result_payload.review_pending === true),
         })));
+      } catch {
+        if (ativo) { setAlertasErro(true); setAlertas([]); }
       } finally {
+        consultando = false;
         if (ativo) setAlertasCarregando(false);
       }
     };
@@ -112,8 +122,9 @@ export function Header({ onOpenSearch }: HeaderProps) {
             <div><p className="he-eyebrow">CENTRAL DE ALERTAS</p><h2>O que chegou para você</h2></div>
             <span className="he-notification-total">{alertas.length}</span>
           </div>
+          {alertasErro && <p role="alert" className="he-notification-empty">Não foi possível consultar os alertas. Abra as entregas para conferir; tentaremos atualizar novamente.</p>}
           {alertasCarregando && <p className="he-notification-empty">Consultando as entregas…</p>}
-          {!alertasCarregando && !alertas.length && <div className="he-notification-empty"><CheckCircle2 className="h-5 w-5" /><span>Nenhuma entrega pendente agora.</span></div>}
+          {!alertasCarregando && !alertasErro && !alertas.length && <div className="he-notification-empty"><CheckCircle2 className="h-5 w-5" /><span>Nenhum material final ou decisão para você nos registros recentes.</span></div>}
           {!alertasCarregando && alertas.length > 0 && <div className="he-notification-list">{alertas.map(alerta => <button key={alerta.jobId} type="button" className="he-notification-item" onClick={() => abrirEntrega(alerta.jobId)}><span className={`he-notification-icon ${alerta.urgent ? "urgent" : ""}`}>{alerta.urgent ? <Clock3 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}</span><span className="min-w-0 flex-1 text-left"><strong>{alerta.title}</strong><small>{alerta.status} · {formatAlertDate(alerta.date)}</small></span><ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /></button>)}</div>}
           <button type="button" className="he-notification-footer" onClick={() => navigate("/entregas")}>Ver todas as entregas <ExternalLink className="h-3.5 w-3.5" /></button>
         </PopoverContent>

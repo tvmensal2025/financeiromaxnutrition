@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "service": "helena-gateway",
+  "version": "0.1.0",
+  "supabase": true,
+  "runtime_access": "hermes-scoped-v1",
+  "workflow_version": "hermes-workflow-v2",
+  "quality_version": "helena-delivery-quality-v1",
+  "design_generation": "HERMES_CODEX_IMAGE_WITH_PREFLIGHT",
+  "delivery_submission": "submit-work-v1",
+  "visual_inspection": "scoped-pixels-v1",
+  "media_storage": {
+    "provider": "r2",
+    "configured": true,
+    "private": true,
+    "legacy_read_fallback": true
+  },
+  "typesafe": {
+    "mode": "shadow",
+    "configured": true,
+    "reason": "READY_FOR_TEST",
+    "model": "jev-1.13.0",
+    "policy": "helena-brief-routing-v2",
+    "daily_limit": 10,
+    "automatic_approval": false,
+    "last_outcome": "EVALUATED"
+  },
+  "oauth": true,
+  "mcp": true
+}

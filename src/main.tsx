@@ -11,3 +11,4 @@ createRoot(document.getElementById("root")!).render(
 );
 
 import "./styles/helena-premium.css";
+import "./styles/helena-studio.css";

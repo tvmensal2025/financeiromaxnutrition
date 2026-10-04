@@ -746,7 +746,7 @@ export default function ExecucaoPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-24 text-foreground antialiased">
+    <div className="he-execution space-y-8 max-w-[1600px] mx-auto pb-24 text-foreground antialiased">
       {/* ========================================================= */}
       {/* TOPO: CENTRAL DE EXECUÇÃO & STATUS EM TEMPO REAL          */}
       {/* ========================================================= */}
@@ -953,7 +953,7 @@ export default function ExecucaoPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
           {/* 1. Tarefas em Execução */}
           <div className="rounded-xl border border-border bg-card p-3.5 flex flex-col justify-between">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

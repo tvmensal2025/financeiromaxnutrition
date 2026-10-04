@@ -20,7 +20,26 @@ from hermes_dispatch_once import call_tool, GATEWAY, TOKEN_NAME, JOB_PATTERN
 
 ROOT = Path('/data/helena-runtime/visual')
 PROVIDER = Path('/opt/hermes/plugins/image_gen/openai-codex/__init__.py')
-RENDERER_VERSION = 'official-logo-overlay-v2'
+RENDERER_VERSION = 'official-logo-fixed-v3'
+
+
+def logo_layout(slot):
+    """Fixed coordinates in the final 1080px canvas; never chosen by the model."""
+    if slot not in ('post', 'story-1', 'story-2', 'story-3'):
+        raise ValueError('Invalid logo format')
+    return {'left': 64, 'top': 64 if slot == 'post' else 250,
+            'max_width': 360, 'max_height': 120, 'clear_space': 24}
+
+
+def prepare_logo(logo):
+    mark = ImageOps.exif_transpose(Image.open(io.BytesIO(logo))).convert('RGBA')
+    if mark.width * mark.height > 4_000_000:
+        raise ValueError('Logo dimensions too large')
+    bounds = mark.getchannel('A').getbbox()
+    if bounds is None:
+        raise ValueError('Official logo is fully transparent')
+    # Trim only invisible padding, never the slogan or the official artwork.
+    return ImageOps.contain(mark.crop(bounds), (360, 120), Image.Resampling.LANCZOS)
 
 
 def renderer_contract():
@@ -30,6 +49,8 @@ def renderer_contract():
         'source_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'logo_source': 'brand-logo',
         'logo_applications': 1,
+        'logo_layout': {slot: logo_layout(slot) for slot in ('post', 'story-1')},
+        'logo_position_override': False,
         'preserves_official_logo_alpha': True,
         'adds_logo_backing': False,
         'adds_footer': False,
@@ -54,6 +75,7 @@ def generation_context(creative, slot, design_note):
     fields = ('audience', 'objective', 'subject', 'scene', 'composition',
               'typography', 'palette', 'exact_copy', 'cta', 'constraints')
     return {'art_direction': {key: creative[key] for key in fields if key in creative},
+            'reserved_logo_area': logo_layout(slot),
             'slot': slot, 'direction': design_note,
             'quality_rules': {key: CREATIVE_QUALITY_RULES[key] for key in ('composition', 'copy')},
             'brand_rendering': 'NO logo, mascot emblem, wordmark or brand signature. Only the exact editorial copy. Official logo is composited later from its original file.'}
@@ -74,7 +96,7 @@ def design_contract(detail, slot):
         raise ValueError('Approved current brand, generated-image brief and requested slot are required')
     return job, creative, brand
 
-def final_canvas(raw, logo, slot, background, palette=None):
+def final_canvas(raw, logo, slot, background, palette=None, *, legacy=False):
     """No cropping of copy; preserve aspect ratio and composite the approved logo."""
     if len(raw) > 20 * 1024 * 1024 or len(logo) > 5 * 1024 * 1024: raise ValueError('Image too large')
     image = Image.open(io.BytesIO(raw)); logo_image = Image.open(io.BytesIO(logo))
@@ -92,14 +114,16 @@ def final_canvas(raw, logo, slot, background, palette=None):
     canvas = Image.new('RGB', size, background)
     artwork = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
     canvas.paste(artwork, ((size[0] - artwork.width)//2, (size[1] - artwork.height)//2))
-    logo_image = ImageOps.contain(logo_image.convert('RGBA'), (260, 96), Image.Resampling.LANCZOS)
+    layout = logo_layout(slot)
+    logo_image = (ImageOps.contain(logo_image.convert('RGBA'), (260, 96), Image.Resampling.LANCZOS)
+                  if legacy else prepare_logo(logo))
     colors = palette or [background]
     if any(not re.fullmatch(r'#[a-fA-F0-9]{6}', color) for color in colors): raise ValueError('Invalid brand palette')
     # The artwork owns the reserved background. Preserve the official logo pixels
     # and alpha without adding a plate that contradicts the creative brief.
     # Contrast belongs to composition and independent visual review.
-    logo_top = size[1] - (50 if slot == 'post' else 250) - logo_image.height
-    logo_left = 1080 - 60 - logo_image.width
+    logo_top = size[1] - (50 if slot == 'post' else 250) - logo_image.height if legacy else layout['top']
+    logo_left = 1080 - 60 - logo_image.width if legacy else layout['left']
     canvas.paste(logo_image, (logo_left, logo_top), logo_image)
     output = io.BytesIO(); canvas.save(output, format='PNG', optimize=True)
     if output.tell() > 5 * 1024 * 1024: raise ValueError('Final PNG exceeds storage limit')
@@ -201,13 +225,15 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
             raise ValueError('Image request has uncertain outcome; operator must reconcile it, no automatic paid retry')
         if receipt and receipt.get('state') == 'FAILED': raise ValueError('Provider failed; no automatic paid retry')
         def save(state, **extra):
-            data = {'fingerprint': fingerprint, 'state': state, **extra}
+            data = {'fingerprint': fingerprint, 'state': state, 'renderer_version': RENDERER_VERSION,
+                    'logo_layout': logo_layout(slot), **extra}
             temporary = receipt_path.with_suffix('.tmp'); temporary.write_text(json.dumps(data)); os.chmod(temporary, 0o600); temporary.replace(receipt_path)
         if not png_path.exists():
             provider = load_provider()
             if not provider.is_available(): raise ValueError('Native Codex image authentication unavailable')
             logo = call_tool(GATEWAY, token, 'get_visual_asset', {'job_id': job_id, 'reference': 'brand-logo'})
             logo_bytes = base64.b64decode(logo['data'], validate=True)
+            prepare_logo(logo_bytes)  # Reject an empty logo before a paid generation.
             logo_path = directory / 'logo.png'; logo_path.write_bytes(logo_bytes); os.chmod(logo_path, 0o600)
             prompt = ('Crie uma unica arte publicitaria profissional em portugues brasileiro. '
                 'Use imagem protagonista realista, composicao editorial, texto curto perfeitamente legivel, '
@@ -215,7 +241,9 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
                 'da empresa, simbolo de marca ou repetir o nome como marca. Mesmo que aparecam no briefing, '
                 'logo_asset e brand sao metadados: nao devem ser desenhados. O arquivo oficial sera aplicado uma unica vez. '
                 'Composicao ate as bordas, sem barras laterais nem faixa inferior. Reserve apenas area limpa '
-                'no canto inferior direito de 300x130 px, terminando 250px acima da base em stories ou 50px em post; '
+                'no canto superior esquerdo, nas coordenadas reserved_logo_area do canvas final 1080px. '
+                'O logo ocupa no maximo 360x120px, com 24px livres ao redor: x=64, y=64 em post ou y=250 em story. '
+                'Para Humano Digital, planeje fundo claro marfim e uniforme nessa area para contraste do logo escuro; '
                 'nao coloque copy, CTA ou rosto nessa area. Nao crie uma caixa ou rodape para ela. '
                 'Nao inclua codigo, IDs, moldura vazia, instrucoes tecnicas ou marcas de terceiros. '
                 'Nao invente vagas, salarios, garantias ou testemunhos. Use somente a copy aprovada para esta peca. '
@@ -246,7 +274,10 @@ def generate_design(job_id: str, slot: str, version: int, design_note: str) -> d
         return result
 
 def reposition_logo(base, logo, slot, left, top, background='#075E47'):
-    """Recompose from original pixels; only the official logo changes position."""
+    """Recompose only at the fixed brand anchor; arbitrary moves are refused."""
+    layout = logo_layout(slot)
+    if type(left) is not int or type(top) is not int or (left, top) != (layout['left'], layout['top']):
+        raise ValueError('Logo position is fixed by renderer: use left=64 and top=64 for post or 250 for story')
     size = (1080, 1350 if slot == 'post' else 1920)
     image = ImageOps.exif_transpose(Image.open(io.BytesIO(base))).convert('RGB')
     if image.width * image.height > 16_000_000 or abs((image.width/image.height)/(size[0]/size[1])-1) > .04:
@@ -255,11 +286,7 @@ def reposition_logo(base, logo, slot, left, top, background='#075E47'):
     canvas = Image.new('RGB', size, background)
     art = ImageOps.contain(image, size, Image.Resampling.LANCZOS)
     canvas.paste(art, ((size[0]-art.width)//2, (size[1]-art.height)//2))
-    mark = ImageOps.contain(Image.open(io.BytesIO(logo)).convert('RGBA'), (260,96), Image.Resampling.LANCZOS)
-    margin = 250 if slot != 'post' else 50
-    if (type(left) is not int or type(top) is not int or left < 60 or top < margin
-            or left+mark.width > size[0]-60 or top+mark.height > size[1]-margin):
-        raise ValueError('Logo outside safe area')
+    mark = prepare_logo(logo)
     canvas.paste(mark, (left,top), mark)
     out = io.BytesIO(); canvas.save(out, format='PNG', optimize=True)
     return out.getvalue()
@@ -282,12 +309,19 @@ def recompose_design(job_id: str, slot: str, source_version: int, version: int, 
         raise ValueError('Invalid recomposition identifiers')
     token = os.environ[TOKEN_NAME]
     job, creative, brand = design_contract(call_tool(GATEWAY,token,'get_job',{'job_id':job_id}),slot)
+    layout = logo_layout(slot)
+    if type(left) is not int or type(top) is not int or (left, top) != (layout['left'], layout['top']):
+        raise ValueError('Logo position is fixed: left=64, top=64 for post or 250 for story')
     source = ROOT/job_id/f'{slot}-v{source_version}'
     base = (source/'original.png').read_bytes(); logo = (source/'logo.png').read_bytes()
     current = call_tool(GATEWAY,token,'get_visual_asset',{'job_id':job_id,'reference':'brand-logo'})
     if base64.b64decode(current['data'],validate=True) != logo: raise ValueError('Official logo changed')
     palette = [c['hex'] for c in brand['colors']]
-    old = final_canvas(base,logo,slot,palette[0],palette)
+    source_receipt = json.loads((source/'receipt.json').read_text()) if (source/'receipt.json').exists() else {}
+    source_renderer = source_receipt.get('renderer_version', 'official-logo-overlay-v2')
+    if source_renderer not in ('official-logo-overlay-v2', RENDERER_VERSION):
+        raise ValueError('Unsupported source renderer')
+    old = final_canvas(base,logo,slot,palette[0],palette,legacy=source_renderer == 'official-logo-overlay-v2')
     reference = f'storage://helena-deliveries/{job["business_id"]}/{job_id}/{slot}-v{source_version}.png'
     asset = call_tool(GATEWAY,token,'get_visual_asset',{'job_id':job_id,'reference':reference})
     if hashlib.sha256(old).hexdigest() != asset['sha256']: raise ValueError('Original base does not reproduce verified source')

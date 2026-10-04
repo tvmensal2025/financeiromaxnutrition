@@ -20,6 +20,7 @@ import { useBusiness } from "@/contexts/BusinessContext";
 import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
 import { ExecutiveMetricCard } from "@/components/executive/ExecutiveMetricCard";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
+import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
 
 type FocoItem = {
   foco_id?: string;
@@ -250,7 +251,8 @@ export default function Painel() {
   }
 
   return (
-    <div className="space-y-7 pb-8">
+    <div className="he-business-indicators space-y-7 pb-8">
+      <ExecutivePageHeader title="Indicadores do negócio" icon={Target} description="Prioridades, resultados e próximos passos da empresa selecionada."/>
       {/* ======================================================================
           NÍVEL 1 — COMANDO DO DIA (Hero Executivo Sóbrio)
           ====================================================================== */}

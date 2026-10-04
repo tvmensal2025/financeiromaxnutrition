@@ -1,0 +1,28 @@
+{
+  "status": "PLAN_VALIDATED_ONLY",
+  "agents": 21,
+  "model_calls": 0,
+  "production_verified": false,
+  "missing_bindings": [
+    "AGT-01",
+    "AGT-09",
+    "AGT-13",
+    "AGT-11",
+    "AGT-18",
+    "AGT-03",
+    "AGT-06",
+    "AGT-07",
+    "AGT-05",
+    "AGT-21",
+    "AGT-16",
+    "AGT-12",
+    "AGT-10",
+    "AGT-15",
+    "AGT-20",
+    "AGT-19",
+    "AGT-14",
+    "AGT-08",
+    "AGT-04",
+    "AGT-02"
+  ]
+}

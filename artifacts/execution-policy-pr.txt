@@ -1,0 +1,5 @@
+Quando a coordenação recebe novamente o mesmo briefing corrigido com a mesma fonte ainda ausente, o sistema pode repetir inferência sem progredir. Uma execução real de correção também expirou porque herdou o teto de 300 segundos do perfil rápido.
+
+Esta alteração interrompe a repetição antes de chamar IA e registra um bloqueio explícito. Separa os limites existentes de execução: tarefas comuns 300 s, modelo de correção configurado 600 s e Maya 900 s. O limite não se renova automaticamente. Não altera tentativas, aprovações, credenciais ou isolamento de empresas.
+
+Validação: testes da política de execução aprovados e 95 testes do controlador aprovados, incluindo o caso de briefing já corrigido sem fonte. A campanha real JOB-HR-070661329e98fdb5f1c39c81e0cbabe7 permanece FAILED, 2/2 tentativas, sem entrega final. Esta última alteração ainda não está instalada no Hermes.

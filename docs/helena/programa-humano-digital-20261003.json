@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "batch_id": "HD-FLEET-20261003",
+  "business_id": "BIZ-003",
+  "coordinator": "AGT-01",
+  "external_actions_allowed": false,
+  "steps": [
+    {
+      "agent_id": "AGT-01",
+      "name": "Helena",
+      "task": "Organizar um pedido piloto com etapas, dependencias e criterios de aceite",
+      "depends_on": [],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-09",
+      "name": "Theo",
+      "task": "Diagnosticar timeout e especificar retomada idempotente do mesmo job",
+      "depends_on": [
+        "AGT-01"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-13",
+      "name": "Bruno",
+      "task": "Testar entrega, reprovacao, correcao, aprovacao e timeout com evidencias",
+      "depends_on": [
+        "AGT-09"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-11",
+      "name": "Ravi",
+      "task": "Comparar fatos publicos Mimix e HubData em ate cinco criterios com fontes",
+      "depends_on": [
+        "AGT-13"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-18",
+      "name": "Pedro",
+      "task": "Preparar checklist de cinco perguntas para validar uma parceria, sem contato externo",
+      "depends_on": [
+        "AGT-11"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-03",
+      "name": "Augusto",
+      "task": "Definir proposta de valor, publico e tres hipoteses comerciais",
+      "depends_on": [
+        "AGT-18"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-06",
+      "name": "Clara",
+      "task": "Mapear cinco questoes de consentimento e direitos de uso das gravacoes, com fontes e pendencias",
+      "depends_on": [
+        "AGT-03"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-07",
+      "name": "Bianca",
+      "task": "Definir papeis humanos e checklist de integracao sem selecionar candidatos",
+      "depends_on": [
+        "AGT-06"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-05",
+      "name": "Caio",
+      "task": "Criar controle de custos com o gasto de R$100 tratado como pendente de classificacao, sem lancamento real",
+      "depends_on": [
+        "AGT-07"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-21",
+      "name": "Felipe",
+      "task": "Organizar indice de documentos, versoes e responsaveis",
+      "depends_on": [
+        "AGT-05"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-16",
+      "name": "Camila",
+      "task": "Definir uma campanha, publico, mensagem e proximo passo",
+      "depends_on": [
+        "AGT-21"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-17",
+      "name": "Isabela",
+      "task": "Recuperar tarefa existente das duas copies; nao duplicar pedido",
+      "depends_on": [
+        "AGT-16"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": "JOB-HR-84c9b8d298379035cde814191a3a6905"
+    },
+    {
+      "agent_id": "AGT-12",
+      "name": "Maya",
+      "task": "Criar uma arte de post usando exclusivamente copy revisada e logo oficial",
+      "depends_on": [
+        "AGT-17"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-10",
+      "name": "Nina",
+      "task": "Desenhar jornada de interesse ate primeira atividade e retorno",
+      "depends_on": [
+        "AGT-12"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-15",
+      "name": "Victor",
+      "task": "Criar abordagem comercial e respostas a tres objecoes, sem enviar",
+      "depends_on": [
+        "AGT-10"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-20",
+      "name": "Joana",
+      "task": "Escrever cinco respostas de FAQ coerentes com fatos confirmados",
+      "depends_on": [
+        "AGT-15"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-19",
+      "name": "Renata",
+      "task": "Criar roteiro de acompanhamento ate primeira atividade",
+      "depends_on": [
+        "AGT-20"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-14",
+      "name": "Olívia",
+      "task": "Criar procedimento de uma pagina para receber e acompanhar participante",
+      "depends_on": [
+        "AGT-19"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-08",
+      "name": "Daniel",
+      "task": "Definir seis indicadores e suas formulas, sem inventar resultados",
+      "depends_on": [
+        "AGT-14"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-04",
+      "name": "Marina",
+      "task": "Montar sequencia de tarefas e responsaveis do piloto",
+      "depends_on": [
+        "AGT-08"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa.",
+      "job_id": null
+    },
+    {
+      "agent_id": "AGT-02",
+      "name": "Laura",
+      "task": "Preparar apresentacao de 60 segundos do fundador sobre Humano Digital",
+      "depends_on": [
+        "AGT-04"
+      ],
+      "acceptance": "Entrega utilizavel, aderente ao pedido, com fonte/evidencia persistida e revisao independente confirmada; sem acao externa. Escopo pessoal da Laura deve ser validado antes do vinculo; nao ampliar permissoes.",
+      "job_id": null
+    }
+  ]
+}

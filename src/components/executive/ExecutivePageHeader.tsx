@@ -28,18 +28,12 @@ export function ExecutivePageHeader({
     <div
       className={`he-page-heading flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${className}`}
     >
-      <div className="space-y-1">
-        {breadcrumb && (
-          <p className="text-[11px] font-medium text-muted-foreground/80">
-            {breadcrumb}
-          </p>
-        )}
+      <div className="he-page-heading-copy space-y-1">
+        <div className="he-page-heading-kicker">
+          {Icon && <Icon aria-hidden="true" size={15} />}
+          <span>{breadcrumb || 'SEU ESPAÇO DE GESTÃO'}</span>
+        </div>
         <div className="flex items-center gap-2.5">
-          {Icon && (
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-muted/70 text-foreground">
-              <Icon className="h-4 w-4" />
-            </span>
-          )}
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
             {title}
           </h1>

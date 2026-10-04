@@ -1,24 +1,25 @@
-import React from "react";
+import React, { lazy } from "react";
+import { PageBoundary } from "@/components/executive/PageBoundary";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
 import { BusinessProvider } from "@/contexts/BusinessContext";
 import { Layout } from "@/components/Layout";
-import Login from "@/pages/Login";
-import OAuthConsent from "@/pages/OAuthConsent";
-import Painel from "@/pages/Painel";
-import Modulo from "@/pages/Modulo";
-import CrmPage from "@/pages/CrmPage";
-import FinanceiroPage from "@/pages/FinanceiroPage";
-import CalendarioPage from "@/pages/CalendarioPage";
-import PortfolioPage from "@/pages/PortfolioPage";
-import IdentidadePage from "@/pages/IdentidadePage";
-import EquipePage from "@/pages/EquipePage";
-import SistemaPage from "@/pages/SistemaPage";
-import ExecucaoPage from "@/pages/ExecucaoPage";
-import EntregasPage from "@/pages/EntregasPage";
-import IntegracoesPage from "@/pages/IntegracoesPage";
-import ComandoPage from "@/pages/ComandoPage";
-import Conversa from "@/pages/Conversa";
+const Login = lazy(() => import("@/pages/Login"));
+const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
+const Painel = lazy(() => import("@/pages/Painel"));
+const Modulo = lazy(() => import("@/pages/Modulo"));
+const CrmPage = lazy(() => import("@/pages/CrmPage"));
+const FinanceiroPage = lazy(() => import("@/pages/FinanceiroPage"));
+const CalendarioPage = lazy(() => import("@/pages/CalendarioPage"));
+const PortfolioPage = lazy(() => import("@/pages/PortfolioPage"));
+const IdentidadePage = lazy(() => import("@/pages/IdentidadePage"));
+const EquipePage = lazy(() => import("@/pages/EquipePage"));
+const SistemaPage = lazy(() => import("@/pages/SistemaPage"));
+const ExecucaoPage = lazy(() => import("@/pages/ExecucaoPage"));
+const EntregasPage = lazy(() => import("@/pages/EntregasPage"));
+const IntegracoesPage = lazy(() => import("@/pages/IntegracoesPage"));
+const ComandoPage = lazy(() => import("@/pages/ComandoPage"));
+const Conversa = lazy(() => import("@/pages/Conversa"));
 import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
@@ -136,9 +137,7 @@ function Rotas() {
         <Route path="/helena" element={<Navigate to="/" replace />} />
         <Route path="/modulo/integracoes" element={<Navigate to="/integracoes" replace />} />
         <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
-        <Route path="/modulo/calendario" element={<Navigate to="/calendario" replace />} />
         <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />
-        <Route path="/modulo/portfolio" element={<Navigate to="/portfolio" replace />} />
         <Route path="/modulo/equipe" element={<Navigate to="/equipe" replace />} />
 
         {/* Tabelas e Módulos do Sistema Helena */}
@@ -156,7 +155,7 @@ export default function App() {
     <AuthProvider>
       <BusinessProvider>
         <BrowserRouter>
-          <Rotas />
+          <PageBoundary><Rotas /></PageBoundary>
         </BrowserRouter>
       </BusinessProvider>
     </AuthProvider>

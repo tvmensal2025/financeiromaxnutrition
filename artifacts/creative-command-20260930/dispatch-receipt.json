@@ -1,0 +1,11 @@
+{
+  "request_id": "HD-REVISAO-CRIATIVA-20260930-02",
+  "profile": "helena--grupo",
+  "model": "gpt-6-sol",
+  "session_short_id": "50e499b2",
+  "status": "CHAT_SUBMITTED_PROCESSING",
+  "job_id": "JOB-HR-c392de57a9b00edb8879f291b077714d",
+  "submitted_at": "2026-10-01T01:46:55.255Z",
+  "supabase_write_confirmed": false,
+  "downstream_agents_started_confirmed": false
+}

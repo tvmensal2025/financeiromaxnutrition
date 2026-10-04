@@ -1,0 +1,40 @@
+Helena, execute o programa HD-FLEET-20261003 da Humano Digital (BIZ-003): testar os 21 agentes com entregas úteis para captação e operação. Você coordena, Marina organiza e especialistas executam com revisão independente. Somente trabalho interno, sem publicação, contato externo, pagamento ou contratação.
+
+ANTES DE EXECUTAR
+Consulte estado, tarefas, identidade, funções e ferramentas atuais. Reaproveite o lote existente, vinculando jobs reais sem duplicar entregas ou execuções. Confirme permissões: Laura atua no escopo pessoal autorizado, vinculada por referência; não amplie acesso. Registre perfis impedidos como não testados.
+
+EXECUÇÃO
+Uma execução por vez, respeitando limites e tentativas. Cada briefing contém objetivo, entradas, entrega, aceite, dependências e revisor habilitado diferente do autor. Valide tamanho pelo schema atual com margem; detalhes extensos ficam em referência acessível. Não replique este comando nos handoffs.
+
+Dependências reais: pesquisa → estratégia/campanha → copy → design; resultados → QA/consolidação. Pendência não bloqueia tarefa independente quando o controlador permitir. Não contorne travas globais.
+
+TAREFAS E ACEITE
+01 Helena — abrir o plano com objetivo, entregas, dependências, revisores e critérios; ao final confrontar previsto e realizado. Aceite: coordenação registrada e relatório com cobertura real.
+02 Laura — roteiro de 60 segundos para o fundador apresentar Humano Digital e convidar interessados. Aceite: fala natural, clara e coerente com fatos confirmados, no escopo autorizado.
+03 Augusto — proposta de valor, público prioritário e três hipóteses de modelo comercial. Aceite: separar fatos, hipóteses e decisões pendentes; recomendar uma prioridade.
+04 Marina — ordenar o piloto e preparar plano de sete dias com responsáveis e dependências. Aceite: nenhuma etapa sem dono ou entrada necessária.
+05 Caio — controle simples de custos, receitas e margem com fórmulas. Tratar os R$100 informados como despesa pendente de classificação, sem lançamento definitivo. Aceite: cálculo verificável e campos faltantes identificados.
+06 Clara — checklist de consentimento, privacidade e direitos de uso das gravações. Aceite: fontes atuais, riscos concretos e orientação aplicável; não inventar aprovação jurídica.
+07 Bianca — funções humanas necessárias e integração inicial. Aceite: responsabilidades, competências e checklist; sem selecionar pessoas ou inventar vagas.
+08 Daniel — seis indicadores do funil e da operação. Aceite: fórmula, fonte, frequência e responsável; dados ausentes não viram zero.
+09 Theo — verificar conectores, limites, recuperação e passagem entre agentes. Aceite: evidência de funcionamento ou erro preciso com correção proposta; diagnóstico não equivale a implantação.
+10 Nina — jornada do interessado até a primeira atividade e retorno. Aceite: passos, informações necessárias e pontos de abandono com melhorias.
+11 Ravi — comparar Mimix e HubData em cinco critérios relevantes, consultando fontes oficiais. Aceite: links, fatos atuais e lacunas; não presumir parceria comercial.
+12 Maya — produzir um post 1080x1350 e um story 1080x1920 a partir da copy revisada e identidade vigente. Aceite: arquivos reais abertos e inspecionados, logo oficial uma única vez, proporção e posição padronizadas, sem rodapé vazio, texto legível e composições distintas; pessoa ou robô conforme conceito.
+13 Bruno — verificar o ciclo delegar, entregar, pedir ajuste, refazer e aprovar. Aceite: evidências e defeitos reproduzíveis; ensaio de falha somente isolado, sem corromper jobs reais. Revisar também qualidade e acesso aos materiais.
+14 Olívia — procedimento de uma página para receber, orientar e acompanhar participantes. Aceite: etapas executáveis, responsáveis e tratamento de exceções.
+15 Victor — abordagem comercial e respostas a três objeções. Aceite: persuasão específica, benefício claro e próximo passo; não enviar mensagens.
+16 Camila — plano de campanha de sete dias com público, ângulo, canais, sequência e indicadores. Aceite: coerência com pesquisa e oferta, sem ativar campanha.
+17 Isabela — consultar o job JOB-HR-84c9b8d298379035cde814191a3a6905 e sua revisão. Reutilizar as duas copies aprovadas se atenderem ao objetivo; não regenerar para contar teste. Aceite: mecanismo claro, benefício, headline e CTA persuasivos, sem prometer renda ou disponibilidade não confirmadas. Adaptação necessária deve ser delimitada.
+18 Pedro — checklist de parceria com cinco perguntas e matriz de avaliação. Aceite: condições comerciais, operação, pagamentos e responsabilidades a confirmar; sem contato externo.
+19 Renata — acompanhamento até a primeira atividade com três mensagens-modelo. Aceite: gatilho, objetivo e próximo passo em cada mensagem; sem envio.
+20 Joana — cinco respostas de FAQ e encaminhamento de dúvidas fora do seu escopo. Aceite: linguagem simples e coerência com a oferta real.
+21 Felipe — índice dos documentos produzidos. Aceite: links acessíveis, versão, responsável e situação de revisão.
+
+QUALIDADE E RECUPERAÇÃO
+Use a política de modelos instalada; correções elegíveis usam GPT-6.1 Sol no máximo. Não repita chamadas idênticas sem progresso. Reconcilie o estado antes de repetir uma escrita com resultado incerto. Preserve tentativas, versões e histórico. Use apenas procedimentos de recuperação habilitados: o timeout textual da Isabela não autoriza recuperação irrestrita dos demais agentes. Registre toda falha, causa confirmada ou hipótese, ajuste, teste e resultado. Reprovação deve voltar ao executor com apontamentos objetivos e seguir nova revisão, dentro dos limites. Não aceite aprovação do próprio autor.
+
+ENTREGA FINAL
+Registre tarefas, respostas, revisões e evidências no Supabase; visuais no R2 vigente. Apresente materiais prontos para revisão interna, sem logs ou códigos no conteúdo comercial.
+
+Consolide os 21 agentes: tarefa, resposta resumida, link da entrega, revisor, situação, falha/correção e custo/tempo quando medidos. Diferencie execução nova, evidência anterior reaproveitada, bloqueado e não executado. Não invente métricas nem declare 100% com pendências. Ao terminar as etapas executáveis, apresente o pacote e as pendências com responsável. O teste termina com avaliação individual verificável, não apenas com jobs criados.

@@ -1,0 +1,863 @@
+{
+  "focus": [
+    {
+      "id": "FOC-001",
+      "ordem": "1",
+      "escopo": "GRUPO",
+      "frente": "Finalizar e validar Sistema Helena",
+      "status": "CONCLUÍDO",
+      "objetivo": "Fechar a arquitetura inicial, dados, memória, calendário, recorrências, financeiro e integrações antes de iniciar outra frente.",
+      "criado_em": "2026-09-23T04:02:19.387636+00:00",
+      "iniciada_em": "2026-09-22 00:00:00",
+      "observacoes": "Frente estrutural concluída na versão 4.0.",
+      "responsavel": "Helena",
+      "row_version": 438,
+      "concluida_em": "2026-09-22 00:00:00",
+      "atualizado_em": "2026-09-23T04:02:19.387636+00:00",
+      "linha_planilha": 4,
+      "criterio_de_saida": "Sistema Helena v4 consolidado; lógica multiempresa corrigida; placeholders removidos; calendário/recorrências normalizados; dicionário corrigido; protocolo comum dos agentes centralizado; auditoria real e Dashboard reconstruído.",
+      "motivo_prioridade": "Regra definida pelo fundador: começar → finalizar → só então iniciar outra frente."
+    },
+    {
+      "id": "FOC-003",
+      "ordem": "2",
+      "escopo": "GRUPO",
+      "frente": "Consolidar Sistema Helena v4",
+      "status": "CONCLUÍDO",
+      "objetivo": "Corrigir lógica multiempresa, placeholders, calendário/recorrências, dicionário, protocolo de agentes, auditoria e Dashboard.",
+      "criado_em": "2026-09-23T04:02:19.387636+00:00",
+      "iniciada_em": "2026-09-22 00:00:00",
+      "observacoes": "Consolidação concluída antes da frente Caixa.",
+      "responsavel": "Helena",
+      "row_version": 439,
+      "concluida_em": "2026-09-22 00:00:00",
+      "atualizado_em": "2026-09-23T04:02:19.387636+00:00",
+      "linha_planilha": 5,
+      "criterio_de_saida": "v4 exportada com correções estruturais aplicadas e auditoria real incorporada.",
+      "motivo_prioridade": "Refinamento solicitado pelo fundador antes de conectar integrações."
+    },
+    {
+      "id": "FOC-002",
+      "ordem": "3",
+      "escopo": "GRUPO",
+      "frente": "Caixa",
+      "status": "PLANEJADO",
+      "objetivo": "Gerar clareza e ação imediata para receita/caixa após concluir a estrutura.",
+      "criado_em": "2026-09-23T04:02:19.387636+00:00",
+      "iniciada_em": null,
+      "observacoes": "Só iniciar após decisão explícita do fundador.",
+      "responsavel": "Helena + Caio + Victor",
+      "row_version": 440,
+      "concluida_em": null,
+      "atualizado_em": "2026-09-23T04:02:19.387636+00:00",
+      "linha_planilha": 6,
+      "criterio_de_saida": "Diagnóstico de caixa + oferta/ação de receita definida e executada com evidência.",
+      "motivo_prioridade": "Fundador definiu caixa como urgência número 1 após a estrutura."
+    },
+    {
+      "id": "FOC-004",
+      "ordem": "4",
+      "escopo": "GRUPO",
+      "frente": "Homologação técnica do Sistema Helena",
+      "status": "EM EXECUÇÃO",
+      "objetivo": "Auditar, corrigir e testar o núcleo interno antes de qualquer frente nova, inclusive Caixa.",
+      "criado_em": "2026-09-23T04:02:19.387636+00:00",
+      "iniciada_em": "2026-09-22 23:00:00",
+      "observacoes": "WIP executivo = 1. Nenhuma integração externa é iniciada nesta frente.",
+      "responsavel": "Helena",
+      "row_version": 441,
+      "concluida_em": null,
+      "atualizado_em": "2026-09-23T04:02:19.387636+00:00",
+      "linha_planilha": 7,
+      "criterio_de_saida": "Bateria reproduzível executada, falha crítica interna tratada e parecer com escopo declarado.",
+      "motivo_prioridade": "Missão explícita do fundador nesta sessão. Caixa continua planejada e não foi ativada."
+    }
+  ],
+  "agents": [
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "GROUP",
+      "profile": "helena--grupo",
+      "agent_id": "AGT-01",
+      "business_id": null,
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "PERSONAL",
+      "profile": "laura--pessoal",
+      "agent_id": "AGT-02",
+      "business_id": null,
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "augusto--biz003",
+      "agent_id": "AGT-03",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "marina--biz003",
+      "agent_id": "AGT-04",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "caio--biz003",
+      "agent_id": "AGT-05",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "clara--biz003",
+      "agent_id": "AGT-06",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "bianca--biz003",
+      "agent_id": "AGT-07",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "daniel--biz003",
+      "agent_id": "AGT-08",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "theo--biz003",
+      "agent_id": "AGT-09",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "nina--biz003",
+      "agent_id": "AGT-10",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "ravi--biz003",
+      "agent_id": "AGT-11",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "maya--biz003",
+      "agent_id": "AGT-12",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "bruno--biz003",
+      "agent_id": "AGT-13",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "olivia--biz003",
+      "agent_id": "AGT-14",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "victor--biz003",
+      "agent_id": "AGT-15",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "camila--biz003",
+      "agent_id": "AGT-16",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "isabela--biz003",
+      "agent_id": "AGT-17",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "pedro--biz003",
+      "agent_id": "AGT-18",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "renata--biz003",
+      "agent_id": "AGT-19",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "joana--biz003",
+      "agent_id": "AGT-20",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    },
+    {
+      "name": null,
+      "role": null,
+      "model": null,
+      "scope": "BUSINESS",
+      "profile": "felipe--biz003",
+      "agent_id": "AGT-21",
+      "business_id": "BIZ-003",
+      "binding_status": "ACTIVE"
+    }
+  ],
+  "audits": [
+    {
+      "scope": "21_profiles_full_inventory",
+      "source": "hermes_remote_host",
+      "summary": {
+        "note": "Skills ausentes não foram inferidas; o inventário registra somente hermes skills list --enabled-only.",
+        "skills_enabled": 24,
+        "boot_tests_pass": 21,
+        "skills_disabled": 0,
+        "guardrails_present": 21,
+        "handoff_configured": 20,
+        "mcp_profiles_ready": 21,
+        "context_profiles_pass": 21,
+        "memory_files_observed": 0,
+        "cron_directories_present": 21,
+        "full_business_cycle_tests": 0,
+        "active_cron_jobs_confirmed": 0,
+        "memory_directories_present": 21,
+        "specialized_skills_not_observed": 19,
+        "handoff_not_configured_by_design": 1
+      },
+      "created_by": "AGT-01 Helena",
+      "observed_at": "2026-09-29T19:15:46+00:00",
+      "total_tests": 21,
+      "audit_run_id": "AUD-HERMES-SKILLS-20260929-001",
+      "failed_tests": 0,
+      "passed_tests": 21,
+      "total_skills": 24,
+      "total_profiles": 21
+    }
+  ],
+  "counts": {
+    "jobs": 59,
+    "tasks": 80,
+    "agents": 21,
+    "events": 488,
+    "handoffs": 94,
+    "memories": 139,
+    "decisions": 20,
+    "connections": 21,
+    "integrations": 11,
+    "active_bindings": 21
+  },
+  "integrity": {
+    "jobs_missing_task": 0,
+    "jobs_business_mismatch": 0
+  },
+  "portfolio": [
+    {
+      "name": "iGreen",
+      "stage": "VENDAS",
+      "objective": "Validar e destravar aquisição de clientes.",
+      "bottleneck": "Comercial / conseguir clientes.",
+      "business_id": "BIZ-001",
+      "description": null,
+      "row_version": 413,
+      "brand_identity": null
+    },
+    {
+      "name": "Ecossistema de Saúde",
+      "stage": "PRODUTO",
+      "objective": "Consolidar visão, arquitetura do produto e modelo de negócio.",
+      "bottleneck": "Escopo amplo ainda não consolidado.",
+      "business_id": "BIZ-002",
+      "description": null,
+      "row_version": 414,
+      "brand_identity": null
+    },
+    {
+      "name": "Humano Digital",
+      "stage": "VALIDAÇÃO",
+      "objective": "Validar e escalar aquisição de trabalhadores, ativação nas plataformas parceiras e receita de comissão com rastreabilidade ponta a ponta.",
+      "bottleneck": "Aquisição e ativação de pessoas com rastreamento confiável até a comissão recebida.",
+      "business_id": "BIZ-003",
+      "description": null,
+      "row_version": 3038,
+      "brand_identity": {
+        "cta": "Toda comunicação precisa ter um objetivo claro.\n\nO objetivo principal é trazer a pessoa para o ecossistema da Humano Digital, e não simplesmente mandar tráfego diretamente para uma empresa terceira sem necessidade.\n\nChamadas principais:\n\nQUERO PARTICIPAR\n\nVER OPORTUNIDADES\n\nQUERO TRABALHAR COM IA\n\nCONHECER OS PROJETOS\n\nFAZER MEU CADASTRO\n\nENTRAR PARA O HUMANO DIGITAL\n\nDepois do cadastro, o sistema poderá identificar o perfil da pessoa e apresentar oportunidades compatíveis.\n\nQuando uma campanha estiver divulgando um projeto específico, o destino poderá ser a página daquele projeto dentro da Humano Digital ou outro destino previamente autorizado.\n\nNunca inventar links.",
+        "name": "Humano Digital",
+        "offer": "A Humano Digital funciona como uma ponte.\n\nDe um lado existem empresas desenvolvendo Inteligência Artificial, robótica, visão computacional, reconhecimento de voz e outras tecnologias que precisam de dados do mundo real.\n\nDo outro lado existem pessoas que podem participar desses projetos e receber remuneração quando houver uma oportunidade compatível e seu trabalho atender às regras estabelecidas pelo projeto.\n\nAs oportunidades podem envolver atividades como:\n\ngravar em primeira pessoa (POV) atividades realizadas no cotidiano;\n\nlavar louça;\n\nlavar, dobrar ou organizar roupas;\n\npreparar alimentos;\n\ncozinhar;\n\nlimpar e organizar ambientes;\n\nfazer compras;\n\norganizar produtos;\n\npassear com cachorro;\n\nalimentar ou cuidar de animais;\n\nrealizar atividades relacionadas a pet shops;\n\nexecutar tarefas profissionais;\n\nutilizar ferramentas;\n\nrealizar atividades em comércio, restaurantes, oficinas ou outros ambientes autorizados;\n\ngravar voz ou áudio;\n\nproduzir imagens;\n\ngravar vídeos;\n\nresponder ou avaliar conteúdos;\n\nexecutar outras tarefas necessárias para projetos de coleta de dados e treinamento de IA.\n\nEsses são apenas exemplos. Nunca afirmar que determinada atividade está disponível ou sendo remunerada naquele momento sem existir um projeto confirmado.\n\nA Humano Digital poderá divulgar várias empresas e oportunidades diferentes.\n\nA marca não deve ficar dependente ou visualmente vinculada a uma única empresa parceira.\n\nQuando houver uma oportunidade, a Humano Digital apresenta as informações confirmadas e direciona o participante para o processo correspondente.",
+        "voice": "A Humano Digital deve falar como uma empresa:\n\nhumana, moderna, simples, tecnológica, profissional, transparente, acessível e confiável.\n\nMesmo quando o assunto for tecnicamente complexo, explicar de maneira que qualquer pessoa consiga entender.\n\nNão utilizar excesso de termos técnicos.\n\nEm vez de:\n\n“Coleta multimodal de dados egocêntricos para modelos de visão computacional.”\n\nPreferir:\n\n“Você pode participar de projetos gravando atividades reais do seu cotidiano para ajudar sistemas de Inteligência Artificial a aprender.”\n\nA comunicação deve despertar:\n\nCuriosidade:\n“Você sabia que atividades do cotidiano podem fazer parte de projetos de treinamento de Inteligência Artificial?”\n\nPossibilidade:\n“Existem novas formas de trabalhar em projetos ligados à Inteligência Artificial.”\n\nPertencimento:\n“Você também pode fazer parte dessa transformação.”\n\nTecnologia:\n“O futuro da Inteligência Artificial também é construído com experiências humanas.”\n\nConfiança:\n“Antes de participar, conheça as regras, requisitos e condições de cada projeto.”\n\nFrases que combinam com a marca\n\n“Pessoas reais ajudando a construir a Inteligência Artificial.”\n\n“O humano por trás da Inteligência Artificial.”\n\n“Conectamos pessoas às novas oportunidades da era da IA.”\n\n“Seu cotidiano pode ajudar a tecnologia a compreender o mundo real.”\n\n“Descubra oportunidades para participar de projetos de Inteligência Artificial.”\n\n“Pessoas ensinam. A tecnologia aprende.”\n\nPalavras que devem aparecer\n\nHumano\nInteligência Artificial\nOportunidade\nTecnologia\nParticipar\nProjeto\nAprender\nTreinamento\nDados\nFuturo\nPessoas",
+        "colors": [
+          {
+            "hex": "#075E47",
+            "use": "Marca, títulos e chamadas para ação",
+            "name": "Verde principal"
+          },
+          {
+            "hex": "#163D32",
+            "use": "Texto e fundos de destaque",
+            "name": "Verde profundo"
+          },
+          {
+            "hex": "#F4F5EB",
+            "use": "Fundo e áreas de respiro",
+            "name": "Marfim"
+          },
+          {
+            "hex": "#BCD2B5",
+            "use": "Apoio e detalhes; evitar texto pequeno sobre branco",
+            "name": "Sálvia"
+          }
+        ],
+        "review": "Antes de considerar qualquer material pronto, o agente deve executar uma conferência final.\n\n1. Identidade\n\nO nome Humano Digital está escrito corretamente?\n\nO material parece pertencer à Humano Digital?\n\nUma empresa parceira não está parecendo ser proprietária da Humano Digital?\n\n2. Oportunidade\n\nA oportunidade realmente existe?\n\nContinua disponível?\n\nO público divulgado pode participar?\n\n3. Atividade\n\nA atividade mostrada corresponde ao projeto?\n\nSe aparece alguém passeando com cachorro, existe realmente uma oportunidade relacionada a essa atividade?\n\nNão utilizar uma imagem apenas porque parece interessante.\n\n4. Remuneração\n\nO valor está confirmado?\n\nA moeda está correta?\n\nÉ por tarefa, hora, vídeo, projeto ou conteúdo aprovado?\n\nExistem condições que precisam aparecer?\n\n5. Promessas\n\nExiste alguma frase que possa ser interpretada como renda garantida?\n\nExiste promessa de emprego?\n\nExiste promessa de aprovação?\n\nSe existir, corrigir antes da publicação.\n\n6. Imagens\n\nAs pessoas aparecem de maneira natural?\n\nA atividade mostrada é coerente?\n\nEquipamentos mostrados correspondem ao que o projeto realmente utiliza?\n\nNão inventar equipamento.\n\n7. Texto\n\nOrtografia correta.\n\nPortuguês brasileiro natural.\n\nPouco texto nas artes.\n\nInformações importantes legíveis.\n\nSem excesso de linguagem técnica.\n\n8. CTA\n\nExiste uma chamada clara?\n\nO botão leva para o destino correto?\n\nO endereço foi confirmado?\n\n9. Contatos\n\nSite correto.\n\nInstagram correto.\n\nWhatsApp somente se confirmado.\n\nNenhum contato inventado.\n\n10: E SE PERGUNTE  EU CONSIGO ENTENDER MESMO NUNCA TENDO OUVIDO FALAR? \n",
+        "status": "APPROVED",
+        "imagery": "O protagonista visual da Humano Digital deve ser o ser humano, não o robô. \n\nAs imagens devem mostrar pessoas reais ou representações altamente realistas de pessoas realizando atividades do cotidiano.\n\nQueremos que alguém veja uma campanha e pense:\n\n“Eu também faço isso.”\n\nExemplos de cenas\n\nPessoa lavando louça usando uma câmera POV ou equipamento compatível com o projeto.\n\nPessoa dobrando roupas.\n\nPessoa colocando roupas na máquina.\n\nPessoa preparando uma refeição.\n\nPessoa organizando a cozinha.\n\nPessoa passeando com cachorro.\n\nPessoa alimentando um animal.\n\nPessoa trabalhando em pet shop.\n\nPessoa fazendo compras.\n\nPessoa organizando produtos.\n\nPessoa utilizando ferramentas.\n\nPessoa trabalhando em oficina.\n\nPessoa utilizando celular ou computador.\n\nPessoa gravando áudio.\n\nPessoa realizando diferentes atividades profissionais.\n\nPersonagens\n\nRepresentar pessoas adultas de diferentes:\n\nidades;\n\naparências;\n\nprofissões;\n\nestilos;\n\nregiões;\n\ncontextos sociais.\n\nNão criar um único “personagem oficial” que represente todos os trabalhadores.\n\nO conceito visual deve mostrar que pessoas comuns fazem parte do desenvolvimento da tecnologia.\n\nTecnologia nas imagens\n\nA tecnologia pode aparecer através de:\n\ncâmeras POV;\n\ncelulares;\n\ncomputadores;\n\nelementos gráficos discretos; interfaces; dados; IA; sensores;\n\nvisão computacional.\n\nEvitar excesso de robôs humanoides, MAS TER ROBO HUMANOIDES \n\nA Humano Digital fala sobre tecnologia acontecendo no mundo real.\n\nEstética\n\nVisual moderno e premium.\n\nFotografia realista.\n\nIluminação natural ou cinematográ",
+        "sources": "Decisão do fundador nesta conversa: adotar o verde da arte de referência. Descrição do negócio dada pelo fundador: agência de emprego de IA. A imagem de referência foi gerada no Codex; não é evidência de execução da equipe Hermes. Outras referências precisam ter origem e direito de uso registrados.",
+        "audience": "Pessoas maiores de idade que desejam conhecer novas formas de gerar renda participando de projetos relacionados à Inteligência Artificial.\n\nNão queremos falar somente com profissionais de tecnologia.\n\nQueremos alcançar também a pessoa comum que pensa:\n\n“Eu já faço isso no meu dia a dia. Existe algum projeto em que essa atividade possa ser utilizada para treinamento de IA?”\n\nA Humano Digital ajuda essa pessoa a descobrir oportunidades compatíveis e entender como participar corretamente.",
+        "channels": "Nome citado pelo fundador: Humano Digital.pro. Domínio, perfil oficial do Instagram e número de WhatsApp ainda precisam ser confirmados; não assumir que estão ativos.",
+        "logo_url": "storage://helena-brand-assets/BIZ-003/17386ca9-8970-470b-bd3d-17f4f8cf62af.png",
+        "body_font": "Manrope — textos com peso 400 ou 500",
+        "logo_rules": "## COMO USAR A LOGO\n\nUsar sempre a **logo oficial da Humano Digital**, sem recriar ou modificar.\n\nManter boa visibilidade, contraste e espaço ao redor. Preferir o canto superior esquerdo ou inferior direito nas peças.\n\nNão distorcer, trocar cores, fontes ou proporções e não adicionar efeitos.\n\nQuando houver empresa parceira, manter as duas marcas **claramente separadas**, sem dar a impressão de que uma pertence à outra.\n\nEm vídeos, usar a logo de forma discreta durante o conteúdo e com maior destaque no encerramento.\n\nSe o arquivo oficial não estiver disponível, **não inventar uma nova logo**.Usar o logo aprovado sem redesenhar, distorcer ou recolorir. Preservar respiro equivalente à altura do símbolo; posicionar sobre área limpa e de bom contraste. Esta assinatura tipográfica é uma proposta inicial e precisa de aprovação antes de uso em campanha.",
+        "business_id": "BIZ-003",
+        "description": "A Humano Digital é uma agência especializada em captar, orientar e conectar pessoas a empresas que desenvolvem projetos de coleta de dados para Inteligência Artificial.\n\nNosso papel é encontrar pessoas interessadas em participar desses projetos e direcioná-las para oportunidades compatíveis com seu perfil e sua rotina.\n\nUma atividade comum do dia a dia pode, dependendo do projeto, transformar-se em material útil para treinamento de Inteligência Artificial.\n\nUma pessoa pode, por exemplo:\n\nlavar louça enquanto registra a atividade em vídeo;\n\nlavar ou organizar roupas;\n\npreparar alimentos;\n\nlimpar e organizar a casa;\n\npassear com o cachorro;\n\nalimentar ou cuidar de animais;\n\nfazer compras;\n\norganizar produtos;\n\nexecutar atividades profissionais;\n\nutilizar ferramentas;\n\nrealizar outras tarefas solicitadas por projetos específicos.\n\nEsses registros podem ajudar sistemas de Inteligência Artificial e robótica a aprender como seres humanos interagem com objetos, ambientes, animais e situações do mundo real.\n\nA atividade, formato da gravação, remuneração, critérios de aprovação e utilização dos dados dependem de cada projeto e da empresa responsável.",
+        "positioning": "O principal diferencial da Humano Digital é transformar um mercado ainda desconhecido por grande parte das pessoas em algo compreensível e acessível.\n\nMuitas empresas precisam de participação humana para desenvolver Inteligência Artificial.\n\nAo mesmo tempo, muitas pessoas poderiam participar desses projetos, mas não sabem:\n\nque essas oportunidades existem;\n\nonde encontrá-las;\n\ncomo funcionam;\n\ncomo realizar as atividades corretamente;\n\nquais equipamentos são necessários;\n\nquais são as regras;\n\nquais atividades estão disponíveis.\n\nA Humano Digital aproxima esses dois mundos.\n\nNão somos apenas um site que publica links.\n\nQueremos construir uma comunidade de pessoas preparadas para participar de projetos de Inteligência Artificial.\n\nQuando surgir um projeto relacionado a animais, por exemplo, poderemos identificar pessoas da nossa comunidade que possuem cachorro ou trabalham com animais.\n\nQuando surgir um projeto envolvendo cozinha, poderemos localizar participantes que cozinham ou trabalham nessa área.\n\nQuando houver uma demanda relacionada a atividades domésticas, comércio, ferramentas, voz, vídeo ou outras categorias, poderemos identificar participantes compatíveis.\n\nNosso ativo principal é, portanto, uma comunidade humana organizada e preparada para atender diferentes necessidades da nova economia da Inteligência Artificial.\n\nConceito central da marca\n\nA tecnologia precisa de pessoas para aprender sobre o mundo real. A Humano Digital conecta essas pessoas às oportunidades.",
+        "heading_font": "Manrope — títulos com peso 700 ou 800",
+        "layout_rules": "## COMO COMPOR AS PEÇAS\n\nCriar peças modernas, profissionais, humanas, tecnológicas e fáceis de entender.\n\nHierarquia: **título forte → imagem principal → informação essencial → CTA → logo Humano Digital**.\n\nManter boas margens, pouco texto, ótimo contraste e letras grandes para leitura no celular.\n\n### TAMANHOS PADRÃO\n\n- **Instagram Feed vertical:** 1080 × 1350 px — 4:5\n- **Instagram Feed quadrado:** 1080 × 1080 px — 1:1\n- **Stories:** 1080 × 1920 px — 9:16\n- **Reels:** 1080 × 1920 px — 9:16\n- **TikTok:** 1080 × 1920 px — 9:16\n- **WhatsApp Status:** 1080 × 1920 px — 9:16\n- **YouTube Shorts:** 1080 × 1920 px — 9:16\n- **YouTube horizontal:** 1920 × 1080 px — 16:9\n- **Banner horizontal/site:** 1920 × 1080 px — 16:9\n\nPara anúncios e redes sociais, priorizar **1080 × 1350 px no Feed** e **1080 × 1920 px para vídeos, Stories e conteúdos verticais**.\nPost vertical 1080×1350 e story 1080×1920 quando solicitados. Uma ideia principal por peça, imagem protagonista, título curto e CTA legível. Manter textos longe das bordas e dos controles do aplicativo. Conferir a peça final no tamanho de um celular. Não copiar logos ou textos de referências de terceiros.",
+        "restrictions": "Não prometer vaga, contratação, salário, renda, comissão ou resultado garantido. Não inventar depoimentos, parceiros, certificações ou condições. Separar fatos confirmados de propostas. Nenhuma publicação ou contato externo sem autorização.",
+        "logo_approved": true,
+        "schema_version": 1,
+        "reference_image": "/brand/humano-digital/referencia-verde.png"
+      }
+    }
+  ],
+  "current_job": {
+    "job_id": "JOB-HR-fd62fc9a1659086444127a218432d958",
+    "result": {
+      "delivery": {
+        "title": "Humano Digital — quatro peças privadas para revisão visual",
+        "content": "Pacote de quatro peças Humano Digital para revisão interna: post vertical e três stories em PNG. As cenas mostram pessoa adulta em atividade cotidiana, interação humano-assistente, colaboração em equipe e organização de objetos, com copy correspondente à aprovada. O arquivo oficial de marca aparece uma vez por peça. Foram abertos os pixels dos quatro arquivos. Ponto de atenção para a revisão: o logo está assentado em retângulo claro visível e os CTAs têm destaque gráfico que pode ser interpretado como botão, embora não haja destino vinculado. Isso deve ser avaliado por Nina antes de qualquer consideração de prontidão. Uso estritamente interno; sem link, contato ou divulgação.",
+        "next_steps": "Nina AGT-10 deve abrir as quatro referências anexadas e o brand-logo, verificar copy, título completo, legibilidade em tela móvel, integração do logo, percepção de botão, variação narrativa e sequência, e registrar quality_review e visual_review independentes. Helena coordena a decisão subsequente. Manter privado e não publicar; eventual correção segue o limite de tentativas e autorização do Gateway.",
+        "limitations": "Não é aprovação visual final. A identidade, copy e legibilidade observadas pelo executor seguem sujeitas à revisão independente Nina AGT-10 nos quatro PNGs e ao processo de revisão do Gateway. Retângulo claro de suporte do logo e destaque tipo botão nos CTAs são ressalvas visuais concretas. O destino/canal do CTA não foi confirmado, portanto as peças não podem ser publicadas nem tratadas como chamada clicável. A submissão não autoriza publicação.",
+        "schema_version": 1,
+        "acceptance_checks": [
+          {
+            "finding": "Post 1080×1350 e stories 1–3 1080×1920 foram gerados, retornaram verified=true e pixels abertos pelo executor; referências estão anexadas.",
+            "criterion": "Quatro PNGs privados nos tamanhos definidos e pixels inspecionados",
+            "evidence_ref": "MEM-HR-71432a2edca0214c109205d37bfa2038"
+          },
+          {
+            "finding": "Nos pixels, copy conforme cada peça e cenas distintas (preparo cotidiano, interação humano-assistente, equipe colaborando, pessoa organizando objetos). Logo oficial aparece uma vez em cada peça; retângulo claro ao redor e CTAs com tratamento gráfico podem parecer interface/botão e ficam sinalizados para Nina.",
+            "criterion": "Copy aprovada, identidade oficial e variação narrativa verificadas",
+            "evidence_ref": "MEM-HR-71432a2edca0214c109205d37bfa2038"
+          },
+          {
+            "finding": "Nenhum link, QR, contato ou canal foi adicionado; instruções restringem uso à revisão interna. Publicação não foi executada nem autorizada.",
+            "criterion": "Pacote privado, sem destino ou publicação externa",
+            "evidence_ref": "MEM-HR-71432a2edca0214c109205d37bfa2038"
+          }
+        ]
+      },
+      "publication": {
+        "title": "Humano Digital — pacote interno de post e stories",
+        "caption": "Tem curiosidade sobre possibilidades de trabalho relacionadas à inteligência artificial? Estamos preparando uma apresentação transparente da iniciativa, para explicar do que se trata e quais requisitos e condições se aplicam. Esses detalhes ainda precisam ser confirmados antes da divulgação. Manifestar interesse não garante vaga, contratação, renda nem resultado. Se quiser receber informações quando estiverem validadas, use o canal oficial indicado na publicação aprovada.",
+        "alt_text": "Post: mulher adulta prepara uma refeição em cozinha iluminada, ao lado de texto sobre curiosidade em IA e ressalva de condições. Story 1: mulher adulta conversa com um assistente robótico discreto em ambiente de trabalho. Story 2: equipe adulta diversa colabora diante de um computador e quadro de ideias. Story 3: homem adulto organiza objetos em uma bancada iluminada.",
+        "strategy": "Sequência educativa: apresenta o tema, orienta a entender antes de decidir, explica que atividade e requisitos precisam ser esclarecidos e encerra com ressalvas. Revisão interna; não divulgar até confirmação do canal/destino e aprovação independente.",
+        "instructions": "Material somente para revisão interna. Não publicar, compartilhar ou tornar os CTAs clicáveis. Não há destino/canal confirmado; obter autorização e destino oficial antes de qualquer uso externo."
+      },
+      "reviewed_by": "AGT-10",
+      "review_reason": "A inspeção real dos quatro PNGs encontrou falhas impeditivas frente ao briefing: o logo aparece em retângulo claro destacado em todas as peças, não integrado à composição; há CTAs em caixas/realce gráfico que podem ser entendidos como botões embora não exista destino confirmado. Além disso, Story 3 repete a chamada do Post, sem acrescentar informação suficiente à sequência. O asset do brand-logo informado não foi disponibilizado pela ferramenta visual (retornou “Imagem nao vinculada e verificada nesta tarefa”), portanto não pude comparar visualmente a marca com o arquivo oficial. Corrigir mantendo a copy aprovada: integrar a marca oficial em área limpa sem placa/rodapé desconectado, retirar tratamentos que simulem botão e manter CTA sem aparência de ação clicável; resolver a repetição de Story 3 dentro da copy autorizada ou solicitar revisão antes de alterar o texto. Vincular/verificar o arquivo oficial e reenviar os quatro finais para nova inspeção. Uso exclusivamente interno, sem publicação.",
+      "visual_review": null,
+      "quality_review": null,
+      "review_pending": false,
+      "quality_version": "helena-delivery-quality-v1",
+      "reviewer_agent_id": "AGT-10",
+      "brief_revision_history": [
+        {
+          "revised_at": "2026-10-01T14:40:36.073273+00:00",
+          "revised_by": "AGT-01",
+          "instruction": "## Contexto e fontes\nBIZ-003 Humano Digital. Autorizacao hd-final-visual-correction-20261001-v1. Parecer aprovado JOB-HR-4c1ad7a12227adf8c2ab535120692df5; copy aprovada JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7; imagens anteriores JOB-HR-c392de57a9b00edb8879f291b077714d. Preservar esgotados. Conferir identidade APPROVED atual e brand-logo; nao redesenhar marca.\n## Objetivo e impacto\nEntregar quatro imagens corrigidas e copy final pronta, logo unico integrado, cenas variadas e leitura no celular. Pareceres tecnicos ficam internos, nao substituem o pacote.\n## Escopo e limites\nMaya AGT-12 executa, Nina AGT-10 revisa, Helena coordena. Sem publicar, WhatsApp, reset, aumento de tentativas ou oferta inventada. Preservar copy exata abaixo; mudanca exige revisao. Destino CTA nao confirmado: nao inventar link nem declarar CTA executavel.\n## Plano de trabalho\nConferir versoes e binding. Antes de consumo, Maya verifica esquema e check_visual_runtime: exigir renderizador sem rodape acrescentado. Se indisponivel, bloquear sem gerar. Produzir serialmente: Post adulto em acao; Story 1 outra cena podendo incluir assistente/robo coerente; Story 2 equipe colaborando; Story 3 personagem e enquadramento diferentes. Texto e rosto fora da interface. Logo oficial unico; nunca wordmark gerado. Ferramentas autorizadas e R2 privado. Uma geracao por slot/versao; nao repetir chamada incerta. Submeter publication e referencias reais. Nina inspeciona cada arquivo e devolve apontamentos dentro do limite de tentativas.\n## Entregáveis\nPost 1080x1350 e story-1/2/3 1080x1920, PNG. publication conforme submit_work consultado: title, caption, strategy, instructions, alt_text, todos strings. Título claro; strategy/instructions breves e não técnicas; alt_text por peça. Sequência: apresentação, informação antes da decisão, compreensão, encerramento. Quatro artifact_refs verificados. Caption aprovada literal, permitidas quebras de parágrafo: Tem curiosidade sobre possibilidades de trabalho relacionadas à inteligência artificial? Estamos preparando uma apresentação transparente da iniciativa, para explicar do que se trata e quais requisitos e condições se aplicam. Esses detalhes ainda precisam ser confirmados antes da divulgação. Manifestar interesse não garante vaga, contratação, renda nem resultado. Se quiser receber informações quando estiverem validadas, use o canal oficial indicado na publicação aprovada.\nA menção a canal não confirma destino. Não inventar substituto. Sem IDs/código/parecer na caption. Etapas documentais ficam no histórico sem publication; não inventar campo interno não suportado.\n\n## Critérios de pronto\nQuatro PNGs completos e legíveis no celular; copy literal, título Story 2 inteiro, logo único, paleta/fontes oficiais, sem corte, rodapé desconectado, vazio ou repetição injustificada. CTA com destino verdadeiro quando necessário. Revisão independente persistida das mesmas referências, comparando legibilidade, identidade, copy, composição e sequência. Falha impede apresentar como pronto; aprovação não autoriza publicar.\n\n## Evidências e registro\nFontes/versões/arquivos/inspeção/decisões no Gateway. Marcos relevantes com ação, motivo, fonte e próximo responsável. expected_task_version atual; resposta incerta exige releitura e mesma chave/argumentos idênticos. Use o esquema atual de submit_work; Gateway cria evidence_ref. Antigos são fontes, não entrega nova; não inventar IDs nem truncar.\n\n## Revisão e encaminhamento\nNina AGT-10: abrir pixels dos quatro finais e brand-logo; review_delivery com versão atual, quality_review e visual_review completas, findings por peça/sequência; requirements_met=true só comprovado. Maya não se autoaprova. Helena trata ajustes rotineiros, sem aprovações repetidas do fundador; intervenção apenas em decisão reservada/insumo comercial não recuperável. Após aprovação formal e releitura, entregar imagens e caption/instrução simples ao fundador, sem publicar.\n\n```direcao-arte\n{\"business_id\":\"BIZ-003\",\"brand_version\":3038,\"brand\":\"Humano Digital\",\"logo_asset\":\"storage://helena-brand-assets/BIZ-003/17386ca9-8970-470b-bd3d-17f4f8cf62af.png\",\"audience\":\"Adultos interessados em compreender projetos de IA.\",\"objective\":\"Quatro peças corrigidas com copy aprovada e revisão independente.\",\"verified_facts\":[\"Marca APPROVED 3038, logo aprovado.\",\"Copy aprovada; parecer Nina é interno.\"],\"sources\":[\"JOB-HR-4c1ad7a12227adf8c2ab535120692df5\",\"JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7\",\"JOB-HR-c392de57a9b00edb8879f291b077714d\"],\"subject\":\"Adultos realistas diversos em ações distintas, humano protagonista.\",\"scene\":\"Post ação cotidiana; Story 1 outra ação/assistente coerente; Story 2 equipe colaborando; Story 3 outra pessoa/ambiente. Sem vaga confirmada.\",\"composition\":\"Post 4:5, stories 9:16; logo único integrado sem redução/rodapé. Texto, CTA e rosto fora da interface; margens, contraste e variação.\",\"typography\":\"Manrope título 700/800, apoio 400/500; título inteiro e leitura no celular.\",\"palette\":\"#075E47, #163D32, #F4F5EB, #BCD2B5; sem sálvia em texto pequeno sobre branco.\",\"imagery_method\":\"GENERATED_IMAGE\",\"formats\":[\"post\",\"story-1\",\"story-2\",\"story-3\"],\"exact_copy\":\"Post: IA desperta sua curiosidade? | Estamos apresentando uma iniciativa relacionada a trabalho com inteligência artificial. | Demonstrar interesse não garante vaga, contratação, remuneração ou resultado financeiro. A participação e quaisquer condições dependem de validação e de informações oficiais. | Quero conhecer as informações quando estiverem validadas.\\nStory 1: Primeiro, entenda. Depois, decida. | O próximo passo é conhecer a atividade, os requisitos e as condições, sem compromisso implícito. | Quero receber informações confirmadas.\\nStory 2: Como a IA pode fazer parte de uma atividade de trabalho? | Vamos esclarecer a atividade e os requisitos antes de qualquer decisão. | Quero entender do que se trata.\\nStory 3: IA desperta sua curiosidade? | Demonstrar interesse não garante vaga, contratação, remuneração ou resultado financeiro. | Quero conhecer as informações quando estiverem validadas.\",\"cta\":\"Convites literais; confirmar canal/destino/fluxo. Sem link/contato/botão fictício.\",\"constraints\":\"Privado R2 via Gateway; logo oficial único. Sem publicação/promessas/reset/consumo duplicado. Confirmar esquema/runtime antes de gerar.\",\"review\":\"Nina abre quatro finais e brand-logo, compara copy/marca/leitura/composição/variação, registra decisão formal; Helena relê pacote.\"}\n```\nFonte: JOB-HR-4c1ad7a12227adf8c2ab535120692df5\nEntrega revisada: Consolidação documental dos achados anteriores em quatro seções e quatro verificações do relatório. Sem nova inspeção, geração, publicação ou alteração do job fonte, preservado FAILED. Revisão independente por Helena AGT-01; eventual aprovação vale apenas para o parecer.\nEvidencias: [\"MEM-HR-3c08561162e5da2e510326d9a2945bbc\"]\n\n\nCorreção após parecer Nina de 01/10/2026 14:25 UTC: manter as quatro versões v1 para histórico. Próximos arquivos v2. Uso autorizado: somente revisão interna, sem link ou publicação. CTA literal como texto editorial simples, sem caixa, seta ou desenho de botão. Integrar o logo oficial uma vez: reservar área limpa da própria composição com fundo visualmente compatível com o arquivo oficial, sem placa acrescentada; não recortar, redesenhar ou recolorir a marca. Story 3 deve priorizar visualmente as condições/ressalvas do texto aprovado para concluir a narrativa; a chamada repetida fica secundária. Se isso não resolver a repetição, registrar necessidade de revisão textual, sem inventar copy. Nina compara o logo usando get_visual_asset(job_id atual, reference=\"brand-logo\"); a URL storage de logo não é referência de entrega. Runtime de coordenação corrigido: 480 segundos, abaixo da reserva de 600. Preservar limite de duas tentativas e revisão independente.",
+          "reviewed_by": "AGT-10",
+          "workflow_key": "review-v2-logo-editorial-20261001",
+          "review_reason": "A inspeção real dos quatro PNGs encontrou falhas impeditivas frente ao briefing: o logo aparece em retângulo claro destacado em todas as peças, não integrado à composição; há CTAs em caixas/realce gráfico que podem ser entendidos como botões embora não exista destino confirmado. Além disso, Story 3 repete a chamada do Post, sem acrescentar informação suficiente à sequência. O asset do brand-logo informado não foi disponibilizado pela ferramenta visual (retornou “Imagem nao vinculada e verificada nesta tarefa”), portanto não pude comparar visualmente a marca com o arquivo oficial. Corrigir mantendo a copy aprovada: integrar a marca oficial em área limpa sem placa/rodapé desconectado, retirar tratamentos que simulem botão e manter CTA sem aparência de ação clicável; resolver a repetição de Story 3 dentro da copy autorizada ou solicitar revisão antes de alterar o texto. Vincular/verificar o arquivo oficial e reenviar os quatro finais para nova inspeção. Uso exclusivamente interno, sem publicação.",
+          "revision_summary": "Assistência operacional autorizada: incorporar parecer Nina, esclarecer alias oficial do logo e orientação de composição/CTA/hierarquia; preservar copy, arquivos anteriores, duas tentativas e revisão independente. Coordenação instalada com prazo 480s.",
+          "definition_of_done": "Quatro PNGs privados R2 verificados pelo Gateway: post 1080x1350 e três stories 1080x1920; copy exata, cenas distintas, logo oficial único integrado, sem cortes/rodapé/vazio, legíveis no celular. Antes de gerar: esquema e runtime/renderizador atuais confirmados; falta exige bloqueio sem consumo. publication completo e quatro artifact_refs. Nina AGT-10 inspeciona os mesmos quatro arquivos e brand-logo, registra quality_review/visual_review e aprovação formal. Helena relê e confirma imagens e copy. CTA executável exige destino confirmado; ausente, registrar pergunta específica e não declarar pronto. Preservar fontes esgotadas e tentativas; nenhuma publicação.\nUso autorizado: revisão interna, sem link ou publicação. Aprovação das peças não autoriza divulgar.\nCorreção Nina: quatro PNGs v2, logo integrado sem placa, CTA editorial sem botão e Story 3 com foco nas ressalvas; comparar marca via alias brand-logo. Uso privado. Preservar copy aprovada e registrar revisão textual se a hierarquia não resolver repetição.",
+          "previous_instruction": "## Contexto e fontes\nBIZ-003 Humano Digital. Autorizacao hd-final-visual-correction-20261001-v1. Parecer aprovado JOB-HR-4c1ad7a12227adf8c2ab535120692df5; copy aprovada JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7; imagens anteriores JOB-HR-c392de57a9b00edb8879f291b077714d. Preservar esgotados. Conferir identidade APPROVED atual e brand-logo; nao redesenhar marca.\n## Objetivo e impacto\nEntregar quatro imagens corrigidas e copy final pronta, logo unico integrado, cenas variadas e leitura no celular. Pareceres tecnicos ficam internos, nao substituem o pacote.\n## Escopo e limites\nMaya AGT-12 executa, Nina AGT-10 revisa, Helena coordena. Sem publicar, WhatsApp, reset, aumento de tentativas ou oferta inventada. Preservar copy exata abaixo; mudanca exige revisao. Destino CTA nao confirmado: nao inventar link nem declarar CTA executavel.\n## Plano de trabalho\nConferir versoes e binding. Antes de consumo, Maya verifica esquema e check_visual_runtime: exigir renderizador sem rodape acrescentado. Se indisponivel, bloquear sem gerar. Produzir serialmente: Post adulto em acao; Story 1 outra cena podendo incluir assistente/robo coerente; Story 2 equipe colaborando; Story 3 personagem e enquadramento diferentes. Texto e rosto fora da interface. Logo oficial unico; nunca wordmark gerado. Ferramentas autorizadas e R2 privado. Uma geracao por slot/versao; nao repetir chamada incerta. Submeter publication e referencias reais. Nina inspeciona cada arquivo e devolve apontamentos dentro do limite de tentativas.\n## Entregáveis\nPost 1080x1350 e story-1/2/3 1080x1920, PNG. publication conforme submit_work consultado: title, caption, strategy, instructions, alt_text, todos strings. Título claro; strategy/instructions breves e não técnicas; alt_text por peça. Sequência: apresentação, informação antes da decisão, compreensão, encerramento. Quatro artifact_refs verificados. Caption aprovada literal, permitidas quebras de parágrafo: Tem curiosidade sobre possibilidades de trabalho relacionadas à inteligência artificial? Estamos preparando uma apresentação transparente da iniciativa, para explicar do que se trata e quais requisitos e condições se aplicam. Esses detalhes ainda precisam ser confirmados antes da divulgação. Manifestar interesse não garante vaga, contratação, renda nem resultado. Se quiser receber informações quando estiverem validadas, use o canal oficial indicado na publicação aprovada.\nA menção a canal não confirma destino. Não inventar substituto. Sem IDs/código/parecer na caption. Etapas documentais ficam no histórico sem publication; não inventar campo interno não suportado.\n\n## Critérios de pronto\nQuatro PNGs completos e legíveis no celular; copy literal, título Story 2 inteiro, logo único, paleta/fontes oficiais, sem corte, rodapé desconectado, vazio ou repetição injustificada. CTA com destino verdadeiro quando necessário. Revisão independente persistida das mesmas referências, comparando legibilidade, identidade, copy, composição e sequência. Falha impede apresentar como pronto; aprovação não autoriza publicar.\n\n## Evidências e registro\nFontes/versões/arquivos/inspeção/decisões no Gateway. Marcos relevantes com ação, motivo, fonte e próximo responsável. expected_task_version atual; resposta incerta exige releitura e mesma chave/argumentos idênticos. submit_work: source/summary internos; delivery schema_version=1/title/content/next_steps/limitations/acceptance_checks. content 40–8000 caracteres, 1–8 checks, criterion 15–300, finding 30–1200; Gateway cria evidence_ref. artifact_refs/publication fora de delivery. Antigos são fontes, não entrega nova; não inventar IDs nem truncar.\n\n## Revisão e encaminhamento\nNina AGT-10: abrir pixels dos quatro finais e brand-logo; review_delivery com versão atual, quality_review e visual_review completas, findings por peça/sequência; requirements_met=true só comprovado. Maya não se autoaprova. Helena trata ajustes rotineiros, sem aprovações repetidas do fundador; intervenção apenas em decisão reservada/insumo comercial não recuperável. Após aprovação formal e releitura, entregar imagens e caption/instrução simples ao fundador, sem publicar.\n\n```direcao-arte\n{\"business_id\":\"BIZ-003\",\"brand_version\":3038,\"brand\":\"Humano Digital\",\"logo_asset\":\"storage://helena-brand-assets/BIZ-003/17386ca9-8970-470b-bd3d-17f4f8cf62af.png\",\"audience\":\"Adultos interessados em compreender projetos de IA.\",\"objective\":\"Quatro peças corrigidas com copy aprovada e revisão independente.\",\"verified_facts\":[\"Marca APPROVED 3038, logo aprovado.\",\"Copy aprovada; parecer Nina é interno.\"],\"sources\":[\"JOB-HR-4c1ad7a12227adf8c2ab535120692df5\",\"JOB-HR-7aa2ab1e4f80b68bccaac535dda850e7\",\"JOB-HR-c392de57a9b00edb8879f291b077714d\"],\"subject\":\"Adultos realistas diversos em ações distintas, humano protagonista.\",\"scene\":\"Post ação cotidiana; Story 1 outra ação/assistente coerente; Story 2 equipe colaborando; Story 3 outra pessoa/ambiente. Sem vaga confirmada.\",\"composition\":\"Post 4:5, stories 9:16; logo único integrado sem redução/rodapé. Texto, CTA e rosto fora da interface; margens, contraste e variação.\",\"typography\":\"Manrope título 700/800, apoio 400/500; título inteiro e leitura no celular.\",\"palette\":\"#075E47, #163D32, #F4F5EB, #BCD2B5; sem sálvia em texto pequeno sobre branco.\",\"imagery_method\":\"GENERATED_IMAGE\",\"formats\":[\"post\",\"story-1\",\"story-2\",\"story-3\"],\"exact_copy\":\"Post: IA desperta sua curiosidade? | Estamos apresentando uma iniciativa relacionada a trabalho com inteligência artificial. | Demonstrar interesse não garante vaga, contratação, remuneração ou resultado financeiro. A participação e quaisquer condições dependem de validação e de informações oficiais. | Quero conhecer as informações quando estiverem validadas.\\nStory 1: Primeiro, entenda. Depois, decida. | O próximo passo é conhecer a atividade, os requisitos e as condições, sem compromisso implícito. | Quero receber informações confirmadas.\\nStory 2: Como a IA pode fazer parte de uma atividade de trabalho? | Vamos esclarecer a atividade e os requisitos antes de qualquer decisão. | Quero entender do que se trata.\\nStory 3: IA desperta sua curiosidade? | Demonstrar interesse não garante vaga, contratação, remuneração ou resultado financeiro. | Quero conhecer as informações quando estiverem validadas.\",\"cta\":\"Convites literais; confirmar canal/destino/fluxo. Sem link/contato/botão fictício.\",\"constraints\":\"Privado R2 via Gateway; logo oficial único. Sem publicação/promessas/reset/consumo duplicado. Confirmar esquema/runtime antes de gerar.\",\"review\":\"Nina abre quatro finais e brand-logo, compara copy/marca/leitura/composição/variação, registra decisão formal; Helena relê pacote.\"}\n```\nFonte: JOB-HR-4c1ad7a12227adf8c2ab535120692df5\nEntrega revisada: Consolidação documental dos achados anteriores em quatro seções e quatro verificações do relatório. Sem nova inspeção, geração, publicação ou alteração do job fonte, preservado FAILED. Revisão independente por Helena AGT-01; eventual aprovação vale apenas para o parecer.\nEvidencias: [\"MEM-HR-3c08561162e5da2e510326d9a2945bbc\"]\n\nComplemento autorizado pelo fundador em 01/10/2026: \"Somente revisão interna; sem link ou publicação\". Este lote é uma prova privada. A ausência de destino do CTA não impede criar e revisar internamente as quatro peças; não inserir link, contato, QR code ou ação clicável, nem divulgar. Preservar a copy aprovada e informar a restrição de uso nas instruções de entrega, fora da arte. A aprovação interna não autoriza publicação. Evidência técnica desta etapa: Maya/helena_visual e Nina/MCP retornaram READY sem IA em 01/10/2026 14:08-14:10 UTC. Cinco testes do renderizador instalado passaram no Hermes Linux, incluindo composição até a borda, logo único em área segura e reaproveitamento de PNG sem nova geração. Isso comprova capacidade técnica, não qualidade das próximas imagens: Nina deve abrir os quatro arquivos finais e revisar cada um.",
+          "previous_definition_of_done": "Quatro PNGs privados R2 verificados pelo Gateway: post 1080x1350 e três stories 1080x1920; copy exata, cenas distintas, logo oficial único integrado, sem cortes/rodapé/vazio, legíveis no celular. Antes de gerar: esquema e runtime/renderizador atuais confirmados; falta exige bloqueio sem consumo. publication completo e quatro artifact_refs. Nina AGT-10 inspeciona os mesmos quatro arquivos e brand-logo, registra quality_review/visual_review e aprovação formal. Helena relê e confirma imagens e copy. CTA executável exige destino confirmado; ausente, registrar pergunta específica e não declarar pronto. Preservar fontes esgotadas e tentativas; nenhuma publicação.\nUso autorizado: revisão interna, sem link ou publicação. Aprovação das peças não autoriza divulgar."
+        }
+      ]
+    },
+    "status": "FAILED",
+    "task_id": "TSK-HR-fd62fc9a1659086444127a218432d958",
+    "agent_id": "AGT-12",
+    "error_code": "RENDERER_PREFLIGHT_UNVERIFIED",
+    "updated_at": "2026-10-01T14:47:44.372078+00:00",
+    "business_id": "BIZ-003",
+    "task_status": "BLOQUEADA",
+    "max_attempts": 2,
+    "task_version": 3672,
+    "attempt_count": 2
+  },
+  "observed_at": "2026-10-01T15:04:13.107511+00:00",
+  "integrations": [
+    {
+      "id": null,
+      "status": "PLANEJADA",
+      "system": "Google Drive",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "PLANEJADA",
+      "system": "Gmail",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "PLANEJADA",
+      "system": "Google Calendar",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "PLANEJADA",
+      "system": "Automação de Recorrências",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "CONFIGURADA",
+      "system": "Evolution API",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "CONFIGURADA",
+      "system": "Meowcaller",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "CONFIGURADA",
+      "system": "Laya Service",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "STANDBY",
+      "system": "ElevenLabs",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "OFICIAL",
+      "system": "Kokoro TTS VPS",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "PAUSADA",
+      "system": "Codex Automations",
+      "last_sync": null
+    },
+    {
+      "id": null,
+      "status": "PLANEJADA",
+      "system": "Helena Gateway",
+      "last_sync": null
+    }
+  ],
+  "skill_counts": [
+    {
+      "n": 24,
+      "state": "ENABLED",
+      "agents": 21,
+      "audit_run_id": "AUD-HERMES-SKILLS-20260929-001"
+    }
+  ],
+  "workflow_runs": [
+    {
+      "phase": "COORDINATE",
+      "status": "NEEDS_ATTENTION",
+      "diagnostic": "UNCONFIRMED_EFFECT",
+      "started_at": "2026-10-01T13:59:52.917712+00:00",
+      "finished_at": "2026-10-01T14:03:03.223971+00:00",
+      "task_version": 3655
+    },
+    {
+      "phase": "COORDINATE",
+      "status": "CONFIRMED",
+      "diagnostic": "CANONICAL_EFFECT",
+      "started_at": "2026-10-01T14:12:06.151456+00:00",
+      "finished_at": "2026-10-01T14:15:00.288623+00:00",
+      "task_version": 3658
+    },
+    {
+      "phase": "REVIEW",
+      "status": "CONFIRMED",
+      "diagnostic": "CANONICAL_EFFECT",
+      "started_at": "2026-10-01T14:23:46.305464+00:00",
+      "finished_at": "2026-10-01T14:25:29.628328+00:00",
+      "task_version": 3663
+    },
+    {
+      "phase": "COORDINATE",
+      "status": "NEEDS_ATTENTION",
+      "diagnostic": "UNCONFIRMED_EFFECT",
+      "started_at": "2026-10-01T14:26:02.143542+00:00",
+      "finished_at": "2026-10-01T14:30:06.413494+00:00",
+      "task_version": 3666
+    },
+    {
+      "phase": "COORDINATE",
+      "status": "CONFIRMED",
+      "diagnostic": "CANONICAL_EFFECT",
+      "started_at": "2026-10-01T14:42:08.329158+00:00",
+      "finished_at": "2026-10-01T14:44:42.03509+00:00",
+      "task_version": 3669
+    }
+  ],
+  "jobs_by_status": {
+    "DRAFT": 6,
+    "FAILED": 8,
+    "COMPLETED": 14,
+    "WAITING_HELENA": 31
+  },
+  "recent_memories": [
+    {
+      "id": "MEM-RUNTIME-CONTINUIDADE-20261001-V1",
+      "status": "ATIVA",
+      "assunto": "Continuidade instalada; homologacao real pendente",
+      "data_hora": "2026-10-01 07:34:53.892766+00",
+      "related_object_type": "RUNTIME"
+    },
+    {
+      "id": "MEM-CREATIVE-QUALITY-20260930-V2",
+      "status": "ATIVA",
+      "assunto": "Padrao criativo multiempresa v2: marca unica, composicao integrada e variedade editorial",
+      "data_hora": "2026-10-01 01:29:26.114272+00",
+      "related_object_type": "PADRAO_CRIATIVO"
+    },
+    {
+      "id": "MEM-PACKET-CONTRACT-20260930-V1",
+      "status": "ATIVA",
+      "assunto": "Contrato real de contexto corrigido; sucessora visual retomada sem duplicacao",
+      "data_hora": "2026-10-01 01:10:36.744202+00",
+      "related_object_type": "agent_jobs"
+    },
+    {
+      "id": "MEM-R2-20260930-V2",
+      "status": "ATIVA",
+      "assunto": "R2 autenticado: 10 imagens copiadas e verificadas; ativacao final pendente de runtime Hermes",
+      "data_hora": "2026-09-30T23:37:12.210Z",
+      "related_object_type": "CAMPANHA"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V4-CHECKPOINT",
+      "status": "ATIVO",
+      "assunto": "Continuidade: 21 skills, marca Humano Digital aprovada e limite de homologacao",
+      "data_hora": "2026-09-30T17:09:26.600Z",
+      "related_object_type": "QUALITY_PROTOCOL"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V3-CHECKPOINT",
+      "status": "ATIVO",
+      "assunto": "Continuidade: skills profissionais aplicadas e 21 perfis revalidados",
+      "data_hora": "2026-09-30T16:59:31.064Z",
+      "related_object_type": "skill_inventory"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V2-CHECKPOINT",
+      "status": "ATIVO",
+      "assunto": "Continuidade atual: 21 contratos verificados e despachante profissional aplicado",
+      "data_hora": "2026-09-30T16:31:31.880Z",
+      "related_object_type": "quality_checkpoint"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-06",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Clara",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-07",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Bianca",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-08",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Daniel",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-09",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Theo",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-10",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Nina",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-11",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Ravi",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-12",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Maya",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-13",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Bruno",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-14",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Olívia",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-15",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Victor",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-16",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Camila",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-17",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Isabela",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-18",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Pedro",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-19",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Renata",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-20",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Joana",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-21",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Felipe",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-01",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Helena",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-02",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Laura",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-03",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Augusto",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-04",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Marina",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-AGT-05",
+      "status": "ATIVO",
+      "assunto": "Contrato profissional e conexão verificada: Caio",
+      "data_hora": "2026-09-30T16:20:52.988Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-QUALITY-20260930-V1-CHECKPOINT",
+      "status": "ATIVO",
+      "assunto": "Continuidade comprovada: qualidade dos 21 agentes",
+      "data_hora": "2026-09-30T16:20:52.987Z",
+      "related_object_type": "agent_quality_contract"
+    },
+    {
+      "id": "MEM-R2-20260930-V1",
+      "status": "ATIVA",
+      "assunto": "Bucket privado R2 criado e integracao de imagens preparada; migracao pendente",
+      "data_hora": "2026-09-30 23:02:25.499862+00",
+      "related_object_type": "CAMPANHA"
+    },
+    {
+      "id": "MEM-CAPACIDADES-20260930-FINAL-V1",
+      "status": "ATIVA",
+      "assunto": "Ativacao dos contratos de entrega e revisao visual dos 21 perfis",
+      "data_hora": "2026-09-30 22:34:04.19571+00",
+      "related_object_type": "CAMPANHA"
+    },
+    {
+      "id": "MEM-AUTH-20260930-V1",
+      "status": "ATIVA",
+      "assunto": "Autorizacao dos 21 perfis, contexto integral e retomada controlada",
+      "data_hora": "2026-09-30 20:54:54.27171+00",
+      "related_object_type": "CAMPANHA"
+    },
+    {
+      "id": "MEM-FLUXO-20260930-REVISAO-V1",
+      "status": "ATIVA",
+      "assunto": "Fluxo de revisao: implantacao, prova real e bloqueios restantes",
+      "data_hora": "2026-09-30 19:35:07.296557+00",
+      "related_object_type": "CAMPANHA"
+    }
+  ],
+  "checkpoint_rules": [
+    {
+      "id": "MEM-0025",
+      "status": "ATIVO",
+      "assunto": "Reconciliação da conversa histórica com o Checkpoint Mestre V1",
+      "registro": "Conversa compartilhada revisada antes da criação do Checkpoint V1. Itens confirmados no Supabase atual: (1) public.decisoes usa decision_id, tipo TEXT; memoria_mestre.id também é TEXT; estado_mestre.registro_id é BIGINT. Portanto a alegação histórica de decision_id/memoria.id como BIGINT não deve ser promovida a verdade atual. (2) A diretriz de separar automações nativas/regras do Supabase de automações que exigem executor de agente é compatível com a arquitetura atual; Blockbot não aparece como dependência operacional ativa e não deve ser assumido. (3) Meowcaller está cadastrado como INT-0007 CONFIGURADA; ElevenLabs INT-0008 CONFIGURADA; Laya Service INT-0009 CONFIGURADA; Evolution API INT-0006 CONFIGURADA; Helena Gateway INT-0005 permanece PLANEJADA. (4) Observações sobre Live Voice são de interface/conversa e não constituem estado operacional canônico do Sistema Helena."
+    },
+    {
+      "id": "MEM-0026",
+      "status": "ATIVO",
+      "assunto": "Rotina oficial de atualização do Checkpoint Mestre",
+      "registro": "COMANDO OFICIAL: \"Helena, sincronize o Checkpoint Mestre\".\n\nFLUXO OBRIGATÓRIO:\n1) Registrar primeiro a mudança na tabela operacional correta (ex.: decisoes, estado_mestre, memoria_mestre, handoffs, projetos, tarefas, integracoes, automacoes, recorrencias, riscos etc.).\n2) Comparar o estado real atual com public.checkpoint_mestre_atual.\n3) Avaliar se a mudança é MATERIAL. Se não for material, não criar nova versão.\n4) Agrupar mudanças relacionadas da mesma sessão/bloco de trabalho.\n5) Revisar os campos obrigatórios.\n6) Criar a nova versão somente via public.helena_publish_checkpoint(p_expected_checkpoint_id, ...).\n7) Validar o resultado e comunicar o checkpoint_id/versao.\n\nGATILHOS DE NOVA VERSÃO:\n- nova decisão canônica ou substituição de decisão vigente;\n- mudança de FOC/WIP/prioridade executiva;\n- mudança de estágio, objetivo, gargalo, responsável ou direção material de negócio;\n- projeto/marco crítico iniciado, concluído, bloqueado ou reaberto;\n- agente muda de PLANNED/CONNECTED/OPERATIONAL ou ocorre alteração relevante de plataforma/conexão;\n- integração/automação/recorrência muda de planejada/configurada/ativa/pausada/homologada/operacional ou equivalente;\n- alteração relevante de arquitetura;\n- mudança de Auth, RLS, grants, policies ou outra segurança importante;\n- risco, bloqueio ou handoff crítico criado ou resolvido;\n- correção de informação relevante de checkpoint anterior;\n- mudança material em pendências/próxima ação que altere continuidade.\n\nNÃO É GATILHO SOZINHO:\n- passagem de dia;\n- comentário;\n- pequena atualização rotineira;\n- progresso de tarefa sem impacto consolidado;\n- atualização repetida sem mudança de estado.\n\nCAMPOS/BLOCOS A REVISAR ANTES DE VERSIONAR:\n- resumo_executivo;\n- foco executivo e WIP;\n- portfolio: estágio, objetivo, gargalo, KPI, responsáveis e riscos;\n- decisoes vigentes;\n- estado_mestre;\n- memorias relevantes recentes;\n- handoffs abertos/críticos;\n- projetos, marcos e tarefas críticas;\n- agentes, conexões e qualificação de operação;\n- jobs e status relevantes;\n- integracoes;\n- automacoes;\n- recorrencias;\n- Auth/RLS/segurança;\n- bloqueios e riscos;\n- próximas ações e responsáveis;\n- evidências/fontes;\n- mudancas_desde_anterior.\n\nCAMPOS TÉCNICOS OBRIGATÓRIOS DA NOVA VERSÃO:\ntitulo; resumo_executivo; conteudo_markdown; snapshot JSONB; mudancas_desde_anterior JSONB; fontes JSONB; criado_por; motivo. checkpoint_id, versao, status, checkpoint_anterior_id e timestamps seguem o mecanismo versionado.\n\nVALIDAÇÕES OBRIGATÓRIAS:\n- exatamente um checkpoint ATIVO;\n- versão incrementada em 1;\n- checkpoint_anterior_id correto;\n- snapshot não vazio;\n- fontes presentes;\n- mudancas_desde_anterior descrevendo o delta material;\n- contagens e estados principais compatíveis com o Supabase atual;\n- nenhuma afirmação de OPERACIONAL/CONCLUÍDO/TESTADO sem evidência;\n- nenhum segredo, token, senha ou chave gravado no checkpoint;\n- conflito resolvido pela precedência: Supabase/produção > decisões/estado atuais > checkpoint ativo > memória/histórico;\n- versão anterior permanece preservada como SUPERADO.\n\nSEM MUDANÇA MATERIAL:\nAo receber o comando e não encontrar mudança material, Helena deve informar que o checkpoint atual permanece vigente e NÃO criar versão artificial.\n\nProteção implantada em 26/09/2026: ler e conservar o checkpoint_id antes de preparar o retrato; em conflito, reler e reconciliar. Gravações operacionais usam row_version e helena_write_record conforme PAG-V9-020. A função antiga não é mais uma entrada direta autorizada."
+    },
+    {
+      "id": "MEM-0027",
+      "status": "ATIVO",
+      "assunto": "Comando de carregamento e checklist de validação do Checkpoint Mestre",
+      "registro": "COMANDO 1 — CARREGAMENTO:\n\"Helena, carregue o Checkpoint Mestre.\"\n\nFINALIDADE: recuperar e validar o contexto do Sistema Helena sem alterar o banco nem criar uma nova versão.\n\nPASSOS:\n1. Consultar public.checkpoint_mestre_atual.\n2. Validar identidade e integridade da versão ativa.\n3. Carregar resumo, markdown, snapshot, fontes e mudanças.\n4. Conferir somente os elementos voláteis que podem ter mudado desde a criação do checkpoint.\n5. Resolver conflitos pela ordem de precedência canônica.\n6. Se detectar mudança material, sinalizar que é necessária sincronização; não escrever durante o carregamento.\n7. Entregar um resumo de retomada contendo: versão, foco, negócios/estado relevante, bloqueios, handoffs abertos críticos, próxima ação e status da validação.\n\nCOMANDO 2 — SINCRONIZAÇÃO:\n\"Helena, sincronize o Checkpoint Mestre.\"\nEste comando segue DEC-017/MEM-0026 e pode criar versão nova somente quando houver mudança material.\n\nCHECKLIST OFICIAL DE VALIDAÇÃO:\n[ ] Existe checkpoint em public.checkpoint_mestre_atual.\n[ ] Existe exatamente 1 checkpoint com status ATIVO.\n[ ] A versão ATIVA é a maior versão existente.\n[ ] checkpoint_id e versao estão preenchidos.\n[ ] checkpoint_anterior_id é coerente com a cadeia, quando versao > 1.\n[ ] Versões anteriores permanecem preservadas; nenhuma foi silenciosamente sobrescrita.\n[ ] resumo_executivo não está vazio.\n[ ] conteudo_markdown não está vazio.\n[ ] snapshot JSONB não está vazio.\n[ ] fontes contém pelo menos uma fonte válida.\n[ ] mudancas_desde_anterior está presente e descreve o delta quando aplicável.\n[ ] Foco executivo/WIP confere com public.foco_executivo.\n[ ] Portfólio relevante confere com public.portfolio.\n[ ] Decisões vigentes importantes conferem com public.decisoes.\n[ ] Estado consolidado confere com public.estado_mestre.\n[ ] Memórias relevantes recentes foram consideradas sem substituir fonte operacional.\n[ ] Handoffs ABERTOS/críticos foram considerados.\n[ ] Projetos, marcos e tarefas críticas atuais foram considerados.\n[ ] Estado de agentes, conexões e jobs relevante foi considerado.\n[ ] Integrações atuais foram consideradas.\n[ ] Automações atuais foram consideradas.\n[ ] Recorrências atuais foram consideradas.\n[ ] Auth/RLS/segurança relevante foi considerada.\n[ ] Bloqueios, riscos, próximas ações e responsáveis estão claros.\n[ ] Em conflito, foi aplicada a precedência: Supabase/produção > decisões/Estado Mestre > checkpoint > memória/histórico.\n[ ] Dado ausente está marcado DADO A COLETAR; informação não confirmada está marcada NÃO CONFIRMADO.\n[ ] Nenhuma conclusão, operação, teste ou envio foi declarado sem evidência.\n[ ] Nenhum segredo, token, senha, chave ou código de recuperação foi copiado para o checkpoint/resumo.\n[ ] Resultado do carregamento foi classificado como CARREGADO E VALIDADO, CARREGADO COM DIVERGÊNCIAS ou FALHA DE VALIDAÇÃO.\n[ ] A saída informa checkpoint_id, versão, foco atual, bloqueios críticos, handoffs relevantes e próxima ação.\n[ ] O comando de carregamento não criou nem alterou versão.\n[ ] Se houver mudança material, foi recomendada sincronização em vez de alteração silenciosa."
+    },
+    {
+      "id": "MEM-0028",
+      "status": "ATIVO",
+      "assunto": "TSK-0012 — rotação de credenciais temporariamente adiada",
+      "registro": "DEC-019: o fundador decidiu adiar temporariamente a rotação da TSK-0012 enquanto alguns ajustes ainda estão sendo feitos e é importante que os agentes enxerguem o contexto técnico atual. Isso NÃO reduz a severidade do RSK-0007: o risco permanece ABERTO/CRÍTICO e as credenciais expostas devem ser consideradas comprometidas até a rotação. Durante esta fase, os agentes podem consultar nomes de variáveis, arquivos, dependências, riscos e configurações, mas não devem copiar, registrar ou redistribuir valores secretos em memória, checkpoint, chat ou novos artefatos. A retomada da TSK-0012 ocorrerá após o fundador encerrar os ajustes atuais."
+    }
+  ]
+}

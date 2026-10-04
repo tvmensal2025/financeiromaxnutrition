@@ -141,7 +141,7 @@ export default function EquipePage() {
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="he-team-page space-y-6">
       <ExecutivePageHeader
         icon={Users}
         title="Equipe Digital"

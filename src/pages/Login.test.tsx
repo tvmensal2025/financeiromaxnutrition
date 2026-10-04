@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import Login from "./Login";
 
@@ -12,6 +12,16 @@ vi.mock("@/auth", () => ({
 describe("Login Redirect Security", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("libera nova tentativa quando a conexão falha durante o login", async () => {
+    mockUseAuth.mockReturnValue({ user:null, appAccess:null, loading:false, entrar:vi.fn().mockRejectedValue(new Error('network')) });
+    render(<MemoryRouter><Login/></MemoryRouter>);
+    fireEvent.change(screen.getByLabelText('E-mail Corporativo'),{target:{value:'teste@example.com'}});
+    fireEvent.change(screen.getByLabelText('Senha de Acesso'),{target:{value:'test-only-password'}});
+    fireEvent.submit(screen.getByRole('button',{name:'Entrar na Central'}).closest('form')!);
+    await screen.findByRole('alert');
+    await waitFor(()=>expect((screen.getByRole('button',{name:'Entrar na Central'}) as HTMLButtonElement).disabled).toBe(false));
   });
 
   it("redireciona para / por padrão quando autenticado sem parâmetro redirect", async () => {

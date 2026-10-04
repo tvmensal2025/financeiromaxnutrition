@@ -1,0 +1,37 @@
+Helena, retome HD-FLEET-20261003 para a Humano Digital, BIZ-003. O fundador autorizou os 20 especialistas a corrigir os problemas de suas entregas e concluir o conteúdo. Você coordena, verifica o resultado e apresenta o pacote final. Reaproveite tarefas, fontes e materiais existentes; consulte o estado atual antes de agir. 
+
+FLUXO OBRIGATÓRIO
+Pedido -> briefing com entradas e aceite -> especialista -> entrega persistida -> revisor diferente do autor -> aprovação OU devolução objetiva -> correção pelo mesmo autor -> nova revisão -> pacote final. Devolução: defeito, mudança e aceite. O autor escolhe a melhor solução dentro de sua função e pode corrigir texto, organização, cálculos ou composição sem pedir autorização para escolhas rotineiras. Uma tarefa independente pode avançar enquanto outra tem pendência, conforme WIP e controlador.
+
+ECONOMIA E EXECUÇÃO
+WIP=1. Uma chamada delimitada por etapa; correção somente quando houver apontamento ou teste que a justifique, dentro das tentativas restantes. Use a política instalada; correções elegíveis GPT-6.1 Sol max. Consulte o schema antes de enviar, mantenha margem nos limites e use referências para detalhes extensos. Envie apenas o contexto da tarefa; não copie este comando em cada handoff. Reaproveite aprovações verificadas. Não repita chamada idêntica sem progresso; resultado incerto exige consultar o efeito antes de repetir. Execução longa usa mecanismo nativo documentado em segundo plano e recibo persistente, pois a espera síncrona observada termina em 420s. Preserve locks, idempotência, versões e tentativas.
+
+RESPONSABILIDADES DOS 20 ESPECIALISTAS
+AGT-02 Laura: roteiro de apresentação de 60 segundos para o fundador, no escopo pessoal autorizado; não usar o executor empresarial para ampliar seu acesso.
+AGT-03 Augusto: proposta de valor, público e prioridade comercial, com fatos e hipóteses separados.
+AGT-04 Marina: plano de sete dias com responsáveis e dependências; conciliar a pendência existente antes de qualquer execução elegível.
+AGT-05 Caio: corrigir o controle financeiro: TSV realmente colável, fórmulas executáveis, dado ausente como ND e definição precisa de margem. R$100 permanece pendência de classificação.
+AGT-06 Clara: consentimento, privacidade e uso das gravações, com fontes oficiais e lacunas específicas.
+AGT-07 Bianca: reaproveitar funções e integração já aprovadas; complementar somente lacuna demonstrada.
+AGT-08 Daniel: corrigir os seis indicadores com dono nominal cadastrado, produtor da fonte, fórmula, frequência e encaminhamento de lacunas.
+AGT-09 Theo: corrigir problemas técnicos comuns por ferramentas já autorizadas; registrar causa, alteração, teste, versão e resultado real. Usar testes sem IA quando possível.
+AGT-10 Nina: jornada do interessado até a primeira atividade, com pontos de abandono e melhorias executáveis.
+AGT-11 Ravi: comparação de cinco critérios entre https://mimix.video/pt e https://hubdata.org, com fontes atuais; não presumir parceria.
+AGT-12 Maya: um post 1080x1350 e um story 1080x1920 com copy revisada, identidade vigente e logo oficial uma vez; composições distintas, imagens profissionais e arquivos inspecionados.
+AGT-13 Bruno: revisar as correções técnicas do Theo e testar, isoladamente, entrega, devolução, correção, aprovação, duplicidade, timeout e tentativa esgotada. Relatório proposto não equivale a teste executado.
+AGT-14 Olívia: procedimento de uma página para receber, orientar e acompanhar participantes, com responsáveis e exceções.
+AGT-15 Victor: abordagem comercial e três objeções, com benefício específico e próximo passo claro.
+AGT-16 Camila: campanha de sete dias coerente com pesquisa, proposta, copy e indicadores; revisar copy conforme contrato.
+AGT-17 Isabela: reaproveitar as duas copies aprovadas; corrigir apenas falha apontada, com persuasão, mecanismo e CTA claros.
+AGT-18 Pedro: cinco perguntas de parceria e matriz de decisão com condições verificáveis.
+AGT-19 Renata: três mensagens de acompanhamento com gatilho, objetivo e próximo passo.
+AGT-20 Joana: cinco respostas simples de FAQ e encaminhamento de dúvidas para os responsáveis cadastrados.
+AGT-21 Felipe: índice acessível dos materiais, com responsável, versão e situação de revisão.
+
+PENDÊNCIAS TÉCNICAS E HISTÓRICO
+Última leitura: Bianca aprovada; diagnóstico do Theo revisado por Bruno; Caio e Daniel devolvidos para ajuste. Localize os jobs pelo lote HD-FLEET-20261003 e autor, preservando vínculos. Marina JOB-HR-f096e861e4c0b4e569b4a654e4707113 está FAILED, 2/2; não resetar, relançar ou criar substituta para contornar limite. Confira o estado atual antes de agir.
+
+Theo confere wait_executor e team_context_prompt instalados em /data/helena-runtime; preserva backups e solicita revisão independente ao Bruno. Cadastro nominal não comprova execução. Uma falha de conteúdo volta ao autor; falha técnica comum vai ao Theo; ausência de informação comercial vai à coordenação. Não dar acesso administrativo a toda a equipe.
+
+ENTREGA E ENCERRAMENTO
+Somente revisão interna: sem publicação, envio a pessoas, pagamentos ou contratação. Conteúdo comercial limpo e pronto para usar; registros técnicos ficam nas evidências. Persistir entregas, revisão e incidentes no Supabase; visuais no R2 vigente. Entregar um relatório único com os 20 especialistas: material, link, revisor, resultado, correção e pendência. Custo e tempo somente quando medidos. Encerrar com avaliação verificável de cada agente; um job criado ou um perfil ativo não comprova conclusão. Persistir avanço para o controlador continuar sem acompanhamento manual repetitivo no Codex.

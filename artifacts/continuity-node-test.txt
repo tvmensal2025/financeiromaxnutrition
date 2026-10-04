@@ -1,0 +1,2005 @@
+
+> helena-gateway@0.1.0 test
+> node --test test/workflow-journal.test.mjs test/media-storage.test.mjs test/visual-assets.test.mjs test/work-submission.test.mjs test/job-reader.test.mjs test/professional-output.test.mjs test/creative-brand.test.mjs test/typesafe.test.mjs test/artifact-storage.test.mjs test/brief-contract.test.mjs test/caller-context.test.mjs test/profile-settings.test.mjs test/call-streaming.test.mjs test/conversation-naturalness.test.mjs test/voice-latency.test.mjs test/live-transcription.test.mjs test/workflow.test.mjs test/runtime-access.test.mjs test/runtime-http.test.mjs test/record-progress.test.mjs test/waiting-helena.test.mjs test/record-dispatch.test.mjs test/whatsapp-ura.test.mjs test/kokoro.test.mjs test/voice-agent.test.mjs test/google-chirp3-hd.test.mjs test/call-engine.test.mjs test/call-reconciliation.test.mjs && node test/test-server.mjs && node test/integrations-security.test.mjs
+
+TAP version 13
+# Subtest: arquivo fica em caminho da empresa e job, sem aceitar fuga ou outro job
+ok 1 - arquivo fica em caminho da empresa e job, sem aceitar fuga ou outro job
+  ---
+  duration_ms: 3.9202
+  type: 'test'
+  ...
+# Subtest: upload assinado aponta apenas para caminho privado e RUNNING
+ok 2 - upload assinado aponta apenas para caminho privado e RUNNING
+  ---
+  duration_ms: 49.9061
+  type: 'test'
+  ...
+# Subtest: PNG real exige bytes decodificaveis e dimensoes do formato
+ok 3 - PNG real exige bytes decodificaveis e dimensoes do formato
+  ---
+  duration_ms: 889.8742
+  type: 'test'
+  ...
+# Subtest: SVG seguro e convertido para PNG Story e upload privado sem sobrescrever
+ok 4 - SVG seguro e convertido para PNG Story e upload privado sem sobrescrever
+  ---
+  duration_ms: 52244.4832
+  type: 'test'
+  ...
+# Subtest: SVG de arte recusa conteudo ativo, recurso remoto, tamanho ou formato incorreto
+ok 5 - SVG de arte recusa conteudo ativo, recurso remoto, tamanho ou formato incorreto
+  ---
+  duration_ms: 14.1926
+  type: 'test'
+  ...
+# Subtest: moldura vazia e texto invisivel nao passam como arte pronta
+ok 6 - moldura vazia e texto invisivel nao passam como arte pronta
+  ---
+  duration_ms: 356133.7849
+  type: 'test'
+  ...
+# Subtest: repeticao do mesmo PNG apos resposta perdida e idempotente, divergir o conteudo e recusado
+ok 7 - repeticao do mesmo PNG apos resposta perdida e idempotente, divergir o conteudo e recusado
+  ---
+  duration_ms: 1370.4343
+  type: 'test'
+  ...
+# Subtest: briefing profissional exige estrutura, conteúdo e vínculos
+ok 8 - briefing profissional exige estrutura, conteúdo e vínculos
+  ---
+  duration_ms: 3.1907
+  type: 'test'
+  ...
+# Subtest: briefing completo permite a liberação confirmada
+ok 9 - briefing completo permite a liberação confirmada
+  ---
+  duration_ms: 5.9595
+  type: 'test'
+  ...
+# Subtest: liberação recusa briefing raso antes de gravar no Supabase
+ok 10 - liberação recusa briefing raso antes de gravar no Supabase
+  ---
+  duration_ms: 1.0033
+  type: 'test'
+  ...
+# Subtest: liberacao bloqueia fonte ausente antes de gastar IA ou gravar
+ok 11 - liberacao bloqueia fonte ausente antes de gastar IA ou gravar
+  ---
+  duration_ms: 1.2693
+  type: 'test'
+  ...
+# Subtest: titulos duplicados, texto repetido e campos pendentes nao passam por briefing completo
+ok 12 - titulos duplicados, texto repetido e campos pendentes nao passam por briefing completo
+  ---
+  duration_ms: 1.0154
+  type: 'test'
+  ...
+# Subtest: criacao e handoff recusam comando raso antes da RPC e aceitam estrutura completa
+ok 13 - criacao e handoff recusam comando raso antes da RPC e aceitam estrutura completa
+  ---
+  duration_ms: 1.3562
+  type: 'test'
+  ...
+# Subtest: foto licenciada sem fonte permanece bloqueada antes de release e avaliar IA
+ok 14 - foto licenciada sem fonte permanece bloqueada antes de release e avaliar IA
+  ---
+  duration_ms: 7.0971
+  type: 'test'
+  ...
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 💾 Perfil 'rafael_normal' (Rafael / Normal) atualizado por AdminTest
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Aoede' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Charon' por Teste de ligação recebida
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'vital_normal' (Vital / Normal) por Teste de ligação recebida
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: inbound-fallback-1790860353812 (Não identificado) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] 🏁 Chamada inbound-fallback-1790860353812 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Restauração de teste
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'vital_normal' para 'rafael_normal' (Rafael / Normal) por Restauração de teste
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: test-call-live-101 (+5511 ••••-8888) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-live-101 por OperadorAdmin: Sirlene / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Aoede)
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: test-call-telemetry-202 (+5511 ••••-7777) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-telemetry-202 por Admin: Sirlene / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Aoede)
+# [CALL_ENGINE] 🏁 Chamada test-call-telemetry-202 encerrada. Duração: 0s | Turnos: 2 | Tokens: 435 | Chars: 120 | Latência Média: 1095ms
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: reused-call-id-1790860353820 (Não identificado) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] 🏁 Chamada reused-call-id-1790860353820 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: reused-call-id-1790860353820 (Não identificado) | Perfil: Vital / Normal | Voz: pt-BR-Chirp3-HD-Charon
+# [CALL_ENGINE] 🏁 Chamada reused-call-id-1790860353820 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: interrupted-turn-1790860353822 (Não identificado) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] 🏁 Chamada interrupted-turn-1790860353822 encerrada. Duração: 0s | Turnos: 1 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (LINEAR16, 23 bytes, 1ms) para chamada call-tts-verify-99
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por AdminDr
+# [CALL_ENGINE] 🔄 Perfil 'vital_normal' restaurado para o padrão oficial.
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: test-call-12-profiles-live (+5511 ••••-6666) | Perfil: Rafael / Normal | Voz: pt-BR-Chirp3-HD-Achird
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Rafael / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Rafael / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Rafael / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Fenrir)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Sirlene / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Aoede)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Sirlene / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Autonoe)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Vital / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Vital / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Vital / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Iapetus)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Alex / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Alex / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Fenrir)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-12-profiles-live por TestRunner: Alex / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Admin
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'rafael_normal' (Rafael / Normal) por Admin
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achernar' por Admin
+# [CALL_ENGINE] 💾 Perfil 'rafael_normal' (Rafael / Normal) atualizado por Admin
+# [CALL_ENGINE] 💾 Perfil 'rafael_firm' (Rafael / Firme) atualizado por Admin
+# [CALL_ENGINE] 💾 Perfil 'rafael_intense' (Rafael / Intenso) atualizado por Admin
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: test-call-prompt-markers (Não identificado) | Perfil: Rafael / Normal | Voz: pt-BR-Chirp3-HD-Achird
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-prompt-markers por Admin: Rafael / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA test-call-prompt-markers por Admin: Rafael / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Fenrir)
+# [CALL_ENGINE] 🔄 Perfil 'rafael_normal' restaurado para o padrão oficial.
+# [CALL_ENGINE] 🔄 Perfil 'rafael_firm' restaurado para o padrão oficial.
+# [CALL_ENGINE] 🔄 Perfil 'rafael_intense' restaurado para o padrão oficial.
+# Subtest: Motor de Ligações (Call Engine) — Testes Completos
+    # Subtest: estima tokens do GPT-6 Luna sem preços legados
+    ok 1 - estima tokens do GPT-6 Luna sem preços legados
+      ---
+      duration_ms: 9.2022
+      type: 'test'
+      ...
+    # Subtest: 1. Configuração inicial adota Google Chirp 3 HD e 3 slots de vozes favoritas
+    ok 2 - 1. Configuração inicial adota Google Chirp 3 HD e 3 slots de vozes favoritas
+      ---
+      duration_ms: 0.9178
+      type: 'test'
+      ...
+    # Subtest: 2. 3 Personalidades estão presentes e com diretrizes profissionais (sem agressão/humilhação)
+    ok 3 - 2. 3 Personalidades estão presentes e com diretrizes profissionais (sem agressão/humilhação)
+      ---
+      duration_ms: 1.4123
+      type: 'test'
+      ...
+    # Subtest: 3. Editor de scripts permite atualizar e restaurar o prompt da personalidade
+    ok 4 - 3. Editor de scripts permite atualizar e restaurar o prompt da personalidade
+      ---
+      duration_ms: 2.9419
+      type: 'test'
+      ...
+    # Subtest: 4. Permite configurar individualmente os 3 slots de vozes favoritas
+    ok 5 - 4. Permite configurar individualmente os 3 slots de vozes favoritas
+      ---
+      duration_ms: 1.968
+      type: 'test'
+      ...
+    # Subtest: usa Sirlene como perfil de fallback mesmo quando o perfil global é outro personagem
+    ok 6 - usa Sirlene como perfil de fallback mesmo quando o perfil global é outro personagem
+      ---
+      duration_ms: 3.756
+      type: 'test'
+      ...
+    # Subtest: 5. HOT-SWAP: Troca de voz e personalidade durante ligação ativa é aplicada no próximo turno sem derrubar a chamada
+    ok 7 - 5. HOT-SWAP: Troca de voz e personalidade durante ligação ativa é aplicada no próximo turno sem derrubar a chamada
+      ---
+      duration_ms: 1.5748
+      type: 'test'
+      ...
+    # Subtest: 6. Telemetria fiel por turno acumula tokens, caracteres Chirp e latências
+    ok 8 - 6. Telemetria fiel por turno acumula tokens, caracteres Chirp e latências
+      ---
+      duration_ms: 2.826
+      type: 'test'
+      ...
+    # Subtest: distingue chamadas concluídas que reutilizam o mesmo ID externo
+    ok 9 - distingue chamadas concluídas que reutilizam o mesmo ID externo
+      ---
+      duration_ms: 1.2637
+      type: 'test'
+      ...
+    # Subtest: persiste no histórico o motivo específico de uma interrupção do áudio
+    ok 10 - persiste no histórico o motivo específico de uma interrupção do áudio
+      ---
+      duration_ms: 1.1772
+      type: 'test'
+      ...
+    # Subtest: 7. routeCallAudio utiliza estritamente Google Chirp 3 HD no fluxo de ligação
+    ok 11 - 7. routeCallAudio utiliza estritamente Google Chirp 3 HD no fluxo de ligação
+      ---
+      duration_ms: 5.2126
+      type: 'test'
+      ...
+    # Subtest: 8. getCallsHistoryMetrics agrega estatísticas de hoje e períodos
+    ok 12 - 8. getCallsHistoryMetrics agrega estatísticas de hoje e períodos
+      ---
+      duration_ms: 1.4503
+      type: 'test'
+      ...
+    # Subtest: 9. Matriz Oficial de 4 Personagens x 3 Modos = 12 Perfis Independentes
+    ok 13 - 9. Matriz Oficial de 4 Personagens x 3 Modos = 12 Perfis Independentes
+      ---
+      duration_ms: 0.9224
+      type: 'test'
+      ...
+    # Subtest: 10. Cada perfil permite atualizar e salvar voz, abertura e script de forma 100% isolada
+    ok 14 - 10. Cada perfil permite atualizar e salvar voz, abertura e script de forma 100% isolada
+      ---
+      duration_ms: 0.5786
+      type: 'test'
+      ...
+    # Subtest: 11. HOT-SWAP DOS 12 PERFIS NA MESMA LIGAÇÃO: Mantém conexão, preserva contexto e atualiza script e voz
+    ok 15 - 11. HOT-SWAP DOS 12 PERFIS NA MESMA LIGAÇÃO: Mantém conexão, preserva contexto e atualiza script e voz
+      ---
+      duration_ms: 2.1421
+      type: 'test'
+      ...
+    # Subtest: 12. VALIDAR SYSTEM SCRIPT: Marcadores de teste comprovam alteração do System Prompt no DeepSeek
+    ok 16 - 12. VALIDAR SYSTEM SCRIPT: Marcadores de teste comprovam alteração do System Prompt no DeepSeek
+      ---
+      duration_ms: 0.9402
+      type: 'test'
+      ...
+    1..16
+ok 15 - Motor de Ligações (Call Engine) — Testes Completos
+  ---
+  duration_ms: 41.498
+  type: 'suite'
+  ...
+# Subtest: cleans stale calls but keeps connected and just-started calls
+ok 16 - cleans stale calls but keeps connected and just-started calls
+  ---
+  duration_ms: 7.1975
+  type: 'test'
+  ...
+# Subtest: forgets a missing snapshot when the remote call reappears
+ok 17 - forgets a missing snapshot when the remote call reappears
+  ---
+  duration_ms: 2.5212
+  type: 'test'
+  ...
+# Subtest: does not close sessions when transport lookup fails
+ok 18 - does not close sessions when transport lookup fails
+  ---
+  duration_ms: 2.1176
+  type: 'test'
+  ...
+# Subtest: does not apply an old remote snapshot to a replacement session
+ok 19 - does not apply an old remote snapshot to a replacement session
+  ---
+  duration_ms: 2.0016
+  type: 'test'
+  ...
+# Subtest: requires two missing snapshots for each instance when the transport ID is reused
+ok 20 - requires two missing snapshots for each instance when the transport ID is reused
+  ---
+  duration_ms: 0.8326
+  type: 'test'
+  ...
+# Subtest: keeps a session active when the transport reports its alternate call ID
+ok 21 - keeps a session active when the transport reports its alternate call ID
+  ---
+  duration_ms: 0.5529
+  type: 'test'
+  ...
+# Subtest: ignores a delayed missing snapshot after a newer snapshot found the call active
+ok 22 - ignores a delayed missing snapshot after a newer snapshot found the call active
+  ---
+  duration_ms: 0.9285
+  type: 'test'
+  ...
+# Subtest: End-to-end voice streaming
+    # Subtest: decodes UTF-8 and SSE records across arbitrary network boundaries
+    ok 1 - decodes UTF-8 and SSE records across arbitrary network boundaries
+      ---
+      duration_ms: 189.1964
+      type: 'test'
+      ...
+    # Subtest: preserves decimals, abbreviations and incomplete sentence tails
+    ok 2 - preserves decimals, abbreviations and incomplete sentence tails
+      ---
+      duration_ms: 3.2241
+      type: 'test'
+      ...
+    # Subtest: sends audio to transport before OpenAI finishes generating
+    ok 3 - sends audio to transport before OpenAI finishes generating
+      ---
+      duration_ms: 71.8568
+      type: 'test'
+      ...
+    # Subtest: never invents a filler while waiting for a slow GPT response
+    ok 4 - never invents a filler while waiting for a slow GPT response
+      ---
+      duration_ms: 817.3179
+      type: 'test'
+      ...
+    # Subtest: skips the acknowledgement when the answer is ready first
+    ok 5 - skips the acknowledgement when the answer is ready first
+      ---
+      duration_ms: 2.8203
+      type: 'test'
+      ...
+    # Subtest: cancels both providers when transport reports barge-in; never retries batch
+    ok 6 - cancels both providers when transport reports barge-in; never retries batch
+      ---
+      duration_ms: 1.9361
+      type: 'test'
+      ...
+    # Subtest: does not speak the incomplete tail when token generation is truncated
+    ok 7 - does not speak the incomplete tail when token generation is truncated
+      ---
+      duration_ms: 1.3034
+      type: 'test'
+      ...
+    # Subtest: configures headerless PCM at 16kHz before submitting text to Google
+    ok 8 - configures headerless PCM at 16kHz before submitting text to Google
+      ---
+      duration_ms: 0.4006
+      type: 'test'
+      ...
+    1..8
+ok 23 - End-to-end voice streaming
+  ---
+  duration_ms: 1090.3615
+  type: 'suite'
+  ...
+# Subtest: emits a meaningful clause before the rest of a long sentence is generated
+ok 24 - emits a meaningful clause before the rest of a long sentence is generated
+  ---
+  duration_ms: 2.0682
+  type: 'test'
+  ...
+# Subtest: keeps generated acknowledgements and ellipses with their following thought
+ok 25 - keeps generated acknowledgements and ellipses with their following thought
+  ---
+  duration_ms: 2.6101
+  type: 'test'
+  ...
+# Subtest: does not play a response containing only hesitation or internal stage directions
+ok 26 - does not play a response containing only hesitation or internal stage directions
+  ---
+  duration_ms: 2.2269
+  type: 'test'
+  ...
+# [CALL_ENGINE] 💾 Perfil 'sirlene_normal' (Sirlene / Normal) atualizado por Admin
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=caller-context-inbound, dir=INBOUND, remote=5511999991234
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: caller-context-inbound (+5511 ••••-1234) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA caller-context-inbound por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=caller-context-inbound, dir=INBOUND, remote=5511999991234
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: outbound-normal (Não identificado) | Perfil: Vital / Intenso | Voz: pt-BR-Chirp3-HD-Iapetus
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=outbound-normal, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA outbound-normal por Admin: Vital / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# Subtest: web opening respects explicit toggle and never repeats for empty turns
+ok 27 - web opening respects explicit toggle and never repeats for empty turns
+  ---
+  duration_ms: 2.9547
+  type: 'test'
+  ...
+# Subtest: sound-only annotations do not become conversational turns
+ok 28 - sound-only annotations do not become conversational turns
+  ---
+  duration_ms: 0.643
+  type: 'test'
+  ...
+# Subtest: LID cannot be used as phone; WhatsApp phone device is stripped
+ok 29 - LID cannot be used as phone; WhatsApp phone device is stripped
+  ---
+  duration_ms: 0.5984
+  type: 'test'
+  ...
+# Subtest: caller context is cached only within the call, phone and character
+ok 30 - caller context is cached only within the call, phone and character
+  ---
+  duration_ms: 5.0882
+  type: 'test'
+  ...
+# Subtest: saved personality wins over stale session; missing data is explicit
+ok 31 - saved personality wins over stale session; missing data is explicit
+  ---
+  duration_ms: 0.9669
+  type: 'test'
+  ...
+# Subtest: unidentified WhatsApp callers use the saved prospect script and never a known-client script
+ok 32 - unidentified WhatsApp callers use the saved prospect script and never a known-client script
+  ---
+  duration_ms: 1.2454
+  type: 'test'
+  ...
+# Subtest: temporary lookup failures do not classify known callers as prospects
+ok 33 - temporary lookup failures do not classify known callers as prospects
+  ---
+  duration_ms: 2.2408
+  type: 'test'
+  ...
+# Subtest: inbound greets naturally in Normal once even with fixed opening disabled
+ok 34 - inbound greets naturally in Normal once even with fixed opening disabled
+  ---
+  duration_ms: 7.1344
+  type: 'test'
+  ...
+# Subtest: outbound resets a previously selected Intense profile to Normal
+ok 35 - outbound resets a previously selected Intense profile to Normal
+  ---
+  duration_ms: 2.8648
+  type: 'test'
+  ...
+# Subtest: web context forwards authenticated session without trusting a supplied user id
+ok 36 - web context forwards authenticated session without trusting a supplied user id
+  ---
+  duration_ms: 1.0031
+  type: 'test'
+  ...
+# Subtest: stores a heard utterance before its answer and requests fact extraction once
+ok 37 - stores a heard utterance before its answer and requests fact extraction once
+  ---
+  duration_ms: 77.6514
+  type: 'test'
+  ...
+# Subtest: persistence retries the same id and preserves heard-before-answer ordering
+ok 38 - persistence retries the same id and preserves heard-before-answer ordering
+  ---
+  duration_ms: 321.2301
+  type: 'test'
+  ...
+# Subtest: central style preserves all characters and a future character inherits the default
+ok 39 - central style preserves all characters and a future character inherits the default
+  ---
+  duration_ms: 2.3582
+  type: 'test'
+  ...
+# Subtest: uses only the last five assistant openings; arbitrary user content cannot become rules
+ok 40 - uses only the last five assistant openings; arbitrary user content cannot become rules
+  ---
+  duration_ms: 3.4459
+  type: 'test'
+  ...
+# Subtest: both batch and streaming use the actual central prompt without a second model
+ok 41 - both batch and streaming use the actual central prompt without a second model
+  ---
+  duration_ms: 226.8901
+  type: 'test'
+  ...
+# Subtest: formatting removes stage directions and preserves values, ellipses and units
+ok 42 - formatting removes stage directions and preserves values, ellipses and units
+  ---
+  duration_ms: 4.3431
+  type: 'test'
+  ...
+# Subtest: interrupted history tells the next generation not to repeat the unfinished response
+ok 43 - interrupted history tells the next generation not to repeat the unfinished response
+  ---
+  duration_ms: 1.7553
+  type: 'test'
+  ...
+# Subtest: design deve usar a identidade aprovada da empresa e da versão correta
+ok 44 - design deve usar a identidade aprovada da empresa e da versão correta
+  ---
+  duration_ms: 4.6823
+  type: 'test'
+  ...
+# Subtest: briefing raso ou sem contrato de direção de arte não libera design
+ok 45 - briefing raso ou sem contrato de direção de arte não libera design
+  ---
+  duration_ms: 4.1219
+  type: 'test'
+  ...
+# Subtest: revisão visual não aceita outros arquivos ou um item reprovado
+ok 46 - revisão visual não aceita outros arquivos ou um item reprovado
+  ---
+  duration_ms: 2.0409
+  type: 'test'
+  ...
+# Subtest: relatório técnico não pode ser a legenda para publicar
+ok 47 - relatório técnico não pode ser a legenda para publicar
+  ---
+  duration_ms: 1.7798
+  type: 'test'
+  ...
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 11 bytes, 1ms) para chamada rate-cache
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 11 bytes, 0ms) para chamada rate-cache
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 26 bytes, 0ms) para chamada call-teste-123
+# [GoogleChirp3HDCallTTS] ❌ Falha ao sintetizar voz Chirp 3 HD na chamada call-fail-test: Google Cloud TTS indisponível no momento
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 14 bytes, 0ms) para chamada call-codec-mp3
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (LINEAR16, 17 bytes, 0ms) para chamada call-codec-wav
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 30 bytes, 0ms) para chamada call-pt-BR-Chirp3-HD-Achernar
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Aoede (MP3, 27 bytes, 0ms) para chamada call-pt-BR-Chirp3-HD-Aoede
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Autonoe (MP3, 29 bytes, 0ms) para chamada call-pt-BR-Chirp3-HD-Autonoe
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Despina (MP3, 29 bytes, 0ms) para chamada call-pt-BR-Chirp3-HD-Despina
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-2
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-3
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-4
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-5
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-6
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-7
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-8
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-9
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 16 bytes, 0ms) para chamada call-phrase-10
+# [AUDIO_ROUTER] ❌ Falha crítica no Google Chirp 3 HD para chamada call-fail-test: Google Cloud TTS indisponível no momento
+# [GoogleChirp3HDCallTTS] ❌ Falha ao sintetizar voz Chirp 3 HD na chamada call-err-1: Resource has been exhausted (e.g. check quota)
+# [GoogleChirp3HDCallTTS] ⚡ Áudio gerado com sucesso via pt-BR-Chirp3-HD-Achernar (MP3, 19 bytes, 0ms) para chamada call-autonomo-999
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Aoede' por AdminTeste
+# [GoogleChirp3HDCallTTS] ↩️ Voz de chamadas restaurada para 'pt-BR-Chirp3-HD-Achernar' por AdminTeste
+# Subtest: Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL
+    # Subtest: defaults to WAV 16kHz and rejects invalid sample rates
+    ok 1 - defaults to WAV 16kHz and rejects invalid sample rates
+      ---
+      duration_ms: 6.0581
+      type: 'test'
+      ...
+    # Subtest: does not reuse cached audio generated at a different sample rate
+    ok 2 - does not reuse cached audio generated at a different sample rate
+      ---
+      duration_ms: 10.2847
+      type: 'test'
+      ...
+    # Subtest: TESTE A — CALL: Google Chirp 3 HD é invocado exclusivamente; ElevenLabs e Kokoro não são chamados
+    ok 3 - TESTE A — CALL: Google Chirp 3 HD é invocado exclusivamente; ElevenLabs e Kokoro não são chamados
+      ---
+      duration_ms: 3.0914
+      type: 'test'
+      ...
+    # Subtest: TESTE B — VARIABLE: Fluxo preservado, ElevenLabs executado, Google NÃO chamado
+    ok 4 - TESTE B — VARIABLE: Fluxo preservado, ElevenLabs executado, Google NÃO chamado
+      ---
+      duration_ms: 1.5826
+      type: 'test'
+      ...
+    # Subtest: TESTE C — FIXED: Áudio existente carregado, nenhum arquivo regenerado, Google NÃO chamado
+    ok 5 - TESTE C — FIXED: Áudio existente carregado, nenhum arquivo regenerado, Google NÃO chamado
+      ---
+      duration_ms: 0.8196
+      type: 'test'
+      ...
+    # Subtest: TESTE D — KOKORO: Continua 100% instalado, configurado, vozes e perfis intactos
+    ok 6 - TESTE D — KOKORO: Continua 100% instalado, configurado, vozes e perfis intactos
+      ---
+      duration_ms: 0.5705
+      type: 'test'
+      ...
+    # Subtest: TESTE E — ELEVENLABS: Funções e estruturas existentes continuam intactas
+    ok 7 - TESTE E — ELEVENLABS: Funções e estruturas existentes continuam intactas
+      ---
+      duration_ms: 0.5222
+      type: 'test'
+      ...
+    # Subtest: TESTE F — REMOÇÃO DE KOKORO EM CALL: Falha do Google gera erro claro e NUNCA faz fallback silencioso para Kokoro
+    ok 8 - TESTE F — REMOÇÃO DE KOKORO EM CALL: Falha do Google gera erro claro e NUNCA faz fallback silencioso para Kokoro
+      ---
+      duration_ms: 1.6833
+      type: 'test'
+      ...
+    # Subtest: TESTE G — TRATAMENTO DE ERROS: Erro na API do Google é tratado de forma controlada sem derrubar o sistema
+    ok 9 - TESTE G — TRATAMENTO DE ERROS: Erro na API do Google é tratado de forma controlada sem derrubar o sistema
+      ---
+      duration_ms: 1.8958
+      type: 'test'
+      ...
+    # Subtest: TESTE H — CODEC: Respeita MP3 e LINEAR16/WAV conforme configuração do pipeline
+    ok 10 - TESTE H — CODEC: Respeita MP3 e LINEAR16/WAV conforme configuração do pipeline
+      ---
+      duration_ms: 2.0888
+      type: 'test'
+      ...
+    # Subtest: TESTE I — ISOLAMENTO OBRIGATÓRIO: Rejeita chamadas fora do contexto CALL
+    ok 11 - TESTE I — ISOLAMENTO OBRIGATÓRIO: Rejeita chamadas fora do contexto CALL
+      ---
+      duration_ms: 1.4952
+      type: 'test'
+      ...
+    # Subtest: TESTE J — VOZES: Suporta múltiplas vozes femininas oficiais Chirp 3 HD pt-BR
+    ok 12 - TESTE J — VOZES: Suporta múltiplas vozes femininas oficiais Chirp 3 HD pt-BR
+      ---
+      duration_ms: 2.3426
+      type: 'test'
+      ...
+    # Subtest: TESTE K — FRASES TELEFÔNICAS: Processa as 10 frases oficiais pt-BR com precisão
+    ok 13 - TESTE K — FRASES TELEFÔNICAS: Processa as 10 frases oficiais pt-BR com precisão
+      ---
+      duration_ms: 2.0429
+      type: 'test'
+      ...
+    # Subtest: TESTE M — CREDENCIAIS: Suporta GOOGLE_TTS_CREDENTIALS_B64 em memória
+    ok 14 - TESTE M — CREDENCIAIS: Suporta GOOGLE_TTS_CREDENTIALS_B64 em memória
+      ---
+      duration_ms: 102.6045
+      type: 'test'
+      ...
+    # Subtest: TESTE N — FUNÇÃO AUTÔNOMA: synthesizeCallSpeech() exportada e compatível
+    ok 15 - TESTE N — FUNÇÃO AUTÔNOMA: synthesizeCallSpeech() exportada e compatível
+      ---
+      duration_ms: 1.2063
+      type: 'test'
+      ...
+    # Subtest: TESTE O — DINÂMICO: Altera e restaura voz ativa sem necessidade de reinicialização
+    ok 16 - TESTE O — DINÂMICO: Altera e restaura voz ativa sem necessidade de reinicialização
+      ---
+      duration_ms: 1.8703
+      type: 'test'
+      ...
+    # Subtest: TESTE P — PRÉVIA: previewGoogleCallVoice sintetiza áudio seguro sem gerar ligação real
+    ok 17 - TESTE P — PRÉVIA: previewGoogleCallVoice sintetiza áudio seguro sem gerar ligação real
+      ---
+      duration_ms: 2.4383
+      type: 'test'
+      ...
+    # Subtest: TESTE Q — CUSTOM VOICE: checkInstantCustomVoiceAvailability reporta status sem exceção
+    ok 18 - TESTE Q — CUSTOM VOICE: checkInstantCustomVoiceAvailability reporta status sem exceção
+      ---
+      duration_ms: 2.0503
+      type: 'test'
+      ...
+    # Subtest: TESTE R — LISTAGEM: listAvailableChirp3Voices retorna vozes válidas pt-BR e possui fallback seguro
+    ok 19 - TESTE R — LISTAGEM: listAvailableChirp3Voices retorna vozes válidas pt-BR e possui fallback seguro
+      ---
+      duration_ms: 67.0763
+      type: 'test'
+      ...
+    1..19
+ok 48 - Google Cloud TTS Chirp 3 HD — Suíte de Testes e Isolamento CALL
+  ---
+  duration_ms: 215.5163
+  type: 'suite'
+  ...
+# Subtest: pages reconstruct every character without silently dropping evidence
+ok 49 - pages reconstruct every character without silently dropping evidence
+  ---
+  duration_ms: 27.9298
+  type: 'test'
+  ...
+# Subtest: changed evidence or version invalidates pagination; missing revision and bounds reject
+ok 50 - changed evidence or version invalidates pagination; missing revision and bounds reject
+  ---
+  duration_ms: 11.0093
+  type: 'test'
+  ...
+# Subtest: Kokoro TTS - Verificação de Configuração e Vozes Oficiais
+    # Subtest: isKokoroConfigured retorna true com credenciais padrão
+    ok 1 - isKokoroConfigured retorna true com credenciais padrão
+      ---
+      duration_ms: 1.6665
+      type: 'test'
+      ...
+    # Subtest: getKokoroVoices retorna Kokoro como motor oficial e Pedro como voz padrão
+    ok 2 - getKokoroVoices retorna Kokoro como motor oficial e Pedro como voz padrão
+      ---
+      duration_ms: 0.646
+      type: 'test'
+      ...
+    # Subtest: KOKORO_VOICES possui metadados válidos de gênero e idioma
+    ok 3 - KOKORO_VOICES possui metadados válidos de gênero e idioma
+      ---
+      duration_ms: 0.5148
+      type: 'test'
+      ...
+    # Subtest: KOKORO_OFFICIAL_VOICE_ID está fixado no blend Pedro aprovado
+    ok 4 - KOKORO_OFFICIAL_VOICE_ID está fixado no blend Pedro aprovado
+      ---
+      duration_ms: 4.9499
+      type: 'test'
+      ...
+    1..4
+ok 51 - Kokoro TTS - Verificação de Configuração e Vozes Oficiais
+  ---
+  duration_ms: 12.1662
+  type: 'test'
+  ...
+# Subtest: resamples complete PCM16 frames from 16 to 24 kHz
+ok 52 - resamples complete PCM16 frames from 16 to 24 kHz
+  ---
+  duration_ms: 7.9904
+  type: 'test'
+  ...
+# Subtest: sends audio before commit and consumes the final live transcript
+ok 53 - sends audio before commit and consumes the final live transcript
+  ---
+  duration_ms: 55.8603
+  type: 'test'
+  ...
+# Subtest: R2 requires complete configuration and refuses path traversal or unrelated buckets
+ok 54 - R2 requires complete configuration and refuses path traversal or unrelated buckets
+  ---
+  duration_ms: 9.1178
+  type: 'test'
+  ...
+# Subtest: R2 upload is conditional, signed for only one object and five minutes
+ok 55 - R2 upload is conditional, signed for only one object and five minutes
+  ---
+  duration_ms: 3.4733
+  type: 'test'
+  ...
+# Subtest: official SDK signs the configured path and mandatory no-overwrite header
+ok 56 - official SDK signs the configured path and mandatory no-overwrite header
+  ---
+  duration_ms: 173.3586
+  type: 'test'
+  ...
+# Subtest: R2 retries accept identical content and never overwrite different content
+ok 57 - R2 retries accept identical content and never overwrite different content
+  ---
+  duration_ms: 5.0386
+  type: 'test'
+  ...
+# Subtest: legacy fallback is only for missing objects, never for auth/server failures or verification
+ok 58 - legacy fallback is only for missing objects, never for auth/server failures or verification
+  ---
+  duration_ms: 134.8367
+  type: 'test'
+  ...
+# Subtest: legacy signed URLs use the original logical path without leaking credentials
+ok 59 - legacy signed URLs use the original logical path without leaking credentials
+  ---
+  duration_ms: 4.0178
+  type: 'test'
+  ...
+# Subtest: streaming reads stop above 5 MB
+ok 60 - streaming reads stop above 5 MB
+  ---
+  duration_ms: 1.9058
+  type: 'test'
+  ...
+# Subtest: human media permissions retain company scope and founder-only logo uploads
+ok 61 - human media permissions retain company scope and founder-only logo uploads
+  ---
+  duration_ms: 1.4594
+  type: 'test'
+  ...
+# Subtest: frontend signing refuses unlinked and cross-company assets before issuing URLs
+ok 62 - frontend signing refuses unlinked and cross-company assets before issuing URLs
+  ---
+  duration_ms: 1021.6859
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-01: Helena
+ok 63 - Contrato especifico de AGT-01: Helena
+  ---
+  duration_ms: 1.874
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-02: Laura
+ok 64 - Contrato especifico de AGT-02: Laura
+  ---
+  duration_ms: 0.4609
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-03: Augusto
+ok 65 - Contrato especifico de AGT-03: Augusto
+  ---
+  duration_ms: 0.7676
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-04: Marina
+ok 66 - Contrato especifico de AGT-04: Marina
+  ---
+  duration_ms: 0.9234
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-05: Caio
+ok 67 - Contrato especifico de AGT-05: Caio
+  ---
+  duration_ms: 0.6671
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-06: Clara
+ok 68 - Contrato especifico de AGT-06: Clara
+  ---
+  duration_ms: 0.2133
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-07: Bianca
+ok 69 - Contrato especifico de AGT-07: Bianca
+  ---
+  duration_ms: 0.5086
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-08: Daniel
+ok 70 - Contrato especifico de AGT-08: Daniel
+  ---
+  duration_ms: 0.0842
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-09: Theo
+ok 71 - Contrato especifico de AGT-09: Theo
+  ---
+  duration_ms: 0.4837
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-10: Nina
+ok 72 - Contrato especifico de AGT-10: Nina
+  ---
+  duration_ms: 1.0591
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-11: Ravi
+ok 73 - Contrato especifico de AGT-11: Ravi
+  ---
+  duration_ms: 0.3639
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-12: Maya
+ok 74 - Contrato especifico de AGT-12: Maya
+  ---
+  duration_ms: 0.0672
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-13: Bruno
+ok 75 - Contrato especifico de AGT-13: Bruno
+  ---
+  duration_ms: 0.0339
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-14: Olívia
+ok 76 - Contrato especifico de AGT-14: Olívia
+  ---
+  duration_ms: 0.0322
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-15: Victor
+ok 77 - Contrato especifico de AGT-15: Victor
+  ---
+  duration_ms: 0.0348
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-16: Camila
+ok 78 - Contrato especifico de AGT-16: Camila
+  ---
+  duration_ms: 0.0273
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-17: Isabela
+ok 79 - Contrato especifico de AGT-17: Isabela
+  ---
+  duration_ms: 0.0265
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-18: Pedro
+ok 80 - Contrato especifico de AGT-18: Pedro
+  ---
+  duration_ms: 0.0317
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-19: Renata
+ok 81 - Contrato especifico de AGT-19: Renata
+  ---
+  duration_ms: 0.0304
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-20: Joana
+ok 82 - Contrato especifico de AGT-20: Joana
+  ---
+  duration_ms: 0.0258
+  type: 'test'
+  ...
+# Subtest: Contrato especifico de AGT-21: Felipe
+ok 83 - Contrato especifico de AGT-21: Felipe
+  ---
+  duration_ms: 0.028
+  type: 'test'
+  ...
+# Subtest: Resultado sem conteudo utilizavel ou com evidencia emprestada e recusado
+ok 84 - Resultado sem conteudo utilizavel ou com evidencia emprestada e recusado
+  ---
+  duration_ms: 3.0954
+  type: 'test'
+  ...
+# Subtest: referencia incorreta explica como corrigir sem inventar ou aprovar evidencia
+ok 85 - referencia incorreta explica como corrigir sem inventar ou aprovar evidencia
+  ---
+  duration_ms: 1.4967
+  type: 'test'
+  ...
+# Subtest: Parecer generico ou sobre versao diferente nao aprova a entrega
+ok 86 - Parecer generico ou sobre versao diferente nao aprova a entrega
+  ---
+  duration_ms: 0.9662
+  type: 'test'
+  ...
+# Subtest: Pedido de apenas um story nao exige post; faltas, extras ou duas versoes sao recusados
+ok 87 - Pedido de apenas um story nao exige post; faltas, extras ou duas versoes sao recusados
+  ---
+  duration_ms: 2.391
+  type: 'test'
+  ...
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-rafael_normal (Não identificado) | Perfil: Rafael / Normal | Voz: pt-BR-Chirp3-HD-Achird
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-rafael_normal, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-rafael_normal por Admin: Rafael / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-rafael_firm (Não identificado) | Perfil: Rafael / Firme | Voz: pt-BR-Chirp3-HD-Achird
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-rafael_firm, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-rafael_firm por Admin: Rafael / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-rafael_intense (Não identificado) | Perfil: Rafael / Intenso | Voz: pt-BR-Chirp3-HD-Fenrir
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-rafael_intense, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-rafael_intense por Admin: Rafael / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-sirlene_normal (Não identificado) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-sirlene_normal, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-sirlene_normal por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-sirlene_firm (Não identificado) | Perfil: Sirlene / Firme | Voz: pt-BR-Chirp3-HD-Aoede
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-sirlene_firm, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-sirlene_firm por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-sirlene_intense (Não identificado) | Perfil: Sirlene / Intenso | Voz: pt-BR-Chirp3-HD-Autonoe
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-sirlene_intense, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-sirlene_intense por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-vital_normal (Não identificado) | Perfil: Vital / Normal | Voz: pt-BR-Chirp3-HD-Charon
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-vital_normal, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-vital_normal por Admin: Vital / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-vital_firm (Não identificado) | Perfil: Vital / Firme | Voz: pt-BR-Chirp3-HD-Charon
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-vital_firm, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-vital_firm por Admin: Vital / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-vital_intense (Não identificado) | Perfil: Vital / Intenso | Voz: pt-BR-Chirp3-HD-Iapetus
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-vital_intense, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-vital_intense por Admin: Vital / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-alex_normal (Não identificado) | Perfil: Alex / Normal | Voz: pt-BR-Chirp3-HD-Achird
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-alex_normal, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-alex_normal por Admin: Alex / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-alex_firm (Não identificado) | Perfil: Alex / Firme | Voz: pt-BR-Chirp3-HD-Fenrir
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-alex_firm, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-alex_firm por Admin: Alex / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: silent-alex_intense (Não identificado) | Perfil: Alex / Intenso | Voz: pt-BR-Chirp3-HD-Achird
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=silent-alex_intense, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA silent-alex_intense por Admin: Alex / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por Admin
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por test
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por test
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por test
+# [CALL_ENGINE] 💾 Perfil 'vital_normal' (Vital / Normal) atualizado por test
+# [CALL_ENGINE] 💾 Perfil 'sirlene_normal' (Sirlene / Normal) atualizado por test
+# [CALL_ENGINE] 💾 Perfil 'sirlene_normal' (Sirlene / Normal) atualizado por test
+# Subtest: all profiles greet in Normal and wait for customer before silence nudge
+ok 88 - all profiles greet in Normal and wait for customer before silence nudge
+  ---
+  duration_ms: 16.1891
+  type: 'test'
+  ...
+# Subtest: voice, full script and toggle persist across store reload; reset persists; failed writes do not change runtime
+ok 89 - voice, full script and toggle persist across store reload; reset persists; failed writes do not change runtime
+  ---
+  duration_ms: 5.04
+  type: 'test'
+  ...
+# Subtest: prospect script persists only in the saved Sirlene Normal profile
+ok 90 - prospect script persists only in the saved Sirlene Normal profile
+  ---
+  duration_ms: 1.328
+  type: 'test'
+  ...
+# Subtest: Max authentication: admin
+ok 91 - Max authentication: admin
+  ---
+  duration_ms: 171.7372
+  type: 'test'
+  ...
+# Subtest: Max authentication: expired
+ok 92 - Max authentication: expired
+  ---
+  duration_ms: 1.2641
+  type: 'test'
+  ...
+# Subtest: Max authentication: member
+ok 93 - Max authentication: member
+  ---
+  duration_ms: 0.3653
+  type: 'test'
+  ...
+# Subtest: record_dispatch com AGT-04 registra pedido sem afirmar execução do Hermes
+ok 94 - record_dispatch com AGT-04 registra pedido sem afirmar execução do Hermes
+  ---
+  duration_ms: 36.3686
+  type: 'test'
+  ...
+# Subtest: runtime Grok desativado nao aparece na fila e nao aceita despacho
+ok 95 - runtime Grok desativado nao aparece na fila e nao aceita despacho
+  ---
+  duration_ms: 13.9685
+  type: 'test'
+  ...
+# Subtest: mensagem de despacho Hermes exige entrega e revisao em vez de conclusao legada
+ok 96 - mensagem de despacho Hermes exige entrega e revisao em vez de conclusao legada
+  ---
+  duration_ms: 4.7629
+  type: 'test'
+  ...
+# Subtest: perfil Hermes ativo de outra empresa nao recebe job
+ok 97 - perfil Hermes ativo de outra empresa nao recebe job
+  ---
+  duration_ms: 5.0683
+  type: 'test'
+  ...
+# Subtest: perfil externo divergente nao gera despacho
+ok 98 - perfil externo divergente nao gera despacho
+  ---
+  duration_ms: 1.974
+  type: 'test'
+  ...
+# Subtest: record_dispatch sem dispatcher_agent_id falha na função e nenhuma escrita é feita
+ok 99 - record_dispatch sem dispatcher_agent_id falha na função e nenhuma escrita é feita
+  ---
+  duration_ms: 1.1011
+  type: 'test'
+  ...
+# Subtest: record_dispatch sem dispatcher_agent_id falha na validação do schema MCP e nenhuma escrita é feita
+ok 100 - record_dispatch sem dispatcher_agent_id falha na validação do schema MCP e nenhuma escrita é feita
+  ---
+  duration_ms: 1.9483
+  type: 'test'
+  ...
+# Subtest: record_dispatch com dispatcher_agent_id AGT-17 falha e nenhuma escrita é feita
+ok 101 - record_dispatch com dispatcher_agent_id AGT-17 falha e nenhuma escrita é feita
+  ---
+  duration_ms: 1.4486
+  type: 'test'
+  ...
+# Subtest: record_progress envia motivo, próximo passo e identidade autenticada ao RPC
+ok 102 - record_progress envia motivo, próximo passo e identidade autenticada ao RPC
+  ---
+  duration_ms: 33.91
+  type: 'test'
+  ...
+# Subtest: record_progress recusa usuário sem acesso à empresa antes de chamar o RPC
+ok 103 - record_progress recusa usuário sem acesso à empresa antes de chamar o RPC
+  ---
+  duration_ms: 13.4504
+  type: 'test'
+  ...
+# Subtest: record_progress não declara sucesso quando o banco não confirma event_id
+ok 104 - record_progress não declara sucesso quando o banco não confirma event_id
+  ---
+  duration_ms: 2.5509
+  type: 'test'
+  ...
+# Subtest: record_progress recusa marco sem motivo e não grava
+ok 105 - record_progress recusa marco sem motivo e não grava
+  ---
+  duration_ms: 1.8294
+  type: 'test'
+  ...
+# Subtest: supervisao tecnica exige coordenacao ativa e nao concede execucao alheia
+ok 106 - supervisao tecnica exige coordenacao ativa e nao concede execucao alheia
+  ---
+  duration_ms: 3.7459
+  type: 'test'
+  ...
+# Subtest: matriz AGT-01: leitura, escopo, coordenacao e conclusao direta
+ok 107 - matriz AGT-01: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.3358
+  type: 'test'
+  ...
+# Subtest: matriz AGT-02: leitura, escopo, coordenacao e conclusao direta
+ok 108 - matriz AGT-02: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1067
+  type: 'test'
+  ...
+# Subtest: matriz AGT-03: leitura, escopo, coordenacao e conclusao direta
+ok 109 - matriz AGT-03: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1739
+  type: 'test'
+  ...
+# Subtest: matriz AGT-04: leitura, escopo, coordenacao e conclusao direta
+ok 110 - matriz AGT-04: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.2474
+  type: 'test'
+  ...
+# Subtest: matriz AGT-05: leitura, escopo, coordenacao e conclusao direta
+ok 111 - matriz AGT-05: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.2147
+  type: 'test'
+  ...
+# Subtest: matriz AGT-06: leitura, escopo, coordenacao e conclusao direta
+ok 112 - matriz AGT-06: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.2201
+  type: 'test'
+  ...
+# Subtest: matriz AGT-07: leitura, escopo, coordenacao e conclusao direta
+ok 113 - matriz AGT-07: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1656
+  type: 'test'
+  ...
+# Subtest: matriz AGT-08: leitura, escopo, coordenacao e conclusao direta
+ok 114 - matriz AGT-08: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.4193
+  type: 'test'
+  ...
+# Subtest: matriz AGT-09: leitura, escopo, coordenacao e conclusao direta
+ok 115 - matriz AGT-09: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.4513
+  type: 'test'
+  ...
+# Subtest: matriz AGT-10: leitura, escopo, coordenacao e conclusao direta
+ok 116 - matriz AGT-10: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.3087
+  type: 'test'
+  ...
+# Subtest: matriz AGT-11: leitura, escopo, coordenacao e conclusao direta
+ok 117 - matriz AGT-11: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1331
+  type: 'test'
+  ...
+# Subtest: matriz AGT-12: leitura, escopo, coordenacao e conclusao direta
+ok 118 - matriz AGT-12: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.916
+  type: 'test'
+  ...
+# Subtest: matriz AGT-13: leitura, escopo, coordenacao e conclusao direta
+ok 119 - matriz AGT-13: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1416
+  type: 'test'
+  ...
+# Subtest: matriz AGT-14: leitura, escopo, coordenacao e conclusao direta
+ok 120 - matriz AGT-14: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1112
+  type: 'test'
+  ...
+# Subtest: matriz AGT-15: leitura, escopo, coordenacao e conclusao direta
+ok 121 - matriz AGT-15: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1093
+  type: 'test'
+  ...
+# Subtest: matriz AGT-16: leitura, escopo, coordenacao e conclusao direta
+ok 122 - matriz AGT-16: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1047
+  type: 'test'
+  ...
+# Subtest: matriz AGT-17: leitura, escopo, coordenacao e conclusao direta
+ok 123 - matriz AGT-17: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1028
+  type: 'test'
+  ...
+# Subtest: matriz AGT-18: leitura, escopo, coordenacao e conclusao direta
+ok 124 - matriz AGT-18: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1059
+  type: 'test'
+  ...
+# Subtest: matriz AGT-19: leitura, escopo, coordenacao e conclusao direta
+ok 125 - matriz AGT-19: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1019
+  type: 'test'
+  ...
+# Subtest: matriz AGT-20: leitura, escopo, coordenacao e conclusao direta
+ok 126 - matriz AGT-20: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1734
+  type: 'test'
+  ...
+# Subtest: matriz AGT-21: leitura, escopo, coordenacao e conclusao direta
+ok 127 - matriz AGT-21: leitura, escopo, coordenacao e conclusao direta
+  ---
+  duration_ms: 0.1154
+  type: 'test'
+  ...
+# Subtest: token individual exige hash unico e formato forte
+ok 128 - token individual exige hash unico e formato forte
+  ---
+  duration_ms: 1.05
+  type: 'test'
+  ...
+# Subtest: registro de credenciais consulta somente hash e exige unicidade; falha fecha acesso
+ok 129 - registro de credenciais consulta somente hash e exige unicidade; falha fecha acesso
+  ---
+  duration_ms: 0.5457
+  type: 'test'
+  ...
+# Subtest: identidade ausente ou OAuth comum nao pode se passar por bot
+ok 130 - identidade ausente ou OAuth comum nao pode se passar por bot
+  ---
+  duration_ms: 0.1762
+  type: 'test'
+  ...
+# Subtest: fundador autenticado preserva operacoes administrativas
+ok 131 - fundador autenticado preserva operacoes administrativas
+  ---
+  duration_ms: 0.1559
+  type: 'test'
+  ...
+# Subtest: perfil configurado mas inativo e recusado
+ok 132 - perfil configurado mas inativo e recusado
+  ---
+  duration_ms: 0.1458
+  type: 'test'
+  ...
+# Subtest: perfil pessoal nao executa fila empresarial
+ok 133 - perfil pessoal nao executa fila empresarial
+  ---
+  duration_ms: 0.098
+  type: 'test'
+  ...
+# Subtest: somente Helena ou Marina podem revisar briefings devolvidos
+ok 134 - somente Helena ou Marina podem revisar briefings devolvidos
+  ---
+  duration_ms: 0.1272
+  type: 'test'
+  ...
+# Subtest: especialista assume apenas seu job na sua empresa
+ok 135 - especialista assume apenas seu job na sua empresa
+  ---
+  duration_ms: 0.4186
+  type: 'test'
+  ...
+# Subtest: consultas de especialista recebem filtro do servidor
+ok 136 - consultas de especialista recebem filtro do servidor
+  ---
+  duration_ms: 0.4184
+  type: 'test'
+  ...
+# Subtest: Marina enxerga equipe da propria empresa sem assumir trabalho alheio
+ok 137 - Marina enxerga equipe da propria empresa sem assumir trabalho alheio
+  ---
+  duration_ms: 0.2572
+  type: 'test'
+  ...
+# Subtest: especialista nao despacha nem cria fila automatica
+ok 138 - especialista nao despacha nem cria fila automatica
+  ---
+  duration_ms: 0.1445
+  type: 'test'
+  ...
+# Subtest: Helena supervisiona empresas sem executar pelo agente especialista
+ok 139 - Helena supervisiona empresas sem executar pelo agente especialista
+  ---
+  duration_ms: 0.1372
+  type: 'test'
+  ...
+# Subtest: workflow exige escopo empresarial e coordenacao para liberar
+ok 140 - workflow exige escopo empresarial e coordenacao para liberar
+  ---
+  duration_ms: 0.2516
+  type: 'test'
+  ...
+# Subtest: revisor designado pode consultar entrega sem assumir identidade do autor
+ok 141 - revisor designado pode consultar entrega sem assumir identidade do autor
+  ---
+  duration_ms: 0.2181
+  type: 'test'
+  ...
+# Subtest: artes so podem ser preparadas pelo proprio executor com job RUNNING
+ok 142 - artes so podem ser preparadas pelo proprio executor com job RUNNING
+  ---
+  duration_ms: 0.5428
+  type: 'test'
+  ...
+# Subtest: renderizacao vetorial e exclusiva da Maya, mesmo se outro perfil conhecer o campo SVG
+ok 143 - renderizacao vetorial e exclusiva da Maya, mesmo se outro perfil conhecer o campo SVG
+  ---
+  duration_ms: 0.1312
+  type: 'test'
+  ...
+# Subtest: submit_work funciona nos transportes reais e usa apenas a memoria retornada pelo banco
+ok 144 - submit_work funciona nos transportes reais e usa apenas a memoria retornada pelo banco
+  ---
+  duration_ms: 607.94
+  type: 'test'
+  ...
+# Subtest: submit_work rejeita arquivo nao verificado antes de criar memoria
+ok 145 - submit_work rejeita arquivo nao verificado antes de criar memoria
+  ---
+  duration_ms: 26.5556
+  type: 'test'
+  ...
+# Subtest: get_visual_asset retorna pixels e grava recibo com UUID valido para o banco real
+ok 146 - get_visual_asset retorna pixels e grava recibo com UUID valido para o banco real
+  ---
+  duration_ms: 288.4051
+  type: 'test'
+  ...
+# Subtest: resolve_job_block impede executor de desbloquear e aceita coordenacao autenticada
+ok 147 - resolve_job_block impede executor de desbloquear e aceita coordenacao autenticada
+  ---
+  duration_ms: 18.5485
+  type: 'test'
+  ...
+# Subtest: revise_task_brief nao fica disponivel para especialista comum nem chega ao RPC
+ok 148 - revise_task_brief nao fica disponivel para especialista comum nem chega ao RPC
+  ---
+  duration_ms: 9.036
+  type: 'test'
+  ...
+# Subtest: briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria
+ok 149 - briefing carrega apenas fontes explicitamente citadas e aprovadas, sem virar evidencia propria
+  ---
+  duration_ms: 56.8521
+  type: 'test'
+  ...
+# Subtest: mcp: job de outra empresa nao chega a RPC
+ok 150 - mcp: job de outra empresa nao chega a RPC
+  ---
+  duration_ms: 7.2524
+  type: 'test'
+  ...
+# Subtest: mcp: escopo vem da credencial e perfil pausado bloqueia
+ok 151 - mcp: escopo vem da credencial e perfil pausado bloqueia
+  ---
+  duration_ms: 13.8797
+  type: 'test'
+  ...
+# Subtest: direct: job de outra empresa nao chega a RPC
+ok 152 - direct: job de outra empresa nao chega a RPC
+  ---
+  duration_ms: 6.3211
+  type: 'test'
+  ...
+# Subtest: direct: escopo vem da credencial e perfil pausado bloqueia
+ok 153 - direct: escopo vem da credencial e perfil pausado bloqueia
+  ---
+  duration_ms: 10.8439
+  type: 'test'
+  ...
+# Subtest: rest: job de outra empresa nao chega a RPC
+ok 154 - rest: job de outra empresa nao chega a RPC
+  ---
+  duration_ms: 7.535
+  type: 'test'
+  ...
+# Subtest: rest: escopo vem da credencial e perfil pausado bloqueia
+ok 155 - rest: escopo vem da credencial e perfil pausado bloqueia
+  ---
+  duration_ms: 9.0379
+  type: 'test'
+  ...
+# Subtest: falha nao declara sucesso se RPC nao mudou registro
+ok 156 - falha nao declara sucesso se RPC nao mudou registro
+  ---
+  duration_ms: 9.5021
+  type: 'test'
+  ...
+# Subtest: detalhe do job identifica runtime Hermes atual sem consultar conexao Grok
+ok 157 - detalhe do job identifica runtime Hermes atual sem consultar conexao Grok
+  ---
+  duration_ms: 6.367
+  type: 'test'
+  ...
+# Subtest: revisora le somente memoria submetida deste job e empresa
+ok 158 - revisora le somente memoria submetida deste job e empresa
+  ---
+  duration_ms: 8.8648
+  type: 'test'
+  ...
+# Subtest: handoff comprovado entrega a evidencia do pai aprovado antes da execucao
+ok 159 - handoff comprovado entrega a evidencia do pai aprovado antes da execucao
+  ---
+  duration_ms: 35.2757
+  type: 'test'
+  ...
+# Subtest: descoberta MCP publica parametros necessarios para cliente Hermes
+ok 160 - descoberta MCP publica parametros necessarios para cliente Hermes
+  ---
+  duration_ms: 6.7103
+  type: 'test'
+  ...
+# Subtest: paginated job uses identical authorization and supplies complete evidence with version
+ok 161 - paginated job uses identical authorization and supplies complete evidence with version
+  ---
+  duration_ms: 47.2076
+  type: 'test'
+  ...
+# Subtest: Hermes nao consegue concluir sem revisao
+ok 162 - Hermes nao consegue concluir sem revisao
+  ---
+  duration_ms: 8.3682
+  type: 'test'
+  ...
+# Subtest: workflow HTTP passa identidade do token e chave de idempotencia ao Supabase
+ok 163 - workflow HTTP passa identidade do token e chave de idempotencia ao Supabase
+  ---
+  duration_ms: 13.3186
+  type: 'test'
+  ...
+# Subtest: Maya prepara e confirma PNG apenas no proprio job e empresa
+ok 164 - Maya prepara e confirma PNG apenas no proprio job e empresa
+  ---
+  duration_ms: 402.2405
+  type: 'test'
+  ...
+# Subtest: Maya converte SVG autorizado, armazena PNG privado e registra verificacao
+ok 165 - Maya converte SVG autorizado, armazena PNG privado e registra verificacao
+  ---
+  duration_ms: 104076.8979
+  type: 'test'
+  ...
+# Subtest: arquivo citado sem verificacao nao segue para revisao
+ok 166 - arquivo citado sem verificacao nao segue para revisao
+  ---
+  duration_ms: 442.414
+  type: 'test'
+  ...
+# Subtest: TypeSafe off or missing key never calls provider or writes audit
+ok 167 - TypeSafe off or missing key never calls provider or writes audit
+  ---
+  duration_ms: 1.8636
+  type: 'test'
+  ...
+# Subtest: TypeSafe batches four questions and sends only whitelisted task context
+ok 168 - TypeSafe batches four questions and sends only whitelisted task context
+  ---
+  duration_ms: 78.3597
+  type: 'test'
+  ...
+# Subtest: repeated release and process restart reuse persisted result without provider call
+ok 169 - repeated release and process restart reuse persisted result without provider call
+  ---
+  duration_ms: 2.7364
+  type: 'test'
+  ...
+# Subtest: release records route against the post-release task version and briefing hash
+ok 170 - release records route against the post-release task version and briefing hash
+  ---
+  duration_ms: 1.6121
+  type: 'test'
+  ...
+# Subtest: changed briefing after release cannot record stale model advice
+ok 171 - changed briefing after release cannot record stale model advice
+  ---
+  duration_ms: 1.5659
+  type: 'test'
+  ...
+# Subtest: concurrent instances reserve one call for the same immutable briefing
+ok 172 - concurrent instances reserve one call for the same immutable briefing
+  ---
+  duration_ms: 1.4607
+  type: 'test'
+  ...
+# Subtest: shared daily slots cap calls across processes and different jobs
+ok 173 - shared daily slots cap calls across processes and different jobs
+  ---
+  duration_ms: 1.3446
+  type: 'test'
+  ...
+# Subtest: scope and version violations cannot disclose a task or spend tokens
+ok 174 - scope and version violations cannot disclose a task or spend tokens
+  ---
+  duration_ms: 1.36
+  type: 'test'
+  ...
+# Subtest: changed task during provider call rejects release
+ok 175 - changed task during provider call rejects release
+  ---
+  duration_ms: 3.0404
+  type: 'test'
+  ...
+# Subtest: provider failure is recorded once, redacted, and never automatically retried
+ok 176 - provider failure is recorded once, redacted, and never automatically retried
+  ---
+  duration_ms: 179.5601
+  type: 'test'
+  ...
+# Subtest: missing audit, excessive input and credential-like content cannot call provider
+ok 177 - missing audit, excessive input and credential-like content cannot call provider
+  ---
+  duration_ms: 1.7868
+  type: 'test'
+  ...
+# Subtest: invalid probability, missing answers, usage and model changes are rejected
+ok 178 - invalid probability, missing answers, usage and model changes are rejected
+  ---
+  duration_ms: 0.7359
+  type: 'test'
+  ...
+# Subtest: uncertainty recommends manager review without granting approval
+ok 179 - uncertainty recommends manager review without granting approval
+  ---
+  duration_ms: 0.0967
+  type: 'test'
+  ...
+# Subtest: Jev complexity maps to the approved model only with sufficient confidence
+ok 180 - Jev complexity maps to the approved model only with sufficient confidence
+  ---
+  duration_ms: 0.1393
+  type: 'test'
+  ...
+# Subtest: workflow validates briefing before Jev, keeps shadow advisory and returns audit summary
+ok 181 - workflow validates briefing before Jev, keeps shadow advisory and returns audit summary
+  ---
+  duration_ms: 7.5619
+  type: 'test'
+  ...
+# Subtest: workflow records the route only after release RPC succeeds
+ok 182 - workflow records the route only after release RPC succeeds
+  ---
+  duration_ms: 1.9519
+  type: 'test'
+  ...
+# Subtest: a stale task prevents workflow RPC even after a valid Jev answer
+ok 183 - a stale task prevents workflow RPC even after a valid Jev answer
+  ---
+  duration_ms: 1.3248
+  type: 'test'
+  ...
+# Subtest: verified bytes become image content instead of encoded text for the model
+ok 184 - verified bytes become image content instead of encoded text for the model
+  ---
+  duration_ms: 59.9019
+  type: 'test'
+  ...
+# Subtest: cross-company, arbitrary URLs and unverified or changed image bytes are refused
+ok 185 - cross-company, arbitrary URLs and unverified or changed image bytes are refused
+  ---
+  duration_ms: 2.8103
+  type: 'test'
+  ...
+# Subtest: logo uses only the current approved private brand asset of the job company
+ok 186 - logo uses only the current approved private brand asset of the job company
+  ---
+  duration_ms: 1.6135
+  type: 'test'
+  ...
+# Subtest: pixels retain existing per-job read scope: owner, designated reviewer and coordinators
+ok 187 - pixels retain existing per-job read scope: owner, designated reviewer and coordinators
+  ---
+  duration_ms: 0.569
+  type: 'test'
+  ...
+# [VOICE_AGENT] Supabase indisponível; usando a última configuração carregada.
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: TERMINATION-REGRESSION (Não identificado) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=TERMINATION-REGRESSION, reason=remote_hangup
+# [CALL_ENGINE] 🏁 Chamada TERMINATION-REGRESSION encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=TERMINATION-REGRESSION, reason=undefined
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Charon' por Teste de ligação WhatsApp
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'rafael_normal' para 'vital_normal' (Vital / Normal) por Teste de ligação WhatsApp
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: inbound-sirlene-1790860354260 (Não identificado) | Perfil: Vital / Normal | Voz: pt-BR-Chirp3-HD-Charon
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=inbound-sirlene-1790860354260, dir=INBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA inbound-sirlene-1790860354260 por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] 🏁 Chamada inbound-sirlene-1790860354260 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [GoogleChirp3HDCallTTS] 🔄 Voz de chamadas atualizada dinamicamente para 'pt-BR-Chirp3-HD-Achird' por Restauração de teste
+# [CALL_ENGINE] 👑 Perfil padrão de novas chamadas alterado de 'vital_normal' para 'rafael_normal' (Rafael / Normal) por Restauração de teste
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: duplicate-connected-INBOUND-1790860354264 (Não identificado) | Perfil: Vital / Intenso | Voz: pt-BR-Chirp3-HD-Iapetus
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=duplicate-connected-INBOUND-1790860354264, dir=INBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA duplicate-connected-INBOUND-1790860354264 por Admin: Sirlene / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achernar)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA duplicate-connected-INBOUND-1790860354264 por Admin: Vital / Firme ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=duplicate-connected-INBOUND-1790860354264, dir=INBOUND, remote=undefined
+# [CALL_ENGINE] 🏁 Chamada duplicate-connected-INBOUND-1790860354264 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: duplicate-connected-OUTBOUND-1790860354264 (Não identificado) | Perfil: Alex / Intenso | Voz: pt-BR-Chirp3-HD-Achird
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=duplicate-connected-OUTBOUND-1790860354264, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA duplicate-connected-OUTBOUND-1790860354264 por Admin: Alex / Normal ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Achird)
+# [CALL_ENGINE] ⚡ HOT-SWAP NA CHAMADA duplicate-connected-OUTBOUND-1790860354264 por Admin: Rafael / Intenso ativo imediatamente. (Voz: pt-BR-Chirp3-HD-Charon)
+# [VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=duplicate-connected-OUTBOUND-1790860354264, dir=OUTBOUND, remote=undefined
+# [CALL_ENGINE] 🏁 Chamada duplicate-connected-OUTBOUND-1790860354264 encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: ALIAS-FIRST (+5511 ••••-0000) | Perfil: Sirlene / Normal | Voz: pt-BR-Chirp3-HD-Achernar
+# [CALL_ENGINE] 🏁 Chamada ALIAS-SECOND encerrada. Duração: 0s | Turnos: 0 | Tokens: 0 | Chars: 0 | Latência Média: 0ms
+# Subtest: transcribes call audio with OpenAI and never contacts ElevenLabs
+ok 188 - transcribes call audio with OpenAI and never contacts ElevenLabs
+  ---
+  duration_ms: 436.0435
+  type: 'test'
+  ...
+# Subtest: keeps Google as the call voice provider when old settings arrive
+ok 189 - keeps Google as the call voice provider when old settings arrive
+  ---
+  duration_ms: 0.5235
+  type: 'test'
+  ...
+# Subtest: Conversational delivery regressions
+    # Subtest: keeps four exchanges and does not repeat the current user message
+    ok 1 - keeps four exchanges and does not repeat the current user message
+      ---
+      duration_ms: 0.8396
+      type: 'test'
+      ...
+    # Subtest: rejects truncated or filtered answers without stripping punctuation
+    ok 2 - rejects truncated or filtered answers without stripping punctuation
+      ---
+      duration_ms: 0.2446
+      type: 'test'
+      ...
+    # Subtest: uses GPT with the active profile
+    ok 3 - uses GPT with the active profile
+      ---
+      duration_ms: 2.144
+      type: 'test'
+      ...
+    # Subtest: does not call DeepSeek for a legacy provider value
+    ok 4 - does not call DeepSeek for a legacy provider value
+      ---
+      duration_ms: 0.4763
+      type: 'test'
+      ...
+    1..4
+ok 190 - Conversational delivery regressions
+  ---
+  duration_ms: 4.4102
+  type: 'suite'
+  ...
+# Subtest: Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition
+    # Subtest: Configuração inicial contém o catálogo completo da Max Nutrition
+    ok 1 - Configuração inicial contém o catálogo completo da Max Nutrition
+      ---
+      duration_ms: 0.8726
+      type: 'test'
+      ...
+    # Subtest: Gera resposta sobre creatina com foco em vendas e brevidade para telefone
+    ok 2 - Gera resposta sobre creatina com foco em vendas e brevidade para telefone
+      ---
+      duration_ms: 1.7045
+      type: 'test'
+      ...
+    # Subtest: Gera resposta sobre frete grátis com as regras oficiais (R$ 199)
+    ok 3 - Gera resposta sobre frete grátis com as regras oficiais (R$ 199)
+      ---
+      duration_ms: 1.45
+      type: 'test'
+      ...
+    # Subtest: Gera resposta sobre pagamento informando Pix com desconto
+    ok 4 - Gera resposta sobre pagamento informando Pix com desconto
+      ---
+      duration_ms: 0.8551
+      type: 'test'
+      ...
+    # Subtest: Permite atualizar o "comando gigante" de conhecimento e a persona
+    ok 5 - Permite atualizar o "comando gigante" de conhecimento e a persona
+      ---
+      duration_ms: 0.3307
+      type: 'test'
+      ...
+    # Subtest: getCallHistory retorna histórico vazio inicial e persiste diálogos
+    ok 6 - getCallHistory retorna histórico vazio inicial e persiste diálogos
+      ---
+      duration_ms: 0.8284
+      type: 'test'
+      ...
+    # Subtest: Configuração padrão adota OPENAI e modelo gpt-6-luna
+    ok 7 - Configuração padrão adota OPENAI e modelo gpt-6-luna
+      ---
+      duration_ms: 0.5436
+      type: 'test'
+      ...
+    # Subtest: mantém GPT mesmo quando chegam configurações antigas de outro provedor
+    ok 8 - mantém GPT mesmo quando chegam configurações antigas de outro provedor
+      ---
+      duration_ms: 0.98
+      type: 'test'
+      ...
+    # Subtest: resolveAiApiKey usa somente a chave OpenAI
+    ok 9 - resolveAiApiKey usa somente a chave OpenAI
+      ---
+      duration_ms: 0.8691
+      type: 'test'
+      ...
+    # Subtest: falha na leitura administrativa mas mantém a configuração em cache para chamadas
+    ok 10 - falha na leitura administrativa mas mantém a configuração em cache para chamadas
+      ---
+      duration_ms: 2.1067
+      type: 'test'
+      ...
+    # Subtest: nunca entrega uma credencial de outro provedor ao modelo selecionado
+    ok 11 - nunca entrega uma credencial de outro provedor ao modelo selecionado
+      ---
+      duration_ms: 0.619
+      type: 'test'
+      ...
+    # Subtest: sem leitura inicial do Supabase recusa atendimento com configuração padrão
+    ok 12 - sem leitura inicial do Supabase recusa atendimento com configuração padrão
+      ---
+      duration_ms: 0.2865
+      type: 'test'
+      ...
+    1..12
+ok 191 - Voice Agent & Knowledge Base — Atendente Pedro Max Nutrition
+  ---
+  duration_ms: 12.8435
+  type: 'suite'
+  ...
+# Subtest: OpenAI uses only OPENAI_API_KEY even when a legacy DeepSeek key is configured
+ok 192 - OpenAI uses only OPENAI_API_KEY even when a legacy DeepSeek key is configured
+  ---
+  duration_ms: 0.4151
+  type: 'test'
+  ...
+# Subtest: ends a registered call and ignores repeated termination events
+ok 193 - ends a registered call and ignores repeated termination events
+  ---
+  duration_ms: 6.0022
+  type: 'test'
+  ...
+# Subtest: answers inbound WhatsApp calls as Sirlene even when the global or preloaded profile is another character
+ok 194 - answers inbound WhatsApp calls as Sirlene even when the global or preloaded profile is another character
+  ---
+  duration_ms: 3.7373
+  type: 'test'
+  ...
+# Subtest: keeps selected outbound characters and hot-swapped profiles on duplicate connected webhooks
+ok 195 - keeps selected outbound characters and hot-swapped profiles on duplicate connected webhooks
+  ---
+  duration_ms: 1.124
+  type: 'test'
+  ...
+# Subtest: removes every alias of an ended session
+ok 196 - removes every alias of an ended session
+  ---
+  duration_ms: 0.5629
+  type: 'test'
+  ...
+# [CALL_ENGINE] 🟢 Chamada registrada no runtime quente: nonblocking-history (Não identificado) | Perfil: Vital / Normal | Voz: pt-BR-Chirp3-HD-Charon
+# [VOICE_AGENT] 🎙️ Recebido turno de fala do cliente na chamada nonblocking-history (STT ao vivo)
+# [VOICE_AGENT] 🗣️ Cliente disse na chamada nonblocking-history: "Olá"
+# Subtest: a blocked history write does not block GPT, Google or playback
+ok 197 - a blocked history write does not block GPT, Google or playback
+  ---
+  duration_ms: 156.12
+  type: 'test'
+  ...
+# Subtest: waiting_helena usa os parâmetros reais do RPC e confirma a transição
+ok 198 - waiting_helena usa os parâmetros reais do RPC e confirma a transição
+  ---
+  duration_ms: 9.4346
+  type: 'test'
+  ...
+# Subtest: waiting_helena recusa usuário sem acesso à empresa antes de chamar o RPC
+ok 199 - waiting_helena recusa usuário sem acesso à empresa antes de chamar o RPC
+  ---
+  duration_ms: 2.4344
+  type: 'test'
+  ...
+# Subtest: waiting_helena não declara sucesso se o banco não mudar o status
+ok 200 - waiting_helena não declara sucesso se o banco não mudar o status
+  ---
+  duration_ms: 1.2657
+  type: 'test'
+  ...
+# Subtest: (a) identidade padrão é neutra e não afirma Max Nutrition
+ok 201 - (a) identidade padrão é neutra e não afirma Max Nutrition
+  ---
+  duration_ms: 2.346
+  type: 'test'
+  ...
+# Subtest: (a) placeholder CONFIGURAR_SOMENTE_NO_EASYPANEL conta como não configurado
+ok 202 - (a) placeholder CONFIGURAR_SOMENTE_NO_EASYPANEL conta como não configurado
+  ---
+  duration_ms: 0.8661
+  type: 'test'
+  ...
+# Subtest: (a) só marca sem id: texto continua neutro (não afirma marca sem business_id)
+ok 203 - (a) só marca sem id: texto continua neutro (não afirma marca sem business_id)
+  ---
+  duration_ms: 0.8807
+  type: 'test'
+  ...
+# Subtest: (a) só business_id sem marca: grava o id e não inventa nome de marca
+ok 204 - (a) só business_id sem marca: grava o id e não inventa nome de marca
+  ---
+  duration_ms: 0.9855
+  type: 'test'
+  ...
+# Subtest: (a) par completo: texto e id coerentes
+ok 205 - (a) par completo: texto e id coerentes
+  ---
+  duration_ms: 0.5029
+  type: 'test'
+  ...
+# Subtest: (b) tabela única: opção 1 = Victor AGT-15
+ok 206 - (b) tabela única: opção 1 = Victor AGT-15
+  ---
+  duration_ms: 0.5839
+  type: 'test'
+  ...
+# Subtest: (b) tabela única: opção 2 = Joana AGT-20
+ok 207 - (b) tabela única: opção 2 = Joana AGT-20
+  ---
+  duration_ms: 0.5314
+  type: 'test'
+  ...
+# Subtest: (b) tabela única: opção 3 = Caio AGT-05 (não AGT-04 / Marina)
+ok 208 - (b) tabela única: opção 3 = Caio AGT-05 (não AGT-04 / Marina)
+  ---
+  duration_ms: 1.7677
+  type: 'test'
+  ...
+# Subtest: (b) tabela única: opção 4 = Marina AGT-04 (não Helena AGT-01)
+ok 209 - (b) tabela única: opção 4 = Marina AGT-04 (não Helena AGT-01)
+  ---
+  duration_ms: 0.5068
+  type: 'test'
+  ...
+# Subtest: (b) classificação Laya VENDAS (sem dígito) usa a mesma tabela (Victor)
+ok 210 - (b) classificação Laya VENDAS (sem dígito) usa a mesma tabela (Victor)
+  ---
+  duration_ms: 0.5336
+  type: 'test'
+  ...
+# Subtest: (b) cada opção da tabela tem agent_id e agent_name alinhados ao diretório
+ok 211 - (b) cada opção da tabela tem agent_id e agent_name alinhados ao diretório
+  ---
+  duration_ms: 0.2572
+  type: 'test'
+  ...
+# Subtest: (c) textos não prometem retorno em instantes nem prazo automático
+ok 212 - (c) textos não prometem retorno em instantes nem prazo automático
+  ---
+  duration_ms: 0.7734
+  type: 'test'
+  ...
+# Subtest: (c) debounce: mesma resposta ao mesmo número na janela é ignorada
+ok 213 - (c) debounce: mesma resposta ao mesmo número na janela é ignorada
+  ---
+  duration_ms: 0.8637
+  type: 'test'
+  ...
+# Subtest: creates durable memory and binds findings without agent-supplied IDs
+ok 214 - creates durable memory and binds findings without agent-supplied IDs
+  ---
+  duration_ms: 10.7503
+  type: 'test'
+  ...
+# Subtest: identical replay after completion uses the two durable receipts
+ok 215 - identical replay after completion uses the two durable receipts
+  ---
+  duration_ms: 3.4623
+  type: 'test'
+  ...
+# Subtest: interruption after memory recovers without duplicated memory or autoapproval
+ok 216 - interruption after memory recovers without duplicated memory or autoapproval
+  ---
+  duration_ms: 2.5151
+  type: 'test'
+  ...
+# Subtest: changed content or version with reused key is rejected before delivery
+ok 217 - changed content or version with reused key is rejected before delivery
+  ---
+  duration_ms: 10.0255
+  type: 'test'
+  ...
+# Subtest: scope and stale version remain enforced by the database
+ok 218 - scope and stale version remain enforced by the database
+  ---
+  duration_ms: 3.4917
+  type: 'test'
+  ...
+# Subtest: invalid content, repeated criteria and artifact references fail before writes
+ok 219 - invalid content, repeated criteria and artifact references fail before writes
+  ---
+  duration_ms: 1.5128
+  type: 'test'
+  ...
+# Subtest: missing verified identity and unconfirmed memory never trigger submission
+ok 220 - missing verified identity and unconfirmed memory never trigger submission
+  ---
+  duration_ms: 0.8863
+  type: 'test'
+  ...
+# Subtest: new workflow exposes findings without requesting evidence identifiers
+ok 221 - new workflow exposes findings without requesting evidence identifiers
+  ---
+  duration_ms: 8.914
+  type: 'test'
+  ...
+# Subtest: continuity bookkeeping remains coordinator-only and personal scope is excluded
+ok 222 - continuity bookkeeping remains coordinator-only and personal scope is excluded
+  ---
+  duration_ms: 4.7951
+  type: 'test'
+  ...
+# Subtest: discovery preserves the authoritative profile, cutoff and bounded pagination
+ok 223 - discovery preserves the authoritative profile, cutoff and bounded pagination
+  ---
+  duration_ms: 7.1294
+  type: 'test'
+  ...
+# Subtest: reserve requires a complete snapshot and cannot modify a job or retry budget
+ok 224 - reserve requires a complete snapshot and cannot modify a job or retry budget
+  ---
+  duration_ms: 7.7555
+  type: 'test'
+  ...
+# Subtest: journal failure is closed and an unconfirmed reservation is never invented
+ok 225 - journal failure is closed and an unconfirmed reservation is never invented
+  ---
+  duration_ms: 2.0012
+  type: 'test'
+  ...
+# Subtest: workflow nunca aceita identidade administrativa ou declarada pelo modelo
+ok 226 - workflow nunca aceita identidade administrativa ou declarada pelo modelo
+  ---
+  duration_ms: 10.506
+  type: 'test'
+  ...
+# Subtest: contexto usa RPC compacto e consultável sem misturar o payload legado
+ok 227 - contexto usa RPC compacto e consultável sem misturar o payload legado
+  ---
+  duration_ms: 2.5758
+  type: 'test'
+  ...
+# Subtest: entrega exige referencia nao vazia e versao segura; rejeita campos extras
+ok 228 - entrega exige referencia nao vazia e versao segura; rejeita campos extras
+  ---
+  duration_ms: 7.691
+  type: 'test'
+  ...
+# Subtest: somente resposta confirmada conta como gravação
+ok 229 - somente resposta confirmada conta como gravação
+  ---
+  duration_ms: 5.3339
+  type: 'test'
+  ...
+# Subtest: vinculo de tarefa existente exige identidade do perfil e versao e usa RPC dedicada
+ok 230 - vinculo de tarefa existente exige identidade do perfil e versao e usa RPC dedicada
+  ---
+  duration_ms: 2.9903
+  type: 'test'
+  ...
+# Subtest: briefing revisado exige feedback verificavel, identidade de coordenacao e versoes atuais
+ok 231 - briefing revisado exige feedback verificavel, identidade de coordenacao e versoes atuais
+  ---
+  duration_ms: 7.4774
+  type: 'test'
+  ...
+# Subtest: rascunho exige parecer coerente mas pode corrigir fontes pendentes sem libera-las
+ok 232 - rascunho exige parecer coerente mas pode corrigir fontes pendentes sem libera-las
+  ---
+  duration_ms: 5.3866
+  type: 'test'
+  ...
+# Subtest: segunda edicao exige recibo da mesma versao, sem transformar DRAFT inicial em revisado
+ok 233 - segunda edicao exige recibo da mesma versao, sem transformar DRAFT inicial em revisado
+  ---
+  duration_ms: 47.7745
+  type: 'test'
+  ...
+# Subtest: aprovacao exige evidencia da propria tarefa recuperada do Supabase
+ok 234 - aprovacao exige evidencia da propria tarefa recuperada do Supabase
+  ---
+  duration_ms: 4.4331
+  type: 'test'
+  ...
+# Subtest: entrega visual da Maya exige os formatos pedidos, pacote publicavel e revisao visual
+ok 235 - entrega visual da Maya exige os formatos pedidos, pacote publicavel e revisao visual
+  ---
+  duration_ms: 25.8598
+  type: 'test'
+  ...
+1..235
+# tests 293
+# suites 5
+# pass 293
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 417031.9814

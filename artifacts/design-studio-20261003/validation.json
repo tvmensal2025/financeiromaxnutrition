@@ -1,0 +1,141 @@
+{
+  "desktop": [
+    {
+      "scroll": 1434,
+      "title": "Supervisão da Helena.",
+      "url": "/supervisao",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Operação por empresa.",
+      "url": "/empresas",
+      "width": 1440
+    },
+    {
+      "scroll": 1434,
+      "title": "Consumo e rotinas.",
+      "url": "/consumo",
+      "width": 1440
+    },
+    {
+      "scroll": 1434,
+      "title": "Central de execução",
+      "url": "/execucao",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Identidade da empresa",
+      "url": "/identidade",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Equipe Digital",
+      "url": "/equipe",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "CRM & Pipeline",
+      "url": "/crm",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "url": "/calendario",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Portfólio",
+      "url": "/portfolio",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Saúde do Sistema & Conexões",
+      "url": "/sistema",
+      "width": 1440
+    },
+    {
+      "scroll": 1434,
+      "title": "Central de Canais, Voz e Roteamento",
+      "url": "/integracoes",
+      "width": 1440
+    },
+    {
+      "scroll": 1434,
+      "url": "/indicadores",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Foco Executivo",
+      "url": "/modulo/foco_executivo",
+      "width": 1440
+    },
+    {
+      "scroll": 1440,
+      "title": "Projetos",
+      "url": "/modulo/projetos",
+      "width": 1440
+    }
+  ],
+  "mobile": [
+    {
+      "route": "/",
+      "scroll": 384,
+      "title": "Sala de comando.",
+      "width": 390
+    },
+    {
+      "route": "/entregas",
+      "scroll": 390,
+      "title": "Ideias que viraram entregas.",
+      "width": 390
+    },
+    {
+      "route": "/execucao",
+      "scroll": 384,
+      "title": "Central de execução",
+      "width": 390
+    },
+    {
+      "route": "/financeiro",
+      "scroll": 390,
+      "title": "Financeiro",
+      "width": 390
+    },
+    {
+      "route": "/identidade",
+      "scroll": 390,
+      "title": "Identidade da empresa",
+      "width": 390
+    },
+    {
+      "route": "/equipe",
+      "scroll": 384,
+      "title": "Equipe Digital",
+      "width": 390
+    },
+    {
+      "route": "/modulo/foco_executivo",
+      "scroll": 390,
+      "title": "Foco Executivo",
+      "width": 390
+    }
+  ],
+  "verifiedInteractions": [
+    "Legenda do gráfico abre filtro de tarefas bloqueadas",
+    "Sino abre central de alertas",
+    "Menu móvel navega e fecha",
+    "Foco Executivo alterna cartões e tabela",
+    "Calendário avança e retorna mês",
+    "Tema escuro e claro"
+  ],
+  "tests": "23 passed",
+  "typecheck": "passed",
+  "build": "passed"
+}

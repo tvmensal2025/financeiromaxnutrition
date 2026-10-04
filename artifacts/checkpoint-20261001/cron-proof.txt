@@ -1,0 +1,46 @@
+01T14:45:00.069382+00:00\", \"message\": \"Execucao"
+- generic: "iniciada pelo agente.\"}, {\"event_type\": \"CLAIMED\", \"a"
+- generic: "gent_id\": \"AGT-12\", \"created_at\": \"2026-10-01T14:44:5"
+- generic: "8.678663+00:00\", \"message\": \"Job assumido pelo agente"
+- generic: ".\"}, {\"event_type\": \"TYPESAFE_ROUTE\", \"agent_id\": \"AG"
+- generic: "T-12\", \"created_at\": \"2026-10-01T14:43:47.411412+00:0"
+- generic: "0\", \"message\": \"TypeSafe: avaliacao consultiva do bri"
+- generic: "efing; nao aprova nem despacha\"}]"
+- generic: $ :~$
+- generic: $ :~$ python -c 'exec("import subprocess,json,pathlib
+- generic: ",hashlib\\np=subprocess.run(['\"'\"'/opt/hermes/.venv/bi"
+- generic: n/hermes'"'"','"'"'cron'"'"','"'"'list'"'"'],capture_
+- generic: output=True,text=True,timeout=20)\nprint(p.stdout)\np
+- generic: "rint(json.dumps({'\"'\"'cron_exit'\"'\"':p.returncode,'\"'"
+- generic: "\"'poll_exists'\"'\"':pathlib.Path('\"'\"'/data/scripts/he"
+- generic: lena_dispatch_poll.sh'"'"').is_file(),'"'"'visual_has
+- generic: h'"'"':hashlib.sha256(pathlib.Path('"'"'/data/helena-
+- generic: runtime/hermes_visual.py'"'"').read_bytes()).hexdiges
+- generic: "t()}))\")'"
+- generic: ┌────────────────────────────────────────────────────
+- generic: ─────────────────────┐
+- generic: │
+- generic: Scheduled Jobs
+- generic: │
+- generic: └────────────────────────────────────────────────────
+- generic: ─────────────────────┘
+- generic: 90313a626ffe [active]
+- generic: "Name: helena-gateway-poll"
+- generic: "Schedule: every 2m"
+- generic: "Repeat:"
+- generic: ∞
+- generic: "Next run: 2026-10-01T15:18:08.243089+00:00"
+- generic: "Deliver: local"
+- generic: "Script: helena_dispatch_poll.sh"
+- generic: "Mode: no-agent (script stdout delivered dire"
+- generic: ctly)
+- generic: "Last run: 2026-10-01T15:16:08.243089+00:00 ok"
+- generic: "Dispatch: on time (scheduled 2026-10-01T15:15:05"
+- generic: .396453+00:00)
+- generic: "Execution: completed 098389bcb236491d824d2395e67"
+- generic: 8f4f4
+- generic: "{\"cron_exit\": 0, \"poll_exists\": true, \"visual_hash\":"
+- generic: "\"1a038a7e083cb8886b6c750109e6e136d30b1ef7a0a9f572cefd"
+- generic: "7dd38c5738fe\"}"
+- generic: $ :~$
+- generic: $ :~$

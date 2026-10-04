@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-03",
+  "scope": "Local recipient UX with authenticated read-only production data; no deployment or database writes in this pass",
+  "companies": [
+    {
+      "id": "BIZ-001",
+      "name": "iGreen",
+      "production_records": 7,
+      "review_or_unconfirmed_acceptance": 4,
+      "blocked_or_changes": 3,
+      "visible_final_deliveries": 0,
+      "brand_saved": false,
+      "logo_and_palette_missing": true
+    },
+    {
+      "id": "BIZ-002",
+      "name": "Ecossistema de Saúde",
+      "production_records": 0,
+      "visible_final_deliveries": 0,
+      "brand_saved": false,
+      "logo_and_palette_missing": true
+    },
+    {
+      "id": "BIZ-003",
+      "name": "Humano Digital",
+      "production_records": 41,
+      "approved_internal_stages": 14,
+      "blocked_or_changes": 25,
+      "awaiting_release": 2,
+      "visible_final_deliveries": 0,
+      "brand_saved": true,
+      "logo_loaded": true,
+      "colors": [
+        "#075E47",
+        "#163D32",
+        "#F4F5EB",
+        "#BCD2B5"
+      ]
+    }
+  ],
+  "media_checks": [
+    {
+      "note": "Latest visible package titled Do cotidiano aos dados da IA",
+      "loaded_images": 2,
+      "dimensions": [
+        "1080x1350",
+        "1080x1920"
+      ],
+      "status": "Changes requested"
+    },
+    {
+      "job": "JOB-HR-fd62fc9a1659086444127a218432d958",
+      "loaded_images": 4,
+      "dimensions": [
+        "1080x1350",
+        "1080x1920",
+        "1080x1920",
+        "1080x1920"
+      ],
+      "status": "Blocked",
+      "visual_sample": "Story 3 has a white rectangular logo background and conservative legacy copy"
+    },
+    {
+      "job": "JOB-HR-d4b5b488e4716e749cb7b1392e308424",
+      "loaded_images": 4,
+      "dimensions": [
+        "1080x1350",
+        "1080x1920",
+        "1080x1920",
+        "1080x1920"
+      ],
+      "status": "Blocked",
+      "visual_sample": "Post opens successfully but contains only an empty blue template"
+    }
+  ],
+  "fixes": [
+    "Image previews in delivery cards, lazy-loaded only near viewport",
+    "Gallery before internal history, uncropped originals and accessible enlargement",
+    "Manual retry on media failure, bounded loading and renewal of open gallery links",
+    "Clear internal-versus-final status; final acceptance rules preserved",
+    "Filter reset on company/view switch and selected-job navigation correction",
+    "Accessible dialog, Escape and return focus, mobile and dark styling",
+    "Clipboard error fallback; technical production next steps no longer mixed into image delivery presentation",
+    "Notification failures no longer presented as no alerts",
+    "Financial paginated reading replaces 200-row cap; stale responses discarded; failed reads do not show empty success",
+    "Company identifier colors prefer approved brand identity for the matching business"
+  ],
+  "limits": [
+    "No guarantee of end-to-end operation of the 21 agents",
+    "No production frontend deployment performed",
+    "No live CRUD/RLS test across different roles",
+    "Blank historical images and missing brand identities remain genuine content/data issues",
+    "Ten images loaded; visual inspection sampled original pieces, not formal artistic approval of every pixel",
+    "Clipboard success UI observed; browser clipboard inspection returned empty, so OS clipboard transfer not certified"
+  ],
+  "validation": {
+    "tests_passed": 162,
+    "test_files": 31,
+    "typescript": "passed",
+    "build": "passed",
+    "desktop": "1440x1000, no horizontal overflow",
+    "mobile": "390x844, no horizontal overflow",
+    "dark_mode": "verified",
+    "dialog_escape_and_focus_return": "verified",
+    "production_deployed": false
+  }
+}

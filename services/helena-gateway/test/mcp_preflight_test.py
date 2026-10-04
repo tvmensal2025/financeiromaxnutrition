@@ -10,6 +10,18 @@ def discovered(names):
     return {'mcp__helena_operacao__' + name: {} for name in names}
 
 class PreflightTest(unittest.TestCase):
+    def test_handoff_only_visible_to_coordinators_for_entire_fleet(self):
+        import json
+        profiles = json.loads((Path(__file__).parents[1] / 'scripts/autonomy-profiles.json').read_text())
+        for profile in profiles:
+            with self.subTest(profile=profile):
+                coordinator = profile in ('helena--grupo', 'marina--biz003')
+                names = probe.required_tools(profile)
+                self.assertEqual('handoff_task' in names, coordinator)
+                self.assertTrue(probe.inspect_tools(profile, discovered(names))['ready'])
+                if not coordinator:
+                    self.assertIn('handoff_task', probe.inspect_tools(profile, discovered(names | {'handoff_task'}))['forbidden_tools'])
+
     def test_specialists_do_not_advertise_actions_rejected_by_authorization(self):
         for profile in ('maya--biz003','pedro--biz003','camila--biz003','nina--biz003'):
             with self.subTest(profile=profile):

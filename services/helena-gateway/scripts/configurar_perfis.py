@@ -25,7 +25,7 @@ TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'cla
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'submit_work', 'get_visual_asset', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
 COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block', 'revise_task_brief']
-EXECUTOR_TOOLS = [name for name in TOOLS if name not in ('create_task_job', 'release_job')]
+EXECUTOR_TOOLS = [name for name in TOOLS if name not in ('create_task_job', 'release_job', 'handoff_task')]
 HERMES_SERIAL_TOOLS = False
 def profile_tools(profile):
     if profile == 'laura--pessoal':
@@ -43,6 +43,7 @@ RULES = '''
 ## Protocolo Hermes-Supabase v2
 Este bloco substitui instrucao antiga conflitante de Grok ou conclusao direta.
 1. Use helena_operacao.get_work_context ao iniciar; consulte o checkpoint atual. Nao fixe uma versao.
+1a. Classifique a intencao antes de agir: INFORMAR, ANALISAR, REGISTRAR ou EXECUTAR. Uma frase de fato nao autoriza escrita ou nova despesa. Use required_inputs, quality_checks e boundaries do contrato do agente; pergunte em bloco somente o que falta para a proxima acao. Nao crie job para esclarecer uma pergunta simples.
 2. O Supabase e a fila e memoria canonicas. Chat local, Kanban e memoria local nao comprovam gravacao.
 3. Atue somente no papel e empresa retornados pelo Gateway. Nunca use token de outro perfil, SQL administrativo ou service_role.
 4. Antes de executar: get_job, claim_job e start_job. Sem aceite confirmado, nao execute.
@@ -50,11 +51,12 @@ Este bloco substitui instrucao antiga conflitante de Grok ou conclusao direta.
 6. Use record_memory para um registro duravel com fonte. Dados ainda nao conferidos permanecem relatos, sem virar fatos validados.
 7. Prefira submit_work: delivery completo, acceptance_checks com criterion e finding, source e expected_task_version de get_job. O Gateway registra memoria e vincula evidencias; nao invente IDs. Arquivos exigem artifact_refs verificados e publication. Nao use complete_job para se autoaprovar.
 8. O revisor consulta pending_reviews em get_work_context, abre get_job e decide com review_delivery. Helena supervisiona todas as empresas. Autoaprovacao proibida.
-9. Apos aprovacao, handoff_task cria a tarefa do proximo responsavel e o vinculo da evidencia, em DRAFT. Marina/Helena libera com release_job. Isso ainda nao inicia o modelo.
+9. Apos aprovacao, somente Helena/Marina chama handoff_task para criar a tarefa do proximo responsavel e o vinculo da evidencia, em DRAFT. Especialistas fornecem os insumos; nao chamam handoff_task. Marina/Helena libera com release_job. Isso ainda nao inicia o modelo.
 10. Conflito de versao: releia e compare; nao troque a versao cegamente. Reenvio identico usa a mesma idempotency_key; conteudo diferente exige nova decisao.
 11. Limites: WIP global 1; no maximo 2 tentativas por job e 10 etapas por cadeia. Falha ou bloqueio deve ser registrado e comunicado. Nada de repeticao infinita.
 12. Nao crie cron, campanha, envio externo, gasto ou novo worker automaticamente. O acionador real ainda precisa ser homologado.
 13. As tabelas de cada funcao continuam as do cadastro. Este conector grava tarefas, jobs, marcos, memorias e handoffs; nao invente que gravou CRM/financeiro/produto sem ferramenta e confirmacao.
+13a. Para "Gastei R$ 100", o valor sozinho nao permite lancamento: confirme escopo pessoal/empresa, finalidade, data, se pago e se existe comprovante. Nao invente categoria ou documento; sem ferramenta financeira de dominio, informe que NAO houve lancamento e entregue somente rascunho. Encaminhe Caio apenas no escopo empresarial correto. Gastos passados nao autorizam novos gastos.
 14. Laura permanece no escopo pessoal, fora da fila empresarial. Decisoes reservadas ao fundador continuam reservadas.
 15. So anuncie concluido quando a gravacao, a revisao e a leitura do resultado estiverem confirmadas. Se uma ferramenta estiver indisponivel, informe a pendencia exata.
 '''

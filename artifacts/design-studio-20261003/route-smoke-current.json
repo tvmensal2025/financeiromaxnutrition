@@ -1,0 +1,134 @@
+[
+  {
+    "heading": "Indicadores do negócio",
+    "overflow": false,
+    "path": "/indicadores",
+    "recovery": false
+  },
+  {
+    "heading": "Supervisão da Helena.",
+    "overflow": false,
+    "path": "/supervisao",
+    "recovery": false
+  },
+  {
+    "heading": "Operação por empresa.",
+    "overflow": false,
+    "path": "/empresas",
+    "recovery": false
+  },
+  {
+    "heading": "Consumo e rotinas.",
+    "overflow": false,
+    "path": "/consumo",
+    "recovery": false
+  },
+  {
+    "heading": "Central de execução",
+    "overflow": false,
+    "path": "/execucao",
+    "recovery": false
+  },
+  {
+    "heading": "Ideias que viraram entregas.",
+    "overflow": false,
+    "path": "/entregas",
+    "recovery": false
+  },
+  {
+    "heading": "CRM & Pipeline",
+    "overflow": false,
+    "path": "/crm",
+    "recovery": false
+  },
+  {
+    "heading": "Financeiro",
+    "overflow": false,
+    "path": "/financeiro",
+    "recovery": false
+  },
+  {
+    "heading": "Calendário",
+    "overflow": false,
+    "path": "/calendario",
+    "recovery": false
+  },
+  {
+    "heading": "Portfólio",
+    "overflow": false,
+    "path": "/portfolio",
+    "recovery": false
+  },
+  {
+    "heading": "Identidade da empresa",
+    "overflow": false,
+    "path": "/identidade",
+    "recovery": false
+  },
+  {
+    "heading": "Equipe Digital",
+    "overflow": false,
+    "path": "/equipe",
+    "recovery": false
+  },
+  {
+    "heading": "Conexões em perspectiva.",
+    "overflow": false,
+    "path": "/sistema",
+    "recovery": false
+  },
+  {
+    "heading": "Central de Canais, Voz e Roteamento",
+    "overflow": false,
+    "path": "/integracoes",
+    "recovery": false
+  },
+  {
+    "heading": "Portfólio de Negócios",
+    "overflow": false,
+    "path": "/modulo/portfolio",
+    "recovery": false
+  },
+  {
+    "heading": "Calendário",
+    "overflow": false,
+    "path": "/modulo/calendario",
+    "recovery": false
+  },
+  {
+    "heading": "Foco Executivo",
+    "overflow": false,
+    "path": "/modulo/foco_executivo",
+    "recovery": false
+  },
+  {
+    "heading": "Tarefas",
+    "overflow": false,
+    "path": "/modulo/tarefas",
+    "recovery": false
+  },
+  {
+    "heading": "Contratos",
+    "overflow": false,
+    "path": "/modulo/contratos",
+    "recovery": false
+  },
+  {
+    "heading": "Clientes",
+    "overflow": false,
+    "path": "/modulo/clientes",
+    "recovery": false
+  },
+  {
+    "heading": "Documentos",
+    "overflow": false,
+    "path": "/modulo/documentos",
+    "recovery": false
+  },
+  {
+    "heading": "Catálogo de Agentes",
+    "overflow": false,
+    "path": "/modulo/agentes",
+    "recovery": false
+  }
+]

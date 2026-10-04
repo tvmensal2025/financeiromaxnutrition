@@ -1,0 +1,357 @@
+{
+  "schema_version": 2,
+  "batch_id": "HD-FLEET-20261003",
+  "purpose": "Manifesto de acompanhamento; nao e entrada do driver v1 nem comprova execucao",
+  "state": "IN_PROGRESS_SUPERVISION_BLOCKED",
+  "coordinator": "AGT-01",
+  "concurrency": 1,
+  "external_actions_allowed": false,
+  "command_delivered": true,
+  "entries": [
+    {
+      "agent_id": "AGT-01",
+      "name": "Helena",
+      "scope": "GROUP",
+      "business_id": null,
+      "program_business_id": "BIZ-003",
+      "assignment": "Helena — abrir o plano com objetivo, entregas, dependências, revisores e critérios; ao final confrontar previsto e realizado. Aceite: coordenação registrada e relatório com cobertura real.",
+      "depends_on": [],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-02",
+      "name": "Laura",
+      "scope": "PERSONAL",
+      "business_id": null,
+      "program_business_id": "BIZ-003",
+      "assignment": "Laura — roteiro de 60 segundos para o fundador apresentar Humano Digital e convidar interessados. Aceite: fala natural, clara e coerente com fatos confirmados, no escopo autorizado.",
+      "depends_on": [],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-03",
+      "name": "Augusto",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Augusto — proposta de valor, público prioritário e três hipóteses de modelo comercial. Aceite: separar fatos, hipóteses e decisões pendentes; recomendar uma prioridade.",
+      "depends_on": [
+        "AGT-11"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-04",
+      "name": "Marina",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Marina — ordenar o piloto e preparar plano de sete dias com responsáveis e dependências. Aceite: nenhuma etapa sem dono ou entrada necessária.",
+      "depends_on": [
+        "AGT-03"
+      ],
+      "job_id": "JOB-HR-f096e861e4c0b4e569b4a654e4707113",
+      "status": "FAILED_RECONCILED",
+      "reviewer_id": null,
+      "result": "Execucao perdeu retorno apos Terminal 420s. Duas verificacoes sem processo ativo; get_job sem nova entrega. fail_job existente confirmou FAILED, tentativas preservadas 2/2, em 2026-10-03T10:36:30.114286+00:00. Causa exata do encerramento nao comprovada. Nao reiniciar automaticamente.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-05",
+      "name": "Caio",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Caio — controle simples de custos, receitas e margem com fórmulas. Tratar os R$100 informados como despesa pendente de classificação, sem lançamento definitivo. Aceite: cálculo verificável e campos faltantes identificados.",
+      "depends_on": [],
+      "job_id": "JOB-HR-9a984ad69708f4e5b62f17dd5b175ab8",
+      "status": "READY_FOR_CORRECTION",
+      "reviewer_id": null,
+      "result": "Primeira entrega devolvida por TSV nao colavel, dados ausentes tratados como zero e semantica de margem. Ultima leitura: READY para tentativa restante; conclusao nao confirmada.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-06",
+      "name": "Clara",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Clara — checklist de consentimento, privacidade e direitos de uso das gravações. Aceite: fontes atuais, riscos concretos e orientação aplicável; não inventar aprovação jurídica.",
+      "depends_on": [],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-07",
+      "name": "Bianca",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Bianca — funções humanas necessárias e integração inicial. Aceite: responsabilidades, competências e checklist; sem selecionar pessoas ou inventar vagas.",
+      "depends_on": [],
+      "job_id": "JOB-HR-38ca0149776043ba21063c5bde373bdf",
+      "status": "COMPLETED",
+      "reviewer_id": "AGT-01",
+      "result": "Documento de funcoes humanas e integracao corrigido e aprovado; devolucao editorial e segunda tentativa verificadas no Supabase.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-08",
+      "name": "Daniel",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Daniel — seis indicadores do funil e da operação. Aceite: fórmula, fonte, frequência e responsável; dados ausentes não viram zero.",
+      "depends_on": [],
+      "job_id": "JOB-HR-8381c4bf344d3c2540d0f784cc4d4d90",
+      "status": "CHANGES_REQUESTED",
+      "reviewer_id": "AGT-01",
+      "result": "Seis indicadores entregues; Helena solicitou donos nominais e encaminhamentos. Ultima leitura DRAFT apos revisao.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-09",
+      "name": "Theo",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Theo — verificar conectores, limites, recuperação e passagem entre agentes. Aceite: evidência de funcionamento ou erro preciso com correção proposta; diagnóstico não equivale a implantação.",
+      "depends_on": [],
+      "job_id": "JOB-HR-df9c55c444808758356e7b7dbc1cfc9f",
+      "status": "COMPLETED_DIAGNOSTIC_ONLY",
+      "reviewer_id": "AGT-13",
+      "result": "Diagnostico entregue e revisado por Bruno. Documento declara que conectores, trava e recuperacao nao foram diretamente testados; nao equivale a homologacao ou correcao implantada.",
+      "evidence": [
+        "MEM-HR-876f75c1eccc81e18489f56de33aefa3"
+      ]
+    },
+    {
+      "agent_id": "AGT-10",
+      "name": "Nina",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Nina — jornada do interessado até a primeira atividade e retorno. Aceite: passos, informações necessárias e pontos de abandono com melhorias.",
+      "depends_on": [],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-11",
+      "name": "Ravi",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Ravi — comparar Mimix e HubData em cinco critérios relevantes, consultando fontes oficiais. Aceite: links, fatos atuais e lacunas; não presumir parceria comercial.",
+      "depends_on": [],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-12",
+      "name": "Maya",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Maya — produzir um post 1080x1350 e um story 1080x1920 a partir da copy revisada e identidade vigente. Aceite: arquivos reais abertos e inspecionados, logo oficial uma única vez, proporção e posição padronizadas, sem rodapé vazio, texto legível e composições distintas; pessoa ou robô conforme conceito.",
+      "depends_on": [
+        "AGT-17"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-13",
+      "name": "Bruno",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Bruno — verificar o ciclo delegar, entregar, pedir ajuste, refazer e aprovar. Aceite: evidências e defeitos reproduzíveis; ensaio de falha somente isolado, sem corromper jobs reais. Revisar também qualidade e acesso aos materiais.",
+      "depends_on": [
+        "AGT-09",
+        "AGT-12"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": "Participou como revisor independente do diagnostico Theo; testes de regressao proprios ainda nao executados.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-14",
+      "name": "Olívia",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Olívia — procedimento de uma página para receber, orientar e acompanhar participantes. Aceite: etapas executáveis, responsáveis e tratamento de exceções.",
+      "depends_on": [
+        "AGT-10"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-15",
+      "name": "Victor",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Victor — abordagem comercial e respostas a três objeções. Aceite: persuasão específica, benefício claro e próximo passo; não enviar mensagens.",
+      "depends_on": [
+        "AGT-03"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-16",
+      "name": "Camila",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Camila — plano de campanha de sete dias com público, ângulo, canais, sequência e indicadores. Aceite: coerência com pesquisa e oferta, sem ativar campanha.",
+      "depends_on": [
+        "AGT-03"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-17",
+      "name": "Isabela",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Isabela — consultar o job JOB-HR-84c9b8d298379035cde814191a3a6905 e sua revisão. Reutilizar as duas copies aprovadas se atenderem ao objetivo; não regenerar para contar teste. Aceite: mecanismo claro, benefício, headline e CTA persuasivos, sem prometer renda ou disponibilidade não confirmadas. Adaptação necessária deve ser delimitada.",
+      "depends_on": [],
+      "job_id": "JOB-HR-84c9b8d298379035cde814191a3a6905",
+      "status": "PREVIOUS_APPROVAL_VERIFIED",
+      "reviewer_id": "AGT-16",
+      "result": "Duas copies anteriores reaproveitadas; nao e nova execucao deste lote.",
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-18",
+      "name": "Pedro",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Pedro — checklist de parceria com cinco perguntas e matriz de avaliação. Aceite: condições comerciais, operação, pagamentos e responsabilidades a confirmar; sem contato externo.",
+      "depends_on": [
+        "AGT-11"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-19",
+      "name": "Renata",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Renata — acompanhamento até a primeira atividade com três mensagens-modelo. Aceite: gatilho, objetivo e próximo passo em cada mensagem; sem envio.",
+      "depends_on": [
+        "AGT-10"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-20",
+      "name": "Joana",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Joana — cinco respostas de FAQ e encaminhamento de dúvidas fora do seu escopo. Aceite: linguagem simples e coerência com a oferta real.",
+      "depends_on": [
+        "AGT-03"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    },
+    {
+      "agent_id": "AGT-21",
+      "name": "Felipe",
+      "scope": "BUSINESS",
+      "business_id": "BIZ-003",
+      "program_business_id": "BIZ-003",
+      "assignment": "Felipe — índice dos documentos produzidos. Aceite: links acessíveis, versão, responsável e situação de revisão.",
+      "depends_on": [
+        "AGT-13"
+      ],
+      "job_id": null,
+      "status": "AWAITING_CANONICAL_BINDING",
+      "reviewer_id": null,
+      "result": null,
+      "evidence": []
+    }
+  ],
+  "hermes_session_visible_id": "b81b6098",
+  "model": "gpt-6.1-sol",
+  "reasoning": "max",
+  "note": "Recebimento confirmado no chat Hermes; homologacao individual ainda pendente.",
+  "last_verified_at": "2026-10-03T10:36:30.114286+00:00",
+  "operational_incidents": [
+    {
+      "agent_id": "AGT-04",
+      "job_id": "JOB-HR-f096e861e4c0b4e569b4a654e4707113",
+      "error_code": "HERMES_PROCESS_FAILED",
+      "reconciled": true,
+      "attempt_count": 2,
+      "root_cause_status": "HYPOTHESIS_TRANSPORT_TIMEOUT",
+      "remaining": "Eliminar execucao sincronica acima do limite da ferramenta; testar recuperacao de processo interrompido; concluir cobertura dos demais agentes."
+    }
+  ],
+  "context_probe": {
+    "profiles": 21,
+    "successful_reads": 21,
+    "failed_profiles": [],
+    "model_calls": 0,
+    "remote_evidence": "/data/helena-runtime/fleet-context-probe-20261003.json",
+    "limitation": "Leitura autenticada nao comprova execucao, todas as ferramentas ou qualidade da entrega."
+  },
+  "supervision_access": "BROWSER_TRANSPORT_CLOSED_AFTER_WINDOWS_RESOURCE_ERROR_1450",
+  "last_verified_dispatch_sha256": "6800615598f4c4028873efaecf86e9817b7a5e6b9c5b3b5d3b4778f3032d16a0"
+}

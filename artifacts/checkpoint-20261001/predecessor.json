@@ -1,0 +1,580 @@
+{
+  "fontes": [
+    "public.agent_jobs",
+    "public.memoria_mestre",
+    "pg_trigger",
+    "public.helena_validate_professional_brief",
+    "commit 0de4761",
+    "Supabase: checkpoint_mestre_atual, jobs, tarefas, eventos, bindings, Storage",
+    "Gateway health HTTP 200 em 28/09/2026",
+    "Git codex/hermes-runtime-preparation 7ae9a27",
+    "Hermes CLI: teste MCP Maya sem IA",
+    "Painel local http://localhost:8082/entregas"
+  ],
+  "motivo": "Continuidade entre conversas com estado vivo e lacunas explícitas",
+  "status": "ATIVO",
+  "titulo": "Helena-HUB: continuidade verificada e piloto visual pendente",
+  "versao": 33,
+  "snapshot": {
+    "codigo": {
+      "head": "7127482",
+      "local": "http://localhost:8082/",
+      "branch": "codex/hermes-runtime-preparation",
+      "repositorio": "tvmensal2025/financeiromaxnutrition",
+      "gateway_health": "HTTP 200",
+      "perfil_filtro_7127482_no_host": "NAO_CONFIRMADO",
+      "gateway_versao_de_implantacao_observada": "f78dc56"
+    },
+    "estado": "PARCIALMENTE_OPERACIONAL",
+    "perfis": [
+      {
+        "nome": "Helena",
+        "funcao": "CEO Virtual / Central de Comando",
+        "agent_id": "AGT-01",
+        "model_id": "gpt-6-sol",
+        "scope_type": "GROUP",
+        "business_id": null,
+        "profile_slug": "helena--grupo",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Laura",
+        "funcao": "Comunicação e Desenvolvimento do Fundador",
+        "agent_id": "AGT-02",
+        "model_id": "gpt-6-luna",
+        "scope_type": "PERSONAL",
+        "business_id": null,
+        "profile_slug": "laura--pessoal",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Augusto",
+        "funcao": "Estratégia Corporativa",
+        "agent_id": "AGT-03",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "augusto--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Marina",
+        "funcao": "Execução e PMO",
+        "agent_id": "AGT-04",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "marina--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Caio",
+        "funcao": "Finanças / CFO",
+        "agent_id": "AGT-05",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "caio--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Clara",
+        "funcao": "Risco, Jurídico e Compliance",
+        "agent_id": "AGT-06",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "clara--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Bianca",
+        "funcao": "Pessoas e Cultura",
+        "agent_id": "AGT-07",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "bianca--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Daniel",
+        "funcao": "Dados e BI",
+        "agent_id": "AGT-08",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "daniel--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Theo",
+        "funcao": "Tecnologia e IA",
+        "agent_id": "AGT-09",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "theo--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Nina",
+        "funcao": "Produto",
+        "agent_id": "AGT-10",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "nina--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Ravi",
+        "funcao": "Pesquisa e Insights",
+        "agent_id": "AGT-11",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "ravi--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Maya",
+        "funcao": "Design / UX / UI",
+        "agent_id": "AGT-12",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "maya--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Bruno",
+        "funcao": "Qualidade / QA",
+        "agent_id": "AGT-13",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "bruno--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Olívia",
+        "funcao": "Operações",
+        "agent_id": "AGT-14",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "olivia--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Victor",
+        "funcao": "Vendas",
+        "agent_id": "AGT-15",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "victor--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Camila",
+        "funcao": "Marketing e Growth",
+        "agent_id": "AGT-16",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "camila--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Isabela",
+        "funcao": "Marca, Conteúdo e Copy",
+        "agent_id": "AGT-17",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "isabela--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Pedro",
+        "funcao": "Parcerias e Desenvolvimento de Negócios",
+        "agent_id": "AGT-18",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "pedro--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Renata",
+        "funcao": "Customer Success",
+        "agent_id": "AGT-19",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "renata--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Joana",
+        "funcao": "Atendimento",
+        "agent_id": "AGT-20",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "joana--biz003",
+        "binding_status": "ACTIVE"
+      },
+      {
+        "nome": "Felipe",
+        "funcao": "Administração",
+        "agent_id": "AGT-21",
+        "model_id": "gpt-6-luna",
+        "scope_type": "BUSINESS",
+        "business_id": "BIZ-003",
+        "profile_slug": "felipe--biz003",
+        "binding_status": "ACTIVE"
+      }
+    ],
+    "lacunas": [
+      "Filtro 7127482 ainda nao confirmado no host Hermes",
+      "Quatro jobs FAILED sem entrega confirmada, causa individual pendente",
+      "Sem limite financeiro global e ciclo continuo homologado",
+      "Helena nao revisa automaticamente todos os jobs",
+      "Termos Hub/IMIX e receita nao confirmados",
+      "Integracoes sem ultima_sync; Helena Gateway catalogado PLANEJADA",
+      "estado_mestre e UI ainda citam Grok e data fixa"
+    ],
+    "contagens": {
+      "jobs": 35,
+      "agentes": 21,
+      "eventos": 98,
+      "tarefas": 57,
+      "handoffs": 56,
+      "integracoes": 11,
+      "jobs_rodando": 0,
+      "bindings_ativos": 21,
+      "tarefas_sem_job": 49,
+      "integracoes_com_sync": 0,
+      "esperas_legacy_sem_review_pending": 23
+    },
+    "gerado_em": "2026-09-28T23:40:59.418303+00:00",
+    "portfolio": [
+      {
+        "estagio": "VENDAS",
+        "negocio": "iGreen",
+        "receita": "DADO A COLETAR",
+        "business_id": "BIZ-001"
+      },
+      {
+        "estagio": "PRODUTO",
+        "negocio": "Ecossistema de Saúde",
+        "receita": "DADO A COLETAR",
+        "business_id": "BIZ-002"
+      },
+      {
+        "estagio": "VALIDAÇÃO",
+        "negocio": "Humano Digital",
+        "receita": "DADO A COLETAR",
+        "business_id": "BIZ-003"
+      }
+    ],
+    "foco_formal": [
+      {
+        "id": "FOC-001",
+        "frente": "Finalizar e validar Sistema Helena",
+        "status": "CONCLUÍDO"
+      },
+      {
+        "id": "FOC-002",
+        "frente": "Caixa",
+        "status": "PLANEJADO"
+      },
+      {
+        "id": "FOC-003",
+        "frente": "Consolidar Sistema Helena v4",
+        "status": "CONCLUÍDO"
+      },
+      {
+        "id": "FOC-004",
+        "frente": "Homologação técnica do Sistema Helena",
+        "status": "EM EXECUÇÃO"
+      }
+    ],
+    "integracoes": [
+      {
+        "status": "PLANEJADA",
+        "sistema": "Automação de Recorrências",
+        "ultima_sync": null
+      },
+      {
+        "status": "PAUSADA",
+        "sistema": "Codex Automations",
+        "ultima_sync": null
+      },
+      {
+        "status": "STANDBY",
+        "sistema": "ElevenLabs",
+        "ultima_sync": null
+      },
+      {
+        "status": "CONFIGURADA",
+        "sistema": "Evolution API",
+        "ultima_sync": null
+      },
+      {
+        "status": "PLANEJADA",
+        "sistema": "Gmail",
+        "ultima_sync": null
+      },
+      {
+        "status": "PLANEJADA",
+        "sistema": "Google Calendar",
+        "ultima_sync": null
+      },
+      {
+        "status": "PLANEJADA",
+        "sistema": "Google Drive",
+        "ultima_sync": null
+      },
+      {
+        "status": "PLANEJADA",
+        "sistema": "Helena Gateway",
+        "ultima_sync": null
+      },
+      {
+        "status": "OFICIAL",
+        "sistema": "Kokoro TTS VPS",
+        "ultima_sync": null
+      },
+      {
+        "status": "CONFIGURADA",
+        "sistema": "Laya Service",
+        "ultima_sync": null
+      },
+      {
+        "status": "CONFIGURADA",
+        "sistema": "Meowcaller",
+        "ultima_sync": null
+      }
+    ],
+    "integridade": {
+      "eventos_orfaos": 0,
+      "jobs_sem_tarefa": 0,
+      "jobs_empresa_divergente": 0
+    },
+    "jobs_piloto": [
+      {
+        "job_id": "JOB-HR-0e91cf1982fa751ce1e4cf93e7af48d7",
+        "status": "COMPLETED",
+        "task_id": "TSK-HR-0e91cf1982fa751ce1e4cf93e7af48d7",
+        "agent_id": "AGT-15",
+        "business_id": "BIZ-003",
+        "approval_status": "APPROVED"
+      },
+      {
+        "job_id": "JOB-HR-3ebae4abff11a58e457fe779e15705ab",
+        "status": "COMPLETED",
+        "task_id": "TSK-HR-3ebae4abff11a58e457fe779e15705ab",
+        "agent_id": "AGT-18",
+        "business_id": "BIZ-003",
+        "approval_status": "APPROVED"
+      },
+      {
+        "job_id": "JOB-HR-ed135142c0c6f852af3c7728e440a5b8",
+        "status": "DRAFT",
+        "task_id": "TSK-HD-20260927-03",
+        "agent_id": "AGT-03",
+        "business_id": "BIZ-003",
+        "approval_status": "PENDING"
+      }
+    ],
+    "predecessor": "CP-20260928-V027",
+    "jobs_por_status": {
+      "DRAFT": 1,
+      "FAILED": 4,
+      "COMPLETED": 7,
+      "WAITING_HELENA": 23
+    },
+    "comando_retomada": "Helena, carregue o Checkpoint Mestre",
+    "projeto_supabase": "ecosistemadossonhos (wxkgrykduqtsgmjkzlou)",
+    "regra_precedencia": "Banco e producao atuais > decisoes e estado_mestre > checkpoint ativo > memorias e handoffs > arquivos historicos",
+    "transicao_20260928": {
+      "maya_job": {
+        "job_id": "JOB-HR-49eff2ead7674d06b4b59bc796f08873",
+        "status": "DRAFT",
+        "approval": "PENDING",
+        "attempts": 0,
+        "instruction_chars": 4758
+      },
+      "camila_job": {
+        "job_id": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21",
+        "status": "DRAFT",
+        "approval": "PENDING",
+        "attempts": 1
+      },
+      "maya_files": 0,
+      "predecessor": "CP-20260928-V032",
+      "observado_em": "2026-09-28T23:40:59.41831+00:00",
+      "gateway_commit": "7ae9a2751e42acc98f3c05d6ac9e7789c47973b5",
+      "contagens_vivas": {
+        "jobs": 38,
+        "agentes": 21,
+        "eventos": 136,
+        "tarefas": 59,
+        "decisoes": 20,
+        "memorias": 41,
+        "integracoes": 11,
+        "bindings_ativos": 21
+      },
+      "jobs_por_status": {
+        "DRAFT": 3,
+        "FAILED": 4,
+        "COMPLETED": 8,
+        "WAITING_HELENA": 23
+      },
+      "gateway_health_observado": true,
+      "mcp_maya_tools_observadas": 17,
+      "snapshot_herdado_defasado": true,
+      "execucao_visual_homologada": false,
+      "acionamento_hermes_homologado": false
+    },
+    "guard_brief_20260928": {
+      "commit": "0de4761",
+      "enabled": true,
+      "trigger": "agent_jobs_professional_brief_guard",
+      "migration": "guard_hermes_ready_brief",
+      "camila_status": "WAITING_HELENA",
+      "negative_test": true,
+      "positive_test": true
+    },
+    "analise_camila_20260928": {
+      "next": "uma unica execucao depois de checar status/eventos",
+      "job_id": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21",
+      "status": "READY",
+      "preflight": "DRY_RUN",
+      "root_cause": "briefing sem oito secoes obrigatorias",
+      "attempt_count": 0,
+      "model_retried": false,
+      "brief_corrected": true
+    },
+    "proxima_execucao_segura": "Sem modelo: confirmar perfis e diagnosticar falhas; somente depois liberar Augusto sob WIP 1 e teto de consumo",
+    "resultado_camila_20260928": {
+      "job_id": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21",
+      "status": "WAITING_HELENA",
+      "published": false,
+      "evidence_id": "MEM-HR-941f8c35bc6c34c0903855a3409cc818",
+      "remote_patch": "minimum transport classification",
+      "attempt_count": 1,
+      "images_created": false,
+      "review_pending": true,
+      "dispatcher_commit": "0e746be"
+    },
+    "tarefas_por_empresa_status": [
+      {
+        "n": 1,
+        "status": "NÃO INICIADA",
+        "business_id": "BIZ-001"
+      },
+      {
+        "n": 2,
+        "status": "BLOQUEADA",
+        "business_id": "BIZ-002"
+      },
+      {
+        "n": 1,
+        "status": "CONCLUÍDA",
+        "business_id": "BIZ-002"
+      },
+      {
+        "n": 1,
+        "status": "EM EXECUÇÃO",
+        "business_id": "BIZ-002"
+      },
+      {
+        "n": 16,
+        "status": "NÃO INICIADA",
+        "business_id": "BIZ-002"
+      },
+      {
+        "n": 4,
+        "status": "BLOQUEADA",
+        "business_id": "BIZ-003"
+      },
+      {
+        "n": 1,
+        "status": "CANCELADA",
+        "business_id": "BIZ-003"
+      },
+      {
+        "n": 2,
+        "status": "CONCLUÍDA",
+        "business_id": "BIZ-003"
+      },
+      {
+        "n": 1,
+        "status": "EM EXECUÇÃO",
+        "business_id": "BIZ-003"
+      },
+      {
+        "n": 21,
+        "status": "NÃO INICIADA",
+        "business_id": "BIZ-003"
+      },
+      {
+        "n": 1,
+        "status": "BLOQUEADA",
+        "business_id": "GRUPO"
+      },
+      {
+        "n": 3,
+        "status": "CANCELADA",
+        "business_id": "GRUPO"
+      },
+      {
+        "n": 2,
+        "status": "CONCLUÍDA",
+        "business_id": "GRUPO"
+      },
+      {
+        "n": 1,
+        "status": "CONCLUÍDA",
+        "business_id": "Sistema"
+      }
+    ],
+    "atualizacao_transicao_20260928": {
+      "foco": "Humano Digital BIZ-003",
+      "job_camila": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21",
+      "job_augusto": "COMPLETED",
+      "job_isabela": "DRAFT",
+      "task_camila": "TSK-HR-6da562bfda4490f7ff5f4c655d472d21",
+      "status_camila": "READY",
+      "contagens_jobs": {
+        "DRAFT": 1,
+        "READY": 1,
+        "FAILED": 4,
+        "COMPLETED": 8,
+        "WAITING_HELENA": 23
+      },
+      "automatic_retry": false,
+      "dispatcher_phase": "CLAIM_RESPONSE_UNKNOWN",
+      "attempt_count_camila": 0
+    }
+  },
+  "criado_em": "2026-09-28T23:40:59.409535+00:00",
+  "criado_por": "Helena / Codex",
+  "validado_em": "2026-09-28T23:40:59.409535+00:00",
+  "atualizado_em": "2026-09-28T23:40:59.409535+00:00",
+  "checkpoint_id": "CP-20260928-V033",
+  "resumo_executivo": "Gateway e MCP da Maya testados; brief de quatro PNG e página Entregas preparados. Maya DRAFT, 0 arquivos, 0 tentativas. Camila agora DRAFT com 1 tentativa. API de runs e ciclo automático ainda não homologados. V032 tem contagens defasadas; consultar tabelas vivas.",
+  "conteudo_markdown": "# Continuidade verificada do Sistema Helena — 28/09/2026\r\n\r\n## Entrada obrigatória para a próxima IA\r\nConectar ao Supabase ecosistemadossonhos (wxkgrykduqtsgmjkzlou), ler public.checkpoint_mestre_atual integralmente e depois conferir tabelas vivas. Precedência: banco/produção atual > decisões e Estado Mestre > checkpoint ativo > memórias/handoffs > arquivos e conversas. Este bloco atualiza V032; o histórico anterior está preservado abaixo. Não tomar contagens ou status da snapshot herdada como atuais. Não copiar senhas, tokens ou chaves. Não afirmar 100% de operação sem ciclo real comprovado.\r\n\r\n## Propósito e fluxo\r\nO fundador conversa com Helena; Helena AGT-01 define direção e supervisiona; Marina AGT-04 coordena e despacha; especialista executa job da empresa correta no Hermes e registra marcos/memória no Supabase; revisor verifica evidências e aprova ou devolve; Helena acompanha exceções; fundador vê pedidos e arquivos na página Entregas. WIP executivo = 1, foco FOC-004 homologação técnica EM EXECUÇÃO. Usar row_version/CAS para não sobrescrever mudanças de outra conversa. Cada job deve ter briefing profissional com oito seções, fontes, limites e definição de pronto. Evitar tentativas de IA sem preflight. Conexão, binding ACTIVE e evento de despacho não comprovam modelo executando.\r\n\r\n## Empresas e perfis\r\nPortfólio vivo: iGreen BIZ-001 VENDAS; Ecossistema de Saúde BIZ-002 PRODUTO; Humano Digital BIZ-003 VALIDAÇÃO. Há 21 agentes cadastrados e 21 bindings Hermes ACTIVE, mas a execução automática de todos não foi provada. Helena usa perfil helena--grupo; Maya AGT-12 usa maya--biz003; Nina AGT-10 usa nina--biz003. Inspeção anterior confirmou Maya GPT-6 Luna e Helena GPT-6 Sol; não houve nova varredura de todos os modelos nesta publicação. Funções completas de cada agente estão em public.agentes e protocolo vigente, não substituir pelo resumo.\r\n\r\n## Implementado e verificado\r\nGateway em EasyPanel helena-automation/helena-gateway respondeu HTTP 200 /health nesta auditoria, supabase=true, runtime_access=hermes-scoped-v1, workflow_version=hermes-workflow-v2, oauth=true, mcp=true. Branch remota codex/hermes-runtime-preparation aponta para commit 7ae9a2751e42acc98f3c05d6ac9e7789c47973b5. Código do Gateway valida PNG, tamanho, dimensão, hash e evento ARTIFACT_VERIFIED antes de aceitar arquivo de entrega. Bucket privado helena-deliveries existe no Supabase, restrito a PNG até 5 MB, com política de leitura por empresa. Testes locais passaram antes do deploy; health não prova ciclo completo.\r\nNo Hermes Hostinger, o perfil Maya teve backup de config.yaml e lista MCP ampliada de 15 para 17 ferramentas, incluindo create_artifact_upload e verify_artifact_upload. Validação YAML confirmou; teste sem IA hermes -p maya--biz003 mcp test helena_operacao conectou e descobriu 22 ferramentas. Isto não inicia job. API_SERVER_ENABLED e API_SERVER_KEY do perfil Maya estavam ausentes/desligados na inspeção anterior, e a integração automática de runs ainda não está homologada. Não guardar nem pedir segredo em chat. O EasyPanel estava livre; alerta de CPU no painel Supabase não é evidência de falta de capacidade do EasyPanel.\r\n\r\n## Piloto Humano Digital e estado vivo\r\nReutilizar tarefa TSK-HR-49eff2ead7674d06b4b59bc796f08873 e job JOB-HR-49eff2ead7674d06b4b59bc796f08873, Maya AGT-12, BIZ-003; não criar duplicata. Brief corrigido no mesmo job para 4758 caracteres e oito seções; evento BRIEF_REVISED registrado. Produção pedida: um post PNG 1080x1350 e três stories PNG 1080x1920, memória do próprio job, arquivos privados verificados e revisão de Nina. Tarefa NÃO INICIADA, row_version 2705 na auditoria. Job DRAFT, aprovação PENDING, attempt_count 0; zero objetos Storage e zero ARTIFACT_VERIFIED. Página local http://localhost:8082/entregas mostrou cartão Na fila, Maya, Revisor previsto Nina, zero arquivos, e detalhe com quatro PNGs. Frontend está no checkout local C:UsersplataDocumentsCodexHelena-HUB, com outras mudanças não integradas; não confundir local com deploy público.\r\nCamila AGT-16 havia produzido copy/direção visual na memória MEM-HR-941f8c35bc6c34c0903855a3409cc818, sem imagens nem publicação. Job JOB-HR-6da562bfda4490f7ff5f4c655d472d21 tem uma tentativa e agora está DRAFT/PENDING no banco. V032 dizia WAITING_HELENA: era fotografia histórica e diverge do estado atual. Não reexecutar Camila automaticamente. Aprovação interna não autoriza campanha ou promessa de renda.\r\n\r\n## Contagens e lacunas\r\nLeitura atual: 21 agentes, 59 tarefas, 38 jobs, 136 eventos, 41 memórias, 20 decisões e 11 integrações. Jobs: 3 DRAFT, 4 FAILED, 8 COMPLETED, 23 WAITING_HELENA, zero READY/CLAIMED/RUNNING. Snapshot.contagens antiga de V032 continha 35 jobs, 57 tarefas e 98 eventos: defasada. Chave nova transicao_20260928 traz contagens atuais, mas ainda é fotografia; verificar tabelas na retomada. Não afirmar sincronia integral ou ausência de falhas.\r\nPróximos passos sem retrabalho: verificar rota oficial de runs no host e ativar API do Hermes por perfil com segredo protegido; integrar Gateway ao acionamento idempotente com run_id; liberar só Maya após preflight/custo; provar uma execução completa claim/start/upload de quatro PNGs/verificação/memória/submit/revisão Nina/visibilidade na página; testar falhas, duplicidade, limite de custo e isolamento por empresa antes de ampliar. Não liberar em lote jobs legados, agenda ou campanha externa. A equipe e a caixa existem, mas o piloto visual e operação autônoma de 21 agentes ainda não foram homologados.\r\n\r\n## Fontes\r\nConsultar public.checkpoint_mestre_atual, public.agentes, public.agent_jobs, public.tarefas, public.agent_job_events, public.agent_runtime_bindings, storage.buckets e storage.objects; verificar git/deploy/Hermes outra vez. Código: services/helena-gateway/src/artifact-storage.mjs, runtime-access.mjs, server.mjs, workflow.mjs; migração 20260928193013_helena_delivery_assets.sql; src/pages/EntregasPage.tsx. Nunca reconstruir do chat se o Supabase atual divergir.\r\n\r\n--- HISTÓRICO ANTERIOR PRESERVADO ---\r\n\r\n\r\n# Protecao permanente do briefing — 28/09/2026\nPiloto Camila: JOB-HR-6da562bfda4490f7ff5f4c655d472d21 continua WAITING_HELENA com uma tentativa e evidencia MEM-HR-941f8c35bc6c34c0903855a3409cc818. Entrega textual e direcao visual aguardam revisao, sem imagens/publicacao. Nao disparar novamente.\n\nCorrecao estrutural aplicada no Supabase: migracao guard_hermes_ready_brief adicionou public.helena_validate_professional_brief e trigger agent_jobs_professional_brief_guard. Todo job JOB-HR-* que for inserido ou atualizado para READY deve ter instrucoes de 700 a 8000 caracteres, oito secoes na ordem e corpo substantivo. Isto cobre liberacao direta pelo RPC/banco que antes contornava o gate do Gateway. Validacao read-only confirmou briefing Camila valido, trigger habilitado, e texto raso rejeitado com SQLSTATE 22023. Nenhum job existente foi alterado pela migracao. Migration versionada em commit 0de4761 e enviada a origin/codex/hermes-runtime-preparation.\n\nAcionador Hermes: no host Hostinger, backup e patch minimo removem RuntimeError de erros de transporte, de forma que recusa HTTP nao seja reportada como resposta perdida. py_compile e preflight DRY_RUN passaram; unica execucao posterior foi bem-sucedida. A versao local mais completa, commit 0e746be, tem GatewayRefusal explicito e testes (24 passaram), mas o arquivo completo ainda nao foi instalado no host; nao afirmar hash/paridade. Proxima etapa tecnica opcional: implantar versao completa e conferir hash, sem chamada de modelo.\n\nProximo passo de negocio: revisor autorizado examina a memoria Camila e registra aprovacao ou ajustes. O material e copy, nao arte grafica; para imagens finais, criar etapa separada depois da revisao.\n\n---\n## HISTORICO PRESERVADO DE V031\n\n# Resultado do piloto Camila e correção do acionador — 28/09/2026\nO job JOB-HR-6da562bfda4490f7ff5f4c655d472d21 de Camila AGT-16, BIZ-003, foi executado uma única vez após corrigir o briefing. Confirmado pelo Supabase: attempt_count 1, started_at 2026-09-28 15:18:37 UTC, status WAITING_HELENA, result_summary preenchido e evidence_refs contendo MEM-HR-941f8c35bc6c34c0903855a3409cc818. A memória foi lida: contém rascunho textual de post 1080x1350, três stories 1080x1920, direção visual, legenda, CTA e variante curta. Não há imagens produzidas, publicação ou aprovação. Revisão pendente; não dizer COMPLETED. O conteúdo evita promessas de renda e distingue execução de tarefas de indicação; condições comerciais não comprovadas permanecem a confirmar.\n\nCausa da falha anterior: briefing inicial sem oito cabeçalhos obrigatórios. Corrigido no mesmo job; preflight DRY_RUN passou. Acionador anterior mascarava recusa HTTP do Gateway como CLAIM_RESPONSE_UNKNOWN. No servidor Hostinger, foi feito backup do script e removido RuntimeError da classe de erros de transporte; py_compile e DRY_RUN passaram antes do despacho. No repositório local, correção mais explícita GatewayRefusal com recibo GATEWAY_REJECTED e teste de não invocação do modelo passou em 24 testes; commit 0e746be enviado a origin/codex/hermes-runtime-preparation. O servidor possui a correção mínima de classificação; a versão completa do commit ainda não foi copiada integralmente ao host, portanto não afirmar paridade de hash.\n\nPróximo passo: Helena/revisor designado deve ler MEM-HR-941f8c35bc6c34c0903855a3409cc818, conferir alegações e formato e registrar APPROVE ou REQUEST_CHANGES usando workflow com row_version atual. Não executar outro modelo nem publicar. Se o objetivo for arte pronta para post/story, abrir etapa de design separada após revisão; este piloto só entregou copy e direção visual. Para prevenção estrutural, futuras tarefas devem passar pelo contrato de oito seções antes de release/claim; chamadas diretas ao RPC podem contornar o gate do Gateway, então não usar release_job direto sem validar o briefing.\n\n---\n## HISTORICO PRESERVADO DE V030\n\n# Reconciliacao do piloto Camila — 28/09/2026\nLeitura atual do Supabase: JOB-HR-6da562bfda4490f7ff5f4c655d472d21 continua READY, attempt_count 0, started_at NULL, sem resultado/evidencias. Eventos originais eram apenas WORKFLOW_create_task e WORKFLOW_release_job. Tarefa TSK-HR-6da562bfda4490f7ff5f4c655d472d21 permanece NAO INICIADA.\n\nCausa concreta encontrada: o briefing inicial tinha 1432 caracteres mas nenhuma das oito secoes ## obrigatorias do contrato profissional. O codigo implantado do Gateway valida esse contrato antes do claim_job; logo esse briefing nao podia ser aceito. O acionador agrupava RuntimeError/HTTPError com erros de transporte e devolveu CLAIM_RESPONSE_UNKNOWN, ocultando a recusa especifica. Isso nao comprovava claim nem gasto de modelo.\n\nCorrecao sem custo de modelo: a instrucao do mesmo job foi reescrita com as oito secoes substantivas, mantendo objetivo, limites e criterios. Foi registrado evento BRIEF_CORRECTED; nenhuma tarefa/job adicional foi criado. Preflight sem modelo no Hermes retornou DRY_RUN para o mesmo job apos a correcao. Nao foi executado novo --execute nesta reconciliacao. Portanto material social ainda NAO existe e revisao/publicacao continuam pendentes.\n\nProximo passo: antes de nova execucao paga, conferir novamente status e eventos do mesmo ID; se READY, rodar uma unica execucao opt-in para esse ID, observando claim/start. Corrigir no acionador a classificacao de erro HTTP de validacao separadamente de falha de transporte para nao chamar rejeicao deterministica de resposta desconhecida. Nao repetir em loop, nao criar segundo job. Revisar qualquer entrega e so entao mostrar post/stories ao fundador.\n\n---\n## HISTORICO PRESERVADO DE V029\n\n# Atualização de transição — 28/09/2026 (verificar horário ao carregar)\n\nEste bloco é a informação mais recente deste checkpoint. O conteúdo abaixo da seção HISTÓRICO é preservado para continuidade, mas suas contagens e próximos passos são fotografia anterior. Em outra conversa, consultar primeiro public.checkpoint_mestre_atual e reler as tabelas operacionais antes de qualquer afirmação ou escrita. Não assumir que a nova conversa herdou este contexto.\n\n## Objetivo e regra de operação\nSistema Helena: empresa multiempresa com Supabase como fonte canônica. Helena dirige e supervisiona; Marina coordena a fila; especialistas executam tarefas de sua empresa, registram evidências e passam por revisão. Perfis ACTIVE, Gateway HTTP 200 e tarefa READY não provam agente em execução. Uma execução por vez (WIP 1), sem retry automático ou campanha externa. Usuário quer gastar pouco crédito: primeiro teste controlado, depois analisar resultado. Foco atual é Humano Digital BIZ-003, mas nenhum conteúdo deve prometer renda, afirmar parceiros/valores não comprovados, publicar ou contatar pessoas sem revisão.\n\n## Mudanças desde CP-20260928-V028, verificadas no banco\n- Augusto AGT-03: JOB-HR-ed135142c0c6f852af3c7728e440a5b8, tarefa TSK-HD-20260927-03, COMPLETED, 2 tentativas, aprovação registrada. Estratégia interna condicional; não valida termos comerciais.\n- Isabela AGT-17: JOB-HR-03da990dd4105f457167847161543b1c, tarefa TSK-HD-20260927-17, DRAFT, 1 tentativa, após revisão REQUEST_CHANGES. A entrega ainda precisa distinguir ganho por executar tarefas da comissão por indicação; não declarar aprovada ou concluída.\n- Camila AGT-16: criada tarefa TSK-HR-6da562bfda4490f7ff5f4c655d472d21 e JOB-HR-6da562bfda4490f7ff5f4c655d472d21 para um piloto de material de redes sociais sobre trabalhar em casa: post vertical 1080x1350 com título, texto, direção visual, legenda e CTA; 3 stories 1080x1920 com texto e direção visual; uma variante curta. Instrução detalhada guardada em agent_jobs.instruction. Conteúdo interno, sem publicação, sem promessa de renda, separando tarefa executada de indicação. Fluxo create_task e release_job registrados em agent_job_events. Consulta posterior confirmou status READY, attempt_count 0, started_at NULL e sem evento de claim/start. O material NÃO foi produzido nem revisado.\n- No Hermes Hostinger chocolate-grasshopper-990557.hostingersite.com, o perfil voltou a abrir. Preflight sem modelo para o ID exato retornou DRY_RUN. Um único acionamento opt-in de hermes_dispatch_once.py --execute foi tentado, porém o acionador retornou status RECONCILE, phase CLAIM_RESPONSE_UNKNOWN, automatic_retry false. O banco continuou READY, zero tentativas. Não houve confirmação de aceite, início ou entrega do agente. Não repetir cegamente: reconciliar resposta do Gateway, eventos e log do acionador; só depois decidir se é seguro iniciar UMA vez.\n- Contagem de agent_jobs observada após esse teste: 8 COMPLETED, 1 DRAFT, 4 FAILED, 1 READY e 23 WAITING_HELENA legados (37 total). WAITING_HELENA legado não é fila de revisão real. Contagens devem ser atualizadas ao carregar.\n\n## Próximo passo operacional de baixo custo\n1. Ler este checkpoint e consultar agent_jobs + agent_job_events do job Camila, tarefa e handoff correspondentes. Se o status mudou, reconciliar antes de agir.\n2. Diagnosticar CLAIM_RESPONSE_UNKNOWN sem chamar modelo nem recriar tarefa. Conferir eventos e resposta/saúde do Gateway, configuração do acionador e recibo local em /data/helena-runtime/dispatcher-last-result.json. Não expor credenciais ou log bruto desnecessariamente.\n3. Só se ficar comprovado que não houve claim/início e que o canal de resposta funciona, executar uma única chamada para esse job; não criar outro job, não tentar em loop. Confirmar claim, start, entrega com evidência e revisão no Supabase. Se não for possível, reportar bloqueio e custo estimado sem declarar concluído.\n4. Quando houver rascunho real, apresentar post e stories ao fundador para revisão. Não publicar automaticamente.\n\n## Como abrir no próximo chat\nPeça: Helena, carregue public.checkpoint_mestre_atual do projeto wxkgrykduqtsgmjkzlou; leia a atualização de transição no topo e confira o job Camila JOB-HR-6da562bfda4490f7ff5f4c655d472d21, sem repetir o disparo até reconciliar CLAIM_RESPONSE_UNKNOWN. Explique estado, custo e próximo passo com evidência.\n\n---\n## HISTÓRICO PRESERVADO: CP-20260928-V028 (pode estar desatualizado)\n\n# Checkpoint operacional do Sistema Helena — 28/09/2026\n\nLevantamento: 28/09/2026, aproximadamente 08h00 em São Paulo (11h00 UTC). Fonte principal: projeto Supabase `ecosistemadossonhos` (`wxkgrykduqtsgmjkzlou`). Este documento descreve o estado observado, não autoriza iniciar agentes, campanhas ou despesas. O checkpoint canônico é a versão `ATIVO` de `public.checkpoint_mestre_atual`; versões anteriores permanecem no histórico.\n\n## Leitura executiva\n\n**Estado: parcialmente operacional; não está homologado de ponta a ponta nem em funcionamento autônomo.** A base, os vínculos de perfis, o Gateway e um handoff interno Pedro → Victor existem. A tarefa existente de Augusto foi vinculada ao Gateway sem duplicação, mas ainda está em `DRAFT`. Nenhum job está em `READY`, `CLAIMED` ou `RUNNING`. Não houve, nesta revisão, chamada a modelos de IA nem acionamento de agentes.\n\nO objetivo do fundador é uma empresa multiempresa coordenada pela Helena: cada agente recebe tarefas da empresa correta, lê o contexto autorizado, registra passos e evidências no Supabase, passa a entrega ao próximo responsável e recebe supervisão; o painel mostra estado real e as decisões que dependem do fundador. A frente comercial escolhida é Humano Digital (`BIZ-003`), começando por captação e ativação rastreáveis até comissão recebida. Sem termos de parceiros comprovados, não declarar receita nem iniciar campanha externa.\n\n## O que existe e foi verificado\n\n- **Fonte canônica:** Supabase `ecosistemadossonhos`. A decisão `DEC-0005` o define como fonte operacional. Ordem de leitura: estado atual do banco e produção; decisões e Estado Mestre; checkpoint ativo; memória/handoffs; arquivos históricos. Uma nova conversa deve consultar `public.checkpoint_mestre_atual` e conferir as tabelas voláteis antes de afirmar que algo continua igual.\n- **Empresas:** `BIZ-001` iGreen (vendas), `BIZ-002` Ecossistema de Saúde (produto) e `BIZ-003` Humano Digital (validação). Receita dos três negócios consta como `DADO A COLETAR` no portfólio. As regras de separação por `business_id` existem nas tarefas e no fluxo novo; a expansão para dez empresas ainda não foi homologada.\n- **Equipe:** 21 agentes cadastrados e 21 vínculos de runtime `ACTIVE`: Helena (`AGT-01`, escopo GROUP, `gpt-6-sol`), Laura (`AGT-02`, escopo PERSONAL, `gpt-6-luna`) e 19 especialistas vinculados a `BIZ-003`, `gpt-6-luna`. `ACTIVE` confirma vínculo/configuração, **não** que o perfil esteja trabalhando neste momento ou que haja acionamento automático.\n- **Funções:** Helena, direção e supervisão; Marina, PMO e distribuição; Augusto, estratégia; Caio, finanças; Clara, risco/jurídico; Bianca, pessoas; Daniel, dados; Theo, tecnologia; Nina, produto; Ravi, pesquisa; Maya, design; Bruno, QA; Olívia, operações; Victor, vendas; Camila, marketing; Isabela, conteúdo; Pedro, parcerias; Renata, sucesso do cliente; Joana, atendimento; Felipe, administração; Laura, apoio pessoal ao fundador. O cadastro `public.agentes` guarda missão, limites de atualização, saída obrigatória e escalonamento por agente; aplicação em todas as execuções ainda precisa de homologação.\n- **Gateway:** o endpoint de saúde em produção respondeu HTTP 200, com `supabase=true`, `mcp=true` e `workflow_version=hermes-workflow-v2`. A página local em `http://localhost:8082/` respondeu HTTP 200. O código de trabalho está no checkout `Helena-HUB-runtime-release`, branch `codex/hermes-runtime-preparation`, commit `7127482`, também presente em `origin/codex/hermes-runtime-preparation`. A saúde do Gateway não comprova execução contínua dos bots.\n- **Workflow novo:** o Gateway expõe `adopt_existing_task`; a função `gateway_adopt_existing_task` e a migração `20260928104427_helena_adopt_existing_task.sql` permitem vincular uma tarefa existente a um job, conferindo empresa, responsável e versão. Os testes locais da mudança e a consulta à ferramenta em produção passaram. O ajuste posterior de filtro nos perfis Helena/Marina, commit `7127482`, está no repositório; sua aplicação no host Hermes ainda precisa de confirmação.\n- **Entregas internas BIZ-003:** Pedro concluiu checklist de parceiros no job `JOB-HR-3ebae4abff11a58e457fe779e15705ab`; Victor concluiu roteiro interno no job `JOB-HR-0e91cf1982fa751ce1e4cf93e7af48d7`. Há memória de origem, evidências e handoff recuperáveis pelo Gateway. A revisão de Victor foi feita por Codex sob orientação da Helena, não por uma Helena autônoma. Termos Hub/IMIX e comissão continuam não confirmados. Nenhum contato externo, venda ou recebimento é comprovado por esses jobs.\n- **Próxima peça do fluxo:** Augusto tem job `JOB-HR-ed135142c0c6f852af3c7728e440a5b8` em `DRAFT`, ligado à tarefa já visível `TSK-HD-20260927-03` em `NÃO INICIADA`. Deve definir público inicial, proposta de valor, hipótese comercial e critérios de continuar/parar. O vínculo evitou criar segundo cartão de tarefa.\n\n## Contagens e integridade no momento da revisão\n\n- `agent_jobs`: 35 no total — 7 `COMPLETED`, 1 `DRAFT`, 4 `FAILED`, 23 `WAITING_HELENA`; **0 em execução**. Os 23 `WAITING_HELENA` são legado; nenhum possui `result_payload.review_pending=true`. Não apresentar essa contagem como 23 revisões reais da CEO.\n- `tarefas`: 57, todas com `business_id`; 49 ainda sem vínculo com `agent_jobs`. Algumas representam trabalho antigo válido; ausência de job Hermes não apaga a execução registrada nelas. `BIZ-003` contém 29 tarefas: 21 não iniciadas, 4 bloqueadas, 2 concluídas, 1 em execução e 1 cancelada. A tarefa Camila `EM EXECUÇÃO` é trabalho anterior, não prova bot Hermes ativo.\n- Integridade dos vínculos novos: 0 jobs com `task_id` inexistente, 0 divergências de empresa entre job e tarefa, 0 eventos órfãos entre 98 eventos. `handoffs`: 56 registros. Esses testes cobrem apenas relações consultadas, não significam auditoria total das 11 integrações.\n- Quatro pilotos recentes de Pedro terminaram `FAILED`, com `HERMES_NO_DELIVERY` ou `HERMES_PROCESS_FAILED`. O erro registrado diz que faltou entrega confirmada; a causa de cada tentativa precisa ser apurada nos eventos antes de qualquer repetição. O histórico de limite 429 é real, mas não atribuir automaticamente as quatro falhas à cota.\n- `integracoes`: 11 registros — 3 `CONFIGURADA`, 1 `OFICIAL`, 1 `PAUSADA`, 5 `PLANEJADA`, 1 `STANDBY`. Todas têm `ultima_sync` vazia. O cadastro ainda classifica **Helena Gateway** como `PLANEJADA`, apesar de o endpoint responder em produção; isso é divergência de registro, não prova que os demais canais funcionam. Gmail, Drive e Calendar seguem planejados.\n\n## Divergências e limites que não devem ficar ocultos\n\n1. O checkpoint anterior, `CP-20260928-V027`, parou no piloto com 429 e não descreve a revisão posterior de Victor, a ferramenta de adoção de tarefa existente nem o rascunho de Augusto. Esta versão corrige o retrato, preservando a anterior como histórico.\n2. `estado_mestre` ainda afirma que os 20 especialistas estão no Grok e que `FOC-004` é o foco técnico ativo. A escolha atual do fundador é Hermes com GPT e preparar receita por Humano Digital; `foco_executivo` de fato mantém `FOC-004` em `EM EXECUÇÃO` e `FOC-002` Caixa em `PLANEJADO`. Registrar a divergência até uma decisão explícita alinhar os cadastros.\n3. A tela `/execucao` mostra “Hoje (25/09/2026)” e “Helena e os 20 bots Grok conectados”, textos fixos incorretos em 28/09. “Sistema sincronizado” ali não valida a supervisão automática. A página mostra parte das evidências Pedro/Victor, porém ainda pode exibir bloqueio antigo de cota como situação presente.\n4. O despacho Hermes é pontual e opt-in (`hermes_dispatch_once.py`), com preflight e WIP 1; não há ciclo contínuo/cron comprovado para todos os perfis, nem limite financeiro global comprovado. A fila por si só não desperta 19 especialistas. Não repetir pilotos pagos enquanto o limite disponível e a causa dos quatro `FAILED` forem desconhecidos.\n5. Nenhuma janela automática de revisão da Helena, notificação de críticos por WhatsApp, validação comercial de Hub/IMIX, campanha externa, ativação rastreada ou conciliação de comissão foi homologada. `FOC-001` e `FOC-003` concluídos se referem à v4 histórica, não à nova operação Hermes.\n\n## Próximos passos, em ordem, com critério de pronto\n\n1. **Theo + Helena/Marina:** aplicar no host Hermes, com backup, o filtro de ferramentas do commit `7127482`; conferir no perfil real que só Helena e Marina enxergam `adopt_existing_task`. Não chamar modelo para verificar. Pronto quando a lista real de ferramentas e o perfil correspondem ao repositório.\n2. **Theo + Marina:** apurar os quatro jobs `FAILED` por eventos/diagnóstico, fixar teto de consumo, uma execução por vez e condição explícita de pausa. Pronto quando o pré-voo impede nova chamada acima do limite e a falha não gera repetição automática.\n3. **Augusto → Helena:** somente após item 2 e crédito confirmado, liberar um único job `DRAFT` já vinculado à tarefa existente; receber estratégia, memória e evidência; revisar e registrar decisão. Pronto quando tarefa, job, evidência e decisão aparecem juntos na página e no Supabase, sem duplicação.\n4. **Marina + Helena:** implementar rotina de supervisão em lote, de custo controlado, que lê os jobs reais pendentes, verifica congruência entre empresa, tarefa, evidência e entrega, e encaminha exceções. Pronto quando há uma execução automática observável com decisão registrada; 23 registros legados não contam como fila de revisão nova.\n5. **Theo + Bruno:** corrigir textos/data na página, classificação da integração Gateway e sinais de estado. Pronto quando a tela distingue “perfil configurado”, “job em execução”, “entrega revisada” e “pendência do fundador”, conferidos contra a base.\n6. **Pedro + Clara + Caio + Daniel:** confirmar termos dos parceiros, regras de consentimento e indicadores/comissão antes da campanha. Camila, Victor, Isabela, Joana e Renata só passam da preparação à captação e atendimento externos com oferta comprovada, rota de entrada e rastreio por empresa. Pronto quando uma pessoa de teste atravessa entrada → ativação → comissão conciliada, sem promessa de renda não validada.\n7. **Marina + Helena:** vincular gradualmente as tarefas existentes relevantes ao Gateway, por prioridade, empresa e responsável; não duplicar nem ativar indiscriminadamente as 49 sem job. Validar handoff e isolamento entre empresas antes de escalar.\n\n## Como retomar em outra conversa\n\nPeça: **“Helena, carregue o Checkpoint Mestre.”** O carregamento deve consultar `public.checkpoint_mestre_atual`, conferir `agent_jobs`, `tarefas`, `agent_runtime_bindings`, integrações e saúde do Gateway, e declarar o que mudou desde esta observação. Carregar é leitura; não publica outra versão. Para criar versão nova, comparar com o checkpoint ativo e usar `public.helena_publish_checkpoint` com o ID predecessor; não sobrescrever a anterior. Nunca declarar “100%” com base somente em HTTP 200, vínculo `ACTIVE`, job `COMPLETED` ou registro `WAITING_HELENA`.\n\r\n",
+  "checkpoint_anterior_id": "CP-20260928-V032",
+  "mudancas_desde_anterior": [
+    "Estado vivo e divergência frente à V032 registrados",
+    "Maya e armazenamento de PNG privados mapeados",
+    "Gateway e MCP testados sem execução de IA",
+    "Lacuna de acionamento e piloto declarada"
+  ]
+}

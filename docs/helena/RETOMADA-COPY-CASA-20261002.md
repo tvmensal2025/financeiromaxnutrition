@@ -1,5 +1,7 @@
 # Retomada pontual da copy — Humano Digital
 
+Atualização posterior: consultar [RETOMADA-RECOMPOSICAO-20261002.md](RETOMADA-RECOMPOSICAO-20261002.md). O sucessor visual recebeu correção de contraste sem IA, mas Nina devolveu por tamanho da assinatura do logo; não há aprovação final do conjunto. Histórico abaixo preservado.
+
 Autorização: fundador respondeu "faca isso" após implantação da PR #9 e proposta de retomar a copy de forma planejada. Campanha HD-CASA-POST-STORY-20261002: um post e um story, somente revisão interna. A tarefa antiga JOB-HR-070661329e98fdb5f1c39c81e0cbabe7 permanece FAILED, 2/2, sem reset. Replanejamento único após diagnóstico TIMEOUT e correção do runtime, com chave estável HD-CASA-COPY-REPLAN-20261002-01. Não criar outra sucessora se esta falhar; preservar evidência e diagnosticar.
 
 Registro real: criada `JOB-HR-f4968945ad0ab31bfccc6b611b86b0a8`, inicialmente DRAFT, versão 3751, zero tentativas e nenhuma fonte ausente. Conector da Isabela READY. Liberada às 20:18:33 UTC; executor automático iniciou às 20:19:52 UTC, tentativa 1. Jev registrou avaliação consultiva REVIEW_REQUIRED, portanto não escolheu outro modelo; usa-se o perfil vigente. Progresso às 20:20:19 UTC informa redação e conferência, sem substituir submissão ou aprovação.

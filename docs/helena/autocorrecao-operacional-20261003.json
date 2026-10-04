@@ -1,0 +1,49 @@
+{
+  "version": "autocorrection-v1",
+  "technical_owner": "AGT-09",
+  "coordinator": "AGT-01",
+  "mechanism": "Controlador deterministico antes do pipeline existente; nao depende de conversa aberta nem inicia um novo agente de diagnostico a cada consulta.",
+  "roles": {
+    "AGT-09": "Responsavel tecnico pelo catalogo de falhas e procedimentos de recuperacao",
+    "AGT-01": "Confirma liberacao da mesma tarefa conforme estado e autorizacao atuais",
+    "original_executor": "Corrige ou refaz a propria etapa dentro da tentativa restante",
+    "assigned_reviewer": "Avalia a entrega, solicita ajustes ou aprova pelo fluxo existente"
+  },
+  "enabled_recipe": {
+    "id": "text-timeout-sol61-v1",
+    "business_id": "BIZ-003",
+    "executor": "AGT-17",
+    "conditions": [
+      "FAILED com TIMEOUT confirmado pelo despachante",
+      "Tentativa 1 de no maximo 2",
+      "Nenhuma entrega, evidencia ou artefato encontrado",
+      "Sem execucao concorrente",
+      "Versao atual e permissao de coordenacao confirmadas"
+    ],
+    "action": "Mesmo job retorna a DRAFT, Helena libera, executor usa gpt-6.1-sol com --reasoning max e limite de 600 segundos.",
+    "future_occurrences": "Descoberta paginada de novos jobs apos 2026-10-03T08:56:01Z, somente na empresa e no procedimento permitido.",
+    "pilot_job_id": "JOB-HR-84c9b8d298379035cde814191a3a6905",
+    "observed": "Mesmo job recuperado, liberado, executado e COMPLETED. Duas copies persistidas e aprovadas por Camila AGT-16 em revisao iniciada pelo pipeline automatico, sem nova ordem do operador. Escopo: texto interno, sem publicacao.",
+    "limitations": "Nao identifica a causa original da demora do provedor. Nao cobre automaticamente outros agentes, geracao visual, credenciais, pagamentos, publicacao ou erros desconhecidos."
+  },
+  "stop_conditions": [
+    "Resultado incerto exige conciliacao",
+    "Tentativas esgotadas nao sao zeradas",
+    "Entrega existente segue revisao, nao repeticao",
+    "Erro sem procedimento validado continua com responsavel e evidencia",
+    "Falha da propria recuperacao interrompe execucao paga"
+  ],
+  "verification": {
+    "python_tests_passed": 51,
+    "sql_rollback_tests_passed": 7,
+    "new_schedule_created": false,
+    "full_delivery_approved": true,
+    "independent_reviewer": "AGT-16"
+  },
+  "files": [
+    "services/helena-gateway/scripts/hermes_autocorrection.py",
+    "services/helena-gateway/scripts/hermes_pipeline.py",
+    "services/helena-gateway/scripts/hermes_dispatch_once.py",
+    "supabase/migrations/20261003090000_bounded_text_failure_recovery.sql"
+  ]
+}

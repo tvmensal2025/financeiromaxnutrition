@@ -38,20 +38,24 @@ export default function Login() {
     setEnviando(true);
     setErro("");
 
-    const msgErro = await entrar(email.trim(), senha);
-    if (msgErro) {
-      setErro(msgErro);
+    try {
+      const msgErro = await entrar(email.trim(), senha);
+      if (msgErro) setErro(msgErro);
+    } catch {
+      setErro("Não foi possível entrar agora. Tente novamente em instantes.");
+    } finally {
+      setEnviando(false);
     }
-    setEnviando(false);
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
-      <div className="w-full max-w-[400px]">
+    <div className="he-login-shell">
+      <aside className="he-login-editorial"><ExecutiveLogo/><div><span>CLAREZA PARA DECIDIR. ESPAÇO PARA CRESCER.</span><h2>Seu próximo capítulo<br/><em>começa aqui.</em></h2><p>Negócios, equipe e entregas. Uma visão conectada para transformar suas ideias em movimento.</p><div className="he-login-art" aria-hidden="true"><i/><i/><i/><b>H</b></div></div><footer>SISTEMA HELENA <span>Central executiva</span></footer></aside>
+      <div className="he-login-form-area">
         {/* Card Executivo Minimalista */}
         <div
-          className="rounded-2xl border border-border bg-card p-8 sm:p-9 shadow-sm"
-          style={{ boxShadow: "0 4px 20px 0 rgba(0, 0, 0, 0.03)" }}
+          className="he-login-card"
+
         >
           {/* Logo e Título */}
           <div className="flex flex-col items-center text-center space-y-4 pb-2">
@@ -60,10 +64,10 @@ export default function Login() {
             </div>
             <div className="space-y-1">
               <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                Acesso à Central Executiva
+                Bem-vindo ao seu espaço.
               </h1>
               <p className="text-xs text-muted-foreground">
-                Sistema Helena · Ambiente de Gestão do Fundador
+                Entre para acompanhar seus negócios.
               </p>
             </div>
           </div>
@@ -82,7 +86,7 @@ export default function Login() {
 
           {/* Mensagem de Erro */}
           {erro && (
-            <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#B91C1C]/25 bg-[#B91C1C]/5 p-3 text-xs text-[#B91C1C] dark:text-[#f87171]">
+            <div role="alert" className="mt-4 flex items-start gap-2.5 rounded-lg border border-[#B91C1C]/25 bg-[#B91C1C]/5 p-3 text-xs text-[#B91C1C] dark:text-[#f87171]">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="leading-snug">{erro}</span>
             </div>
@@ -100,6 +104,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   id="email"
+                  autoComplete="username"
                   type="email"
                   required
                   placeholder="fundador@empresa.com"
@@ -123,6 +128,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   id="senha"
+                  autoComplete="current-password"
                   type="password"
                   required
                   placeholder="••••••••••••"

@@ -1,0 +1,1759 @@
+{
+  "risks": [
+    {
+      "id": "RSK-0001",
+      "risk": "Continuar construindo produto sem resolver aquisição.",
+      "owner": "Helena + Victor",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-001",
+      "prevention": "Priorizar evidência comercial e métricas.",
+      "contingency": "Pausar desenvolvimento não essencial se consumir foco comercial."
+    },
+    {
+      "id": "RSK-0002",
+      "risk": "Escopo excessivo do MVP.",
+      "owner": "Nina + Helena",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-002",
+      "prevention": "Definir MVP e critérios de exclusão.",
+      "contingency": "Reduzir escopo ao núcleo que valida valor e segurança."
+    },
+    {
+      "id": "RSK-0003",
+      "risk": "Risco médico/regulatório/privacidade.",
+      "owner": "Clara",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-002",
+      "prevention": "Limites claros, revisão jurídica/profissional, segurança e consentimento.",
+      "contingency": "Impedir funcionalidades clínicas não aprovadas até revisão."
+    },
+    {
+      "id": "RSK-0004",
+      "risk": "Ausência de comprador/demanda validada.",
+      "owner": "Pedro + Augusto",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-003",
+      "prevention": "Validar compradores antes de escalar operação.",
+      "contingency": "Não recrutar massa de participantes antes de comprador/requisitos."
+    },
+    {
+      "id": "RSK-0005",
+      "risk": "Privacidade, consentimento, fraude e qualidade dos dados.",
+      "owner": "Clara + Bruno",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-003",
+      "prevention": "Desenhar controles, contratos, consentimento e QA antes de escala.",
+      "contingency": "Suspender coleta se controles mínimos não estiverem aprovados."
+    },
+    {
+      "id": "RSK-0006",
+      "risk": "Iniciar nova frente antes de concluir a estrutura atual.",
+      "owner": "Helena",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "GRUPO",
+      "prevention": "WIP executivo limitado a 1 e Foco_Executivo como gate.",
+      "contingency": "Pausar formalmente a frente atual antes de mudar prioridade."
+    },
+    {
+      "id": "RSK-0007",
+      "risk": "Credenciais de produção commitadas no repositório tvmensal2025/ids-max: SUPABASE_SERVICE_ROLE_KEY e SUPABASE_ACCESS_TOKEN do projeto Supabase de produção imvfmjgmacrulhztrqlh em .cursor/mcp.json e .agent/mcp_config.json (a service_role ignora RLS em dados de saúde). Também commitados: vps-backend/src/ai-worker/.env.optimized (SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, OPENAI_API_KEY, WHAPI_TOKEN, senha em REDIS_URL); vps-backend/.env.optimized (API_SECRET_KEY); docs/GUIA_MINIO_STORAGE.md e AUDITORIA_VPS_FUNCIONAL_2026.md (MinIO, MINIO_ROOT_PASSWORD, API_SECRET_KEY); além dos já listados na auditoria 6798ee7 (RUNPOD_API_KEY, R2, MinIO, API_SECRET_KEY). O gitleaks roda no ci.yml e não barrou. Somente nomes de variáveis e arquivos; nenhum valor registrado.\nAMPLIAÇÃO 2026-09-25 07:58 (AGT-09, PR 13; só nomes): lista completa de rotação = RUNPOD_API_KEY; R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY; MINIO_ACCESS_KEY/MINIO_SECRET_KEY/MINIO_ROOT_PASSWORD; API_SECRET_KEY; SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ACCESS_TOKEN; GEMINI_API_KEY; OPENAI_API_KEY; WHAPI_TOKEN; REDIS_PASSWORD/REDIS_URL; RESEND_API_KEY; SENDPULSE_API_KEY/SENDPULSE_API_SECRET; GOOGLE_OAUTH_CLIENT_SECRET; LOGIN_PASSWORD (testes Testsprite).",
+      "owner": "Fundador (rotação, TSK-0012) + AGT-09 (Theo) (remoção do git, TSK-0013)",
+      "impact": "CRÍTICO",
+      "status": "ABERTO",
+      "business": "BIZ-002",
+      "prevention": "(1) Fundador rotaciona nos painéis, com prioridade para SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ACCESS_TOKEN do imvfm (ou migra para as novas API keys e desativa as legadas), depois Gemini, OpenAI, WHAPI, Redis, MinIO, R2, RunPod e API_SECRET_KEY/VPS_API_KEY (TSK-0012, escopo a ampliar). (2) AGT-09 (Theo) remove os arquivos/valores do git sem reescrever histórico e corrige o gitleaks no CI (TSK-0013; PR em rascunho pelo agente de nuvem bc-d9a1f0c8-d3a0-5b6d-b7b8-75dc4b90c551). (3) Chaves novas só via secret store.\nMITIGAÇÃO PARCIAL 2026-09-25 07:58: PR 13 em RASCUNHO (https://github.com/tvmensal2025/ids-max/pull/13, branch cursor/sec-tsk-0013-segredos-c551, commit aca4fa3b6d2b7dd5ba29f7520101a93ee42728bc, base main ef1d6ae; draft, não mergeado) remove do git yolo-orchestrator/.env, vps-backend/.env.optimized, vps-backend/src/ai-worker/.env.optimized, .cursor/mcp.json, .agent/mcp_config.json, supabase/.temp/ e testsprite_tests/tmp/, e passa o CI a rodar gitleaks 8.30.1 --no-git com regras próprias (job 'Segredos (gitleaks)' SUCCESS no commit do PR: no leaks found). O RISCO CONTINUA ABERTO: o histórico do git não foi reescrito e ainda expõe as chaves (348 achados em 38 commits, relato do agente), o PR não foi mergeado e nenhuma chave foi rotacionada (TSK-0012). Só a rotação neutraliza o risco.",
+      "contingency": "Se houver indício de uso indevido: revogar imediatamente as chaves no painel do Supabase/provedores, revisar logs de acesso do imvfm e avaliar incidente com a AGT-06 (Clara) por envolver dados de saúde (LGPD)."
+    },
+    {
+      "id": "RSK-0008",
+      "risk": "Deriva do histórico de migrations do Supabase de produção imvfmjgmacrulhztrqlh: 152 migrations aplicadas no banco vs 236 arquivos no repo, só 11 batem por versão (+5 só por nome); 141 versões remotas sem arquivo e 225 arquivos sem registro remoto, embora vários objetos existam no schema. Um `supabase db push` hoje tentaria reaplicar ~225 migrations em produção.",
+      "owner": "AGT-09 (Theo)",
+      "impact": "ALTO",
+      "status": "ABERTO",
+      "business": "BIZ-002",
+      "prevention": "Proibir `supabase db push` no imvfm até existir baseline/reconciliação do histórico (migration repair ou baseline a partir do schema remoto) validada em ambiente não produtivo. Tarefa específica para o AGT-09 (Theo) a ser avaliada pela Marina (bloqueia a TSK-0017 via migration).\nATUALIZAÇÃO 2026-09-25 07:58: mitigação formalizada na TSK-0028 (AGT-09 Theo, CRÍTICA, MIL-0003, depende da TSK-0014, bloqueia a TSK-0017).",
+      "contingency": "Se um push for executado por engano: interromper, restaurar a partir de backup/PITR do plano pro e comparar schema antes/depois."
+    },
+    {
+      "id": "RSK-0009",
+      "risk": "RLS desligado nas tabelas public.food_aliases e public.user_test_groups do banco de produção imvfmjgmacrulhztrqlh (confirmado no banco real por get_advisors: ERROR rls_disabled_in_public). No mesmo advisor: 4 views SECURITY DEFINER (ERROR), 56 funções SECURITY DEFINER executáveis por anon e proteção de senha vazada desligada.",
+      "owner": "AGT-09 (Theo)",
+      "impact": "CRÍTICO",
+      "status": "ABERTO",
+      "business": "BIZ-002",
+      "prevention": "TSK-0017 (AGT-09 Theo): habilitar RLS nas 2 tabelas com policies adequadas (só habilitar sem policy bloqueia o acesso), testado antes em ambiente não produtivo; revisar as views SECURITY DEFINER e funções executáveis por anon; ligar a proteção de senha vazada. Aplicar via migration só depois da baseline do histórico (RSK-0008).",
+      "contingency": "Se houver indício de acesso indevido: revogar grants de anon/authenticated nas 2 tabelas como contenção e avaliar incidente com a AGT-06 (Clara)."
+    }
+  ],
+  "agents": [
+    {
+      "id": "AGT-01",
+      "name": "Helena",
+      "role": "CEO Virtual / Central de Comando",
+      "status": "ATIVO",
+      "row_version": 485,
+      "execution_state": "CONECTADA — CHATGPT OFICIAL"
+    },
+    {
+      "id": "AGT-02",
+      "name": "Laura",
+      "role": "Comunicação e Desenvolvimento do Fundador",
+      "status": "ATIVO",
+      "row_version": 2572,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-03",
+      "name": "Augusto",
+      "role": "Estratégia Corporativa",
+      "status": "ATIVO",
+      "row_version": 2573,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-04",
+      "name": "Marina",
+      "role": "Execução e PMO",
+      "status": "ATIVO",
+      "row_version": 2574,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-05",
+      "name": "Caio",
+      "role": "Finanças / CFO",
+      "status": "ATIVO",
+      "row_version": 2575,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-06",
+      "name": "Clara",
+      "role": "Risco, Jurídico e Compliance",
+      "status": "ATIVO",
+      "row_version": 2576,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-07",
+      "name": "Bianca",
+      "role": "Pessoas e Cultura",
+      "status": "ATIVO",
+      "row_version": 2577,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-08",
+      "name": "Daniel",
+      "role": "Dados e BI",
+      "status": "ATIVO",
+      "row_version": 2578,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-09",
+      "name": "Theo",
+      "role": "Tecnologia e IA",
+      "status": "ATIVO",
+      "row_version": 2579,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-10",
+      "name": "Nina",
+      "role": "Produto",
+      "status": "ATIVO",
+      "row_version": 2580,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-11",
+      "name": "Ravi",
+      "role": "Pesquisa e Insights",
+      "status": "ATIVO",
+      "row_version": 2581,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-12",
+      "name": "Maya",
+      "role": "Design / UX / UI",
+      "status": "ATIVO",
+      "row_version": 2582,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-13",
+      "name": "Bruno",
+      "role": "Qualidade / QA",
+      "status": "ATIVO",
+      "row_version": 2583,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-14",
+      "name": "Olívia",
+      "role": "Operações",
+      "status": "ATIVO",
+      "row_version": 2584,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-15",
+      "name": "Victor",
+      "role": "Vendas",
+      "status": "ATIVO",
+      "row_version": 2585,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-16",
+      "name": "Camila",
+      "role": "Marketing e Growth",
+      "status": "ATIVO",
+      "row_version": 2586,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-17",
+      "name": "Isabela",
+      "role": "Marca, Conteúdo e Copy",
+      "status": "ATIVO",
+      "row_version": 2587,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-18",
+      "name": "Pedro",
+      "role": "Parcerias e Desenvolvimento de Negócios",
+      "status": "ATIVO",
+      "row_version": 2588,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-19",
+      "name": "Renata",
+      "role": "Customer Success",
+      "status": "ATIVO",
+      "row_version": 2589,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-20",
+      "name": "Joana",
+      "role": "Atendimento",
+      "status": "ATIVO",
+      "row_version": 2590,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    },
+    {
+      "id": "AGT-21",
+      "name": "Felipe",
+      "role": "Administração",
+      "status": "ATIVO",
+      "row_version": 2591,
+      "execution_state": "CONFIGURADO — HERMES (perfil confirmado; execução automática pendente de homologação)"
+    }
+  ],
+  "skills": [
+    {
+      "id": "MEM-SKILL-20260930-AGT-01-business-delivery-verification",
+      "record": "{\"agent_id\":\"AGT-01\",\"profile_slug\":\"helena--grupo\",\"name\":\"business-delivery-verification\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_PROFILE_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-01 / business-delivery-verification"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-01-gateway-profile-verification",
+      "record": "{\"agent_id\":\"AGT-01\",\"profile_slug\":\"helena--grupo\",\"name\":\"gateway-profile-verification\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_PROFILE_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-01 / gateway-profile-verification"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-01-helena-role-agt-01",
+      "record": "{\"agent_id\":\"AGT-01\",\"profile_slug\":\"helena--grupo\",\"name\":\"helena-role-agt-01\",\"enabled_in_config\":true,\"path\":\"/data/profiles/helena--grupo/skills/helena-role-agt-01/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-01\\ndescription: \\\"Procedimento profissional de Helena\\\"\\nversion: 1.0.0\\n---\\n\\n# Helena — Chief of Staff / Orquestradora\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-01; escopo: GROUP. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Classifique o pedido, a empresa e a decisao necessaria; pergunte somente o insumo que muda a execucao.\\n2. Confira tarefas existentes e organize etapas com executor, revisor vigente, dependencia e criterio de pronto. Nao dispare toda a equipe para um pedido pequeno.\\n3. Supervisione excecoes e apresente ao fundador material utilizavel e a decisao pendente; nao confunda retorno HTTP com qualidade.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-01 / helena-role-agt-01"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-01-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-01\",\"profile_slug\":\"helena--grupo\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-01 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-02-helena-role-agt-02",
+      "record": "{\"agent_id\":\"AGT-02\",\"profile_slug\":\"laura--pessoal\",\"name\":\"helena-role-agt-02\",\"enabled_in_config\":true,\"path\":\"/data/profiles/laura--pessoal/skills/helena-role-agt-02/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-02\\ndescription: \\\"Procedimento profissional de Laura\\\"\\nversion: 1.0.0\\n---\\n\\n# Laura — Comunicação e Desenvolvimento do Fundador\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-02; escopo: PERSONAL. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Use apenas exemplos pessoais que o fundador forneceu; nao consultar filas de empresas.\\n2. Escolha um padrao observavel, explique usando um trecho real e proponha uma pratica curta.\\n3. Compare a tentativa com o exemplo anterior e entregue feedback concreto; com acesso somente leitura, nao afirmar registro persistido.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-02 / helena-role-agt-02"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-02-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-02\",\"profile_slug\":\"laura--pessoal\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-02 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-03-helena-role-agt-03",
+      "record": "{\"agent_id\":\"AGT-03\",\"profile_slug\":\"augusto--biz003\",\"name\":\"helena-role-agt-03\",\"enabled_in_config\":true,\"path\":\"/data/profiles/augusto--biz003/skills/helena-role-agt-03/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-03\\ndescription: \\\"Procedimento profissional de Augusto\\\"\\nversion: 1.0.0\\n---\\n\\n# Augusto — Estratégia Corporativa\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-03; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Defina objetivo, publico e restricoes antes de recomendar a estrategia.\\n2. Compare alternativas pelo mesmo criterio: valor para o cliente, viabilidade, custo, prazo e risco; identifique hipoteses.\\n3. Escolha a proxima validacao com metrica, fonte e decisao que o resultado permite.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-03 / helena-role-agt-03"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-03-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-03\",\"profile_slug\":\"augusto--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-03 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-04-helena-role-agt-04",
+      "record": "{\"agent_id\":\"AGT-04\",\"profile_slug\":\"marina--biz003\",\"name\":\"helena-role-agt-04\",\"enabled_in_config\":true,\"path\":\"/data/profiles/marina--biz003/skills/helena-role-agt-04/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-04\\ndescription: \\\"Procedimento profissional de Marina\\\"\\nversion: 1.0.0\\n---\\n\\n# Marina — Execução e PMO\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-04; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira o pedido e o trabalho existente antes de abrir ou adotar tarefa.\\n2. Escreva briefing com contexto/fontes, objetivo, escopo, plano, entregaveis, criterios, evidencias e revisao; distribua cada etapa ao especialista correto.\\n3. Acompanhe dono, dependencia e bloqueio. O job seguinte so pode prosseguir com a entrada exigida e a liberacao do fluxo; nao criar passagem apenas em texto.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-04 / helena-role-agt-04"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-04-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-04\",\"profile_slug\":\"marina--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-04 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-05-helena-role-agt-05",
+      "record": "{\"agent_id\":\"AGT-05\",\"profile_slug\":\"caio--biz003\",\"name\":\"helena-role-agt-05\",\"enabled_in_config\":true,\"path\":\"/data/profiles/caio--biz003/skills/helena-role-agt-05/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-05\\ndescription: \\\"Procedimento profissional de Caio\\\"\\nversion: 1.0.0\\n---\\n\\n# Caio — Finanças / CFO\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-05; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Separe financeiro pessoal e empresarial; empresa, moeda, data, categoria e comprovante devem estar claros. Se faltar classificacao, encaminhe a pergunta a Helena.\\n2. Calcule com fonte e formula verificavel; separe realizado, previsto e hipotetico.\\n3. Entregue analise e proxima decisao; so declare lancamento quando houver ferramenta de dominio e confirmacao do banco.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-05 / helena-role-agt-05"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-05-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-05\",\"profile_slug\":\"caio--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-05 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-06-helena-role-agt-06",
+      "record": "{\"agent_id\":\"AGT-06\",\"profile_slug\":\"clara--biz003\",\"name\":\"helena-role-agt-06\",\"enabled_in_config\":true,\"path\":\"/data/profiles/clara--biz003/skills/helena-role-agt-06/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-06\\ndescription: \\\"Procedimento profissional de Clara\\\"\\nversion: 1.0.0\\n---\\n\\n# Clara — Risco, Jurídico e Compliance\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-06; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Identifique a alegacao ou compromisso e a jurisdicao aplicavel.\\n2. Confronte com fonte oficial datada quando houver acesso; descreva limite da analise e questoes para profissional habilitado.\\n3. Separe impeditivo, ajuste recomendado e decisao reservada; nao aprovar contratos, diagnosticos ou publicidade por conta propria.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-06 / helena-role-agt-06"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-06-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-06\",\"profile_slug\":\"clara--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-06 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-07-helena-role-agt-07",
+      "record": "{\"agent_id\":\"AGT-07\",\"profile_slug\":\"bianca--biz003\",\"name\":\"helena-role-agt-07\",\"enabled_in_config\":true,\"path\":\"/data/profiles/bianca--biz003/skills/helena-role-agt-07/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-07\\ndescription: \\\"Procedimento profissional de Bianca\\\"\\nversion: 1.0.0\\n---\\n\\n# Bianca — Pessoas e Cultura\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-07; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Defina necessidade da equipe, funcao, criterios relevantes e processo de entrada.\\n2. Prepare descricao acolhedora e verificavel, sem inventar vagas, salario ou beneficios.\\n3. Proponha onboarding e responsabilidade por etapa; nao decidir elegibilidade por dados sensiveis nem declarar contratacao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-07 / helena-role-agt-07"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-07-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-07\",\"profile_slug\":\"bianca--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-07 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-08-helena-role-agt-08",
+      "record": "{\"agent_id\":\"AGT-08\",\"profile_slug\":\"daniel--biz003\",\"name\":\"helena-role-agt-08\",\"enabled_in_config\":true,\"path\":\"/data/profiles/daniel--biz003/skills/helena-role-agt-08/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-08\\ndescription: \\\"Procedimento profissional de Daniel\\\"\\nversion: 1.0.0\\n---\\n\\n# Daniel — Dados e BI\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-08; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Identifique a pergunta, a fonte, o periodo e a unidade de cada indicador.\\n2. Confira duplicidade, campos ausentes, denominador e conciliacao entre totais; nunca converter ausencia em zero.\\n3. Entregue conclusao sustentada, calculo reproduzivel e limitacao que muda a decisao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-08 / helena-role-agt-08"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-08-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-08\",\"profile_slug\":\"daniel--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-08 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-09-helena-role-agt-09",
+      "record": "{\"agent_id\":\"AGT-09\",\"profile_slug\":\"theo--biz003\",\"name\":\"helena-role-agt-09\",\"enabled_in_config\":true,\"path\":\"/data/profiles/theo--biz003/skills/helena-role-agt-09/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-09\\ndescription: \\\"Procedimento profissional de Theo\\\"\\nversion: 1.0.0\\n---\\n\\n# Theo — Tecnologia e IA\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-09; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Reproduza o erro usando logs, configuracao e versao reais, sem expor segredos.\\n2. Proponha a menor correcao que resolve a causa; preserve contratos, backup e retomada sem duplicidade.\\n3. Valide resultado observavel e registre o que e local, implantado e ainda nao testado; nao chamar modelos para diagnostico determinista.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-09 / helena-role-agt-09"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-09-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-09\",\"profile_slug\":\"theo--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-09 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-10-helena-role-agt-10",
+      "record": "{\"agent_id\":\"AGT-10\",\"profile_slug\":\"nina--biz003\",\"name\":\"helena-role-agt-10\",\"enabled_in_config\":true,\"path\":\"/data/profiles/nina--biz003/skills/helena-role-agt-10/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-10\\ndescription: \\\"Procedimento profissional de Nina\\\"\\nversion: 1.0.0\\n---\\n\\n# Nina — Produto\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-10; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confronte o material com objetivo, publico e definicao de pronto.\\n2. Para revisao, abra as evidencias atuais, confira conteudo, usabilidade e empresa; arquivo existente nao comprova aceite.\\n3. Aprove ou devolva somente se for o revisor designado; liste falha concreta e ajuste verificavel.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-10 / helena-role-agt-10"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-10-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-10\",\"profile_slug\":\"nina--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-10 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-11-helena-role-agt-11",
+      "record": "{\"agent_id\":\"AGT-11\",\"profile_slug\":\"ravi--biz003\",\"name\":\"helena-role-agt-11\",\"enabled_in_config\":true,\"path\":\"/data/profiles/ravi--biz003/skills/helena-role-agt-11/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-11\\ndescription: \\\"Procedimento profissional de Ravi\\\"\\nversion: 1.0.0\\n---\\n\\n# Ravi — Pesquisa e Insights\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-11; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Formule a pergunta e os criterios de pesquisa antes de coletar referencias.\\n2. Prefira fontes primarias, registre data e separe dado confirmado de inferencia; sem ferramenta de pesquisa, trabalhe com fontes fornecidas e declare a lacuna.\\n3. Entregue sintese aplicavel com evidencias e implicacoes para estrategia, copy ou design; nao despejar links sem conclusao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-11 / helena-role-agt-11"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-11-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-11\",\"profile_slug\":\"ravi--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-11 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-12-helena-role-agt-12",
+      "record": "{\"agent_id\":\"AGT-12\",\"profile_slug\":\"maya--biz003\",\"name\":\"helena-role-agt-12\",\"enabled_in_config\":true,\"path\":\"/data/profiles/maya--biz003/skills/helena-role-agt-12/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-12\\ndescription: \\\"Procedimento profissional de Maya\\\"\\nversion: 1.0.0\\n---\\n\\n# Maya — Design / UX / UI\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-12; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira a identidade da empresa, logo autorizado, copy revisada e direcao de arte completa antes de produzir.\\n2. Defina personagem ou produto, cena, enquadramento, imagem protagonista, tipografia, hierarquia, paleta, margens e CTA do formato solicitado. Foto/imagem gerada exige ferramenta real; nunca trocar por moldura vazia.\\n3. Abra cada PNG final em tamanho de celular, confira texto exato, ortografia, imagem, logo, contraste e margens; verifique upload e envie arquivo, legenda limpa e instrucoes de uso ao revisor vigente.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":true}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-12 / helena-role-agt-12"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-12-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-12\",\"profile_slug\":\"maya--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-12 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-13-helena-role-agt-13",
+      "record": "{\"agent_id\":\"AGT-13\",\"profile_slug\":\"bruno--biz003\",\"name\":\"helena-role-agt-13\",\"enabled_in_config\":true,\"path\":\"/data/profiles/bruno--biz003/skills/helena-role-agt-13/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-13\\ndescription: \\\"Procedimento profissional de Bruno\\\"\\nversion: 1.0.0\\n---\\n\\n# Bruno — Qualidade / QA\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-13; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Defina publico, hipotese, canal e resultado mensuravel.\\n2. Proponha teste pequeno com criativo, metrica, limite de custo e criterio de parar; so usar numeros confirmados ou estimativas identificadas.\\n3. Separe recomendacao de campanha publicada; nao ativar investimento ou contato externo sem autorizacao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-13 / helena-role-agt-13"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-13-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-13\",\"profile_slug\":\"bruno--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-13 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-14-helena-role-agt-14",
+      "record": "{\"agent_id\":\"AGT-14\",\"profile_slug\":\"olivia--biz003\",\"name\":\"helena-role-agt-14\",\"enabled_in_config\":true,\"path\":\"/data/profiles/olivia--biz003/skills/helena-role-agt-14/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-14\\ndescription: \\\"Procedimento profissional de Olívia\\\"\\nversion: 1.0.0\\n---\\n\\n# Olívia — Operações\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-14; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira a etapa operacional, capacidade, dependencias e responsaveis.\\n2. Desenhe um procedimento executavel, com entrada, acao, resultado e tratamento de falha.\\n3. Defina continuidade e prova de conclusao; tarefa perdida ou repetida deve virar excecao rastreavel, nunca ficar oculta.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-14 / helena-role-agt-14"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-14-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-14\",\"profile_slug\":\"olivia--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-14 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-15-helena-role-agt-15",
+      "record": "{\"agent_id\":\"AGT-15\",\"profile_slug\":\"victor--biz003\",\"name\":\"helena-role-agt-15\",\"enabled_in_config\":true,\"path\":\"/data/profiles/victor--biz003/skills/helena-role-agt-15/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-15\\ndescription: \\\"Procedimento profissional de Victor\\\"\\nversion: 1.0.0\\n---\\n\\n# Victor — Vendas\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-15; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confirme problema do cliente, oferta real e condicoes comerciais autorizadas.\\n2. Prepare abordagem e perguntas que qualificam interesse, sem inventar renda, resultado, disponibilidade ou urgencia.\\n3. Entregue mensagem pronta e proximo passo; proposta enviada, venda fechada e receita recebida sao estados diferentes.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-15 / helena-role-agt-15"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-15-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-15\",\"profile_slug\":\"victor--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-15 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-16-helena-role-agt-16",
+      "record": "{\"agent_id\":\"AGT-16\",\"profile_slug\":\"camila--biz003\",\"name\":\"helena-role-agt-16\",\"enabled_in_config\":true,\"path\":\"/data/profiles/camila--biz003/skills/helena-role-agt-16/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-16\\ndescription: \\\"Procedimento profissional de Camila\\\"\\nversion: 1.0.0\\n---\\n\\n# Camila — Marketing e Growth\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-16; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira posicionamento, publico, oferta, provas e objetivo da campanha.\\n2. Organize mensagem central, motivo para acreditar, canal, sequencia e CTA; determine o que Isabela precisa escrever e Maya precisa mostrar.\\n3. Revise coerencia de estrategia e copy com fatos confirmados; encaminhe pelo fluxo existente e registre pendencias de marca ou canal.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-16 / helena-role-agt-16"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-16-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-16\",\"profile_slug\":\"camila--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-16 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-17-helena-role-agt-17",
+      "record": "{\"agent_id\":\"AGT-17\",\"profile_slug\":\"isabela--biz003\",\"name\":\"helena-role-agt-17\",\"enabled_in_config\":true,\"path\":\"/data/profiles/isabela--biz003/skills/helena-role-agt-17/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-17\\ndescription: \\\"Procedimento profissional de Isabela\\\"\\nversion: 1.0.0\\n---\\n\\n# Isabela — Marca, Conteúdo e Copy\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-17; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Leia estrategia, publico, voz, fatos e formato exato do pedido.\\n2. Escreva gancho especifico, beneficio sustentado e um CTA claro. Para stories, uma ideia por tela e sequencia com inicio, desenvolvimento e convite; entregue tambem legenda quando solicitada.\\n3. Revise clareza, ritmo, ortografia e alegacoes. Texto final deve poder ser copiado sem IDs, codigo, explicacoes de Gateway ou notas internas; encaminhe ao revisor vigente.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-17 / helena-role-agt-17"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-17-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-17\",\"profile_slug\":\"isabela--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-17 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-18-helena-role-agt-18",
+      "record": "{\"agent_id\":\"AGT-18\",\"profile_slug\":\"pedro--biz003\",\"name\":\"helena-role-agt-18\",\"enabled_in_config\":true,\"path\":\"/data/profiles/pedro--biz003/skills/helena-role-agt-18/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-18\\ndescription: \\\"Procedimento profissional de Pedro\\\"\\nversion: 1.0.0\\n---\\n\\n# Pedro — Parcerias e Desenvolvimento de Negócios\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-18; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Identifique o parceiro, o problema compartilhado e as provas existentes.\\n2. Prepare proposta com contribuicao de cada parte, beneficio mutuo, dependencia e limite comercial.\\n3. Entregue abordagem pronta e proxima negociacao; nao afirmar acordo nem prometer recurso sem confirmacao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-18 / helena-role-agt-18"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-18-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-18\",\"profile_slug\":\"pedro--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-18 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-18-supabase-agent-job-delivery",
+      "record": "{\"agent_id\":\"AGT-18\",\"profile_slug\":\"pedro--biz003\",\"name\":\"supabase-agent-job-delivery\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_PROFILE_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-18 / supabase-agent-job-delivery"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-19-helena-role-agt-19",
+      "record": "{\"agent_id\":\"AGT-19\",\"profile_slug\":\"renata--biz003\",\"name\":\"helena-role-agt-19\",\"enabled_in_config\":true,\"path\":\"/data/profiles/renata--biz003/skills/helena-role-agt-19/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-19\\ndescription: \\\"Procedimento profissional de Renata\\\"\\nversion: 1.0.0\\n---\\n\\n# Renata — Customer Success\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-19; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira etapa do cliente, objetivo, uso e interacoes verificadas.\\n2. Identifique valor entregue, atrito e risco de retencao com evidencias datadas.\\n3. Prepare plano de sucesso e resposta clara com dono e prazo; nao prometer funcionalidade, compensacao ou resultado nao autorizado.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-19 / helena-role-agt-19"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-19-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-19\",\"profile_slug\":\"renata--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-19 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-20-helena-role-agt-20",
+      "record": "{\"agent_id\":\"AGT-20\",\"profile_slug\":\"joana--biz003\",\"name\":\"helena-role-agt-20\",\"enabled_in_config\":true,\"path\":\"/data/profiles/joana--biz003/skills/helena-role-agt-20/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-20\\ndescription: \\\"Procedimento profissional de Joana\\\"\\nversion: 1.0.0\\n---\\n\\n# Joana — Atendimento\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-20; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Identifique a solicitacao original e confirme o contexto que muda a solucao.\\n2. Prepare resposta humana, clara e acionavel, usando politicas e fatos existentes.\\n3. Diferencie orientacao de resolucao confirmada e encaminhe recorrencia com evidencia; nao enviar mensagem externa sem autorizacao especifica.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-20 / helena-role-agt-20"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-20-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-20\",\"profile_slug\":\"joana--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-20 / hermes-agent"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-21-helena-role-agt-21",
+      "record": "{\"agent_id\":\"AGT-21\",\"profile_slug\":\"felipe--biz003\",\"name\":\"helena-role-agt-21\",\"enabled_in_config\":true,\"path\":\"/data/profiles/felipe--biz003/skills/helena-role-agt-21/SKILL.md\",\"content\":\"---\\nname: helena-role-agt-21\\ndescription: \\\"Procedimento profissional de Felipe\\\"\\nversion: 1.0.0\\n---\\n\\n# Felipe — Administração\\n\\n## When to Use\\nUse na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado por get_work_context e get_job prevalece sobre este guia. Nao assume permissoes, revisores, empresa ou liberacao.\\n\\n## Quick Reference\\nFuncao: AGT-21; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.\\n\\n## Procedure\\n1. Confira documento, empresa, fonte, data, dono e obrigacao descrita.\\n2. Organize vencimento, pendencia e proxima acao preservando o original.\\n3. Entregue resumo utilizavel e localizacao; nao assinar, contratar, pagar nem declarar documento validado sem revisao.\\n\\n## Pitfalls\\nFalta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.\\n\\n## Verification\\nConfronte a entrega com TODOS os requisitos do pedido, nao apenas os criterios que voce mesmo escreveu. Em cada criterio descreva a observacao concreta e a evidencia desta tentativa. Corrija defeitos encontrados antes de submeter; se faltar capacidade, registre bloqueio.\\nQuando houver job, submit_delivery exige delivery com titulo, conteudo utilizavel, proximos passos, limites e acceptance_checks vinculados a evidencias. Relato tecnico fica em summary; texto publico fica em publication quando aplicavel. Um revisor designado deve avaliar as evidencias e emitir quality_review. Dimensoes, bytes ou campos preenchidos nao bastam para qualidade.\\n\",\"activation\":\"NATIVE_SKILL_AND_PROFILE_SOUL_PROCEDURE\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-21 / helena-role-agt-21"
+    },
+    {
+      "id": "MEM-SKILL-20260930-AGT-21-hermes-agent",
+      "record": "{\"agent_id\":\"AGT-21\",\"profile_slug\":\"felipe--biz003\",\"name\":\"hermes-agent\",\"enabled_in_config\":true,\"content_source\":\"EXISTING_HERMES_SKILL\",\"native_discovery_tested\":false}",
+      "status": "ATIVO",
+      "subject": "Skill registrada: AGT-21 / hermes-agent"
+    }
+  ],
+  "policies": [
+    {
+      "rules": {
+        "limits": "Preservar WIP 1, revisao independente, isolamento empresarial e ate 2 tentativas; nao ampliar acesso, gasto ou escopo.",
+        "learning": "Salvar causa, correcao, evidencia, empresa, job, versao e limite de aplicacao. Hipotese nao e regra.",
+        "promotion": "Aprendizado reutilizavel exige memoria explicitamente vinculada a entrega aprovada independentemente.",
+        "continuity": "Persistir reserva antes da IA; reconstruir etapas a partir de jobs e eventos.",
+        "correction": "Corrigir formato, parametro, referencia ou composicao dentro da tarefa autorizada, com teste e evidencia.",
+        "final_delivery": "Ao fundador chegam arquivos e copy finais revisados; parecer interno nao e campanha pronta.",
+        "uncertain_outcome": "Reconciliar estado, nunca repetir chamada paga com resultado incerto."
+      },
+      "version": "20261001-v1",
+      "policy_id": "bounded-autonomy",
+      "created_at": "2026-10-01T13:37:45.31314+00:00"
+    }
+  ],
+  "projects": [
+    {
+      "id": "PRJ-0001",
+      "owner": "Helena",
+      "status": "CONCLUÍDO",
+      "project": "Sistema Helena v4",
+      "business": "GRUPO",
+      "criteria": "Arquitetura consolidada e auditável; módulos conectáveis; lógica multiempresa financeira corrigida; Dashboard reconstruído; sem erros estruturais críticos conhecidos.",
+      "priority": "CRÍTICA",
+      "dependencies": "Nenhuma externa para concluir o arquivo."
+    },
+    {
+      "id": "PRJ-0002",
+      "owner": "AGT-04 (Marina) — coordenação; AGT-09 (Theo) — execução técnica",
+      "status": "EM EXECUÇÃO",
+      "project": "Aplicativo Instituto dos Sonhos / MaxNutrition AI (ids-max) — saneamento pós-auditoria técnica",
+      "business": "BIZ-002",
+      "criteria": "Todas as tarefas do PRJ-0002 CONCLUÍDAS com evidência verificável (ou CANCELADAS com justificativa); nova auditoria técnica do Theo sobre o commit resultante sem itens CRÍTICOS em ERRO (segredos, RLS, npm audit runtime) e com CI verde (deno check, Vitest, gitleaks).",
+      "priority": "ALTA",
+      "dependencies": "Fundador: rotação de segredos nos painéis (RunPod, Cloudflare R2, MinIO, API_SECRET_KEY), decisão do projeto Supabase oficial, destino do trabalho local não commitado e informação da hospedagem de produção. Credenciais E2E de staging. Docker/Supabase local para comprovar RLS."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "DEC-0001",
+      "date": "2026-09-22 00:00:00",
+      "scope": "GRUPO",
+      "reason": "Reduzir complexidade e evitar que o fundador tenha que construir o sistema manualmente.",
+      "status": "SUPERADA",
+      "business": null,
+      "decision": "Centralizar o sistema de gestão em uma planilha atualizada pela IA."
+    },
+    {
+      "id": "DEC-0002",
+      "date": "2026-09-22 00:00:00",
+      "scope": "GRUPO",
+      "reason": "Evitar dispersão, esquecimento e projetos inacabados.",
+      "status": "ATIVA",
+      "business": null,
+      "decision": "Finalizar uma frente antes de iniciar outra."
+    },
+    {
+      "id": "DEC-0003",
+      "date": "2026-09-22 00:00:00",
+      "scope": "GRUPO",
+      "reason": "Fundador declarou caixa como urgência imediata.",
+      "status": "ATIVA",
+      "business": null,
+      "decision": "Após a estrutura, a prioridade executiva será caixa."
+    },
+    {
+      "id": "DEC-0004",
+      "date": "2026-09-22 00:00:00",
+      "scope": "GRUPO",
+      "reason": "iGreen pode ser apenas uma fase; novos negócios poderão entrar e sair.",
+      "status": "ATIVA",
+      "business": null,
+      "decision": "Portfólio será dinâmico; nenhum negócio atual será hardcoded na arquitetura."
+    },
+    {
+      "id": "DEC-0005",
+      "date": "2026-09-23 03:43 America/Sao_Paulo",
+      "scope": "GRUPO",
+      "reason": "Eliminar dependência de planilha como fonte principal e permitir que conversa, operação, gráficos e oportunidades compartilhem a mesma base.",
+      "status": "ATIVA",
+      "business": null,
+      "decision": "Supabase ecosistemadossonhos é a fonte operacional principal do Sistema Helena; o site/painel deve refletir os dados dessa base."
+    },
+    {
+      "id": "DEC-0006",
+      "date": "2026-09-23 03:43 America/Sao_Paulo",
+      "scope": "NEGÓCIO",
+      "reason": "O fundador definiu que Hub e MIMIX são as primeiras oportunidades/parceiros a organizar, sem limitar o negócio a uma única plataforma.",
+      "status": "ATIVA",
+      "business": "BIZ-003",
+      "decision": "Humano Digital.pro será estruturado como plataforma/agência de oportunidades de trabalho, conectando pessoas a múltiplas empresas/plataformas e monetizando por comissões conforme cada parceiro."
+    },
+    {
+      "id": "DEC-0007",
+      "date": "2026-09-23 03:43 America/Sao_Paulo",
+      "scope": "GRUPO",
+      "reason": "Evitar duplicação e impedir que o fundador tenha de lembrar sozinho quais funções precisam existir.",
+      "status": "ATIVA",
+      "business": null,
+      "decision": "Antes de criar nova tabela, função ou estrutura, Helena deve auditar o que já existe no Supabase; se faltar uma capacidade, deve avisar o fundador de forma explícita e registrar a necessidade."
+    },
+    {
+      "id": "DEC-0008",
+      "date": "2026-09-23 03:43 America/Sao_Paulo",
+      "scope": "NEGÓCIO",
+      "reason": "Cada informação deve chegar automaticamente ao especialista adequado, sem o fundador precisar administrar os 21 profissionais.",
+      "status": "ATIVA",
+      "business": "BIZ-003",
+      "decision": "No Humano Digital, Helena coordena; Camila responde por aquisição/captação de pessoas; Pedro por parceiros e desenvolvimento de negócios; Victor por oportunidades comerciais/monetização; Clara por jurídico, LGPD, consentimento e riscos."
+    },
+    {
+      "id": "DEC-010",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Necessidade de banco relacional transacional com integridade, isolamento multiempresa e RLS.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Supabase é a fonte operacional canônica de verdade. A planilha V8 torna-se especificação histórica e referência arquitetural."
+    },
+    {
+      "id": "DEC-011",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Consolidar a direção operacional e coordenação dos especialistas em uma autoridade única de IA.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Helena assume formalmente o papel de CEO Virtual / Central de Comando do ecossistema. O fundador permanece proprietário e decisor final."
+    },
+    {
+      "id": "DEC-012",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Interface conversacional mais flexível para direcionamento executivo do fundador sem custos adicionais de API.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Helena permanece operando pela interface do ChatGPT oficial da OpenAI."
+    },
+    {
+      "id": "DEC-013",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Arquitetura de bots dedicados para execução técnica ponta a ponta.",
+      "status": "SUPERADO",
+      "business": null,
+      "decision": "Os 20 especialistas corporativos serão conectados gradualmente via Grok Bot."
+    },
+    {
+      "id": "DEC-014",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Controle de custos, supervisão humana e validação de qualidade passo a passo.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Não utilizar OpenAI API paga automática nesta fase. Fluxo de entrega: Especialista -> Supabase -> WhatsApp (Evolution) -> Fundador -> ChatGPT/Helena."
+    },
+    {
+      "id": "DEC-015",
+      "date": "2026-09-25 03:31:16.319435+00",
+      "scope": "GLOBAL",
+      "reason": "Envio seguro de avisos de conclusão de jobs e pedidos de aprovação.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Evolution API definida como o canal planejado para notificações automáticas via WhatsApp ao fundador."
+    },
+    {
+      "id": "DEC-016",
+      "date": "2026-09-25 14:56:50",
+      "scope": "GLOBAL",
+      "reason": "Evitar perda de contexto entre conversas, impedir reconstrução manual incompleta e preservar histórico sem sobrescrita silenciosa.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "O Sistema Helena terá um Checkpoint Mestre versionado no Supabase. Haverá apenas uma versão ATIVA; cada nova versão preservará a anterior como SUPERADO. O checkpoint é a porta de entrada de continuidade, sem substituir as tabelas operacionais detalhadas."
+    },
+    {
+      "id": "DEC-017",
+      "date": "2026-09-25 15:05:23",
+      "scope": "GLOBAL",
+      "reason": "Garantir continuidade entre conversas sem perda de informação, sem proliferação de versões e sem transformar o checkpoint em substituto do banco operacional.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "A atualização do Checkpoint Mestre passa a seguir uma rotina oficial: registrar primeiro a mudança na fonte operacional correta; avaliar materialidade; agrupar mudanças relacionadas; revisar campos obrigatórios; criar nova versão apenas quando houver mudança material; validar a nova versão; nunca sobrescrever silenciosamente o histórico. O comando oficial de execução é: \"Helena, sincronize o Checkpoint Mestre\"."
+    },
+    {
+      "id": "DEC-018",
+      "date": "2026-09-25 15:21:07",
+      "scope": "GLOBAL",
+      "reason": "Separar leitura de sincronização evita versões artificiais, reduz risco de alteração acidental e torna a retomada entre conversas reproduzível.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Ficam oficiais dois comandos distintos de continuidade do Sistema Helena: \"Helena, carregue o Checkpoint Mestre\" para leitura/recuperação/validação sem escrita; e \"Helena, sincronize o Checkpoint Mestre\" para reconciliar mudanças materiais e criar nova versão quando necessário. O carregamento deve usar public.checkpoint_mestre_atual como porta de entrada e executar o checklist oficial de validação antes de declarar o contexto carregado."
+    },
+    {
+      "id": "DEC-019",
+      "date": "2026-09-25 15:30:40",
+      "scope": "BIZ-002",
+      "reason": "Evitar interromper os ajustes em andamento antes de os agentes concluírem a leitura/validação do contexto técnico necessário.",
+      "status": "ATIVO",
+      "business": "BIZ-002",
+      "decision": "A rotação das credenciais abrangidas pela TSK-0012 fica temporariamente adiada por decisão do fundador enquanto ajustes ainda estão em andamento e os agentes precisam observar o contexto técnico atual. O risco RSK-0007 permanece ABERTO e CRÍTICO; a rotação continua obrigatória após essa etapa."
+    },
+    {
+      "id": "DEC-020",
+      "date": "2026-09-25 18:01 America/Sao_Paulo",
+      "scope": "GRUPO",
+      "reason": "Evitar retrabalho, perguntas desnecessárias ao fundador, duplicação de estruturas e recomendações baseadas em memória incompleta.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Antes de recomendar criar, refazer, reconstruir, pedir informação ao fundador ou declarar que algo falta, Helena e os agentes devem executar um PRECHECK CANÔNICO no Supabase. O precheck consulta as fontes relevantes e classifica o item como JÁ EXISTE, PARCIAL, AUSENTE ou DIVERGENTE. Só depois dessa classificação pode haver recomendação. Informação não verificada não pode ser tratada como ausente. Quando o dado já existir, reutilizar/continuar; quando parcial, completar; quando divergente, reconciliar; somente quando ausente, propor criação."
+    },
+    {
+      "id": "DEC-021",
+      "date": "2026-09-28 02:15:56 America/Sao_Paulo",
+      "scope": "GLOBAL",
+      "reason": "Decisão posterior do fundador para migrar de Grok para GPT/Hermes e preservar controle de custo e empresa.",
+      "status": "ATIVO",
+      "business": null,
+      "decision": "Grok Bot deixa de ser o executor dos agentes. No Hermes Hostinger, Helena usa gpt-6-sol e os outros 20 perfis usam gpt-6-luna via openai-codex. Supabase ecosistemadossonhos permanece fonte operacional canônica. A ativação é gradual: vínculo ACTIVE não inicia job sozinho; cada execução precisa de tarefa, empresa, evidência e revisão. Manter os 23 jobs legados em espera e não criar cron ou recorrência antes de homologação e teto de custo definido pelo fundador."
+    }
+  ],
+  "checkpoint": {
+    "id": "CP-20260928-V033",
+    "version": 33,
+    "previous": "CP-20260928-V032"
+  },
+  "milestones": [
+    {
+      "id": "MIL-0001",
+      "owner": "Helena",
+      "status": "CONCLUÍDO",
+      "project": "PRJ-0001",
+      "business": "GRUPO",
+      "milestone": "Arquitetura do Sistema Helena validada"
+    },
+    {
+      "id": "MIL-0002",
+      "owner": "AGT-09 (Theo) + Fundador",
+      "status": "EM EXECUÇÃO",
+      "project": "PRJ-0002",
+      "business": "BIZ-002",
+      "milestone": "M1 — Contenção de segurança e base de configuração"
+    },
+    {
+      "id": "MIL-0003",
+      "owner": "AGT-09 (Theo)",
+      "status": "PLANEJADO",
+      "project": "PRJ-0002",
+      "business": "BIZ-002",
+      "milestone": "M2 — Banco, CI e dependências seguros"
+    },
+    {
+      "id": "MIL-0004",
+      "owner": "AGT-13 (Bruno) + AGT-09 (Theo)",
+      "status": "PLANEJADO",
+      "project": "PRJ-0002",
+      "business": "BIZ-002",
+      "milestone": "M3 — Acesso e qualidade verificados"
+    },
+    {
+      "id": "MIL-0005",
+      "owner": "AGT-14 (Olívia) + AGT-09 (Theo)",
+      "status": "PLANEJADO",
+      "project": "PRJ-0002",
+      "business": "BIZ-002",
+      "milestone": "M4 — Operação documentada e dívida técnica"
+    }
+  ],
+  "automations": [
+    {
+      "id": "AUTO-0001",
+      "name": "Importar emails relevantes",
+      "status": "PLANEJADA",
+      "business": null,
+      "last_run": null,
+      "next_run": null,
+      "frequency": "EVENTO",
+      "external_id": null
+    },
+    {
+      "id": "AUTO-0002",
+      "name": "Sincronizar calendário",
+      "status": "PLANEJADA",
+      "business": null,
+      "last_run": null,
+      "next_run": null,
+      "frequency": "EVENTO",
+      "external_id": null
+    },
+    {
+      "id": "AUTO-0003",
+      "name": "Indexar documentos",
+      "status": "PLANEJADA",
+      "business": null,
+      "last_run": null,
+      "next_run": null,
+      "frequency": "EVENTO",
+      "external_id": null
+    },
+    {
+      "id": "AUTO-0004",
+      "name": "Materializar recorrências",
+      "status": "PLANEJADA",
+      "business": null,
+      "last_run": null,
+      "next_run": null,
+      "frequency": "AGENDADA",
+      "external_id": null
+    },
+    {
+      "id": "AUTO-0005",
+      "name": "Backup periódico",
+      "status": "PLANEJADA",
+      "business": null,
+      "last_run": null,
+      "next_run": null,
+      "frequency": "DIÁRIA",
+      "external_id": null
+    },
+    {
+      "id": "AUTO-0006",
+      "name": "Checkpoint diario de supervisao em lote da Helena",
+      "status": "PAUSADA",
+      "business": "GRUPO",
+      "last_run": null,
+      "next_run": null,
+      "frequency": "DIARIA 18:00 America/Sao_Paulo",
+      "external_id": "helena-checkpoint-di-rio-de-supervis-o"
+    }
+  ],
+  "observed_at": "2026-10-01T15:16:12.074515+00:00",
+  "recurrences": [
+    {
+      "id": "REC-0002",
+      "auto": "SIM",
+      "last": null,
+      "name": "Revisão executiva semanal",
+      "next": null,
+      "status": "CONFIGURAÇÃO PENDENTE",
+      "business": "GRUPO",
+      "automation": "AUTO-0004"
+    },
+    {
+      "id": "REC-0003",
+      "auto": "SIM",
+      "last": null,
+      "name": "Revisão executiva mensal",
+      "next": null,
+      "status": "CONFIGURAÇÃO PENDENTE",
+      "business": "GRUPO",
+      "automation": "AUTO-0004"
+    },
+    {
+      "id": "REC-0004",
+      "auto": "NÃO",
+      "last": null,
+      "name": "Recalcular KPI-0005 a KPI-0010 do PRJ-0002 (dias úteis, após o fechamento das 18:28)",
+      "next": "2026-09-25 18:28",
+      "status": "ATIVA",
+      "business": "BIZ-002",
+      "automation": null
+    },
+    {
+      "id": "REC-0005",
+      "auto": "SIM",
+      "last": null,
+      "name": "Despachante Helena (helena-gateway, a cada 30 minutos)",
+      "next": "AGUARDANDO VALIDAÇÃO",
+      "status": "PAUSADA",
+      "business": "Sistema",
+      "automation": null
+    },
+    {
+      "id": "REC-0001",
+      "auto": "NÃO",
+      "last": null,
+      "name": "Revisão executiva diária",
+      "next": null,
+      "status": "PAUSADA",
+      "business": "GRUPO",
+      "automation": "AUTO-0006"
+    },
+    {
+      "id": "REC-0006",
+      "auto": "SIM",
+      "last": "2026-09-25 18:39",
+      "name": "Fechamento executivo diário PRJ-0002 (dias úteis, 18:28)",
+      "next": "2026-09-28 18:28",
+      "status": "ATIVA",
+      "business": "BIZ-002",
+      "automation": null
+    }
+  ],
+  "current_state": [
+    {
+      "id": 3,
+      "area": "Foco",
+      "item": "Próxima prioridade",
+      "next": "Ativar FOC-002 quando o fundador decidir iniciar.",
+      "owner": "Helena + Caio + Victor",
+      "scope": "GLOBAL",
+      "state": "Caixa permanece como próxima prioridade executiva.",
+      "version": 419,
+      "related_id": "FOC-002",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 4,
+      "area": "Portfólio",
+      "item": "iGreen",
+      "next": "Diagnosticar processo comercial com dados reais após estrutura.",
+      "owner": "Helena + Victor + Daniel",
+      "scope": "GLOBAL",
+      "state": "Produto ~90% pronto segundo avaliação do fundador; foco futuro em vendas/comercial.",
+      "version": 420,
+      "related_id": "BIZ-001",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 5,
+      "area": "Portfólio",
+      "item": "Ecossistema de Saúde",
+      "next": "Definir MVP, limites e modelo gratuito/pago.",
+      "owner": "Helena + Nina + Clara",
+      "scope": "GLOBAL",
+      "state": "Produto/ecossistema em consolidação; Cibele, Dr. Vidal, Alex e Rafael.",
+      "version": 421,
+      "related_id": "BIZ-002",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 6,
+      "area": "Portfólio",
+      "item": "Humano Digital",
+      "next": "Validar compradores, formato, jurídico, consentimento e unit economics.",
+      "owner": "Helena + Pedro + Augusto + Clara",
+      "scope": "GLOBAL",
+      "state": "Conceito em validação; domínio comprado; modelo econômico hipotético.",
+      "version": 422,
+      "related_id": "BIZ-003",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 7,
+      "area": "Portfólio",
+      "item": "Regra dinâmica",
+      "next": "Usar Business_ID e Portfolio como cadastro dinâmico.",
+      "owner": "Helena + Theo",
+      "scope": "GLOBAL",
+      "state": "Negócios atuais não são fixos na arquitetura; podem ser alterados sem reconstruir o sistema.",
+      "version": 423,
+      "related_id": "DEC-0004",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 8,
+      "area": "Fundador",
+      "item": "Comunicação",
+      "next": "Treinar em situações reais e registrar evolução.",
+      "owner": "Laura",
+      "scope": "GLOBAL",
+      "state": "Treino prático com Laura; foco em pausas e concluir ideias antes da próxima.",
+      "version": 424,
+      "related_id": null,
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 9,
+      "area": "Governança",
+      "item": "Regra de dados",
+      "next": "Aplicar em todas as abas e agentes.",
+      "owner": "Todos",
+      "scope": "GLOBAL",
+      "state": "Não inventar dados; usar DADO A COLETAR/NÃO CONFIRMADO.",
+      "version": 425,
+      "related_id": null,
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 17,
+      "area": "Continuidade",
+      "item": "Comando de Carregamento do Checkpoint Mestre",
+      "next": "Aplicar em toda retomada ou nova conversa do Sistema Helena.",
+      "owner": "AGT-01 Helena",
+      "scope": "GLOBAL",
+      "state": "OFICIAL: \"Helena, carregue o Checkpoint Mestre\". É somente leitura/validação: consulta checkpoint_mestre_atual, confere itens voláteis, aplica precedência e não cria versão. Se houver divergência material, sinaliza necessidade de sincronização.",
+      "version": 426,
+      "related_id": "DEC-018",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 18,
+      "area": "Continuidade",
+      "item": "Checklist de Validação do Checkpoint Mestre",
+      "next": "Executar após cada carregamento e após cada sincronização do Checkpoint Mestre.",
+      "owner": "AGT-01 Helena",
+      "scope": "GLOBAL",
+      "state": "OFICIAL: checklist de identidade, encadeamento, estrutura, contexto, coerência, evidência, segurança e saída. O carregamento só pode ser declarado validado após a checagem aplicável.",
+      "version": 427,
+      "related_id": "DEC-018",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 2,
+      "area": "Foco",
+      "item": "Frente atual",
+      "next": "Homologação completa do produto e transição pelo fundador",
+      "owner": "Helena (CEO Virtual)",
+      "scope": "GLOBAL",
+      "state": "FOC-004: Homologação técnica do Sistema Helena (EM EXECUÇÃO). Caixa (FOC-002) permanece como próxima prioridade (PLANEJADO).",
+      "version": 428,
+      "related_id": "FOC-004",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 13,
+      "area": "Foco",
+      "item": "Foco Executivo Atual",
+      "next": "Finalização da homologação do app e migrations",
+      "owner": "Helena & Engenharia",
+      "scope": "GLOBAL",
+      "state": "FOC-004: Homologação técnica do Sistema Helena (EM EXECUÇÃO). Caixa (FOC-002) permanece planejado.",
+      "version": 429,
+      "related_id": "FOC-004",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 12,
+      "area": "Comando",
+      "item": "Papel da Helena",
+      "next": "Orquestrar as empresas ativas do portfolio por business_id; fundador mantém autoridade superior.",
+      "owner": "Helena (CEO Virtual)",
+      "scope": "GLOBAL",
+      "state": "CEO Virtual / Central de Comando. Fundador como autoridade superior.",
+      "version": 430,
+      "related_id": "AGT-01",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 1,
+      "area": "Sistema",
+      "item": "Versão",
+      "next": "Concluir homologação com evidências de execução externa; manter riscos e bloqueios até comprovação.",
+      "owner": "Helena (CEO Virtual)",
+      "scope": "GLOBAL",
+      "state": "Sistema Helena em homologação técnica (FOC-004). Cadastros e mapeamento no Supabase; testes locais não comprovam implantação remota, execução dos bots ou primeira janela automática.",
+      "version": 432,
+      "related_id": "PRJ-0001",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 11,
+      "area": "Sistema",
+      "item": "Fonte Canônica de Verdade",
+      "next": "Consultar checkpoint_mestre_atual e verificar as fontes voláteis a cada retomada.",
+      "owner": "Helena (CEO Virtual)",
+      "scope": "GLOBAL",
+      "state": "Supabase ecosistemadossonhos (wxkgrykduqtsgmjkzlou) é a fonte canônica. Estado atual do banco/produção > decisões e Estado Mestre > checkpoint ATIVO > memória/handoffs > arquivos e conversas.",
+      "version": 433,
+      "related_id": null,
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 20,
+      "area": "Supervisão",
+      "item": "Checkpoint diário em lote",
+      "next": "Entrar no ChatGPT, verificar tarefas e conexão Supabase, testar leitura/gravação, configurar a tarefa e homologar a primeira execução.",
+      "owner": "AGT-01 Helena",
+      "scope": "GLOBAL",
+      "state": "Agenda Codex PAUSADA. Fundador escolheu revisão no ChatGPT web, sem API separada, independente desta conversa e com memória no Supabase. Nova agenda NÃO CONFIGURADA.",
+      "version": 436,
+      "related_id": "AUTO-0006",
+      "confirmation": "PAUSA CODEX CONFIRMADA; CHATGPT ESCOLHIDO; ACESSO E AGENDA WEB A VALIDAR"
+    },
+    {
+      "id": 14,
+      "area": "Equipe",
+      "item": "Equipe de 20 Especialistas",
+      "next": "No painel Hermes atual, investigar as 20 conexões NOT_CONNECTED e os 4 jobs FAILED, sem repetir tentativa automática. Após o fundador definir teto de custo, executar apenas um teste controlado: tarefa existente -> job -> agente -> evidência no Supabase -> revisão da Helena -> entrega visível. Manter AUTO-0006, REC-0001 e cron pausados até homologação.",
+      "owner": "Helena & Theo",
+      "scope": "GLOBAL",
+      "state": "Runtime escolhido pelo fundador (DEC-021): Hermes/OpenAI Codex; Helena em gpt-6-sol e os outros 20 perfis em gpt-6-luna; Grok não é executor. Cadastros atuais: 21/21 vínculos agent_runtime_bindings ACTIVE (19 BUSINESS, 1 PERSONAL, 1 GROUP). Leitura do Supabase em 2026-09-29: agent_connections registra 1 CONNECTED (AGT-01, sem last_seen_at) e 20 NOT_CONNECTED; nenhum perfil tem heartbeat recente confirmado. agent_jobs: 38 no total (8 COMPLETED, 4 FAILED, 3 DRAFT, 23 WAITING_HELENA), nenhum QUEUED/CLAIMED/RUNNING. Os 23 WAITING_HELENA são legado e não comprovam revisão nova da Helena. Falhas registradas: 3 HERMES_NO_DELIVERY e 1 HERMES_PROCESS_FAILED. AUTO-0006 e REC-0001 permanecem pausadas; nenhum cron foi homologado. Vínculo ACTIVE não inicia job.",
+      "version": 2706,
+      "related_id": null,
+      "confirmation": "ESTADO ATUAL VERIFICADO NO SUPABASE; EXECUÇÃO DO RUNTIME AINDA NÃO HOMOLOGADA"
+    },
+    {
+      "id": 10,
+      "area": "Integrações",
+      "item": "Plano futuro",
+      "next": "Homologar a execução do Gateway e a primeira janela de supervisão; usar os estados atuais do cadastro.",
+      "owner": "Theo (Tecnologia & IA) & Helena",
+      "scope": "GLOBAL",
+      "state": "INT-0001 — Google Drive: PLANEJADA; INT-0002 — Gmail: PLANEJADA; INT-0003 — Google Calendar: PLANEJADA; INT-0004 — Automação de Recorrências: PLANEJADA; INT-0005 — Helena Gateway: PLANEJADA; INT-0006 — Evolution API: CONFIGURADA; INT-0007 — Meowcaller: CONFIGURADA; INT-0008 — ElevenLabs: STANDBY; INT-0009 — Laya Service: CONFIGURADA; INT-0010 — Kokoro TTS VPS: OFICIAL; INT-0011 — Codex Automations: PAUSADA",
+      "version": 437,
+      "related_id": null,
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 15,
+      "area": "Continuidade",
+      "item": "Checkpoint Mestre Versionado",
+      "next": "Consultar checkpoint_mestre_atual. Registrar mudanças autorizadas com versão esperada, preservar história e validar a nova versão.",
+      "owner": "AGT-01 Helena",
+      "scope": "GLOBAL",
+      "state": "ATIVO NO SUPABASE. Checkpoint versionado, exatamente uma versão ATIVA, anteriores preservadas. helena_publish_checkpoint exige o predecessor lido; publicação com predecessor antigo é recusada. A função antiga não deve ser chamada diretamente.",
+      "version": 2264,
+      "related_id": "DEC-016",
+      "confirmation": "CONFIRMADO"
+    },
+    {
+      "id": 16,
+      "area": "Continuidade",
+      "item": "Rotina de Atualização do Checkpoint Mestre",
+      "next": "Consultar checkpoint_mestre_atual. Registrar mudanças autorizadas com versão esperada, preservar história e validar a nova versão.",
+      "owner": "AGT-01 Helena",
+      "scope": "GLOBAL",
+      "state": "REGRA OFICIAL ATIVA. Sincronizar apenas após mudança material registrada na fonte; preparar retrato consistente e publicar via helena_publish_checkpoint com o predecessor lido. Em conflito, reler e reconciliar, sem repetir automaticamente.",
+      "version": 2265,
+      "related_id": "DEC-017",
+      "confirmation": "CONFIRMADO"
+    }
+  ],
+  "open_handoffs": [
+    {
+      "id": "HND-0001",
+      "to": "Todos",
+      "area": "Sistema",
+      "from": "Helena",
+      "scope": "GLOBAL",
+      "status": "ABERTO",
+      "subject": "Adoção do protocolo vivo",
+      "priority": "ALTA",
+      "related_id": "PRJ-0001"
+    },
+    {
+      "id": "HND-0004",
+      "to": "AGT-09 (Theo)",
+      "area": "BIZ-002",
+      "from": "AGT-04 (Marina)",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Execução técnica do PRJ-0002 — iniciar a TSK-0013 (segredos fora do git) e a TSK-0014 (projeto Supabase oficial)",
+      "priority": "CRÍTICA",
+      "related_id": "TSK-0013"
+    },
+    {
+      "id": "HND-0012",
+      "to": "AGT-09 (Theo)",
+      "area": "BIZ-002",
+      "from": "AGT-04 (Marina)",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Entrega da TSK-0029: corrigir o job de CI \"AI worker (testes)\" (PostCSS/tailwindcss)",
+      "priority": "ALTA",
+      "related_id": "TSK-0029"
+    },
+    {
+      "id": "HND-HR-c392de57a9b00edb8879f291b077714d",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital: criar post e tres stories profissionais com imagem protagonista e copy aprovada - etapa visual autorizada apos correcao do conector",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-c392de57a9b00edb8879f291b077714d"
+    },
+    {
+      "id": "HND-HR-794692b1e94a8ee7aa1b0f1268b1ed2b",
+      "to": "Marina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Organizar revisão criativa solicitada pelo fundador do pacote Humano Digital de um post e três stories, preservando o job e os PNGs originais; encaminhar correções visuais somente após inspeção autorizada e revisão independente.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-794692b1e94a8ee7aa1b0f1268b1ed2b"
+    },
+    {
+      "id": "HND-0014",
+      "to": "Helena / AGT-01",
+      "area": "Sistema",
+      "from": "AGT-04 (Marina)",
+      "scope": "GLOBAL",
+      "status": "ABERTO",
+      "subject": "EXCEÇÃO DE IDENTIDADE NO HELENA GATEWAY: record_dispatch da Marina (AGT-04) gravado como AGT-17 (Isabela)",
+      "priority": "ALTA",
+      "related_id": "JOB-20260925110857239-DFC472"
+    },
+    {
+      "id": "HND-HR-b3b28521fc85cc44bc711c21541a377e",
+      "to": "Nina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Inspecionar os quatro arquivos existentes da Humano Digital e entregar correcoes por peca",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-b3b28521fc85cc44bc711c21541a377e"
+    },
+    {
+      "id": "HND-0003",
+      "to": "Helena / AGT-01",
+      "area": "BIZ-002",
+      "from": "AGT-04 (Marina)",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "DECISÃO NECESSÁRIA — HELENA: prazos propostos, foco/WIP e prioridade do PRJ-0002 (ids-max / MaxNutrition AI)",
+      "priority": "ALTA",
+      "related_id": "PRJ-0002"
+    },
+    {
+      "id": "HND-0026",
+      "to": "AGT-12 (Maya)",
+      "area": "Sistema",
+      "from": "AGT-09 (Theo)",
+      "scope": "GLOBAL",
+      "status": "ABERTO",
+      "subject": "Melhorias BAIXA da página Equipe (QA-PR6-03, 06, 07) em PR NOVO a partir da main, após a decisão do fundador sobre o merge do PR #6",
+      "priority": "BAIXA",
+      "related_id": "HND-0025"
+    },
+    {
+      "id": "HND-HR-fd62fc9a1659086444127a218432d958",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "hd-final-visual-correction-20261001-v1 — Corrigir pacote final privado Humano Digital: um post e três stories, copy aprovada e revisão visual independente Nina.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-fd62fc9a1659086444127a218432d958"
+    },
+    {
+      "id": "HND-REVIEW-242ffce75222db24724b350d6f07802b",
+      "to": "Nina",
+      "area": "BIZ-003",
+      "from": "Maya",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: hd-final-visual-correction-20261001-v1 — Corrigir pacote final privado Humano Digital: um post e três stories, copy aprovada e revisão visual independente Nina.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-fd62fc9a1659086444127a218432d958"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-01",
+      "to": "Helena",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Helena",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-01"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-02",
+      "to": "Laura",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Laura",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-02"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-03",
+      "to": "Augusto",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Augusto",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-03"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-04",
+      "to": "Marina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Marina",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-04"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-05",
+      "to": "Caio",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Caio",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-05"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-06",
+      "to": "Clara",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Clara",
+      "priority": "ALTA",
+      "related_id": "TSK-0009"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-07",
+      "to": "Bianca",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Bianca",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-07"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-08",
+      "to": "Daniel",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Daniel",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-08"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-09",
+      "to": "Theo",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Theo",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-09"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-10",
+      "to": "Nina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Nina",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-10"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-11",
+      "to": "Ravi",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Ravi",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-11"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-12",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Maya",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-12"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-13",
+      "to": "Bruno",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Bruno",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-13"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-14",
+      "to": "Olívia",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Olívia",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-14"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-15",
+      "to": "Victor",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Victor",
+      "priority": "ALTA",
+      "related_id": "TSK-0010"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-17",
+      "to": "Isabela",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Isabela",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-17"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-18",
+      "to": "Pedro",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Pedro",
+      "priority": "ALTA",
+      "related_id": "TSK-0007"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-19",
+      "to": "Renata",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Renata",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-19"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-20",
+      "to": "Joana",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Joana",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-20"
+    },
+    {
+      "id": "HND-HD-CAPTACAO-20260927-21",
+      "to": "Felipe",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Humano Digital — Felipe",
+      "priority": "ALTA",
+      "related_id": "TSK-HD-20260927-21"
+    },
+    {
+      "id": "HND-HR-b5f1141ddac77a91e4df02ed9f61b1be",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Transformar copy aprovada em pacote visual final para Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-b5f1141ddac77a91e4df02ed9f61b1be"
+    },
+    {
+      "id": "HND-HD-20260927-CAMILA-01",
+      "to": "AGT-04 (Marina)",
+      "area": "BIZ-003",
+      "from": "AGT-16 (Camila)",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "TSK-0008: experimento de captação EXP-HD-01 preparado; conferência e dependências",
+      "priority": "ALTA",
+      "related_id": "TSK-0008"
+    },
+    {
+      "id": "HND-HR-511847cc988ef92defad742ada0e4288",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Smoke test pos-correcao: gerar uma arte privada de validacao para Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-511847cc988ef92defad742ada0e4288"
+    },
+    {
+      "id": "HND-REVIEW-7fcc21e5dd62db45332bb4322d3e356b",
+      "to": "Helena",
+      "area": "BIZ-003",
+      "from": "Victor",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: Transformar a estrategia aprovada do Humano Digital em copy profissional para post e tres stories, com CTA seguro e briefing visual para Maya.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-7a09bb163135240c4b8c1ec90c5efbeb"
+    },
+    {
+      "id": "HND-HR-086da9551ac8c1ea633056348daea71c",
+      "to": "Pedro",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Piloto tecnico: comprovar despacho automatico Hermes-Gateway-Supabase em uma tarefa interna da BIZ-003",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-086da9551ac8c1ea633056348daea71c"
+    },
+    {
+      "id": "HND-HR-23d0fa2ec64443b278588dd3d02ca878",
+      "to": "Pedro",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Piloto tecnico interno: validar despacho Hermes Pedro com registro completo no Supabase",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-23d0fa2ec64443b278588dd3d02ca878"
+    },
+    {
+      "id": "HND-HR-60389b4fce437697eea08053b5a7eeb1",
+      "to": "Pedro",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Piloto técnico interno do Hermes: confirmar a leitura do contexto da tarefa pelo MCP, registrar um marco real de validação, memória de teste sem dados comerciais, e submeter uma entrega curta à revisão da Helena. Não realizar contato externo, campanha, promessa de renda ou alteração em CRM/financeiro.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-60389b4fce437697eea08053b5a7eeb1"
+    },
+    {
+      "id": "HND-HR-b89e8113a339d00ea7063f18ba315c62",
+      "to": "Pedro",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Piloto interno de validação do despacho Hermes com HERMES_HOME do perfil Pedro: ler o job via helena_operacao, registrar um progresso e memória de teste sem dados de cliente, submeter breve entrega para revisão. Proibido contato externo, campanha, alteração comercial ou financeira.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-b89e8113a339d00ea7063f18ba315c62"
+    },
+    {
+      "id": "HND-HR-f096e861e4c0b4e569b4a654e4707113",
+      "to": "Marina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Plano operacional inicial de captacao do Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-f096e861e4c0b4e569b4a654e4707113"
+    },
+    {
+      "id": "HND-REVIEW-2d89e01e2ef5afdc43addc147e51e741",
+      "to": "Camila",
+      "area": "BIZ-003",
+      "from": "Isabela",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: Preparar três textos, apresentação e perguntas frequentes com fatos confirmados; sem valores ou depoimentos inventados.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-03da990dd4105f457167847161543b1c"
+    },
+    {
+      "id": "HND-HR-339a2c7e639809455c8834456d30444e",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Transformar copy aprovada em pacote visual final para Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-339a2c7e639809455c8834456d30444e"
+    },
+    {
+      "id": "HND-HR-6da562bfda4490f7ff5f4c655d472d21",
+      "to": "Camila",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Piloto Humano Digital: rascunhos de post e stories sobre trabalhar em casa",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21"
+    },
+    {
+      "id": "HND-REVIEW-52e0be3f1a1a60b4a8aaf42083740a25",
+      "to": "Augusto",
+      "area": "BIZ-003",
+      "from": "Camila",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: Piloto Humano Digital: rascunhos de post e stories sobre trabalhar em casa",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-6da562bfda4490f7ff5f4c655d472d21"
+    },
+    {
+      "id": "HND-HR-49eff2ead7674d06b4b59bc796f08873",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Marina",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Criar arquivos visuais internos para o piloto Humano Digital: um post 1080x1350 e três stories 1080x1920, a partir do texto e direção visual da Camila. Não publicar nem iniciar outro modelo.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-49eff2ead7674d06b4b59bc796f08873"
+    },
+    {
+      "id": "HND-HR-a5e3f8f0a9810516111e62ce3c457395",
+      "to": "Augusto",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Elaborar proposta piloto interna de aquisição orgânica para o Humano Digital, com estratégia, copy e direção visual revisáveis, sem publicação.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-a5e3f8f0a9810516111e62ce3c457395"
+    },
+    {
+      "id": "HND-HR-9a10d4d3967e55f55dc4756ca8af7234",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Etapa 4 - Direcao visual para post e tres stories do Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-9a10d4d3967e55f55dc4756ca8af7234"
+    },
+    {
+      "id": "HND-HR-71cbc9e9fad04787df366f57ddb6544d",
+      "to": "Maya",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Etapa 4B - Direcao visual com copy integral para post e tres stories do Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-71cbc9e9fad04787df366f57ddb6544d"
+    },
+    {
+      "id": "HND-REVIEW-9c9b0cbeba66cf0fcb327c6ea38477ea",
+      "to": "Helena",
+      "area": "BIZ-003",
+      "from": "Marina",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: Organizar a operação Humano Digital e a cadeia dos 21 agentes.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-83bf74e1db969fd51df474e7690ac333"
+    },
+    {
+      "id": "HND-HR-83bf74e1db969fd51df474e7690ac333",
+      "to": "Marina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Organizar a operação Humano Digital e a cadeia dos 21 agentes.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-83bf74e1db969fd51df474e7690ac333"
+    },
+    {
+      "id": "HND-REVIEW-cadc2a34077d635d5d2e3ade43103ae7",
+      "to": "Helena",
+      "area": "BIZ-003",
+      "from": "Marina",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: Plano operacional inicial de captacao do Humano Digital",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-f096e861e4c0b4e569b4a654e4707113"
+    },
+    {
+      "id": "HND-HR-7a09bb163135240c4b8c1ec90c5efbeb",
+      "to": "Victor",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Transformar a estrategia aprovada do Humano Digital em copy profissional para post e tres stories, com CTA seguro e briefing visual para Maya.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-7a09bb163135240c4b8c1ec90c5efbeb"
+    },
+    {
+      "id": "HND-HR-6e9e2c7f008a9993f7689e5e0defb53f",
+      "to": "Marina",
+      "area": "BIZ-003",
+      "from": "Helena",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "HD-CAMPANHA-20260930-01 — Organizar único ciclo interno da campanha Humano Digital com post, três stories, legenda, texto WhatsApp e estratégia; sem publicar.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-6e9e2c7f008a9993f7689e5e0defb53f"
+    },
+    {
+      "id": "HND-REVIEW-71401617740d89c196e9f77c3a29aed6",
+      "to": "Helena",
+      "area": "BIZ-003",
+      "from": "Marina",
+      "scope": "BUSINESS",
+      "status": "ABERTO",
+      "subject": "Revisar: HD-CAMPANHA-20260930-01 — Organizar único ciclo interno da campanha Humano Digital com post, três stories, legenda, texto WhatsApp e estratégia; sem publicar.",
+      "priority": "MEDIA",
+      "related_id": "JOB-HR-6e9e2c7f008a9993f7689e5e0defb53f"
+    }
+  ],
+  "current_assets": null,
+  "handoff_status": {
+    "ABERTO": 54,
+    "CONCLUÍDO": 40
+  }
+}

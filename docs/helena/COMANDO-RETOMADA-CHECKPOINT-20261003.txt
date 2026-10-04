@@ -1,0 +1,5 @@
+Leia o arquivo `C:\Users\plata\Documents\Codex\Helena-HUB\docs\helena\CHECKPOINT-MESTRE-RETOMADA-20261003.md` e execute somente a seção “Comando de retomada para a Helena”.
+
+Antes de qualquer novo job, consulte o estado canônico atual. Use o checkpoint para entender o contexto, mas confie no Supabase/Gateway para status, tentativas, entregas, revisores e evidências. Não duplique jobs, não resete tentativas e não declare homologação por perfil ativo ou teste local.
+
+Retome o programa HD-FLEET-20261003 para BIZ-003 com WIP=1, revisão independente, correção pelo autor, persistência de cada etapa e relatório final de 21 linhas. Continue tarefas independentes quando outra estiver bloqueada. Escopo interno: sem publicação, mensagens externas, contratação, pagamento ou ativação de campanha.

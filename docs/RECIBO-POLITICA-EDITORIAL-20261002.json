@@ -1,0 +1,31 @@
+{
+  "version": "helena-editorial-quality-v1",
+  "status": "INSTALLED_VERIFIED",
+  "observed_at": "2026-10-02T12:30:14.966278+00:00",
+  "authorization": "Fundador: implante para as proximas ficar certo e sem erro",
+  "supabase_project": "wxkgrykduqtsgmjkzlou",
+  "memory_id": "MEM-EDITORIAL-20261002-V1",
+  "memory_status": "ATIVO",
+  "profiles": ["helena--grupo", "marina--biz003", "camila--biz003", "isabela--biz003", "maya--biz003", "nina--biz003"],
+  "activation": "PROFILE_SOUL_AND_NATIVE_SKILL",
+  "skill_sha256": "435ae904136361fd8c222b1e290686780ff7b7d3eb2e88109d02788ea788894f",
+  "package_sha256": "4612ba533943d0e69365776d681d9f2c7dccfc422b25061dbcbcb609e29c3363",
+  "backup": "/data/helena-runtime/editorial-backup-20261002T123014961674Z",
+  "remote_receipt": "/data/helena-runtime/editorial-policy-receipt.json",
+  "remote_release": "/data/helena-runtime/editorial-release-20261002b",
+  "source": "services/helena-gateway/editorial-skills/helena-editorial-quality/SKILL.md",
+  "installer": "services/helena-gateway/scripts/install_editorial_policy.py",
+  "validation": {
+    "local_tests": "4 PASS",
+    "linux_tests": "4 PASS",
+    "skill_structure": "PASS",
+    "post_install_soul_and_skill_hashes": "6/6 PASS",
+    "repeat_apply": "UNCHANGED",
+    "ai_calls": 0,
+    "real_campaign_tested": false
+  },
+  "preserved": "SOUL atual dos seis perfis preservado integralmente antes do bloco novo; manifesto antigo defasado reconciliado somente para esses perfis usando baseline explicita e backup. Configuracoes, credenciais, permissoes, jobs e demais agentes preservados.",
+  "scope": "Campanhas de empresas atendidas pelos perfis instalados. Novos perfis precisam incorporar esta skill e seu procedimento; nao declarar propagacao automatica para perfis ainda nao provisionados.",
+  "continuity": "Consultar memoria MEM-EDITORIAL-20261002-V1 alem do checkpoint mestre vigente. O registro e suplemento operacional; nao cria outro checkpoint nem comprova campanha concluida.",
+  "next_step": "Proximo pedido: contexto da empresa, estrategia, copy, revisao independente, aplicacao nas imagens e revisao final. Se houver pedido explicito para rever copy, atualizar briefing e versao pelo fluxo existente. A regra nao altera automaticamente jobs historicos nem libera publicacao. Humano Digital permanece somente revisao interna."
+}

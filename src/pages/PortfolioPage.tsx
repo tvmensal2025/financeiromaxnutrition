@@ -1,3 +1,4 @@
+import { lerPaginas } from "@/lib/leitura-paginada";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -46,11 +47,12 @@ export default function PortfolioPage() {
   async function carregar() {
     setCarregando(true);
     setErro(null);
+    setEmpresas([]);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await lerPaginas<Record<string, any>>((inicio, fim) => supabase
         .from("portfolio")
-        .select("*")
-        .order("business_id");
+        .select("*", { count: "exact" })
+        .order("business_id").range(inicio, fim));
 
       if (error) {
         throw error;
@@ -97,7 +99,7 @@ export default function PortfolioPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="he-portfolio-page space-y-6">
       <ExecutivePageHeader
         icon={Briefcase}
         title="Portfólio"

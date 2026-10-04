@@ -14,6 +14,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 import hermes_visual as visual
 
 class VisualTests(unittest.TestCase):
+    def test_transparent_padding_does_not_change_visible_logo_size(self):
+        def png(im):
+            out = io.BytesIO(); im.save(out, format='PNG'); return out.getvalue()
+        mark = Image.new('RGBA', (300, 100), (10, 90, 40, 180))
+        padded = Image.new('RGBA', (500, 250), (0, 0, 0, 0))
+        padded.paste(mark, (80, 60))
+        first = visual.prepare_logo(png(mark)); second = visual.prepare_logo(png(padded))
+        self.assertEqual(first.size, (360, 120))
+        self.assertEqual(first.tobytes(), second.tobytes())
+        self.assertEqual(first.getchannel('A').getextrema(), (180, 180))
+        with self.assertRaisesRegex(ValueError, 'fully transparent'):
+            visual.prepare_logo(png(Image.new('RGBA', (100, 100))))
+
+    def test_layout_contract_is_shared_by_all_stories_and_legacy_is_preserved(self):
+        for slot in ('story-1', 'story-2', 'story-3'):
+            self.assertEqual(visual.logo_layout(slot), visual.logo_layout('story-1'))
+            self.assertEqual(visual.generation_context({}, slot, '')['reserved_logo_area'], visual.logo_layout(slot))
+        raw=io.BytesIO(); Image.linear_gradient('L').resize((1080,1350)).convert('RGB').save(raw,format='PNG')
+        logo=io.BytesIO(); Image.new('RGBA',(260,96),(255,0,0,255)).save(logo,format='PNG')
+        old=Image.open(io.BytesIO(visual.final_canvas(raw.getvalue(),logo.getvalue(),'post','#075E47',legacy=True)))
+        self.assertEqual(old.getpixel((900,1240)),(255,0,0))
+        new=Image.open(io.BytesIO(visual.final_canvas(raw.getvalue(),logo.getvalue(),'post','#075E47')))
+        self.assertEqual(new.getpixel((100,100)),(255,0,0))
+        with self.assertRaises(ValueError): visual.logo_layout('invalid')
+
     def test_generation_context_excludes_registry_and_unrelated_business_examples(self):
         copy = 'A Humano Digital orienta e conecta pessoas. Participação depende do projeto.'
         creative = {'business_id': 'BIZ-003', 'brand': 'Humano Digital',
@@ -95,12 +120,12 @@ class VisualTests(unittest.TestCase):
         art = io.BytesIO(); Image.effect_noise((800, 1000), 80).convert('RGB').save(art, format='PNG')
         logo = io.BytesIO(); Image.new('RGBA',(100,40),(255,0,0,255)).save(logo, format='PNG')
         final = Image.open(io.BytesIO(visual.final_canvas(art.getvalue(), logo.getvalue(), 'post', '#075E47')))
-        self.assertEqual(final.size, (1080, 1350)); self.assertEqual(final.getpixel((900, 1240)), (255,0,0))
+        self.assertEqual(final.size, (1080, 1350)); self.assertEqual(final.getpixel((100, 100)), (255,0,0))
         self.assertGreater(final.crop((0,1150,600,1350)).convert('L').entropy(), 2, 'No appended empty footer')
         story_art = io.BytesIO(); Image.effect_noise((900,1600),80).convert('RGB').save(story_art,format='PNG')
         story = Image.open(io.BytesIO(visual.final_canvas(story_art.getvalue(), logo.getvalue(), 'story-1', '#075E47', ['#075E47', '#F4F5EB'])))
         self.assertEqual(story.size, (1080, 1920))
-        self.assertEqual(story.getpixel((900, 1600)), (255,0,0))
+        self.assertEqual(story.getpixel((100, 280)), (255,0,0))
         self.assertNotEqual(story.getpixel((900, 1700)), (255,0,0), 'Logo must clear the bottom 250px story overlay')
         self.assertGreater(story.crop((0,1540,600,1920)).convert('L').entropy(), 2, 'Story artwork must continue to the bottom')
         with self.assertRaisesRegex(ValueError, 'aspect ratio'):
@@ -118,9 +143,10 @@ class VisualTests(unittest.TestCase):
                 raw = io.BytesIO(); source.save(raw, format='PNG')
                 final = Image.open(io.BytesIO(visual.final_canvas(raw.getvalue(), logo.getvalue(), slot,
                         '#075E47', ['#075E47', '#F4F5EB'])))
-                left, top = 760, size[1] - bottom - 96
+                left, top = 64, 64 if slot == 'post' else 250
                 mask = Image.new('L', size, 0)
-                mask.paste(logo_image.getchannel('A'), (left, top))
+                mark = visual.prepare_logo(logo.getvalue())
+                mask.paste(mark.getchannel('A'), (left, top))
                 diff = ImageChops.difference(source, final).convert('L')
                 self.assertIsNone(ImageChops.multiply(diff, ImageOps.invert(mask)).getbbox(),
                                   'No artwork pixels outside the official logo alpha may change')

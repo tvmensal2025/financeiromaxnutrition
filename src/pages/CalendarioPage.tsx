@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import {
   addMonths,
   eachDayOfInterval,
@@ -29,7 +29,6 @@ import {
   type EventoAgenda,
   type TarefaRow,
 } from "@/lib/agenda-unificada";
-import { sincronizarTodasTarefasNoCalendario } from "@/lib/tarefa-calendario";
 import { TarefaAgendaModal, type AcaoTarefaModal } from "@/components/tarefas/TarefaAgendaModal";
 import { concluirTarefa, concluirTarefaPorId } from "@/lib/tarefa-acoes";
 import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
@@ -73,21 +72,30 @@ export default function CalendarioPage() {
     await recarregar();
   };
 
+  const agendaRequest = useRef<AbortController | null>(null);
+  const selecaoKey = selecionadas.join("|");
   const recarregar = async () => {
-    setCarregando(true);
-    setEventos([]);
-    setSemData([]);
-    await sincronizarTodasTarefasNoCalendario(selecionadas, todasLigadas);
-    const { eventos: lista, semData: pendentes, erro: msg } = await carregarAgenda(selecionadas, todasLigadas);
-    setErro(msg);
-    setEventos(lista);
-    setSemData(pendentes);
-    setCarregando(false);
+    agendaRequest.current?.abort();
+    const controller = new AbortController();
+    agendaRequest.current = controller;
+    const timer = window.setTimeout(() => controller.abort(), 20000);
+    setCarregando(true);setErro("");setEventos([]);setSemData([]);
+    try {
+      const { eventos: lista, semData: pendentes, erro: msg } = await carregarAgenda(selecionadas, todasLigadas, controller.signal);
+      if (agendaRequest.current !== controller) return;
+      setErro(msg);setEventos(lista);setSemData(pendentes);
+    } catch {
+      if (agendaRequest.current === controller) setErro("Não foi possível carregar a agenda. Tente novamente.");
+    } finally {
+      window.clearTimeout(timer);
+      if (agendaRequest.current === controller) setCarregando(false);
+    }
   };
 
   useEffect(() => {
-    recarregar();
-  }, [currentBusinessId, isConsolidated]);
+    void recarregar();
+    return () => { agendaRequest.current?.abort(); agendaRequest.current = null; };
+  }, [currentBusinessId, isConsolidated, selecaoKey, todasLigadas]);
 
   const eventosComData = useMemo(() => {
     return eventos
@@ -118,11 +126,11 @@ export default function CalendarioPage() {
   }, [eventosComData]);
 
   if (carregando) {
-    return <ExecutiveLoadingState message="Lendo calendário e tarefas da agenda unificada..." />;
+    return <div className="he-calendar-page space-y-6"><ExecutivePageHeader icon={CalendarIcon} title="Calendário" description="Compromissos e entregas, no mesmo lugar."/><ExecutiveLoadingState message="Lendo calendário e tarefas da agenda unificada..." /></div>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="he-calendar-page space-y-6">
       <ExecutivePageHeader
         icon={CalendarIcon}
         title="Calendário"
@@ -190,8 +198,8 @@ export default function CalendarioPage() {
       </div>
 
       {semData.length > 0 && (
-        <section className="pe-card border-amber-200 bg-amber-50/50">
-          <p className="pe-kpi-label">Sem prazo no cadastro ({semData.length})</p>
+        <details className="he-undated-tasks pe-card border-amber-200 bg-amber-50/50">
+          <summary><span>{semData.length} tarefas sem data definida</span><small>Abrir lista para organizar os prazos</small></summary>
           <ul className="mt-3 space-y-2 text-sm">
             {semData.map((t) => (
               <li key={t.task_id}>
@@ -215,7 +223,7 @@ export default function CalendarioPage() {
               </li>
             ))}
           </ul>
-        </section>
+        </details>
       )}
 
       {modo === "calendario" && (

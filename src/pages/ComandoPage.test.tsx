@@ -5,6 +5,8 @@ import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { MemoryRouter } from "react-router-dom";
 
+vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+
 const mock = vi.hoisted(() => ({ from: vi.fn(), business: "BIZ-001", failTasks: false, sources: {} as Record<string, unknown[]> }));
 vi.mock("@/lib/supabase", () => ({ supabase: { from: mock.from } }));
 vi.mock("@/contexts/BusinessContext", () => ({ useBusiness: () => ({ currentBusinessId: mock.business, isConsolidated: mock.business === "GRUPO", rotulo: mock.business }) }));

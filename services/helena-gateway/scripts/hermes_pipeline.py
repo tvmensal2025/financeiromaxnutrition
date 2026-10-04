@@ -84,7 +84,18 @@ def main():
             print(json.dumps({'status': 'ALREADY_RUNNING', 'model_started': False}))
             return
         try:
+            # Same existing poll, before regular coordination. Recovery is bounded
+            # and does not start a model; canonical DRAFT still requires release.
+            recovery = run_component('hermes_autocorrection', args.execute)
+            if recovery.get('status') in {'RECONCILE', 'COMPONENT_ERROR', 'EXECUTOR_BUSY'}:
+                from hermes_workflow_tick import atomic_json
+                result = {'status': 'PIPELINE_BUSY' if recovery.get('status') == 'EXECUTOR_BUSY' else 'RECOVERY_NEEDS_ATTENTION', 'recovery': recovery,
+                          'model_started': False, 'automatic_retry': False}
+                atomic_json(directory / 'pipeline-last-result.json', result)
+                print(json.dumps(result))
+                return
             result = advance(args.execute, args.max_actions)
+            result['recovery'] = recovery
         except subprocess.TimeoutExpired:
             result = {'status': 'COMPONENT_TIMEOUT', 'automatic_retry': False,
                       'execution_outcome_unknown': True}

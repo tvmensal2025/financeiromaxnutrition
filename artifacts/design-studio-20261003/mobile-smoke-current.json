@@ -1,0 +1,44 @@
+[
+  {
+    "heading": "Sala de comando.",
+    "overflow": false,
+    "path": "/",
+    "viewport": 390
+  },
+  {
+    "heading": "CRM & Pipeline",
+    "overflow": false,
+    "path": "/crm",
+    "viewport": 390
+  },
+  {
+    "heading": "Calendário",
+    "overflow": false,
+    "path": "/calendario",
+    "viewport": 390
+  },
+  {
+    "heading": "Conexões em perspectiva.",
+    "overflow": false,
+    "path": "/sistema",
+    "viewport": 390
+  },
+  {
+    "heading": "Portfólio de Negócios",
+    "overflow": false,
+    "path": "/modulo/portfolio",
+    "viewport": 390
+  },
+  {
+    "heading": "Contratos",
+    "overflow": false,
+    "path": "/modulo/contratos",
+    "viewport": 390
+  },
+  {
+    "heading": "Foco Executivo",
+    "overflow": false,
+    "path": "/modulo/foco_executivo",
+    "viewport": 390
+  }
+]
