@@ -40,7 +40,9 @@ export const AudioContext = Object.freeze({
  * Mapeamento de voz do ElevenLabs para o equivalente oficial no Google Chirp 3 HD (para o Fallback).
  */
 const ELEVENLABS_TO_CHIRP_FALLBACK_MAP = {
-  'ejv7h2bagt5ab95tooosg': 'pt-BR-Chirp3-HD-Achernar', // Sirlene
+  'eabgqyq9no9rw5zigiaz': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Real Clonada
+  'ejv7h2bagt5ab95toosg': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Legado
+  'ejv7h2bagt5ab95tooosg': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Legado (alias)
   'tx3lpaxmhkxfdv7voqhj': 'pt-BR-Chirp3-HD-Alkaid',   // Alex
   'ikpisijwzlhol6ux83eh': 'pt-BR-Chirp3-HD-Charon',   // Vital
   'sirlene': 'pt-BR-Chirp3-HD-Achernar',

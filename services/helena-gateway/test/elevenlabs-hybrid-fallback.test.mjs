@@ -27,14 +27,17 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
   });
 
   await t.test('1. Mapeamento de vozes dos personagens para as vozes originais reais', () => {
-    assert.strictEqual(resolveElevenLabsVoice('sirlene'), 'EJV7H2baGt5ab95tOoSG');
+    assert.strictEqual(resolveElevenLabsVoice('sirlene'), 'eabgQyq9no9rW5ZiGiaZ');
     assert.strictEqual(resolveElevenLabsVoice('alex'), 'TX3LPaxmHKxFdv7VOQHJ');
     assert.strictEqual(resolveElevenLabsVoice('vital'), 'IKpiSijWzlhOL6uX83EH');
     assert.strictEqual(resolveElevenLabsVoice('rafael'), 'TX3LPaxmHKxFdv7VOQHJ');
 
     // Mapeamento a partir do nome de voz do Chirp
-    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Achernar'), 'EJV7H2baGt5ab95tOoSG');
+    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Achernar'), 'eabgQyq9no9rW5ZiGiaZ');
     assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Charon'), 'IKpiSijWzlhOL6uX83EH');
+
+    // Compatibilidade com ID legado filipino
+    assert.strictEqual(resolveElevenLabsVoice('EJV7H2baGt5ab95tOoSG'), 'eabgQyq9no9rW5ZiGiaZ');
   });
 
   await t.test('2. Parâmetros de Altíssima Fidelidade (Master Quality) estão ativos', () => {
@@ -88,7 +91,7 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
     assert.strictEqual(elevenLabsCalled, true, 'ElevenLabs deve ser chamado prioritariamente');
     assert.strictEqual(googleCalled, false, 'Google Chirp NÃO deve ser chamado enquanto houver cota ElevenLabs');
     assert.strictEqual(result.provider, 'ELEVENLABS');
-    assert.strictEqual(result.voice_id, 'EJV7H2baGt5ab95tOoSG');
+    assert.strictEqual(result.voice_id, 'eabgQyq9no9rW5ZiGiaZ');
   });
 
   await t.test('5. Quando a cota do ElevenLabs acaba (HTTP 429), comuta automaticamente para o Google Chirp 3 HD', async () => {

@@ -4,7 +4,7 @@
  * ESTRATÉGIA HÍBRIDA DE LIGAÇÕES (STREAMING AO VIVO):
  * 1. PRIORIDADE MÁXIMA: ElevenLabs (16 kHz PCM Streaming / 192 kbps HD)
  *    Consome a cota mensal com as vozes reais clonadas dos 4 personagens:
- *    - Sirlene: EJV7H2baGt5ab95tOoSG
+ *    - Sirlene: eabgQyq9no9rW5ZiGiaZ
  *    - Alex: TX3LPaxmHKxFdv7VOQHJ
  *    - Dr. Vital: IKpiSijWzlhOL6uX83EH
  *    - Rafael: TX3LPaxmHKxFdv7VOQHJ

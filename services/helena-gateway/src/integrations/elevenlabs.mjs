@@ -209,20 +209,40 @@ export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma dem
  * Mapeamento das vozes originais e clonadas reais de cada personagem no ElevenLabs.
  */
 export const ELEVENLABS_CHARACTER_VOICES = Object.freeze({
-  sirlene: process.env.ELEVENLABS_VOICE_SIRLENE || process.env.ELEVENLABS_SOFIA_VOICE_ID || 'EJV7H2baGt5ab95tOoSG',
+  sirlene: process.env.ELEVENLABS_VOICE_SIRLENE || 'eabgQyq9no9rW5ZiGiaZ',
   alex: process.env.ELEVENLABS_VOICE_ALEX || 'TX3LPaxmHKxFdv7VOQHJ',
   vital: process.env.ELEVENLABS_VOICE_VITAL || 'IKpiSijWzlhOL6uX83EH',
   rafael: process.env.ELEVENLABS_VOICE_RAFAEL || 'TX3LPaxmHKxFdv7VOQHJ'
 });
 
 /**
- * Mapeamento reverso entre vozes Google Chirp 3 HD e ElevenLabs
+ * Mapeamento reverso entre vozes Google Chirp 3 HD, perfis e ElevenLabs
  */
 const CHIRP_TO_ELEVENLABS_MAP = {
+  // Sirlene
   'pt-br-chirp3-hd-achernar': 'sirlene',
+  'pt-br-chirp3-hd-aoede': 'sirlene',
+  'pt-br-chirp3-hd-autonoe': 'sirlene',
+  'sirlene_normal': 'sirlene',
+  'sirlene_firm': 'sirlene',
+  'sirlene_intense': 'sirlene',
+  // Alex
   'pt-br-chirp3-hd-alkaid': 'alex',
+  'pt-br-chirp3-hd-fenrir': 'alex',
+  'alex_normal': 'alex',
+  'alex_firm': 'alex',
+  'alex_intense': 'alex',
+  // Vital
   'pt-br-chirp3-hd-charon': 'vital',
-  'pt-br-chirp3-hd-achird': 'rafael'
+  'pt-br-chirp3-hd-iapetus': 'vital',
+  'vital_normal': 'vital',
+  'vital_firm': 'vital',
+  'vital_intense': 'vital',
+  // Rafael
+  'pt-br-chirp3-hd-achird': 'rafael',
+  'rafael_normal': 'rafael',
+  'rafael_firm': 'rafael',
+  'rafael_intense': 'rafael'
 };
 
 /**
@@ -231,14 +251,25 @@ const CHIRP_TO_ELEVENLABS_MAP = {
 export function resolveElevenLabsVoice(voiceOrCharacterId) {
   if (!voiceOrCharacterId) return ELEVENLABS_CHARACTER_VOICES.sirlene;
   const key = String(voiceOrCharacterId).toLowerCase().trim();
+
+  // Substitui automaticamente qualquer referência à voz antiga filipina pela voz real clonada da Sirlene
+  if (key === 'ejv7h2bagt5ab95toosg' || key === 'ejv7h2bagt5ab95tooosg') {
+    return ELEVENLABS_CHARACTER_VOICES.sirlene;
+  }
   
   if (CHIRP_TO_ELEVENLABS_MAP[key]) {
     const charKey = CHIRP_TO_ELEVENLABS_MAP[key];
-    return ELEVENLABS_CHARACTER_VOICES[charKey];
+    return ELEVENLABS_CHARACTER_VOICES[charKey] || ELEVENLABS_CHARACTER_VOICES.sirlene;
   }
   if (ELEVENLABS_CHARACTER_VOICES[key]) {
     return ELEVENLABS_CHARACTER_VOICES[key];
   }
+  // Se contiver 'sirlene', 'alex', 'vital' ou 'rafael' no texto
+  if (key.includes('sirlene')) return ELEVENLABS_CHARACTER_VOICES.sirlene;
+  if (key.includes('vital')) return ELEVENLABS_CHARACTER_VOICES.vital;
+  if (key.includes('alex')) return ELEVENLABS_CHARACTER_VOICES.alex;
+  if (key.includes('rafael')) return ELEVENLABS_CHARACTER_VOICES.rafael;
+
   return voiceOrCharacterId;
 }
 
