@@ -1,7 +1,8 @@
-import { buildNaturalnessInstruction, cleanVoiceText, isStandaloneMarker } from './conversation-naturalness.mjs';
+import { buildNaturalnessInstruction, cleanVoiceText, isStandaloneMarker, RECOMMENDED_AUDIO_TAGS } from './conversation-naturalness.mjs';
 import { Readable } from 'node:stream';
 import { once } from 'node:events';
 import { openChirp3CallStream } from './google-chirp3-hd.mjs';
+import { openCallTTSStream } from './call-tts-stream.mjs';
 import { VOICE_DELIVERY_INSTRUCTION, prepareVoiceHistory } from './voice-delivery.mjs';
 
 /** SSE framing is independent of TCP chunk boundaries, including split UTF-8. */
@@ -62,7 +63,7 @@ export function extractSpeechChunks(text, final = false) {
 }
 
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openChirp3CallStream, profile = {}, consumeAudio }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openCallTTSStream, profile = {}, consumeAudio }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
@@ -74,19 +75,21 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   let firstTextAt = null;
   let firstTokenAt = null;
   let audioBytes = 0;
-  const tts = openTTS({ voice, context: 'CALL', signal: combined });
+  const tts = openTTS({ voice, context: 'CALL', signal: combined, fetchImpl });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
   const cancelTTS = () => tts.destroy(combined.reason);
   combined.addEventListener('abort', cancelTTS, { once: true });
   const writeSentence = async sentence => {
     combined.throwIfAborted();
-    const clean = cleanVoiceText(sentence);
+    const preserveTags = Boolean(tts?.supportsAudioTags);
+    const clean = cleanVoiceText(sentence, { preserveAudioTags: preserveTags });
     if (!clean || /^(?:hum+|hmm+|uhum)[.!?…\s]*$/iu.test(clean)) return;
     if (firstTextAt === null) {
       firstTextAt = performance.now();
       metrics.text_chunk_wait_ms = firstTokenAt === null ? null : Math.round(firstTextAt - firstTokenAt);
     }
-    spokenText += `${spokenText ? ' ' : ''}${clean}`;
+    const cleanSpoken = cleanVoiceText(sentence, { preserveAudioTags: false });
+    spokenText += `${spokenText ? ' ' : ''}${cleanSpoken}`;
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
@@ -124,7 +127,10 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
         if (totalCharacters > 2400) throw new Error('Voice response exceeds conversational limit');
         pending += delta;
         if (pending.lastIndexOf('[') > pending.lastIndexOf(']') || pending.lastIndexOf('<') > pending.lastIndexOf('>')) continue;
-        pending = pending.replace(/\[[^\]]*\]/g, ' ').replace(/<[^>]*>/g, '');
+        pending = pending.replace(/\[([^\]]*)\]/g, (match, tag) => {
+          const norm = tag.toLowerCase().trim();
+          return RECOMMENDED_AUDIO_TAGS.includes(norm) ? `[${norm}]` : ' ';
+        }).replace(/<[^>]*>/g, '');
         const split = extractSpeechChunks(pending);
         pending = split.rest;
         for (const sentence of split.sentences) await writeSentence(sentence);
@@ -150,7 +156,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
       if (metrics.first_audio_sent_at == null) metrics.first_audio_sent_at = Date.now();
       yield bytes;
     }
-    if (!audioBytes) throw new Error('Google returned no streaming audio');
+    if (!audioBytes) throw new Error('TTS returned no streaming audio');
   })(), { highWaterMark: 4096, objectMode: false });
   audio.on('error', () => {});
   const playbackTask = (async () => {

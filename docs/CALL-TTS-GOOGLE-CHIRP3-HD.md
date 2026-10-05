@@ -7,38 +7,40 @@ O objetivo não é substituir o ecossistema existente de áudio, mas sim adicion
 
 ---
 
-## 2. Escopo e Diretiva de Isolamento (Regra Inegociável)
+## 2. Escopo e Estratégia Híbrida de Voz para Ligações (CALL)
 
-A arquitetura de roteamento de áudio opera estritamente segmentada por contexto:
+A arquitetura de roteamento opera em cooperação inteligente entre ElevenLabs e Google Cloud Chirp 3 HD:
 
 ```text
 LIGAÇÃO / CALL / TELEFONIA
         ↓
-Google Cloud Text-to-Speech
+1º Provedor: ElevenLabs Master Quality (192 kbps HD)
+   (Consome cota mensal contratada com vozes clonadas originais)
+        ↓ (Em caso de estouro de cota / HTTP 429)
+2º Provedor (Fallback Transparente): Google Cloud Chirp 3 HD
         ↓
-Chirp 3 HD
-        ↓
-pt-BR (Voz Feminina Oficial)
+pt-BR (Vozes Mapeadas por Personagem)
         ↓
 MP3 / WAV (adequado ao pipeline de telefonia)
         ↓
 Meowcaller / WhatsApp VoIP
 ```
 
-Todo o restante do sistema permanece 100% inalterado:
+Segmentação por contexto do ecossistema:
 
 ```text
 CALL
-→ Google Chirp 3 HD (google_chirp3_hd)
+→ Prioritário: ElevenLabs Master Quality (192 kbps com vozes originais reais)
+→ Fallback Automático: Google Cloud Chirp 3 HD (google_chirp3_hd)
 
 VARIABLE (amostras dinâmicas / prévias)
 → ElevenLabs Flash v2.5 / comportamento atual
 
 FIXED (catálogo e áudios gravados no Storage / R2)
-→ Áudio atual preservado / comportamento atual
+→ Áudio atual preservado / Cloudflare R2
 
 KOKORO (motor neural open-source)
-→ Preservado, configurado e disponível como fallback e servidor VPS
+→ Preservado, configurado e disponível como fallback adicional e servidor VPS
 
 OTHER
 → Comportamento existente

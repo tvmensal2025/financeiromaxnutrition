@@ -8,19 +8,21 @@ const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_
 const ELEVENLABS_DEFAULT_AGENT_ID = process.env.ELEVENLABS_DEFAULT_AGENT_ID || process.env.ELEVENLABS_AGENT_ID || '';
 const ELEVENLABS_DEFAULT_VOICE_ID = process.env.ELEVENLABS_DEFAULT_VOICE_ID || process.env.ELEVENLABS_VOICE_ID || '';
 
-/**
- * Retorna true se a API key estiver configurada no servidor
- */
+export function getElevenLabsApiKey() {
+  return (process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY || '').trim();
+}
+
 export function isElevenLabsConfigured() {
-  return Boolean(ELEVENLABS_API_KEY);
+  return Boolean(getElevenLabsApiKey());
 }
 
 function getHeaders() {
-  if (!ELEVENLABS_API_KEY) {
+  const key = getElevenLabsApiKey();
+  if (!key) {
     throw new Error('ELEVENLABS_API_KEY não configurada no servidor');
   }
   return {
-    'xi-api-key': ELEVENLABS_API_KEY,
+    'xi-api-key': key,
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
@@ -198,3 +200,209 @@ export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma dem
     audio_base64: `data:audio/mpeg;base64,${base64Audio}`
   };
 }
+
+// ======================================================================
+// CONFIGURAÇÕES DE ALTÍSSIMA FIDELIDADE & STREAMING PARA LIGAÇÕES (CALL)
+// ======================================================================
+
+/**
+ * Mapeamento das vozes originais e clonadas reais de cada personagem no ElevenLabs.
+ */
+export const ELEVENLABS_CHARACTER_VOICES = Object.freeze({
+  sirlene: process.env.ELEVENLABS_VOICE_SIRLENE || process.env.ELEVENLABS_SOFIA_VOICE_ID || 'EJV7H2baGt5ab95tOoSG',
+  alex: process.env.ELEVENLABS_VOICE_ALEX || 'TX3LPaxmHKxFdv7VOQHJ',
+  vital: process.env.ELEVENLABS_VOICE_VITAL || 'IKpiSijWzlhOL6uX83EH',
+  rafael: process.env.ELEVENLABS_VOICE_RAFAEL || 'TX3LPaxmHKxFdv7VOQHJ'
+});
+
+/**
+ * Mapeamento reverso entre vozes Google Chirp 3 HD e ElevenLabs
+ */
+const CHIRP_TO_ELEVENLABS_MAP = {
+  'pt-br-chirp3-hd-achernar': 'sirlene',
+  'pt-br-chirp3-hd-alkaid': 'alex',
+  'pt-br-chirp3-hd-charon': 'vital',
+  'pt-br-chirp3-hd-achird': 'rafael'
+};
+
+/**
+ * Resolve o Voice ID oficial no ElevenLabs a partir do personagem, ID ou voz do Chirp.
+ */
+export function resolveElevenLabsVoice(voiceOrCharacterId) {
+  if (!voiceOrCharacterId) return ELEVENLABS_CHARACTER_VOICES.sirlene;
+  const key = String(voiceOrCharacterId).toLowerCase().trim();
+  
+  if (CHIRP_TO_ELEVENLABS_MAP[key]) {
+    const charKey = CHIRP_TO_ELEVENLABS_MAP[key];
+    return ELEVENLABS_CHARACTER_VOICES[charKey];
+  }
+  if (ELEVENLABS_CHARACTER_VOICES[key]) {
+    return ELEVENLABS_CHARACTER_VOICES[key];
+  }
+  return voiceOrCharacterId;
+}
+
+/**
+ * Configurações de Altíssima Fidelidade (Master Quality) para as vozes reais clonadas.
+ * - stability: 0.50 (Permite emoção e respiração natural sem instabilidade)
+ * - similarity_boost: 0.85 (Fidelidade máxima ao timbre da voz real gravada)
+ * - style: 0.15 (Expressividade humana dinâmica para conversação)
+ * - use_speaker_boost: true (Ativa realce do falante proprietário da ElevenLabs)
+ */
+export const ELEVENLABS_HIGH_QUALITY_SETTINGS = Object.freeze({
+  stability: 0.50,
+  similarity_boost: 0.85,
+  style: 0.15,
+  use_speaker_boost: true
+});
+
+// Circuit-breaker em memória para cota mensal do ElevenLabs
+let elevenLabsQuotaExceededUntil = 0;
+
+export function markElevenLabsQuotaExceeded(ttlMs = 60 * 60 * 1000) {
+  elevenLabsQuotaExceededUntil = Date.now() + ttlMs;
+}
+
+export function isElevenLabsQuotaCurrentlyExceeded() {
+  return Date.now() < elevenLabsQuotaExceededUntil;
+}
+
+export function resetElevenLabsQuotaStatus() {
+  elevenLabsQuotaExceededUntil = 0;
+}
+
+/**
+ * Detecta se a resposta do ElevenLabs indica estouro de cota mensal de caracteres / créditos.
+ */
+export function isElevenLabsQuotaExceeded(status, errorBody = '') {
+  if (status === 429) return true;
+  if (status === 401 && /quota|credit|insufficient|exceeded/i.test(String(errorBody))) return true;
+  if (typeof errorBody === 'object' && errorBody !== null) {
+    const detail = JSON.stringify(errorBody).toLowerCase();
+    if (detail.includes('quota_exceeded') || detail.includes('insufficient_credits') || detail.includes('character_limit_exceeded')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Executa a síntese de voz em alta fidelidade (192 kbps HD) para ligações.
+ * Caso a cota mensal tenha estourado, lança erro com flag `isQuotaExceeded = true`
+ * para que o router acione imediatamente o fallback automático do Google Chirp 3 HD.
+ */
+export async function synthesizeElevenLabsCallSpeech({
+  text,
+  voice,
+  signal,
+  outputFormat = 'mp3_44100_192',
+  modelId = 'eleven_multilingual_v2'
+}) {
+  if (!isElevenLabsConfigured()) {
+    const err = new Error('ELEVENLABS_API_KEY não configurada no servidor');
+    err.code = 'ELEVENLABS_NOT_CONFIGURED';
+    err.isQuotaExceeded = true;
+    throw err;
+  }
+
+  if (isElevenLabsQuotaCurrentlyExceeded()) {
+    const err = new Error('ElevenLabs cota mensal esgotada (circuit-breaker ativo)');
+    err.code = 'ELEVENLABS_QUOTA_EXCEEDED';
+    err.isQuotaExceeded = true;
+    throw err;
+  }
+
+  const voiceId = resolveElevenLabsVoice(voice);
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${outputFormat}`;
+
+  const payload = {
+    text: String(text).trim(),
+    model_id: modelId,
+    voice_settings: ELEVENLABS_HIGH_QUALITY_SETTINGS
+  };
+
+  const start = performance.now();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+    signal
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Erro ElevenLabs');
+    const isQuota = isElevenLabsQuotaExceeded(res.status, errText);
+    if (isQuota) {
+      markElevenLabsQuotaExceeded();
+    }
+    const err = new Error(`ElevenLabs TTS [${res.status}]: ${errText}`);
+    err.status = res.status;
+    err.isQuotaExceeded = isQuota;
+    throw err;
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const latencyMs = Math.round(performance.now() - start);
+
+  return {
+    buffer,
+    format: outputFormat.startsWith('pcm') ? 'pcm' : 'mp3',
+    voice: voiceId,
+    latencyMs,
+    characterCount: text.length
+  };
+}
+
+/**
+ * Abre stream nativo de áudio (HTTP chunked streaming) em altíssima qualidade (192 kbps HD).
+ * Permite latência ultra-baixa com início de reprodução em menos de 300ms.
+ */
+export async function streamElevenLabsCallSpeech({
+  text,
+  voice,
+  signal,
+  outputFormat = 'mp3_44100_192',
+  optimizeStreamingLatency = 1,
+  modelId = 'eleven_multilingual_v2'
+}) {
+  if (!isElevenLabsConfigured()) {
+    const err = new Error('ELEVENLABS_API_KEY não configurada no servidor');
+    err.code = 'ELEVENLABS_NOT_CONFIGURED';
+    err.isQuotaExceeded = true;
+    throw err;
+  }
+
+  const voiceId = resolveElevenLabsVoice(voice);
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?optimize_streaming_latency=${optimizeStreamingLatency}&output_format=${outputFormat}`;
+
+  const payload = {
+    text: String(text).trim(),
+    model_id: modelId,
+    voice_settings: ELEVENLABS_HIGH_QUALITY_SETTINGS
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+    signal
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => 'Erro ElevenLabs');
+    const isQuota = isElevenLabsQuotaExceeded(res.status, errText);
+    const err = new Error(`ElevenLabs Streaming [${res.status}]: ${errText}`);
+    err.status = res.status;
+    err.isQuotaExceeded = isQuota;
+    throw err;
+  }
+
+  return {
+    stream: res.body,
+    contentType: res.headers.get('content-type') || 'audio/mpeg',
+    voiceId,
+    format: outputFormat.startsWith('pcm') ? 'pcm' : 'mp3'
+  };
+}
+

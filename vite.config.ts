@@ -4,13 +4,18 @@ import path from "path";
 
 export default defineConfig({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 8080,
+    cors: true,
   },
   plugins: [react()],
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react-router-dom"],
   },
 });

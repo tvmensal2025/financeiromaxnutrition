@@ -737,6 +737,7 @@ export async function checkInstantCustomVoiceAvailability() {
 export function sanitizeCallText(rawText) {
   if (typeof rawText !== 'string') return '';
   return rawText
+    .replace(/\[[a-zA-Z\s_-]+\]/g, ' ') // remove audio tags (ex: [laughs], [sighs]) para não verbalizar
     .replace(/[*#_~`]/g, '') // remove marcações markdown
     .replace(/https?:\/\/\S+/g, '') // remove URLs brutas
     .replace(/[\r\n]+/g, ' ') // achata quebras de linha
