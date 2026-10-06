@@ -54,9 +54,9 @@ type Fluxo = {
 type PlanoConta = {
   plano_conta_id: string;
   codigo?: string | null;
-  nome_conta?: string | null;
-  tipo?: string | null;
-  categoria_macro?: string | null;
+  nome?: string | null;
+  classe_dre?: string | null;
+  fluxo_esperado?: string | null;
   descricao?: string | null;
 };
 
@@ -66,8 +66,8 @@ type ContaFinanceira = {
   nome?: string | null;
   instituicao?: string | null;
   moeda?: string | null;
-  saldo_atual_brl?: number | string | null;
-  saldo_inicial_brl?: number | string | null;
+  saldo_atual?: number | string | null;
+  saldo_inicial?: number | string | null;
   ativa?: string | null;
 };
 
@@ -916,8 +916,8 @@ export default function FinanceiroPage() {
                         <th className="px-4 py-3">ID</th>
                         <th className="px-4 py-3">Código</th>
                         <th className="px-4 py-3">Nome da Conta</th>
-                        <th className="px-4 py-3">Tipo</th>
-                        <th className="px-4 py-3">Categoria Macro</th>
+                        <th className="px-4 py-3">Classe DRE</th>
+                        <th className="px-4 py-3">Fluxo esperado</th>
                         <th className="px-4 py-3">Descrição</th>
                       </tr>
                     </thead>
@@ -926,9 +926,9 @@ export default function FinanceiroPage() {
                         <tr key={p.plano_conta_id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">{p.plano_conta_id}</td>
                           <td className="px-4 py-3 font-mono">{p.codigo || "—"}</td>
-                          <td className="px-4 py-3 font-medium text-foreground">{p.nome_conta || "—"}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{p.tipo || "—"}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{p.categoria_macro || "—"}</td>
+                          <td className="px-4 py-3 font-medium text-foreground">{p.nome || "—"}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{p.classe_dre || "—"}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{p.fluxo_esperado || "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">{p.descricao || "—"}</td>
                         </tr>
                       ))}
@@ -970,7 +970,7 @@ export default function FinanceiroPage() {
                       <div className="border-t border-border/40 pt-3">
                         <span className="text-[11px] text-muted-foreground">Saldo Atual Estimado:</span>
                         <p className="text-lg font-bold font-mono text-foreground mt-0.5">
-                          {moeda(num(c.saldo_atual_brl ?? c.saldo_inicial_brl ?? 0))}
+                          {c.saldo_atual == null && c.saldo_inicial == null ? "Não informado" : moeda(num(c.saldo_atual ?? c.saldo_inicial))}
                         </p>
                       </div>
                     </div>

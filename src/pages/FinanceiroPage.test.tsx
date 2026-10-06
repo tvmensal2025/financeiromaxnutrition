@@ -160,7 +160,7 @@ describe("FinanceiroPage", () => {
                       business_id: "BIZ-001",
                       nome: "Banco Inter PJ",
                       instituicao: "Inter",
-                      saldo_atual_brl: 25400,
+                      saldo_atual: 25400,
                       ativa: "SIM",
                     },
                   ],

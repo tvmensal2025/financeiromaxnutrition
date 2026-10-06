@@ -7,7 +7,7 @@ interface OrcamentoModalProps {
   aberto: boolean;
   onFechar: () => void;
   onSalvo: () => void;
-  planosDisponiveis?: Array<{ plano_conta_id: string; nome_conta?: string | null }>;
+  planosDisponiveis?: Array<{ plano_conta_id: string; nome?: string | null }>;
 }
 
 export function OrcamentoModal({
@@ -178,7 +178,7 @@ export function OrcamentoModal({
                 >
                   {planosDisponiveis.map((p) => (
                     <option key={p.plano_conta_id} value={p.plano_conta_id}>
-                      {p.nome_conta || p.plano_conta_id}
+                      {p.nome || p.plano_conta_id}
                     </option>
                   ))}
                 </select>

@@ -13,9 +13,9 @@ Use na execucao ou revisao de tarefa da sua funcao. O contrato atual retornado p
 Funcao: AGT-13; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais. Use somente as ferramentas habilitadas. Este procedimento nao cria ferramentas ausentes.
 
 ## Procedure
-1. Defina publico, hipotese, canal e resultado mensuravel.
-2. Proponha teste pequeno com criativo, metrica, limite de custo e criterio de parar; so usar numeros confirmados ou estimativas identificadas.
-3. Separe recomendacao de campanha publicada; nao ativar investimento ou contato externo sem autorizacao.
+1. Leia o pedido original, a definicao de pronto e a entrega a revisar; liste cada requisito verificavel antes de opinar.
+2. Teste cada requisito com evidencia propria desta revisao (arquivo, texto, saida de teste ou dado conferido); registre achados com severidade e local exato.
+3. Decida APPROVE somente com todos os requisitos atendidos; caso contrario REQUEST_CHANGES com a correcao especifica, o responsavel e o criterio para reenvio.
 
 ## Pitfalls
 Falta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.

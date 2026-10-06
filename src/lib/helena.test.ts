@@ -347,18 +347,29 @@ describe("Convergência do Sistema Helena (V8 & Supabase)", () => {
     expect(plano.escritas.some((item) => item.tabela === "financeiro")).toBe(false);
   });
 
-  it("ao falar 'quero fazer uma publicacao hoje sobre OPORTUNDIADE DE RENDA EXTRA' cria post e stories 100% prontos", () => {
-    const plano = classificar("quero fazer uma publicacao hoje sobre OPORTUNDIADE DE RENDA EXTRA, eles criam o story 100% e o post", ctx, agora);
+  it("pedido de conteúdo sem empresa pede esclarecimento e não grava nem inventa peças", () => {
+    const plano = classificar("quero fazer uma publicacao hoje sobre renda extra, com story e post", ctx, agora);
     expect(plano.tipo_acao).toBe("CRIACAO_CONTEUDO");
-    expect(plano.conclusao).toContain("Equipe de Marketing acionada");
-    expect(plano.entrega_conteudo).toBeDefined();
-    expect(plano.entrega_conteudo?.post.headline).toBeDefined();
-    expect(plano.entrega_conteudo?.post.corpo).toContain("Humano Digital");
-    expect(plano.entrega_conteudo?.post.cta).toContain("RENDA EXTRA");
-    expect(plano.entrega_conteudo?.stories).toHaveLength(4);
-    expect(plano.entrega_conteudo?.stories[0].titulo).toContain("Story 1");
-    expect(plano.entrega_conteudo?.stories[3].titulo).toContain("Story 4");
-    expect(plano.escritas.some((item) => item.tabela === "tarefas")).toBe(true);
+    expect(plano.entrega_conteudo).toBeUndefined();
+    expect(plano.escritas).toHaveLength(0);
+    expect(plano.pergunta_esclarecimento).toBeDefined();
+  });
+
+  it("pedido de conteúdo com empresa abre missão real para Camila, sem tarefa concluída nem job aprovado", () => {
+    const plano = classificar("quero 2 posts e 2 stories para a eLiving", ctx, agora);
+    expect(plano.entrega_conteudo).toBeUndefined();
+    const tarefa = plano.escritas.find((item) => item.tabela === "tarefas");
+    expect(tarefa?.row).toMatchObject({ business_id: "BIZ-004", responsavel: "AGT-16", status: "NÃO INICIADA" });
+    expect(tarefa?.row.tarefa).toBe("quero 2 posts e 2 stories para a eLiving");
+    expect(plano.escritas.some((item) => item.tabela === "agent_jobs")).toBe(false);
+    expect(plano.escritas.some((item) => item.tabela === "handoffs")).toBe(true);
+  });
+
+  it("lerValor lê R$ 1000 como mil e aceita formatos brasileiros", () => {
+    expect(lerValor("paguei R$ 1000 na igreen")).toBe(1000);
+    expect(lerValor("paguei R$ 1.000,00 na igreen")).toBe(1000);
+    expect(lerValor("recebi R$ 49,90")).toBe(49.9);
+    expect(lerValor("gastei 250 reais")).toBe(250);
   });
 
   it("ao falar 'criar a empresa E-living' ou 'criar a empresa eLiving' a Helena gera escrita em portfolio com o nome canônico eLiving (DEC-022 e DEC-023)", () => {
