@@ -66,6 +66,7 @@ import {
   DEFAULT_CHIRP3_HD_VOICE,
   PROVIDER_NAME as GOOGLE_CHIRP3_PROVIDER
 } from '../integrations/google-chirp3-hd.mjs';
+import { routeCallPreviewAudio } from '../integrations/audio-router.mjs';
 
 import {
   getVoiceAgentConfig,
@@ -1747,9 +1748,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         replyText = generated.text;
       }
 
-      // Sintetiza áudio via Google Cloud Chirp 3 HD
-      const preview = replyText ? await previewGoogleCallVoice({
+      // Sintetiza o áudio: ElevenLabs V4 Turbo com a voz do personagem; Google Chirp 3 HD só como reserva.
+      const preview = replyText ? await routeCallPreviewAudio({
         text: replyText,
+        characterId: profile.character_id,
         voice: characterVoice
       }) : { audio_base64: '', content_type: 'audio/mpeg' };
       if (replyText && !await persistVoiceTurn(webCall, profile, '', replyText)) {

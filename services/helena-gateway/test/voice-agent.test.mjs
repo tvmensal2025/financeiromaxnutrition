@@ -259,9 +259,10 @@ it('keeps selected outbound characters and hot-swapped profiles on duplicate con
   endCallSession, getCallSession, registerCallSession, switchCallRuntime
  } = await import('../src/integrations/call-engine.mjs');
  const { handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
- for (const { direction, initialProfile, openingProfile, replacementProfile } of [
-  { direction: 'INBOUND', initialProfile: 'vital_intense', openingProfile: 'sirlene_normal', replacementProfile: 'vital_firm' },
-  { direction: 'OUTBOUND', initialProfile: 'alex_intense', openingProfile: 'alex_normal', replacementProfile: 'rafael_intense' }
+ // Uma voz por personagem: a voz do Dr. Vital pedida no painel vale para o Vital e é ignorada para o Rafael.
+ for (const { direction, initialProfile, openingProfile, replacementProfile, expectedVoice } of [
+  { direction: 'INBOUND', initialProfile: 'vital_intense', openingProfile: 'sirlene_normal', replacementProfile: 'vital_firm', expectedVoice: 'pt-BR-Chirp3-HD-Charon' },
+  { direction: 'OUTBOUND', initialProfile: 'alex_intense', openingProfile: 'alex_normal', replacementProfile: 'rafael_intense', expectedVoice: 'pt-BR-Chirp3-HD-Achird' }
  ]) {
   const callId = `duplicate-connected-${direction}-${Date.now()}`;
   let openings = 0;
@@ -286,7 +287,7 @@ it('keeps selected outbound characters and hot-swapped profiles on duplicate con
 
    assert.equal(result.greeting_already_played, true);
    assert.equal(getCallSession(callId).activeProfileKey, replacementProfile);
-   assert.equal(getCallSession(callId).activeVoice, 'pt-BR-Chirp3-HD-Charon');
+   assert.equal(getCallSession(callId).activeVoice, expectedVoice);
    assert.equal(getCallSession(callId).timeline.length, timelineLength);
    assert.equal(openings, 1);
    assert.equal(spoken, 1);

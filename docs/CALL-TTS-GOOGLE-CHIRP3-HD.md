@@ -9,32 +9,35 @@ O objetivo não é substituir o ecossistema existente de áudio, mas sim adicion
 
 ## 2. Escopo e Estratégia Híbrida de Voz para Ligações (CALL)
 
-A arquitetura de roteamento opera em cooperação inteligente entre ElevenLabs e Google Cloud Chirp 3 HD:
+> **Regra do dono (06/10/2026):** na ligação fala **primeiro a ElevenLabs V4 Turbo** com a voz e o padrão do
+> personagem; o Google Chirp 3 HD é **reserva** e só entra quando acabam créditos/minutos da ElevenLabs (HTTP 429/cota)
+> ou ela falha. Uma voz por personagem nos dois provedores; antes do Google as tags `[ ]` saem. Vozes, modelos e a voz
+> reserva de cada personagem vêm só de `services/helena-gateway/src/integrations/eliving-voice-config.mjs` (gerado da
+> fonte única do app; regras em `docs/AUDIO-ROUTING.md`).
 
 ```text
-LIGAÇÃO / CALL / TELEFONIA
+LIGAÇÃO / CALL / TELEFONIA (personagem da ligação)
         ↓
-1º Provedor: ElevenLabs Master Quality (192 kbps HD)
-   (Consome cota mensal contratada com vozes clonadas originais)
-        ↓ (Em caso de estouro de cota / HTTP 429)
-2º Provedor (Fallback Transparente): Google Cloud Chirp 3 HD
+1º Provedor: ElevenLabs V4 Turbo (voz e padrão do personagem, tags do dono)
+        ↓ (créditos/minutos acabaram — HTTP 429/cota — ou falha)
+2º Provedor (reserva, na hora, sem derrubar a ligação): Google Cloud Chirp 3 HD
         ↓
-pt-BR (Vozes Mapeadas por Personagem)
+pt-BR, voz Google FIXA do personagem (googleFallbackVoice), texto sem tags
         ↓
-MP3 / WAV (adequado ao pipeline de telefonia)
+PCM 16 kHz / MP3 / WAV (adequado ao pipeline de telefonia)
         ↓
-Meowcaller / WhatsApp VoIP
+Meowcaller / WhatsApp VoIP / app
 ```
 
 Segmentação por contexto do ecossistema:
 
 ```text
 CALL
-→ Prioritário: ElevenLabs Master Quality (192 kbps com vozes originais reais)
-→ Fallback Automático: Google Cloud Chirp 3 HD (google_chirp3_hd)
+→ Prioritário: ElevenLabs V4 Turbo (voz do personagem)
+→ Reserva automática: Google Cloud Chirp 3 HD (google_chirp3_hd), voz fixa do personagem
 
-VARIABLE (amostras dinâmicas / prévias)
-→ ElevenLabs Flash v2.5 / comportamento atual
+VARIABLE (prévias de voz no painel)
+→ ElevenLabs V4 Turbo com a voz de um personagem
 
 FIXED (catálogo e áudios gravados no Storage / R2)
 → Áudio atual preservado / Cloudflare R2
@@ -100,7 +103,9 @@ Nenhum áudio gravado, catálogo de voz ou configuração de outros provedores f
 | `pt-BR-Chirp3-HD-Achird` | Masculina | Tom natural e seguro |
 | `pt-BR-Chirp3-HD-Algenib` | Masculina | Firme e corporativo |
 
-A troca de voz é 100% dinâmica via variável de ambiente `GOOGLE_CALL_TTS_VOICE`, sem necessidade de refatoração ou alteração em código.
+Na ligação, cada personagem usa só a **própria** voz reserva (`googleFallbackVoice` em `eliving-voice-config.mjs`),
+igual em todos os modos. `GOOGLE_CALL_TTS_VOICE` e a voz escolhida no painel valem apenas para prévias do catálogo:
+voz de outro personagem pedida para uma ligação é ignorada (com log).
 
 ---
 
@@ -182,7 +187,7 @@ Consulta pública via endpoint seguro do Gateway:
 
 ## 9. Feature Flag e Mecanismo de Rollback Imediato
 
-Para desativar o Google Chirp 3 HD e retornar imediatamente ao comportamento anterior da chamada (ElevenLabs Flash / Kokoro):
+Para desativar o Google Chirp 3 HD no streaming da ligação (atenção: sem a reserva, falha ou fim de cota da ElevenLabs deixa o turno sem voz):
 
 ```env
 GOOGLE_CALL_TTS_ENABLED=false

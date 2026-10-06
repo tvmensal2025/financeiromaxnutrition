@@ -1,49 +1,48 @@
+import ELIVING_VOICE_CONFIG from './eliving-voice-config.mjs';
+
 export const CONVERSATION_STYLE = Object.freeze({
   language: 'pt-BR', recentAssistantTurns: 5, maxMarkers: 2,
   automaticFillers: false, secondGeneration: false,
 });
 
-// Catálogo Oficial de Audio Tags Recomendadas para Expressividade Humana
-export const RECOMMENDED_AUDIO_TAGS = Object.freeze([
-  // Emoções Intensas e Surpresa
-  'surprised', 'shocked', 'amazed', 'excited',
-  // Irritação, Firmeza e Raiva
-  'angry', 'annoyed', 'frustrated',
-  // Alegria e Humor
-  'laughing', 'laughs', 'giggling', 'cheerfully',
-  // Reações Humanas e Sons Vocais
-  'sighs', 'sigh', 'clears throat', 'groaning',
-  // Entonação e Direção de Entrega
-  'whispers', 'whispering', 'shouts', 'quizzically', 'hesitant', 'indecisive', 'comforting', 'warmly'
-]);
+// Tags de áudio: SÓ a lista do dono (eliving-voice-config.mjs, gerado da fonte única do app).
+export const RECOMMENDED_AUDIO_TAGS = ELIVING_VOICE_CONFIG.audioTagsDono;
 
-// GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS)
+/** Regra do dono: de 1 a 3 tags por fala. */
+export const MAX_AUDIO_TAGS_PER_FALA = 3;
+
+const FORBIDDEN_RULES = ELIVING_VOICE_CONFIG.forbiddenWithStudent;
+const FORBIDDEN_ALWAYS = FORBIDDEN_RULES.filter(rule => rule.exceto.length === 0).map(rule => rule.tag);
+const FORBIDDEN_CELEBRATION_ONLY = FORBIDDEN_RULES.filter(rule => rule.exceto.length > 0);
+const ALLOWED_WITH_STUDENT = RECOMMENDED_AUDIO_TAGS.filter(tag => !FORBIDDEN_RULES.some(rule => rule.tag === tag));
+const TAG_PATTERN = /\[([^[\]\r\n]*)\]/g;
+
+const bracket = tags => tags.map(tag => `[${tag}]`).join(' ');
+const normalizeTag = raw => String(raw).replace(/\s+/g, ' ').trim().toLowerCase();
+const celebrationTags = [...new Set(FORBIDDEN_CELEBRATION_ONLY.flatMap(rule => rule.exceto))];
+
+// GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS) — regras do dono, vindas da configuração única.
 export const AUDIO_TAGS_GUIDE = `
 GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS):
-1. OBJETIVO E DIRETRIZES GERAIS:
-Torne sua fala expressiva, natural e humana utilizando audio tags em inglês envolvidas em colchetes [ ].
-Estas tags instruem o motor de voz sobre a entonação, emoção e reações sonoras exatas para cada momento.
-
-2. CATÁLOGO DE TAGS DE ÁUDIO RECOMENDADAS:
-- Emoções Intensas e Surpresa: [surprised] ou [shocked] (inesperado/inacreditável), [amazed] ou [excited] (admiração/entusiasmo).
-- Irritação, Firmeza e Raiva: [angry] (tom forte/revolta), [annoyed] ou [frustrated] (leve incômodo/frustração).
-- Alegria e Humor: [laughing] ou [laughs] (riso/engraçado), [giggling] (risinho leve), [cheerfully] (caloroso/positivo).
-- Reações Humanas e Sons Vocais: [sighs] ou [sigh] (desabafo/alívio/cansaço), [clears throat] (pigarro antes de algo sério), [groaning] (desconforto).
-- Entonação e Entrega: [whispers] ou [whispering] (voz baixa/segredo), [shouts] (falar alto/chamar atenção), [quizzically] (dúvida/curiosidade), [hesitant] ou [indecisive] (reflexão/hesitação), [comforting] ou [warmly] (empatia/carinho/acolhimento).
-
-3. REGRAS DE FORMATAÇÃO E APLICAÇÃO:
-- Posição: Insira a tag imediatamente antes da frase ou da palavra que deve receber a emoção.
-- Pontuação: Utilize reticências (...) para pausas reflexivas e travessões (-) para cortes bruscos de pensamento.
-- Não verbalize a tag: A tag serve apenas como instrução de áudio para o sintetizador; nunca leia a tag como uma palavra do texto.
+1. Use de 1 a ${MAX_AUDIO_TAGS_PER_FALA} tags de áudio por fala, SEMPRE entre colchetes e em inglês, logo antes do trecho que modificam. Exemplo: "[curious] Me conta, como foi o seu dia?" ou "Entendi. [short pause] Vamos juntos."
+2. Use SOMENTE estas tags (lista fechada; qualquer outra é removida antes da voz): ${bracket(ALLOWED_WITH_STUDENT)}.
+3. ${bracket(FORBIDDEN_CELEBRATION_ONLY.map(rule => rule.tag))} só para comemorar junto, na mesma fala com ${bracket(celebrationTags)}. [sighs] e [sighing] só como alívio ou acolhimento, nunca como decepção. [whispers] é cumplicidade.
+4. PROIBIDAS com a pessoa (soam como bronca, deboche ou desconforto): ${bracket(FORBIDDEN_ALWAYS)}.
+5. Pausa é [pause] ou [short pause]. Não empilhe duas emoções seguidas.
+6. Não verbalize a tag: ela só dirige a voz, não é falada nem aparece na tela. Colchetes só para tags; nunca use chaves { }.
 `.trim();
+
+function paletteText(characterId) {
+  return bracket(ELIVING_VOICE_CONFIG.speakerTagPalette[characterId] || []);
+}
 
 // Domain/identity/mode remain in the saved profile. Future characters inherit default.
 export const CHARACTER_STYLES = Object.freeze({
   default: 'Natural, profissional e objetivo. Preserve a personalidade e o modo ativos.',
-  vital: 'Tranquilo, cuidadoso, profissional. Acolhimento moderado; use [clears throat], [warmly] e [hesitant] quando apropriado.',
-  sirlene: 'Próxima, acolhedora e prática. Use [warmly], [cheerfully], [comforting] e [laughs] com naturalidade.',
-  alex: 'Direto, disciplinado, motivador sem bajulação. Use [excited], [cheerfully] e [shouts] em momentos de superação.',
-  rafael: 'Inspirador, sábio e dinâmico. Use [amazed], [surprised], [sighs] e [cheerfully] na medida certa.'
+  vital: `Sereno, cuidadoso e profissional, com acolhimento moderado. Tags preferidas: ${paletteText('vital')}.`,
+  sirlene: `Próxima, acolhedora e prática. Tags preferidas: ${paletteText('sirlene')}.`,
+  alex: `Energético e parceiro, motivador sem bajulação, segurança antes da intensidade. Tags preferidas: ${paletteText('alex')}.`,
+  rafael: `Presente, calmo e parceiro, firmeza com respeito. Tags preferidas: ${paletteText('rafael')}.`
 });
 
 
@@ -84,21 +83,57 @@ Se pedirem para parar ou esperar, reconheça brevemente e encerre o turno, sem o
 }
 
 /**
- * Remove todas as audio tags entre colchetes.
- * Essencial para o Google Cloud Chirp 3 HD, garantindo que o sintetizador nunca verbalize as tags.
+ * Remove QUALQUER trecho entre colchetes [..].
+ * Essencial para o Google Cloud Chirp 3 HD (reserva), garantindo que o sintetizador nunca verbalize as tags.
  */
 export function stripAudioTags(text) {
   return String(text || '')
-    .replace(/\[[a-zA-Z\s_-]+\]/g, ' ')
+    .replace(TAG_PATTERN, ' ')
     .replace(/\s+/g, ' ')
+    .replace(/\s+([,.;:!?…])/g, '$1')
     .trim();
 }
 
 /**
- * Formata o texto para síntese no ElevenLabs mantendo exclusivamente as Audio Tags válidas do catálogo.
+ * true se a tag pode soar com o aluno nesta fala: está na lista do dono e não é proibida; as de
+ * comemoração ([shouts]/[yelling]) só passam quando a fala também tem [excited] ou [enthusiastic].
  */
-export function formatSpeechForElevenLabs(text) {
-  return cleanVoiceText(text, { preserveAudioTags: true });
+export function isAudioTagAllowed(tag, tagsDaFala = []) {
+  const normalized = normalizeTag(tag);
+  if (!RECOMMENDED_AUDIO_TAGS.includes(normalized)) return false;
+  const rule = FORBIDDEN_RULES.find(item => item.tag === normalized);
+  if (!rule) return true;
+  return rule.exceto.length > 0 && rule.exceto.some(exception => tagsDaFala.includes(exception));
+}
+
+function tagsOf(text) {
+  return [...String(text || '').matchAll(TAG_PATTERN)].map(match => normalizeTag(match[1]));
+}
+
+/**
+ * Formata o texto para a ElevenLabs: mantém só as tags do dono permitidas com o aluno (no máximo
+ * `maxTags`, regra de 1 a 3 por fala), remove as proibidas, as desconhecidas e qualquer { } (variável
+ * não resolvida). `contexto` é o que já foi dito nesta mesma fala (vale para a exceção de comemoração).
+ */
+export function formatSpeechForElevenLabs(text, { contexto = '', maxTags = MAX_AUDIO_TAGS_PER_FALA } = {}) {
+  const source = String(text || '');
+  const tagsDaFala = tagsOf(`${contexto} ${source}`);
+  let kept = 0;
+  const curated = source
+    .replace(TAG_PATTERN, (_match, raw) => {
+      const tag = normalizeTag(raw);
+      if (kept >= maxTags || !isAudioTagAllowed(tag, tagsDaFala)) return ' ';
+      kept += 1;
+      return `[${tag}]`;
+    })
+    .replace(/\{[^{}]*\}/g, ' ')
+    .replace(/[{}]/g, ' ');
+  return cleanVoiceText(curated, { preserveAudioTags: true }).replace(/\s+([,.;:!?…])/g, '$1');
+}
+
+/** Quantas tags de áudio há no texto. */
+export function countAudioTags(text) {
+  return tagsOf(text).length;
 }
 
 // Formatting cleanup only: never inserts new words or changes facts/units.
@@ -107,9 +142,9 @@ export function cleanVoiceText(text, options = {}) {
   let str = String(text || '');
 
   if (preserveAudioTags) {
-    // Preserva apenas as tags oficiais do catálogo e remove qualquer rubrica desconhecida
+    // Preserva apenas as tags da lista do dono e remove qualquer rubrica desconhecida
     str = str.replace(/\[([^\]]*)\]/g, (match, tag) => {
-      const normalized = tag.toLowerCase().trim();
+      const normalized = normalizeTag(tag);
       return RECOMMENDED_AUDIO_TAGS.includes(normalized) ? `[${normalized}]` : ' ';
     });
   } else {

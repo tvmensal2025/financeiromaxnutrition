@@ -92,7 +92,8 @@ export class MeowcallerVoiceBridge {
       const speech = await routeCallAudio({
         text,
         callId,
-        voice: resolvedVoice
+        voice: resolvedVoice,
+        characterId: call?.activeCharacterId || null // a voz vem do personagem da ligação
       });
 
       bridge.audioOutputs.push({

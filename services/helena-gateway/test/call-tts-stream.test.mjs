@@ -11,8 +11,27 @@ import {
   isElevenLabsQuotaCurrentlyExceeded
 } from '../src/integrations/elevenlabs.mjs';
 import { setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
+import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
 
-describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 HD)', () => {
+const VOICES = ELIVING_VOICE_CONFIG.characters;
+
+function fakeChirp() {
+  const state = { config: null, text: '' };
+  const stream = new Transform({
+    objectMode: true,
+    transform(msg, _enc, cb) {
+      if (msg.streamingConfig) state.config = msg.streamingConfig;
+      if (msg.input?.text) {
+        state.text += msg.input.text;
+        this.push({ audioContent: Buffer.alloc(3200, 2) });
+      }
+      cb();
+    }
+  });
+  return { stream, state };
+}
+
+describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserva Google Chirp 3 HD)', () => {
   const originalEnv = { ...process.env };
 
   beforeEach(() => {
@@ -27,7 +46,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 
     setGoogleTTSClientForTesting(null);
   });
 
-  it('usa ElevenLabs prioritariamente com PCM 16kHz e preserva Audio Tags oficiais', async () => {
+  it('usa ElevenLabs V4 Turbo com PCM 16kHz, a voz e o padrão do personagem e as tags do dono', async () => {
     let capturedUrl = '';
     let capturedBody = null;
     let capturedHeaders = null;
@@ -57,40 +76,63 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 
     const receivedChunks = [];
     stream.on('data', (data) => receivedChunks.push(data));
 
-    // Escreve sentença com audio tag
-    stream.write({ input: { text: '[warmly] Olá! Que prazer conversar com você.' } });
+    // Escreve sentença com tag do dono, tag inventada e tag proibida com o aluno
+    stream.write({ input: { text: '[curious] Olá! [warmly] Que prazer [sarcastic] conversar com você.' } });
     stream.end();
 
     await new Promise((resolve) => stream.once('finish', resolve));
 
-    assert.ok(capturedUrl.includes('api.elevenlabs.io/v1/text-to-speech'));
+    assert.ok(capturedUrl.includes(`api.elevenlabs.io/v1/text-to-speech/${VOICES.sirlene.voiceId}/stream`));
     assert.ok(capturedUrl.includes('output_format=pcm_16000'));
+    assert.ok(!capturedUrl.includes('optimize_streaming_latency'), 'parâmetro obsoleto não é enviado');
     assert.equal(capturedHeaders['xi-api-key'], 'test-eleven-key');
     assert.equal(capturedHeaders['Accept'], 'audio/pcm');
-    // Verifica que a tag foi preservada no payload enviado ao ElevenLabs
-    assert.ok(capturedBody.text.includes('[warmly]'));
-    assert.equal(capturedBody.model_id, 'eleven_multilingual_v2');
+    assert.equal(capturedBody.text, '[curious] Olá! Que prazer conversar com você.');
+    assert.equal(capturedBody.model_id, 'eleven_v4_turbo');
+    assert.deepEqual(capturedBody.voice_settings, { ...VOICES.sirlene.voiceSettings });
 
     // Verifica que os chunks de áudio chegaram
     assert.ok(receivedChunks.length >= 2);
     assert.equal(receivedChunks[0].audioContent.length, 1600);
   });
 
-  it('aciona fallback instantâneo para Google Chirp 3 HD quando cota do ElevenLabs esgota (HTTP 429)', async () => {
-    let chirpWrittenText = '';
-    const fakeChirpStream = new Transform({
-      objectMode: true,
-      transform(msg, _enc, cb) {
-        if (msg.input?.text) {
-          chirpWrittenText += msg.input.text;
-          this.push({ audioContent: Buffer.alloc(3200, 2) });
-        }
-        cb();
-      }
-    });
+  it('a voz vem do characterId da ligação, nunca da voz Google do painel', async () => {
+    const urls = [];
+    const mockFetch = async (url) => {
+      urls.push(url);
+      return { ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) };
+    };
+    const stream = openCallTTSStream({ voice: 'pt-BR-Chirp3-HD-Achernar', characterId: 'rafael', fetchImpl: mockFetch });
+    stream.resume();
+    stream.write({ input: { text: 'Bom dia.' } });
+    stream.end();
+    await new Promise((resolve) => stream.once('finish', resolve));
+    assert.equal(urls.length, 1);
+    assert.ok(urls[0].includes(`/text-to-speech/${VOICES.rafael.voiceId}/stream`));
+    assert.notEqual(VOICES.rafael.voiceId, VOICES.alex.voiceId);
+  });
 
+  it('no máximo 3 tags na fala inteira, e [shouts] só comemorando dentro do mesmo turno', async () => {
+    const texts = [];
+    const mockFetch = async (_url, opts) => {
+      texts.push(JSON.parse(opts.body).text);
+      return { ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) };
+    };
+    const stream = new HybridCallTTSStream({ characterId: 'alex', fetchImpl: mockFetch });
+    stream.resume();
+    stream.write({ input: { text: '[excited] Isso!' } });
+    stream.write({ input: { text: '[shouts] Bateu a meta!' } });
+    stream.write({ input: { text: '[laughs] Que dia.' } });
+    stream.write({ input: { text: '[short pause] Amanhã tem mais.' } });
+    stream.end();
+    await new Promise((resolve) => stream.once('finish', resolve));
+    assert.deepEqual(texts, ['[excited] Isso!', '[shouts] Bateu a meta!', '[laughs] Que dia.', 'Amanhã tem mais.']);
+  });
+
+  it('aciona a reserva Google Chirp 3 HD na hora quando a cota da ElevenLabs esgota (HTTP 429), com a voz fixa do personagem e sem tags', async () => {
+    const chirp = fakeChirp();
     setGoogleTTSClientForTesting({
-      streamingSynthesize: () => fakeChirpStream
+      streamingSynthesize: () => chirp.stream
     });
 
     const mockFetch429 = async () => {
@@ -102,16 +144,20 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 
     };
 
     const stream = openCallTTSStream({
-      voice: 'sirlene',
+      voice: 'pt-BR-Chirp3-HD-Achernar', // voz de outro personagem no painel: ignorada
+      characterId: 'vital',
       context: 'CALL',
       fetchImpl: mockFetch429
     });
 
     const audioResponses = [];
     stream.on('data', (d) => audioResponses.push(d));
+    let streamError = null;
+    stream.on('error', (err) => { streamError = err; });
 
     // Envia sentença com tag que deverá sofrer fallback para o Chirp com a tag removida
-    stream.write({ input: { text: '[laughs] Nossa, que notícia fantástica!' } });
+    stream.write({ input: { text: '[clears throat] Nossa, que notícia fantástica!' } });
+    stream.write({ input: { text: '[pause] Vamos marcar o exame?' } });
     stream.end();
 
     await new Promise((resolve) => stream.once('finish', resolve));
@@ -120,31 +166,37 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 
     assert.equal(isElevenLabsQuotaCurrentlyExceeded(), true);
     assert.equal(stream.elevenLabsFailed, true);
     assert.equal(stream.supportsAudioTags, false);
+    assert.equal(streamError, null, 'a ligação não cai');
 
-    // No Google Chirp 3 HD, a tag deve ser estritamente removida
-    assert.ok(!chirpWrittenText.includes('[laughs]'));
-    assert.ok(chirpWrittenText.includes('Nossa, que notícia fantástica!'));
+    // Voz fixa do Dr. Vital e texto sem nenhuma tag
+    assert.equal(chirp.state.config.voice.name, VOICES.vital.googleFallbackVoice);
+    assert.doesNotMatch(chirp.state.text, /\[|\]/);
+    assert.ok(chirp.state.text.includes('Nossa, que notícia fantástica!'));
+    assert.ok(chirp.state.text.includes('Vamos marcar o exame?'));
 
     // Áudio do fallback foi entregue
     assert.ok(audioResponses.length > 0);
     assert.equal(audioResponses[0].audioContent.length, 3200);
   });
 
+  it('com a cota já esgotada vai direto ao Google com a voz fixa do personagem', async () => {
+    markElevenLabsQuotaExceeded();
+    const chirp = fakeChirp();
+    setGoogleTTSClientForTesting({ streamingSynthesize: () => chirp.stream });
+    const stream = openCallTTSStream({ voice: 'pt-BR-Chirp3-HD-Charon', characterId: 'rafael', context: 'CALL' });
+    assert.equal(chirp.state.config.voice.name, VOICES.rafael.googleFallbackVoice);
+    stream.write({ input: { text: '[laughs] Oi, tudo bem? ' } });
+    assert.equal(chirp.state.text, 'Oi, tudo bem? ', 'o stream do Google também remove tags');
+    stream.destroy();
+  });
+
   it('usa diretamente o Google Chirp 3 HD se ELEVENLABS_API_KEY não estiver configurada', async () => {
     delete process.env.ELEVENLABS_API_KEY;
     delete process.env.ELEVEN_LABS_API_KEY;
 
-    let configSent = null;
-    const fakeChirpStream = new Transform({
-      objectMode: true,
-      transform(msg, _enc, cb) {
-        if (msg.streamingConfig) configSent = msg.streamingConfig;
-        cb();
-      }
-    });
-
+    const chirp = fakeChirp();
     setGoogleTTSClientForTesting({
-      streamingSynthesize: () => fakeChirpStream
+      streamingSynthesize: () => chirp.stream
     });
 
     const stream = openCallTTSStream({
@@ -153,8 +205,9 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs + Google Chirp 3 
     });
 
     assert.ok(stream);
-    assert.equal(configSent?.streamingAudioConfig?.audioEncoding, 'PCM');
-    assert.equal(configSent?.streamingAudioConfig?.sampleRateHertz, 16000);
+    assert.equal(chirp.state.config?.streamingAudioConfig?.audioEncoding, 'PCM');
+    assert.equal(chirp.state.config?.streamingAudioConfig?.sampleRateHertz, 16000);
+    assert.equal(chirp.state.config?.voice?.name, VOICES.sirlene.googleFallbackVoice);
     stream.destroy();
   });
 });

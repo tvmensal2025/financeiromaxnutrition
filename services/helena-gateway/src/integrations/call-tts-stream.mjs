@@ -1,66 +1,74 @@
 /**
- * call-tts-stream.mjs — Stream Híbrido de TTS Telefônico de Altíssima Fidelidade
+ * call-tts-stream.mjs — Stream Híbrido de TTS Telefônico (voz do eLiving)
  *
- * ESTRATÉGIA HÍBRIDA DE LIGAÇÕES (STREAMING AO VIVO):
- * 1. PRIORIDADE MÁXIMA: ElevenLabs (16 kHz PCM Streaming / 192 kbps HD)
- *    Consome a cota mensal com as vozes reais clonadas dos 4 personagens:
- *    - Sirlene: eabgQyq9no9rW5ZiGiaZ
- *    - Alex: TX3LPaxmHKxFdv7VOQHJ
- *    - Dr. Vital: IKpiSijWzlhOL6uX83EH
- *    - Rafael: TX3LPaxmHKxFdv7VOQHJ
- *    Suporta nativamente o Catálogo de Audio Tags ([laughs], [sighs], [warmly], etc.).
+ * REGRA DO DONO (06/10/2026), dados em eliving-voice-config.mjs (gerado da fonte única do app):
+ * 1. FALA PRIMEIRO A ElevenLabs V4 Turbo (models.tempoReal = eleven_v4_turbo), PCM 16 kHz em streaming,
+ *    com a voz e o padrão (voice_settings) do PERSONAGEM da ligação — Sirlene, Alex, Dr. Vital ou
+ *    Rafael (Rafael = B4ra…, a voz dele, nunca a do Alex). A voz vem do characterId da ligação, nunca
+ *    de uma voz Google escolhida no painel. Tags de áudio do dono entre colchetes ([curious],
+ *    [short pause]…); proibidas com o aluno e desconhecidas saem antes do envio.
  *
- * 2. FALLBACK AUTOMÁTICO INSTANTÂNEO: Google Cloud Chirp 3 HD
- *    Se a cota do ElevenLabs esgotar (HTTP 429) ou ocorrer falha de rede,
- *    chaveia no mesmo instante para o Google Chirp 3 HD gRPC,
- *    higienizando as Audio Tags para pronúncia perfeita sem interrupção de chamada.
+ * 2. RESERVA: Google Cloud Chirp 3 HD. Só entra quando acabam créditos/minutos da ElevenLabs
+ *    (HTTP 429/cota) ou ela falha: chaveia na hora, sem derrubar a ligação, com a voz Google FIXA do
+ *    personagem (googleFallbackVoice) e o texto SEM tags.
  */
 
 import { Transform } from 'node:stream';
 import {
   isElevenLabsConfigured,
   getElevenLabsApiKey,
-  resolveElevenLabsVoice,
   isElevenLabsQuotaExceeded,
   isElevenLabsQuotaCurrentlyExceeded,
   markElevenLabsQuotaExceeded,
-  ELEVENLABS_HIGH_QUALITY_SETTINGS
+  resolveCallCharacter,
+  elevenLabsSpecForCharacter,
+  googleVoiceForCall
 } from './elevenlabs.mjs';
 import {
-  openChirp3CallStream,
-  isGoogleChirp3CallEnabled
+  openChirp3CallStream
 } from './google-chirp3-hd.mjs';
 import {
   formatSpeechForElevenLabs,
-  stripAudioTags
+  stripAudioTags,
+  countAudioTags,
+  MAX_AUDIO_TAGS_PER_FALA
 } from './conversation-naturalness.mjs';
 
 /**
  * Cria ou abre o stream Duplex de TTS telefônico (híbrido ElevenLabs + Google Chirp 3 HD).
+ * characterId = personagem da ligação (manda na voz dos dois provedores); `voice` só identifica o
+ * personagem quando o characterId não vier.
  */
 export function openCallTTSStream({
   voice = null,
+  characterId = null,
   context = 'CALL',
   signal = null,
   fetchImpl = fetch
 } = {}) {
+  const character = resolveCallCharacter({ characterId, voice });
   const elevenLabsEnabled = process.env.ELEVENLABS_CALL_ENABLED !== 'false';
   const canUseElevenLabs = elevenLabsEnabled && isElevenLabsConfigured() && !isElevenLabsQuotaCurrentlyExceeded();
 
   if (!canUseElevenLabs) {
-    return openChirp3CallStream({ voice, context, signal });
+    return openChirp3CallStream({ voice: googleVoiceForCall({ characterId: character, voice }), context, signal });
   }
 
-  return new HybridCallTTSStream({ voice, context, signal, fetchImpl });
+  return new HybridCallTTSStream({ voice, characterId: character, context, signal, fetchImpl });
 }
 
 export class HybridCallTTSStream extends Transform {
-  constructor({ voice = null, context = 'CALL', signal = null, fetchImpl = fetch } = {}) {
+  constructor({ voice = null, characterId = null, context = 'CALL', signal = null, fetchImpl = fetch } = {}) {
     super({ objectMode: true });
     this.voice = voice;
+    this.characterId = resolveCallCharacter({ characterId, voice });
+    this.elevenLabsSpec = elevenLabsSpecForCharacter(this.characterId, 'tempoReal');
+    this.googleVoice = googleVoiceForCall({ characterId: this.characterId, voice });
     this.context = context;
     this.signal = signal;
     this.fetchImpl = fetchImpl;
+    this.spokenText = '';
+    this.tagsUsed = 0;
 
     this.supportsAudioTags = true;
     this.elevenLabsFailed = false;
@@ -141,11 +149,17 @@ export class HybridCallTTSStream extends Transform {
       return;
     }
 
-    const speechText = formatSpeechForElevenLabs(text);
+    // Uma fala = o turno inteiro deste stream: no máximo 3 tags e a exceção de comemoração vale na fala toda.
+    const speechText = formatSpeechForElevenLabs(text, {
+      contexto: this.spokenText,
+      maxTags: Math.max(0, MAX_AUDIO_TAGS_PER_FALA - this.tagsUsed)
+    });
+    this.spokenText += ` ${text}`;
     if (!speechText) return;
+    this.tagsUsed += countAudioTags(speechText);
 
-    const voiceId = resolveElevenLabsVoice(this.voice);
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?optimize_streaming_latency=2&output_format=pcm_16000`;
+    const { voiceId, modelId, voiceSettings } = this.elevenLabsSpec;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=pcm_16000`;
 
     const controller = new AbortController();
     this.currentAbortController = controller;
@@ -165,8 +179,8 @@ export class HybridCallTTSStream extends Transform {
         },
         body: JSON.stringify({
           text: speechText,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: ELEVENLABS_HIGH_QUALITY_SETTINGS
+          model_id: modelId,
+          voice_settings: voiceSettings
         }),
         signal: controller.signal
       });
@@ -227,8 +241,9 @@ export class HybridCallTTSStream extends Transform {
     this.supportsAudioTags = false;
 
     try {
+      // Voz Google FIXA do personagem da ligação (nunca a voz escolhida no painel).
       this.chirpStream = openChirp3CallStream({
-        voice: this.voice,
+        voice: this.googleVoice,
         context: this.context,
         signal: this.signal
       });
@@ -266,10 +281,13 @@ export class HybridCallTTSStream extends Transform {
 
     if (this.elevenLabsFailed && this.chirpStream) {
       this.chirpStream.end();
-      const done = this.flushCallback;
+      const callback = this.flushCallback;
       this.flushCallback = null;
-      this.chirpStream.once('end', () => done());
-      this.chirpStream.once('close', () => done());
+      // 'end' e 'close' podem chegar os dois: o flush só pode ser concluído uma vez.
+      let finished = false;
+      const done = () => { if (!finished) { finished = true; callback(); } };
+      this.chirpStream.once('end', done);
+      this.chirpStream.once('close', done);
       return;
     }
 

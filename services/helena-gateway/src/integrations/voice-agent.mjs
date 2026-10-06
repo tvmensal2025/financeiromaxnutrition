@@ -482,16 +482,18 @@ export async function speakInCall({ callId, text, voice = null }) {
   const call = getCallSession(callId);
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const activeVoice = voice || call?.activeVoice || profile.voice_id || getActiveCallVoice();
+  const characterId = call?.activeCharacterId || profile.character_id;
   const characterName = call?.activeCharacterName || profile.character_name;
   const modeName = call?.activeModeName || profile.mode_name;
 
-  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala no Google Chirp 3 HD para chamada ${callId} (${characterName} / ${modeName} | voz: ${activeVoice}): "${text}"`);
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (${characterName} / ${modeName}): "${text}"`);
 
-  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Google Cloud Chirp 3 HD)
+  // ElevenLabs V4 Turbo com a voz do PERSONAGEM; Google Chirp 3 HD só como reserva (voz fixa do personagem).
   const speechRes = await routeCallAudio({
     text,
     callId,
-    voice: activeVoice
+    voice: activeVoice,
+    characterId
   });
 
   const base64Audio = speechRes.buffer.toString('base64');
@@ -800,7 +802,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
     // Caso o áudio seja muito curto ou não haja palavras identificáveis
     const curProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
     console.log(`[VOICE_AGENT] ℹ️ Áudio sem transcrição de fala clara ou silêncio na chamada ${callId}.`);
-    replyText = `Olá! Aqui é o ${curProfile.character_name} da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?`;
+    replyText = `Olá! Aqui é ${curProfile.character_id === 'sirlene' ? 'a' : 'o'} ${curProfile.character_name}, do eLiving. Não consegui te ouvir com clareza, você pode repetir por favor?`;
   }
 
   signal.throwIfAborted();

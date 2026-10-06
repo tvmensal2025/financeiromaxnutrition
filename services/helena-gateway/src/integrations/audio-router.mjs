@@ -2,7 +2,7 @@
  * audio-router.mjs — Roteador Canônico de Contexto de Áudio
  *
  * Garante o isolamento estrito:
- * CALL     → Google Chirp 3 HD exclusivo; falhas são reportadas
+ * CALL     → ElevenLabs V4 Turbo primeiro (voz do personagem); Google Chirp 3 HD só como reserva
  * VARIABLE → ElevenLabs / comportamento existente
  * FIXED    → Áudios estáticos existentes / comportamento existente
  * KOKORO   → Preservado
@@ -11,14 +11,14 @@
 
 import {
   GoogleChirp3HDCallTTS,
-  isGoogleChirp3CallEnabled,
+  previewGoogleCallVoice,
   PROVIDER_NAME as GOOGLE_CHIRP3_PROVIDER
 } from './google-chirp3-hd.mjs';
 import {
   isElevenLabsConfigured,
   synthesizeElevenLabsCallSpeech,
-  resolveElevenLabsVoice,
-  isElevenLabsQuotaExceeded
+  resolveCallCharacter,
+  googleVoiceForCall
 } from './elevenlabs.mjs';
 import {
   formatSpeechForElevenLabs,
@@ -37,40 +37,18 @@ export const AudioContext = Object.freeze({
 });
 
 /**
- * Mapeamento de voz do ElevenLabs para o equivalente oficial no Google Chirp 3 HD (para o Fallback).
- */
-const ELEVENLABS_TO_CHIRP_FALLBACK_MAP = {
-  'eabgqyq9no9rw5zigiaz': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Real Clonada
-  'ejv7h2bagt5ab95toosg': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Legado
-  'ejv7h2bagt5ab95tooosg': 'pt-BR-Chirp3-HD-Achernar', // Sirlene Legado (alias)
-  'tx3lpaxmhkxfdv7voqhj': 'pt-BR-Chirp3-HD-Alkaid',   // Alex
-  'ikpisijwzlhol6ux83eh': 'pt-BR-Chirp3-HD-Charon',   // Vital
-  'sirlene': 'pt-BR-Chirp3-HD-Achernar',
-  'alex': 'pt-BR-Chirp3-HD-Alkaid',
-  'vital': 'pt-BR-Chirp3-HD-Charon',
-  'rafael': 'pt-BR-Chirp3-HD-Achird'
-};
-
-function resolveChirpFallbackVoice(voice) {
-  if (!voice) return null;
-  const key = String(voice).toLowerCase().trim();
-  return ELEVENLABS_TO_CHIRP_FALLBACK_MAP[key] || voice;
-}
-
-/**
  * Roteia a síntese de áudio para chamadas telefônicas (VoIP / Telefonia)
  *
- * ESTRATÉGIA HÍBRIDA DE CUSTO & QUALIDADE MÁXIMA:
- * 1. PRIORIDADE MÁXIMA: ElevenLabs (Vozes Originais Reais dos Mentores em 192 kbps HD)
- *    Consome 100% da cota mensal contratada na ElevenLabs.
- * 2. FALLBACK AUTOMÁTICO: Google Cloud Chirp 3 HD
- *    Se a cota do ElevenLabs esgotar (HTTP 429 / Quota Exceeded) ou a API oscilar,
- *    chaveia instantaneamente para o Google Chirp 3 HD sem interromper a chamada.
+ * REGRA DO DONO (voz única por personagem, eliving-voice-config.mjs):
+ * 1. PRIMEIRO: ElevenLabs V4 Turbo (tempo real) com a voz e o padrão do PERSONAGEM, 192 kbps.
+ * 2. RESERVA: Google Cloud Chirp 3 HD, só quando acabam créditos/minutos da ElevenLabs (HTTP 429/cota)
+ *    ou ela falha. Voz Google FIXA do personagem e texto sem tags, sem interromper a chamada.
  *
  * @param {Object} params
  * @param {string} params.text Texto a sintetizar
  * @param {string} params.callId Identificador da chamada
- * @param {string} [params.voice] Override opcional de voz
+ * @param {string} [params.characterId] Personagem da ligação (manda na voz)
+ * @param {string} [params.voice] Voz antiga de perfil/painel: só identifica o personagem sem characterId
  * @returns {Promise<{
  *   buffer: Buffer,
  *   format: string,
@@ -83,16 +61,17 @@ function resolveChirpFallbackVoice(voice) {
  *   callId: string
  * }>}
  */
-export async function routeCallAudio({ text, callId = '', voice = null }) {
+export async function routeCallAudio({ text, callId = '', voice = null, characterId = null }) {
+  const character = resolveCallCharacter({ characterId, voice });
   // 1. Tenta sintetizar prioritariamente via ElevenLabs (Consumo da Cota Mensal)
   const elevenLabsEnabled = process.env.ELEVENLABS_CALL_ENABLED !== 'false';
   if (elevenLabsEnabled && isElevenLabsConfigured()) {
     try {
-      const elVoice = resolveElevenLabsVoice(voice);
       const speechText = formatSpeechForElevenLabs(text);
       const elResult = await synthesizeElevenLabsCallSpeech({
         text: speechText,
-        voice: elVoice,
+        characterId: character,
+        uso: 'tempoReal',
         outputFormat: 'mp3_44100_192' // Altíssima fidelidade
       });
 
@@ -116,9 +95,9 @@ export async function routeCallAudio({ text, callId = '', voice = null }) {
     }
   }
 
-  // 2. Provedor Secundário / Fallback: Google Cloud Chirp 3 HD
+  // 2. Provedor Secundário / Fallback: Google Cloud Chirp 3 HD (voz fixa do personagem, sem tags)
   try {
-    const chirpVoice = resolveChirpFallbackVoice(voice);
+    const chirpVoice = googleVoiceForCall({ characterId: character, voice });
     const cleanChirpText = stripAudioTags(text);
     const result = await GoogleChirp3HDCallTTS.synthesizeCallSpeech({
       text: cleanChirpText,
@@ -143,6 +122,49 @@ export async function routeCallAudio({ text, callId = '', voice = null }) {
     console.error(`[AUDIO_ROUTER] ❌ Falha crítica em todos os provedores (ElevenLabs e Google Chirp) para chamada ${callId}:`, err.message);
     throw err;
   }
+}
+
+/**
+ * Áudio de um turno da ligação do app (abertura e respostas sem streaming), no MESMO formato de
+ * previewGoogleCallVoice ({ ok, provider, voice, audio_base64, content_type: 'audio/mpeg', ... }).
+ * Fala primeiro a ElevenLabs V4 Turbo (MP3) com a voz do personagem; o Google Chirp 3 HD só entra
+ * como reserva (cota/falha), com a voz fixa do personagem e o texto sem tags.
+ */
+export async function routeCallPreviewAudio({ text, characterId = null, voice = null } = {}) {
+  const character = resolveCallCharacter({ characterId, voice });
+  const elevenLabsEnabled = process.env.ELEVENLABS_CALL_ENABLED !== 'false';
+  if (elevenLabsEnabled && isElevenLabsConfigured()) {
+    try {
+      const el = await synthesizeElevenLabsCallSpeech({
+        text: formatSpeechForElevenLabs(text),
+        characterId: character,
+        uso: 'tempoReal',
+        outputFormat: 'mp3_44100_128'
+      });
+      return {
+        ok: true,
+        provider: 'ELEVENLABS',
+        voice: el.voice,
+        character_id: el.characterId,
+        model: el.modelId,
+        format: 'mp3',
+        content_type: 'audio/mpeg',
+        audio_base64: el.buffer.toString('base64'),
+        size_bytes: el.buffer.length,
+        character_count: el.characterCount,
+        latency_ms: el.latencyMs
+      };
+    } catch (elErr) {
+      const isQuota = elErr.isQuotaExceeded || elErr.status === 429;
+      console.warn(
+        `[AUDIO_ROUTER] ${isQuota ? '⚠️ Cota ElevenLabs esgotada (HTTP 429)' : '⚠️ Falha temporária ElevenLabs'}: ${elErr.message}. Usando a reserva Google Chirp 3 HD.`
+      );
+    }
+  }
+  return previewGoogleCallVoice({
+    text: stripAudioTags(text),
+    voice: googleVoiceForCall({ characterId: character, voice })
+  });
 }
 
 /**
