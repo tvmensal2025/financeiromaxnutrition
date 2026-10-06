@@ -25,6 +25,12 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+export const MODO_TESTE_SEM_SENHA =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_MODO_TESTE_SEM_SENHA === "true" &&
+  Boolean(import.meta.env.VITE_TESTE_EMAIL) &&
+  Boolean(import.meta.env.VITE_TESTE_SENHA);
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [appAccess, setAppAccess] = useState<AppAccess | null>(null);
@@ -49,10 +55,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) {
-        carregarAppAccess(data.session.user.id).finally(() => setLoading(false));
+    supabase.auth.getSession().then(async ({ data }) => {
+      let atual = data.session;
+      // Modo de teste sem tela de login: só em `npm run dev` e só se o
+      // .env.local trouxer a conta de teste. Nunca entra no build publicado.
+      if (!atual && MODO_TESTE_SEM_SENHA) {
+        const { data: login } = await supabase.auth.signInWithPassword({
+          email: String(import.meta.env.VITE_TESTE_EMAIL),
+          password: String(import.meta.env.VITE_TESTE_SENHA),
+        });
+        atual = login.session;
+      }
+      setSession(atual);
+      if (atual?.user) {
+        carregarAppAccess(atual.user.id).finally(() => setLoading(false));
       } else {
         setLoading(false);
       }
