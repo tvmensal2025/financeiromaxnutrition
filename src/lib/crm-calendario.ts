@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { ehConflitoDeVersao } from "@/lib/escrita-protegida";
 
 // Toda projeção lê a fonte atual sob lock. Nunca publica um payload antigo do navegador.
 export async function sincronizarEventosCrm(op: {
@@ -8,5 +9,5 @@ export async function sincronizarEventosCrm(op: {
   const { error } = await supabase.rpc("helena_sync_calendar", {
     p_source: "crm", p_id: op.opportunity_id, p_expected_version: op.row_version,
   });
-  return error?.code === "40001" ? "A oportunidade mudou; releia antes de sincronizar." : error?.message || "";
+  return ehConflitoDeVersao(error?.code) ? "A oportunidade mudou; releia antes de sincronizar." : error?.message || "";
 }
