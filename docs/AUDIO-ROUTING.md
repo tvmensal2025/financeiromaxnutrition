@@ -43,6 +43,8 @@ O "cérebro" das ligações é a **OpenAI GPT Luna** (`gpt-6-luna`). Ele não mu
 - Proibidas com o aluno (`forbiddenWithStudent`); `[shouts]`/`[yelling]` só comemorando junto de `[excited]`/`[enthusiastic]`.
 - `formatSpeechForElevenLabs()` mantém só as tags permitidas e remove o resto; antes do Google, `stripAudioTags()` e
   `sanitizeCallText()` removem qualquer `[..]` (o stream do Chirp também remove).
+- Vale também sem streaming (abertura de toda ligação e turnos em lote, no Meowcaller e no app): a fala chega à
+  ElevenLabs com as tags; tela, histórico, banco e telemetria recebem o texto sem tags.
 
 ### 2.4. Fluxo de Execução com Reserva por Cota
 

@@ -65,8 +65,8 @@ Nenhum áudio gravado, catálogo de voz ou configuração de outros provedores f
 
 2. **Roteador Canônico de Contexto (`audio-router.mjs`):**
    - Arquivo: `services/helena-gateway/src/integrations/audio-router.mjs`
-   - Função: `routeCallAudio({ text, callId, voice, legacyCallSynthesizer })`
-   - Roteia o áudio para o Google Chirp 3 HD quando habilitado e provê reversão imediata (*fallback* ou *rollback*) para o motor legado de chamada (ElevenLabs/Kokoro) sem interrupção do serviço.
+   - Funções: `routeCallAudio({ text, callId, voice, characterId })` (ligação do Meowcaller) e `routeCallPreviewAudio({ text, characterId, voice })` (abertura e turnos sem streaming da ligação do app)
+   - Tenta primeiro a ElevenLabs V4 Turbo com a voz e o padrão do personagem; em 429/cota ou falha usa o Google Chirp 3 HD com a voz fixa do personagem e o texto sem tags (ver `eliving-voice-config.mjs` e `docs/AUDIO-ROUTING.md`).
 
 3. **Ponto de Injeção no Atendente Telefônico (`voice-agent.mjs`):**
    - Função: `speakInCall({ callId, text, voice })`
@@ -206,7 +206,7 @@ O rollback é imediato, não requer alteração de banco de dados nem reimplanta
 ## 10. Validação e Testes Automatizados
 
 A suíte em `services/helena-gateway/test/google-chirp3-hd.test.mjs` valida 14 requisitos obrigatórios:
-1. **TESTE A:** CALL aciona Google Chirp 3 HD exclusivamente.
+1. **TESTE A:** CALL: Google Chirp 3 HD só como reserva; a ordem ElevenLabs → Chirp é coberta por `elevenlabs-hybrid-fallback.test.mjs`, `call-tts-stream.test.mjs` e `eliving-voice-rules.test.mjs`.
 2. **TESTE B:** VARIABLE aciona ElevenLabs; Google não é chamado.
 3. **TESTE C:** FIXED carrega áudio existente; Google não é chamado.
 4. **TESTE D:** Kokoro permanece 100% íntegro e disponível.

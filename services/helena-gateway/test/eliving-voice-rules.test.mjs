@@ -15,8 +15,11 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Readable, Transform } from 'node:stream';
+import { setTimeout as delay } from 'node:timers/promises';
+import express from 'express';
 
 import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
+import { NATURAL_OPENING_PROMPT } from '../src/integrations/conversation-mode.mjs';
 import {
   ELEVENLABS_CHARACTER_VOICES,
   resetElevenLabsQuotaStatus
@@ -24,7 +27,7 @@ import {
 import { openCallTTSStream } from '../src/integrations/call-tts-stream.mjs';
 import { streamReplyToCall } from '../src/integrations/call-streaming.mjs';
 import { setGoogleTTSClientForTesting, setActiveCallVoice } from '../src/integrations/google-chirp3-hd.mjs';
-import { isAudioTagAllowed } from '../src/integrations/conversation-naturalness.mjs';
+import { isAudioTagAllowed, stripAudioTags } from '../src/integrations/conversation-naturalness.mjs';
 import {
   CHARACTERS_MAP,
   DEFAULT_PROFILES_12,
@@ -239,4 +242,179 @@ describe('Guardião da voz do eLiving (gateway)', () => {
     for (const mode of Object.values(MODES_MAP)) assert.doesNotMatch(mode.intensity, banned);
     for (const personality of Object.values(DEFAULT_PERSONALITIES)) assert.doesNotMatch(personality.description, banned);
   });
+});
+
+// ----------------------------------------------------------------------------------------------
+// Caminhos SEM streaming (abertura de toda ligação e turnos em lote): as [tags] geradas pela IA
+// chegam à ElevenLabs; o Google (reserva), a tela, o histórico e o banco recebem o texto sem tags.
+// GPT, ElevenLabs, Google, Meowcaller e o contexto do app são simulados; nenhuma rede real.
+// ----------------------------------------------------------------------------------------------
+const OPENING = '[curious] Oi, aqui é o Rafael, do eLiving. [pause] Como está o seu dia hoje?';
+const OPENING_TELA = 'Oi, aqui é o Rafael, do eLiving. Como está o seu dia hoje?';
+const REPLY = '[thoughtful] Entendi. [short pause] Qual passo pequeno cabe no seu dia?';
+const REPLY_TELA = 'Entendi. Qual passo pequeno cabe no seu dia?';
+const CONTEXT_URL = 'https://contexto.simulado.test/voz';
+
+function simulateLiveCallNetwork({ elevenStatus = 200 } = {}) {
+  const originalFetch = globalThis.fetch;
+  const seen = { eleven: [], google: [], persisted: [], played: 0 };
+  // Libera o GPT (simulado) no voice-agent, que fica desligado sob o executor de testes.
+  delete process.env.NODE_ENV;
+  delete process.env.NODE_TEST_CONTEXT;
+  process.env.OPENAI_API_KEY = 'chave-openai-simulada';
+  process.env.ELEVENLABS_API_KEY = 'chave-de-teste-simulada';
+  delete process.env.ELEVENLABS_CALL_ENABLED;
+  process.env.MAX_VOICE_CONTEXT_URL = CONTEXT_URL;
+  process.env.MAX_VOICE_CONTEXT_TOKEN = 'token-contexto-simulado';
+  process.env.GOOGLE_CALL_TTS_TIMEOUT_MS = '1000';
+  setGoogleTTSClientForTesting({
+    synthesizeSpeech: async request => { seen.google.push(request); return [{ audioContent: Buffer.alloc(64, 1) }]; }
+  });
+  const json = data => ({ ok: true, status: 200, json: async () => data, text: async () => JSON.stringify(data) });
+  globalThis.fetch = async (url, opts = {}) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, opts);
+    if (target === 'https://api.openai.com/v1/chat/completions') {
+      const body = JSON.parse(opts.body);
+      if (body.response_format) return json({ choices: [{ message: { content: '{"categories":[]}' }, finish_reason: 'stop' }] });
+      const content = body.messages.at(-1)?.content === NATURAL_OPENING_PROMPT ? OPENING : REPLY;
+      return json({ choices: [{ message: { content }, finish_reason: 'stop' }] });
+    }
+    if (target.startsWith('https://api.elevenlabs.io/')) {
+      seen.eleven.push({ url: target, body: JSON.parse(opts.body) });
+      if (elevenStatus === 429) return { ok: false, status: 429, text: async () => '{"detail":{"status":"quota_exceeded"}}' };
+      return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array(64).buffer };
+    }
+    if (target === CONTEXT_URL) {
+      const body = JSON.parse(opts.body);
+      if (body.action === 'append_turn' && body.assistant_text) seen.persisted.push(body.assistant_text);
+      if (body.action) return json({ ok: true });
+      return json({ status: 'matched', context: {}, fetched_at: '2026-10-06T12:00:00.000Z' });
+    }
+    if (/\/v1\/calls\/[^/]+\/play$/.test(target)) { seen.played += 1; return json({ ok: true }); }
+    throw new Error(`rede real bloqueada no teste: ${target}`);
+  };
+  return { seen, restore: () => { globalThis.fetch = originalFetch; } };
+}
+
+async function waitFor(check) {
+  for (let i = 0; i < 100 && !check(); i++) await delay(10);
+  assert.ok(check(), 'tempo esgotado esperando a gravação simulada');
+}
+
+describe('Tags de áudio nos caminhos sem streaming (abertura e turnos em lote)', () => {
+  it('o texto de tela é a fala sem as tags', () => {
+    assert.equal(stripAudioTags(OPENING), OPENING_TELA);
+    assert.equal(stripAudioTags(REPLY), REPLY_TELA);
+  });
+
+  it('Meowcaller: abertura gerada com [curious] e turno em lote chegam à ElevenLabs com as tags; histórico, banco e resposta sem tags', async () => {
+    const net = simulateLiveCallNetwork({ elevenStatus: 200 });
+    const { handleCallConnectedWebhook, processUserSpeech, getCallHistory } = await import('../src/integrations/voice-agent.mjs');
+    const callId = `guardiao-tags-meow-${Date.now()}`;
+    try {
+      registerCallSession({ callId, remoteNumber: '5511988887777', direction: 'OUTBOUND', profileKey: 'rafael_normal' });
+      const opening = await handleCallConnectedWebhook({ call_id: callId, direction: 'OUTBOUND' });
+      assert.equal(opening.ok, true);
+      assert.equal(opening.provider, 'ELEVENLABS');
+      assert.equal(net.seen.eleven.length, 1);
+      assert.ok(net.seen.eleven[0].url.includes(`/text-to-speech/${VOICES.rafael.voiceId}`), 'voz do Rafael');
+      assert.equal(net.seen.eleven[0].body.model_id, 'eleven_v4_turbo');
+      assert.equal(net.seen.eleven[0].body.text, OPENING, 'a abertura chega à ElevenLabs com as tags');
+      assert.equal(opening.greeting, OPENING_TELA);
+      assert.equal(opening.text, OPENING_TELA);
+
+      const turn = await processUserSpeech({ callId, userText: 'Estou bem, obrigado.' });
+      assert.equal(turn.ok, true);
+      assert.equal(turn.streaming, undefined, 'turno em lote, sem streaming');
+      assert.equal(net.seen.eleven.length, 2);
+      assert.equal(net.seen.eleven[1].body.text, REPLY, 'o turno em lote chega à ElevenLabs com as tags');
+      assert.equal(turn.reply_text, REPLY_TELA);
+      assert.equal(turn.play_result.text, REPLY_TELA);
+      assert.equal(net.seen.played, 2);
+
+      const history = getCallHistory(callId).filter(item => item.role === 'assistant').map(item => item.text);
+      assert.deepEqual(history, [OPENING_TELA, REPLY_TELA]);
+      await waitFor(() => net.seen.persisted.length >= 2);
+      assert.deepEqual(net.seen.persisted, [OPENING_TELA, REPLY_TELA]);
+      assert.equal(net.seen.google.length, 0, 'com cota, o Google não entra');
+    } finally {
+      net.restore();
+      endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    }
+  });
+
+  it('Meowcaller: ElevenLabs sem cota (429) na abertura → Chirp com a voz do personagem e o texto sem tags', async () => {
+    const net = simulateLiveCallNetwork({ elevenStatus: 429 });
+    const { handleCallConnectedWebhook, getCallHistory } = await import('../src/integrations/voice-agent.mjs');
+    const callId = `guardiao-tags-meow429-${Date.now()}`;
+    try {
+      registerCallSession({ callId, remoteNumber: '5511977776666', direction: 'OUTBOUND', profileKey: 'rafael_normal' });
+      const opening = await handleCallConnectedWebhook({ call_id: callId, direction: 'OUTBOUND' });
+      assert.equal(opening.ok, true);
+      assert.equal(net.seen.eleven.length, 1);
+      assert.equal(net.seen.eleven[0].body.text, OPENING, 'tentou primeiro a ElevenLabs, com as tags');
+      assert.equal(net.seen.google.length, 1);
+      assert.equal(net.seen.google[0].voice.name, VOICES.rafael.googleFallbackVoice);
+      assert.equal(net.seen.google[0].input.text, OPENING_TELA, 'o Google recebe o texto sem tags');
+      assert.notEqual(opening.provider, 'ELEVENLABS');
+      assert.equal(opening.greeting, OPENING_TELA);
+      assert.equal(opening.text, OPENING_TELA);
+      assert.deepEqual(getCallHistory(callId).map(item => item.text), [OPENING_TELA]);
+      assert.deepEqual(net.seen.persisted, [OPENING_TELA]);
+    } finally {
+      net.restore();
+      endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    }
+  });
+
+  for (const elevenStatus of [200, 429]) {
+    it(`app (/call-engine/turn), ElevenLabs ${elevenStatus}: abertura e turno em lote com tags na ElevenLabs; Google, banco e resposta sem tags`, async () => {
+      const net = simulateLiveCallNetwork({ elevenStatus });
+      const { createIntegrationsRouter } = await import('../src/routes/integrations.mjs');
+      const app = express();
+      app.use(express.json());
+      app.use(createIntegrationsRouter({ supabaseFetch: async () => [], authenticateUser: (_req, _res, next) => next() }));
+      const server = await new Promise(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
+      try {
+        const route = `http://127.0.0.1:${server.address().port}/api/integrations/call-engine/turn`;
+        const headers = { Authorization: 'Bearer token-app-simulado', 'Content-Type': 'application/json' };
+        const callId = `WEB-guardiao-tags-${elevenStatus}-${Date.now()}`;
+        const post = async body => {
+          const res = await fetch(route, { method: 'POST', headers, body: JSON.stringify({ character_id: 'rafael', call_id: callId, ...body }) });
+          assert.equal(res.status, 200);
+          return res.json();
+        };
+
+        const start = await post({ is_start: true });
+        assert.equal(start.text, OPENING_TELA);
+        assert.equal(start.reply_text, OPENING_TELA);
+        assert.ok(start.audio_base64.length > 0);
+        assert.equal(net.seen.eleven.length, 1);
+        assert.ok(net.seen.eleven[0].url.includes(`/text-to-speech/${VOICES.rafael.voiceId}`), 'voz do Rafael');
+        assert.equal(net.seen.eleven[0].body.model_id, 'eleven_v4_turbo');
+        assert.equal(net.seen.eleven[0].body.text, OPENING, 'a abertura do app chega à ElevenLabs com as tags');
+
+        const turn = await post({ mode: 'normal', user_text: 'Estou bem, obrigado.', history: [] });
+        assert.equal(turn.text, REPLY_TELA);
+        assert.equal(turn.reply_text, REPLY_TELA);
+        assert.deepEqual(net.seen.persisted, [OPENING_TELA, REPLY_TELA]);
+
+        if (elevenStatus === 200) {
+          assert.equal(net.seen.eleven.length, 2);
+          assert.equal(net.seen.eleven[1].body.text, REPLY, 'o turno em lote do app chega à ElevenLabs com as tags');
+          assert.equal(net.seen.google.length, 0, 'com cota, o Google não entra');
+        } else {
+          // Depois do 429 a ElevenLabs fica em pausa (cota) e o turno seguinte já sai pelo Google.
+          assert.equal(net.seen.eleven.length, 1);
+          assert.equal(net.seen.google.length, 2);
+          assert.deepEqual(net.seen.google.map(request => request.input.text), [OPENING_TELA, REPLY_TELA]);
+          for (const request of net.seen.google) assert.equal(request.voice.name, VOICES.rafael.googleFallbackVoice);
+        }
+      } finally {
+        net.restore();
+        await new Promise(resolve => server.close(resolve));
+      }
+    });
+  }
 });
