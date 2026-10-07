@@ -19,7 +19,7 @@ import tempfile
 
 import hermes_dispatch_once as dispatch
 from hermes_execution_context import packet_prompt
-from execution_policy import coordination_blocker
+from execution_policy import coordination_blocker, toolsets_for
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
 # Stay below the canonical ten-minute lease, leaving time to confirm and finish.
@@ -258,7 +258,7 @@ def run_query(binary, profile, home, token, prompt, timeout=WORKFLOW_TIMEOUT_SEC
         with tempfile.TemporaryFile() as out:
             started_at = datetime.now(timezone.utc).timestamp()
             p = subprocess.Popen(dispatch.native_cli_command(binary) + ['-p', profile, 'chat', '--query-file', f.name,
-                '--oneshot', '--toolsets', 'helena_operacao,helena_contracts', '--max-turns', '24'],
+                '--oneshot', '--toolsets', toolsets_for(profile), '--max-turns', '24'],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
                 env={**os.environ, 'HERMES_HOME': str(home), dispatch.TOKEN_NAME: token})
             try:

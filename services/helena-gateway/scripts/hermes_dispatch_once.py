@@ -19,7 +19,7 @@ import tempfile
 import urllib.error
 import urllib.request
 from hermes_execution_context import packet_prompt, team_context_prompt
-from execution_policy import execution_timeout
+from execution_policy import execution_timeout, toolsets_for
 from autonomy_protocol import RULE, EVOLUTION_RULE
 AUTONOMY_RULE = RULE + EVOLUTION_RULE
 
@@ -407,7 +407,7 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         with tempfile.TemporaryFile(mode="w+b") as output, tempfile.TemporaryFile(mode="w+b") as errors:
             process = subprocess.Popen(
                 native_cli_command(binary) + ["-p", profile, "chat", "--query-file", str(prompt_path), "--oneshot",
-                 "--toolsets", "helena_operacao,helena_visual,helena_contracts" if profile == 'maya--biz003' else "helena_operacao,helena_contracts", "--max-turns", "24"]
+                 "--toolsets", toolsets_for(profile), "--max-turns", "24"]
                 + (["--model", model_override] if model_override else [])
                 + (["--reasoning", "max"] if model_override == CORRECTION_MODEL else []),
                 stdin=subprocess.DEVNULL, stdout=output, stderr=errors,

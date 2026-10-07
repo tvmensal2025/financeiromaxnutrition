@@ -1,5 +1,27 @@
 """Bounded runtime policy; no inference, permissions or attempt changes."""
 
+# Professional toolsets per role (founder-approved 2026-10-07). Read-only research
+# (web) and image inspection (vision) only: no terminal, file, browser or code
+# execution, because this container also holds every profile's gateway token.
+_ROLE_TOOLSETS = {
+    'helena': ('vision',), 'marina': (), 'augusto': ('web', 'vision'), 'caio': (),
+    'clara': ('web',), 'bianca': (), 'daniel': (), 'theo': ('web',), 'nina': ('web', 'vision'),
+    'ravi': ('web',), 'maya': ('vision',), 'bruno': ('web', 'vision'), 'olivia': (),
+    'victor': ('web',), 'camila': ('web',), 'isabela': ('web',), 'pedro': ('web',),
+    'renata': ('web',), 'joana': ('web',), 'felipe': (), 'laura': (),
+}
+
+
+def toolsets_for(profile):
+    """Gateway tools first, then role tools; every agent can read its installed skills."""
+    agent = str(profile).split('--', 1)[0]
+    names = ['helena_operacao']
+    if profile == 'maya--biz003':
+        names.append('helena_visual')
+    names.append('helena_contracts')
+    names += ['skills', 'todo', *_ROLE_TOOLSETS.get(agent, ())]
+    return ','.join(names)
+
 
 def execution_timeout(profile, model, correction_model):
     if profile == 'maya--biz003':
