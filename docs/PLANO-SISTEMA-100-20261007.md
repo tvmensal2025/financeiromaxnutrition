@@ -16,9 +16,10 @@ Regra deste plano: reaproveitar o que já existe (JÁ EXISTE / PARCIAL / AUSENTE
 
 ## Ordem do que falta (cada passo usa o que já existe)
 
-1. **Ferramentas por função para os agentes** — PARCIAL
-   - Já existe: `toolsets_for()` em `services/helena-gateway/scripts/execution_policy.py` (web, visão, skills, todo; sem terminal/arquivos/código).
-   - Falta: ligar no despachante e no ciclo de revisão; atualizar a política `bounded-autonomy` no Supabase. Aguarda OK específico do Fundador.
+1. **Ferramentas por função para os agentes** — FEITO (07/10, commit 2917ac7)
+   - `toolsets_for()` ligado no despachante e no ciclo de revisão (repo e VPS, backups `.bak-toolsets-20261007`); política `bounded-autonomy` 20261007-v2.
+   - Testado no VPS: Ravi com pesquisa web (URL real) e Bruno com visão (descreveu a imagem).
+   - Lição: reabertura manual deve passar pelo Gateway (release_job valida as fontes); a de 07/10 chamou o RPC direto e liberou um briefing com fonte de tentativa FAILED, corrigido às 09:20.
 
 2. **Agentes atendendo todas as empresas** — PARCIAL
    - Já existe: tabela `agent_business_scopes` (39 escopos; BIZ-004 autorizado, runtime PENDING).
