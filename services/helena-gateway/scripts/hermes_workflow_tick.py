@@ -249,7 +249,13 @@ def make_prompt(phase, detail, key):
             "tipografia, enquadramento, copy exata, CTA, margens, versao da marca e formatos. "
             "Nao envie design sem copy aprovada, nem transforme foto solicitada em moldura SVG. "
             "Se etapa final ou dependencias nao comprovadas, nao invente sucessor: informe conclusao "
-            "ou impedimento especifico. Nao libere job; a coordenacao cuida disso."
+            "ou impedimento especifico. Nao libere job; a coordenacao cuida disso. "
+            "Se a entrega aprovada e um plano que ja indica a proxima etapa (candidata) com responsavel e os "
+            "insumos dela existem (entregas aprovadas, identidade atual), selecione essa etapa e use handoff_task: "
+            "WIP, capacidade e liberacao sao controlados pelo despachante e nao impedem criar a etapa em DRAFT. "
+            "So deixe de encaminhar quando faltar decisao, dado ou autorizacao do Fundador. "
+            "Nao use record_progress neste job: ele pertence ao especialista e so aceita progresso do executor em "
+            "RUNNING. Sem encaminhamento, nao grave nada; responda com o impedimento e o proximo responsavel."
         )
     return base + (
         "Voce e Helena, coordenadora. Esta fase trata decisao/ajustes/liberacao, sem produzir pecas "

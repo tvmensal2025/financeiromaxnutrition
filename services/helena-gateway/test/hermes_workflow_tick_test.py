@@ -497,5 +497,17 @@ class HandoffClosedTests(unittest.TestCase):
         self.assertEqual(d['job']['status'], 'COMPLETED')
 
 
+
+
+class HandoffPromptTests(unittest.TestCase):
+    def test_handoff_prompt_selects_planned_step_and_forbids_foreign_progress(self):
+        d = detail()
+        approve(d)
+        prompt = wf.make_prompt('HANDOFF', d, 'a' * 64)
+        self.assertIn('nao impedem criar a etapa em DRAFT', prompt)
+        self.assertIn('Nao use record_progress neste job', prompt)
+        self.assertIn('So deixe de encaminhar quando faltar decisao', prompt)
+
+
 if __name__ == '__main__':
     unittest.main()
