@@ -28,6 +28,7 @@ import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs
 import { createTypeSafe } from './integrations/typesafe.mjs';
 import { jobView, JOB_SECTIONS } from './job-reader.mjs';
 import { kanbanSnapshot } from './kanban-snapshot.mjs';
+import { registrarLancamento, FLUXOS, STATUS } from './finance-ledger.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -1112,6 +1113,21 @@ const TOOLS_CONFIG = {
       limit: z.number().int().min(1).max(100).optional()
     }).strict(),
     handler: args => kanbanSnapshot(supabaseFetch, args)
+  },
+  registrar_lancamento: {
+    description: 'Caio (AGT-05): registra um lancamento em financeiro dentro do proprio job em execucao. Empresa vem do job; conta deve existir e pertencer a empresa; idempotency_key evita repeticao; descricao, valor, conta e data iguais retornam DUPLICATE_SUSPECT sem gravar. Nao cria conta, nao paga e nao transfere dinheiro.',
+    schema: z.object({
+      job_id: z.string().regex(/^JOB-HR-[a-f0-9]{32}$/).optional(),
+      business_id: z.string().max(80).optional(),
+      fluxo: z.enum(FLUXOS), status: z.enum(STATUS),
+      descricao: z.string().min(3).max(300), valor: z.union([z.string().max(30), z.number()]),
+      conta_id: z.string().min(1).max(80), conta_destino_id: z.string().max(80).optional(),
+      vencimento: z.string().max(10).optional(), liquidacao: z.string().max(10).optional(), competencia: z.string().max(7).optional(),
+      categoria: z.string().max(120).optional(), plano_conta_id: z.string().max(80).optional(), contraparte: z.string().max(200).optional(),
+      evidencia: z.string().min(1).max(1000), idempotency_key: z.string().min(8).max(120),
+      nao_e_duplicado_motivo: z.string().max(500).optional()
+    }).strict(),
+    handler: (args, context = {}) => registrarLancamento(supabaseFetch, args, context.identity || {})
   }
 };
 
@@ -1148,7 +1164,8 @@ const mcpInputs = {
   waiting_helena: inputObject({ ...jobFields, ...textFields('contexto impacto decisao_necessaria recomendacao') }, [...jobRequired, 'contexto', 'impacto', 'decisao_necessaria', 'recomendacao']),
   enqueue_job: inputObject({ ...textFields('agent_id objective instruction business_id task_id scheduled_at available_at idempotency_key correlation_id'), priority: { type: 'string', enum: ['CRITICA', 'ALTA', 'MEDIA', 'BAIXA'] }, approval_required: { type: 'boolean' } }, ['agent_id', 'objective']),
   queue_summary: inputObject(textFields('business_id agent_id')),
-  kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } })
+  kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } }),
+  registrar_lancamento: inputObject({ ...textFields('job_id business_id descricao conta_id conta_destino_id vencimento liquidacao competencia categoria plano_conta_id contraparte evidencia idempotency_key nao_e_duplicado_motivo'), fluxo: { type: 'string', enum: FLUXOS }, status: { type: 'string', enum: STATUS }, valor: { type: ['string', 'number'] } }, ['fluxo', 'status', 'descricao', 'valor', 'conta_id', 'evidencia', 'idempotency_key'])
 };
 for (const [name, inputSchema] of Object.entries(mcpInputs)) TOOLS_CONFIG[name].inputSchema = inputSchema;
 

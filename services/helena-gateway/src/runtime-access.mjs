@@ -54,7 +54,15 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
   const manager = MANAGEMENT.has(binding.agent_id);
   const args = { ...originalArgs };
 
-  if (name === 'kanban_snapshot') {
+  if (name === 'registrar_lancamento') {
+    // Financeiro e funcao do Caio; Helena recebe o pedido e delega por job.
+    if (binding.agent_id !== 'AGT-05') fail('Lancamento financeiro e exclusivo do Caio (AGT-05)');
+    const job = first(await read(`/rest/v1/agent_jobs?select=job_id,agent_id,business_id,task_id,status&job_id=eq.${enc(args.job_id || '')}&limit=1`));
+    if (!job?.business_id || !job.task_id || job.agent_id !== binding.agent_id || job.status !== 'RUNNING') fail('Lancamento exige job em execucao do proprio Caio');
+    if (!group && job.business_id !== binding.business_id) fail('Job pertence a outra empresa');
+    if (args.business_id && args.business_id !== job.business_id) fail('Empresa difere do job');
+    return { args: { ...args, business_id: job.business_id }, identity: { ...identity, agentId: binding.agent_id, businessId: job.business_id, bindingVerified: true } };
+  } else if (name === 'kanban_snapshot') {
     if (!group) fail('Somente Helena pode consultar o quadro consolidado');
   } else if (RECOVERY_TOOLS.has(name)) {
     if (!manager) fail('Somente Helena ou Marina supervisiona recuperacao');
