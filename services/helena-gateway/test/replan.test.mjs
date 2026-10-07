@@ -56,3 +56,15 @@ test('nota de coordenação: só Helena/Marina, RPC próprio, sem campos extras'
   const specialist = { agent_id: 'AGT-11', scope_type: 'BUSINESS', business_id: 'BIZ-003', provider: 'HERMES', status: 'ACTIVE' };
   await assert.rejects(authorizeGatewayTool('record_coordination_note', note, { type: 'hermes_profile', profileSlug: 'ravi--biz003' }, read(specialist)), /Somente Helena ou Marina/);
 });
+
+test('correção de rascunho: só coordenação, briefing válido e RPC próprio', async () => {
+  const calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true, mode: 'PRE_RELEASE' }; });
+  const draft = { job_id: 'JOB-HR-' + 'd'.repeat(32), idempotency_key: 'rascunho-1', expected_task_version: 9,
+    expected_job_updated_at: '2026-10-07T12:00:00Z', instruction, definition_of_done: 'Plano com fontes aprovadas e responsáveis identificados por linha.',
+    revision_summary: 'Fonte aprovada vinculada antes da primeira liberação.' };
+  await tools.revise_draft_brief.handler(draft, { identity: helena });
+  assert.equal(calls[0][0], 'gateway_revise_draft_brief');
+  await assert.rejects(tools.revise_draft_brief.handler(draft, { identity: pedro }), /Somente Helena ou Marina/);
+  await assert.rejects(tools.revise_draft_brief.handler({ ...draft, instruction: 'curto '.repeat(150) }, { identity: helena }), /Briefing profissional/);
+});
