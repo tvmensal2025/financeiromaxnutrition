@@ -74,7 +74,7 @@ export async function authorizeGatewayTool(name, originalArgs, identity, read) {
   } else if (WORKFLOW_TOOLS.has(name)) {
     // The RPC repeats scope/role checks and locks the authoritative rows.
     // profile_slug comes only from the authenticated token, never the payload.
-    if (['create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief', 'replan_job'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
+    if (['create_task_job', 'release_job', 'resolve_job_block', 'revise_task_brief', 'replan_job', 'record_coordination_note'].includes(name) && !manager) fail('Somente Helena ou Marina organiza a fila');
     if (args.business_id && outOfScope(args.business_id)) fail('Empresa fora do escopo');
   } else if (ARTIFACT_TOOLS.has(name)) {
     if (binding.agent_id !== 'AGT-12') fail('Ferramentas de arte sao exclusivas da Maya');

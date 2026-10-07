@@ -21,6 +21,8 @@ const contracts = {
     revision_summary: text(1200).min(20)
   }, 'Helena ou Marina corrige o briefing da mesma tarefa apos REQUEST_CHANGES, com versoes conferidas e historico preservado. Mantem DRAFT; nao cria tarefa, nao libera e nao inicia modelo.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
+  record_coordination_note: ['record_coordination_note', { job_id: text(120), idempotency_key: key, note: text(2000).min(20), next_step: text(600),
+    evidence_refs: z.array(text(500)).max(10).optional() }, 'Helena ou Marina: registra conferencia, decisao ou impedimento de coordenacao em missao de qualquer agente da empresa, em qualquer estado. Nao altera status, tentativas nem aprovacao.'],
   replan_job: ['replan_job', { ...job, ...version, reason: text(4000).min(40), mode: z.enum(['REPLACE', 'ESCALATE']),
     target_agent_id: text(80).optional(), objective: text(BRIEF_LIMITS.objective.max).optional(),
     definition_of_done: text(BRIEF_LIMITS.definition_of_done.max).optional(), instruction: text(BRIEF_LIMITS.instruction.max).optional(),
@@ -167,6 +169,8 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
         ? await rpc('gateway_context', { p_profile_slug: identity.profileSlug })
         : action === 'resolve_job_block'
         ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })
+        : action === 'record_coordination_note'
+        ? await rpc('gateway_record_coordination_note', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'replan_job'
         ? await rpc('gateway_replan_job', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'revise_task_brief'

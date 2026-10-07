@@ -255,7 +255,8 @@ def make_prompt(phase, detail, key):
             "WIP, capacidade e liberacao sao controlados pelo despachante e nao impedem criar a etapa em DRAFT. "
             "So deixe de encaminhar quando faltar decisao, dado ou autorizacao do Fundador. "
             "Nao use record_progress neste job: ele pertence ao especialista e so aceita progresso do executor em "
-            "RUNNING. Sem encaminhamento, nao grave nada; responda com o impedimento e o proximo responsavel."
+            "RUNNING. Para registrar conferencia, decisao ou impedimento da coordenacao use record_coordination_note "
+            "(chave wf com sufixo ':nota'); ela nao altera status nem aprovacao."
         )
     return base + (
         "Voce e Helena, coordenadora. Esta fase trata decisao/ajustes/liberacao, sem produzir pecas "

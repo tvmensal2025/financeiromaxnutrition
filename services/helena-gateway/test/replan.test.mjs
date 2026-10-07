@@ -42,3 +42,17 @@ test('autorização: especialista não replaneja', async () => {
   const coord = { agent_id: 'AGT-01', scope_type: 'GROUP', business_id: null, provider: 'HERMES', status: 'ACTIVE' };
   await authorizeGatewayTool('replan_job', replace, { type: 'hermes_profile', profileSlug: 'helena--grupo' }, read(coord));
 });
+
+test('nota de coordenação: só Helena/Marina, RPC próprio, sem campos extras', async () => {
+  const calls = [];
+  const tools = workflowTools(async (...args) => { calls.push(args); return { success: true, recorded: true }; });
+  const note = { job_id: 'JOB-HR-' + 'c'.repeat(32), idempotency_key: 'nota-1',
+    note: 'Conferência: plano aprovado, etapa D1 selecionada pela coordenação.', next_step: 'Ravi executa D1' };
+  await tools.record_coordination_note.handler(note, { identity: helena });
+  assert.equal(calls[0][0], 'gateway_record_coordination_note');
+  assert.equal(tools.record_coordination_note.schema.safeParse({ ...note, status: 'COMPLETED' }).success, false);
+  assert.equal(tools.record_coordination_note.schema.safeParse({ ...note, note: 'curta' }).success, false);
+  const read = runtime => async url => url.startsWith('/rest/v1/agent_runtime_bindings?') ? [runtime] : [];
+  const specialist = { agent_id: 'AGT-11', scope_type: 'BUSINESS', business_id: 'BIZ-003', provider: 'HERMES', status: 'ACTIVE' };
+  await assert.rejects(authorizeGatewayTool('record_coordination_note', note, { type: 'hermes_profile', profileSlug: 'ravi--biz003' }, read(specialist)), /Somente Helena ou Marina/);
+});
