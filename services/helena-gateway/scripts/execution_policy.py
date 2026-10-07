@@ -12,13 +12,15 @@ _ROLE_TOOLSETS = {
 }
 
 
-def toolsets_for(profile):
+def toolsets_for(profile, coordination=False):
     """Gateway tools first, then role tools; every agent can read its installed skills."""
     agent = str(profile).split('--', 1)[0]
     names = ['helena_operacao']
     if profile == 'maya--biz003':
         names.append('helena_visual')
-    names.append('helena_contracts')
+    if coordination:
+        # check_task_brief e para briefing de create_task/handoff; executores nao criam missoes.
+        names.append('helena_contracts')
     names += ['skills', 'todo', *_ROLE_TOOLSETS.get(agent, ())]
     return ','.join(names)
 

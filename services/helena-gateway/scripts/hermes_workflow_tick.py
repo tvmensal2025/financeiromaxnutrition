@@ -306,7 +306,7 @@ def run_query(binary, profile, home, token, prompt, timeout=WORKFLOW_TIMEOUT_SEC
         with tempfile.TemporaryFile() as out:
             started_at = datetime.now(timezone.utc).timestamp()
             p = subprocess.Popen(dispatch.native_cli_command(binary) + ['-p', profile, 'chat', '--query-file', f.name,
-                '--oneshot', '--toolsets', toolsets_for(profile), '--max-turns', '24'],
+                '--oneshot', '--toolsets', toolsets_for(profile, coordination=True), '--max-turns', '24'],
                 stdin=subprocess.DEVNULL, stdout=out, stderr=out, start_new_session=True,
                 env={**os.environ, 'HERMES_HOME': str(home), dispatch.TOKEN_NAME: token})
             try:

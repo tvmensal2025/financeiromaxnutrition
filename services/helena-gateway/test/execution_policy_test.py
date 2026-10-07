@@ -30,10 +30,11 @@ class ExecutionPolicyTests(unittest.TestCase):
 
 class ToolsetTests(unittest.TestCase):
     def test_role_toolsets_are_bounded_and_ordered(self):
-        self.assertEqual(toolsets_for('pedro--biz003'), 'helena_operacao,helena_contracts,skills,todo,web')
-        self.assertEqual(toolsets_for('maya--biz003'), 'helena_operacao,helena_visual,helena_contracts,skills,todo,vision')
-        self.assertEqual(toolsets_for('caio--biz003'), 'helena_operacao,helena_contracts,skills,todo')
-        self.assertEqual(toolsets_for('bruno--biz003'), 'helena_operacao,helena_contracts,skills,todo,web,vision')
+        self.assertEqual(toolsets_for('pedro--biz003'), 'helena_operacao,skills,todo,web')
+        self.assertEqual(toolsets_for('pedro--biz003', coordination=True), 'helena_operacao,helena_contracts,skills,todo,web')
+        self.assertEqual(toolsets_for('maya--biz003'), 'helena_operacao,helena_visual,skills,todo,vision')
+        self.assertEqual(toolsets_for('caio--biz003'), 'helena_operacao,skills,todo')
+        self.assertEqual(toolsets_for('bruno--biz003'), 'helena_operacao,skills,todo,web,vision')
 
     def test_no_profile_receives_execution_or_file_tools(self):
         self.assertEqual(len(_ROLE_TOOLSETS), 21)
