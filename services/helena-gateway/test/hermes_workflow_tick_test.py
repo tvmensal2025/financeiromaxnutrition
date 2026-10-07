@@ -522,5 +522,13 @@ class FailedReplanTests(unittest.TestCase):
         self.assertIsNone(wf.phase_for(old))
 
 
+
+class ReplacementCoordinationTests(unittest.TestCase):
+    def test_coordinate_prompt_releases_replacement_without_extra_technical_proof(self):
+        prompt = wf.make_prompt('COORDINATE', detail(), 'a' * 64)
+        self.assertIn('Missao substituta (result_payload.replan_of) e execucao nova', prompt)
+        self.assertIn('Nao exija prova tecnica adicional nem acione Theo', prompt)
+
+
 if __name__ == '__main__':
     unittest.main()
