@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from execution_policy import execution_timeout, coordination_blocker, toolsets_for, _ROLE_TOOLSETS
+from execution_policy import execution_timeout, coordination_blocker, toolsets_for, native_tools_note, _ROLE_TOOLSETS
 
 
 class ExecutionPolicyTests(unittest.TestCase):
@@ -26,3 +26,34 @@ class ExecutionPolicyTests(unittest.TestCase):
         d['input_evidence_missing'] = ['MEM-X']
         d['job']['result_payload']['review_reason'] = 'New independent review'
         self.assertIsNone(coordination_blocker(d))
+
+
+class ToolsetTests(unittest.TestCase):
+    def test_role_toolsets_are_bounded_and_ordered(self):
+        self.assertEqual(toolsets_for('pedro--biz003'), 'helena_operacao,helena_contracts,skills,todo,web')
+        self.assertEqual(toolsets_for('maya--biz003'), 'helena_operacao,helena_visual,helena_contracts,skills,todo,vision')
+        self.assertEqual(toolsets_for('caio--biz003'), 'helena_operacao,helena_contracts,skills,todo')
+        self.assertEqual(toolsets_for('bruno--biz003'), 'helena_operacao,helena_contracts,skills,todo,web,vision')
+
+    def test_no_profile_receives_execution_or_file_tools(self):
+        self.assertEqual(len(_ROLE_TOOLSETS), 21)
+        for agent in _ROLE_TOOLSETS:
+            names = set(toolsets_for(agent + '--biz003').split(','))
+            self.assertFalse(names & {'terminal', 'file', 'code_execution', 'browser', 'delegation', 'memory'}, agent)
+
+
+class NativeToolNoteTests(unittest.TestCase):
+    def test_note_names_real_native_tools_per_role(self):
+        ravi = native_tools_note('ravi--biz003')
+        self.assertIn('web_search', ravi)
+        self.assertNotIn('vision_analyze', ravi)
+        self.assertIn('NAO aparecem no tool_search', ravi)
+        bruno = native_tools_note('bruno--biz003')
+        self.assertIn('vision_analyze', bruno)
+        caio = native_tools_note('caio--biz003')
+        self.assertNotIn('web_search', caio)
+        self.assertIn('skills_list', caio)
+
+
+if __name__ == '__main__':
+    unittest.main()
