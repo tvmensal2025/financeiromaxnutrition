@@ -21,9 +21,12 @@ Regra deste plano: reaproveitar o que já existe (JÁ EXISTE / PARCIAL / AUSENTE
    - Testado no VPS: Ravi com pesquisa web (URL real) e Bruno com visão (descreveu a imagem).
    - Lição: reabertura manual deve passar pelo Gateway (release_job valida as fontes); a de 07/10 chamou o RPC direto e liberou um briefing com fonte de tentativa FAILED, corrigido às 09:20.
 
-2. **Agentes atendendo todas as empresas** — PARCIAL
-   - Já existe: tabela `agent_business_scopes` (39 escopos; BIZ-004 autorizado, runtime PENDING).
-   - Falta: perfis sem empresa no nome (ou vínculo multiempresa) e regras de release/claim/create_task lendo `agent_business_scopes`. Não criar tabela nova.
+2. **Agentes atendendo todas as empresas** — FEITO no banco e no runtime; Gateway aguarda publicação (07/10)
+   - Banco: `helena_agent_serves(agente, empresa)` + 12 funções trocando só a comparação de empresa; `agent_business_scopes` com 19 agentes × 4 empresas CONFIRMED (REVOKED nunca reativado); `gateway_context` informa `served_business_ids`. Testado em transação revertida (Ravi em BIZ-001 passa; Laura e agente sem escopo barrados).
+   - Gateway: `src/business-scope.mjs` (autorização, fila, get_job, despacho, quadro); falha de leitura de escopo nunca amplia acesso. 381/381 testes.
+   - VPS: `hermes_workflow_tick.py` aceita empresas atendidas (backup `.bak-multiempresa-20261007`).
+   - Até publicar o Gateway, missões de outra empresa param com segurança no despachante (sem IA).
+   - Não verificado: se o SOUL de cada perfil cita uma empresa fixa (leitura remota bloqueada); a empresa de cada entrega vem do job.
 
 3. **Missão nunca morre (EM_RESOLUÇÃO)** — PARCIAL
    - Já existe: `supabase/patches/helena_reliability_v1.sql`, `helena_mission_v2.sql`, `helena_outcome_v1.sql` (pacote V4) e a devolução de tentativa em falha de infraestrutura.

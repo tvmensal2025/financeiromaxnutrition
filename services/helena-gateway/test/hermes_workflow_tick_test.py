@@ -455,3 +455,18 @@ class WorkflowDeadlineTests(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+
+
+class MultiBusinessScopeTests(unittest.TestCase):
+    def test_profile_serves_home_and_confirmed_companies_only(self):
+        ravi = {'business_id': 'BIZ-003', 'served_business_ids': ['BIZ-001', 'BIZ-003', 'BIZ-004']}
+        self.assertTrue(wf.serves(ravi, 'BIZ-003'))
+        self.assertTrue(wf.serves(ravi, 'BIZ-001'))
+        self.assertFalse(wf.serves(ravi, 'BIZ-002'))
+        self.assertFalse(wf.serves(ravi, None))
+        self.assertTrue(wf.serves({'business_id': 'BIZ-003'}, 'BIZ-003'))  # contexto antigo sem a lista
+        self.assertFalse(wf.serves({'business_id': 'BIZ-003'}, 'BIZ-001'))
+
+
+if __name__ == '__main__':
+    unittest.main()

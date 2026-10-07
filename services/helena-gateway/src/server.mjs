@@ -28,6 +28,7 @@ import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs
 import { createTypeSafe } from './integrations/typesafe.mjs';
 import { jobView, JOB_SECTIONS } from './job-reader.mjs';
 import { kanbanSnapshot } from './kanban-snapshot.mjs';
+import { bindingForBusiness, servedBusinesses, servedByAgent } from './business-scope.mjs';
 import { registrarLancamento, FLUXOS, STATUS } from './finance-ledger.mjs';
 
 // ======================================================================
@@ -176,7 +177,7 @@ const PRIORITY_ORDER = {
 /**
  * 1. list_ready_jobs
  */
-async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
+async function handleListReadyJobs({ limit = 10, agent_id, business_id, business_ids } = {}) {
   const boundedLimit = Math.min(Math.max(limit, 1), 25);
   const nowIso = new Date().toISOString();
 
@@ -186,6 +187,7 @@ async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
     url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
   }
   if (business_id) url += `&business_id=eq.${encodeURIComponent(business_id)}`;
+  else if (Array.isArray(business_ids)) url += `&business_id=in.(${business_ids.map(encodeURIComponent).join(',')})`;
 
   const rawJobs = await supabaseFetch(url);
   if (!Array.isArray(rawJobs)) {
@@ -210,9 +212,9 @@ async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
   }
 
   const activeBindings = Array.isArray(bindings) ? bindings.filter(b => b.provider === 'HERMES' && b.status === 'ACTIVE') : [];
-  const bindingFor = job => activeBindings.find(b => b.agent_id === job.agent_id && (
-    b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP')
-  ));
+  const servedMap = await servedByAgent(supabaseFetch, activeBindings);
+  const bindingFor = job => activeBindings.map(b => b.agent_id === job.agent_id
+    && bindingForBusiness(b, job.business_id, servedMap.get(b.agent_id))).find(Boolean);
   const agenteMap = new Map((Array.isArray(agentes) ? agentes : []).map(a => [a.id || a.agent_id, a]));
 
   // Falha fechada: sem conexao ativa, tarefa e empresa, nao ha despacho.
@@ -323,9 +325,11 @@ async function handleRecordDispatch({
   const bindings = await supabaseFetch(
     `/rest/v1/agent_runtime_bindings?agent_id=eq.${encodeURIComponent(finalTargetAgent)}&status=eq.ACTIVE`
   );
-  const binding = Array.isArray(bindings) ? bindings.find(b => b.provider === 'HERMES' && (
-    b.business_id === job.business_id || (finalTargetAgent === 'AGT-01' && b.scope_type === 'GROUP')
-  )) : null;
+  let binding = null;
+  for (const b of Array.isArray(bindings) ? bindings : []) {
+    if (b.provider !== 'HERMES' || binding) continue;
+    binding = bindingForBusiness(b, job.business_id, await servedBusinesses(supabaseFetch, b));
+  }
   if (!binding) {
     throw new Error(`Agente ${finalTargetAgent} sem runtime ativo permitido`);
   }
@@ -406,9 +410,11 @@ async function handleGetJob({ job_id, ...readOptions }) {
   const bindings = await supabaseFetch(
     `/rest/v1/agent_runtime_bindings?select=agent_id,business_id,scope_type,profile_slug,provider,status&agent_id=eq.${encodeURIComponent(job.agent_id)}`
   ).catch(() => []);
-  const runtimeBinding = Array.isArray(bindings) ? bindings.find(b =>
-    b.provider === 'HERMES' && (b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP'))
-  ) : null;
+  let runtimeBinding = null;
+  for (const b of Array.isArray(bindings) ? bindings : []) {
+    if (b.provider !== 'HERMES' || runtimeBinding) continue;
+    runtimeBinding = bindingForBusiness(b, job.business_id, await servedBusinesses(supabaseFetch, b));
+  }
 
   // A verified handoff carries the approved predecessor's evidence into the new task.
   // Same-company membership alone never grants access to another job's memory.
@@ -821,10 +827,12 @@ async function handleEnqueueJob({
 /**
  * 10. queue_summary
  */
-async function handleQueueSummary({ business_id, agent_id } = {}) {
+async function handleQueueSummary({ business_id, agent_id, business_ids } = {}) {
   let url = '/rest/v1/agent_jobs?select=status,priority,agent_id,business_id';
   if (business_id) {
     url += `&business_id=eq.${encodeURIComponent(business_id)}`;
+  } else if (Array.isArray(business_ids)) {
+    url += `&business_id=in.(${business_ids.map(encodeURIComponent).join(',')})`;
   }
   if (agent_id) url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
 

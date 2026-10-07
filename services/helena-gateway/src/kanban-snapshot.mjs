@@ -1,3 +1,4 @@
+import { servedByAgent } from './business-scope.mjs';
 // A bounded, read-only projection of the authoritative queue for the Hermes board.
 // No instructions, results, evidence, or personal jobs leave this endpoint.
 const MAX_PAGE = 100;
@@ -23,21 +24,23 @@ export async function kanbanSnapshot(read, { business_id, offset = 0, limit = MA
   const ambiguous = new Set();
   for (const binding of bindings) {
     if (!/^AGT-\d{2}$/.test(binding.agent_id || '') || !/^[a-z][a-z0-9-]+$/.test(binding.profile_slug || '')) continue;
-    const key = `${binding.agent_id}:${binding.scope_type === 'GROUP' ? 'GROUP' : binding.business_id}`;
+    const key = `${binding.agent_id}:${binding.scope_type === 'GROUP' ? 'GROUP' : 'BUSINESS'}`;
     if (profiles.has(key)) ambiguous.add(key);
     else profiles.set(key, binding);
   }
+  // Um perfil por agente atende as empresas com escopo confirmado.
+  const served = await servedByAgent(read, bindings);
   return {
     source: 'supabase.agent_jobs',
     execution_owner: 'helena-gateway',
     offset,
     next_offset: jobs.length === limit ? offset + jobs.length : null,
     jobs: jobs.filter(j => j.business_id && j.job_id && j.agent_id).map(j => {
-      const key = `${j.agent_id}:${j.agent_id === 'AGT-01' ? 'GROUP' : j.business_id}`;
+      const key = `${j.agent_id}:${j.agent_id === 'AGT-01' ? 'GROUP' : 'BUSINESS'}`;
       const binding = profiles.get(key);
       const valid = binding && !ambiguous.has(key)
         && (binding.scope_type === 'GROUP' && j.agent_id === 'AGT-01'
-          || binding.scope_type === 'BUSINESS' && binding.business_id === j.business_id);
+          || binding.scope_type === 'BUSINESS' && Boolean(served.get(j.agent_id)?.has(j.business_id)));
       return {
         job_id: j.job_id, task_id: j.task_id, agent_id: j.agent_id,
         business_id: j.business_id, objective: j.objective,

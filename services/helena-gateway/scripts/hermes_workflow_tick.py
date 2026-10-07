@@ -348,7 +348,7 @@ class Workflow:
                     or b.get('agent_id') != agent_id or b.get('status') != 'ACTIVE'):
                 continue
             if ((agent_id == 'AGT-01' and b.get('scope_type') == 'GROUP') or
-                    (b.get('scope_type') == 'BUSINESS' and b.get('business_id') == business)):
+                    (b.get('scope_type') == 'BUSINESS' and serves(b, business))):
                 self.actor_context = context
                 return profile, token
         raise RuntimeError('Reviewer/coordinator profile unavailable for this business')
@@ -575,11 +575,18 @@ class Workflow:
         actor = context.get('profile') or {}
         if (context.get('context_version') != 'hermes-context-v2' or context.get('truncated') is not False
                 or actor.get('status') != 'ACTIVE' or actor.get('scope_type') != 'BUSINESS'
-                or actor.get('agent_id') != job['agent_id'] or actor.get('business_id') != job['business_id']):
+                or actor.get('agent_id') != job['agent_id'] or not serves(actor, job['business_id'])):
             return {'status':'UNCONFIRMED', 'reason':'EXECUTOR_SCOPE'}
         report = dispatch.mcp_preflight(self.root / profile, token)
         return {**report, 'profile':profile, 'job_id':job['job_id'],
                 'checked_at':datetime.now(timezone.utc).isoformat(), 'model_calls':0}
+
+
+def serves(profile, business):
+    """One Hermes profile per agent serves its home company and every confirmed scope."""
+    if not business:
+        return False
+    return business == profile.get('business_id') or business in (profile.get('served_business_ids') or [])
 
 
 def main():
