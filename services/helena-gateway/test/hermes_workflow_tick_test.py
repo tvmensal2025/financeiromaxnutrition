@@ -485,5 +485,17 @@ class MultiBusinessScopeTests(unittest.TestCase):
         self.assertFalse(wf.serves({'business_id': 'BIZ-003'}, 'BIZ-001'))
 
 
+
+
+class HandoffClosedTests(unittest.TestCase):
+    def test_closed_handoff_keeps_approval_without_successor(self):
+        d = detail()
+        approve(d)
+        self.assertEqual(wf.phase_for(d), ('HANDOFF', 'AGT-01'))
+        d['events'].insert(0, {'event_type': 'HANDOFF_CLOSED'})
+        self.assertIsNone(wf.phase_for(d))
+        self.assertEqual(d['job']['status'], 'COMPLETED')
+
+
 if __name__ == '__main__':
     unittest.main()

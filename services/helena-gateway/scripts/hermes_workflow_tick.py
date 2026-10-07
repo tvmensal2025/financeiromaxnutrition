@@ -102,7 +102,7 @@ def phase_for(detail):
         return ('REPLAN' if exhausted(j) else 'COORDINATE'), 'AGT-01'
     if (j.get('status') == 'COMPLETED' and reviewed(detail)
             and (result.get('delivery') or {}).get('stage') != 'FINAL'
-            and not any(e.get('event_type') == 'WORKFLOW_handoff' for e in detail.get('events', []))):
+            and not any(e.get('event_type') in ('WORKFLOW_handoff', 'HANDOFF_CLOSED') for e in detail.get('events', []))):
         # gateway_workflow reserves post-review handoff to Helena/Marina.
         # The producer remains the owner of the approved delivery, not this action.
         return 'HANDOFF', 'AGT-01'
