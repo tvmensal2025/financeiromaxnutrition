@@ -97,6 +97,10 @@ def permitted(detail, config):
 def phase_for(detail):
     j = detail['job']
     result = j.get('result_payload') or {}
+    if (j.get('status') == 'FAILED' and str(j.get('completed_at') or '') >= REPLAN_FAILED_SINCE
+            and not any(e.get('event_type') == 'WORKFLOW_replan_job' for e in detail.get('events', []))):
+        # EM_RESOLUCAO tambem para falha: a coordenacao substitui ou escala, nunca morte silenciosa.
+        return 'REPLAN', 'AGT-01'
     if j.get('status') == 'DRAFT':
         # EM_RESOLUCAO: tentativas esgotadas nao morrem em silencio; a coordenacao replaneja.
         return ('REPLAN' if exhausted(j) else 'COORDINATE'), 'AGT-01'
@@ -117,6 +121,9 @@ def phase_for(detail):
     if j.get('agent_id') == 'AGT-01':
         return None
     return ('REPLAN' if exhausted(j) else 'RESOLVE'), 'AGT-01'
+
+
+REPLAN_FAILED_SINCE = '2026-10-07T14:00:00'  # mesma data de corte de gateway_workflow_phase
 
 
 def exhausted(j):

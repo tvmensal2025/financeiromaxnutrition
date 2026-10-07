@@ -509,5 +509,18 @@ class HandoffPromptTests(unittest.TestCase):
         self.assertIn('So deixe de encaminhar quando faltar decisao', prompt)
 
 
+
+class FailedReplanTests(unittest.TestCase):
+    def test_recent_failure_goes_to_replan_once_and_old_failure_stays_history(self):
+        d = detail()
+        d['job'].update(status='FAILED', attempt_count=2, max_attempts=2, completed_at='2026-10-07T14:16:00+00:00', result_payload={})
+        self.assertEqual(wf.phase_for(d), ('REPLAN', 'AGT-01'))
+        d['events'].insert(0, {'event_type': 'WORKFLOW_replan_job'})
+        self.assertIsNone(wf.phase_for(d))
+        old = detail()
+        old['job'].update(status='FAILED', attempt_count=2, max_attempts=2, completed_at='2026-10-03T10:00:00+00:00', result_payload={})
+        self.assertIsNone(wf.phase_for(old))
+
+
 if __name__ == '__main__':
     unittest.main()
