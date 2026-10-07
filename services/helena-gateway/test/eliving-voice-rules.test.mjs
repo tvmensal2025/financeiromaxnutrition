@@ -8,7 +8,9 @@
  * Toda rede aqui é simulada (fetch e cliente Google falsos).
  */
 
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
+import { mockDialogueSocket } from './helpers/dialogue-socket.mjs';
+import { setElevenLabsDialogueSocketForTesting } from '../src/integrations/elevenlabs-dialogue.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -78,7 +80,9 @@ function fakeChirp() {
 }
 
 const originalEnv = { ...process.env };
+beforeEach(() => setElevenLabsDialogueSocketForTesting(mockDialogueSocket()));
 afterEach(() => {
+  setElevenLabsDialogueSocketForTesting(null);
   process.env = { ...originalEnv };
   resetElevenLabsQuotaStatus();
   setGoogleTTSClientForTesting(null);
@@ -139,13 +143,14 @@ describe('Guardião da voz do eLiving (gateway)', () => {
         calls.push({ url, body: JSON.parse(opts.body) });
         return { ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) };
       };
-      const stream = openCallTTSStream({ characterId: id, fetchImpl });
+      const stream = openCallTTSStream({ characterId: id, WebSocketImpl: mockDialogueSocket(fetchImpl) });
       stream.resume();
       stream.write({ input: { text: 'Bom dia, tudo certo por aí?' } });
       stream.end();
       await new Promise(resolve => stream.once('finish', resolve));
       assert.equal(calls.length, 1);
-      assert.ok(calls[0].url.includes(`/v1/text-to-speech/${VOICES[id].voiceId}/stream`), `${id}: voz errada`);
+      assert.ok(calls[0].url.includes('/v1/text-to-dialogue/stream-input'));
+      assert.equal(calls[0].body.voice_id, VOICES[id].voiceId, `${id}: voz errada`);
       assert.equal(calls[0].body.model_id, 'eleven_v4_turbo');
       assert.deepEqual(calls[0].body.voice_settings, { ...VOICES[id].voiceSettings });
     }
@@ -156,7 +161,7 @@ describe('Guardião da voz do eLiving (gateway)', () => {
     const chirp = fakeChirp();
     setGoogleTTSClientForTesting({ streamingSynthesize: () => chirp.stream });
     const fetchImpl = async () => ({ ok: false, status: 429, text: async () => '{"detail":{"status":"quota_exceeded"}}' });
-    const stream = openCallTTSStream({ characterId: 'sirlene', voice: 'pt-BR-Chirp3-HD-Charon', fetchImpl });
+    const stream = openCallTTSStream({ characterId: 'sirlene', voice: 'pt-BR-Chirp3-HD-Charon', WebSocketImpl: mockDialogueSocket(fetchImpl) });
     let failure = null;
     stream.on('error', err => { failure = err; });
     stream.resume();
@@ -204,12 +209,12 @@ describe('Guardião da voz do eLiving (gateway)', () => {
       };
       const result = await streamReplyToCall({
         callId, speechEpoch: 1, apiKey: 'chave-simulada', systemInstruction: profile.system_script,
-        userPrompt: 'Oi', history: [], voice: VOICES.alex.googleFallbackVoice, profile, fetchImpl,
+        userPrompt: 'Oi', history: [], voice: VOICES.alex.googleFallbackVoice, profile, fetchImpl, WebSocketImpl: mockDialogueSocket(fetchImpl),
         consumeAudio: async audio => { for await (const _ of audio) { /* consome */ } return { ok: true }; }
       });
       assert.equal(result.text, 'Qual hábito você quer firmar hoje?');
       assert.equal(elevenUrls.length, 1);
-      assert.ok(elevenUrls[0].url.includes(`/text-to-speech/${VOICES.rafael.voiceId}/stream`), 'ElevenLabs com a voz do Rafael');
+      assert.equal(elevenUrls[0].body.voice_id, VOICES.rafael.voiceId, 'ElevenLabs com a voz do Rafael');
       assert.ok(!elevenUrls[0].url.includes(VOICES.alex.voiceId));
       assert.equal(elevenUrls[0].body.model_id, 'eleven_v4_turbo');
       assert.equal(elevenUrls[0].body.text, '[curious] Qual hábito você quer firmar hoje?');
@@ -278,12 +283,16 @@ function simulateLiveCallNetwork({ elevenStatus = 200 } = {}) {
       const body = JSON.parse(opts.body);
       if (body.response_format) return json({ choices: [{ message: { content: '{"categories":[]}' }, finish_reason: 'stop' }] });
       const content = body.messages.at(-1)?.content === NATURAL_OPENING_PROMPT ? OPENING : REPLY;
+      if (body.stream) return { ok: true, body: Readable.from([
+        Buffer.from(`data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: null }] })}\n\n`),
+        Buffer.from('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'),
+      ]) };
       return json({ choices: [{ message: { content }, finish_reason: 'stop' }] });
     }
-    if (target.startsWith('https://api.elevenlabs.io/')) {
+    if (target.startsWith('https://api.elevenlabs.io/') || target.startsWith('wss://api.elevenlabs.io/')) {
       seen.eleven.push({ url: target, body: JSON.parse(opts.body) });
       if (elevenStatus === 429) return { ok: false, status: 429, text: async () => '{"detail":{"status":"quota_exceeded"}}' };
-      return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array(64).buffer };
+      return { ok: true, status: 200, body: Readable.from([Buffer.alloc(64, 1)]), arrayBuffer: async () => new Uint8Array(64).buffer };
     }
     if (target === CONTEXT_URL) {
       const body = JSON.parse(opts.body);
@@ -303,6 +312,34 @@ async function waitFor(check) {
 }
 
 describe('Tags de áudio nos caminhos sem streaming (abertura e turnos em lote)', () => {
+  it('abertura NDJSON dos quatro personagens usa a voz correta e salva a fala sem tags', async () => {
+    const net = simulateLiveCallNetwork();
+    process.env.CALL_VOICE_STREAMING_ENABLED = 'true';
+    const { createIntegrationsRouter } = await import('../src/routes/integrations.mjs');
+    const app = express(); app.use(express.json());
+    app.use(createIntegrationsRouter({ supabaseFetch: async () => [], authenticateUser: (_req, _res, next) => next() }));
+    const server = await new Promise(resolve => { const listener = app.listen(0, '127.0.0.1', () => resolve(listener)); });
+    try {
+      for (const id of CHARACTER_IDS) {
+        const before = net.seen.eleven.length;
+        const res = await fetch(`http://127.0.0.1:${server.address().port}/api/integrations/call-engine/turn`, {
+          method: 'POST', headers: { Authorization: 'Bearer token-app-simulado', 'Content-Type': 'application/json', Accept: 'application/x-ndjson' },
+          body: JSON.stringify({ character_id: id, call_id: `WEB-stream-${id}`, is_start: true }),
+        });
+        assert.equal(res.status, 200);
+        assert.match(res.headers.get('content-type'), /application\/x-ndjson/);
+        const records = (await res.text()).trim().split('\n').map(line => JSON.parse(line));
+        assert.equal(records[0].type, 'audio');
+        assert.equal(records[0].sampleRate, 16000);
+        assert.equal(records.at(-1).type, 'done');
+        assert.equal(records.at(-1).text, OPENING_TELA);
+        assert.equal(net.seen.eleven[before].body.voice_id, VOICES[id].voiceId);
+        assert.equal(net.seen.persisted.at(-1), OPENING_TELA);
+      }
+      assert.equal(net.seen.google.length, 0);
+    } finally { net.restore(); await new Promise(resolve => server.close(resolve)); }
+  });
+
   it('o texto de tela é a fala sem as tags', () => {
     assert.equal(stripAudioTags(OPENING), OPENING_TELA);
     assert.equal(stripAudioTags(REPLY), REPLY_TELA);
@@ -318,7 +355,7 @@ describe('Tags de áudio nos caminhos sem streaming (abertura e turnos em lote)'
       assert.equal(opening.ok, true);
       assert.equal(opening.provider, 'ELEVENLABS');
       assert.equal(net.seen.eleven.length, 1);
-      assert.ok(net.seen.eleven[0].url.includes(`/text-to-speech/${VOICES.rafael.voiceId}`), 'voz do Rafael');
+      assert.equal(net.seen.eleven[0].body.voice_id, VOICES.rafael.voiceId, 'voz do Rafael');
       assert.equal(net.seen.eleven[0].body.model_id, 'eleven_v4_turbo');
       assert.equal(net.seen.eleven[0].body.text, OPENING, 'a abertura chega à ElevenLabs com as tags');
       assert.equal(opening.greeting, OPENING_TELA);
@@ -391,7 +428,7 @@ describe('Tags de áudio nos caminhos sem streaming (abertura e turnos em lote)'
         assert.equal(start.reply_text, OPENING_TELA);
         assert.ok(start.audio_base64.length > 0);
         assert.equal(net.seen.eleven.length, 1);
-        assert.ok(net.seen.eleven[0].url.includes(`/text-to-speech/${VOICES.rafael.voiceId}`), 'voz do Rafael');
+        assert.equal(net.seen.eleven[0].body.voice_id, VOICES.rafael.voiceId, 'voz do Rafael');
         assert.equal(net.seen.eleven[0].body.model_id, 'eleven_v4_turbo');
         assert.equal(net.seen.eleven[0].body.text, OPENING, 'a abertura do app chega à ElevenLabs com as tags');
 

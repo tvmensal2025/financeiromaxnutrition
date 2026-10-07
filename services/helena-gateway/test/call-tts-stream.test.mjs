@@ -12,6 +12,7 @@ import {
 } from '../src/integrations/elevenlabs.mjs';
 import { setGoogleTTSClientForTesting } from '../src/integrations/google-chirp3-hd.mjs';
 import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
+import { mockDialogueSocket } from './helpers/dialogue-socket.mjs';
 
 const VOICES = ELIVING_VOICE_CONFIG.characters;
 
@@ -68,7 +69,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     const stream = openCallTTSStream({
       voice: 'sirlene',
       context: 'CALL',
-      fetchImpl: mockFetch
+      WebSocketImpl: mockDialogueSocket(mockFetch)
     });
 
     assert.equal(stream.supportsAudioTags, true);
@@ -82,11 +83,11 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
 
     await new Promise((resolve) => stream.once('finish', resolve));
 
-    assert.ok(capturedUrl.includes(`api.elevenlabs.io/v1/text-to-speech/${VOICES.sirlene.voiceId}/stream`));
+    assert.ok(capturedUrl.startsWith('wss://api.elevenlabs.io/v1/text-to-dialogue/stream-input'));
+    assert.equal(capturedBody.voice_id, VOICES.sirlene.voiceId);
     assert.ok(capturedUrl.includes('output_format=pcm_16000'));
     assert.ok(!capturedUrl.includes('optimize_streaming_latency'), 'parâmetro obsoleto não é enviado');
     assert.equal(capturedHeaders['xi-api-key'], 'test-eleven-key');
-    assert.equal(capturedHeaders['Accept'], 'audio/pcm');
     assert.equal(capturedBody.text, '[curious] Olá! Que prazer conversar com você.');
     assert.equal(capturedBody.model_id, 'eleven_v4_turbo');
     assert.deepEqual(capturedBody.voice_settings, { ...VOICES.sirlene.voiceSettings });
@@ -97,18 +98,17 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
   });
 
   it('a voz vem do characterId da ligação, nunca da voz Google do painel', async () => {
-    const urls = [];
-    const mockFetch = async (url) => {
-      urls.push(url);
+    const voices = [];
+    const mockFetch = async (_url, opts) => {
+      voices.push(JSON.parse(opts.body).voice_id);
       return { ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) };
     };
-    const stream = openCallTTSStream({ voice: 'pt-BR-Chirp3-HD-Achernar', characterId: 'rafael', fetchImpl: mockFetch });
+    const stream = openCallTTSStream({ voice: 'pt-BR-Chirp3-HD-Achernar', characterId: 'rafael', WebSocketImpl: mockDialogueSocket(mockFetch) });
     stream.resume();
     stream.write({ input: { text: 'Bom dia.' } });
     stream.end();
     await new Promise((resolve) => stream.once('finish', resolve));
-    assert.equal(urls.length, 1);
-    assert.ok(urls[0].includes(`/text-to-speech/${VOICES.rafael.voiceId}/stream`));
+    assert.deepEqual(voices, [VOICES.rafael.voiceId]);
     assert.notEqual(VOICES.rafael.voiceId, VOICES.alex.voiceId);
   });
 
@@ -118,7 +118,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
       texts.push(JSON.parse(opts.body).text);
       return { ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) };
     };
-    const stream = new HybridCallTTSStream({ characterId: 'alex', fetchImpl: mockFetch });
+    const stream = new HybridCallTTSStream({ characterId: 'alex', WebSocketImpl: mockDialogueSocket(mockFetch) });
     stream.resume();
     stream.write({ input: { text: '[excited] Isso!' } });
     stream.write({ input: { text: '[shouts] Bateu a meta!' } });
@@ -147,7 +147,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
       voice: 'pt-BR-Chirp3-HD-Achernar', // voz de outro personagem no painel: ignorada
       characterId: 'vital',
       context: 'CALL',
-      fetchImpl: mockFetch429
+      WebSocketImpl: mockDialogueSocket(mockFetch429)
     });
 
     const audioResponses = [];
@@ -188,6 +188,33 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     stream.write({ input: { text: '[laughs] Oi, tudo bem? ' } });
     assert.equal(chirp.state.text, 'Oi, tudo bem? ', 'o stream do Google também remove tags');
     stream.destroy();
+  });
+
+  it('falha temporária sem áudio aciona Google sem marcar cota esgotada', async () => {
+    const chirp = fakeChirp();
+    setGoogleTTSClientForTesting({ streamingSynthesize: () => chirp.stream });
+    const stream = openCallTTSStream({ characterId: 'alex', WebSocketImpl: mockDialogueSocket(async () => ({
+      ok: false, status: 503, text: async () => 'temporarily unavailable',
+    })) });
+    stream.resume(); stream.end({ input: { text: '[curious] Como foi seu dia?' } });
+    await new Promise((resolve, reject) => { stream.once('finish', resolve); stream.once('error', reject); });
+    assert.equal(isElevenLabsQuotaCurrentlyExceeded(), false);
+    assert.equal(chirp.state.config.voice.name, VOICES.alex.googleFallbackVoice);
+    assert.equal(chirp.state.text, 'Como foi seu dia? ');
+  });
+
+  it('não repete no Google uma frase parcialmente ouvida quando a conexão cai', async () => {
+    const chirp = fakeChirp(); let googleCalls = 0;
+    setGoogleTTSClientForTesting({ streamingSynthesize: () => { googleCalls++; return chirp.stream; } });
+    const stream = openCallTTSStream({ characterId: 'rafael', WebSocketImpl: mockDialogueSocket(async () => ({
+      ok: true, body: Readable.from((async function* () { yield Buffer.alloc(320); throw new Error('disconnected'); })()),
+    })) });
+    const chunks = []; stream.on('data', data => chunks.push(data));
+    const failed = new Promise(resolve => stream.once('error', resolve));
+    stream.end({ input: { text: 'Uma frase incompleta.' } });
+    assert.match((await failed).message, /interrompida/);
+    assert.equal(chunks.length, 1);
+    assert.equal(googleCalls, 0);
   });
 
   it('usa diretamente o Google Chirp 3 HD se ELEVENLABS_API_KEY não estiver configurada', async () => {

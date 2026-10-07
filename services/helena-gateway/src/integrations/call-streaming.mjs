@@ -63,7 +63,8 @@ export function extractSpeechChunks(text, final = false) {
 }
 
 export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, systemInstruction, userPrompt, history, voice,
-  baseUrl, token, signal, fetchImpl = fetch, openTTS = openCallTTSStream, profile = {}, consumeAudio }) {
+  baseUrl, token, signal, fetchImpl = fetch, openTTS = openCallTTSStream, profile = {}, consumeAudio,
+  WebSocketImpl, preparedSpeech = null }) {
   const controller = new AbortController();
   const combined = AbortSignal.any([controller.signal, AbortSignal.timeout(35000), ...(signal ? [signal] : [])]);
   combined.throwIfAborted();
@@ -76,7 +77,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   let firstTokenAt = null;
   let audioBytes = 0;
   // A voz (ElevenLabs e reserva Google) vem do PERSONAGEM do perfil ativo da ligação.
-  const tts = openTTS({ voice, characterId: profile?.character_id || null, context: 'CALL', signal: combined, fetchImpl });
+  const tts = openTTS({ voice, characterId: profile?.character_id || null, context: 'CALL', signal: combined, WebSocketImpl });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
   const cancelTTS = () => tts.destroy(combined.reason);
   combined.addEventListener('abort', cancelTTS, { once: true });
@@ -94,6 +95,13 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
+    if (preparedSpeech !== null) {
+      if (String(preparedSpeech).length > 2400) throw new Error('Voice response exceeds conversational limit');
+      await writeSentence(String(preparedSpeech));
+      if (!spokenText) throw new Error('Empty prepared speech');
+      tts.end();
+      return;
+    }
     const contextStarted = performance.now();
     const resolvedInstruction = await systemInstruction;
     metrics.context_wait_ms = Math.round(performance.now() - contextStarted);
@@ -178,6 +186,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   })();
   try {
     const [, playback] = await Promise.all([llmTask, playbackTask]);
+    metrics.tts_providers = [...(tts.providersUsed || [])];
     return { text: spokenText, usage, metrics, playback, audioBytes };
   } catch (err) {
     controller.abort(err);

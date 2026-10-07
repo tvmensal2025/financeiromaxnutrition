@@ -211,3 +211,14 @@ it('SSE framing accepts coalesced small events but rejects one oversized event',
  assert.equal(count,2500);
  await assert.rejects(async()=>{for await(const _ of readSSE(Readable.from([Buffer.from('data: '+ 'x'.repeat(131073))]))){}},/Oversized/);
 });
+
+it('fala preparada também usa streaming, sem solicitar outra geração ao GPT', async () => {
+  const sentences = []; let requests = 0;
+  const result = await streamReplyToCall({ ...base, preparedSpeech: 'Olá, como você está?',
+    openTTS: () => fakeTTS(sentence => sentences.push(sentence)),
+    fetchImpl: async (_url, opts) => { requests++; for await (const bytes of opts.body) assert.ok(bytes.length); return Response.json({ ok: true }); },
+  });
+  assert.equal(requests, 1); // somente transporte de áudio, sem geração de texto
+  assert.equal(result.text, 'Olá, como você está?');
+  assert.deepEqual(sentences, ['Olá, como você está? ']);
+});

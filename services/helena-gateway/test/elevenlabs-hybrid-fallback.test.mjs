@@ -16,14 +16,18 @@ import {
   setGoogleTTSClientForTesting
 } from '../src/integrations/google-chirp3-hd.mjs';
 import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
+import { mockDialogueSocket } from './helpers/dialogue-socket.mjs';
+import { setElevenLabsDialogueSocketForTesting } from '../src/integrations/elevenlabs-dialogue.mjs';
 
 const VOICES = ELIVING_VOICE_CONFIG.characters;
 
 test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Reserva) — voz única por personagem', async (t) => {
+  setElevenLabsDialogueSocketForTesting(mockDialogueSocket());
   const originalKey = process.env.ELEVENLABS_API_KEY;
   const originalFetch = globalThis.fetch;
 
   t.after(() => {
+    setElevenLabsDialogueSocketForTesting(null);
     if (originalKey === undefined) delete process.env.ELEVENLABS_API_KEY;
     else process.env.ELEVENLABS_API_KEY = originalKey;
     globalThis.fetch = originalFetch;
@@ -107,7 +111,8 @@ test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Res
       voice: 'pt-BR-Chirp3-HD-Achernar'
     });
 
-    assert.ok(elevenLabsUrl.includes(`/text-to-speech/${VOICES.rafael.voiceId}?`), 'voz do Rafael, nunca a voz do painel');
+    assert.ok(elevenLabsUrl.includes('/text-to-dialogue/stream-input'));
+    assert.equal(body.voice_id, VOICES.rafael.voiceId, 'voz do Rafael, nunca a voz do painel');
     assert.ok(elevenLabsUrl.includes('output_format=mp3_44100_192'));
     assert.strictEqual(body.model_id, 'eleven_v4_turbo');
     assert.deepStrictEqual(body.voice_settings, { ...VOICES.rafael.voiceSettings });
@@ -162,7 +167,8 @@ test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Res
     let body = null;
     globalThis.fetch = async (url, options) => {
       if (String(url).includes('elevenlabs.io')) {
-        assert.ok(String(url).includes(`/text-to-speech/${VOICES.vital.voiceId}?`));
+        assert.ok(String(url).includes('/text-to-dialogue/stream-input'));
+        assert.equal(JSON.parse(options.body).voice_id, VOICES.vital.voiceId);
         body = JSON.parse(options.body);
         return new Response(Buffer.from('MP3'), { status: 200, headers: { 'Content-Type': 'audio/mpeg' } });
       }
