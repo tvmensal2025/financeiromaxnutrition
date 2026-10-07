@@ -80,7 +80,7 @@ class ProvisionTest(unittest.TestCase):
             for profile in ('helena--grupo', 'marina--biz003'):
                 config_path = home / 'profiles' / profile / 'config.yaml'
                 config = module.yaml.safe_load(config_path.read_text())
-                config['mcp_servers']['helena_operacao']['tools']['include'] = [name for name in module.profile_tools(profile) if name != 'revise_task_brief']
+                config['mcp_servers']['helena_operacao']['tools']['include'] = [name for name in module.profile_tools(profile) if name not in ('revise_task_brief', 'replan_job')]
                 config_path.write_text(module.yaml.safe_dump(config))
             module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())

@@ -26,7 +26,7 @@ export function workflowJournalTools(rpc) {
       schema: z.object({
         action: z.enum(['list', 'reserve', 'finish', 'recover']),
         repair_version: z.literal('review-contract-v2').optional(),
-        job_id: job.optional(), phase: z.enum(['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE']).optional(),
+        job_id: job.optional(), phase: z.enum(['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE', 'REPLAN']).optional(),
         fingerprint: z.string().regex(/^[a-f0-9]{64}$/).optional(),
         expected_task_version: z.number().int().nonnegative().optional(),
         expected_status: z.string().min(1).max(40).optional(),

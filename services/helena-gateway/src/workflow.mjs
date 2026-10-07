@@ -21,6 +21,10 @@ const contracts = {
     revision_summary: text(1200).min(20)
   }, 'Helena ou Marina corrige o briefing da mesma tarefa apos REQUEST_CHANGES, com versoes conferidas e historico preservado. Mantem DRAFT; nao cria tarefa, nao libera e nao inicia modelo.'],
   get_work_context: ['context', {}, 'Carrega o checkpoint atual, papel, tarefas e encaminhamentos do perfil autenticado.'],
+  replan_job: ['replan_job', { ...job, ...version, reason: text(4000).min(40), mode: z.enum(['REPLACE', 'ESCALATE']),
+    target_agent_id: text(80).optional(), objective: text(BRIEF_LIMITS.objective.max).optional(),
+    definition_of_done: text(BRIEF_LIMITS.definition_of_done.max).optional(), instruction: text(BRIEF_LIMITS.instruction.max).optional(),
+    founder_question: text(1500).min(20).optional() }, 'Helena ou Marina: missao com tentativas esgotadas (fase REPLAN). REPLACE cria missao substituta corrigida (oito secoes, fontes aprovadas) e encerra a anterior como substituida; ate 2 por linhagem. ESCALATE leva a decisao ao Fundador com founder_question. Nao inicia modelo.'],
   create_task_job: ['create_task', { ...task, business_id: text(80), idempotency_key: key }, 'Helena ou Marina cria tarefa visivel e job DRAFT na empresa; nao inicia modelo.'],
   adopt_existing_task: ['adopt_existing_task', { task_id: text(120), target_agent_id: text(80), ...version, instruction: text(BRIEF_LIMITS.instruction.max).optional() }, 'Helena ou Marina vincula uma tarefa existente e ainda nao iniciada a um unico job DRAFT, sem duplicar o cartao ou iniciar modelo.'],
   submit_delivery: ['submit_delivery', { ...job, ...version, summary: text(8000), evidence_refs: z.array(text(500)).min(1).max(10), delivery: professionalDeliverySchema, publication: publicationSchema.optional() }, 'Registra entrega e aguarda revisao. Todas as funcoes exigem delivery: schema_version=1, title, content utilizavel, next_steps, limitations e acceptance_checks (criterion, evidence_ref, finding). Material social tambem exige publication: title, caption, strategy, instructions, alt_text. summary e interno.'],
@@ -69,6 +73,14 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
       let releaseDetail;
       if (identity?.type !== 'hermes_profile' || !identity.bindingVerified || !identity.profileSlug) throw new Error('Workflow exige identidade individual Hermes verificada');
       if (['create_task', 'handoff', 'revise_task_brief', 'adopt_existing_task'].includes(action)) validateOutgoingBrief(args);
+      if (action === 'replan_job') {
+        if (!['AGT-01', 'AGT-04'].includes(identity.agentId)) throw new Error('Somente Helena ou Marina replaneja');
+        if (args.mode === 'REPLACE') {
+          if (!args.objective || !args.instruction || !args.definition_of_done) throw new Error('REPLACE exige objective, instruction e definition_of_done corrigidos');
+          validateOutgoingBrief(args);
+          validateBriefStructure(args.instruction);
+        } else if (!args.founder_question) throw new Error('ESCALATE exige founder_question');
+      }
       if (action === 'submit_work') return submitWork(rpc, args, identity);
       if (action === 'create_task' || action === 'handoff') validateBriefStructure(args.instruction);
       if (['create_task', 'handoff'].includes(action) && args.target_agent_id === 'AGT-12' && /post|stor(y|ies)|arte|campanha/i.test(args.objective || ''))
@@ -155,6 +167,8 @@ export function workflowTools(rpc, readJob, beforeRelease, afterRelease) {
         ? await rpc('gateway_context', { p_profile_slug: identity.profileSlug })
         : action === 'resolve_job_block'
         ? await rpc('gateway_resolve_job_block', { p_profile_slug: identity.profileSlug, p_payload: args })
+        : action === 'replan_job'
+        ? await rpc('gateway_replan_job', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'revise_task_brief'
         ? await rpc('gateway_revise_task_brief', { p_profile_slug: identity.profileSlug, p_payload: args })
         : action === 'adopt_existing_task'

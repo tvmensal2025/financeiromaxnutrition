@@ -24,7 +24,7 @@ KEY = 'HELENA_GATEWAY_PROFILE_TOKEN'
 TOOLS = ['get_work_context', 'list_ready_jobs', 'queue_summary', 'get_job', 'claim_job',
          'start_job', 'record_progress', 'record_memory', 'submit_delivery', 'submit_work', 'get_visual_asset', 'review_delivery',
          'handoff_task', 'create_task_job', 'release_job', 'fail_job', 'waiting_helena']
-COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block', 'revise_task_brief']
+COORDINATOR_TOOLS = TOOLS + ['adopt_existing_task', 'resolve_job_block', 'revise_task_brief', 'replan_job']
 EXECUTOR_TOOLS = [name for name in TOOLS if name not in ('create_task_job', 'release_job', 'handoff_task')]
 HERMES_SERIAL_TOOLS = False
 def profile_tools(profile):
@@ -34,6 +34,8 @@ def profile_tools(profile):
         return COORDINATOR_TOOLS + ['record_dispatch']
     if profile == 'helena--grupo':
         return COORDINATOR_TOOLS.copy()
+    if profile == 'caio--biz003':
+        return EXECUTOR_TOOLS + ['registrar_lancamento']
     if profile == 'maya--biz003':
         return EXECUTOR_TOOLS + ['create_artifact_upload', 'verify_artifact_upload']
     return EXECUTOR_TOOLS.copy()
@@ -108,14 +110,17 @@ def prepare(home):
             if profile != 'laura--pessoal':
                 prior_filters.append(TOOLS[:-2])
                 prior_filters.append(TOOLS)
+                prior_filters.append(EXECUTOR_TOOLS)  # antes da ferramenta financeira do Caio
             if profile == 'maya--biz003':
                 prior_filters.append(TOOLS + ['create_artifact_upload', 'verify_artifact_upload'])
             if profile in ('helena--grupo', 'marina--biz003'):
                 prior_filters.append(COORDINATOR_TOOLS)
-                prior_filters.append(COORDINATOR_TOOLS[:-1])
+                prior_filters.append(COORDINATOR_TOOLS[:-1])  # antes de replan_job
+                prior_filters.append(COORDINATOR_TOOLS[:-2])
                 prior_filters.append(TOOLS + ['resolve_job_block'])
             if profile == 'marina--biz003':
                 prior_filters.append(COORDINATOR_TOOLS[:-1] + ['record_dispatch'])
+                prior_filters.append(COORDINATOR_TOOLS[:-2] + ['record_dispatch'])
                 prior_filters.append(TOOLS + ['resolve_job_block', 'record_dispatch'])
             expected_previous = [{**server, 'tools': {**server['tools'], 'include': prior}} for prior in prior_filters]
             if servers['helena_operacao'] not in expected_previous:

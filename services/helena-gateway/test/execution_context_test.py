@@ -81,6 +81,15 @@ class ContextTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Revision evidence packet scope mismatch'):
                 execution_packet(d)
 
+    def test_replan_packet_carries_lineage_and_review(self):
+        d = self.detail()
+        d['job']['result_payload'].update(reviewed_by='AGT-01', replan_count=1, replan_root='JOB-ROOT')
+        packet = json.loads(execution_packet(d, 'REPLAN'))
+        self.assertEqual(packet['replan'], {'replan_count': 1, 'replan_root': 'JOB-ROOT'})
+        self.assertEqual(packet['review']['review_reason'], 'Corrigir o CTA')
+        self.assertIn('brief_correction', packet)
+        self.assertEqual(json.loads(execution_packet(self.detail(), 'REPLAN'))['replan'], {'replan_count': 0})
+
     def test_large_packet_is_refused_instead_of_silently_truncated(self):
         d=self.detail();d['job']['instruction']='x'*121000
         with self.assertRaises(ValueError):execution_packet(d)

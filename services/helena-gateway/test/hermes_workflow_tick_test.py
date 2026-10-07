@@ -61,6 +61,10 @@ class ReviewStateTests(unittest.TestCase):
         self.assertTrue(any(r['status']=='STARTED' for r in state['receipts'].values()))
         if self.runner_mode in ('APPROVE','REQUEST_CHANGES'):
             approve(self.d, self.runner_mode)
+        if self.runner_mode == 'REPLACE':
+            self.d['job'].update(status='CANCELLED', result_payload={'replaced_by': CHILD})
+        if self.runner_mode == 'ESCALATE':
+            self.d['job'].update(status='WAITING_APPROVAL', result_payload={'founder_decision_required': True})
         return 0
 
     def worker(self):
@@ -220,16 +224,29 @@ class ReviewStateTests(unittest.TestCase):
         self.d['job']['result_payload']={}
         self.assertEqual(wf.phase_for(self.d),('RESOLVE','AGT-01'))
 
-    def test_exhausted_attempts_do_not_spend_on_coordination(self):
+    def test_exhausted_attempts_go_to_replan_once(self):
+        # EM_RESOLUCAO: missao esgotada nao morre em silencio; uma chamada da coordenacao replaneja.
         self.d['job'].update(attempt_count=2,max_attempts=2,result_payload={})
+        self.assertEqual(wf.phase_for(self.d), ('REPLAN', 'AGT-01'))
+        self.runner_mode = 'REPLACE'
         result=self.run_tick()
-        self.assertEqual(result['status'],'ATTEMPT_LIMIT')
-        self.assertFalse(result['model_started'])
-        self.assertEqual(self.calls,0)
+        self.assertEqual(self.calls,1)
+        self.assertEqual(result['next_phase'],'RELEASE:'+CHILD)
+        self.assertEqual(self.run_tick()['status'] in ('NO_NEW_REVIEW','UNCHANGED_NO_RETRY'), True)
+        self.assertEqual(self.calls,1)
+
+    def test_replan_escalation_leaves_automatic_cycle(self):
+        self.d['job'].update(status='DRAFT',attempt_count=2,max_attempts=2,result_payload={})
+        self.assertEqual(wf.phase_for(self.d), ('REPLAN', 'AGT-01'))
+        self.runner_mode = 'ESCALATE'
+        self.assertEqual(self.run_tick()['next_phase'],'DELIVERED')
+        self.assertIsNone(wf.phase_for(self.d))
+        self.assertEqual(self.calls,1)
 
     def test_exhausted_job_does_not_starve_independent_review(self):
         blocked = copy.deepcopy(self.d)
-        blocked['job'].update(job_id=CHILD, attempt_count=2, max_attempts=2, result_payload={})
+        # Escalated to the Founder: no automatic phase, so it never starves the review queue.
+        blocked['job'].update(job_id=CHILD, status='WAITING_APPROVAL', attempt_count=2, max_attempts=2, result_payload={'founder_decision_required': True})
         self.context['pending_reviews_detail'] = [{'job_id': CHILD}, {'job_id': JOB}]
         original = self.request
         def request(gateway, token, name, args):

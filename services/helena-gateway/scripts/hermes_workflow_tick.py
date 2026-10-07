@@ -98,7 +98,8 @@ def phase_for(detail):
     j = detail['job']
     result = j.get('result_payload') or {}
     if j.get('status') == 'DRAFT':
-        return 'COORDINATE', 'AGT-01'
+        # EM_RESOLUCAO: tentativas esgotadas nao morrem em silencio; a coordenacao replaneja.
+        return ('REPLAN' if exhausted(j) else 'COORDINATE'), 'AGT-01'
     if (j.get('status') == 'COMPLETED' and reviewed(detail)
             and (result.get('delivery') or {}).get('stage') != 'FINAL'
             and not any(e.get('event_type') == 'WORKFLOW_handoff' for e in detail.get('events', []))):
@@ -115,7 +116,11 @@ def phase_for(detail):
     # waiting_helena is also a request for a managerial decision, not a delivery.
     if j.get('agent_id') == 'AGT-01':
         return None
-    return 'RESOLVE', 'AGT-01'
+    return ('REPLAN' if exhausted(j) else 'RESOLVE'), 'AGT-01'
+
+
+def exhausted(j):
+    return int(j.get('attempt_count') or 0) >= min(int(j.get('max_attempts') or 2), 2)
 
 
 def reviewed(detail):
@@ -146,6 +151,12 @@ def next_phase(phase, before, after):
                     return 'RELEASE:' + child
     if phase == 'RESOLVE' and j.get('status') == 'DRAFT':
         return 'COORDINATE'
+    if phase == 'REPLAN':
+        replacement = (j.get('result_payload') or {}).get('replaced_by')
+        if j.get('status') == 'CANCELLED' and replacement and dispatch.JOB_PATTERN.fullmatch(str(replacement)):
+            return 'RELEASE:' + replacement
+        if j.get('status') == 'WAITING_APPROVAL':
+            return 'DELIVERED'  # Escalado ao Fundador: sai do ciclo automatico.
     if (phase == 'COORDINATE' and j.get('status') == 'DRAFT' and before
             and before.get('task', {}).get('row_version') != after['task']['row_version']):
         return 'COORDINATE'
@@ -202,6 +213,22 @@ def make_prompt(phase, detail, key):
             "responsaveis identificados, IDs/dependencias verificaveis e encaminhamento executavel. "
             "Se faltar algo, review_delivery REQUEST_CHANGES com lista concreta de correcoes e fontes. "
             "Nao crie nem libere tarefas nesta fase. Termine apos confirmar a decisao."
+        )
+    if phase == 'REPLAN':
+        return base + (
+            "Voce e Helena, coordenadora. EM_RESOLUCAO: esta missao esgotou as tentativas (fase REPLAN). "
+            "Nao libere, nao revise o briefing deste job e nao aumente tentativas. Diagnostique a causa real "
+            "das devolucoes com review, brief_correction, blocking_decision e replan do pacote. Decida UMA acao "
+            "com replan_job, usando a chave wf deste fluxo com sufixo ':replan' e expected_task_version atual. "
+            "mode=REPLACE quando a causa e corrigivel no briefing (requisitos contraditorios, fonte indisponivel, "
+            "escopo grande demais, responsavel errado): envie objective, definition_of_done e instruction completos "
+            "com as oito secoes, corrigindo a causa e preservando escopo e qualidade. Cite somente fontes MEM-HR de "
+            "entregas aprovadas; entregas devolvidas deste job sao descritas em palavras, nunca citadas por ID. "
+            "Mantenha o mesmo responsavel, salvo se a causa for o responsavel. Se replan.replan_count ja for 2, "
+            "REPLACE e recusado. mode=ESCALATE quando a solucao depende do Fundador (decisao, dado, acesso, verba "
+            "ou conflito de regras que voce nao pode resolver) ou apos 2 replanejamentos: founder_question objetiva, "
+            "com opcoes. reason: causa diagnosticada e correcao (40+ caracteres). Depois confirme com get_job: job "
+            "antigo CANCELLED com replaced_by, ou WAITING_APPROVAL. Nao libere a substituta; o controlador cuida disso."
         )
     if phase == 'HANDOFF':
         return base + (
@@ -467,7 +494,7 @@ class Workflow:
             return {'status': blocker, 'job_id': jid, 'phase': phase,
                     'model_started': False, 'automatic_retry': False,
                     'responsible_agent_id': 'AGT-01', 'technical_agent_id': 'AGT-09'}
-        if phase in ('HANDOFF', 'COORDINATE', 'RESOLVE') and agent not in ('AGT-01', 'AGT-04'):
+        if phase in ('HANDOFF', 'COORDINATE', 'RESOLVE', 'REPLAN') and agent not in ('AGT-01', 'AGT-04'):
             return {'status': 'ACTION_ACTOR_MISMATCH', 'job_id': jid,
                     'phase': phase, 'model_started': False}
         if phase == 'REVIEW' and (agent == detail['job']['agent_id'] or agent == 'FOUNDER'):

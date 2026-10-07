@@ -99,7 +99,10 @@ def execution_packet(detail, phase='EXECUTE'):
         'artifact_records': detail.get('artifact_records', []),
         'source_job': pick(detail.get('source_job') or {}, ('job_id', 'result_summary')),
     }
-    if phase in ('RESOLVE', 'COORDINATE'):
+    if phase == 'REPLAN':
+        packet['replan'] = pick(result, ('replan_count', 'replan_root', 'replan_of', 'replan_reason'))
+        packet['replan'].setdefault('replan_count', 0)
+    if phase in ('RESOLVE', 'COORDINATE', 'REPLAN'):
         history = result.get('brief_revision_history') or []
         latest = history[-1] if history else {}
         packet['brief_correction'] = {
