@@ -9,9 +9,9 @@ from execution_policy import execution_timeout, coordination_blocker
 class ExecutionPolicyTests(unittest.TestCase):
     def test_budgets_are_bounded_and_correction_does_not_use_fast_tier(self):
         self.assertEqual(execution_timeout('isabela--biz003', 'correction', 'correction'), 600)
-        self.assertEqual(execution_timeout('caio--biz003', 'fast', 'correction'), 300)
+        self.assertEqual(execution_timeout('caio--biz003', 'fast', 'correction'), 600)
         self.assertEqual(execution_timeout('maya--biz003', 'correction', 'correction'), 900)
-        self.assertEqual(execution_timeout('isabela--biz003', None, 'correction'), 300)
+        self.assertEqual(execution_timeout('isabela--biz003', None, 'correction'), 600)
 
     def test_same_missing_source_after_correction_stops_without_state_change(self):
         d = {'job': {'status':'DRAFT', 'attempt_count':1, 'result_payload': {

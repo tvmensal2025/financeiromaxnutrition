@@ -184,7 +184,7 @@ class DispatchTests(unittest.TestCase):
         with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
             result = self.dispatch(execute=True)
         self.assertEqual(result["status"], "WAITING_HELENA")
-        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 300)])
+        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 600)])
         self.assertEqual([call[0] for call in self.calls], [
             "list_ready_jobs", "get_job", "claim_job", "start_job", "get_job",
         ])

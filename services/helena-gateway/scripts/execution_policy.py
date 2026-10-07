@@ -6,7 +6,7 @@ def execution_timeout(profile, model, correction_model):
         return 900  # Existing bounded image-generation allowance.
     if model and model == correction_model:
         return 600  # Advanced correction must not inherit the five-minute fast tier.
-    return 300
+    return 600  # Text tier raised from 300 s after host-load timeouts (2026-10-07).
 
 
 def coordination_blocker(detail):
