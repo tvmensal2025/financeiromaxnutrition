@@ -43,6 +43,33 @@ def native_tools_note(profile):
     return base + '. Nao declare ferramenta indisponivel sem tentar chama-la pelo nome.\n'
 
 
+# Primeira tentativa de 49% de aprovacao no modelo barato x 75% no forte (dados de 07/10):
+# tarefas de analise/coordenacao ou briefing longo ja comecam no intermediario.
+ANALYTIC_ROLES = ('AGT-03', 'AGT-04', 'AGT-05', 'AGT-08')
+
+
+def complexity_tier(agent_id, instruction, definition_of_done):
+    if (agent_id in ANALYTIC_ROLES or len(str(definition_of_done or '')) >= 1200
+            or len(str(instruction or '')) >= 5000):
+        return 'MODERATE'
+    return 'SIMPLE'
+
+
+SELF_REVIEW_CHECKLIST = (
+    '\n'
+    'AUTOCONFERENCIA OBRIGATORIA, UMA VEZ, ANTES DE submit_work (motivos reais de devolucao):\n'
+    '1. Liste cada item da definicao de pronto e aponte onde foi atendido; cada item principal vira um acceptance_check.\n'
+    '2. Toda afirmacao de fato tem fonte (URL e data, ou entrega aprovada); sem fonte, marque HIPOTESE ou LACUNA.\n'
+    '3. Se a definicao de pronto pede rastreabilidade, o mapa linha -> fonte/trecho/versao vai completo no summary.\n'
+    '4. Todo responsavel ou revisor aparece com nome e codigo AGT.\n'
+    '5. Material ao Fundador sem JOB-HR, MEM-HR, storage ou versoes internas.\n'
+    '6. Nada generico: sem "a definir", "conforme necessario" ou linhas vagas; cada linha especifica.\n'
+    '7. Entregue o que foi pedido (pecas, tabela, texto), nunca um plano no lugar da entrega.\n'
+    '8. Arte: abra cada arquivo com a ferramenta de visao e confirme logo oficial unico e legivel no celular.\n'
+    'Corrija o que faltar e submeta uma vez; nao reescreva em laco.\n'
+)
+
+
 def execution_timeout(profile, model, correction_model):
     if profile == 'maya--biz003':
         return 900  # Existing bounded image-generation allowance.

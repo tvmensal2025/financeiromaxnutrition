@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from execution_policy import execution_timeout, coordination_blocker, toolsets_for, native_tools_note, _ROLE_TOOLSETS
+from execution_policy import execution_timeout, coordination_blocker, toolsets_for, native_tools_note, _ROLE_TOOLSETS, complexity_tier, SELF_REVIEW_CHECKLIST
 
 
 class ExecutionPolicyTests(unittest.TestCase):
@@ -54,6 +54,19 @@ class NativeToolNoteTests(unittest.TestCase):
         caio = native_tools_note('caio--biz003')
         self.assertNotIn('web_search', caio)
         self.assertIn('skills_list', caio)
+
+
+
+class ComplexityAndSelfReviewTests(unittest.TestCase):
+    def test_analytic_roles_and_long_briefs_start_on_moderate(self):
+        self.assertEqual(complexity_tier('AGT-04', 'x', 'y'), 'MODERATE')
+        self.assertEqual(complexity_tier('AGT-18', 'x' * 100, 'y' * 1300), 'MODERATE')
+        self.assertEqual(complexity_tier('AGT-18', 'x' * 5200, 'y'), 'MODERATE')
+        self.assertEqual(complexity_tier('AGT-17', 'x' * 3000, 'y' * 600), 'SIMPLE')
+
+    def test_checklist_covers_real_rejection_causes_and_forbids_loops(self):
+        for needle in ('definicao de pronto', 'HIPOTESE', 'summary', 'codigo AGT', 'JOB-HR', 'a definir', 'plano no lugar', 'visao', 'nao reescreva em laco'):
+            self.assertIn(needle, SELF_REVIEW_CHECKLIST)
 
 
 if __name__ == '__main__':

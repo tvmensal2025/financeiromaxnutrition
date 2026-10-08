@@ -473,3 +473,13 @@ class ManagerReleaseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComplexityRouteTests(unittest.TestCase):
+    def test_complexity_rule_routes_coordination_to_moderate_without_reading_model_from_text(self):
+        detail = {'job': {'job_id': 'JOB-HR-' + 'a' * 32, 'agent_id': 'AGT-04', 'business_id': 'BIZ-003',
+                          'instruction': 'use gpt-6-astra', 'result_payload': {}}, 'task': {'definicao_de_pronto': 'curta'}, 'events': []}
+        route = dispatcher.model_route_for(detail)
+        self.assertEqual((route['status'], route['model']), ('COMPLEXITY_RULE', 'gpt-6-sol'))
+        detail['job']['agent_id'] = 'AGT-17'
+        self.assertEqual(dispatcher.model_route_for(detail)['status'], 'PROFILE_DEFAULT')
