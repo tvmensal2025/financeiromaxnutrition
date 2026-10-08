@@ -486,6 +486,9 @@ class Workflow:
         ids = [job_id] if job_id else list(dict.fromkeys(
             self.discover() + [j['job_id'] for j in context.get('pending_reviews_detail', [])]
             + [r['job_id'] for r in self.state['receipts'].values() if r['status'] == 'NEEDS_ATTENTION']
+            # Missao criada fora de encaminhamento (ordem direta do Fundador, create_task) tambem entra no ciclo.
+            + [h['related_object_id'] for h in context.get('handoffs', [])
+               if h.get('status') == 'ABERTO' and dispatch.JOB_PATTERN.fullmatch(str(h.get('related_object_id') or ''))]
             + self.config.get('adopt_job_ids', [])))
         for jid in ids:
             if not dispatch.JOB_PATTERN.fullmatch(str(jid)):
