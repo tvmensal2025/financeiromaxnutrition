@@ -119,12 +119,12 @@ def execution_packet(detail, phase='EXECUTE'):
         packet['submission_summary'] = job.get('result_summary')
         packet['review_contract'] = detail.get('review_contract')
     encoded = json.dumps(packet, ensure_ascii=False, separators=(',', ':'))
-    if len(encoded) > 120000:
+    if len(encoded) > 200000:
         compact = compact_exact_values(packet)
         compact_encoded = json.dumps(compact, ensure_ascii=False, separators=(',', ':'))
         if len(compact_encoded) < len(encoded):
             encoded = compact_encoded
-    if len(encoded) > 120000:
+    if len(encoded) > 200000:
         raise ValueError('Task packet too large; reduce duplicated inputs before inference')
     return encoded
 

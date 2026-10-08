@@ -91,19 +91,19 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(json.loads(execution_packet(self.detail(), 'REPLAN'))['replan'], {'replan_count': 0})
 
     def test_large_packet_is_refused_instead_of_silently_truncated(self):
-        d=self.detail();d['job']['instruction']='x'*121000
+        d=self.detail();d['job']['instruction']='x'*201000
         with self.assertRaises(ValueError):execution_packet(d)
 
     def test_large_repeated_context_is_compacted_losslessly(self):
         d = self.detail()
-        repeated = 'Copy literal com acentos e condições. ' * 1700
+        repeated = 'Copy literal com acentos e condições. ' * 3000
         d['job']['instruction'] = repeated
         d['company_identity'] = {'approved_copy': repeated}
         packet = json.loads(execution_packet(d, 'HANDOFF'))
         self.assertEqual(packet['job']['instruction'], repeated)
         self.assertEqual(packet['company_identity']['approved_copy'], {'$ref':'#/job/instruction'})
         self.assertEqual(packet['exact_references']['/company_identity/approved_copy'], '/job/instruction')
-        self.assertFalse(len(json.dumps(packet, ensure_ascii=False)) > 120000)
+        self.assertFalse(len(json.dumps(packet, ensure_ascii=False)) > 200000)
         self.assertIs(packet['truncated'], False)
 
     def test_exact_reference_roundtrip_nested_values_and_pointer_escaping(self):
