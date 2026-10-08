@@ -127,7 +127,17 @@ def phase_for(detail):
 
 
 REPLAN_FAILED_SINCE = '2026-10-07T14:00:00'  # mesma data de corte de gateway_workflow_phase
-HANDOFF_RULE_VERSION = 'handoff-fecha-ou-pergunta-20261008'
+HANDOFF_RULE_VERSION = 'handoff-equipe-20261008'
+# Diretorio da equipe para target_agent_id (Helena tentou "Pedro" literal e foi recusada, 08/10).
+TEAM_NOTE = (
+    "\nEQUIPE (use o codigo em target_agent_id; todos atendem as empresas listadas em served_business_ids): "
+    "AGT-03 Augusto (Estrategia Corporativa); AGT-04 Marina (Execucao e PMO); AGT-05 Caio (Financas / CFO); "
+    "AGT-06 Clara (Risco, Juridico e Compliance); AGT-07 Bianca (Pessoas e Cultura); AGT-08 Daniel (Dados e BI); "
+    "AGT-09 Theo (Tecnologia e IA); AGT-10 Nina (Produto); AGT-11 Ravi (Pesquisa e Insights); "
+    "AGT-12 Maya (Design / UX / UI); AGT-13 Bruno (Qualidade / QA); AGT-14 Olivia (Operacoes); AGT-15 Victor (Vendas); "
+    "AGT-16 Camila (Marketing e Growth); AGT-17 Isabela (Marca, Conteudo e Copy); "
+    "AGT-18 Pedro (Parcerias e Desenvolvimento de Negocios); AGT-19 Renata (Customer Success); "
+    "AGT-20 Joana (Atendimento); AGT-21 Felipe (Administracao).\n")
 
 
 def exhausted(j):
@@ -573,6 +583,8 @@ class Workflow:
         if fingerprint(actor_detail, phase) != key:
             return {'status':'STATE_CHANGED', 'job_id':jid, 'model_started':False}
         prompt = make_prompt(phase, actor_detail, key) + packet_prompt(actor_detail, phase) + native_tools_note(profile)
+        if phase in ('HANDOFF', 'COORDINATE', 'RESOLVE', 'REPLAN'):
+            prompt += TEAM_NOTE
         if phase in ('COORDINATE', 'RESOLVE'):
             readiness = self.executor_readiness(actor_detail)
             prompt += '\nPREFLIGHT DO EXECUTOR FEITO PELO CONTROLADOR, SEM IA: ' + json.dumps(readiness)
