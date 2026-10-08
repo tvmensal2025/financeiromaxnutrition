@@ -457,7 +457,7 @@ class WorkflowDeadlineTests(unittest.TestCase):
              patch.object(wf.subprocess, 'Popen') as spawn:
             spawn.return_value.wait.return_value = 0
             self.assertEqual(wf.run_query('hermes', 'helena--grupo', Path('.'), 'test', 'test'), 0)
-            spawn.return_value.wait.assert_called_once_with(timeout=480)
+            spawn.return_value.wait.assert_called_once_with(timeout=570)
             self.assertLess(wf.WORKFLOW_TIMEOUT_SECONDS, 600)
 
     def test_deadline_stops_process_and_reports_uncertain_result(self):

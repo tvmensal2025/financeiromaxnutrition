@@ -91,6 +91,7 @@ def execution_packet(detail, phase='EXECUTE'):
         'review': pick(result, ('reviewer_agent_id', 'reviewed_by', 'review_reason', 'review_pending')),
         'runtime_binding': detail.get('runtime_binding'),
         'company_identity': detail.get('company_identity'),
+        'founder_decisions': detail.get('founder_decisions', []),  # decisoes vigentes do Fundador; a mais recente define a prioridade
         'agent_quality_contract': detail.get('agent_quality_contract'),
         'evidence_records': list(records.values()),
         'revision_evidence_records': revision_records,

@@ -501,6 +501,11 @@ async function handleGetJob({ job_id, ...readOptions }) {
     quality_version: QUALITY_VERSION,
     agent_quality_contract: agentQualityContract(job.agent_id),
     company_identity: (await supabaseFetch(`/rest/v1/portfolio?business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`)).map(company => ({ business_id: company.business_id, row_version: company.row_version, brand_identity: company.brand_identity || null }))[0] || null,
+    // Decisoes vigentes do Fundador chegam a todo agente (antes so via briefing copiado, 08/10).
+    // Leitura auxiliar: falha nao bloqueia o job (lista vazia).
+    founder_decisions: await supabaseFetch(`/rest/v1/decisoes?business_id=eq.${encodeURIComponent(job.business_id)}&status=eq.VIGENTE&order=data_hora.desc&limit=8&select=decision_id,data_hora,tipo,decisao,observacoes`)
+      .then(rows => (Array.isArray(rows) ? rows : []).map(d => ({ decision_id: d.decision_id, data_hora: d.data_hora, tipo: d.tipo, decisao: String(d.decisao || '').slice(0, 1500), observacoes: d.observacoes ? String(d.observacoes).slice(0, 1200) : null })))
+      .catch(() => []),
     task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
     runtime_binding: runtimeBinding || null,
     connection: runtimeBinding ? {
