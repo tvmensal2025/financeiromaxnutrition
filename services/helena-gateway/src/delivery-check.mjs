@@ -1,4 +1,4 @@
-import { professionalDeliverySchema } from './professional-output.mjs';
+import { workDeliverySchema } from './work-submission.mjs';
 
 // Autoconferencia deterministica antes de submit_work (Fundador, 2026-10-08).
 // Barra o que e mecanico nas devolucoes reais: esquema, IDs internos, texto vago,
@@ -18,7 +18,8 @@ function dodItems(definitionOfDone) {
 export function checkDelivery({ delivery, summary = '', definitionOfDone = '' } = {}) {
   const errors = [];
   const warnings = [];
-  const parsed = professionalDeliverySchema.safeParse(delivery);
+  // Mesmo esquema do submit_work: conteudo ate 8000 e checagens sem evidence_ref (o Gateway cria a referencia).
+  const parsed = workDeliverySchema.safeParse(delivery);
   if (!parsed.success) {
     for (const issue of parsed.error.issues.slice(0, 6)) {
       errors.push({ code: 'SCHEMA', field: issue.path.join('.') || 'delivery', message: issue.message });
