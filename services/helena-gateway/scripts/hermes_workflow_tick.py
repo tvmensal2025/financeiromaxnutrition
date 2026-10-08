@@ -127,7 +127,7 @@ def phase_for(detail):
 
 
 REPLAN_FAILED_SINCE = '2026-10-07T14:00:00'  # mesma data de corte de gateway_workflow_phase
-HANDOFF_RULE_VERSION = 'handoff-equipe-20261008'
+HANDOFF_RULE_VERSION = 'handoff-mesmo-agente-20261008'
 # Diretorio da equipe para target_agent_id (Helena tentou "Pedro" literal e foi recusada, 08/10).
 TEAM_NOTE = (
     "\nEQUIPE (use o codigo em target_agent_id; todos atendem as empresas listadas em served_business_ids): "
