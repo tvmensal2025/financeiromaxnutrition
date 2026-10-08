@@ -61,11 +61,12 @@ SELF_REVIEW_CHECKLIST = (
     '1. Liste cada item da definicao de pronto e aponte onde foi atendido; cada item principal vira um acceptance_check.\n'
     '2. Toda afirmacao de fato tem fonte (URL e data, ou entrega aprovada); sem fonte, marque HIPOTESE ou LACUNA.\n'
     '3. Se a definicao de pronto pede rastreabilidade, o mapa linha -> fonte/trecho/versao vai completo no summary.\n'
-    '4. Todo responsavel ou revisor aparece com nome e codigo AGT.\n'
+    '4. Responsaveis: siga a definicao de pronto (nome e funcao; codigo AGT so se ela pedir; se ela proibir codigos, nao use).\n'
     '5. Material ao Fundador sem JOB-HR, MEM-HR, storage ou versoes internas.\n'
     '6. Nada generico: sem "a definir", "conforme necessario" ou linhas vagas; cada linha especifica.\n'
     '7. Entregue o que foi pedido (pecas, tabela, texto), nunca um plano no lugar da entrega.\n'
     '8. Arte: abra cada arquivo com a ferramenta de visao e confirme logo oficial unico e legivel no celular.\n'
+    'Se a definicao de pronto divergir deste checklist, a definicao de pronto prevalece.\n'
     'Corrija o que faltar e submeta uma vez; nao reescreva em laco.\n'
 )
 

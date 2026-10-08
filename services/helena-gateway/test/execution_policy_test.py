@@ -65,7 +65,7 @@ class ComplexityAndSelfReviewTests(unittest.TestCase):
         self.assertEqual(complexity_tier('AGT-17', 'x' * 3000, 'y' * 600), 'SIMPLE')
 
     def test_checklist_covers_real_rejection_causes_and_forbids_loops(self):
-        for needle in ('definicao de pronto', 'HIPOTESE', 'summary', 'codigo AGT', 'JOB-HR', 'a definir', 'plano no lugar', 'visao', 'nao reescreva em laco'):
+        for needle in ('definicao de pronto', 'HIPOTESE', 'summary', 'JOB-HR', 'a definir', 'plano no lugar', 'visao', 'nao reescreva em laco'):
             self.assertIn(needle, SELF_REVIEW_CHECKLIST)
 
 

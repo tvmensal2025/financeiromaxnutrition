@@ -196,6 +196,11 @@ def make_prompt(phase, detail, key):
         "Somente altere esta tarefa ou a proxima etapa diretamente autorizada por seu briefing. "
     )
     base += AUTONOMY_RULE
+    base += (" Ao escrever definicao de pronto ou revisar: descreva e avalie o CONTEUDO pedido (fatos, fontes, "
+             "comparacoes, pecas). Nao exija contagem de caracteres por campo, logs de ferramenta, preflight ou "
+             "medicao de payload: o check_delivery e o Gateway ja garantem formato e tamanho, e o resultado "
+             "READY_TO_SUBMIT basta. Nao devolva por esses itens de processo. Seja coerente entre o que pede e o que "
+             "cobra (ex.: se pedir sem codigos, nao exija AGT; se pedir AGT, nao chame de codigo proibido).")
     if phase == 'REVIEW':
         return base + (
             "Voce e o revisor independente registrado. Escopo desta chamada: somente esta entrega. "
