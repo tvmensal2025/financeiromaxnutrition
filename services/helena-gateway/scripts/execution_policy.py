@@ -58,14 +58,14 @@ def complexity_tier(agent_id, instruction, definition_of_done):
 SELF_REVIEW_CHECKLIST = (
     '\n'
     'AUTOCONFERENCIA OBRIGATORIA, UMA VEZ, ANTES DE submit_work (motivos reais de devolucao):\n'
-    '1. Liste cada item da definicao de pronto e aponte onde foi atendido; cada item principal vira um acceptance_check.\n'
+    '1. Liste cada item da definicao de pronto e aponte onde foi atendido; agrupe em ate 8 acceptance_checks.\n'
     '2. Toda afirmacao de fato tem fonte (URL e data, ou entrega aprovada); sem fonte, marque HIPOTESE ou LACUNA.\n'
     '3. Se a definicao de pronto pede rastreabilidade, o mapa linha -> fonte/trecho/versao vai completo no summary.\n'
     '4. Responsaveis: siga a definicao de pronto (nome e funcao; codigo AGT so se ela pedir; se ela proibir codigos, nao use).\n'
     '5. Material ao Fundador sem JOB-HR, MEM-HR, storage ou versoes internas.\n'
     '6. Nada generico: sem "a definir", "conforme necessario" ou linhas vagas; cada linha especifica.\n'
     '7. Entregue o que foi pedido (pecas, tabela, texto), nunca um plano no lugar da entrega.\n'
-    '8. Arte: abra cada arquivo com a ferramenta de visao e confirme logo oficial unico e legivel no celular.\n'
+    '8. Arte: abra cada arquivo do job com get_visual_asset e confirme logo oficial unico e legivel no celular.\n'
     'Se a definicao de pronto divergir deste checklist, a definicao de pronto prevalece.\n'
     'Corrija o que faltar e submeta uma vez; nao reescreva em laco.\n'
 )

@@ -20,8 +20,8 @@ import urllib.error
 import urllib.request
 from hermes_execution_context import packet_prompt, team_context_prompt
 from execution_policy import execution_timeout, toolsets_for, native_tools_note, complexity_tier, SELF_REVIEW_CHECKLIST
-from autonomy_protocol import RULE, EVOLUTION_RULE
-AUTONOMY_RULE = RULE + EVOLUTION_RULE
+from autonomy_protocol import RULE, EVOLUTION_RULE, EXECUTION_RULE
+AUTONOMY_RULE = EXECUTION_RULE + EVOLUTION_RULE  # execucao: sem regras de escrita de briefing
 
 try:
     import fcntl
@@ -359,28 +359,25 @@ def run_profile(binary: str, profile: str, job_id: str, timeout: int, profile_to
         "e descreva a falha objetiva. Nao confunda o pacote da tarefa com o cadastro de contexto. "
         + ("Para GENERATED_IMAGE use helena_visual.generate_design com job_id, slot, version e design_note detalhado da peca: copy exata aprovada, personagem, cena, composicao, fontes, cores e CTA. O adaptador gera imagem nativa, aplica o logo aprovado e envia PNG privado. Para ORIGINAL_ILLUSTRATION use create_artifact_upload com svg vetorial completo. Nao troque o metodo do briefing. Abra cada resultado com get_visual_asset e confira os pixels antes de entregar. Uma falha de geracao nao autoriza tentar outra versao: registre o bloqueio. " if profile == "maya--biz003" else "")
         +
-        "Registre marcos reais em record_progress. Para entregar use submit_work em uma chamada com source, summary, "
-        "job_id, idempotency_key estavel e expected_task_version atual. O Gateway registra memoria e vincula evidencias. "
-        "incluindo delivery: schema_version=1, title, content utilizavel sem dados internos, next_steps, limitations "
-        "Respeite os limites antes de submit_work: delivery.content de 40 a 8000 caracteres, "
-        "Nesta execucao voce entrega com submit_work; nao cria nem encaminha missoes. O limite de tamanho da entrega e "
-        "o do delivery.content acima (nao existe teto de 7000 de briefing para a entrega). Escreva a entrega uma vez, "
-        "confira contra a definicao de pronto e submeta; nao gaste o tempo reescrevendo para encolher. "
-        "acceptance_checks de 1 a 8 itens; agrupe verificacoes relacionadas. Cada criterion tem 15 a 300 "
-        "caracteres e cada finding 30 a 1200. Use o esquema descrito pela ferramenta, sem campos extras. "
-        "e acceptance_checks (criterion e finding concreto, sem inventar evidence_ref). Arte inclui artifact_refs retornados pela verificacao. A aprovacao independente "
-        "exige quality_review comparando todas as evidencias e criterios ao pedido completo. "
-        "separando resumo interno de material publico. Para artes, envie publication com title, caption pronta, "
+        "Registre marcos reais em record_progress. Nesta execucao voce entrega com submit_work, uma vez, com "
+        "job_id, source, summary, idempotency_key estavel, expected_task_version atual e delivery: schema_version=1, "
+        "title, content utilizavel sem dados internos (40 a 8000 caracteres), next_steps, limitations e "
+        "acceptance_checks (1 a 8, agrupando itens relacionados; criterion 15-300 e finding 30-1200; sem evidence_ref, "
+        "o Gateway cria a referencia). O summary interno tem ate 8000 caracteres e guarda fontes e rastreabilidade. "
+        "Nao existe teto de 7000 de briefing para a entrega; nao reescreva para encolher. Arte inclui artifact_refs "
+        "retornados pela verificacao. Um revisor independente avalia depois. "
+        "Para artes, envie publication com title, caption pronta, "
         "strategy, instructions e alt_text. Leia direcao-arte: empresa, publico, fontes, personagem/produto, "
         "cena, enquadramento, tipografia, cores, copy exata e CTA. Nunca entregue apenas molduras. "
         "Se o briefing exige foto ou imagem gerada e a ferramenta nao estiver disponivel, registre "
         "bloqueio especifico; nao substitua por layout vazio nem declare qualidade visual sem ver o PNG. "
         "usando a row_version atual e evidencia. Se impedido, use waiting_helena ou fail_job. "
-        "Nao use complete_job, SQL direto, Terminal, web ou mensagens externas. "
-        + ("Como coordenadora, organize e persista etapas especializadas com create_task_job em DRAFT, "
-           "reutilizando as existentes. Sua entrega e o plano executavel com IDs, dependencias, briefing completo, "
-           "executor e revisor; nao finja produzir as artes de Maya. Submeta seu plano com evidencias para revisao. "
-           "Nao libere filhos enquanto este job ocupar o WIP. Depois da revisao, a coordenacao libera a proxima etapa. "
+        "Nao use complete_job, SQL direto, Terminal, navegador interativo ou mensagens externas "
+        "(pesquisa com web_search/web_extract e permitida quando sua funcao a tiver). "
+        + ("Como coordenadora, sua entrega e o documento pedido (plano, comparacao ou consolidacao) com responsaveis "
+           "por nome e funcao, dependencias e proximos passos; IDs tecnicos ficam no summary. Nesta execucao voce nao "
+           "cria nem libera etapas: depois da revisao, a coordenacao faz isso no fluxo de encaminhamento. "
+           "Nao finja produzir as artes de Maya. "
            if profile.startswith('marina--') or profile == 'helena--grupo' else
            "Execute sua etapa. Apos aprovacao, a coordenacao Helena/Marina faz handoff_task conforme briefing; "
            "especialistas nao chamam handoff_task. Informe proximo responsavel e insumos; nao crie agentes paralelos. ")

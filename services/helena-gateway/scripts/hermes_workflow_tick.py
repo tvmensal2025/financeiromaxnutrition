@@ -206,7 +206,7 @@ def make_prompt(phase, detail, key):
             "Voce e o revisor independente registrado. Escopo desta chamada: somente esta entrega. "
             "Leia briefing, definicao de pronto e a evidencia propria disponibilizada em get_job. "
             "Se uma falha impeditiva ja estiver comprovada (ex.: plano no lugar das pecas exigidas, "
-            "ou responsaveis/IDs ausentes), registre REQUEST_CHANGES imediatamente com a prova e "
+            "ou responsaveis ausentes), registre REQUEST_CHANGES imediatamente com a prova e "
             "correcao objetiva. Nao investigue outros jobs para adiar uma devolucao ja fundamentada. "
             "Para APPROVE, sim, confira TODAS as evidencias e acceptance_checks desta entrega. "
             "Reserve pelo menos quatro chamadas para descrever review_delivery, registrar e confirmar "
@@ -222,7 +222,8 @@ def make_prompt(phase, detail, key):
             "So aprove apos inspecao real de cada imagem e visual_review; dimensoes, hash ou relato "
             "do executor nao comprovam imagem boa. Falta de acesso visual exige REQUEST_CHANGES. "
             "Plano nao substitui pecas se o pedido exige pecas. Para coordenacao, um plano precisa de "
-            "responsaveis identificados, IDs/dependencias verificaveis e encaminhamento executavel. "
+            "responsaveis identificados por nome e funcao (codigo AGT so se a definicao de pronto pedir), "
+            "dependencias verificaveis e encaminhamento executavel; IDs tecnicos ficam no summary, nunca no conteudo. "
             "Se faltar algo, review_delivery REQUEST_CHANGES com lista concreta de correcoes e fontes. "
             "Nao crie nem libere tarefas nesta fase. Termine apos confirmar a decisao."
         )
@@ -266,7 +267,7 @@ def make_prompt(phase, detail, key):
             "tipografia, enquadramento, copy exata, CTA, margens, versao da marca e formatos. "
             "Nao envie design sem copy aprovada, nem transforme foto solicitada em moldura SVG. "
             "Se etapa final ou dependencias nao comprovadas, nao invente sucessor: informe conclusao "
-            "ou impedimento especifico. Nao libere job; a coordenacao cuida disso. "
+            "ou impedimento especifico. Nao libere o novo job nesta fase; a liberacao acontece na fase COORDINATE seguinte. "
             "Se a entrega aprovada e um plano que ja indica a proxima etapa (candidata) com responsavel e os "
             "insumos dela existem (entregas aprovadas, identidade atual), selecione essa etapa e use handoff_task: "
             "WIP, capacidade e liberacao sao controlados pelo despachante e nao impedem criar a etapa em DRAFT. "
@@ -288,7 +289,8 @@ def make_prompt(phase, detail, key):
         "pode ser persistida sem liberar o job, ainda que a capacidade visual esteja pendente. Preserve "
         "exigencias de qualidade e escopo. Distinga entregavel desta funcao do objetivo final da campanha, "
         "sem fingir que plano de coordenacao equivale a artes prontas; preserve todos os entregaveis "
-        "finais nas dependencias explicitas. Nao reinicie tarefa com attempt_count >= max_attempts. "
+        "finais nas dependencias explicitas. Nao reabra nem aumente tentativas de job esgotado: a continuidade e a "
+        "substituta criada por replan_job na fase REPLAN. "
         "Se insumos, briefing completo, ferramentas e escopo estiverem confirmados, use release_job "
         "uma vez. Missao substituta (result_payload.replan_of) e execucao nova: o TIMEOUT ou a falha da anterior "
         "ja foram tratados pelo replanejamento e pelo runtime (tempo de texto 900 s desde 07/10; queda de "
@@ -304,7 +306,7 @@ def make_prompt(phase, detail, key):
         "confira-a e avance para release_job se pronta. Nao reescreva o briefing para repetir o mesmo parecer "
         "ou registrar a mesma pendencia. Se falta evidencia, capacidade, dado do fundador ou limite de tentativa, NAO libere: "
         "informe exatamente o bloqueio e proximo responsavel. Nao reabra trabalhos concluidos nem "
-        "aprove arte antiga por heranca de status. Nao crie tarefas substitutas para contornar limites."
+        "aprove arte antiga por heranca de status. Substituta so pelo replan_job, nunca por create_task para contornar limites."
     )
 
 
