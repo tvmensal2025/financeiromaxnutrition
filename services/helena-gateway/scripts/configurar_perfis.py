@@ -30,6 +30,12 @@ HERMES_SERIAL_TOOLS = False
 def profile_tools(profile):
     if profile == 'laura--pessoal':
         return ['get_work_context']
+    return _base_profile_tools(profile) + ['check_delivery']
+
+
+def _base_profile_tools(profile):
+    if profile == 'laura--pessoal':
+        return ['get_work_context']
     if profile == 'marina--biz003':
         return COORDINATOR_TOOLS + ['record_dispatch']
     if profile == 'helena--grupo':
@@ -104,6 +110,7 @@ def prepare(home):
                   'timeout': 30, 'connect_timeout': 15, 'enabled': True,
                   'tools': {'include': included_tools, 'prompts': False}}
         servers = config.setdefault('mcp_servers', {})
+        prior_without_check = [name for name in included_tools if name != 'check_delivery']
         if 'helena_operacao' in servers and servers['helena_operacao'] != server:
             # Accept only the known prior filters; never replace unrelated settings.
             prior_filters = [TOOLS, TOOLS + ['adopt_existing_task']] if profile in ('helena--grupo', 'marina--biz003') else []
@@ -126,6 +133,7 @@ def prepare(home):
                 prior_filters.append(COORDINATOR_TOOLS[:-3] + ['record_dispatch'])
                 prior_filters.append(COORDINATOR_TOOLS[:-4] + ['record_dispatch'])
                 prior_filters.append(TOOLS + ['resolve_job_block', 'record_dispatch'])
+            prior_filters.append(prior_without_check)  # antes da autoconferencia
             expected_previous = [{**server, 'tools': {**server['tools'], 'include': prior}} for prior in prior_filters]
             if servers['helena_operacao'] not in expected_previous:
                 raise ValueError('Conector existente diferente; comparar antes de gravar: ' + profile)

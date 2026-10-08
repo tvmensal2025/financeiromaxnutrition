@@ -30,6 +30,7 @@ import { jobView, JOB_SECTIONS } from './job-reader.mjs';
 import { kanbanSnapshot } from './kanban-snapshot.mjs';
 import { bindingForBusiness, servedBusinesses, servedByAgent } from './business-scope.mjs';
 import { registrarLancamento, FLUXOS, STATUS } from './finance-ledger.mjs';
+import { checkDelivery } from './delivery-check.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -1122,6 +1123,16 @@ const TOOLS_CONFIG = {
     }).strict(),
     handler: args => kanbanSnapshot(supabaseFetch, args)
   },
+  check_delivery: {
+    description: 'Autoconferencia antes de submit_work, sem gravar: confere esquema, codigos internos, texto vago, rastreabilidade no summary, responsaveis com AGT e checagens versus definicao de pronto do proprio job. Use no maximo 2 vezes por execucao; nao substitui a revisao independente.',
+    schema: z.object({ job_id: z.string().regex(/^JOB-HR-[a-f0-9]{32}$/), summary: z.string().max(8000).optional(), delivery: z.object({}).passthrough() }).strict(),
+    handler: async ({ job_id, summary, delivery }) => {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?select=task_id&job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+      const taskId = Array.isArray(jobs) ? jobs[0]?.task_id : null;
+      const tasks = taskId ? await supabaseFetch(`/rest/v1/tarefas?select=definicao_de_pronto&task_id=eq.${encodeURIComponent(taskId)}&limit=1`) : [];
+      return checkDelivery({ delivery, summary, definitionOfDone: Array.isArray(tasks) ? tasks[0]?.definicao_de_pronto || '' : '' });
+    }
+  },
   registrar_lancamento: {
     description: 'Caio (AGT-05): registra um lancamento em financeiro dentro do proprio job em execucao. Empresa vem do job; conta deve existir e pertencer a empresa; idempotency_key evita repeticao; descricao, valor, conta e data iguais retornam DUPLICATE_SUSPECT sem gravar. Nao cria conta, nao paga e nao transfere dinheiro.',
     schema: z.object({
@@ -1173,6 +1184,7 @@ const mcpInputs = {
   enqueue_job: inputObject({ ...textFields('agent_id objective instruction business_id task_id scheduled_at available_at idempotency_key correlation_id'), priority: { type: 'string', enum: ['CRITICA', 'ALTA', 'MEDIA', 'BAIXA'] }, approval_required: { type: 'boolean' } }, ['agent_id', 'objective']),
   queue_summary: inputObject(textFields('business_id agent_id')),
   kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } }),
+  check_delivery: inputObject({ ...textFields('job_id summary'), delivery: { type: 'object', additionalProperties: true } }, ['job_id', 'delivery']),
   registrar_lancamento: inputObject({ ...textFields('job_id business_id descricao conta_id conta_destino_id vencimento liquidacao competencia categoria plano_conta_id contraparte evidencia idempotency_key nao_e_duplicado_motivo'), fluxo: { type: 'string', enum: FLUXOS }, status: { type: 'string', enum: STATUS }, valor: { type: ['string', 'number'] } }, ['fluxo', 'status', 'descricao', 'valor', 'conta_id', 'evidencia', 'idempotency_key'])
 };
 for (const [name, inputSchema] of Object.entries(mcpInputs)) TOOLS_CONFIG[name].inputSchema = inputSchema;

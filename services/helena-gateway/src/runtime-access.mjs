@@ -28,7 +28,7 @@ export async function resolveHermesToken(token, read, configured = '[]') {
   } catch { return null; } // Database unavailable is never authentication success.
 }
 
-const JOB_TOOLS = new Set(['get_job', 'get_visual_asset', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
+const JOB_TOOLS = new Set(['get_job', 'get_visual_asset', 'check_delivery', 'claim_job', 'start_job', 'record_progress', 'complete_job', 'fail_job', 'waiting_helena', 'record_dispatch']);
 const RECOVERY_TOOLS = new Set(['queue_attention', 'record_queue_attention', 'workflow_candidates', 'workflow_checkpoint']);
 const ARTIFACT_TOOLS = new Set(['create_artifact_upload', 'verify_artifact_upload']);
 const MANAGEMENT = new Set(['AGT-01', 'AGT-04']);
