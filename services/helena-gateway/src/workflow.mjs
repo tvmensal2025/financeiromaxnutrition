@@ -29,7 +29,8 @@ const contracts = {
     revision_summary: text(1200).min(20)
   }, 'Helena ou Marina corrigem o briefing de um rascunho nunca executado (tentativa 0, sem entrega), com versoes conferidas, fontes aprovadas e historico. Apos devolucao use revise_task_brief. Nao libera nem inicia modelo.'],
   record_coordination_note: ['record_coordination_note', { job_id: text(120), idempotency_key: key, note: text(2000).min(20), next_step: text(600),
-    evidence_refs: z.array(text(500)).max(10).optional() }, 'Helena ou Marina: registra conferencia, decisao ou impedimento de coordenacao em missao de qualquer agente da empresa, em qualquer estado. Nao altera status, tentativas nem aprovacao.'],
+    evidence_refs: z.array(text(500)).max(10).optional(), close_handoff: z.boolean().optional(),
+    founder_question: text(1500).min(20).optional() }, 'Helena ou Marina: registra conferencia, decisao ou impedimento de coordenacao em missao de qualquer agente da empresa, em qualquer estado. Nao altera status, tentativas nem aprovacao. Na fase HANDOFF sem proxima etapa, use close_handoff=true para encerrar o encaminhamento; se faltar decisao do Fundador, inclua founder_question objetiva (vira pendencia ABERTA para ele no app).'],
   replan_job: ['replan_job', { ...job, ...version, reason: text(4000).min(40), mode: z.enum(['REPLACE', 'ESCALATE']),
     target_agent_id: text(80).optional(), objective: text(BRIEF_LIMITS.objective.max).optional(),
     definition_of_done: text(BRIEF_LIMITS.definition_of_done.max).optional(), instruction: text(BRIEF_LIMITS.instruction.max).optional(),

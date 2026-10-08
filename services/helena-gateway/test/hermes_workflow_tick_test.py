@@ -506,7 +506,17 @@ class HandoffPromptTests(unittest.TestCase):
         prompt = wf.make_prompt('HANDOFF', d, 'a' * 64)
         self.assertIn('nao impedem criar a etapa em DRAFT', prompt)
         self.assertIn('Nao use record_progress neste job', prompt)
-        self.assertIn('So deixe de encaminhar quando faltar decisao', prompt)
+        self.assertIn('close_handoff=true', prompt)
+        self.assertIn('NAO precisam de autorizacao do Fundador', prompt)
+
+    def test_handoff_closed_leaves_cycle_and_rule_version_changes_fingerprint(self):
+        d = detail()
+        approve(d)
+        before = wf.fingerprint(d, 'HANDOFF')
+        self.assertNotEqual(before, wf.fingerprint(d, 'REVIEW'))
+        d['events'].insert(0, {'event_type': 'HANDOFF_CLOSED'})
+        self.assertEqual(wf.next_phase('HANDOFF', {}, d), 'DELIVERED')
+        self.assertIsNone(wf.phase_for(d))
 
 
 

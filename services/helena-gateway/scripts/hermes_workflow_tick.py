@@ -77,6 +77,9 @@ def atomic_json(path, value):
 def fingerprint(detail, phase):
     j = detail['job']
     data = [phase, j['job_id'], j.get('updated_at'), detail['task']['row_version'], j.get('result_payload')]
+    if phase == 'HANDOFF':
+        # Nova regra de encaminhamento: um encaminhamento parado em silencio na regra anterior roda uma vez.
+        data.append(HANDOFF_RULE_VERSION)
     return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -124,6 +127,7 @@ def phase_for(detail):
 
 
 REPLAN_FAILED_SINCE = '2026-10-07T14:00:00'  # mesma data de corte de gateway_workflow_phase
+HANDOFF_RULE_VERSION = 'handoff-fecha-ou-pergunta-20261008'
 
 
 def exhausted(j):
@@ -156,6 +160,8 @@ def next_phase(phase, before, after):
                 child = (e.get('payload') or {}).get('response', {}).get('job_id')
                 if child and dispatch.JOB_PATTERN.fullmatch(child):
                     return 'RELEASE:' + child
+        if any(e.get('event_type') == 'HANDOFF_CLOSED' for e in after.get('events', [])):
+            return 'DELIVERED'  # Encerrado sem sucessora ou com pergunta ABERTA ao Fundador no app.
     if phase == 'RESOLVE' and j.get('status') == 'DRAFT':
         return 'COORDINATE'
     if phase == 'REPLAN':
@@ -271,10 +277,17 @@ def make_prompt(phase, detail, key):
             "Se a entrega aprovada e um plano que ja indica a proxima etapa (candidata) com responsavel e os "
             "insumos dela existem (entregas aprovadas, identidade atual), selecione essa etapa e use handoff_task: "
             "WIP, capacidade e liberacao sao controlados pelo despachante e nao impedem criar a etapa em DRAFT. "
-            "So deixe de encaminhar quando faltar decisao, dado ou autorizacao do Fundador. "
+            "Trabalhe como funcionaria que move a missao: pesquisa documental publica, analise, calculo, comparacao, "
+            "rascunho interno e revisao juridica/de risco NAO precisam de autorizacao do Fundador; ja estao dentro do "
+            "pedido. Autorizacao so para cadastro, contato externo, gasto, assinatura, compromisso ou publicacao. "
+            "Antes de perguntar, confira as decisoes vigentes do pacote (DEC): nao pergunte o que ja foi decidido. "
+            "Se houver etapa interna util (numeros com Caio, riscos/termos com Clara, comercial com Pedro), "
+            "encaminhe-a com handoff_task mesmo que outra parte dependa do Fundador. "
             "Nao use record_progress neste job: ele pertence ao especialista e so aceita progresso do executor em "
-            "RUNNING. Para registrar conferencia, decisao ou impedimento da coordenacao use record_coordination_note "
-            "(chave wf com sufixo ':nota'); ela nao altera status nem aprovacao."
+            "RUNNING. Esta fase SEMPRE termina com uma de duas acoes confirmadas: (a) handoff_task; ou (b) "
+            "record_coordination_note (chave wf com sufixo ':fecha') com close_handoff=true, quando a missao "
+            "terminou ou so resta decisao do Fundador; nesse caso inclua founder_question objetiva, com opcoes, "
+            "que vira pendencia ABERTA para ele no app. Nota sem close_handoff deixa a esteira parada."
         )
     return base + (
         "Voce e Helena, coordenadora. Esta fase trata decisao/ajustes/liberacao, sem produzir pecas "
