@@ -265,8 +265,11 @@ def process_diagnostic(text):
     """Return only a stable category, never raw process output or credentials."""
     text = str(text).lower()
     categories = (
-        ('RATE_LIMIT', ('429', 'rate limit', 'usage limit', 'quota exceeded')),
-        ('AUTHENTICATION', ('401', 'unauthorized', 'authentication failed')),
+        # Causas de conteudo antes de rede: numeros soltos no log (ex.: "in=104012") nao sao HTTP 401.
+        ('DELIVERY_TOO_LONG', ('(maxlength)',)),
+        ('MAX_TURNS', ('max_iterations_reached', 'max turns reached')),
+        ('RATE_LIMIT', ('http 429', 'status 429', 'error code: 429', 'rate limit', 'usage limit', 'quota exceeded')),
+        ('AUTHENTICATION', ('http 401', 'status 401', 'error code: 401', '401 unauthorized', 'unauthorized', 'authentication failed')),
         ('CLI_CONFIGURATION', ('unrecognized arguments', 'unknown toolset', 'invalid choice')),
         ('RUNTIME_IMPORT', ('modulenotfounderror', 'importerror')),
         ('RUNTIME_SYNTAX', ('syntaxerror', 'indentationerror')),
