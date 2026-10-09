@@ -1,0 +1,37 @@
+# Meta do Fundador (08/10/2026): em 7 dias, plano para recrutar as primeiras 10 pessoas na Mimix e no Hub.
+# Base: DEC-024 (modelo), DEC-025 (receita por indicacao/equipe; participante ~US$5/h; parte da empresa ~US$0,50/h, varia por plataforma).
+id: recrutar-10-pessoas
+empresa: BIZ-003
+prazo_dias: 7
+cota_pesquisa: 2          # no maximo 2 dossies nesta meta; acima disso a Helena pede ao Fundador
+entradas_aprovadas: [D1-ravi-mimix-hub, D3-ravi-indicacao-equipe, B2-marina-condicoes]
+etapas:
+  - id: E1
+    responsavel: AGT-05   # Caio
+    entrega: calculo
+    objetivo: Conta da receita com 10 pessoas (horas/semana x US$0,50), tres cenarios, e quanto cada participante ganha (US$5/h).
+    depende_de: []
+  - id: E2
+    responsavel: AGT-17   # Isabela
+    entrega: roteiro_treinamento
+    objetivo: Como gravar atividades do dia a dia com qualidade e privacidade, para nao ser reprovado.
+    depende_de: []
+  - id: E3
+    responsavel: AGT-17   # Isabela
+    entrega: copy
+    objetivo: Convite para as primeiras 10 pessoas (WhatsApp e redes), sem promessa de renda.
+    depende_de: [E1]
+  - id: E4
+    responsavel: AGT-06   # Clara
+    entrega: parecer
+    objetivo: O convite e o roteiro podem ser usados? Riscos de imagem, voz, terceiros e LGPD, com ajustes.
+    depende_de: [E2, E3]
+  - id: E5
+    responsavel: AGT-01   # Helena
+    entrega: relatorio_final
+    objetivo: Plano dos 7 dias para o Fundador, com o passo a passo de cadastro e convite e o checklist do que so ele faz.
+    depende_de: [E1, E2, E3, E4]
+acoes_do_fundador:   # o motor nunca executa; aparecem no relatorio como checklist
+  - Cadastrar a empresa na Mimix e no Hub e configurar a divisao/indicacao.
+  - Enviar os convites aprovados.
+  - Acompanhar as primeiras horas aprovadas.

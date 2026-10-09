@@ -1,0 +1,64 @@
+# Modelos tipados de entrega. Limites em caracteres do conteudo legivel (summary interno a parte, ate 8000).
+# "aprovacao" = roteiro objetivo do revisor: cada item e verificavel no texto, sem exigir processo.
+
+dossie:
+  descricao: Fatos verificaveis sobre UMA entidade (plataforma, empresa, lei).
+  limite: 7000
+  divide_por: entidade
+  secoes: [resumo_executivo, fatos_com_fonte, lacunas, riscos, perguntas_para_o_cadastro]
+  aprovacao:
+    - Cada fato central tem link, data de consulta e trecho literal.
+    - Fato, interpretacao e lacuna estao separados.
+    - Nenhuma promessa de renda, vaga ou disponibilidade.
+    - Lacunas dizem qual documento falta e onde procurar.
+
+parecer:
+  descricao: Resposta juridica/risco a uma pergunta do card.
+  limite: 6000
+  secoes: [pergunta, semaforo, fundamento_citado, ajustes_necessarios, quando_chamar_advogado]
+  aprovacao:
+    - Semaforo explicito (pode / pode com ajuste / nao pode).
+    - Cada conclusao cita clausula ou artigo com trecho.
+    - Todo bloqueio vem com o ajuste que liberaria.
+
+calculo:
+  descricao: Numeros do modelo com premissas e cenarios.
+  limite: 5000
+  secoes: [premissas_com_origem, conta_por_extenso, cenarios, ponto_de_equilibrio, riscos_dos_numeros]
+  aprovacao:
+    - Toda premissa tem origem (decisao, pesquisa aprovada ou hipotese marcada).
+    - Tres cenarios com a conta reproduzivel.
+    - Nenhum valor tratado como garantido.
+
+copy:
+  descricao: Texto pronto para uso (convite, anuncio, mensagem).
+  limite: 4000
+  secoes: [versao_final, alternativa_curta, onde_usar, o_que_precisa_aprovacao]
+  aprovacao:
+    - Linguagem simples, na voz da empresa.
+    - Valores como estimativa variavel; sem promessa de renda.
+    - Marca o que precisa de aprovacao do Fundador antes de publicar.
+
+roteiro_treinamento:
+  descricao: Passo a passo para pessoa leiga executar a tarefa com qualidade.
+  limite: 6000
+  secoes: [objetivo, preparacao, passo_a_passo, erros_que_reprovam, privacidade_e_terceiros, checklist_final]
+  aprovacao:
+    - Executavel por pessoa leiga sem ajuda.
+    - Cobre privacidade de terceiros e ambientes.
+    - Lista os erros que levam a reprovacao.
+
+plano:
+  descricao: Plano-como-dado (schemas/plano.schema.json), validado pelo codigo.
+  limite: 4000
+  secoes: [meta, etapas]
+  aprovacao: [VALIDACAO_DO_CODIGO]
+
+relatorio_final:
+  descricao: O que o Fundador le ao abrir o card concluido.
+  limite: 3500
+  secoes: [resumo_em_5_linhas, o_que_foi_feito, resultado, proximos_passos, decisoes_do_fundador]
+  aprovacao:
+    - Linguagem simples, sem codigos internos (JOB, MEM, AGT).
+    - Cada decisao pedida ao Fundador tem opcoes e consequencia.
+    - Proximos passos com responsavel por nome e prazo.
