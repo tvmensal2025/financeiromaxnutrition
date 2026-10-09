@@ -48,3 +48,9 @@ secrets/
 *.png
 public/audios/
 audios/
+
+# Backups e proteções extras de segurança
+docs/backup-local/
+*.zip
+auth.json
+.claude/

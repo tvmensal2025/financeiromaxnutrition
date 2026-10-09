@@ -14,6 +14,7 @@
  */
 
 import { Transform } from 'node:stream';
+import { ElevenLabsDialogueSession } from './elevenlabs-dialogue.mjs';
 import {
   isElevenLabsConfigured,
   getElevenLabsApiKey,
@@ -44,21 +45,24 @@ export function openCallTTSStream({
   characterId = null,
   context = 'CALL',
   signal = null,
-  fetchImpl = fetch
+  WebSocketImpl,
+  timeoutMs = 5000
 } = {}) {
   const character = resolveCallCharacter({ characterId, voice });
   const elevenLabsEnabled = process.env.ELEVENLABS_CALL_ENABLED !== 'false';
   const canUseElevenLabs = elevenLabsEnabled && isElevenLabsConfigured() && !isElevenLabsQuotaCurrentlyExceeded();
 
   if (!canUseElevenLabs) {
-    return openChirp3CallStream({ voice: googleVoiceForCall({ characterId: character, voice }), context, signal });
+    const stream = openChirp3CallStream({ voice: googleVoiceForCall({ characterId: character, voice }), context, signal });
+    stream.providersUsed = new Set(['google_chirp3_hd']);
+    return stream;
   }
 
-  return new HybridCallTTSStream({ voice, characterId: character, context, signal, fetchImpl });
+  return new HybridCallTTSStream({ voice, characterId: character, context, signal, WebSocketImpl, timeoutMs });
 }
 
 export class HybridCallTTSStream extends Transform {
-  constructor({ voice = null, characterId = null, context = 'CALL', signal = null, fetchImpl = fetch } = {}) {
+  constructor({ voice = null, characterId = null, context = 'CALL', signal = null, WebSocketImpl, timeoutMs = 5000 } = {}) {
     super({ objectMode: true });
     this.voice = voice;
     this.characterId = resolveCallCharacter({ characterId, voice });
@@ -66,7 +70,8 @@ export class HybridCallTTSStream extends Transform {
     this.googleVoice = googleVoiceForCall({ characterId: this.characterId, voice });
     this.context = context;
     this.signal = signal;
-    this.fetchImpl = fetchImpl;
+    this.WebSocketImpl = WebSocketImpl;
+    this.timeoutMs = timeoutMs;
     this.spokenText = '';
     this.tagsUsed = 0;
 
@@ -79,7 +84,9 @@ export class HybridCallTTSStream extends Transform {
     this.streamEnded = false;
     this.flushCallback = null;
 
-    this.currentAbortController = null;
+    this.dialogue = null;
+    this.provider = 'ELEVENLABS';
+    this.providersUsed = new Set();
 
     if (signal) {
       if (signal.aborted) {
@@ -126,7 +133,7 @@ export class HybridCallTTSStream extends Transform {
     this._synthesizeItem(item)
       .catch((err) => {
         if (!this.destroyed && err?.name !== 'AbortError') {
-          console.error('[CALL_TTS_STREAM] Erro inesperado ao sintetizar item:', err.message);
+          this.destroy(err);
         }
       })
       .finally(() => {
@@ -158,79 +165,29 @@ export class HybridCallTTSStream extends Transform {
     if (!speechText) return;
     this.tagsUsed += countAudioTags(speechText);
 
-    const { voiceId, modelId, voiceSettings } = this.elevenLabsSpec;
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=pcm_16000`;
-
-    const controller = new AbortController();
-    this.currentAbortController = controller;
-
-    const onParentAbort = () => controller.abort(this.signal?.reason);
-    if (this.signal) {
-      this.signal.addEventListener('abort', onParentAbort, { once: true });
-    }
-
+    let emittedAudio = false;
     try {
-      const res = await this.fetchImpl(url, {
-        method: 'POST',
-        headers: {
-          'xi-api-key': getElevenLabsApiKey(),
-          'Content-Type': 'application/json',
-          'Accept': 'audio/pcm'
-        },
-        body: JSON.stringify({
-          text: speechText,
-          model_id: modelId,
-          voice_settings: voiceSettings
-        }),
-        signal: controller.signal
+      this.dialogue ||= new ElevenLabsDialogueSession({ spec: this.elevenLabsSpec, apiKey: getElevenLabsApiKey(),
+        signal: this.signal, WebSocketImpl: this.WebSocketImpl, timeoutMs: this.timeoutMs });
+      await this.dialogue.synthesize(speechText, bytes => {
+        emittedAudio = true;
+        this.providersUsed.add('ELEVENLABS');
+        this.push({ audioContent: bytes });
       });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        const isQuota = isElevenLabsQuotaExceeded(res.status, errText);
-        if (isQuota) {
-          markElevenLabsQuotaExceeded();
-        }
-        console.warn(
-          `[CALL_TTS_STREAM] ⚠️ Falha na ElevenLabs [${res.status}]: ${errText}. Acionando fallback automático para Google Cloud Chirp 3 HD!`
-        );
-
-        this._activateChirpFallback();
-        const cleanChirp = stripAudioTags(text);
-        if (cleanChirp && this.chirpStream) {
-          this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-        }
-        return;
-      }
-
-      if (res.body) {
-        for await (const chunk of res.body) {
-          if (this.signal?.aborted || this.destroyed) break;
-          const bytes = Buffer.from(chunk);
-          if (bytes.length > 0) {
-            this.push({ audioContent: bytes });
-          }
-        }
-      }
     } catch (err) {
       if (err?.name === 'AbortError' || this.signal?.aborted || this.destroyed) {
         return;
       }
 
-      console.warn(
-        `[CALL_TTS_STREAM] ⚠️ Erro de conexão com ElevenLabs: ${err.message}. Acionando fallback automático para Google Cloud Chirp 3 HD!`
-      );
+      if (isElevenLabsQuotaExceeded(err.status, err.providerError)) markElevenLabsQuotaExceeded();
+      this.dialogue?.close();
+      // Repetir uma frase já parcialmente ouvida criaria eco e duplicação. Encerra o turno incompleto.
+      if (emittedAudio) throw new Error('A fala foi interrompida antes de terminar');
+      console.warn(`[CALL_TTS_STREAM] Reserva Google acionada: ${err.status || 'conexão/tempo esgotado'}.`);
       this._activateChirpFallback();
       const cleanChirp = stripAudioTags(text);
       if (cleanChirp && this.chirpStream) {
         this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-      }
-    } finally {
-      if (this.signal) {
-        this.signal.removeEventListener('abort', onParentAbort);
-      }
-      if (this.currentAbortController === controller) {
-        this.currentAbortController = null;
       }
     }
   }
@@ -239,6 +196,7 @@ export class HybridCallTTSStream extends Transform {
     if (this.elevenLabsFailed) return;
     this.elevenLabsFailed = true;
     this.supportsAudioTags = false;
+    this.provider = 'google_chirp3_hd';
 
     try {
       // Voz Google FIXA do personagem da ligação (nunca a voz escolhida no painel).
@@ -250,13 +208,14 @@ export class HybridCallTTSStream extends Transform {
 
       this.chirpStream.on('data', (chunk) => {
         if (!this.destroyed) {
+          this.providersUsed.add('google_chirp3_hd');
           this.push(chunk);
         }
       });
 
       this.chirpStream.on('error', (err) => {
         if (!this.destroyed) {
-          this.emit('error', err);
+          this.destroy(err);
         }
       });
 
@@ -265,7 +224,7 @@ export class HybridCallTTSStream extends Transform {
       });
     } catch (chirpErr) {
       console.error('[CALL_TTS_STREAM] Erro crítico ao inicializar fallback Google Chirp 3 HD:', chirpErr.message);
-      this.emit('error', chirpErr);
+      this.destroy(chirpErr);
     }
   }
 
@@ -293,13 +252,12 @@ export class HybridCallTTSStream extends Transform {
 
     const done = this.flushCallback;
     this.flushCallback = null;
+    this.dialogue?.close();
     done();
   }
 
   _destroy(err, callback) {
-    if (this.currentAbortController) {
-      this.currentAbortController.abort(err || new Error('Stream destroyed'));
-    }
+    this.dialogue?.fail(err || new DOMException('Ligação encerrada', 'AbortError'));
     if (this.chirpStream) {
       this.chirpStream.destroy(err);
     }

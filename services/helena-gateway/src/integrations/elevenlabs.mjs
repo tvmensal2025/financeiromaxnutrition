@@ -9,6 +9,7 @@
  */
 
 import ELIVING_VOICE_CONFIG from './eliving-voice-config.mjs';
+import { ElevenLabsDialogueSession } from './elevenlabs-dialogue.mjs';
 
 const ELEVENLABS_DEFAULT_AGENT_ID = process.env.ELEVENLABS_DEFAULT_AGENT_ID || process.env.ELEVENLABS_AGENT_ID || '';
 
@@ -178,33 +179,12 @@ export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma dem
   if (!characterId) {
     throw new Error('Voz fora do eLiving: escolha a voz de um personagem (Sirlene, Alex, Dr. Vital ou Rafael).');
   }
-  const spec = elevenLabsSpecForCharacter(characterId, 'tempoReal');
-  voiceId = spec.voiceId;
-
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`;
-
-  const payload = {
-    text: String(text).slice(0, 300), // Limite seguro para teste
-    model_id: spec.modelId,
-    voice_settings: spec.voiceSettings
-  };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(payload)
-  });
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => 'Erro TTS');
-    throw new Error(`Falha ao gerar amostra de voz [${res.status}]: ${errText}`);
-  }
-
-  const arrayBuffer = await res.arrayBuffer();
-  const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+  const sample = await synthesizeElevenLabsCallSpeech({ characterId, text: String(text).slice(0, 300),
+    uso: 'tempoReal', outputFormat: 'mp3_44100_128' });
+  const base64Audio = sample.buffer.toString('base64');
 
   return {
-    voice_id: voiceId,
+    voice_id: sample.voice,
     mime_type: 'audio/mpeg',
     audio_base64: `data:audio/mpeg;base64,${base64Audio}`
   };
@@ -356,7 +336,7 @@ export function resetElevenLabsQuotaStatus() {
  */
 export function isElevenLabsQuotaExceeded(status, errorBody = '') {
   if (status === 429) return true;
-  if (status === 401 && /quota|credit|insufficient|exceeded/i.test(String(errorBody))) return true;
+  if (status !== 200 && /quota_exceeded|insufficient_credits|character_limit_exceeded|quota.*exceeded/i.test(String(errorBody))) return true;
   if (typeof errorBody === 'object' && errorBody !== null) {
     const detail = JSON.stringify(errorBody).toLowerCase();
     if (detail.includes('quota_exceeded') || detail.includes('insufficient_credits') || detail.includes('character_limit_exceeded')) {
@@ -397,6 +377,21 @@ export async function synthesizeElevenLabsCallSpeech({
 
   const spec = elevenLabsSpecForCharacter(resolveCallCharacter({ characterId, voice }), uso);
   const voiceId = spec.voiceId;
+  if (uso === 'tempoReal') {
+    const started = performance.now();
+    const chunks = [];
+    const session = new ElevenLabsDialogueSession({ spec, apiKey: getElevenLabsApiKey(), outputFormat, signal });
+    try {
+      await session.synthesize(String(text).trim(), bytes => chunks.push(bytes));
+      return { buffer: Buffer.concat(chunks), format: outputFormat.startsWith('pcm') ? 'pcm' : 'mp3',
+        voice: voiceId, characterId: spec.characterId, modelId: spec.modelId,
+        latencyMs: Math.round(performance.now() - started), characterCount: String(text).length };
+    } catch (error) {
+      error.isQuotaExceeded = isElevenLabsQuotaExceeded(error.status, error.providerError);
+      if (error.isQuotaExceeded) markElevenLabsQuotaExceeded();
+      throw error;
+    } finally { session.close(); }
+  }
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${outputFormat}`;
 
   const payload = {

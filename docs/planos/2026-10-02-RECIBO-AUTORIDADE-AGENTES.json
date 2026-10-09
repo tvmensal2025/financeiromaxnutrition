@@ -1,0 +1,52 @@
+{
+  "version": "helena-action-ownership-v1",
+  "memory_id": "MEM-ACTION-OWNERSHIP-20261002-V1",
+  "supabase_project": "wxkgrykduqtsgmjkzlou",
+  "memory_status": "ATIVA",
+  "installed_at": "2026-10-02T13:22:19.463142+00:00",
+  "root_cause": "Controlador e prompts enviavam HANDOFF ao executor; Supabase permite somente Helena AGT-01 ou Marina AGT-04. Recusa HTTP403 comprovada na passagem Camila para Isabela.",
+  "changes": [
+    "HANDOFF seleciona Helena em descoberta nova e continuacao persistida; entradas antigas de especialistas sao redirecionadas antes da inferencia.",
+    "Guarda deterministica impede coordenacao por especialista e revisao pelo proprio executor antes da selecao de perfil ou chamada de modelo.",
+    "Prompts do dispatcher e do workflow e regra SOUL dos 21 perfis alinhados.",
+    "handoff_task removido da lista de ferramentas dos 18 especialistas empresariais; mantido apenas nos dois coordenadores. Laura continua pessoal/somente contexto.",
+    "Preflight rejeita handoff_task exposto a especialista. Gerador de novos perfis segue a mesma regra.",
+    "Regra permanente .cursor/rules/helena-action-ownership.mdc e memoria no Supabase."
+  ],
+  "audit": {
+    "authenticated_profiles": 21,
+    "matching_quality_contracts": 21,
+    "rules_present": 21,
+    "configured_tools_checked": 21,
+    "configured_tools_ready": 21,
+    "native_discovery_ready": ["helena--grupo", "camila--biz003", "caio--biz003", "clara--biz003"],
+    "scope": "Helena GROUP; Laura PERSONAL; 19 perfis BUSINESS BIZ-003.",
+    "financial_legal_boundary": "Analise/revisao interna nao autoriza pagamento, assinatura, contratacao ou envio externo. Conector operacional nao equivale a ferramenta financeira/juridica de dominio."
+  },
+  "tests": {
+    "windows_hermes_suite": "140 executados: 139 passaram e 1 especifico Linux nao executado no Windows",
+    "windows_mcp_preflight": "7 passaram, incluindo todos os perfis e recusa de handoff para especialistas",
+    "linux_workflow_and_preflight": "93 passaram",
+    "broader_windows_suite_limitation": "5 modulos instaladores nao importaram por PyYAML ausente no Python local; nao declarados validados por essa suite."
+  },
+  "remote_evidence": [
+    "/data/helena-runtime/action-ownership-receipt.json",
+    "/data/helena-runtime/action-ownership-audit.json",
+    "/data/helena-runtime/action-ownership-tools-check.json",
+    "/data/helena-runtime/action-ownership-native-check.json"
+  ],
+  "backups": [
+    "/data/helena-runtime/ownership-backup-20261002T131726947669Z",
+    "/data/helena-runtime/ownership-backup-20261002T132219455191Z"
+  ],
+  "model_calls_for_installation_and_audit": 0,
+  "gateway_permissions_expanded": false,
+  "campaign": {
+    "reference": "HD-CASA-20261002-01",
+    "job_id": "JOB-HR-b2c36d93ff52a106652dbb97d463d3a3",
+    "last_verified_stage": "Estrategia aprovada; HANDOFF NEEDS_ATTENTION preservado, sem sucessora confirmada.",
+    "recovery": "Reconciliar evento/chave e ausencia de sucessora, retomar pela coordenacao. Nao apagar recibo nem mudar fingerprint para repetir tentativa incerta.",
+    "end_to_end_complete": false
+  },
+  "limitations": "Auditoria valida alinhamento de identidade, contrato, regra e ferramentas configuradas; nao homologa execucao real de cada funcao ou de outras empresas. Sem novas geracoes, pagamentos, mensagens ou publicacoes."
+}

@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-09-22T15:41:50.185Z",
+  "status": "COMPLETE_FOR_OBSERVED_PASSES",
+  "productCodeChanged": false,
+  "issues": [
+    {
+      "id": "DES-001",
+      "severity": "P0",
+      "classification": "DESIGN_BUG",
+      "title": "Error recovery builds /auth&v= (ampersand) causing SPA 404",
+      "rootCauseScope": "GLOBAL",
+      "component": "AppRootErrorFallback",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-002",
+      "severity": "P1",
+      "classification": "OVERLAY_BUG",
+      "title": "Chunk/update recovery overlay z-[99999] blocks chrome",
+      "rootCauseScope": "GLOBAL",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-004",
+      "severity": "P1",
+      "classification": "FUNCTIONAL_ISSUE_OBSERVED",
+      "title": "Dynamic import failures for MaxDashboardPage until Vite hard restart",
+      "rootCauseScope": "GLOBAL",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-005",
+      "severity": "P1",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Dual Hoje — top tabs AND bottom nav",
+      "rootCauseScope": "SHARED",
+      "evidence": [
+        "pass9 hubs"
+      ],
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-006",
+      "severity": "P1",
+      "classification": "COMPONENT_INCONSISTENCY",
+      "title": "Standalone pages omit BottomNavigation",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-007",
+      "severity": "P2",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Academia secondary top chrome on global bottom nav",
+      "rootCauseScope": "LOCAL",
+      "specialist": "alex",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-008",
+      "severity": "P2",
+      "classification": "OVERLAY_BUG",
+      "title": "Help FAB in header AND floating",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-009",
+      "severity": "P2",
+      "classification": "COMPONENT_INCONSISTENCY",
+      "title": "Shared chrome density drifts on standalone",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-010",
+      "severity": "P2",
+      "classification": "SPACING_INCONSISTENCY",
+      "title": "Floating help over bottom-nav safe area",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-011",
+      "severity": "P1",
+      "classification": "RESPONSIVE_BUG",
+      "title": "Bottom nav at 1440 still present / policy inconsistent",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-012",
+      "severity": "P1",
+      "classification": "OVERLAY_BUG",
+      "title": "Sirlene meal modal leaves bottom nav visible",
+      "rootCauseScope": "SHARED",
+      "evidence": [
+        "dialogs=2 bottomBars=1"
+      ],
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-013",
+      "severity": "P1",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Academia stacks Back+tabs+bottom+dual FAB",
+      "rootCauseScope": "LOCAL",
+      "specialist": "alex",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-014",
+      "severity": "P2",
+      "classification": "COMPONENT_INCONSISTENCY",
+      "title": "/sirlene redirects vs /sirlene-nutricional full experience",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-015",
+      "severity": "P3",
+      "classification": "SPACING_INCONSISTENCY",
+      "title": "Sirlene-nutricional double sticky top",
+      "rootCauseScope": "LOCAL",
+      "specialist": "sirlene",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-016",
+      "severity": "P2",
+      "classification": "COMPONENT_INCONSISTENCY",
+      "title": "Exames standalone green CTA + no bottom nav",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-017",
+      "severity": "P2",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Comunidade doubles Desafios concept",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-018",
+      "severity": "P3",
+      "classification": "SPACING_INCONSISTENCY",
+      "title": "Gallery/Apps near-empty shells",
+      "rootCauseScope": "LOCAL",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-019",
+      "severity": "P2",
+      "classification": "OVERLAY_BUG",
+      "title": "Coach tours obscure shell after character switch",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-020",
+      "severity": "P1",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Dr Vital bottom dock absorbs top-tab labels (6-8 items)",
+      "rootCauseScope": "LOCAL_OR_SHARED",
+      "specialist": "drvital",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-021",
+      "severity": "P2",
+      "classification": "NAVIGATION_DESIGN_BUG",
+      "title": "Rafael dual Desafio top+bottom",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    },
+    {
+      "id": "DES-022",
+      "severity": "P2",
+      "classification": "COMPONENT_INCONSISTENCY",
+      "title": "360 modules share shell but utility top tabs differ",
+      "rootCauseScope": "SHARED",
+      "productChangeApplied": false
+    }
+  ]
+}

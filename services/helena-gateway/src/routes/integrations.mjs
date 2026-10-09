@@ -8,7 +8,7 @@ import { isVoiceStreamingEnabled } from '../integrations/voice-streaming-config.
  */
 
 import crypto from 'node:crypto';
-import { webOpening } from '../integrations/conversation-mode.mjs';
+import { webOpening, NATURAL_OPENING_PROMPT } from '../integrations/conversation-mode.mjs';
 import { reconcilePhoneCalls } from '../integrations/call-reconciliation.mjs';
 import express from 'express';
 import { getLayaHealth, classifyMessage, scoreMessage, routeMessage } from '../integrations/laya.mjs';
@@ -1726,7 +1726,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       }
       let replyText = '';
       const opening = webOpening(profile, is_start, user_text);
-      if (opening === null && !is_start && isVoiceStreamingEnabled() &&
+      if (isVoiceStreamingEnabled() &&
           req.accepts('application/x-ndjson') && String(req.headers.accept || '').includes('application/x-ndjson')) {
         const config = await getVoiceAgentConfig();
         const apiKey = await resolveAiApiKey(config);
@@ -1734,7 +1734,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
         return await streamBrowserTurn(res, {
           callId, apiKey, model: config.ai_model, profile, voice: characterVoice,
           systemInstruction: buildCallInstruction(webCall, profile),
-          userPrompt: String(user_text).trim(), history,
+          userPrompt: is_start ? NATURAL_OPENING_PROMPT : String(user_text).trim(),
+          history: is_start ? [] : history, preparedSpeech: opening,
         }, text => persistVoiceTurn(webCall, profile, '', text));
       }
       if (opening !== null) {

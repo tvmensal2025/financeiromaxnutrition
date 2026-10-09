@@ -1,0 +1,106 @@
+{
+  "generatedAt": "2026-09-22T15:41:50.185Z",
+  "status": "MAPPED",
+  "sharedRootCauses": [
+    {
+      "id": "RC-SHELL-01",
+      "title": "App shell vs standalone layout split",
+      "findings": [
+        "DES-006",
+        "DES-014",
+        "DES-016"
+      ],
+      "fixWave": 1
+    },
+    {
+      "id": "RC-NAV-01",
+      "title": "Top tabs duplicate bottom IA",
+      "findings": [
+        "DES-005",
+        "DES-017",
+        "DES-021"
+      ],
+      "fixWave": 1
+    },
+    {
+      "id": "RC-NAV-02",
+      "title": "BottomNavigation not capped to canonical 4+Mais",
+      "findings": [
+        "DES-020"
+      ],
+      "fixWave": 1
+    },
+    {
+      "id": "RC-OVERLAY-01",
+      "title": "Modal stacking ignores bottom nav",
+      "findings": [
+        "DES-012",
+        "DES-002"
+      ],
+      "fixWave": 8
+    },
+    {
+      "id": "RC-OVERLAY-02",
+      "title": "Coach tour + force-update overlays",
+      "findings": [
+        "DES-019",
+        "DES-002"
+      ],
+      "fixWave": 1
+    },
+    {
+      "id": "RC-RESP-01",
+      "title": "Desktop hide-bottom-nav policy not shared",
+      "findings": [
+        "DES-011"
+      ],
+      "fixWave": 1
+    },
+    {
+      "id": "RC-FAB-01",
+      "title": "Help FAB dual mount",
+      "findings": [
+        "DES-008",
+        "DES-010"
+      ],
+      "fixWave": 2
+    },
+    {
+      "id": "RC-AUTH-01",
+      "title": "Recovery URL uses & instead of ?",
+      "findings": [
+        "DES-001"
+      ],
+      "fixWave": 1
+    }
+  ],
+  "localRootCauses": [
+    {
+      "id": "RC-ALEX-01",
+      "title": "Academia local chrome stack",
+      "findings": [
+        "DES-007",
+        "DES-013"
+      ],
+      "fixWave": 5
+    },
+    {
+      "id": "RC-SIRLENE-01",
+      "title": "Dual Sirlene entry + sticky + meal overlay",
+      "findings": [
+        "DES-014",
+        "DES-015",
+        "DES-012"
+      ],
+      "fixWave": 4
+    },
+    {
+      "id": "RC-VITAL-01",
+      "title": "Dr Vital bottom absorbs clinical sub-tabs",
+      "findings": [
+        "DES-020"
+      ],
+      "fixWave": 3
+    }
+  ]
+}
