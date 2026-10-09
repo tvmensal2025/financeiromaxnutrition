@@ -123,7 +123,39 @@ Trocar modelo, testar outro, adicionar função ou agente não pode atrapalhar q
    - Ferramenta, função ou agente novo entram como arquivo em sua pasta.
    - O motor descobre e valida sozinho; não é preciso mexer no núcleo.
 
-## 7. Decisões pedidas ao Fundador
+## 7. O card como centro da empresa (visão do Fundador, 09/10)
+
+O Fundador fala com a Helena. Isso vira um card. O card anda sozinho entre os responsáveis e volta pronto, bonito e legível. Os agentes funcionam como funcionários treinados no jeito do Fundador.
+
+1. **Entrada sem mal-entendido.**
+   - A Helena transforma a fala em card estruturado: objetivo, resultado esperado, prazo, prioridade e o que não fazer.
+   - Antes de criar, ela devolve uma linha de confirmação (ex.: "Entendi: plano para 10 pessoas na Mimix/Hub, em 7 dias. Confirma?").
+   - Instrução mal entendida é a causa nº 1 de falha multiagente; essa confirmação mata a causa na origem.
+2. **Card é a fonte única.**
+   - Tudo vive no card: etapas (sub-cards), responsável atual, linha do tempo, entregas, revisões, decisões e custo.
+   - Nenhum agente trabalha fora de um card.
+3. **Roteamento por tabela, não por opinião.**
+   - Tipo de card → roteiro (playbook) → primeiro responsável → próximos, definido em código.
+   - A Helena escolhe só dentro das opções válidas. Destino inexistente, para si mesmo ou fora da função é impossível.
+4. **Cada passagem é um contrato.**
+   - O responsável recebe entradas conferidas pelo código e devolve no modelo do tipo de entrega.
+   - O motor só passa adiante se o contrato fecha: tamanho, seções, fontes, revisão aprovada.
+5. **Resultado final legível.**
+   - O card fecha com um relatório padrão: resumo em 5 linhas; o que foi feito; resultado; próximos passos; decisões que dependem do Fundador.
+   - É exibido formatado no app; os detalhes técnicos ficam numa aba separada.
+6. **Treinar do jeito do Fundador.**
+   - Em todo card concluído, o Fundador marca 👍/👎 e comenta.
+   - O comentário vira proposta de regra na ficha do agente. Aprovada, vale para as próximas tarefas daquela função e entra no banco de testes, para nunca regredir.
+7. **"Sem erro" com honestidade técnica.**
+   - Erro de processo (travar, perder card, mandar para o lugar errado, parar em silêncio) fica impossível por construção: máquina de estados + validação + simulador + canário.
+   - Erro de conteúdo (um dado errado numa pesquisa) não tem garantia de zero com IA nenhuma; ele é barrado em camadas: autoconferência mecânica, revisor independente e aprovação do Fundador no que é irreversível (dinheiro, publicação, contrato).
+   - Nenhum erro passa sem ficar visível no card.
+8. **Manutenção em minutos.**
+   - Cada card tem um rastro completo.
+   - O botão "por que travou?" mostra a etapa exata, a causa classificada e a correção recomendada.
+   - Para cada tipo de falha existe um roteiro de conserto. Quem for manter (eu ou outra pessoa) entende o problema só abrindo o card.
+
+## 8. Decisões pedidas ao Fundador
 
 1. Aprovar a direção da v2.
 2. Confirmar os 5 primeiros agentes: Helena, Ravi, Isabela, Clara, Caio.
