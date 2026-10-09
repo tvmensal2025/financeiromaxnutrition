@@ -75,7 +75,8 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   let firstTextAt = null;
   let firstTokenAt = null;
   let audioBytes = 0;
-  const tts = openTTS({ voice, context: 'CALL', signal: combined, fetchImpl });
+  // A voz (ElevenLabs e reserva Google) vem do PERSONAGEM do perfil ativo da ligação.
+  const tts = openTTS({ voice, characterId: profile?.character_id || null, context: 'CALL', signal: combined, fetchImpl });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
   const cancelTTS = () => tts.destroy(combined.reason);
   combined.addEventListener('abort', cancelTTS, { once: true });

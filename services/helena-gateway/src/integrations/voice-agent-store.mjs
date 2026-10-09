@@ -1,4 +1,7 @@
 // Estado operacional da voz Max Nutrition. Nunca persiste credenciais no perfil.
+// Voz ElevenLabs padrão = voz da Sirlene na configuração única do eLiving (nunca ID solto ou legado).
+import { ELEVENLABS_CHARACTER_VOICES, DEFAULT_VOICE_CHARACTER } from './elevenlabs.mjs';
+
 const BUSINESS_ID = 'BIZ-002';
 const PROFILE_ID = 'VP-VOICE-AGENT-BIZ-002';
 const ALLOWED_FIELDS = [
@@ -65,7 +68,7 @@ export function createVoiceAgentStore(supabaseFetch) {
           voice_id: provider === 'GOOGLE_CHIRP3_HD'
             ? (safe.call_voice || 'pt-BR-Chirp3-HD-Achird')
             : provider === 'ELEVENLABS'
-              ? (safe.elevenlabs_voice || 'TX3LPaxmHKxFdv7VOQHJ')
+              ? (safe.elevenlabs_voice || ELEVENLABS_CHARACTER_VOICES[DEFAULT_VOICE_CHARACTER])
               : (safe.kokoro_voice || 'pm_alex*0.7+am_liam*0.3'),
           enabled: safe.is_active !== false,
           is_default: false,

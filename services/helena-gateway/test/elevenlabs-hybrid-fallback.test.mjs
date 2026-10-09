@@ -1,22 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import {
-  routeCallAudio
+  routeCallAudio,
+  routeCallPreviewAudio
 } from '../src/integrations/audio-router.mjs';
 import {
   resolveElevenLabsVoice,
+  resolveVoiceCharacter,
+  elevenLabsSpecForCharacter,
   isElevenLabsQuotaExceeded,
-  synthesizeElevenLabsCallSpeech,
-  streamElevenLabsCallSpeech,
-  ELEVENLABS_CHARACTER_VOICES,
-  ELEVENLABS_HIGH_QUALITY_SETTINGS
+  resetElevenLabsQuotaStatus,
+  ELEVENLABS_CHARACTER_VOICES
 } from '../src/integrations/elevenlabs.mjs';
 import {
-  setGoogleTTSClientForTesting,
-  DEFAULT_CHIRP3_HD_VOICE
+  setGoogleTTSClientForTesting
 } from '../src/integrations/google-chirp3-hd.mjs';
+import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
 
-test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallback)', async (t) => {
+const VOICES = ELIVING_VOICE_CONFIG.characters;
+
+test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Reserva) — voz única por personagem', async (t) => {
   const originalKey = process.env.ELEVENLABS_API_KEY;
   const originalFetch = globalThis.fetch;
 
@@ -24,27 +27,43 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
     if (originalKey === undefined) delete process.env.ELEVENLABS_API_KEY;
     else process.env.ELEVENLABS_API_KEY = originalKey;
     globalThis.fetch = originalFetch;
+    resetElevenLabsQuotaStatus();
+    setGoogleTTSClientForTesting(null);
   });
 
-  await t.test('1. Mapeamento de vozes dos personagens para as vozes originais reais', () => {
-    assert.strictEqual(resolveElevenLabsVoice('sirlene'), 'eabgQyq9no9rW5ZiGiaZ');
-    assert.strictEqual(resolveElevenLabsVoice('alex'), 'TX3LPaxmHKxFdv7VOQHJ');
-    assert.strictEqual(resolveElevenLabsVoice('vital'), 'IKpiSijWzlhOL6uX83EH');
-    assert.strictEqual(resolveElevenLabsVoice('rafael'), 'TX3LPaxmHKxFdv7VOQHJ');
+  await t.test('1. Cada personagem resolve para a própria voz da configuração única (Rafael ≠ Alex)', () => {
+    assert.strictEqual(resolveElevenLabsVoice('sirlene'), VOICES.sirlene.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('alex'), VOICES.alex.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('vital'), VOICES.vital.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('rafael'), VOICES.rafael.voiceId);
+    assert.notStrictEqual(ELEVENLABS_CHARACTER_VOICES.rafael, ELEVENLABS_CHARACTER_VOICES.alex);
+    assert.ok(ELEVENLABS_CHARACTER_VOICES.rafael.startsWith('B4ra'));
 
-    // Mapeamento a partir do nome de voz do Chirp
-    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Achernar'), 'eabgQyq9no9rW5ZiGiaZ');
-    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Charon'), 'IKpiSijWzlhOL6uX83EH');
+    // profile_key, nome e voz Google identificam o personagem
+    assert.strictEqual(resolveElevenLabsVoice('rafael_intense'), VOICES.rafael.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('Dr. Vital'), VOICES.vital.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('drvital'), VOICES.vital.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Achernar'), VOICES.sirlene.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Charon'), VOICES.vital.voiceId);
+    assert.strictEqual(resolveElevenLabsVoice('pt-BR-Chirp3-HD-Achird'), VOICES.rafael.voiceId);
 
-    // Compatibilidade com ID legado filipino
-    assert.strictEqual(resolveElevenLabsVoice('EJV7H2baGt5ab95tOoSG'), 'eabgQyq9no9rW5ZiGiaZ');
+    // Compatibilidade: voz legada Uneskee aponta para a Sirlene atual (nunca é usada)
+    const uneskee = Object.keys(ELIVING_VOICE_CONFIG.legacyVoiceIds).find(id => ELIVING_VOICE_CONFIG.legacyVoiceIds[id].startsWith('Uneskee'));
+    assert.strictEqual(resolveVoiceCharacter(uneskee), 'sirlene');
+    assert.strictEqual(resolveElevenLabsVoice(uneskee), VOICES.sirlene.voiceId);
+
+    // Nunca devolve uma voz solta: desconhecida cai na Sirlene
+    assert.strictEqual(resolveElevenLabsVoice('voz-desconhecida-123'), VOICES.sirlene.voiceId);
   });
 
-  await t.test('2. Parâmetros de Altíssima Fidelidade (Master Quality) estão ativos', () => {
-    assert.strictEqual(ELEVENLABS_HIGH_QUALITY_SETTINGS.stability, 0.50);
-    assert.strictEqual(ELEVENLABS_HIGH_QUALITY_SETTINGS.similarity_boost, 0.85);
-    assert.strictEqual(ELEVENLABS_HIGH_QUALITY_SETTINGS.style, 0.15);
-    assert.strictEqual(ELEVENLABS_HIGH_QUALITY_SETTINGS.use_speaker_boost, true);
+  await t.test('2. Spec por personagem: V4 Turbo ao vivo, V4 gravado e o padrão aprovado do personagem', () => {
+    const live = elevenLabsSpecForCharacter('rafael', 'tempoReal');
+    assert.deepStrictEqual(live, {
+      characterId: 'rafael', voiceId: VOICES.rafael.voiceId, modelId: 'eleven_v4_turbo', voiceSettings: { ...VOICES.rafael.voiceSettings }
+    });
+    assert.strictEqual(elevenLabsSpecForCharacter('sirlene', 'gravado').modelId, 'eleven_v4');
+    assert.throws(() => elevenLabsSpecForCharacter('ninguem'), /personagem desconhecido/);
+    assert.throws(() => elevenLabsSpecForCharacter('alex', 'flash'), /uso desconhecido/);
   });
 
   await t.test('3. Detecção precisa de estouro de cota (HTTP 429 ou erro de créditos)', () => {
@@ -55,24 +74,23 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
     assert.strictEqual(isElevenLabsQuotaExceeded(500, 'Internal Server Error'), false);
   });
 
-  await t.test('4. Quando a cota do ElevenLabs está ativa, usa ElevenLabs com prioridade máxima', async () => {
+  await t.test('4. Com cota, usa ElevenLabs V4 Turbo com a voz e o padrão do personagem (mesmo com voz Google de outro)', async () => {
+    resetElevenLabsQuotaStatus();
     process.env.ELEVENLABS_API_KEY = 'test_elevenlabs_key_active';
-    let elevenLabsCalled = false;
+    let elevenLabsUrl = '';
+    let body = null;
     let googleCalled = false;
 
     globalThis.fetch = async (url, options) => {
       if (String(url).includes('elevenlabs.io')) {
-        elevenLabsCalled = true;
-        assert.ok(String(url).includes('output_format=mp3_44100_192'), 'Deve usar qualidade de estúdio 192kbps');
-        const body = JSON.parse(options.body);
-        assert.strictEqual(body.voice_settings.similarity_boost, 0.85);
-        assert.strictEqual(body.voice_settings.use_speaker_boost, true);
+        elevenLabsUrl = String(url);
+        body = JSON.parse(options.body);
         return new Response(Buffer.from('FAKE_ELEVENLABS_192KBPS_AUDIO'), {
           status: 200,
           headers: { 'Content-Type': 'audio/mpeg' }
         });
       }
-      return originalFetch(url, options);
+      throw new Error(`rede real bloqueada no teste: ${url}`);
     };
 
     setGoogleTTSClientForTesting({
@@ -83,23 +101,29 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
     });
 
     const result = await routeCallAudio({
-      text: 'Olá! Como posso ajudar você hoje?',
+      text: '[curious] Olá! [angry] Como posso ajudar você hoje?',
       callId: 'call-el-123',
-      voice: 'sirlene'
+      characterId: 'rafael',
+      voice: 'pt-BR-Chirp3-HD-Achernar'
     });
 
-    assert.strictEqual(elevenLabsCalled, true, 'ElevenLabs deve ser chamado prioritariamente');
+    assert.ok(elevenLabsUrl.includes(`/text-to-speech/${VOICES.rafael.voiceId}?`), 'voz do Rafael, nunca a voz do painel');
+    assert.ok(elevenLabsUrl.includes('output_format=mp3_44100_192'));
+    assert.strictEqual(body.model_id, 'eleven_v4_turbo');
+    assert.deepStrictEqual(body.voice_settings, { ...VOICES.rafael.voiceSettings });
+    assert.strictEqual(body.text, '[curious] Olá! Como posso ajudar você hoje?', 'tag proibida com o aluno sai antes do envio');
     assert.strictEqual(googleCalled, false, 'Google Chirp NÃO deve ser chamado enquanto houver cota ElevenLabs');
     assert.strictEqual(result.provider, 'ELEVENLABS');
-    assert.strictEqual(result.voice_id, 'eabgQyq9no9rW5ZiGiaZ');
+    assert.strictEqual(result.voice_id, VOICES.rafael.voiceId);
   });
 
-  await t.test('5. Quando a cota do ElevenLabs acaba (HTTP 429), comuta automaticamente para o Google Chirp 3 HD', async () => {
+  await t.test('5. Sem cota (HTTP 429), comuta para o Google Chirp 3 HD com a voz FIXA do personagem e texto sem tags', async () => {
+    resetElevenLabsQuotaStatus();
     process.env.ELEVENLABS_API_KEY = 'test_elevenlabs_key_active';
     let elevenLabsCalled = false;
-    let googleCalled = false;
+    let googleRequest = null;
 
-    globalThis.fetch = async (url, options) => {
+    globalThis.fetch = async (url) => {
       if (String(url).includes('elevenlabs.io')) {
         elevenLabsCalled = true;
         return new Response(JSON.stringify({ detail: { status: 'quota_exceeded', message: 'Monthly character limit reached' } }), {
@@ -107,26 +131,56 @@ test('Estratégia Híbrida ElevenLabs (Prioritário) + Google Chirp 3 HD (Fallba
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      return originalFetch(url, options);
+      throw new Error(`rede real bloqueada no teste: ${url}`);
     };
 
     setGoogleTTSClientForTesting({
       synthesizeSpeech: async (request) => {
-        googleCalled = true;
-        assert.strictEqual(request.voice.name, 'pt-BR-Chirp3-HD-Achernar');
+        googleRequest = request;
         return [{ audioContent: Buffer.from('FAKE_CHIRP3_FALLBACK_AUDIO') }];
       }
     });
 
     const result = await routeCallAudio({
-      text: 'Continuando nosso atendimento sem interrupções.',
+      text: '[laughs] Continuando nosso atendimento sem interrupções.',
       callId: 'call-fallback-123',
-      voice: 'sirlene'
+      characterId: 'alex',
+      voice: 'pt-BR-Chirp3-HD-Achernar' // voz de outro personagem no painel: ignorada
     });
 
     assert.strictEqual(elevenLabsCalled, true, 'ElevenLabs foi tentado');
-    assert.strictEqual(googleCalled, true, 'Google Chirp 3 HD DEVE ser acionado como fallback automático');
+    assert.ok(googleRequest, 'Google Chirp 3 HD DEVE ser acionado como reserva');
+    assert.strictEqual(googleRequest.voice.name, VOICES.alex.googleFallbackVoice);
+    assert.strictEqual(googleRequest.input.text, 'Continuando nosso atendimento sem interrupções.');
     assert.strictEqual(result.provider, 'google_chirp3_hd');
-    assert.strictEqual(result.voice_id, 'pt-BR-Chirp3-HD-Achernar');
+    assert.strictEqual(result.voice_id, VOICES.alex.googleFallbackVoice);
+  });
+
+  await t.test('6. Turno do app: prévia com ElevenLabs primeiro e reserva Google no mesmo formato (audio/mpeg)', async () => {
+    resetElevenLabsQuotaStatus();
+    process.env.ELEVENLABS_API_KEY = 'test_elevenlabs_key_active';
+    let body = null;
+    globalThis.fetch = async (url, options) => {
+      if (String(url).includes('elevenlabs.io')) {
+        assert.ok(String(url).includes(`/text-to-speech/${VOICES.vital.voiceId}?`));
+        body = JSON.parse(options.body);
+        return new Response(Buffer.from('MP3'), { status: 200, headers: { 'Content-Type': 'audio/mpeg' } });
+      }
+      throw new Error(`rede real bloqueada no teste: ${url}`);
+    };
+    const el = await routeCallPreviewAudio({ text: '[clears throat] Olá, aqui é o Dr. Vital.', characterId: 'vital' });
+    assert.strictEqual(el.provider, 'ELEVENLABS');
+    assert.strictEqual(el.content_type, 'audio/mpeg');
+    assert.strictEqual(Buffer.from(el.audio_base64, 'base64').toString(), 'MP3');
+    assert.strictEqual(body.model_id, 'eleven_v4_turbo');
+
+    globalThis.fetch = async () => new Response('{"detail":{"status":"quota_exceeded"}}', { status: 429 });
+    let googleRequest = null;
+    setGoogleTTSClientForTesting({ synthesizeSpeech: async (request) => { googleRequest = request; return [{ audioContent: Buffer.from('CHIRP') }]; } });
+    const reserve = await routeCallPreviewAudio({ text: '[clears throat] Olá, aqui é o Dr. Vital.', characterId: 'vital' });
+    assert.strictEqual(reserve.provider, 'google_chirp3_hd');
+    assert.strictEqual(reserve.content_type, 'audio/mpeg');
+    assert.strictEqual(googleRequest.voice.name, VOICES.vital.googleFallbackVoice);
+    assert.strictEqual(googleRequest.input.text, 'Olá, aqui é o Dr. Vital.');
   });
 });

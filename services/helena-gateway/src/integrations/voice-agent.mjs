@@ -1,4 +1,4 @@
-import { buildNaturalnessInstruction, cleanVoiceText } from './conversation-naturalness.mjs';
+import { buildNaturalnessInstruction, cleanVoiceText, stripAudioTags } from './conversation-naturalness.mjs';
 import { NATURAL_OPENING_PROMPT } from './conversation-mode.mjs';
 /**
  * voice-agent.mjs — Cérebro de Voz e Atendimento da Max Nutrition
@@ -313,7 +313,9 @@ function generateLocalResponse(query, cfg) {
 }
 
 // Shared speech formatting; preserves punctuation, numbers and units.
-const sanitizeSpeechText = cleanVoiceText;
+// Mantém as [tags] do dono para a fala: os roteadores aplicam formatSpeechForElevenLabs (ElevenLabs)
+// e tiram as tags antes do Google. Tela, histórico, banco e telemetria usam stripAudioTags.
+const sanitizeSpeechText = text => cleanVoiceText(text, { preserveAudioTags: true });
 
 /**
  * Dispara requisição a provedores de LLM suportados (com suporte a áudio inline e modelos em cascata)
@@ -471,8 +473,9 @@ export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', { sig
 }
 
 /**
- * Sintetiza o texto e envia o áudio imediatamente para a chamada VoIP
- * EXCLUSIVO: Google Cloud Chirp 3 HD
+ * Sintetiza o texto e envia o áudio imediatamente para a chamada VoIP.
+ * ElevenLabs V4 Turbo primeiro (com as [tags]); Google Cloud Chirp 3 HD só como reserva (sem tags).
+ * O `text` devolvido é o de tela, sem tags.
  */
 export async function speakInCall({ callId, text, voice = null }) {
   if (!callId) throw new Error('callId é obrigatório');
@@ -482,16 +485,18 @@ export async function speakInCall({ callId, text, voice = null }) {
   const call = getCallSession(callId);
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const activeVoice = voice || call?.activeVoice || profile.voice_id || getActiveCallVoice();
+  const characterId = call?.activeCharacterId || profile.character_id;
   const characterName = call?.activeCharacterName || profile.character_name;
   const modeName = call?.activeModeName || profile.mode_name;
 
-  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala no Google Chirp 3 HD para chamada ${callId} (${characterName} / ${modeName} | voz: ${activeVoice}): "${text}"`);
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (${characterName} / ${modeName}): "${text}"`);
 
-  // Roteia a síntese de áudio exclusivamente para o contexto CALL (Google Cloud Chirp 3 HD)
+  // ElevenLabs V4 Turbo com a voz do PERSONAGEM; Google Chirp 3 HD só como reserva (voz fixa do personagem).
   const speechRes = await routeCallAudio({
     text,
     callId,
-    voice: activeVoice
+    voice: activeVoice,
+    characterId
   });
 
   const base64Audio = speechRes.buffer.toString('base64');
@@ -520,7 +525,7 @@ export async function speakInCall({ callId, text, voice = null }) {
   return {
     ok: true,
     call_id: callId,
-    text,
+    text: stripAudioTags(text),
     voice: activeVoice,
     character: characterName,
     mode: modeName,
@@ -573,7 +578,9 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   void loadCallerContext(call, profile.character_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
+  // A fala vai COM as [tags] para a voz; tela, histórico e banco recebem o texto sem tags.
   const greeting = await generateOpening(profile, call_id);
+  const greetingText = stripAudioTags(greeting);
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
 
   // Inicializa histórico com a abertura oficial do perfil ativo
@@ -581,12 +588,12 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   if (callHistory.length === 0) {
     callHistory.push({
       role: 'assistant',
-      text: greeting,
+      text: greetingText,
       timestamp: new Date().toISOString()
     });
   }
 
-  // Dispara a fala de abertura do perfil ativo no Google Chirp 3 HD se ainda não foi tocada nesta chamada
+  // Dispara a fala de abertura (ElevenLabs V4 Turbo primeiro; Google Chirp 3 HD só como reserva)
   {
     try {
       const res = await speak({
@@ -594,8 +601,8 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
         text: greeting,
         voice: profile.voice_id
       });
-      await persistVoiceTurn(call, profile, '', greeting);
-      return { ok: true, handled: true, call_id, greeting, character: profile.character_name, mode: profile.mode_name, ...res };
+      await persistVoiceTurn(call, profile, '', greetingText);
+      return { ok: true, handled: true, call_id, character: profile.character_name, mode: profile.mode_name, ...res, greeting: greetingText };
     } catch (err) {
       console.error(`[VOICE_AGENT] Erro ao disparar abertura na chamada ${call_id}:`, err.message);
       return { ok: false, handled: false, error: err.message };
@@ -665,7 +672,7 @@ export function getCallHistory(callId) {
  * Processa a fala do usuário captada pelo Meowcaller via áudio WAV/PCM
  * 1. Transcreve a fala do cliente via OpenAI STT
  * 2. Gera o texto com GPT, aplicando o perfil ativo da chamada.
- * 3. Sintetiza a resposta falada exclusivamente com Google Cloud Chirp 3 HD na Voz Ativa da chamada (hot-swap)
+ * 3. Sintetiza a resposta com a voz do personagem: ElevenLabs V4 Turbo primeiro, Google Chirp 3 HD como reserva
  * 4. Transmite o áudio diretamente na chamada e registra telemetria detalhada por turno
  */
 const activeVoiceTurns = new Map();
@@ -800,19 +807,21 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
     // Caso o áudio seja muito curto ou não haja palavras identificáveis
     const curProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
     console.log(`[VOICE_AGENT] ℹ️ Áudio sem transcrição de fala clara ou silêncio na chamada ${callId}.`);
-    replyText = `Olá! Aqui é o ${curProfile.character_name} da Max Nutrition. Não consegui te ouvir com clareza, você pode repetir por favor?`;
+    replyText = `Olá! Aqui é ${curProfile.character_id === 'sirlene' ? 'a' : 'o'} ${curProfile.character_name}, do eLiving. Não consegui te ouvir com clareza, você pode repetir por favor?`;
   }
 
   signal.throwIfAborted();
-  // Sanitiza texto para pronúncia limpa
+  // Sanitiza texto para pronúncia limpa (mantém as [tags] do dono para a voz)
   replyText = sanitizeSpeechText(replyText);
+  // Texto para tela, histórico, banco e telemetria: sem tags.
+  const replyDisplay = stripAudioTags(replyText);
   const activeProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   console.log(`[VOICE_AGENT] 💬 ${activeProfile.character_name} (${activeProfile.mode_name}) responderá na chamada ${callId}: "${replyText}"`);
 
   // Atualiza histórico com a resposta do atendente
   callHistory.push({
     role: 'assistant',
-    text: replyText,
+    text: replyDisplay,
     timestamp: new Date().toISOString()
   });
   if (callHistory.length > 20) {
@@ -827,7 +836,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       text: replyText,
       voice: activeProfile.voice_id
     });
-    void persistVoiceTurn(call, activeProfile, '', replyText);
+    void persistVoiceTurn(call, activeProfile, '', replyDisplay);
     const ttsMs = Date.now() - ttsStart;
     const turnLatencyMs = Date.now() - turnStart;
 
@@ -843,7 +852,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       ttsMs,
       turnLatencyMs,
       userText: userText || '',
-      replyText,
+      replyText: replyDisplay,
       voice: currentVoice,
       characterId: activeProfile.character_id,
       characterName: activeProfile.character_name,
@@ -852,7 +861,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       profileKey: activeProfile.profile_key,
       personality: usedPersonality,
       usage: llmUsage,
-      charactersSynthesized: replyText.length,
+      charactersSynthesized: replyDisplay.length,
       error: null
     });
 
@@ -861,7 +870,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       call_id: callId,
       turn_number: turnNumber,
       user_text: userText || '',
-      reply_text: replyText,
+      reply_text: replyDisplay,
       character: activeProfile.character_name,
       mode: activeProfile.mode_name,
       voice: currentVoice,
@@ -890,7 +899,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       ttsMs,
       turnLatencyMs,
       userText: userText || '',
-      replyText,
+      replyText: replyDisplay,
       voice: currentVoice,
       characterId: activeProfile.character_id,
       characterName: activeProfile.character_name,
@@ -899,7 +908,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       profileKey: activeProfile.profile_key,
       personality: usedPersonality,
       usage: llmUsage,
-      charactersSynthesized: replyText.length,
+      charactersSynthesized: replyDisplay.length,
       error: err.message
     });
 
@@ -907,7 +916,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       ok: false,
       call_id: callId,
       user_text: userText || '',
-      reply_text: replyText,
+      reply_text: replyDisplay,
       error: err.message
     };
   }

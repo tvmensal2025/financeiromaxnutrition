@@ -68,7 +68,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.strictEqual(config.personalities.length, 3);
   });
 
-  it('2. 3 Personalidades estão presentes e com diretrizes profissionais (sem agressão/humilhação)', () => {
+  it('2. 3 Personalidades estão presentes e com diretrizes profissionais (sem bronca nem constrangimento)', () => {
     const personalities = getPersonalitiesList();
     const ids = personalities.map(p => p.id);
     assert.ok(ids.includes('equilibrio'), 'Deve conter equilíbrio');
@@ -76,8 +76,10 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.ok(ids.includes('intenso'), 'Deve conter intenso');
 
     const intenso = personalities.find(p => p.id === 'intenso');
-    assert.ok(intenso.prompt.includes('SEM insultos') && intenso.prompt.includes('SEM humilhação'), 'Modo intenso proíbe insultos e humilhação');
-    assert.ok(intenso.prompt.toUpperCase().includes('EMERGÊNCIA'), 'Modo intenso prioriza segurança em caso de dor ou emergência');
+    assert.ok(intenso.prompt.includes('Intensidade é energia, não pressão'), 'Modo intenso é energia, não pressão');
+    assert.ok(intenso.prompt.includes('Sem bronca') && intenso.prompt.includes('sem constranger a pessoa'), 'Modo intenso proíbe bronca e constrangimento');
+    assert.ok(intenso.prompt.includes('192'), 'Modo intenso prioriza segurança em caso de risco');
+    for (const p of personalities) assert.doesNotMatch(p.description, /coach|cobran|desculpa/i);
   });
 
   it('3. Editor de scripts permite atualizar e restaurar o prompt da personalidade', () => {
@@ -133,7 +135,9 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.strictEqual(session.activeVoice, getProfile('sirlene', 'normal').voice_id);
     assert.strictEqual(session.activePersonalityId, 'equilibrio');
 
-    // Troca de Voz e Personalidade em tempo real durante a chamada
+    // Troca de Voz e Personalidade em tempo real durante a chamada.
+    // Regra do eLiving: a personalidade troca na hora; a voz pedida no painel (Aoede) é ignorada,
+    // porque a Sirlene fala só com a própria voz.
     const switchResult = switchCallRuntime({
       callId,
       voice: 'pt-BR-Chirp3-HD-Aoede',
@@ -143,13 +147,13 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
 
     assert.strictEqual(switchResult.success, true);
     assert.strictEqual(switchResult.next_turn_ready, true);
-    assert.strictEqual(switchResult.active_voice, 'pt-BR-Chirp3-HD-Aoede');
+    assert.strictEqual(switchResult.active_voice, 'pt-BR-Chirp3-HD-Achernar');
     assert.strictEqual(switchResult.active_personality, 'firme');
 
     // Verifica que a chamada CONTINUA ativa na memória (não caiu!)
     const liveSession = getCallSession(callId);
     assert.ok(liveSession, 'Chamada continua ativa');
-    assert.strictEqual(liveSession.activeVoice, 'pt-BR-Chirp3-HD-Aoede');
+    assert.strictEqual(liveSession.activeVoice, 'pt-BR-Chirp3-HD-Achernar');
     assert.strictEqual(liveSession.activePersonalityId, 'firme');
     assert.strictEqual(liveSession.timeline.length, 3, 'Três eventos registrados na timeline (CONNECTED, VOICE_SWITCH, PERSONALITY_SWITCH)');
   });
@@ -245,7 +249,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.equal(summary.turns[0].metrics.stream.interruption_reason, 'new_user_speech');
   });
 
-  it('7. routeCallAudio utiliza estritamente Google Chirp 3 HD no fluxo de ligação', async () => {
+  it('7. sem ElevenLabs configurada, routeCallAudio usa a reserva Google Chirp 3 HD com a voz do personagem', async () => {
     let googleCalled = false;
     let receivedVoice = '';
 
@@ -258,7 +262,7 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     });
 
     const res = await routeCallAudio({
-      text: 'Olá, sou o consultor de voz da Max Nutrition!',
+      text: 'Olá, aqui é a Sirlene, do eLiving!',
       callId: 'call-tts-verify-99',
       voice: 'pt-BR-Chirp3-HD-Achernar'
     });
@@ -299,15 +303,15 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     }
   });
 
-  it('10. Cada perfil permite atualizar e salvar voz, abertura e script de forma 100% isolada', () => {
-    // Atualiza Vital / Normal
+  it('10. Cada perfil permite atualizar abertura e script de forma 100% isolada; a voz é sempre a do personagem', () => {
+    // Atualiza Vital / Normal (a voz pedida, Fenrir, é ignorada: o Dr. Vital fala só com a própria voz)
     const updatedVital = updateProfile('vital', 'normal', {
       voice_id: 'pt-BR-Chirp3-HD-Fenrir',
       opening_message: 'Mensagem de abertura personalizada do Dr. Vital para exames.',
       system_script: 'INSTRUCAO_TESTE_VITAL_NORMAL: Você é o Dr. Vital em atendimento exclusivo.'
     }, 'AdminDr');
 
-    assert.strictEqual(updatedVital.voice_id, 'pt-BR-Chirp3-HD-Fenrir');
+    assert.strictEqual(updatedVital.voice_id, 'pt-BR-Chirp3-HD-Charon');
     assert.strictEqual(updatedVital.opening_message, 'Mensagem de abertura personalizada do Dr. Vital para exames.');
     assert.strictEqual(updatedVital.system_script, 'INSTRUCAO_TESTE_VITAL_NORMAL: Você é o Dr. Vital em atendimento exclusivo.');
 

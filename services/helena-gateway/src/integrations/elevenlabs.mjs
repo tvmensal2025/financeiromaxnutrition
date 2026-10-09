@@ -2,11 +2,15 @@
  * Integrations / ElevenLabs Client
  * Cliente seguro para listagem de vozes, agentes, signed URLs e teste de TTS
  * REGRA ABSOLUTA: A chave ELEVENLABS_API_KEY NUNCA é enviada ao navegador.
+ *
+ * VOZ DO eLIVING (regra do dono, 06/10/2026): voz, modelo e padrão vêm SÓ de eliving-voice-config.mjs
+ * (gerado da fonte única do app). Uma voz por PERSONAGEM; nada de voz por variável de ambiente.
+ * Ligação, streaming e prévia ao vivo = models.tempoReal (eleven_v4_turbo); áudio gravado = models.gravado.
  */
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY || '';
+import ELIVING_VOICE_CONFIG from './eliving-voice-config.mjs';
+
 const ELEVENLABS_DEFAULT_AGENT_ID = process.env.ELEVENLABS_DEFAULT_AGENT_ID || process.env.ELEVENLABS_AGENT_ID || '';
-const ELEVENLABS_DEFAULT_VOICE_ID = process.env.ELEVENLABS_DEFAULT_VOICE_ID || process.env.ELEVENLABS_VOICE_ID || '';
 
 export function getElevenLabsApiKey() {
   return (process.env.ELEVENLABS_API_KEY || process.env.ELEVEN_LABS_API_KEY || '').trim();
@@ -77,7 +81,7 @@ export async function getElevenLabsVoices() {
       reachable: true,
       voices_count: voices.length,
       default_agent_id: ELEVENLABS_DEFAULT_AGENT_ID || null,
-      default_voice_id: ELEVENLABS_DEFAULT_VOICE_ID || null,
+      default_voice_id: ELEVENLABS_CHARACTER_VOICES[DEFAULT_VOICE_CHARACTER],
       voices
     };
   } catch (err) {
@@ -157,10 +161,11 @@ export async function getSignedConversationUrl(agentId = null) {
 }
 
 /**
- * Gera áudio de teste (Text-to-Speech) para uma voz selecionada
+ * Gera áudio de teste (Text-to-Speech) para a voz de um PERSONAGEM (prévia ao vivo = tempoReal).
+ * Aceita id do personagem, nome, profile_key ou a voz atual dele; voz fora do eLiving é recusada.
  * Retorna base64 de áudio para ser tocado com segurança no navegador do Fundador.
  */
-export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma demonstração de voz do Sistema Helena.') {
+export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma demonstração de voz do eLiving.') {
   if (!isElevenLabsConfigured()) {
     throw new Error('ELEVENLABS_API_KEY não configurada no servidor');
   }
@@ -169,15 +174,19 @@ export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma dem
     throw new Error('voice_id é obrigatório para testar voz');
   }
 
+  const characterId = resolveVoiceCharacter(voiceId);
+  if (!characterId) {
+    throw new Error('Voz fora do eLiving: escolha a voz de um personagem (Sirlene, Alex, Dr. Vital ou Rafael).');
+  }
+  const spec = elevenLabsSpecForCharacter(characterId, 'tempoReal');
+  voiceId = spec.voiceId;
+
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`;
 
   const payload = {
-    text: text.slice(0, 300), // Limite seguro para teste
-    model_id: 'eleven_multilingual_v2',
-    voice_settings: {
-      stability: 0.5,
-      similarity_boost: 0.75
-    }
+    text: String(text).slice(0, 300), // Limite seguro para teste
+    model_id: spec.modelId,
+    voice_settings: spec.voiceSettings
   };
 
   const res = await fetch(url, {
@@ -205,87 +214,127 @@ export async function generateVoiceSample(voiceId, text = 'Olá! Esta é uma dem
 // CONFIGURAÇÕES DE ALTÍSSIMA FIDELIDADE & STREAMING PARA LIGAÇÕES (CALL)
 // ======================================================================
 
-/**
- * Mapeamento das vozes originais e clonadas reais de cada personagem no ElevenLabs.
- */
-export const ELEVENLABS_CHARACTER_VOICES = Object.freeze({
-  sirlene: process.env.ELEVENLABS_VOICE_SIRLENE || 'eabgQyq9no9rW5ZiGiaZ',
-  alex: process.env.ELEVENLABS_VOICE_ALEX || 'TX3LPaxmHKxFdv7VOQHJ',
-  vital: process.env.ELEVENLABS_VOICE_VITAL || 'IKpiSijWzlhOL6uX83EH',
-  rafael: process.env.ELEVENLABS_VOICE_RAFAEL || 'TX3LPaxmHKxFdv7VOQHJ'
+/** Personagens com voz no gateway (chaves do gateway: sirlene, alex, vital, rafael). */
+export const ELIVING_CHARACTER_IDS = Object.freeze(Object.keys(ELIVING_VOICE_CONFIG.characters));
+
+/** Personagem usado quando nada identifica quem fala (ligação recebida começa com a Sirlene). */
+export const DEFAULT_VOICE_CHARACTER = 'sirlene';
+
+/** Voz ElevenLabs de cada personagem (uma só, da fonte única; sem override por ambiente). */
+export const ELEVENLABS_CHARACTER_VOICES = Object.freeze(Object.fromEntries(
+  ELIVING_CHARACTER_IDS.map(id => [id, ELIVING_VOICE_CONFIG.characters[id].voiceId])
+));
+
+/** Nomes e ids aceitos para cada personagem. */
+const CHARACTER_ALIASES = Object.freeze({
+  sirlene: 'sirlene',
+  alex: 'alex',
+  vital: 'vital',
+  drvital: 'vital',
+  'dr vital': 'vital',
+  'dr. vital': 'vital',
+  'doutor vital': 'vital',
+  rafael: 'rafael'
 });
 
 /**
- * Mapeamento reverso entre vozes Google Chirp 3 HD, perfis e ElevenLabs
+ * Compatibilidade: vozes Google que perfis ANTIGOS salvaram para um personagem. Só servem para
+ * descobrir o personagem; a voz usada é sempre a do personagem.
  */
-const CHIRP_TO_ELEVENLABS_MAP = {
-  // Sirlene
-  'pt-br-chirp3-hd-achernar': 'sirlene',
+const LEGACY_GOOGLE_VOICE_CHARACTER = Object.freeze({
   'pt-br-chirp3-hd-aoede': 'sirlene',
   'pt-br-chirp3-hd-autonoe': 'sirlene',
-  'sirlene_normal': 'sirlene',
-  'sirlene_firm': 'sirlene',
-  'sirlene_intense': 'sirlene',
-  // Alex
-  'pt-br-chirp3-hd-alkaid': 'alex',
   'pt-br-chirp3-hd-fenrir': 'alex',
-  'alex_normal': 'alex',
-  'alex_firm': 'alex',
-  'alex_intense': 'alex',
-  // Vital
-  'pt-br-chirp3-hd-charon': 'vital',
-  'pt-br-chirp3-hd-iapetus': 'vital',
-  'vital_normal': 'vital',
-  'vital_firm': 'vital',
-  'vital_intense': 'vital',
-  // Rafael
-  'pt-br-chirp3-hd-achird': 'rafael',
-  'rafael_normal': 'rafael',
-  'rafael_firm': 'rafael',
-  'rafael_intense': 'rafael'
-};
+  'pt-br-chirp3-hd-iapetus': 'vital'
+});
+
+const LEGACY_VOICE_ID_CHARACTER = Object.freeze(Object.fromEntries(
+  Object.entries(ELIVING_VOICE_CONFIG.legacyVoiceCharacters).map(([id, character]) => [id.toLowerCase(), character])
+));
 
 /**
- * Resolve o Voice ID oficial no ElevenLabs a partir do personagem, ID ou voz do Chirp.
+ * Descobre o PERSONAGEM a partir de id ('vital', 'drvital'), profile_key ('vital_firm'), nome
+ * ('Dr. Vital'), voz ElevenLabs ou Google do personagem. Voz Google antiga e id legado (Uneskee → Sirlene)
+ * valem só como compatibilidade. Devolve null quando não identifica.
  */
-export function resolveElevenLabsVoice(voiceOrCharacterId) {
-  if (!voiceOrCharacterId) return ELEVENLABS_CHARACTER_VOICES.sirlene;
-  const key = String(voiceOrCharacterId).toLowerCase().trim();
-
-  // Substitui automaticamente qualquer referência à voz antiga filipina pela voz real clonada da Sirlene
-  if (key === 'ejv7h2bagt5ab95toosg' || key === 'ejv7h2bagt5ab95tooosg') {
-    return ELEVENLABS_CHARACTER_VOICES.sirlene;
+export function resolveVoiceCharacter(input) {
+  if (input == null) return null;
+  const key = String(input).trim().toLowerCase();
+  if (!key) return null;
+  if (CHARACTER_ALIASES[key]) return CHARACTER_ALIASES[key];
+  const profile = key.match(/^([a-z]+)_(normal|firm|intense|firme|intenso)$/);
+  if (profile && CHARACTER_ALIASES[profile[1]]) return CHARACTER_ALIASES[profile[1]];
+  for (const id of ELIVING_CHARACTER_IDS) {
+    const character = ELIVING_VOICE_CONFIG.characters[id];
+    if (character.voiceId.toLowerCase() === key || character.googleFallbackVoice.toLowerCase() === key) return id;
   }
-  
-  if (CHIRP_TO_ELEVENLABS_MAP[key]) {
-    const charKey = CHIRP_TO_ELEVENLABS_MAP[key];
-    return ELEVENLABS_CHARACTER_VOICES[charKey] || ELEVENLABS_CHARACTER_VOICES.sirlene;
+  if (LEGACY_VOICE_ID_CHARACTER[key]) return LEGACY_VOICE_ID_CHARACTER[key];
+  if (LEGACY_GOOGLE_VOICE_CHARACTER[key]) return LEGACY_GOOGLE_VOICE_CHARACTER[key];
+  for (const id of ELIVING_CHARACTER_IDS) {
+    if (key.includes(id)) return id;
   }
-  if (ELEVENLABS_CHARACTER_VOICES[key]) {
-    return ELEVENLABS_CHARACTER_VOICES[key];
-  }
-  // Se contiver 'sirlene', 'alex', 'vital' ou 'rafael' no texto
-  if (key.includes('sirlene')) return ELEVENLABS_CHARACTER_VOICES.sirlene;
-  if (key.includes('vital')) return ELEVENLABS_CHARACTER_VOICES.vital;
-  if (key.includes('alex')) return ELEVENLABS_CHARACTER_VOICES.alex;
-  if (key.includes('rafael')) return ELEVENLABS_CHARACTER_VOICES.rafael;
-
-  return voiceOrCharacterId;
+  return null;
 }
 
 /**
- * Configurações de Altíssima Fidelidade (Master Quality) para as vozes reais clonadas.
- * - stability: 0.50 (Permite emoção e respiração natural sem instabilidade)
- * - similarity_boost: 0.85 (Fidelidade máxima ao timbre da voz real gravada)
- * - style: 0.15 (Expressividade humana dinâmica para conversação)
- * - use_speaker_boost: true (Ativa realce do falante proprietário da ElevenLabs)
+ * Personagem da ligação: o characterId manda; a voz (de painel/perfil antigo) só identifica o
+ * personagem quando não há characterId. Sem nada, a Sirlene.
  */
-export const ELEVENLABS_HIGH_QUALITY_SETTINGS = Object.freeze({
-  stability: 0.50,
-  similarity_boost: 0.85,
-  style: 0.15,
-  use_speaker_boost: true
-});
+export function resolveCallCharacter({ characterId = null, voice = null } = {}) {
+  return resolveVoiceCharacter(characterId) || resolveVoiceCharacter(voice) || DEFAULT_VOICE_CHARACTER;
+}
+
+/**
+ * Voz + modelo V4 + padrão aprovado do personagem (equivale ao voiceFor do app).
+ * uso: 'tempoReal' (ligação, streaming, prévia ao vivo) ou 'gravado' (áudio gravado/arquivo).
+ */
+export function elevenLabsSpecForCharacter(characterId, uso = 'tempoReal') {
+  const id = resolveVoiceCharacter(characterId);
+  if (!id) throw new Error(`[elevenlabs] personagem desconhecido: "${String(characterId)}"`);
+  if (!Object.prototype.hasOwnProperty.call(ELIVING_VOICE_CONFIG.models, uso)) {
+    throw new Error(`[elevenlabs] uso desconhecido: "${String(uso)}" (use "gravado" ou "tempoReal")`);
+  }
+  const character = ELIVING_VOICE_CONFIG.characters[id];
+  return {
+    characterId: id,
+    voiceId: character.voiceId,
+    modelId: ELIVING_VOICE_CONFIG.models[uso],
+    voiceSettings: { ...character.voiceSettings }
+  };
+}
+
+/** Voz reserva Google Chirp 3 HD FIXA do personagem (uma por personagem). */
+export function googleFallbackVoiceForCharacter(characterId) {
+  const id = resolveVoiceCharacter(characterId) || DEFAULT_VOICE_CHARACTER;
+  return ELIVING_VOICE_CONFIG.characters[id].googleFallbackVoice;
+}
+
+/**
+ * Voz Google da ligação: sempre a voz fixa do personagem. Voz pedida por painel/perfil que não é a
+ * dele (por exemplo, a de outro personagem) é ignorada, com log.
+ */
+export function googleVoiceForCall({ characterId = null, voice = null } = {}) {
+  const character = resolveCallCharacter({ characterId, voice });
+  const fixed = googleFallbackVoiceForCharacter(character);
+  const requested = voice == null ? '' : String(voice).trim();
+  if (requested && /chirp3-hd/i.test(requested) && requested.toLowerCase() !== fixed.toLowerCase()) {
+    const owner = resolveVoiceCharacter(requested);
+    console.warn(`[VOZ_ELIVING] Voz Google '${requested}' ignorada${owner && owner !== character ? ` (é de ${owner})` : ''}: ${character} fala só com ${fixed}.`);
+  }
+  return fixed;
+}
+
+/**
+ * Resolve o Voice ID ElevenLabs por PERSONAGEM (id, profile_key, nome; voz Google ou id legado só como
+ * compatibilidade). Nunca devolve uma voz solta: sem personagem identificado, usa a Sirlene.
+ */
+export function resolveElevenLabsVoice(voiceOrCharacterId) {
+  const id = resolveVoiceCharacter(voiceOrCharacterId);
+  if (!id && voiceOrCharacterId) {
+    console.warn(`[VOZ_ELIVING] Voz '${String(voiceOrCharacterId)}' não pertence a nenhum personagem; usando ${DEFAULT_VOICE_CHARACTER}.`);
+  }
+  return ELEVENLABS_CHARACTER_VOICES[id || DEFAULT_VOICE_CHARACTER];
+}
 
 // Circuit-breaker em memória para cota mensal do ElevenLabs
 let elevenLabsQuotaExceededUntil = 0;
@@ -319,15 +368,18 @@ export function isElevenLabsQuotaExceeded(status, errorBody = '') {
 
 /**
  * Executa a síntese de voz em alta fidelidade (192 kbps HD) para ligações.
+ * Voz, modelo e padrão vêm do PERSONAGEM (characterId; `voice` só identifica o personagem quando
+ * falta o characterId). uso 'tempoReal' (padrão, ligação) ou 'gravado' (arquivo).
  * Caso a cota mensal tenha estourado, lança erro com flag `isQuotaExceeded = true`
  * para que o router acione imediatamente o fallback automático do Google Chirp 3 HD.
  */
 export async function synthesizeElevenLabsCallSpeech({
   text,
-  voice,
+  characterId = null,
+  voice = null,
   signal,
   outputFormat = 'mp3_44100_192',
-  modelId = 'eleven_multilingual_v2'
+  uso = 'tempoReal'
 }) {
   if (!isElevenLabsConfigured()) {
     const err = new Error('ELEVENLABS_API_KEY não configurada no servidor');
@@ -343,13 +395,14 @@ export async function synthesizeElevenLabsCallSpeech({
     throw err;
   }
 
-  const voiceId = resolveElevenLabsVoice(voice);
+  const spec = elevenLabsSpecForCharacter(resolveCallCharacter({ characterId, voice }), uso);
+  const voiceId = spec.voiceId;
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${outputFormat}`;
 
   const payload = {
     text: String(text).trim(),
-    model_id: modelId,
-    voice_settings: ELEVENLABS_HIGH_QUALITY_SETTINGS
+    model_id: spec.modelId,
+    voice_settings: spec.voiceSettings
   };
 
   const start = performance.now();
@@ -380,22 +433,24 @@ export async function synthesizeElevenLabsCallSpeech({
     buffer,
     format: outputFormat.startsWith('pcm') ? 'pcm' : 'mp3',
     voice: voiceId,
+    characterId: spec.characterId,
+    modelId: spec.modelId,
     latencyMs,
-    characterCount: text.length
+    characterCount: String(text).length
   };
 }
 
 /**
- * Abre stream nativo de áudio (HTTP chunked streaming) em altíssima qualidade (192 kbps HD).
- * Permite latência ultra-baixa com início de reprodução em menos de 300ms.
+ * Abre stream nativo de áudio (HTTP chunked streaming) para ligação: eleven_v4_turbo (tempo real),
+ * com a voz e o padrão do PERSONAGEM. (optimize_streaming_latency é obsoleto na API e não é enviado.)
  */
 export async function streamElevenLabsCallSpeech({
   text,
-  voice,
+  characterId = null,
+  voice = null,
   signal,
   outputFormat = 'mp3_44100_192',
-  optimizeStreamingLatency = 1,
-  modelId = 'eleven_multilingual_v2'
+  uso = 'tempoReal'
 }) {
   if (!isElevenLabsConfigured()) {
     const err = new Error('ELEVENLABS_API_KEY não configurada no servidor');
@@ -404,13 +459,21 @@ export async function streamElevenLabsCallSpeech({
     throw err;
   }
 
-  const voiceId = resolveElevenLabsVoice(voice);
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?optimize_streaming_latency=${optimizeStreamingLatency}&output_format=${outputFormat}`;
+  if (isElevenLabsQuotaCurrentlyExceeded()) {
+    const err = new Error('ElevenLabs cota mensal esgotada (circuit-breaker ativo)');
+    err.code = 'ELEVENLABS_QUOTA_EXCEEDED';
+    err.isQuotaExceeded = true;
+    throw err;
+  }
+
+  const spec = elevenLabsSpecForCharacter(resolveCallCharacter({ characterId, voice }), uso);
+  const voiceId = spec.voiceId;
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/stream?output_format=${outputFormat}`;
 
   const payload = {
     text: String(text).trim(),
-    model_id: modelId,
-    voice_settings: ELEVENLABS_HIGH_QUALITY_SETTINGS
+    model_id: spec.modelId,
+    voice_settings: spec.voiceSettings
   };
 
   const res = await fetch(url, {
@@ -423,6 +486,9 @@ export async function streamElevenLabsCallSpeech({
   if (!res.ok) {
     const errText = await res.text().catch(() => 'Erro ElevenLabs');
     const isQuota = isElevenLabsQuotaExceeded(res.status, errText);
+    if (isQuota) {
+      markElevenLabsQuotaExceeded();
+    }
     const err = new Error(`ElevenLabs Streaming [${res.status}]: ${errText}`);
     err.status = res.status;
     err.isQuotaExceeded = isQuota;
@@ -433,6 +499,8 @@ export async function streamElevenLabsCallSpeech({
     stream: res.body,
     contentType: res.headers.get('content-type') || 'audio/mpeg',
     voiceId,
+    characterId: spec.characterId,
+    modelId: spec.modelId,
     format: outputFormat.startsWith('pcm') ? 'pcm' : 'mp3'
   };
 }

@@ -1507,7 +1507,7 @@ app.get('/health', async (req, res) => {
     ok: isHealthy,
     service: 'helena-gateway',
     version: '0.1.0',
-    voice_revision: '20261005-elevenlabs-v4-hybrid',
+    voice_revision: '20261006-eliving-v4-voz-unica',
     supabase: supabaseOk,
     runtime_access: 'hermes-scoped-v1',
     workflow_version: 'hermes-workflow-v2',

@@ -1,6 +1,7 @@
 /**
  * audio-tags-expressiveness.test.mjs
- * Testes Unitários de Modulação Vocal e Expressividade Humana com Audio Tags
+ * Tags de áudio do eLiving (regra do dono, eliving-voice-config.mjs): lista fechada de 27 tags,
+ * proibidas com o aluno, [shouts]/[yelling] só comemorando, 1 a 3 por fala, colchetes e nunca chaves.
  */
 
 import { describe, it } from 'node:test';
@@ -9,84 +10,99 @@ import assert from 'node:assert/strict';
 import {
   RECOMMENDED_AUDIO_TAGS,
   AUDIO_TAGS_GUIDE,
-  cleanVoiceText,
+  CHARACTER_STYLES,
   stripAudioTags,
   formatSpeechForElevenLabs,
+  isAudioTagAllowed,
   buildNaturalnessInstruction
 } from '../src/integrations/conversation-naturalness.mjs';
+import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
 
 import { sanitizeCallText } from '../src/integrations/google-chirp3-hd.mjs';
 
-describe('Guia de Modulação Vocal e Expressividade (Audio Tags)', () => {
+const INVENTED_TAGS = ['warmly', 'cheerfully', 'amazed', 'surprised', 'groaning', 'hesitant', 'comforting', 'quizzically', 'sigh'];
 
-  it('1. Catálogo oficial de Audio Tags recomendadas está completo', () => {
-    const requiredTags = [
-      'surprised', 'shocked', 'amazed', 'excited',
-      'angry', 'annoyed', 'frustrated',
-      'laughing', 'laughs', 'giggling', 'cheerfully',
-      'sighs', 'sigh', 'clears throat', 'groaning',
-      'whispers', 'whispering', 'shouts', 'quizzically', 'hesitant', 'indecisive', 'comforting', 'warmly'
-    ];
+describe('Guia de Modulação Vocal e Expressividade (Audio Tags) — regra do dono', () => {
 
-    for (const tag of requiredTags) {
-      assert.ok(
-        RECOMMENDED_AUDIO_TAGS.includes(tag),
-        `Tag obrigatória '${tag}' deve constar no catálogo RECOMMENDED_AUDIO_TAGS`
-      );
+  it('1. O catálogo é exatamente a lista do dono (27 tags), sem tags inventadas', () => {
+    assert.equal(RECOMMENDED_AUDIO_TAGS.length, 27);
+    assert.deepEqual([...RECOMMENDED_AUDIO_TAGS], [...ELIVING_VOICE_CONFIG.audioTagsDono]);
+    for (const tag of INVENTED_TAGS) {
+      assert.equal(RECOMMENDED_AUDIO_TAGS.includes(tag), false, `[${tag}] não é tag do dono`);
     }
   });
 
-  it('2. formatSpeechForElevenLabs preserva as audio tags oficiais do catálogo', () => {
-    const input1 = '[surprised] Não acredito! Você conseguiu resolver isso tão rápido?';
-    const output1 = formatSpeechForElevenLabs(input1);
-    assert.equal(output1, '[surprised] Não acredito! Você conseguiu resolver isso tão rápido?');
-
-    const input2 = '[sighs] Infelizmente esse problema ainda não foi resolvido. [warmly] Mas vou te ajudar agora mesmo.';
-    const output2 = formatSpeechForElevenLabs(input2);
-    assert.equal(output2, '[sighs] Infelizmente esse problema ainda não foi resolvido. [warmly] Mas vou te ajudar agora mesmo.');
-
-    const input3 = '[annoyed] Isso realmente não deveria estar acontecendo.';
-    const output3 = formatSpeechForElevenLabs(input3);
-    assert.equal(output3, '[annoyed] Isso realmente não deveria estar acontecendo.');
-
-    const input4 = '[laughs] Essa foi muito boa! [excited] Vamos comemorar essa meta batida!';
-    const output4 = formatSpeechForElevenLabs(input4);
-    assert.equal(output4, '[laughs] Essa foi muito boa! [excited] Vamos comemorar essa meta batida!');
+  it('2. formatSpeechForElevenLabs preserva as tags do dono permitidas com o aluno', () => {
+    assert.equal(formatSpeechForElevenLabs('[curious] Me conta, como foi o seu dia?'), '[curious] Me conta, como foi o seu dia?');
+    assert.equal(formatSpeechForElevenLabs('Entendi. [short pause] Vamos juntos.'), 'Entendi. [short pause] Vamos juntos.');
+    assert.equal(
+      formatSpeechForElevenLabs('[laughs] Essa foi muito boa! [excited] Vamos comemorar essa meta batida!'),
+      '[laughs] Essa foi muito boa! [excited] Vamos comemorar essa meta batida!'
+    );
+    assert.equal(formatSpeechForElevenLabs('[Clears  Throat] Vamos ao exame.'), '[clears throat] Vamos ao exame.');
   });
 
-  it('3. formatSpeechForElevenLabs remove rubricas inválidas e emojis, mantendo tags válidas', () => {
-    const input = '[pensando] [warmly] Olá! *respira fundo* [pause] Vamos analisar seu exame. 😊';
-    const output = formatSpeechForElevenLabs(input);
-    // [warmly] é válida; [pensando], [pause], *respira fundo* e emoji são removidos
-    assert.equal(output, '[warmly] Olá! Vamos analisar seu exame.');
+  it('3. formatSpeechForElevenLabs remove tags inventadas, rubricas, emojis e chaves', () => {
+    const input = '[pensando] [curious] Olá! *respira fundo* [warmly] Vamos analisar seu exame. 😊';
+    assert.equal(formatSpeechForElevenLabs(input), '[curious] Olá! Vamos analisar seu exame.');
+    for (const tag of INVENTED_TAGS) {
+      assert.equal(formatSpeechForElevenLabs(`[${tag}] Bom dia.`), 'Bom dia.', `[${tag}] precisa sair`);
+    }
+    assert.equal(formatSpeechForElevenLabs('Oi {nome}, tudo bem?'), 'Oi, tudo bem?');
   });
 
-  it('4. stripAudioTags remove todas as tags para o Google Cloud Chirp 3 HD não verbalizar em inglês', () => {
-    const input = '[surprised] Não acredito! [sighs] Foi um dia puxado... [warmly] Mas vamos em frente.';
+  it('4. Tags proibidas com o aluno saem; [shouts]/[yelling] só comemorando com [excited]/[enthusiastic]', () => {
+    for (const tag of ['angry', 'frustrated', 'sarcastic', 'deadpan', 'groans', 'snickers', 'stifling laughter', 'crying', 'tearfully']) {
+      assert.equal(formatSpeechForElevenLabs(`[${tag}] Vamos lá.`), 'Vamos lá.', `[${tag}] é proibida com o aluno`);
+    }
+    assert.equal(formatSpeechForElevenLabs('[shouts] Conseguimos!'), 'Conseguimos!');
+    assert.equal(formatSpeechForElevenLabs('[yelling] Bateu a meta!'), 'Bateu a meta!');
+    assert.equal(formatSpeechForElevenLabs('[excited] [shouts] Conseguimos!'), '[excited] [shouts] Conseguimos!');
+    // A exceção vale na fala inteira (contexto do que já foi dito no turno)
+    assert.equal(formatSpeechForElevenLabs('[shouts] Bateu a meta!', { contexto: '[enthusiastic] Isso!' }), '[shouts] Bateu a meta!');
+    assert.equal(isAudioTagAllowed('shouts', []), false);
+    assert.equal(isAudioTagAllowed('shouts', ['enthusiastic']), true);
+    assert.equal(isAudioTagAllowed('angry', ['excited']), false);
+  });
+
+  it('5. No máximo 3 tags por fala', () => {
+    const out = formatSpeechForElevenLabs('[curious] Um. [pause] Dois. [laughs] Três. [thoughtful] Quatro.');
+    assert.equal(out, '[curious] Um. [pause] Dois. [laughs] Três. Quatro.');
+    assert.equal(formatSpeechForElevenLabs('[laughs] Já usei as tags.', { maxTags: 0 }), 'Já usei as tags.');
+  });
+
+  it('6. stripAudioTags remove QUALQUER [..] para o Google Chirp 3 HD não verbalizar', () => {
+    const input = '[curious] Não acredito! [short pause] Foi um dia puxado... [tom animado] Mas vamos em frente.';
     const output = stripAudioTags(input);
     assert.equal(output, 'Não acredito! Foi um dia puxado... Mas vamos em frente.');
-    assert.ok(!output.includes('['), 'Não deve conter colchetes abertos');
-    assert.ok(!output.includes(']'), 'Não deve conter colchetes fechados');
-    assert.ok(!output.includes('surprised'));
-    assert.ok(!output.includes('warmly'));
+    assert.doesNotMatch(output, /\[|\]/);
+    assert.equal(stripAudioTags('Olá [laughs]!'), 'Olá!');
   });
 
-  it('5. sanitizeCallText do Google Chirp 3 HD remove audio tags em colchetes por segurança', () => {
-    const input = '[laughs] Que notícia excelente! [clears throat] Vamos ao próximo passo.';
+  it('7. sanitizeCallText do Google Chirp 3 HD remove qualquer [..], inclusive tags com acento ou número', () => {
+    const input = '[laughs] Que notícia excelente! [clears throat] Vamos ao próximo passo. [pausa 2s] Certo?';
     const clean = sanitizeCallText(input);
-    assert.equal(clean, 'Que notícia excelente! Vamos ao próximo passo.');
+    assert.equal(clean, 'Que notícia excelente! Vamos ao próximo passo. Certo?');
     assert.doesNotMatch(clean, /\[|\]/);
   });
 
-  it('6. buildNaturalnessInstruction contém o Guia de Modulação Vocal e Audio Tags para a LLM GPT Luna', () => {
+  it('8. O guia entregue à LLM traz as regras do dono e nenhuma tag inventada', () => {
     const instruction = buildNaturalnessInstruction({ profile: { character_id: 'sirlene' } });
     assert.ok(instruction.includes('GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS)'));
-    assert.ok(instruction.includes('[surprised]'));
-    assert.ok(instruction.includes('[warmly]'));
-    assert.ok(instruction.includes('[laughs]'));
-    assert.ok(instruction.includes('[sighs]'));
+    assert.ok(instruction.includes(AUDIO_TAGS_GUIDE));
+    assert.match(AUDIO_TAGS_GUIDE, /de 1 a 3 tags de áudio por fala/);
+    assert.match(AUDIO_TAGS_GUIDE, /PROIBIDAS com a pessoa/);
+    assert.match(AUDIO_TAGS_GUIDE, /\[angry\]/);
+    assert.match(AUDIO_TAGS_GUIDE, /nunca use chaves/);
     assert.ok(instruction.includes('Não verbalize a tag'));
     assert.ok(instruction.includes('reticências (...) para pausas reflexivas'));
+    for (const tag of INVENTED_TAGS) {
+      assert.equal(instruction.includes(`[${tag}]`), false, `guia não pode sugerir [${tag}]`);
+    }
+    // Paleta preferida por personagem vem da configuração única
+    for (const id of ['sirlene', 'alex', 'vital', 'rafael']) {
+      for (const tag of ELIVING_VOICE_CONFIG.speakerTagPalette[id]) assert.ok(CHARACTER_STYLES[id].includes(`[${tag}]`));
+    }
   });
 
 });

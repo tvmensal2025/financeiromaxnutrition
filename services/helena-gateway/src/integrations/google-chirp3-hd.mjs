@@ -22,6 +22,9 @@ export const PROVIDER_NAME = 'google_chirp3_hd';
 export const DEFAULT_LANGUAGE = 'pt-BR';
 export const DEFAULT_CHIRP3_HD_VOICE = 'pt-BR-Chirp3-HD-Achernar';
 
+/** Qualquer trecho entre colchetes (tags de áudio): nunca vai para o Google. */
+const AUDIO_TAG_PATTERN = /\[[^[\]\r\n]*\]/g;
+
 /**
  * Catálogo validado de vozes Chirp 3 HD disponíveis para português do Brasil (pt-BR).
  * Todas as vozes abaixo pertencem ao modelo generativo Chirp 3 HD.
@@ -249,6 +252,20 @@ export const CHIRP3_HD_VOICES_PT_BR = Object.freeze({
 
 let cachedClient = null;
 
+/** Remove tags de áudio [..] de um trecho de streaming, sem tirar o espaço que separa os trechos. */
+function stripStreamingTags(text) {
+  return String(text)
+    .replace(AUDIO_TAG_PATTERN, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+([,.;:!?…])/g, '$1')
+    .replace(/^[ \t]+(?=\S)/, '');
+}
+
+function withoutTags(chunk) {
+  if (!chunk || typeof chunk !== 'object' || !chunk.input || typeof chunk.input.text !== 'string') return chunk;
+  return { ...chunk, input: { ...chunk.input, text: stripStreamingTags(chunk.input.text) } };
+}
+
 /** Bidirectional CALL-only synthesis. Streaming PCM is headerless, unlike LINEAR16/WAV. */
 export function openChirp3CallStream({ voice = null, context = 'CALL', signal } = {}) {
   if (context !== 'CALL' || !isGoogleChirp3CallEnabled()) throw new Error('Chirp streaming requires enabled CALL context');
@@ -263,6 +280,11 @@ export function openChirp3CallStream({ voice = null, context = 'CALL', signal } 
     voice: { name: resolveChirp3Voice(voice), languageCode: DEFAULT_LANGUAGE },
     streamingAudioConfig: { audioEncoding: 'PCM', sampleRateHertz: 16000 }
   } });
+  // Regra do eLiving: nenhum texto chega ao Google com tag de áudio (a voz leria "[laughs]" em voz alta).
+  const write = stream.write.bind(stream);
+  const end = stream.end.bind(stream);
+  stream.write = (chunk, ...rest) => write(withoutTags(chunk), ...rest);
+  stream.end = (chunk, ...rest) => (chunk == null || typeof chunk === 'function') ? end(chunk, ...rest) : end(withoutTags(chunk), ...rest);
   return stream;
 }
 
@@ -737,7 +759,7 @@ export async function checkInstantCustomVoiceAvailability() {
 export function sanitizeCallText(rawText) {
   if (typeof rawText !== 'string') return '';
   return rawText
-    .replace(/\[[a-zA-Z\s_-]+\]/g, ' ') // remove audio tags (ex: [laughs], [sighs]) para não verbalizar
+    .replace(AUDIO_TAG_PATTERN, ' ') // remove QUALQUER [..] (tags de áudio como [laughs], [short pause]) para não verbalizar
     .replace(/[*#_~`]/g, '') // remove marcações markdown
     .replace(/https?:\/\/\S+/g, '') // remove URLs brutas
     .replace(/[\r\n]+/g, ' ') // achata quebras de linha

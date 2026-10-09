@@ -66,6 +66,8 @@ import {
   DEFAULT_CHIRP3_HD_VOICE,
   PROVIDER_NAME as GOOGLE_CHIRP3_PROVIDER
 } from '../integrations/google-chirp3-hd.mjs';
+import { routeCallPreviewAudio } from '../integrations/audio-router.mjs';
+import { stripAudioTags } from '../integrations/conversation-naturalness.mjs';
 
 import {
   getVoiceAgentConfig,
@@ -1061,7 +1063,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
   router.post('/api/integrations/voice-agent/test-dialogue', requireVoiceSession, async (req, res) => {
     try {
       const { prompt = 'Qual a diferença entre a creatina monohidratada e a creapure?', voice = KOKORO_OFFICIAL_VOICE_ID } = req.body || {};
-      const responseText = await generateAgentSpeechText({ prompt });
+      // O Kokoro não interpreta [tags] de áudio: fala e resposta sem tags.
+      const responseText = stripAudioTags(await generateAgentSpeechText({ prompt }));
       const sample = await generateKokoroSample(voice || KOKORO_OFFICIAL_VOICE_ID, responseText);
       return res.json({
         ok: true,
@@ -1715,7 +1718,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
 
   /**
    * Executa um turno conversacional completo para o aplicativo web/mobile
-   * Conexão DIRETA: processa o texto com GPT (system_script estrito) e sintetiza com Google Cloud Chirp 3 HD
+   * Conexão DIRETA: processa o texto com GPT (system_script estrito) e sintetiza com ElevenLabs V4 Turbo
+   * (voz do personagem); Google Cloud Chirp 3 HD só como reserva
    * POST /api/integrations/call-engine/turn
    */
   router.post('/api/integrations/call-engine/transcribe', async (req,res)=>{
@@ -1783,20 +1787,23 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         replyText = generated.text;
       }
 
-      // Sintetiza áudio via Google Cloud Chirp 3 HD
-      const preview = replyText ? await previewGoogleCallVoice({
+      // Sintetiza o áudio: ElevenLabs V4 Turbo com a voz do personagem e as [tags]; Google Chirp 3 HD
+      // só como reserva (sem tags). Tela e banco recebem o texto sem tags.
+      const replyDisplay = stripAudioTags(replyText);
+      const preview = replyDisplay ? await routeCallPreviewAudio({
         text: replyText,
+        characterId: profile.character_id,
         voice: characterVoice
       }) : { audio_base64: '', content_type: 'audio/mpeg' };
-      if (replyText && !await persistVoiceTurn(webCall, profile, '', replyText)) {
+      if (replyDisplay && !await persistVoiceTurn(webCall, profile, '', replyDisplay)) {
         return res.status(503).json({error:'Não consegui guardar a resposta. Tente novamente.'});
       }
 
       return res.json({
         ok: true,
         call_id: callId,
-        text: replyText,
-        reply_text: replyText,
+        text: replyDisplay,
+        reply_text: replyDisplay,
         audio_base64: preview.audio_base64,
         content_type: preview.content_type || 'audio/mp3',
         voice: characterVoice,
