@@ -1,6 +1,6 @@
 # Sistema Helena v2 — plano de arquitetura
 
-Data: 09/10/2026. Status: PROPOSTA para aprovação do Fundador. Nada foi construído.
+Data: 09/10/2026. Status: PROPOSTA v2.1 (revisada após análise de furos, seção 9) para aprovação do Fundador. Nada foi construído.
 
 ## 1. Diagnóstico (o que aprendemos com a v1)
 
@@ -160,3 +160,37 @@ O Fundador fala com a Helena. Isso vira um card. O card anda sozinho entre os re
 1. Aprovar a direção da v2.
 2. Confirmar os 5 primeiros agentes: Helena, Ravi, Isabela, Clara, Caio.
 3. Confirmar a primeira meta para o teste: recrutar 10 pessoas na Mimix e no Hub.
+
+## 9. Análise de furos (revisão crítica antes de aprovar) — v2.1
+
+Revisei o próprio plano procurando onde ele quebraria. Achei 8 furos; abaixo, cada um e a correção já incorporada.
+
+| # | Furo no plano v2 | Por que quebraria | Correção (v2.1) |
+|---|---|---|---|
+| 1 | Reescrever o motor do zero | Joga fora proteções já testadas (contratos do Gateway, travas do banco, revisão) e reintroduz defeitos novos | **Evoluir, não reescrever**: manter Gateway e Supabase e trocar só o ciclo/despachante pelo motor novo, peça por peça (padrão "estrangulamento") |
+| 2 | Um contêiner por agente | Cada contêiner precisaria do próprio login do modelo (OAuth do ChatGPT), com renovações e limites separados: mais pontos de falha, não menos | **Isolamento por processo**: workers separados na mesma máquina, com status e log próprios. Separa contêiner só se um agente precisar. O defeito em script compartilhado se resolve com versão, ensaio e canário |
+| 3 | Roteiros (playbooks) rígidos | Trabalho real tem caminhos novos; um roteiro fixo travaria tarefas legítimas | **Plano como dado**: para tarefa nova, a Helena propõe um plano (etapas, responsáveis, dependências) num formato que o código valida — agente existe, função confere, tamanho, orçamento. Só então o motor executa. Plano grande pede um "ok" do Fundador |
+| 4 | "Erro de processo impossível" | Exagero: provedor fora do ar, login expirado ou limite de uso do plano acontecem (vimos erros de OAuth) | **Garantia honesta**: nenhuma falha silenciosa; toda falha detectada, classificada e recuperada sozinha (nova tentativa sem gasto, modelo reserva) ou levada ao Fundador com opção. Monitor de saúde do provedor e da cota |
+| 5 | Helena como orquestradora | Se a Helena (uma IA) falhar, a empresa para | **O motor (código) é o orquestrador**; a Helena é a interface e a planejadora. Se ela falhar, os cards em andamento continuam |
+| 6 | Revisor IA da mesma família | Erros parecidos passam juntos; revisor exigente demais trava (vimos excesso de cautela) | **Roteiro de aprovação por tipo de entrega**, com critérios objetivos de "passou"; o 👍/👎 do Fundador também calibra o revisor; o painel mostra a taxa de devolução por revisor |
+| 7 | Ensaio só com "IA falsa" | Pega defeito de encanamento, não de comportamento (Pedro em loop de buscas, Helena usando nome em vez de código) | **Dois níveis de teste**: simulador (encanamento, em toda mudança) + banco de casos reais com o modelo de verdade (comportamento, toda noite e antes de trocar modelo) |
+| 8 | Segurança fora do plano | Chaves expostas em logs, porta 9119 aberta: crescer assim amplia o risco | **Fase 0 de segurança**: trocar as chaves, fechar a 9119, segredos só no cofre do servidor, antes de escalar |
+
+### Existe plano melhor?
+
+- **Framework pronto (LangGraph, CrewAI, Vercel eve).**
+  - Ganharia execução durável e aprovações prontas.
+  - Mas exige migrar app, banco e servidor para outra base, reconstruindo o que já funciona.
+  - O eve é o mais próximo do desenho, mas é atrelado ao ecossistema Vercel/Nuxt.
+- **Postgres como máquina de estados (escolhido).**
+  - As transições ficam numa tabela e o banco recusa qualquer passo inválido, como já fazem as travas atuais.
+  - É o mesmo princípio de execução durável dos frameworks, sem trocar de base.
+  - É o caminho com menos furos para o seu caso.
+
+### O que muda nas fases
+
+0. Segurança (chaves, porta 9119) + congelar a v1 no que já está andando.
+1. Fichas dos 5 agentes, modelos de entrega, primeiro roteiro e formato de "plano como dado".
+2. Motor de estados no Postgres + workers por processo + simulador + banco de casos reais.
+3. Card no app (relatório bonito, 👍/👎, "por que travou?") + 1 meta real de ponta a ponta sem intervenção.
+4. Demais agentes, um por vez, com placar.
