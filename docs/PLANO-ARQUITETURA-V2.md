@@ -61,6 +61,8 @@ helena-v2/
   tools/             # ferramentas com permissao declarada (web, banco, arquivos)
   simulator/         # ensaio de ponta a ponta com IA falsa + casos reais gravados
   board/             # painel: agentes, missoes, decisoes do Fundador
+  models.yaml        # catalogo de modelos por apelido (troca sem mexer nos agentes)
+  bench/             # banco de testes com casos reais (placar antes de adotar mudancas)
 ```
 
 - Memória e registro: o Supabase atual (tarefas, entregas, decisões, histórico); nada se perde.
@@ -93,7 +95,35 @@ helena-v2/
   - durante a transição, convivem v1 e v2;
   - a mitigação é migrar por meta e por agente, nunca tudo de uma vez.
 
-## 6. Decisões pedidas ao Fundador
+## 6. Mudanças futuras sem quebrar (pedido do Fundador, 09/10)
+
+Trocar modelo, testar outro, adicionar função ou agente não pode atrapalhar quem está trabalhando.
+
+1. **Catálogo de modelos.**
+   - Os modelos ficam num arquivo único (`models.yaml`) com nome, provedor, custo e limites.
+   - O agente aponta para um apelido (ex.: `pesquisa-padrao`), não para o modelo.
+   - Trocar o modelo é mudar uma linha; um adaptador por provedor isola as diferenças de API.
+2. **Banco de testes com casos reais.**
+   - Antes de adotar um modelo ou regra novos, eles rodam contra entregas reais já gravadas, com o revisor de cada função.
+   - O resultado é um placar: aprovação, custo e tempo comparados com o atual.
+   - Só passa se igualar ou melhorar.
+3. **Ambientes separados.**
+   - `teste` (simulador e banco de testes) e `produção`.
+   - Nada vai direto para produção.
+4. **Canário e volta automática.**
+   - A mudança entra primeiro em um agente.
+   - Se a aprovação ou o tempo pioram, o sistema volta sozinho para a versão anterior e avisa.
+5. **Fichas validadas.**
+   - Cada ficha de agente e cada modelo de entrega têm um formato verificado pelo código.
+   - Uma edição errada (ferramenta inexistente, limite impossível, regra contraditória) é recusada ao salvar, não descoberta em produção.
+6. **Histórico e chaves liga/desliga.**
+   - Toda mudança tem versão, autor e motivo, e volta com um comando.
+   - Funções novas nascem desligadas e são ligadas por agente.
+7. **Peças plugáveis.**
+   - Ferramenta, função ou agente novo entram como arquivo em sua pasta.
+   - O motor descobre e valida sozinho; não é preciso mexer no núcleo.
+
+## 7. Decisões pedidas ao Fundador
 
 1. Aprovar a direção da v2.
 2. Confirmar os 5 primeiros agentes: Helena, Ravi, Isabela, Clara, Caio.
