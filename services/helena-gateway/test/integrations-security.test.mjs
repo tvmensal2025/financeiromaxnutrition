@@ -293,6 +293,9 @@ try {
   await test('chamada iniciada mostra falha de registro sem inventar sincronização', async () => {
     meowStatus = 'CONNECTED';
     failCallSession = true;
+    // VOZ-33: meowcaller/call escolhe o destino pelo corpo, então só o fundador liga.
+    identityUserId = FOUNDER_ID;
+    appAccessRows = [{ role: 'founder', active: true }];
     const response = await fetch(`${baseUrl}/api/integrations/meowcaller/call`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },

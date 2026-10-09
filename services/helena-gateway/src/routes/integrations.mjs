@@ -109,6 +109,7 @@ import {
 } from '../integrations/call-engine.mjs';
 
 import { MeowcallerVoiceBridge } from '../integrations/bridge.mjs';
+import { normalizeDialNumber } from '../voice-session-auth.mjs';
 import {
   buildAutoReplyMessage,
   getWhatsappChannelIdentity,
@@ -195,7 +196,7 @@ export function authenticateEvolutionWebhook(req, res, next) {
   return next();
 }
 
-export function createIntegrationsRouter({ supabaseFetch, authenticateUser, profileStore }) {
+export function createIntegrationsRouter({ supabaseFetch, authenticateUser, authenticateVoiceSession, profileStore, now = Date.now }) {
   const router = express.Router();
   router.use(async (req, res, next) => {
     if (profileStore && req.path.startsWith('/api/integrations/call-engine/')) {
@@ -217,6 +218,37 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     next();
   };
 
+  // VOZ-33: rotas que iniciam ligação ou gastam voz exigem credencial. Sem o middleware de sessão
+  // do app (testes antigos), vale `authenticateUser`; a credencial de serviço continua aceita.
+  const requireVoiceSession = authenticateVoiceSession || ((req, res, next) => {
+    if (!req.headers['authorization']) {
+      return res.status(401).json({ error: 'authorization_required', message: 'Entre na sua conta para continuar.' });
+    }
+    if (!authenticateUser) return res.status(401).json({ error: 'authorization_required' });
+    return authenticateUser(req, res, () => {
+      req.voiceSession = { kind: req.identity?.type === 'static_fallback' ? 'service' : 'other' };
+      return next();
+    });
+  });
+
+  // Limite de ligações por conta (kind 'user'), em memória: a pessoa pode editar o telefone do próprio perfil.
+  const callsByUser = new Map();
+  const callsPerHour = () => {
+    const raw = Number(process.env.VOICE_CALLS_PER_HOUR);
+    return Number.isInteger(raw) && raw > 0 ? raw : 6;
+  };
+  const reserveUserCall = (userId) => {
+    const t = now();
+    const recent = (callsByUser.get(userId) || []).filter((at) => t - at < 3600000);
+    if (recent.length >= callsPerHour()) {
+      callsByUser.set(userId, recent);
+      return { ok: false, retryAfter: Math.max(1, Math.ceil((recent[0] + 3600000 - t) / 1000)) };
+    }
+    recent.push(t);
+    callsByUser.set(userId, recent);
+    return { ok: true, release: () => { const list = callsByUser.get(userId) || []; const i = list.lastIndexOf(t); if (i >= 0) list.splice(i, 1); } };
+  };
+
   const requireFounder = async (req, res, next) => {
     const userId = req.identity?.userId || req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authorization required' });
@@ -233,6 +265,10 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
       return res.status(503).json({ error: 'Founder access could not be verified.' });
     }
   };
+
+  // VOZ-33: quem escolhe o destino de uma ligação é o fundador (painel) ou a credencial de serviço.
+  const requireFounderOrService = (req, res, next) =>
+    (req.identity?.type === 'static_fallback' ? next() : requireFounder(req, res, next));
 
   // ======================================================================
   // 1. HEALTH E STATUS AGREGADO (Diretiva 28)
@@ -335,7 +371,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/google-chirp3-hd/preview', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/google-chirp3-hd/preview', requireVoiceSession, async (req, res) => {
     try {
       const { text, voice } = req.body || {};
       const previewResult = await previewGoogleCallVoice({ text, voice });
@@ -735,7 +771,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/meowcaller/call', authenticateUser, async (req, res) => {
+  router.post('/api/integrations/meowcaller/call', authenticateUser, requireFounderOrService, async (req, res) => {
     try {
       const { phone, business_id, voice_profile_id = null } = req.body || {};
       if (!phone) {
@@ -1022,7 +1058,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
     }
   });
 
-  router.post('/api/integrations/voice-agent/test-dialogue', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/voice-agent/test-dialogue', requireVoiceSession, async (req, res) => {
     try {
       const { prompt = 'Qual a diferença entre a creatina monohidratada e a creapure?', voice = KOKORO_OFFICIAL_VOICE_ID } = req.body || {};
       const responseText = await generateAgentSpeechText({ prompt });
@@ -1193,7 +1229,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    * Prévia de áudio de teste no navegador (sem iniciar chamada telefônica)
    * POST /api/integrations/google-chirp3-hd/preview
    */
-  router.post('/api/integrations/google-chirp3-hd/preview', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/google-chirp3-hd/preview', requireVoiceSession, async (req, res) => {
     try {
       const { text, voice } = req.body || {};
       const preview = await previewGoogleCallVoice({ text, voice });
@@ -1667,7 +1703,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    * Prévia de áudio com Google Cloud Chirp 3 HD
    * POST /api/integrations/call-engine/preview
    */
-  router.post('/api/integrations/call-engine/preview', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/call-engine/preview', requireVoiceSession, async (req, res) => {
     try {
       const { text, voice } = req.body || {};
       const preview = await previewGoogleCallVoice({ text, voice });
@@ -1780,24 +1816,56 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, prof
    * Dispara ligação telefônica real via Meowcaller para o celular do usuário
    * POST /api/integrations/call-engine/call-phone
    */
-  router.post('/api/integrations/call-engine/call-phone', optionalAuth, async (req, res) => {
+  router.post('/api/integrations/call-engine/call-phone', requireVoiceSession, async (req, res) => {
     try {
       const { phone, character_id, mode } = req.body || {};
-      if (!phone || String(phone).trim().length < 8) {
+      const session = req.voiceSession || {};
+      let destination = phone;
+      if (session.kind === 'user') {
+        // Conta do app: o destino é o telefone do PERFIL (servidor); o corpo só pode confirmá-lo.
+        let profilePhone = '';
+        try { profilePhone = await session.profilePhone(); } catch {
+          return res.status(503).json({ ok: false, error: 'Não foi possível consultar o telefone do seu perfil. Tente novamente.' });
+        }
+        if (normalizeDialNumber(profilePhone).length < 10) {
+          return res.status(400).json({ ok: false, error: 'Cadastre seu telefone no perfil para receber a ligação.' });
+        }
+        if (phone && normalizeDialNumber(phone) !== normalizeDialNumber(profilePhone)) {
+          return res.status(403).json({ ok: false, error: 'A ligação só pode ser feita para o telefone do seu perfil.' });
+        }
+        destination = profilePhone;
+      } else if (session.kind !== 'service') {
+        return res.status(403).json({ ok: false, error: 'Esta credencial não pode iniciar ligações.' });
+      }
+      if (!destination || String(destination).trim().length < 8) {
         return res.status(400).json({ ok: false, error: 'Número de telefone válido é obrigatório.' });
       }
 
-      const cleanPhone = String(phone).replace(/\s+/g, '');
+      const cleanPhone = String(destination).replace(/\s+/g, '');
+      let reservation = null;
+      if (session.kind === 'user') {
+        reservation = reserveUserCall(session.userId);
+        if (!reservation.ok) {
+          res.setHeader('Retry-After', String(reservation.retryAfter));
+          return res.status(429).json({ ok: false, error: 'Você já pediu várias ligações na última hora. Tente de novo mais tarde.' });
+        }
+      }
       const char = (character_id || 'rafael').toLowerCase();
       const m = 'normal';
       const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
 
       // Inicia chamada no Meowcaller com a voz do Google Chirp 3 HD
-      const callResult = await originateCall({
-        phone: cleanPhone,
-        business_id: 'BIZ-001',
-        voice_profile_id: profile.voice_id
-      });
+      let callResult;
+      try {
+        callResult = await originateCall({
+          phone: cleanPhone,
+          business_id: 'BIZ-001',
+          voice_profile_id: profile.voice_id
+        });
+      } catch (originateError) {
+        reservation?.release();
+        throw originateError;
+      }
 
       const callId = callResult?.call_id || `CALL-${Date.now()}`;
 

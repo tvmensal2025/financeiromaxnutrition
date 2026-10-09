@@ -2,6 +2,7 @@ import { createProfileStore } from './integrations/profile-store.mjs';
 import { createVoiceAgentStore } from './integrations/voice-agent-store.mjs';
 import { configureVoiceAgentStore } from './integrations/voice-agent.mjs';
 import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
+import { createVoiceSessionAuth } from './voice-session-auth.mjs';
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
  * Conecta o ecossistema Helena (GPT via Hermes / Supabase / Evolution API)
@@ -1349,7 +1350,8 @@ configureVoiceAgentStore(
 );
 app.use(createIntegrationsRouter({ supabaseFetch,
   profileStore: SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createProfileStore(supabaseFetch) : null,
-  authenticateUser: createVoiceAdminAuth({ fallback: authenticateMcp }) }));
+  authenticateUser: createVoiceAdminAuth({ fallback: authenticateMcp }),
+  authenticateVoiceSession: createVoiceSessionAuth({ fallback: authenticateMcp }) }));
 
 app.use(createMediaRouter({ storage: mediaStorage, authenticateUser: authenticateMcp, read: supabaseFetch }));
 
