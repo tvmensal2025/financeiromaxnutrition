@@ -111,7 +111,7 @@ test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Res
     assert.ok(elevenLabsUrl.includes('output_format=mp3_44100_192'));
     assert.strictEqual(body.model_id, 'eleven_v4_turbo');
     assert.deepStrictEqual(body.voice_settings, { ...VOICES.rafael.voiceSettings });
-    assert.strictEqual(body.text, '[curious] Olá! Como posso ajudar você hoje?', 'tag proibida com o aluno sai antes do envio');
+    assert.strictEqual(body.text, '[curious] Olá! [angry] Como posso ajudar você hoje?', 'decisão do dono: [angry] liberada');
     assert.strictEqual(googleCalled, false, 'Google Chirp NÃO deve ser chamado enquanto houver cota ElevenLabs');
     assert.strictEqual(result.provider, 'ELEVENLABS');
     assert.strictEqual(result.voice_id, VOICES.rafael.voiceId);

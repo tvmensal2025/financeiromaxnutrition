@@ -100,69 +100,8 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
     "pause",
     "short pause"
   ],
-  "forbiddenWithStudent": [
-    {
-      "tag": "angry",
-      "motivo": "soa como bronca",
-      "exceto": []
-    },
-    {
-      "tag": "frustrated",
-      "motivo": "soa como impaciência ou decepção com o aluno",
-      "exceto": []
-    },
-    {
-      "tag": "sarcastic",
-      "motivo": "soa como deboche",
-      "exceto": []
-    },
-    {
-      "tag": "deadpan",
-      "motivo": "soa como deboche",
-      "exceto": []
-    },
-    {
-      "tag": "groans",
-      "motivo": "soa como impaciência",
-      "exceto": []
-    },
-    {
-      "tag": "snickers",
-      "motivo": "soa como deboche",
-      "exceto": []
-    },
-    {
-      "tag": "stifling laughter",
-      "motivo": "soa como deboche",
-      "exceto": []
-    },
-    {
-      "tag": "crying",
-      "motivo": "choro gera desconforto",
-      "exceto": []
-    },
-    {
-      "tag": "tearfully",
-      "motivo": "choro gera desconforto",
-      "exceto": []
-    },
-    {
-      "tag": "shouts",
-      "motivo": "grito só vale para comemorar (junto de [excited] ou [enthusiastic])",
-      "exceto": [
-        "excited",
-        "enthusiastic"
-      ]
-    },
-    {
-      "tag": "yelling",
-      "motivo": "grito só vale para comemorar (junto de [excited] ou [enthusiastic])",
-      "exceto": [
-        "excited",
-        "enthusiastic"
-      ]
-    }
-  ],
+  "maxAudioTagsPorFala": 5,
+  "forbiddenWithStudent": [],
   "speakerTagPalette": {
     "sirlene": [
       "laughs",
@@ -170,28 +109,44 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
       "curious",
       "thoughtful",
       "whispers",
-      "short pause"
+      "short pause",
+      "excited",
+      "sarcastic",
+      "gasps",
+      "sighs"
     ],
     "alex": [
       "excited",
       "enthusiastic",
       "laughs",
       "shouts",
-      "short pause"
+      "short pause",
+      "sarcastic",
+      "groans",
+      "angry",
+      "gasps",
+      "yelling"
     ],
     "vital": [
       "clears throat",
       "thoughtful",
       "cautiously",
       "curious",
-      "pause"
+      "pause",
+      "deadpan",
+      "sighs",
+      "laughs",
+      "gasps"
     ],
     "rafael": [
       "thoughtful",
       "pause",
       "whispers",
       "sighs",
-      "laughs"
+      "laughs",
+      "excited",
+      "tearfully",
+      "gasps"
     ]
   },
   "legacyVoiceIds": {
@@ -227,7 +182,7 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
     "eleven_flash_",
     "eleven_turbo_"
   ],
-  "sourceHash": "cf95f7b5bf61b42bd18124e6296885125aca9aca7f6c13568a0076e77c91e521"
+  "sourceHash": "3fbd1df7ad9b1d1c3586342e5f3f95de4d5ef95f18ccf861c99f9a18f0fe7cfb"
 });
 
 export default ELIVING_VOICE_CONFIG;

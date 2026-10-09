@@ -14,6 +14,7 @@ import {
   stripAudioTags,
   formatSpeechForElevenLabs,
   isAudioTagAllowed,
+  MAX_AUDIO_TAGS_PER_FALA,
   buildNaturalnessInstruction
 } from '../src/integrations/conversation-naturalness.mjs';
 import ELIVING_VOICE_CONFIG from '../src/integrations/eliving-voice-config.mjs';
@@ -51,23 +52,21 @@ describe('Guia de Modulação Vocal e Expressividade (Audio Tags) — regra do d
     assert.equal(formatSpeechForElevenLabs('Oi {nome}, tudo bem?'), 'Oi, tudo bem?');
   });
 
-  it('4. Tags proibidas com o aluno saem; [shouts]/[yelling] só comemorando com [excited]/[enthusiastic]', () => {
+  it('4. Decisão do dono (09/10/2026): bronca, deboche e as demais tags do dono chegam à voz; [shouts] vale sozinho', () => {
     for (const tag of ['angry', 'frustrated', 'sarcastic', 'deadpan', 'groans', 'snickers', 'stifling laughter', 'crying', 'tearfully']) {
-      assert.equal(formatSpeechForElevenLabs(`[${tag}] Vamos lá.`), 'Vamos lá.', `[${tag}] é proibida com o aluno`);
+      assert.equal(formatSpeechForElevenLabs(`[${tag}] Vamos lá.`), `[${tag}] Vamos lá.`, `[${tag}] está liberada`);
     }
-    assert.equal(formatSpeechForElevenLabs('[shouts] Conseguimos!'), 'Conseguimos!');
-    assert.equal(formatSpeechForElevenLabs('[yelling] Bateu a meta!'), 'Bateu a meta!');
-    assert.equal(formatSpeechForElevenLabs('[excited] [shouts] Conseguimos!'), '[excited] [shouts] Conseguimos!');
-    // A exceção vale na fala inteira (contexto do que já foi dito no turno)
-    assert.equal(formatSpeechForElevenLabs('[shouts] Bateu a meta!', { contexto: '[enthusiastic] Isso!' }), '[shouts] Bateu a meta!');
-    assert.equal(isAudioTagAllowed('shouts', []), false);
-    assert.equal(isAudioTagAllowed('shouts', ['enthusiastic']), true);
-    assert.equal(isAudioTagAllowed('angry', ['excited']), false);
+    assert.equal(formatSpeechForElevenLabs('[shouts] Conseguimos!'), '[shouts] Conseguimos!');
+    assert.equal(formatSpeechForElevenLabs('[yelling] Bateu a meta!'), '[yelling] Bateu a meta!');
+    assert.equal(formatSpeechForElevenLabs('[tom animado] Oi.'), 'Oi.', 'tag fora da lista do dono continua saindo');
+    assert.equal(isAudioTagAllowed('shouts', []), true);
+    assert.equal(isAudioTagAllowed('angry', []), true);
   });
 
-  it('5. No máximo 3 tags por fala', () => {
-    const out = formatSpeechForElevenLabs('[curious] Um. [pause] Dois. [laughs] Três. [thoughtful] Quatro.');
-    assert.equal(out, '[curious] Um. [pause] Dois. [laughs] Três. Quatro.');
+  it('5. No máximo o limite da configuração única (5) por fala', () => {
+    assert.equal(MAX_AUDIO_TAGS_PER_FALA, 5);
+    const out = formatSpeechForElevenLabs('[curious] 1. [pause] 2. [laughs] 3. [thoughtful] 4. [gasps] 5. [sighs] 6.');
+    assert.equal(out, '[curious] 1. [pause] 2. [laughs] 3. [thoughtful] 4. [gasps] 5. 6.');
     assert.equal(formatSpeechForElevenLabs('[laughs] Já usei as tags.', { maxTags: 0 }), 'Já usei as tags.');
   });
 
@@ -90,8 +89,9 @@ describe('Guia de Modulação Vocal e Expressividade (Audio Tags) — regra do d
     const instruction = buildNaturalnessInstruction({ profile: { character_id: 'sirlene' } });
     assert.ok(instruction.includes('GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS)'));
     assert.ok(instruction.includes(AUDIO_TAGS_GUIDE));
-    assert.match(AUDIO_TAGS_GUIDE, /de 1 a 3 tags de áudio por fala/);
-    assert.match(AUDIO_TAGS_GUIDE, /PROIBIDAS com a pessoa/);
+    assert.match(AUDIO_TAGS_GUIDE, /de 1 a 5 tags de áudio por fala/);
+    assert.match(AUDIO_TAGS_GUIDE, /SEJA VIVA/);
+    assert.doesNotMatch(AUDIO_TAGS_GUIDE, /PROIBIDAS/);
     assert.match(AUDIO_TAGS_GUIDE, /\[angry\]/);
     assert.match(AUDIO_TAGS_GUIDE, /nunca use chaves/);
     assert.ok(instruction.includes('Não verbalize a tag'));

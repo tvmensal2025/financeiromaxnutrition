@@ -8,8 +8,8 @@ export const CONVERSATION_STYLE = Object.freeze({
 // Tags de áudio: SÓ a lista do dono (eliving-voice-config.mjs, gerado da fonte única do app).
 export const RECOMMENDED_AUDIO_TAGS = ELIVING_VOICE_CONFIG.audioTagsDono;
 
-/** Regra do dono: de 1 a 3 tags por fala. */
-export const MAX_AUDIO_TAGS_PER_FALA = 3;
+/** Máximo de tags por fala: vem da configuração única (decisão do dono, 09/10/2026: até 5). */
+export const MAX_AUDIO_TAGS_PER_FALA = ELIVING_VOICE_CONFIG.maxAudioTagsPorFala ?? 3;
 
 const FORBIDDEN_RULES = ELIVING_VOICE_CONFIG.forbiddenWithStudent;
 const FORBIDDEN_ALWAYS = FORBIDDEN_RULES.filter(rule => rule.exceto.length === 0).map(rule => rule.tag);
@@ -22,15 +22,16 @@ const normalizeTag = raw => String(raw).replace(/\s+/g, ' ').trim().toLowerCase(
 const celebrationTags = [...new Set(FORBIDDEN_CELEBRATION_ONLY.flatMap(rule => rule.exceto))];
 
 // GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS) — regras do dono, vindas da configuração única.
-export const AUDIO_TAGS_GUIDE = `
-GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS):
-1. Use de 1 a ${MAX_AUDIO_TAGS_PER_FALA} tags de áudio por fala, SEMPRE entre colchetes e em inglês, logo antes do trecho que modificam. Exemplo: "[curious] Me conta, como foi o seu dia?" ou "Entendi. [short pause] Vamos juntos."
-2. Use SOMENTE estas tags (lista fechada; qualquer outra é removida antes da voz): ${bracket(ALLOWED_WITH_STUDENT)}.
-3. ${bracket(FORBIDDEN_CELEBRATION_ONLY.map(rule => rule.tag))} só para comemorar junto, na mesma fala com ${bracket(celebrationTags)}. [sighs] e [sighing] só como alívio ou acolhimento, nunca como decepção. [whispers] é cumplicidade.
-4. PROIBIDAS com a pessoa (soam como bronca, deboche ou desconforto): ${bracket(FORBIDDEN_ALWAYS)}.
-5. Pausa é [pause] ou [short pause]. Não empilhe duas emoções seguidas.
-6. Não verbalize a tag: ela só dirige a voz, não é falada nem aparece na tela. Colchetes só para tags; nunca use chaves { }.
-`.trim();
+export const AUDIO_TAGS_GUIDE = [
+  'GUIA DE MODULAÇÃO VOCAL E EXPRESSIVIDADE (AUDIO TAGS):',
+  `1. Use de 1 a ${MAX_AUDIO_TAGS_PER_FALA} tags de áudio por fala, SEMPRE entre colchetes e em inglês, logo antes do trecho que modificam. Exemplo: "[curious] Me conta, como foi o seu dia?" ou "[sarcastic] Ah, só um docinho, né? [laughs] Tô brincando, bora junto."`,
+  '2. SEJA VIVA (decisão do dono): fale com emoção de verdade, nunca reto. Varie a emoção de uma fala para outra; reaja ao que a pessoa disse (risada, surpresa, suspiro, provocação divertida, bronca de quem se importa) e mude o ritmo com pausas.',
+  `3. Use SOMENTE estas tags (lista fechada; qualquer outra é removida antes da voz): ${bracket(ALLOWED_WITH_STUDENT)}.`,
+  ...(FORBIDDEN_CELEBRATION_ONLY.length ? [`4. ${bracket(FORBIDDEN_CELEBRATION_ONLY.map(rule => rule.tag))} só para comemorar junto, na mesma fala com ${bracket(celebrationTags)}.`] : []),
+  ...(FORBIDDEN_ALWAYS.length ? [`5. PROIBIDAS com a pessoa: ${bracket(FORBIDDEN_ALWAYS)}.`] : []),
+  '6. Pausa é [pause] ou [short pause]. Não repita a mesma tag duas vezes seguidas.',
+  '7. Não verbalize a tag: ela só dirige a voz, não é falada nem aparece na tela. Colchetes só para tags; nunca use chaves { }.',
+].join('\n');
 
 function paletteText(characterId) {
   return bracket(ELIVING_VOICE_CONFIG.speakerTagPalette[characterId] || []);

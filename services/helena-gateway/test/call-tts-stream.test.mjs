@@ -87,7 +87,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     assert.ok(!capturedUrl.includes('optimize_streaming_latency'), 'parâmetro obsoleto não é enviado');
     assert.equal(capturedHeaders['xi-api-key'], 'test-eleven-key');
     assert.equal(capturedHeaders['Accept'], 'audio/pcm');
-    assert.equal(capturedBody.text, '[curious] Olá! Que prazer conversar com você.');
+    assert.equal(capturedBody.text, '[curious] Olá! Que prazer [sarcastic] conversar com você.');
     assert.equal(capturedBody.model_id, 'eleven_v4_turbo');
     assert.deepEqual(capturedBody.voice_settings, { ...VOICES.sirlene.voiceSettings });
 
@@ -112,7 +112,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     assert.notEqual(VOICES.rafael.voiceId, VOICES.alex.voiceId);
   });
 
-  it('no máximo 3 tags na fala inteira, e [shouts] só comemorando dentro do mesmo turno', async () => {
+  it('tags somam no turno inteiro até o limite da configuração única, e [shouts] vale sozinho', async () => {
     const texts = [];
     const mockFetch = async (_url, opts) => {
       texts.push(JSON.parse(opts.body).text);
@@ -126,7 +126,7 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     stream.write({ input: { text: '[short pause] Amanhã tem mais.' } });
     stream.end();
     await new Promise((resolve) => stream.once('finish', resolve));
-    assert.deepEqual(texts, ['[excited] Isso!', '[shouts] Bateu a meta!', '[laughs] Que dia.', 'Amanhã tem mais.']);
+    assert.deepEqual(texts, ['[excited] Isso!', '[shouts] Bateu a meta!', '[laughs] Que dia.', '[short pause] Amanhã tem mais.']);
   });
 
   it('aciona a reserva Google Chirp 3 HD na hora quando a cota da ElevenLabs esgota (HTTP 429), com a voz fixa do personagem e sem tags', async () => {
