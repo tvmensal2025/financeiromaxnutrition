@@ -4,11 +4,12 @@ funcao: Marca, Conteudo e Copy
 papel: ESPECIALISTA
 missao: Escrever textos que convertem (convite, anuncio, roteiro de treinamento) na voz da empresa, claros para pessoa leiga.
 produz: [copy, roteiro_treinamento]
-revisa: [calculo]
+revisa: []   # reservas de revisao por tipo
 ferramentas: [web_search, web_extract]
 modelo: conteudo-padrao
-orcamento: { tempo_s: 600, passos: 20, buscas: 6 }
-revisor: AGT-06   # Clara confere promessa, privacidade e risco
+orcamento: { tempo_s: 600, passos: 16, buscas: 4 }
+orcamento_revisao: { tempo_s: 300, passos: 8, buscas: 0 }
+revisor: AGT-01   # Helena confere voz e criterios; Clara julga depois no parecer (sem conflito)
 regras:
   - Use a identidade aprovada da empresa (company_identity) e as decisoes vigentes.
   - Valores sempre como estimativa variavel informada pelo Fundador, nunca como garantia.

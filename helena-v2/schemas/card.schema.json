@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "helena-v2/card",
+  "title": "Card (fonte unica de cada trabalho)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["card_id", "empresa", "objetivo", "prazo", "prioridade", "estado", "confirmado_pelo_fundador", "decisoes_versao", "criado_em"],
+  "properties": {
+    "card_id": { "type": "string", "description": "Gerado pelo codigo, nunca pelo modelo" },
+    "empresa": { "type": "string", "pattern": "^BIZ-[0-9]{3}$" },
+    "objetivo": { "type": "string", "minLength": 10, "maxLength": 400 },
+    "nao_fazer": { "type": "array", "items": { "type": "string" } },
+    "prazo": { "type": "string", "format": "date" },
+    "prioridade": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "playbook": { "type": ["string", "null"] },
+    "estado": { "enum": ["RASCUNHO", "AGUARDANDO_CONFIRMACAO", "PLANEJANDO", "AGUARDANDO_OK_PLANO", "EM_EXECUCAO", "AGUARDANDO_FUNDADOR", "BLOQUEADO", "PAUSADO", "CONSOLIDANDO", "ENTREGUE", "AGUARDANDO_ACOES_FUNDADOR", "CONCLUIDO", "CANCELADO", "ARQUIVADO"] },
+    "confirmado_pelo_fundador": { "type": "boolean" },
+    "dedupe_hash": { "type": "string", "description": "hash(objetivo+prazo); mesmo hash em 10 min = mesmo card" },
+    "decisoes_versao": { "type": "string" },
+    "avaliacao_fundador": { "enum": [null, "POSITIVA", "NEGATIVA"] },
+    "comentario_fundador": { "type": ["string", "null"] },
+    "criado_em": { "type": "string", "format": "date-time" }
+  }
+}

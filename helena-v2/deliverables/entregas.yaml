@@ -5,9 +5,12 @@ dossie:
   descricao: Fatos verificaveis sobre UMA entidade (plataforma, empresa, lei).
   limite: 7000
   divide_por: entidade
-  secoes: [resumo_executivo, fatos_com_fonte, lacunas, riscos, perguntas_para_o_cadastro]
+  secoes: [resumo_executivo, fatos_com_fonte, lacunas, riscos, perguntas_para_o_cadastro, fontes]
+  checagens_codigo:
+    - todo [Fn] citado em fatos_com_fonte existe em fontes (id, link, data, trecho)
+    - nenhuma fonte sem uso
   aprovacao:
-    - Cada fato central tem link, data de consulta e trecho literal.
+    - Cada fato central cita [Fn] e a fonte tem link, data de consulta e trecho literal (no proprio conteudo, nao no summary).
     - Fato, interpretacao e lacuna estao separados.
     - Nenhuma promessa de renda, vaga ou disponibilidade.
     - Lacunas dizem qual documento falta e onde procurar.
@@ -16,6 +19,10 @@ parecer:
   descricao: Resposta juridica/risco a uma pergunta do card.
   limite: 6000
   secoes: [pergunta, semaforo, fundamento_citado, ajustes_necessarios, quando_chamar_advogado]
+  semaforo: [PODE, AJUSTE, NAO_PODE]   # o motor le este campo: AJUSTE gera retrabalho; NAO_PODE leva ao Fundador com opcoes
+  checagens_codigo:
+    - semaforo e um dos tres valores
+    - semaforo AJUSTE exige ajustes_necessarios com pelo menos um item por entrega afetada
   aprovacao:
     - Semaforo explicito (pode / pode com ajuste / nao pode).
     - Cada conclusao cita clausula ou artigo com trecho.
@@ -57,7 +64,14 @@ plano:
 relatorio_final:
   descricao: O que o Fundador le ao abrir o card concluido.
   limite: 3500
-  secoes: [resumo_em_5_linhas, o_que_foi_feito, resultado, proximos_passos, decisoes_do_fundador]
+  secoes: [resumo_em_5_linhas, o_que_foi_feito, resultado, proximos_passos, decisoes_do_fundador, anexos]
+  nota_limite: o limite vale para o texto principal; as entregas aprovadas entram como anexos
+  checagens_codigo:
+    - proibido o padrao (AGT|JOB|MEM|TSK|DEC)-[0-9A-Za-z]+ no texto
+    - cada decisao do Fundador tem no minimo 2 opcoes com consequencia
+    - cada proximo passo tem responsavel (nome de agente ou Fundador) e data
+    - todo numero do relatorio aparece numa entrega aprovada do card
+  revisao_final: FUNDADOR (👍/👎 registrado)
   aprovacao:
     - Linguagem simples, sem codigos internos (JOB, MEM, AGT).
     - Cada decisao pedida ao Fundador tem opcoes e consequencia.
