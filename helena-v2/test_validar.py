@@ -24,10 +24,10 @@ _erros_da_base = {}
 # O que o dado real ainda tem de pendente (sabido e anotado). Tire daqui conforme for resolvendo;
 # quando esta lista ficar vazia, "python validar.py" tem de sair limpo.
 PENDENCIAS_CONHECIDAS = {
-    'FICHA-AUSENTE': 'faltam as fichas de 15 agentes (Isabela e Ravi têm só a ficha antiga da v1)',
+    'FICHA-AUSENTE': 'faltam fichas v3.1 (a contagem real sai do validar.py)',
     'ROTEIRO-ANTIGO': 'playbooks/recrutar-10-pessoas.yaml ainda é da v1',
-    'CASOS-BOAS': 'a Clara (SRV-PARECER) ainda não tem casos bons',
-    'CASOS-DEFEITOS': 'a Clara (SRV-PARECER) ainda não tem defeitos plantados',
+    'CASOS-BOAS': 'serviço com ficha pronta ainda sem os 3 casos bons',
+    'CASOS-DEFEITOS': 'serviço com ficha pronta ainda sem os 4 defeitos plantados',
 }
 
 
@@ -80,16 +80,22 @@ def test_dado_real_so_tem_as_pendencias_conhecidas():
 
 
 def test_fichas_ausentes_aparecem_com_contagem():
-    [mensagem] = erros_da_base('FICHA-AUSENTE')
-    assert re.search(r'agents: \[FICHA-AUSENTE\] \d+ de 21 fichas ausentes: ', mensagem)
-    for nome in ('Bianca', 'Isabela', 'Ravi', 'Felipe'):
-        assert nome in mensagem
-    assert 'isabela.yaml' in mensagem and 'ravi.yaml' in mensagem          # ficha antiga da v1 não conta
+    # A contagem vem do dado, não de um número fixo: o teste não quebra quando uma ficha nova fica pronta.
+    erros = erros_da_base('FICHA-AUSENTE')
+    if len(BASE['fichas']) == 21:
+        assert erros == []                                                  # todas prontas: nada a acusar
+        return
+    [mensagem] = erros
+    faltam = 21 - len(BASE['fichas'])
+    assert f'agents: [FICHA-AUSENTE] {faltam} de 21 fichas ausentes: ' in mensagem
+    for antiga in BASE['fichas_antigas']:
+        assert antiga in mensagem                                           # ficha antiga da v1 não conta
 
 
 def test_ficha_da_v1_nao_conta_como_ficha():
-    assert 'ISABELA' not in BASE['fichas'] and 'RAVI' not in BASE['fichas']
-    assert set(BASE['fichas_antigas']) >= {'isabela.yaml', 'ravi.yaml'}
+    # Qualquer arquivo no formato da v1 não pode virar ficha v3.1 (vale para quantos existirem).
+    for antiga in BASE['fichas_antigas']:
+        assert antiga.rsplit('.', 1)[0].upper() not in BASE['fichas']
 
 
 def test_toda_regra_tem_descricao_e_teste_de_mutacao():
@@ -535,7 +541,7 @@ def test_MAT_25_modelo_menor_no_parecer():
 def test_FICHA_AUSENTE_uma_a_mais_aumenta_a_contagem():
     D = com('fichas')
     del D['fichas']['MARINA']
-    recusa(D, 'FICHA-AUSENTE', '16 de 21 fichas ausentes')
+    recusa(D, 'FICHA-AUSENTE', f"{21 - len(D['fichas'])} de 21 fichas ausentes")
 
 
 def test_FICHA_AUSENTE_nao_se_afrouxa_com_ficha_da_v1():
@@ -1098,9 +1104,12 @@ def test_CASOS_DEFEITOS_menos_de_4():
     recusa(D, 'CASOS-DEFEITOS', 'casos/SRV-CALCULO: [CASOS-DEFEITOS] 3 defeito(s)')
 
 
-def test_CASOS_a_clara_ainda_nao_tem_casos():
-    assert any('SRV-PARECER' in e for e in erros_da_base('CASOS-BOAS'))
-    assert any('SRV-PARECER' in e for e in erros_da_base('CASOS-DEFEITOS'))
+def test_CASOS_servico_com_ficha_sem_casos_e_recusado():
+    # Mutação: tira os casos de um serviço cujo dono tem ficha (Clara) e prova que o validador acusa.
+    D = com('casos')
+    D['casos']['SRV-PARECER'] = {'boas': {}, 'defeitos': {}}
+    recusa(D, 'CASOS-BOAS', 'SRV-PARECER')
+    recusa(D, 'CASOS-DEFEITOS', 'SRV-PARECER')
 
 
 def test_CASOS_PASTA_servico_que_nao_existe():
