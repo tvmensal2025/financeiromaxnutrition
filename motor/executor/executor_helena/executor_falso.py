@@ -19,7 +19,7 @@ from .conferencia import conferir_ferramentas, conferir_modelo_e_provedor
 from .decisao import decidir
 from .executor import Executor
 from .falha import Evidencias
-from .provedor_falso import TEXTO_PADRAO, Simulacao
+from .provedor_falso import TEXTO_FORMATO_ERRADO, TEXTO_PADRAO, Simulacao
 from .tipos import (ENCERRADO_POR_CANCELAMENTO, ENCERRADO_POR_LIMITE, ENCERRADO_POR_TEMPO, Conferencia, Execucao,
                     Resultado)
 from .uso import ErroDoProvedor, Sessao, ferramentas_listadas, montar_registro_de_uso
@@ -119,7 +119,8 @@ class ExecutorFalso(Executor):
         servidas = ficha.ferramentas if roteiro.ferramentas_servidas is None else roteiro.ferramentas_servidas
         servidor = {"listou_ferramentas": not roteiro.sem_listar_ferramentas, "ferramentas": list(servidas), "encerrada": False,
                     "motivo_encerramento": None, "contadores": {"total": 0}, "usou_internet": False}
-        texto = roteiro.texto if (completa and sim is not Simulacao.RESPOSTA_VAZIA) or cortada else ""
+        texto_do_roteiro = TEXTO_FORMATO_ERRADO if sim is Simulacao.FORMATO_ERRADO and roteiro.texto == TEXTO_PADRAO else roteiro.texto
+        texto = texto_do_roteiro if (completa and sim is not Simulacao.RESPOSTA_VAZIA) or cortada else ""
         sessao = _sessao(ficha.modelo, texto, vazia=livre and sim is Simulacao.RESPOSTA_VAZIA,
                          fim="length" if cortada else "stop", com_resposta=not (falhou or queda))
         evidencias = Evidencias(

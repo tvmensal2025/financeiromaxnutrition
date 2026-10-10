@@ -177,14 +177,14 @@ def cenario_laco_cortado(amb, ficha):
     return r
 
 
-def cenario_tempo_mata_o_grupo(amb, ficha, tempo_max_s=2.0, limite_s=15.0):
+def cenario_tempo_mata_o_grupo(amb, ficha, tempo_max_s=2.0, limite_s=15.0, espera_max_s=90.0):
     """Passou o tempo máximo: o grupo inteiro (com os filhos teimosos) morre em até 15 s e nada sobra."""
     pacote = "Faça o trabalho. [[FILHO_TEIMOSO]]"
     andamento = amb.rodar_em_segundo_plano(ficha, Cenario(Simulacao.LENTA, atraso_s=120), tempo_max_s=tempo_max_s, pacote=pacote)
     andamento.esperar_o_agente_estar_de_pe()
     if not amb.real:
         assert len(andamento.pids()) >= 3, "o filho teimoso não nasceu: o teste não prova nada"
-    r = andamento.resultado()
+    r = andamento.resultado(espera_max_s)
     assert r.falha is not None and r.falha.classe == TEMPO, r.falha
     assert r.encerrado_por == "TEMPO" and r.texto is None and not r.terminou_inteira
     assert r.tempo_para_encerrar_s is not None and r.tempo_para_encerrar_s <= limite_s, r.tempo_para_encerrar_s
@@ -194,14 +194,14 @@ def cenario_tempo_mata_o_grupo(amb, ficha, tempo_max_s=2.0, limite_s=15.0):
     return r
 
 
-def cenario_cancelamento(amb, ficha, limite_s=15.0, tempo_max_s=120.0):
+def cenario_cancelamento(amb, ficha, limite_s=15.0, tempo_max_s=120.0, espera_max_s=90.0):
     """Cancelar de fora encerra o processo inteiro em até 15 s, sem falha e sem texto."""
     pacote = "Faça o trabalho. [[FILHO_TEIMOSO]]"
     andamento = amb.rodar_em_segundo_plano(ficha, Cenario(Simulacao.LENTA, atraso_s=120), tempo_max_s=tempo_max_s, pacote=pacote)
     andamento.esperar_o_agente_estar_de_pe()
     pedido_em = time.monotonic()
     assert andamento.cancelar() is True
-    r = andamento.resultado()
+    r = andamento.resultado(espera_max_s)
     decorrido = time.monotonic() - pedido_em
     assert r.cancelada and r.falha is None and r.texto is None and not r.terminou_inteira, (r.cancelada, r.falha)
     assert decorrido <= limite_s, f"o cancelamento levou {decorrido:.1f} s (limite {limite_s} s)"
