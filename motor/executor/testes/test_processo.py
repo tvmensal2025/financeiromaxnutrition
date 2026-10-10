@@ -122,8 +122,8 @@ def test_quem_ignora_o_pedido_de_parada_morre_no_prazo(tmp_path):
 def test_o_prazo_para_encerrar_vale_mesmo_com_graca_grande(tmp_path):
     """A graça nunca passa do limite total: o plano manda encerrar tudo em até 15 s."""
     codigo = "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(600)"
-    saida = executar(tmp_path, codigo, tempo=0.5, graca=4.0, limite=5.0)
-    assert saida.codigo == -signal.SIGKILL and saida.tempo_para_encerrar_s <= 5.0 + 1.5
+    saida = executar(tmp_path, codigo, tempo=0.5, graca=2.0, limite=2.5)
+    assert saida.codigo == -signal.SIGKILL and saida.tempo_para_encerrar_s <= 2.5 + 1.5
 
 
 # --- cancelamento e vigias -----------------------------------------------------------------------------------------

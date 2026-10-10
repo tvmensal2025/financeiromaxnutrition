@@ -81,7 +81,8 @@ def test_provedor_sem_modelo_e_recusado(mundo):
 def test_o_servidor_mcp_nao_herda_o_ambiente_do_hermes(mundo, tmp_path):
     espiao = tmp_path / "espiao.py"
     espiao.write_text("import json, os, sys\nopen(%r, 'w').write(json.dumps(sorted(os.environ)))\nsys.stdin.read()\n" % str(tmp_path / "env.json"))
-    mundo.config(mcp_servers={"x": {"command": sys.executable, "args": [str(espiao)], "env": {"VARIAVEL_DA_CONFIG": "1"}}})
+    mundo.config(mcp_servers={"x": {"command": sys.executable, "args": [str(espiao)], "env": {"VARIAVEL_DA_CONFIG": "1"},
+                                  "connect_timeout": 1}})       # o espião não fala MCP: o Hermes desiste dele em 1 s e segue
     mundo.rodar("oi", "--model", "m", "--toolsets", "x", env_extra={"OPENAI_API_KEY": "sk-EXEMPLO_NAO_REAL_0123456789abcdef"}, config=False)
     nomes = json.loads((tmp_path / "env.json").read_text())
     assert "OPENAI_API_KEY" not in nomes and "VARIAVEL_DA_CONFIG" in nomes and "HOME" in nomes
@@ -90,7 +91,7 @@ def test_o_servidor_mcp_nao_herda_o_ambiente_do_hermes(mundo, tmp_path):
 def test_o_servidor_mcp_nasce_em_outra_sessao(mundo, tmp_path):
     espiao = tmp_path / "espiao.py"
     espiao.write_text("import os, sys\nopen(%r, 'w').write('%%d %%d' %% (os.getsid(0), os.getppid()))\nsys.stdin.read()\n" % str(tmp_path / "sessao.txt"))
-    mundo.config(mcp_servers={"x": {"command": sys.executable, "args": [str(espiao)]}})
+    mundo.config(mcp_servers={"x": {"command": sys.executable, "args": [str(espiao)], "connect_timeout": 1}})
     mundo.rodar("oi", "--model", "m", "--toolsets", "x", config=False)
     sessao_do_servidor, pai = map(int, (tmp_path / "sessao.txt").read_text().split())
     assert sessao_do_servidor != os.getsid(0) and pai > 1

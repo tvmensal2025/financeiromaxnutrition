@@ -34,10 +34,12 @@ import argparse
 import http.client
 import json
 import os
+import queue
 import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -50,12 +52,17 @@ SEGURAS = {"PATH", "HOME", "USER", "LANG", "LC_ALL", "TERM", "SHELL", "TMPDIR"}
 EMBUTIDAS = ["terminal", "read_file", "write_file", "patch", "web_search", "web_extract", "memory", "todo"]
 IDENTIDADE_PADRAO = "You are Hermes Agent, an intelligent AI assistant created by Nous Research."
 MAX_VOLTAS = 90
+TEMPO_PARA_CONECTAR_S = 10.0       # o Hermes real espera 60 s (connect_timeout); aqui é menor para o teste não demorar
 FRASE_VAZIA = ("⚠️ No reply: the model returned empty content after retries and any fallback providers. "
                "Try `continue`, switch model/provider, or inspect the tool output above.")
 
 
 class Mcp:
-    """Cliente MCP mínimo por stdio (uma mensagem JSON por linha)."""
+    """Cliente MCP mínimo por stdio (uma mensagem JSON por linha).
+
+    Como o Hermes real, o aperto de mão tem TEMPO LIMITE (`connect_timeout` no config): servidor que não
+    responde é largado e o Hermes segue sem as ferramentas dele, em vez de ficar esperando para sempre.
+    """
 
     def __init__(self, nome, cfg):
         self.nome, self.proximo = nome, 0
@@ -65,16 +72,28 @@ class Mcp:
                                   stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                   text=True, start_new_session=True)
         self.tempo_da_chamada = float(cfg.get("timeout", 300))
+        self.linhas = queue.Queue()
+        threading.Thread(target=self._ler_linhas, daemon=True).start()
         self.ferramentas = []
         try:
+            limite = float(cfg.get("connect_timeout", TEMPO_PARA_CONECTAR_S))
             self.pedir("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
-                                      "clientInfo": {"name": "hermes-falso", "version": "0"}})
+                                      "clientInfo": {"name": "hermes-falso", "version": "0"}}, limite)
             self.avisar("notifications/initialized")
-            lista = self.pedir("tools/list", {}).get("tools", [])
+            lista = self.pedir("tools/list", {}, limite).get("tools", [])
             incluir = (cfg.get("tools") or {}).get("include")
             self.ferramentas = [t["name"] for t in lista if not incluir or t["name"] in incluir]
         except Exception:
             self.ferramentas = []
+
+    def _ler_linhas(self):
+        """Lê a saída do servidor numa thread própria; o fim do fluxo vira None na fila."""
+        try:
+            for linha in self.p.stdout:
+                self.linhas.put(linha)
+        except (OSError, ValueError):
+            pass
+        self.linhas.put(None)
 
     def _enviar(self, mensagem):
         self.p.stdin.write(json.dumps(mensagem) + "\n")
@@ -83,12 +102,16 @@ class Mcp:
     def avisar(self, metodo):
         self._enviar({"jsonrpc": "2.0", "method": metodo})
 
-    def pedir(self, metodo, params):
+    def pedir(self, metodo, params, limite_s=None):
         self.proximo += 1
         self._enviar({"jsonrpc": "2.0", "id": self.proximo, "method": metodo, "params": params})
+        fim = time.monotonic() + (self.tempo_da_chamada if limite_s is None else limite_s)
         while True:
-            linha = self.p.stdout.readline()
-            if not linha:
+            try:
+                linha = self.linhas.get(timeout=max(0.0, fim - time.monotonic()))
+            except queue.Empty:
+                raise RuntimeError(f"servidor MCP não respondeu a {metodo}") from None
+            if linha is None:
                 raise RuntimeError("servidor MCP fechou")
             resposta = json.loads(linha)
             if resposta.get("id") == self.proximo:
@@ -279,6 +302,7 @@ def principal(argv=None) -> int:
 
     chamadas_api, invalidas_seguidas, vazias, cortes, partes_cortadas = 0, 0, 0, 0, []
     resposta_final, completo, falhou, parcial = None, False, False, False
+    login_adotado = False
     destino = {"base_url": base_url, "modelo": modelo, "provedor": provedor}
     modelo_usado = provedor_usado = None
     try:
@@ -287,8 +311,9 @@ def principal(argv=None) -> int:
             try:
                 dados = chamar_modelo(destino["base_url"], destino["modelo"], mensagens, nomes)
             except ErroHttp as erro:
-                if erro.status == 401 and adotar_login_do_codex(home):
-                    continue                                   # adotou o login do Codex e tenta de novo
+                if erro.status == 401 and not login_adotado and adotar_login_do_codex(home):
+                    login_adotado = True                       # adota o login do Codex UMA vez e tenta de novo;
+                    continue                                   # se a recusa continuar, a falha segue o caminho normal
                 if erro.status is None and erro.tipo in ("RemoteDisconnected", "IncompleteRead", "ConnectionResetError",
                                                            "ConnectionError", "URLError", "BadStatusLine"):
                     if chamadas_api < 4:

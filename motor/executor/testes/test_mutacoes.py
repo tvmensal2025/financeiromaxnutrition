@@ -169,6 +169,12 @@ def sem_a_conferencia_de_antes_de_lancar(mp):
     mp.setattr(conferencia, "antes_de_lancar", lambda perfil: [])
 
 
+# Graça curta (do pedido de parada até a morte forçada) só nas provas de mutação de tempo e cancelamento: o filho teimoso
+# continua ignorando o pedido, então o caminho "pede, espera, mata" é o mesmo; só a espera é menor (produção: 3 s).
+# Os testes do plano (test_teste3.py) continuam com a graça de produção.
+GRACA_CURTA_S = 0.5
+
+
 @dataclass
 class Caso:
     nome: str
@@ -201,11 +207,14 @@ CASOS = [
     Caso("pasta_dentro_de_repositorio_liberada", defeito_repositorio_liberado,
          lambda amb, mp, fabrica, ctx: cenarios.cenario_repositorio_recusado(amb, amb.ficha(ctx["ficha"]), fabrica.mktemp("repo"))),
     Caso("tempo_mata_so_o_processo_principal", defeito_mata_so_o_processo_principal,
-         lambda amb, mp, fabrica, ctx: cenarios.cenario_tempo_mata_o_grupo(amb, amb.ficha(ctx["ficha"]), tempo_max_s=1.5)),
+         lambda amb, mp, fabrica, ctx: cenarios.cenario_tempo_mata_o_grupo(amb, amb.ficha(ctx["ficha"]), tempo_max_s=1.5,
+                                                                           graca_s=GRACA_CURTA_S)),
     Caso("tempo_maximo_ignorado", defeito_tempo_ignorado,
-         lambda amb, mp, fabrica, ctx: cenarios.cenario_tempo_mata_o_grupo(amb, amb.ficha(ctx["ficha"]), tempo_max_s=1.5, espera_max_s=6)),
+         lambda amb, mp, fabrica, ctx: cenarios.cenario_tempo_mata_o_grupo(amb, amb.ficha(ctx["ficha"]), tempo_max_s=1.5, espera_max_s=4,
+                                                                           graca_s=GRACA_CURTA_S)),
     Caso("cancelamento_ignorado", defeito_cancelamento_ignorado,
-         lambda amb, mp, fabrica, ctx: cenarios.cenario_cancelamento(amb, amb.ficha(ctx["ficha"]), limite_s=5, tempo_max_s=9, espera_max_s=20)),
+         lambda amb, mp, fabrica, ctx: cenarios.cenario_cancelamento(amb, amb.ficha(ctx["ficha"]), limite_s=2.5, tempo_max_s=4.5,
+                                                                     espera_max_s=10, graca_s=GRACA_CURTA_S)),
     Caso("laco_sem_vigia_de_limite", defeito_sem_vigia_de_limite,
          lambda amb, mp, fabrica, ctx: cenarios.cenario_laco_cortado(amb, amb.ficha(ctx["ficha"])), ficha="com_ferramentas"),
     Caso("classifica_pelo_texto_do_agente", defeito_classifica_pelo_texto,
