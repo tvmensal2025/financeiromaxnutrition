@@ -15,29 +15,29 @@ Uma decisão por arquivo: `DEC-NNN-assunto.md`, com data, o que foi decidido e p
 
 | Decisão | Citada em |
 |---|---|
-| DEC-010 | `RELATORIO_CONVERGENCIA_SISTEMA_HELENA.md`, `RELATORIO_FINAL_HOMOLOGACAO_HELENA.md`, `artifacts/checkpoint-20261001/operational-context.json` e mais 2 |
-| DEC-011 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-012 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-013 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-014 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.md` e mais 3 |
-| DEC-015 | `RELATORIO_CONVERGENCIA_SISTEMA_HELENA.md`, `RELATORIO_FINAL_HOMOLOGACAO_HELENA.md`, `artifacts/checkpoint-20261001/operational-context.json` e mais 2 |
-| DEC-016 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/AUDITORIA-INICIAL.md` e mais 2 |
-| DEC-017 | `artifacts/checkpoint-20261001/live-snapshot.json`, `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 3 |
-| DEC-018 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/AUDITORIA-INICIAL.md` e mais 2 |
-| DEC-019 | `artifacts/checkpoint-20261001/live-snapshot.json`, `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 7 |
-| DEC-020 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/AUDITORIA-INICIAL.md` e mais 3 |
-| DEC-021 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.md` e mais 2 |
-| DEC-022 | `AGENTS.md`, `docs/CHECKPOINT-MESTRE-20261004.md`, `docs/COMANDO-MESTRE.txt` |
+| DEC-010 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-011 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-012 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-013 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-014 | `HANDOFF-CLAUDE-CODE.md`, `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 2 |
+| DEC-015 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-016 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/auditoria/AUDITORIA-2026-09-26.md` e mais 1 |
+| DEC-017 | `artifacts/checkpoint-20261001/live-snapshot.json`, `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 2 |
+| DEC-018 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/auditoria/AUDITORIA-2026-09-26.md` e mais 1 |
+| DEC-019 | `artifacts/checkpoint-20261001/live-snapshot.json`, `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 5 |
+| DEC-020 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/auditoria/AUDITORIA-2026-09-26.md` e mais 1 |
+| DEC-021 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/manual/comando-mestre.txt` |
+| DEC-022 | `AGENTS.md`, `docs/CHECKPOINT-MESTRE-20261004.md`, `docs/manual/comando-mestre.txt` |
 | DEC-023 | `AGENTS.md`, `docs/CHECKPOINT-MESTRE-20261004.md`, `motor/validador/README.md` e mais 1 |
 | DEC-024 | `HANDOFF-CLAUDE-CODE.md` |
 | DEC-025 | `HANDOFF-CLAUDE-CODE.md` |
 | DEC-101 | `motor/validador/README.md`, `motor/validador/exemplos/calculo_contexto.json`, `motor/validador/exemplos/calculo_resposta.json` e mais 3 |
 | DEC-102 | `motor/validador/exemplos/calculo_contexto.json`, `motor/validador/exemplos/convite_contexto.json`, `motor/validador/exemplos/dossie_contexto.json` e mais 1 |
-| DEC-0001 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-0002 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-0003 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-0004 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-0005 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/predecessor.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 2 |
-| DEC-0006 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` |
-| DEC-0007 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.snapshot.json` e mais 2 |
-| DEC-0008 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/CHECKPOINT-MESTRE-20261001.md` e mais 1 |
+| DEC-0001 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-0002 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-0003 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-0004 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-0005 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/predecessor.json`, `artifacts/checkpoint-20261001/publication-payload.json` e mais 1 |
+| DEC-0006 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
+| DEC-0007 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json`, `docs/helena/hermes/auditoria-vinculos-2026-09-27-verificada.json` e mais 1 |
+| DEC-0008 | `artifacts/checkpoint-20261001/operational-context.json`, `artifacts/checkpoint-20261001/publication-payload.json` |
