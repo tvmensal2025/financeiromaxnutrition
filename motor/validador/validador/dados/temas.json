@@ -1,0 +1,46 @@
+{
+  "_comentario": [
+    "TEMAS OBRIGATORIOS por servico (CHK-TEMA-01). Um tema conta como respondido quando existe uma frase de pelo menos",
+    "tema.min_palavras_na_frase palavras (ver configuracao.json) que contem um dos termos do tema.",
+    "Termo terminado em * vale para qualquer final (biometri* = biometria, biometrico...). Sem * vale a palavra inteira, com plural simples (s/es).",
+    "O modelo da entrega pode trazer a sua propria lista em temas_obrigatorios (cada item com id, tema e, se quiser, termos).",
+    "Para mudar os temas de um servico: edite por_servico. Para criar um tema novo: acrescente em catalogo."
+  ],
+  "catalogo": {
+    "TEMA-JUR-IMAGEM": {
+      "tema": "imagem",
+      "termos": ["imagem", "imagens", "foto", "fotos", "fotografia", "fotografias", "direito de imagem", "uso de imagem"]
+    },
+    "TEMA-JUR-VOZ": {
+      "tema": "voz",
+      "termos": ["voz", "vozes", "gravacao de voz", "clonagem de voz", "locucao", "audio"]
+    },
+    "TEMA-JUR-DADO-SENSIVEL": {
+      "tema": "dado sensível",
+      "termos": ["dado sensivel", "dados sensiveis", "dado pessoal sensivel", "dados pessoais sensiveis", "biometri*", "dados de saude", "dado de saude"]
+    },
+    "TEMA-JUR-TRANSFERENCIA-INTERNACIONAL": {
+      "tema": "transferência para fora do país",
+      "termos": ["transferencia internacional", "fora do pais", "exterior", "transferencia para o exterior", "outro pais", "outros paises", "transferencia para fora do pais"]
+    },
+    "TEMA-JUR-MENORES": {
+      "tema": "menores",
+      "termos": ["menor de idade", "menores de idade", "menor", "menores", "crianca", "criancas", "adolescente", "adolescentes", "18 anos", "ECA"]
+    },
+    "TEMA-JUR-VINCULO-DE-TRABALHO": {
+      "tema": "vínculo de trabalho",
+      "termos": ["vinculo empregaticio", "vinculo de trabalho", "vinculo trabalhista", "relacao de emprego", "relacao de trabalho", "subordinacao", "CLT", "empregado", "trabalhista"]
+    },
+    "TEMA-JUR-PUBLICIDADE": {
+      "tema": "publicidade",
+      "termos": ["publicidade", "propaganda", "anuncio", "anuncios", "marketing", "publicitario", "publicitaria", "divulgacao"]
+    }
+  },
+  "por_servico": {
+    "SRV-PARECER": [
+      "TEMA-JUR-IMAGEM", "TEMA-JUR-VOZ", "TEMA-JUR-DADO-SENSIVEL",
+      "TEMA-JUR-TRANSFERENCIA-INTERNACIONAL", "TEMA-JUR-MENORES",
+      "TEMA-JUR-VINCULO-DE-TRABALHO", "TEMA-JUR-PUBLICIDADE"
+    ]
+  }
+}

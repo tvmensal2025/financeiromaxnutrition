@@ -1,0 +1,4 @@
+# SÓ para verificacao_real/ (roda os mesmos cenários no Hermes de verdade). Instalar num venv À PARTE,
+# nunca no venv dos testes: o hermes-agent fixa versões (packaging, websockets...) que brigam com o DBOS.
+#   python3.13 -m venv /tmp/venv-hermes && /tmp/venv-hermes/bin/pip install -r requirements-hermes-real.txt
+hermes-agent[mcp]==0.19.0

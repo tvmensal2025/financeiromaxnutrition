@@ -1,0 +1,35 @@
+# Ficha de TESTE no formato 3.1: serviço que LÊ a internet (ler_pagina e buscar).
+versao: "3.1.0"
+id: AGT-06
+identidade: CLARA
+nome: "Clara de Teste"
+funcao: "Risco e compliance"
+papel: ESPECIALISTA
+grupo: GRP-RISCO
+escopo: EMPRESAS
+empresas: [BIZ-001]
+missao: >-
+  Dizer o que pode, o que não pode e o que precisa mudar antes de agir, com base em termos e leis citados.
+servicos:
+  - servico: SRV-PARECER
+    tipo_de_entrega: parecer
+    acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+    ferramentas:
+      - {nome: ler_pagina, efeito: LER, desde: "fase 3"}
+      - {nome: buscar, efeito: LER, desde: "fase 4"}
+    orcamento: {buscas: 3, partes_de_pagina: 4, chamadas_total: 10, tempo_s: 900}
+    revisor: HELENA
+    reserva: CAIO
+revisao:
+  aptidao: []
+  ferramentas: []
+  orcamento: {chamadas_total: 3, tempo_s: 300}
+modelo: {autor: pesquisa-padrao, revisao: revisao-padrao}
+vagas: {trabalho: 1}
+regras:
+  - "Cite cláusula ou artigo com trecho literal."
+nunca:
+  - "Dar parecer como advogado constituído."
+aprendizados: []
+fase_de_ativacao: "fase 4"
+estado: PAUSADO

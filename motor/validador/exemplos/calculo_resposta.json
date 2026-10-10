@@ -1,0 +1,73 @@
+{
+  "acao": "ENTREGAR",
+  "parecer": "OK",
+  "acao_externa": {
+    "tipo": "NENHUMA"
+  },
+  "entrega": {
+    "premissas_com_origem": [
+      "A meta de 10 pessoas é decisão do fundador.",
+      "Vinte horas por pessoa é uma hipótese do Caio, ainda não confirmada."
+    ],
+    "modelo_de_calculo": {
+      "entradas": [
+        {
+          "id": "pessoas",
+          "valor": "10",
+          "unidade": "pessoas",
+          "origem": "DADO_DO_FUNDADOR",
+          "ref": "DEC-101"
+        },
+        {
+          "id": "horas_por_pessoa",
+          "valor": "20",
+          "unidade": "horas",
+          "origem": "PREMISSA",
+          "ref": "hipótese do Caio"
+        },
+        {
+          "id": "usd_por_hora",
+          "valor": "0.50",
+          "unidade": "US$/hora",
+          "origem": "FONTE_CITADA",
+          "data_da_fonte": "2026-10-01",
+          "citacao": {
+            "trecho_original": "O valor pago por hora de tarefa concluída é de US$ 0.50 (cinquenta centavos de dólar), conforme a tabela vigente nesta página.",
+            "leitura_id": "LEI-004",
+            "parte": 1
+          }
+        },
+        {
+          "id": "cambio",
+          "valor": "5.40",
+          "unidade": "R$/US$",
+          "origem": "FONTE_CITADA",
+          "data_da_fonte": "2026-10-09",
+          "citacao": {
+            "trecho_original": "Cotação do dólar comercial em 09/10/2026: R$ 5,40 para cada US$ 1,00, segundo o boletim diário publicado pelo banco.",
+            "leitura_id": "LEI-005",
+            "parte": 1
+          }
+        }
+      ],
+      "formulas": [
+        {
+          "id": "receita_usd",
+          "expressao": "pessoas * horas_por_pessoa * usd_por_hora",
+          "resultado": "100.00",
+          "unidade": "US$"
+        },
+        {
+          "id": "receita_brl",
+          "expressao": "receita_usd * cambio",
+          "resultado": "540.00",
+          "unidade": "R$"
+        }
+      ]
+    },
+    "conta_por_extenso": "Dez pessoas, vinte horas cada e US$ 0.50 por hora dão US$ 100.00. Ao câmbio de 5.40, são R$ 540.00.",
+    "riscos_dos_numeros": [
+      "As horas por pessoa são hipótese e podem mudar muito o resultado."
+    ]
+  }
+}
