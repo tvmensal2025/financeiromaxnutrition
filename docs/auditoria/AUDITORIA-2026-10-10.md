@@ -598,56 +598,56 @@ Ver a seção 3.2.
 | `helena-v2/servicos.yaml` | MANTER | catálogo dos 21; mudanças de papel (Marina, Bruno) pedem o seu ok |
 | `helena-v2/test_validar.py` | CORRIGIR | reescritos para v3.1; 4 testes frágeis (conserto pronto, não commitado) |
 | `helena-v2/validar.py` | CORRIGIR | reescritos para v3.1; 4 testes frágeis (conserto pronto, não commitado) |
-| `motor/executor/.gitignore` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/__init__.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/ambiente.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/arvore.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/conferencia.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/decisao.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/executor.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/executor_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/falha.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/ficha.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/gabarito.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/hermes_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/perfil.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/processo.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/provedor_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/segredos.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/tipos.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/executor_helena/uso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/pytest.ini` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/requirements-hermes-real.txt` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/requirements.txt` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/apoio/__init__.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/apoio/ambiente_de_teste.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/apoio/hermes_gravado.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/apoio/servidor_de_ferramentas_de_teste.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/cenarios.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/conftest.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/esquema_do_state_db_do_hermes_0_19_0.sql` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/ficha_antiga_com_busca.yaml` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/ficha_antiga_sem_ferramenta.yaml` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/ficha_com_ferramentas.yaml` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/ficha_sem_ferramenta.yaml` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/fixtures/models.yaml` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_ambiente.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_conferencia.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_conformidade.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_executor_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_executor_hermes.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_falha.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_ficha.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_gabarito.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_hermes_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_mutacoes.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_perfil.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_processo.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_provedor_falso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_segredos.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_teste3.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_uso.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
-| `motor/executor/testes/test_vocabulario.py` | CORRIGIR | sem README; suposições sobre o Hermes não confirmadas |
+| `motor/executor/.gitignore` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/__init__.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/ambiente.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/arvore.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/conferencia.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/decisao.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/executor.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/executor_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/falha.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/ficha.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/gabarito.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/hermes_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/perfil.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/processo.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/provedor_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/segredos.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/tipos.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/executor_helena/uso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/pytest.ini` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/requirements-hermes-real.txt` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/requirements.txt` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/apoio/__init__.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/apoio/ambiente_de_teste.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/apoio/hermes_gravado.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/apoio/servidor_de_ferramentas_de_teste.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/cenarios.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/conftest.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/esquema_do_state_db_do_hermes_0_19_0.sql` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/ficha_antiga_com_busca.yaml` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/ficha_antiga_sem_ferramenta.yaml` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/ficha_com_ferramentas.yaml` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/ficha_sem_ferramenta.yaml` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/fixtures/models.yaml` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_ambiente.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_conferencia.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_conformidade.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_executor_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_executor_hermes.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_falha.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_ficha.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_gabarito.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_hermes_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_mutacoes.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_perfil.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_processo.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_provedor_falso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_segredos.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_teste3.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_uso.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
+| `motor/executor/testes/test_vocabulario.py` | CORRIGIR | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas |
 | `motor/ferramentas/.gitignore` | MANTER | servidor de ferramentas seguro |
 | `motor/ferramentas/README.md` | MANTER | servidor de ferramentas seguro |
 | `motor/ferramentas/ferramentas_helena/__init__.py` | MANTER | servidor de ferramentas seguro |
