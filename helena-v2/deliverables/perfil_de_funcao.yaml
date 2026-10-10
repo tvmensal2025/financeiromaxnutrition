@@ -1,0 +1,385 @@
+# Tipo de entrega: perfil_de_funcao (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: BIANCA (AGT-07). Serviço: SRV-PERFIL-DE-FUNCAO (servicos.yaml). Revisor titular: OLIVIA;
+# reserva: AUGUSTO; você é sempre a última reserva (MAT-03). Substitui o que a fase 1 antiga tinha
+# para pessoas. Neutro quanto ao motor: tudo aqui é dado nosso.
+#
+# O que é: o papel de uma pessoa numa das empresas, escrito para você decidir. Vem em UMA de três
+# modalidades, que o pedido escolhe (a Bianca não mistura):
+#   FUNCAO      o papel: responsabilidades com entrega observável, com quem conversa, horas por semana,
+#               o que decide e o que é só seu, e critérios observáveis ligados ao trabalho;
+#   VAGA        FUNCAO mais os requisitos (o que a pessoa precisa saber fazer, com prova de trabalho) e
+#               o texto da vaga. Só aqui a entrega pode propor a ação sua AF-PESSOAS-PUBLICAR-VAGA;
+#   DESEMPENHO  os critérios para avaliar um período do papel, sem horas, sem requisitos e sem vaga.
+# Contratar, remunerar, escolher candidato, desligar e publicar são decisões e ações SUAS: a entrega
+# nunca as toma nem diz que as fez (pronto_padrao do catálogo; limites do contrato da v1, AGT-07).
+#
+# De onde vêm os fatos: só do pacote do card. O código guarda, antes de qualquer IA, o pedido
+# original como fonte importada FON-PEDIDO-<card> e o pacote da empresa como FON-PACOTE-<empresa>.
+# A Bianca não tem ferramenta: não lê página, não busca vaga de outra empresa nem usa "o que sabe".
+# Tudo o que a entrega afirma sobre a empresa, a equipe ou a função está na seção fatos, com o trecho
+# literal; o que não é fato é proposta dela e a coluna base diz PROPOSTA.
+#
+# SEMPRE JULGADO (MAT-22): o serviço tem a ação AF-PESSOAS-PUBLICAR-VAGA, então toda etapa dele é
+# julgada por uma etapa SRV-PARECER do mesmo card, e você é o segundo revisor do parecer. Por isso
+# NENHUM critério da rubrica abaixo depende de lei: quem julga se a vaga pode ser publicada, o vínculo
+# e a jornada é só o parecer. A rubrica pergunta o que é de bom senso do trabalho (observável, ligado
+# às responsabilidades, sem traço pessoal), nunca "isto é permitido?".
+#
+# Formato dos ids dentro da entrega (o código lê): fatos F1 a F8; responsabilidades R1 a R8;
+# decisões D1 a D8; requisitos Q1 a Q6; critérios C1 a C8. A coluna base e a coluna responsabilidade
+# usam esses ids separados por vírgula (ex.: "F1, F3") ou a palavra PROPOSTA. Números: milhar com
+# ponto e decimal com vírgula no texto; nos campos numéricos, número puro com unidade e origem.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora" (05),
+# citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+
+tipo: perfil_de_funcao
+versao: "3.1.0"
+descricao: "Perfil de função, vaga ou critérios de desempenho de uma empresa: fatos com trecho do pedido, responsabilidades observáveis com horas, o que a função decide e o que é só seu, critérios com peso e próximo passo com dono e prazo."
+dono: BIANCA
+servico: SRV-PERFIL-DE-FUNCAO
+
+secoes:
+  - id: modalidade
+    titulo: "O que esta entrega é"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 50
+    descricao: "Exatamente uma palavra: FUNCAO, VAGA ou DESEMPENHO, a que o pedido pede (CHK-PERFIL-01)."
+  - id: funcao
+    titulo: "A função"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com o nome da função, a empresa e para que ela existe. Não muda o que você pediu."
+  - id: fatos
+    titulo: "Fatos do pedido"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 8
+    descricao: "Tudo o que a entrega afirma sobre a empresa, a equipe e a função, cada fato com o trecho literal do pedido ou do pacote (CHK-PERFIL-02)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "F1 a F8, sem repetir."}
+      - {id: fato, tipo_de_campo: texto, descricao: "O fato em uma frase, dizendo só o que o trecho diz."}
+      - {id: prova, tipo_de_campo: citacao, descricao: "Frase inteira ou 12 palavras seguidas do pedido (FON-PEDIDO-<card>) ou do pacote da empresa (FON-PACOTE-<empresa>)."}
+  - id: carga_semanal
+    titulo: "Horas por semana da função"
+    tipo_de_campo: numero
+    obrigatoria: false
+    unidade: "horas por semana"
+    descricao: "Só em FUNCAO e VAGA (obrigatória nelas; ausente em DESEMPENHO). Origem DADO_DO_FUNDADOR, com o número escrito no pedido (CHK-PERFIL-01 e 05)."
+  - id: responsabilidades
+    titulo: "Responsabilidades"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 8
+    descricao: "Uma por linha, com o que existe quando ela está feita. Em FUNCAO e VAGA, as horas por semana somam a carga do pedido (CHK-PERFIL-05)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "R1 a R8, sem repetir."}
+      - {id: responsabilidade, tipo_de_campo: texto, descricao: "O que a função faz, começando por um verbo."}
+      - {id: entrega_observavel, tipo_de_campo: texto, descricao: "O que existe, e alguém pode ver, quando está feita (registro, mensagem, lista, documento)."}
+      - {id: com_quem_conversa, tipo_de_campo: texto, descricao: "Com quem a função fala para fazer isto: papéis, nunca nomes de pessoas."}
+      - {id: horas_por_semana, tipo_de_campo: numero, descricao: "Só em FUNCAO e VAGA: número em horas por semana, origem PREMISSA."}
+      - {id: base, tipo_de_campo: texto, descricao: "Ids de fatos que sustentam a linha (F1..F8), separados por vírgula, ou PROPOSTA."}
+  - id: decisoes
+    titulo: "O que a função decide e o que é só seu"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 8
+    descricao: "Situações e quem decide: FUNCAO ou FUNDADOR. Contratar, pagar, remunerar, desligar, aprovar e publicar são sempre FUNDADOR (CHK-PERFIL-07)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "D1 a D8, sem repetir."}
+      - {id: situacao, tipo_de_campo: texto, descricao: "A situação, começando por um verbo."}
+      - {id: quem_decide, tipo_de_campo: texto, descricao: "FUNCAO ou FUNDADOR."}
+      - {id: base, tipo_de_campo: texto, descricao: "Ids de fatos que sustentam a linha, ou PROPOSTA."}
+  - id: requisitos
+    titulo: "O que a pessoa precisa saber fazer"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 2
+    itens_max: 6
+    descricao: "Só na VAGA (obrigatória nela; ausente nas outras). Cada requisito é um saber fazer ligado às responsabilidades, com prova de trabalho."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "Q1 a Q6, sem repetir."}
+      - {id: requisito, tipo_de_campo: texto, descricao: "O que a pessoa precisa saber fazer, começando por um verbo. Nunca característica pessoal."}
+      - {id: como_comprovar, tipo_de_campo: texto, descricao: "Prova de trabalho: amostra, tarefa de teste ou exemplo, nunca entrevista sobre quem a pessoa é."}
+      - {id: base, tipo_de_campo: texto, descricao: "Ids de fatos que sustentam a linha, ou PROPOSTA."}
+  - id: texto_da_vaga
+    titulo: "Texto da vaga"
+    tipo_de_campo: texto
+    obrigatoria: false
+    limite_caracteres: 1200
+    descricao: "Só na VAGA (obrigatório nela). Fala com quem lê, promete só jornada, local e carga que o pedido diz; remuneração e vínculo que o pedido não deu ficam 'a combinar com o fundador'."
+  - id: criterios
+    titulo: "Como saber se a função está bem feita"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 8
+    descricao: "Critérios observáveis, cada um ligado a uma responsabilidade, com peso. Os pesos somam 100 (CHK-PERFIL-04 e 06)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "C1 a C8, sem repetir."}
+      - {id: criterio, tipo_de_campo: texto, descricao: "O que se observa no trabalho, nunca uma característica da pessoa."}
+      - {id: como_observar, tipo_de_campo: texto, descricao: "O registro, a entrega ou a situação que alguém vê acontecer, e quem olha."}
+      - {id: quando, tipo_de_campo: texto, descricao: "Quando olhar, em palavras (ex.: 'ao fim da primeira semana'), sem número."}
+      - {id: responsabilidade, tipo_de_campo: texto, descricao: "Id da responsabilidade que o critério mede (R1 a R8)."}
+      - {id: peso, tipo_de_campo: numero, descricao: "Peso em %, origem PREMISSA, de 5 a 60."}
+  - id: proximo_passo
+    titulo: "Próximo passo"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 3
+    descricao: "O que vem depois, com dono e prazo sugerido. O prazo é do passo e não muda o prazo do card, que só você muda (CHK-PERFIL-15)."
+    colunas:
+      - {id: passo, tipo_de_campo: texto, descricao: "O passo, começando por um verbo."}
+      - {id: dono, tipo_de_campo: texto, descricao: "FUNDADOR (você faz) ou PEDIDO_NOVO (você pede a outro serviço; nunca sub-card)."}
+      - {id: servico, tipo_de_campo: texto, descricao: "No PEDIDO_NOVO, o id do serviço que atende o passo; no FUNDADOR, um traço."}
+      - {id: prazo_dias, tipo_de_campo: numero, descricao: "Prazo sugerido em dias, de 1 a 90, origem PREMISSA."}
+  - id: limites
+    titulo: "O que esta entrega não cobre"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "O que ficou de fora e com quem fica (ex.: contratar e remunerar: você; ponto jurídico da vaga: parecer no mesmo card)."
+
+limite: 7500
+
+checagens_codigo:
+  - id: CHK-PERFIL-01
+    descricao: "Modalidade e seções: modalidade é FUNCAO, VAGA ou DESEMPENHO; carga_semanal só em FUNCAO e VAGA (obrigatória); requisitos e texto_da_vaga só na VAGA (obrigatórios); horas_por_semana só onde há carga. Seção fora da modalidade recusa."
+    fecha_furos: [K-13, A-17]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      modalidades: [FUNCAO, VAGA, DESEMPENHO]
+      secoes_por_modalidade:
+        FUNCAO: {obrigatorias_alem_das_comuns: [carga_semanal], proibidas: [requisitos, texto_da_vaga]}
+        VAGA: {obrigatorias_alem_das_comuns: [carga_semanal, requisitos, texto_da_vaga], proibidas: []}
+        DESEMPENHO: {obrigatorias_alem_das_comuns: [], proibidas: [carga_semanal, requisitos, texto_da_vaga]}
+      horas_por_semana: "presente em toda responsabilidade de FUNCAO e VAGA; ausente em DESEMPENHO"
+  - id: CHK-PERFIL-02
+    descricao: "Fatos com prova: ids F1..F8 sem repetir; o trecho de cada prova está, normalizado, no pedido (FON-PEDIDO-<card>) ou no pacote (FON-PACOTE-<empresa>) que veio no card, com 12 palavras seguidas ou frase inteira da fonte."
+    fecha_furos: [C-8, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fontes_aceitas: ["FON-PEDIDO-<card> (pedido original)", "FON-PACOTE-<empresa> (pacote da empresa)"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+  - id: CHK-PERFIL-03
+    descricao: "Base de cada linha: em responsabilidades, decisões e requisitos, a coluna base é PROPOSTA ou ids de fatos que existem na seção fatos; fato nunca citado em nenhuma linha não recusa, mas não pode existir id repetido."
+    fecha_furos: [M-15, C-9]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      palavra_reservada: PROPOSTA
+      ids_de_fato: "^F[1-8]$"
+  - id: CHK-PERFIL-04
+    descricao: "Critério ligado ao trabalho: a coluna responsabilidade de cada critério é o id de uma responsabilidade da entrega, e toda responsabilidade tem pelo menos um critério."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids_de_responsabilidade: "^R[1-8]$"
+  - id: CHK-PERFIL-05
+    descricao: "Horas refeitas pelo código: em FUNCAO e VAGA, a carga_semanal tem origem DADO_DO_FUNDADOR com o número escrito no pedido, cada hora de responsabilidade é positiva com origem PREMISSA, e a soma das horas é igual à carga."
+    fecha_furos: [K-8, C-9, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      tolerancia: 0
+      origem_da_carga: DADO_DO_FUNDADOR
+      origem_das_horas: PREMISSA
+      numero_no_pedido: "milhar com ponto e decimal com vírgula; o valor tem de aparecer igual no pedido"
+  - id: CHK-PERFIL-06
+    descricao: "Pesos refeitos pelo código: cada peso tem origem PREMISSA, unidade % e valor de 5 a 60, e a soma dos pesos dos critérios é exatamente 100."
+    fecha_furos: [K-8, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      soma: 100
+      minimo_por_criterio: 5
+      maximo_por_criterio: 60
+      tolerancia: 0
+  - id: CHK-PERFIL-07
+    descricao: "Decisões que são só suas: em decisões, quem_decide é FUNCAO ou FUNDADOR; situação que fala de contratar, pagar, remunerar, desligar, aprovar, assinar, publicar, gastar ou falar pela empresa é FUNDADOR; há pelo menos uma linha FUNDADOR."
+    fecha_furos: [B-17, CONF-20]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      valores: [FUNCAO, FUNDADOR]
+      verbos_do_fundador: ["contratar", "contratação", "pagar", "pagamento", "remunerar", "remuneração", "salário", "desligar", "desligamento", "demitir", "aprovar", "assinar", "publicar", "gastar", "comprar", "decidir quem entra", "falar em nome da empresa", "falar pela empresa"]
+      sem_diferenca_de_maiusculas_e_acento: true
+  - id: CHK-PERFIL-08
+    descricao: "Nenhuma característica pessoal como exigência: nenhuma expressão da lista fechada (nem negada) fora de trechos citados, sem diferenciar maiúscula nem acento. O que a lista não pega (palavra que sugere o traço) é da RUB-PERFIL-04."
+    fecha_furos: [C-11]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["boa aparência", "aparência agradável", "jovem", "jovens", "idoso", "idosos", "sexo feminino", "sexo masculino", "apenas mulheres", "somente mulheres", "só mulheres", "apenas homens", "somente homens", "só homens", "estado civil", "solteiro", "solteira", "casado", "casada", "sem filhos", "com filhos", "gestante", "grávida", "religião", "raça", "etnia", "cor da pele", "orientação sexual", "naturalidade", "sem deficiência", "altura mínima", "peso corporal"]
+      padroes: ["até|no máximo|máximo de + número + anos", "idade mínima|máxima|entre|de", "entre + número + e + número + anos", "número + anos de idade"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PERFIL-09
+    descricao: "Nenhuma decisão sobre pessoas tomada pela IA: nenhuma expressão da lista fechada (contratei, fica contratada, defini o salário, selecionei...) fora de trechos citados, sem diferenciar maiúscula nem acento. A decisão é sua."
+    fecha_furos: [M-5, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["decidi contratar", "decidimos contratar", "aprovei a contratação", "fica contratado", "fica contratada", "está contratado", "está contratada", "fica demitido", "fica demitida", "fica desligado", "fica desligada", "demiti", "demitimos", "desliguei", "desligamos", "defini o salário", "definimos o salário", "defini a remuneração", "o salário será", "a remuneração será", "escolhi o candidato", "escolhi a candidata", "selecionei", "o candidato escolhido", "a candidata escolhida"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PERFIL-10
+    descricao: "Nenhum número solto: todo número escrito em texto livre está no pedido ou é valor de campo numérico desta entrega (carga, horas, pesos, prazos); números de ids e trechos citados não contam. Salário, anos de experiência e metas inventados caem aqui."
+    fecha_furos: [C-9, K-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      formato: "milhar com ponto e decimal com vírgula; 'mil' depois do número multiplica por 1.000"
+      ignora: ["ids F, R, D, Q e C, SRV-..., CHK-..., RUB-..., AF-..., FON-...", "trecho_original das citações", "colunas base, responsabilidade, quem_decide, dono e servico"]
+      compara: "valor numérico igual ao de um número do pedido ou ao valor de um campo numérico da entrega"
+  - id: CHK-PERFIL-11
+    descricao: "Nenhum dado pessoal solto: nenhum CPF, e-mail ou telefone escrito na entrega (a função é descrita sem nomear nem contatar ninguém). Fora dos trechos citados."
+    fecha_furos: [C-5]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      padroes: ["CPF (11 dígitos, com ou sem pontos e traço)", "e-mail (texto@domínio.sufixo)", "telefone (DDD e 8 ou 9 dígitos)"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PERFIL-12
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; esta ficha não copia a lista), fora de trechos citados, sem diferenciar maiúscula nem acento."
+    fecha_furos: [C-11, DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  - id: CHK-PERFIL-13
+    descricao: "Personagens não são funcionários (MAT-18): no card da eLiving™, o nome de Sirlene, Doutor Vital, Alex ou Rafael só aparece em frase que diz 'personagem' ou 'pilar' e nunca em frase que o trate como pessoa da equipe."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      so_na_empresa: BIZ-004
+      nomes: ["Sirlene", "Doutor Vital", "Alex", "Rafael"]
+      palavras_que_liberam: ["personagem", "personagens", "pilar", "pilares"]
+      palavras_de_pessoa_da_equipe: ["funcionário", "funcionária", "colaborador", "colaboradora", "contratar", "equipe", "vaga", "cargo", "salário"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PERFIL-14
+    descricao: "Ação sua só na vaga: acao_externa SO_FUNDADOR só quando a modalidade é VAGA e a entrega tem texto_da_vaga; em FUNCAO e DESEMPENHO a ação é NENHUMA. O id da ação e o texto dela são conferidos pela CHK-COMUM-10."
+    fecha_furos: [B-17, CONF-20, MAQ-08]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      so_fundador_apenas_em: VAGA
+      acao_do_servico: AF-PESSOAS-PUBLICAR-VAGA
+  - id: CHK-PERFIL-15
+    descricao: "Próximo passo com dono e prazo: de 1 a 3 linhas; dono FUNDADOR com serviço '—', ou PEDIDO_NOVO com um serviço escolhível do catálogo, diferente deste, que atende a empresa do card; prazo de 1 a 90 dias, origem PREMISSA."
+    fecha_furos: [K-13, M-5]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      donos: [FUNDADOR, PEDIDO_NOVO]
+      prazo_dias: {minimo: 1, maximo: 90, origem: PREMISSA}
+      pedido_novo: "servico é um id escolhível de servicos.yaml, diferente de SRV-PERFIL-DE-FUNCAO, com a empresa do card em empresas"
+      fundador: "servico é '—'"
+
+rubrica:
+  - id: RUB-PERFIL-01
+    pergunta: "Nenhuma frase da entrega, nem o texto da vaga, afirma sobre a empresa, a equipe, a função ou a oferta (jornada, local, pagamento, vínculo, benefício) algo que um fato citado não sustente?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que o trecho existe e que os números vêm do pedido; afirmação nova em palavras comuns só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-02
+    pergunta: "Cada responsabilidade e sua entrega observável permitem dizer 'feito' ou 'não feito' olhando algo que existe, sem depender de adjetivo como 'cuidar bem' ou 'ser ágil'?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê que a coluna está preenchida, não se o que está escrito é algo que dá para ver."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-03
+    pergunta: "Cada critério aponta para algo que alguém vê acontecer no trabalho (registro, entrega, situação), e não para impressão pessoal, atitude ou energia da pessoa?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê que 'como observar' existe; se descreve algo observável ou uma impressão (ex.: 'ser proativa') é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-04
+    pergunta: "Nenhum requisito, critério ou frase exige ou favorece uma característica pessoal, nem por palavra que a sugere (ex.: 'perfil dinâmico', 'quem está começando'), mesmo sem usar termo da lista fechada?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega os termos; o traço sugerido com outras palavras só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-05
+    pergunta: "Cada requisito é um saber fazer que as responsabilidades pedem, com prova de trabalho, sem exigir diploma, tempo de experiência, ferramenta ou marca de empresa que o pedido não pediu?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Número de anos o código pega; exigência sem número (grande empresa, ferramenta específica) depende do pedido inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-06
+    pergunta: "Nenhuma responsabilidade nem requisito dá à função algo que o pedido reservou a você (ex.: aprovar, pagar, escolher quem entra, falar pela empresa), mesmo com outras palavras?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere a tabela de decisões; a mesma decisão escondida numa responsabilidade só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-07
+    pergunta: "As horas de cada responsabilidade e os pesos dos critérios seguem o que o pedido diz que mais importa e dá trabalho, sem tarefa grande com pouca hora nem critério de apoio pesando mais que o principal?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código refaz a soma; se a divisão faz sentido para este trabalho é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PERFIL-08
+    pergunta: "Quando o pedido cita quem já faz algo parecido (você, a equipe ou outro papel), a entrega deixa claro onde a função se junta ou se separa dele, sem tarefa sem dono nem com dois donos?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Sobreposição e lacuna entre papéis dependem do sentido das frases, não da forma."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica. Camada 3 (você): só quando a entrega propõe a ação sua de publicar a
+# vaga; o parecer aprovado por você no mesmo card é o segundo revisor (MAT-22). Nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-PERFIL-01, CHK-PERFIL-02, CHK-PERFIL-03, CHK-PERFIL-04, CHK-PERFIL-05, CHK-PERFIL-06, CHK-PERFIL-07, CHK-PERFIL-08, CHK-PERFIL-09, CHK-PERFIL-10, CHK-PERFIL-11, CHK-PERFIL-12, CHK-PERFIL-13, CHK-PERFIL-14, CHK-PERFIL-15]
+  rubrica: [RUB-PERFIL-01, RUB-PERFIL-02, RUB-PERFIL-03, RUB-PERFIL-04, RUB-PERFIL-05, RUB-PERFIL-06, RUB-PERFIL-07, RUB-PERFIL-08]
+  fundador:
+    quando: QUANDO_HA_ACAO_EXTERNA
+    o_que_confere: "Se a entrega propõe publicar a vaga, você lê o texto da vaga e o parecer aprovado no mesmo card antes de publicar. A publicação é ação sua, feita uma vez, só depois do seu ok."
+
+revisor_confere:
+  - "Se nenhuma frase afirma o que um fato citado não sustenta, nem na oferta da vaga (RUB-PERFIL-01)."
+  - "Se cada responsabilidade tem uma entrega que dá para ver (RUB-PERFIL-02)."
+  - "Se cada critério aponta para algo observável no trabalho, e não para impressão pessoal (RUB-PERFIL-03)."
+  - "Se nada exige ou favorece uma característica pessoal, nem por palavra que a sugira (RUB-PERFIL-04)."
+  - "Se os requisitos são saber fazer com prova de trabalho, sem exigência que o pedido não deu (RUB-PERFIL-05)."
+  - "Se nenhuma responsabilidade dá à função uma decisão que é só sua (RUB-PERFIL-06)."
+  - "Se as horas e os pesos fazem sentido para este trabalho (RUB-PERFIL-07)."
+  - "Se a função não deixa tarefa sem dono nem com dois donos diante de quem já faz algo parecido (RUB-PERFIL-08)."
+
+revisor_nao_reavalia:
+  - "Se a modalidade e as seções estão certas, se cada fato tem trecho do pedido, se as horas e os pesos somam, se há número solto, dado pessoal ou termo proibido: o código já conferiu (CHK-PERFIL-01 a 15)."
+  - "Quem você vai contratar, quanto vai pagar e se vai publicar a vaga: a decisão é sua; o revisor julga o texto, não o que ele escolheria."
+  - "Se a vaga pode ser publicada, o vínculo e a jornada: é do parecer jurídico no mesmo card (MAT-22); a rubrica não depende de lei."
+  - "Se os fatos do pedido são verdadeiros: o revisor revisa sem internet e só confere se a entrega não diz mais do que o pedido."
+
+entrada_minima:
+  - id: ENT-PERFIL-PEDIDO
+    o_que: "O que escrever: a função, a vaga ou os critérios de desempenho, e para qual papel."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-PERFIL-DADOS
+    o_que: "Pelo menos um fato do negócio ligado ao papel (o que a empresa faz hoje, quem já faz o quê, onde a função ajuda), no pedido."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-PERFIL-CARGA
+    o_que: "As horas por semana da função, quando o pedido é de função ou de vaga."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-PERFIL-PACOTE
+    o_que: "O pacote CONFIRMADO da empresa do card: grafia, posicionamento e termos proibidos."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

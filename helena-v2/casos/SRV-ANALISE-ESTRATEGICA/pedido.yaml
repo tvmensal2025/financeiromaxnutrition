@@ -1,0 +1,107 @@
+# Pedido de teste do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03). Caso SINTÉTICO: os números
+# abaixo foram escritos para o teste e não são dados reais da empresa.
+#
+# Por que eLiving™ (BIZ-004): o serviço atende as 4 empresas, mas só Humano Digital e eLiving™
+# têm pacote CONFIRMADO (organograma.yaml, MAT-23); card da iGreen ou do Ecossistema de Saúde dá
+# PLANO_INVALIDO até você escrever o pacote delas. A Humano Digital aparece na jornada de falha.
+# O pedido é o terceiro exemplo do catálogo ("Lanço a eLiving™ primeiro só no Brasil ou já em
+# inglês?"), com os dados que você daria.
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que o Augusto recebe junto com o card (grafia, posicionamento,
+#      proibições). O código guarda o texto como fonte importada FON-PACOTE-BIZ-004.
+#   2. fontes_importadas: as fontes que o código guarda ANTES de qualquer IA. O pedido original é
+#      FON-PEDIDO-ESTRATEGIA-01: é contra ele que a CHK-ESTRATEGIA-02 confere cada trecho de DADO
+#      e a CHK-ESTRATEGIA-09 aceita número citado do pedido.
+#   3. ordem_de_servico: como fica depois do seu CONFIRMO (card.schema.json, ordem_de_servico).
+#   4. plano: montado pelo CÓDIGO (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO), com
+#      os revisores efetivos gravados no card.
+#   5. variantes: os pedidos derivados usados pelas boas 04 a 06 (falta de dado e fora do serviço).
+#
+# Números deste material (conferidos por código): lista de espera 420; Brasil 380; fora 40, sendo
+# 15 de Portugal e 25 dos Estados Unidos; orçamento R$ 6.000 por mês; desenvolvedor 20 horas por
+# semana; horizonte 6 meses; 4 pilares. Contas certas: 380 ÷ 420 x 100 = 90,476 (90,5); 25 ÷ 420
+# x 100 = 5,952 (5,95).
+#
+# Sem fitas: o serviço não usa internet (ferramentas: []), então não há resposta de ferramenta
+# para gravar. Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: PEDIDO-ESTRATEGIA-01
+servico: SRV-ANALISE-ESTRATEGICA
+agente: AGT-03
+card_id: CARD-TESTE-ESTRATEGIA-01
+empresa: BIZ-004
+
+pacote_da_empresa:
+  empresa: BIZ-004
+  nome: "eLiving™"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-004
+  grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+  slogan: "Onde sua evolução ganha direção."
+  posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+  pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+  decisoes: [DEC-023]
+  fontes: [docs/COMANDO-MASTER-ELIVING.md, docs/MANUAL-DE-COMPORTAMENTO-AGENTES-ELIVING.md]
+  # Lista fechada lida pela CHK-ESTRATEGIA-08. LISTA DE TESTE: até você registrar a lista oficial
+  # do pacote (FORA-PACOTE-DE-VOZ), o caso usa estes termos (tirados do "O que a eLiving NÃO É").
+  termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "contagem de calorias", "dieta restritiva", "perder peso rápido", "emagrecimento garantido", "promessa de cura"]
+
+fontes_importadas:
+  - {id: FON-PEDIDO-ESTRATEGIA-01, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+  - {id: FON-PACOTE-BIZ-004, o_que: "Texto do pacote da empresa acima, na versão confirmada."}
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+ordem_de_servico:
+  empresa: BIZ-004
+  prazo: "2026-10-16T18:00:00-03:00"
+  prioridade: 2
+  pedido_original: |
+    Lanço a eLiving™ primeiro só no Brasil ou já em inglês? Quero comparar os caminhos para os próximos 6 meses e decidir até o fim do mês. O app está todo em português. A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos Estados Unidos. Tenho R$ 6.000 por mês para o lançamento, somando anúncio, ferramentas e o freelancer. O time é só eu e um desenvolvedor freelancer de 20 horas por semana. O conteúdo dos 4 pilares é revisado por uma nutricionista e um médico que só trabalham em português. Não quero nada que faça a eLiving™ parecer app fitness comum.
+  o_que_quer: "Comparar lançar a eLiving™ só no Brasil, em português, ou já com a versão em inglês, para os próximos 6 meses, com os seus números."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "Os caminhos comparados pelos mesmos critérios.", quem_confere: CODIGO, checagem: CHK-ESTRATEGIA-01, risco: BAIXO}
+    - {id: CARD-2, texto: "Cada número com origem: dado meu, estimativa ou hipótese.", quem_confere: CODIGO, checagem: CHK-ESTRATEGIA-02, risco: BAIXO}
+    - {id: CARD-3, texto: "Uma recomendação que diga do que depende e como eu testo antes de apostar.", quem_confere: IA, risco: BAIXO}
+    - {id: CARD-4, texto: "Nada que faça a eLiving™ parecer app fitness comum.", quem_confere: IA, risco: ALTO}
+  nao_pode:
+    - "Nada que faça a eLiving™ parecer app fitness comum."
+
+# Leitura de volta da Helena (papel HELENA), antes do seu CONFIRMO. Ela só escolhe o serviço;
+# empresa, prazo e prioridade vieram da caixa Novo pedido; quem monta o plano é o código.
+# ATENÇÃO: o caso supõe o serviço já em ESTAGIO. Nesta versão do catálogo ele está em RASCUNHO,
+# e o acao.schema.json (escolha_da_helena) só aceita como SERVICO os que recebem card hoje; a
+# Helena devolveria FORA_DA_V2 com servico_que_atenderia SRV-ANALISE-ESTRATEGICA.
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: SERVICO, id: SRV-ANALISE-ESTRATEGICA}
+
+# Plano montado pelo código (SERVICO_NAO_JULGADO: uma etapa só). Revisores EFETIVOS: [revisor,
+# reserva] do serviço só com aptidão APTA no tipo, e FUNDADOR no fim (MAT-21). O caso SUPÕE o Ravi
+# e o Caio já APTOS em analise_estrategica (teste 9 + seu toque); hoje os dois estão SEM_PROVA. O
+# Ravi APTO é condição para o serviço ir a ESTAGIO (MAT-12); sem o Caio APTO, a lista seria
+# [RAVI, FUNDADOR].
+plano:
+  origem: SERVICO_NAO_JULGADO
+  versao_do_catalogo: "3.1.0"
+  montado_em: "2026-10-10T10:05:00-03:00"
+  etapas:
+    - {id: E1, servico: SRV-ANALISE-ESTRATEGICA, autor: AUGUSTO, revisores: [RAVI, CAIO, FUNDADOR], depende_de: []}
+  # Sem etapa SRV-PARECER: o serviço é julgado_pelo_parecer NUNCA, e a faixa do card mostra
+  # "sem conferência jurídica".
+
+# Pedidos derivados (o resto igual) para as boas 04 a 06: mostram o que o Augusto faz quando
+# falta dado ou quando o pedido é de outro serviço.
+variantes:
+  SEM-HORIZONTE:
+    usada_por: boas/boa-04.yaml
+    pedido_original: "Lanço a eLiving™ primeiro só no Brasil ou já em inglês? O app está todo em português. A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos Estados Unidos. Tenho R$ 6.000 por mês para o lançamento, somando anúncio, ferramentas e o freelancer."
+    o_que_falta: ENT-ESTRATEGIA-HORIZONTE
+  SEM-DADOS:
+    usada_por: boas/boa-05.yaml
+    pedido_original: "Lanço a eLiving™ primeiro só no Brasil ou já em inglês? Quero decidir nos próximos 6 meses."
+    o_que_falta: ENT-ESTRATEGIA-DADOS
+  CONTA-DETALHADA:
+    usada_por: boas/boa-06.yaml
+    pedido_original: "Quanto vai custar, mês a mês, manter a eLiving™ em português e em inglês nos próximos 6 meses? Tenho R$ 6.000 por mês e o desenvolvedor custa R$ 2.400 por mês."
+    o_que_falta: "Nada: é pedido de conta detalhada, do SRV-CALCULO (servicos.yaml, nao_atende)."

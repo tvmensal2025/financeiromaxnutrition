@@ -1,0 +1,180 @@
+# Caso RUIM do SRV-PLANO-DE-PROJETO (Marina, AGT-04) para o pedido ../pedido.yaml (eLiving™).
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+id: PROJETO-RUIM-03
+servico: SRV-PLANO-DE-PROJETO
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01.yaml
+defeito_plantado: O envio (M6) começa em 02/12, antes do prazo das correções (M5, 04/12) de que ele depende.
+deve_falhar_em: CHK-PROJETO-DEPENDENCIAS
+portao: 1 (código)
+motivo_esperado: M6 começa em 2026-12-02, antes do prazo de M5 (2026-12-04)
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Ter a primeira versão do app da eLiving™ enviada e aprovada nas lojas da Apple e do Google até 18/12/2026,
+      com o que falta organizado em marcos.
+    janela:
+    - inicio: '2026-10-12'
+      data_final: 2026-12-18T18:00-03:00
+      trecho_data_final:
+        trecho_original: Quero o app enviado e aprovado nas duas lojas até 18 de dezembro de 2026.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+      horas_por_semana:
+        valor: 6
+        unidade: horas
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original do card
+        citacao:
+          trecho_original: Tenho 6 horas por semana para este projeto, fora o que o Tiago faz.
+          fonte_importada_id: FON-PEDIDO-PROJETO-01
+    escopo:
+    - id: S1
+      item: Desenho das telas principais
+      situacao: feito, segundo você
+      trecho:
+        trecho_original: Já fiz o desenho das telas principais com a Paula Reis, minha designer, e ela já me entregou
+          os arquivos.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    - id: S2
+      item: Textos de boas-vindas dos quatro pilares (Sirlene, Doutor Vital, Alex e Rafael)
+      situacao: a fazer
+      trecho:
+        trecho_original: 'Eu mesmo vou escrever os textos de boas-vindas dos quatro pilares: Sirlene, Doutor Vital,
+          Alex e Rafael.'
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    - id: S3
+      item: Primeira versão do app, montada pelo Tiago Lima a partir das telas
+      situacao: a fazer
+      trecho:
+        trecho_original: O Tiago Lima, desenvolvedor que eu já contratei, vai montar a primeira versão do app a
+          partir das telas.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    - id: S4
+      item: Teste do app com 5 pessoas conhecidas, antes do envio
+      situacao: a fazer
+      trecho:
+        trecho_original: Depois quero testar o app com 5 pessoas conhecidas antes de enviar.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    - id: S5
+      item: Contas de desenvolvedor na Apple e no Google
+      situacao: a fazer
+      trecho:
+        trecho_original: Ainda preciso criar as contas de desenvolvedor na Apple e no Google.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    - id: S6
+      item: Envio do app para as duas lojas
+      situacao: a fazer
+      trecho:
+        trecho_original: No fim, eu envio o app para as duas lojas.
+        fonte_importada_id: FON-PEDIDO-PROJETO-01
+    marcos:
+    - id: M1
+      marco: Contas de desenvolvedor criadas na Apple e no Google
+      escopo: S5
+      dono: Você
+      inicio: '2026-10-12'
+      prazo: 2026-10-16T18:00-03:00
+      depende_de: nenhum
+      pronto: As duas contas aparecem como ativas no painel de desenvolvedor de cada loja.
+      esforco:
+        valor: 3
+        unidade: horas
+        origem: PREMISSA
+    - id: M2
+      marco: Textos de boas-vindas dos quatro pilares escritos
+      escopo: S2
+      dono: Você
+      inicio: '2026-10-19'
+      prazo: 2026-10-30T18:00-03:00
+      depende_de: nenhum
+      pronto: Um documento com 4 textos, um por pilar, que você releu e marcou como versão final.
+      esforco:
+        valor: 8
+        unidade: horas
+        origem: PREMISSA
+    - id: M3
+      marco: Primeira versão do app montada a partir das telas, já com os textos
+      escopo: S3
+      dono: Tiago Lima
+      inicio: '2026-11-02'
+      prazo: 2026-11-20T18:00-03:00
+      depende_de: M2
+      pronto: O app abre no seu celular com todas as telas principais e os 4 textos de boas-vindas.
+      esforco:
+        valor: 60
+        unidade: horas
+        origem: PREMISSA
+    - id: M4
+      marco: Teste do app com 5 pessoas conhecidas
+      escopo: S4
+      dono: Você
+      inicio: '2026-11-23'
+      prazo: 2026-11-27T18:00-03:00
+      depende_de: M3
+      pronto: Uma anotação por pessoa, 5 no total, com o que ela não conseguiu fazer no app.
+      esforco:
+        valor: 5
+        unidade: horas
+        origem: PREMISSA
+    - id: M5
+      marco: Correções do que o teste mostrou
+      escopo: S3, S4
+      dono: Tiago Lima
+      inicio: '2026-11-30'
+      prazo: 2026-12-04T18:00-03:00
+      depende_de: M4
+      pronto: Cada problema anotado no teste está marcado por você como corrigido ou como deixado para depois.
+      esforco:
+        valor: 12
+        unidade: horas
+        origem: PREMISSA
+    - id: M6
+      marco: App enviado para análise nas duas lojas
+      escopo: S6
+      dono: Você
+      inicio: '2026-12-02'
+      prazo: 2026-12-11T18:00-03:00
+      depende_de: M1, M5
+      pronto: O app aparece como 'em análise' no painel de cada uma das duas lojas.
+      esforco:
+        valor: 3
+        unidade: horas
+        origem: PREMISSA
+    folga:
+      valor: 7
+      unidade: dias
+      origem: CALCULADO
+      ref: do prazo de M6 (11/12) até a data final (18/12)
+    primeiro_passo:
+    - marco: M1
+      o_que_fazer: Abra a página de inscrição no programa de desenvolvedores da Apple e anote o que ela pede para
+        criar a conta.
+      quando: 2026-10-12T19:00-03:00
+      duracao:
+        valor: 30
+        unidade: minutos
+        origem: PREMISSA
+    riscos:
+    - risco: A análise das lojas passar dos 7 dias de folga.
+      marcos: M6
+      sinal: Em 15/12 o app ainda aparece 'em análise' em alguma das lojas.
+      o_que_fazer: Responder no mesmo dia o que a loja pedir; se ela pedir mudança no app, combinar a correção com
+        o Tiago.
+    - risco: A conta da Apple pedir confirmação de identidade e demorar a ficar ativa.
+      marcos: M1, M6
+      sinal: Em 16/10 a conta da Apple ainda não aparece como ativa.
+      o_que_fazer: Seguir com os textos e olhar o pedido da Apple a cada 2 dias; o envio só precisa da conta em
+        dezembro.
+    - risco: A primeira versão do Tiago atrasar.
+      marcos: M3, M4
+      sinal: Em 13/11 o Tiago ainda não mostrou nenhuma tela funcionando no celular.
+      o_que_fazer: Combinar com ele o que fica para depois da primeira versão, sem mexer na data final.
+    limites:
+    - O esforço de cada marco é estimativa (premissa), não medida.
+    - 'As horas do Tiago não entram nas suas 6 horas por semana: o plano supõe que ele trabalha nas datas dos marcos
+      dele, como você vai combinar com ele.'
+    - 'O tempo de análise das lojas não depende de você: a folga de 7 dias é a margem para isso.'

@@ -1,0 +1,64 @@
+# Caso BOM do SRV-PLANO-DE-PRATICA (Laura, AGT-02) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída da Laura no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-PRATICA-01 a 06) e na rubrica.
+id: PRATICA-BOA-03
+servico: SRV-PLANO-DE-PRATICA
+pedido: ../pedido.yaml
+nota: 'Resposta mínima válida: 1 padrão, 1 exercício, 1 contagem.'
+deve_passar_em:
+- CHK-PRATICA-01
+- CHK-PRATICA-02
+- CHK-PRATICA-03
+- CHK-PRATICA-04
+- CHK-PRATICA-05
+- CHK-PRATICA-06
+- RUB-PRATICA-01
+- RUB-PRATICA-02
+- RUB-PRATICA-03
+- RUB-PRATICA-04
+- RUB-PRATICA-05
+- RUB-PRATICA-06
+- RUB-PRATICA-07
+- RUB-PRATICA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Apresentar o seu projeto em 1 minuto, começando pelo que ele é.
+    padroes:
+    - id: P1
+      comportamento: Você usa as 4 primeiras frases para contar como a ideia surgiu, antes de dizer o que o projeto
+        é.
+      trecho:
+        trecho_original: Eu trabalho com tecnologia faz uns anos e sempre vi muita gente procurando um jeito novo
+          de trabalhar de casa, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: Quem ouve só descobre do que se trata quando já passou quase metade da fala.
+    exercicio:
+    - padrao: P1
+      passos: '1) Escreva a frase de abertura: o que o projeto é e para quem, em até 20 palavras. 2) Leia em voz
+        alta 5 vezes. 3) Grave a apresentação uma vez, começando por ela.'
+      duracao:
+        valor: 5
+        unidade: minutos
+        origem: PREMISSA
+      criterio: A gravação começa pela frase escrita, sem nenhuma história antes dela.
+    registro:
+    - padrao: P1
+      medida: Total de palavras suas na apresentação
+      marcador: PALAVRAS
+      hoje:
+        valor: 160
+        unidade: palavras
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 120
+        unidade: palavras
+        origem: PREMISSA
+    proxima_pratica: Faça o exercício antes da próxima vez que for apresentar o projeto e traga a nova transcrição
+      num pedido novo de prática.
+    limites:
+    - Com um ouvinte só, não dá para saber como outro público reagiria.

@@ -1,0 +1,138 @@
+# Jornada de ponta a ponta do card do Augusto (AGT-03), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O card: o pedido de casos/SRV-ANALISE-ESTRATEGICA/pedido.yaml (eLiving™, BIZ-004, pacote
+# CONFIRMADO). O caminho: seu pedido -> leitura de volta da Helena -> seu CONFIRMO -> plano válido
+# -> etapa na fila -> execução -> portão 1 recusa (matriz incompleta) -> nova execução -> portão 1
+# ok -> o revisor reprova com critério (estimativa dita como fato) -> correção -> portão 1 ok ->
+# o revisor aprova -> card pronto.
+#
+# 'automatico: false' de propósito: todo evento do motor aparece escrito aqui, um por linha,
+# para você ver cada passo (como na reprodução do histórico).
+#
+# O plano tem UMA etapa (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO): o serviço é
+# avulso e nunca é julgado pelo parecer (a faixa do card mostra "sem conferência jurídica"). Os
+# revisores são a lista EFETIVA gravada no card: [RAVI, CAIO, FUNDADOR]. Ela supõe o Ravi e o Caio
+# já APTOS em analise_estrategica (teste 9 + seu toque), e o serviço já em ESTAGIO; hoje o serviço
+# está em RASCUNHO e as duas aptidões em SEM_PROVA (ver pedido.yaml). pulavel: false porque, no
+# avulso, a etapa é o card inteiro. usa_decisao: true porque o card de empresa lê as decisões
+# vigentes dela (DEC-023 na eLiving™): se uma mudar, a etapa refaz (DECISAO_MUDOU).
+#
+# Contas da etapa (TETO_EXECUCOES = 6): entrega 1, entrega 2, reprovação 3, entrega 4,
+# aprovação 5. Reprovações: 1 de 2. Nenhum teto estourado. Nenhuma ação externa nasce: a entrega
+# diz NENHUMA, e o serviço não tem ação do fundador.
+
+id: AGT-03-augusto-analise-estrategica-ponta-a-ponta
+descricao: "Card da eLiving™ do pedido ao card pronto, com uma recusa do código (CHK-ESTRATEGIA-01) e uma reprovação do revisor (RUB-ESTRATEGIA-03)."
+agente: AGT-03
+empresa: "eLiving™ (BIZ-004)"
+automatico: false
+card:
+  pedido_grande: true        # você marcou 'confirmar antes' na caixa Novo pedido
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "análise estratégica (Augusto)"
+      autor: AUGUSTO
+      revisores: [RAVI, CAIO, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  # --- O pedido e a confirmação (o card nasce em RASCUNHO pelo código, antes de qualquer IA)
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C01. 'Entendi assim: comparar lançar a eLiving™ só no Brasil, em português, ou já em inglês, para os próximos 6 meses, com os seus números. Pronto: caminhos pelos mesmos critérios, cada número com origem, recomendação com o que testar. Não pode: nada que a faça parecer app de academia. Confirma?' Escolha: SRV-ANALISE-ESTRATEGICA."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    params: {opcao: CONFIRMO}
+    nota: "C06. Seu toque, com a versão que você viu."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Validador do plano: serviço em ESTAGIO, dono ligado, BIZ-004 nas empresas do serviço e pacote CONFIRMADO (MAT-23); revisores efetivos [RAVI, CAIO, FUNDADOR] (MAT-21). Card EM_ANDAMENTO."
+  # --- A etapa entra na fila e roda
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Sem anteriores: a etapa vai para a fila (motivo NORMAL), na vaga do Augusto."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1: servidor de ferramentas vazio, 3 chamadas e 600 s (ficha), apelido analise-padrao."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 1ª entrega: igual à boa-01, mas sem a linha O2 x CR4 na comparação: é o defeito-01."
+  - papel: MOTOR
+    evento: PORTAO1_RECUSOU
+    alvo: E1
+    nota: "E43. Portão 1 (código): CHK-ESTRATEGIA-01 recusa, 'par (O2, CR4) aparece 0 vez(es)'. Volta à fila com o item exato."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 2ª entrega: matriz completa, mas a linha O2 x CR1 diz 'A tradução custa R$ 9.000...' como fato: é o defeito-16."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: RAVI}
+    nota: "E40. Portão 1 passou (comuns e CHK-ESTRATEGIA-01 a 09). Revisor designado: RAVI, o primeiro da lista efetiva (não é o autor; ninguém julga esta peça depois)."
+  # --- Revisão: uma reprovação com critério
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+    nota: "E50. Revisão sem ferramenta, apelido revisao-padrao (MAT-10)."
+  - papel: REVISOR
+    evento: REPROVAR
+    alvo: E1
+    ator: RAVI
+    nota: "E57. Veredito RUB-ESTRATEGIA-03 FALHOU, seção comparacao, trecho 'A tradução custa R$ 9.000 e consome 1,5 mês do orçamento antes do lançamento.' (o código confere o trecho na entrega): o custo é a estimativa EST-1. Volta ao Augusto com o critério; reprovações 1 de 2."
+  # --- Correção
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 3: o Augusto recebe o critério reprovado e corrige só a linha O2 x CR1."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 3ª entrega: casos/SRV-ANALISE-ESTRATEGICA/boas/boa-01.yaml ('A tradução estimada consumiria 1,5 mês do orçamento...')."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: RAVI}
+    nota: "E40. Portão 1 passou de novo. A lista efetiva é congelada: o revisor continua o RAVI."
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+  - papel: REVISOR
+    evento: APROVAR
+    alvo: E1
+    ator: RAVI
+    nota: "E54. Os 8 critérios da rubrica e os itens CARD-3 e CARD-4 PASSOU, cada TRECHO conferido pelo código. Etapa APROVADA."
+  # --- O final
+  - papel: MOTOR
+    evento: TODAS_PRONTAS
+    nota: "C12. Card PRONTO; o sinal CARD_PRONTO leva a E1 a PRONTA (E110). A entrega diz acao_externa NENHUMA: nenhuma ação nasce na sua lista. A escolha entre O1, O2 e O3 continua sua."
+  - papel: FUNDADOR
+    evento: APROVAR
+    nota: "Reação (não muda estado): registra a sua aprovação do card pronto. Nada fora do sistema acontece."
+
+esperado:
+  estado_card: PRONTO
+  etapas: {E1: PRONTA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

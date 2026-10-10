@@ -1,0 +1,57 @@
+# Jornada de FALHA do card da Helena (AGT-01), lida por maquina/provar.py replay().
+# Formato: maquina/jornada.schema.json. Mesmo card e roteiro de jornada.yaml.
+#
+# Caminho: falta de dado no relatório. As etapas E1 a E4 são aprovadas; na E5, o pacote chega sem o
+# passo fixo PF-01 (cadastro na Mimix e no Hub) que o parecer aprovado cobre (variante de
+# boas/04-falta-dado.yaml). A Helena não inventa: REGISTRAR_FALHA com motivo FALTAM_DADOS (E23 ->
+# EM_RESOLUCAO). Como ela é a autora da etapa em resolução, o motor NÃO pede recomendação a ela
+# (MAT-26); o relógio leva a etapa a você na hora (E101), sem recomendação e com a marca "a Helena
+# participou desta peça". Termina com você chamado: a E5 espera você com motivo RESOLUCAO, e as suas
+# opções são REFAZER (replanejamento ainda não usado) ou ENCERRAR; SEGUIR_SEM não existe para o
+# relatório (não pulável). Se você não responder: lembrete em 24 h e 48 h e depois o padrão, que
+# cancela a etapa e nunca aprova nada.
+
+id: AGT-01-helena-relatorio-falta-dado
+descricao: >-
+  Relatório final sem o passo fixo na parte montada pelo código: a Helena registra a falha com motivo,
+  sem recomendação dela (MAT-26), e a etapa vai direto para você decidir.
+agente: AGT-01
+empresa: "Humano Digital (BIZ-003)"
+automatico: true
+card:
+  pedido_grande: true
+  plano_valido: true
+roteiro:
+  etapas:
+    - {id: E1, nome: "conta da receita (SRV-CALCULO)", autor: CAIO, revisores: [HELENA, CLARA, FUNDADOR], depende_de: [], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]}
+    - {id: E2, nome: "roteiro de treinamento (SRV-ROTEIRO-TREINAMENTO)", autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]}
+    - {id: E3, nome: "convite (SRV-COPY)", autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]}
+    - {id: E4, nome: "parecer (SRV-PARECER)", autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E2, E3], julga: [E2, E3], internet: true, pulavel: false, acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]}
+    - {id: E5, nome: "relatório final (SRV-RELATORIO-FINAL)", autor: HELENA, revisores: [CLARA, CAIO, FUNDADOR], depende_de: [E1, E2, E3, E4], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]}
+
+eventos:
+  - {papel: HELENA, evento: LER_DE_VOLTA}
+  - {papel: FUNDADOR, evento: RESPONDER, params: {opcao: CONFIRMO}}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E1, params: {parecer: OK, acao_externa: NENHUMA}}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E1, params: {escolhido: HELENA}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E1, ator: HELENA}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E2, params: {parecer: OK, acao_externa: SO_FUNDADOR}}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E2, params: {escolhido: CAIO}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E2, ator: CAIO}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E3, params: {parecer: OK, acao_externa: SO_FUNDADOR}}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E3, params: {escolhido: CAIO}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E3, ator: CAIO}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E4, params: {parecer: OK, acao_externa: NENHUMA, usou_internet: SIM}}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E4, params: {escolhido: HELENA}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E4, ator: HELENA}
+  - {papel: FUNDADOR, evento: APROVAR, alvo: E4, nota: "E81: parecer vale; a E5 entra na fila e começa (automático)."}
+  # --- A falha: falta o passo fixo na parte montada pelo código.
+  - {papel: AUTOR, evento: REGISTRAR_FALHA, alvo: E5, params: {motivo_falha: FALTAM_DADOS}, nota: "E23: 'A parte montada pelo código veio sem o passo fixo de cadastro na Mimix e no Hub...' (boas/04-falta-dado.yaml). Conta como tentativa."}
+  - {papel: RELOGIO, evento: TEMPO_ESGOTADO, alvo: E5, nota: "E101: a Helena é a autora, então o motor não pede recomendação (MAT-26); o relógio leva a etapa a você na hora, sem recomendação."}
+
+esperado:
+  estado_card: EM_ANDAMENTO
+  etapas: {E1: APROVADA, E2: APROVADA, E3: APROVADA, E4: APROVADA, E5: ESPERANDO_FUNDADOR}
+  acoes: {}            # nenhuma ação nasce: o card não ficou pronto (E110 só no card pronto)
+  violacoes: 0
+  recusados: 0

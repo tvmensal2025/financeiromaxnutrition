@@ -1,8 +1,105 @@
-# Catalogo de modelos por apelido. Agentes apontam para o apelido; trocar modelo = mudar aqui
-# (depois de passar no banco de casos reais). "reserva" e usada quando o principal falha ou a cota acaba.
-coordenacao-padrao: { principal: gpt-6.1-sol, reserva: gpt-6-sol, provedor: openai-codex }
-pesquisa-padrao:    { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
-conteudo-padrao:    { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
-analise-padrao:     { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
+# Catálogo de modelos da v2 por apelido (v3.1). SUBSTITUI o catálogo da fase 1 antiga.
+#
+# As fichas apontam para um APELIDO por papel (modelo.autor, modelo.revisao e, só na Helena,
+# modelo.coordenacao), nunca para o nome do modelo. Trocar o modelo de um apelido é mudar UMA
+# linha aqui, por PR, depois de passar nos testes de troca (abaixo) e com o seu toque no
+# botão de publicar.
+#
+# Sem modelo reserva (plano v3, "Sem reserva escondida"; furos C-15, FC-9, B-19): no Hermes,
+# um provedor ou modelo reserva configurado já fica LIGADO, e na primeira falha de cota as
+# tarefas iriam para outro modelo sem aviso. Por isso nenhum apelido tem reserva, e o motor
+# confere no registro de uso de cada execução que o modelo e o provedor foram os do apelido.
+#
+# DEC-014: sem API paga da OpenAI. O único provedor é a assinatura do ChatGPT, com um login
+# só da v2, separado do login da v1 (K-3, M-1). Nenhuma chave de API fica neste arquivo,
+# na ficha ou no ambiente do agente.
+
+versao: "3.1.0"
+
+provedor: openai-codex          # login da assinatura ChatGPT da v2 (parceria Hermes); nunca API paga
+
+# Cada apelido serve a UM papel (papel_do_apelido). O validador recusa ficha que use um
+# apelido no papel errado (furo da revisão no modelo mais escasso).
+apelidos:
+  coordenacao-padrao:
+    modelo: gpt-6.1-sol
+    provedor: openai-codex
+    para_que: "Só a coordenação da Helena: leitura de volta e recomendação. É o modelo de cota mais curta; nada mais roda nele."
+  revisao-padrao:
+    modelo: gpt-6-sol
+    provedor: openai-codex
+    para_que: "Toda revisão, de qualquer agente, inclusive as da Helena e a do relatório final."
+  analise-padrao:
+    modelo: gpt-6-sol
+    provedor: openai-codex
+    para_que: "Autor de contas, dados, estratégia, projetos, administração, produto, tecnologia, testes, prática pessoal e do relatório final."
+  pesquisa-padrao:
+    modelo: gpt-6-sol
+    provedor: openai-codex
+    para_que: "Autor de serviço que lê páginas: parecer e dossiê."
+  conteudo-padrao:
+    modelo: gpt-6-sol
+    provedor: openai-codex
+    para_que: "Autor de texto: convite, roteiro de treinamento, abordagem comercial, tese de parceria, plano de campanha, plano de sucesso, resposta a cliente, perfil de função e procedimento."
+
+papel_do_apelido:
+  coordenacao-padrao: COORDENACAO
+  revisao-padrao: REVISAO
+  analise-padrao: AUTOR
+  pesquisa-padrao: AUTOR
+  conteudo-padrao: AUTOR
+
+# Regras do catálogo (o validador confere cada uma).
+regras:
+  - "Cada apelido tem exatamente: modelo, provedor e para_que. Campo 'reserva', 'fallback' ou segundo provedor é recusado."
+  - "Todo apelido usado numa ficha existe aqui e é usado só no papel dele (papel_do_apelido): modelo.revisao = revisao-padrao em toda ficha; modelo.coordenacao = coordenacao-padrao só na Helena; modelo.autor é um apelido de papel AUTOR."
+  - "Serviço com ferramenta de leitura (usa_internet) usa modelo.autor = pesquisa-padrao; os outros nunca usam pesquisa-padrao."
+  - "Um apelido apontando para modelo que não existe vira aviso, nunca troca escondida."
+  - "O motor confere, no registro de uso de cada execução, que o modelo e o provedor foram os do apelido; se não foram, a execução não conta e vira aviso (falha de infraestrutura, sem gastar tentativa)."
+  - "O perfil de cada execução tem só o modelo do apelido; nenhuma lista de modelos alternativos."
+
+# A opção "modelo menor" do seu cartão de cota (resposta MODELO_MENOR, em 6 horas de cota
+# esgotada) NÃO é reserva: nada fica configurado antes. Só depois do seu toque, e só nas
+# condições abaixo, o motor gera um perfil novo com este modelo (servicos.yaml, MAT-25).
+modelo_menor_por_ordem_sua:
+  modelo: gpt-6-luna
+  provedor: openai-codex
+  vale_para: "Só as execuções do AUTOR da etapa em que você respondeu MODELO_MENOR, até ela terminar. A revisão e a Helena rodam sempre no apelido delas. Nunca vira padrão do apelido."
+  condicoes:
+    - "A espera é de cota (classe COTA). Login, provedor, queda, banco ou ferramenta: o cartão não oferece."
+    - "O serviço da etapa tem modelo_menor APTO em servicos.yaml: a bateria do serviço passou 3 de 3 com o modelo menor, com o seu toque."
+    - "Nunca no SRV-PARECER nem no SRV-RELATORIO-FINAL (modelo_menor NUNCA)."
+  fora_das_condicoes: "O cartão não mostra a opção. Se ela chegar mesmo assim, o motor trata como ESPERAR (a máquina tem a mesma passagem para as duas, E88) e o card registra 'modelo menor recusado: fora das condições'."
+  na_faixa_do_card: "A entrega mostra 'feita com o modelo menor, por sua escolha'."
+  hoje: "Nenhum serviço tem a bateria no modelo menor: na v2.0 o cartão de cota oferece só ESPERAR ou cancelar."
+
+# Política de cota do plano v3 ("Cota sob controle"; K-15, M-23, A-12).
 cota:
-  reserva_prioritaria_pct: 30   # nunca gastar estes 30% com trabalho de prioridade baixa ou banco de testes
+  orcamento_diario_v2:
+    unidade: execucoes_de_agente      # cada chamada de agente (autor, revisor ou Helena) conta 1, inclusive refeita
+    valor: null                       # NÃO CONFIRMADO: sai do teste 1 (a meta inteira tem de caber em até metade do limite, com a v1 ligada)
+    sem_valor: "O motor não liga em produção com valor nulo."
+    parte_do_limite: "Uma parte fixa do limite do plano; o resto fica para a v1 enquanto ela rodar. Nunca o limite inteiro."
+    dia: "De 00:00 a 23:59, horário de Brasília."
+  # Quando a cota aperta, quem passa primeiro. Dentro de cada degrau: a prioridade do card
+  # (só você muda) e depois a ordem de chegada (regra 7: continuar um card nunca fura a fila
+  # de outro card do mesmo degrau).
+  ordem_quando_aperta:
+    - HELENA_RECEBENDO_PEDIDOS        # leitura de volta: as suas mensagens nunca esperam atrás de uma revisão
+    - REVISOES
+    - CARDS_EM_ANDAMENTO
+    - CARDS_NOVOS
+    - CASOS_DE_TESTE                  # bateria dos serviços e teste 9 (MEL-26, MEL-31 e MEL-41): fora do horário de pico e nunca na parte da v1
+  cota_esgotada: "Falha de infraestrutura classe COTA: não gasta tentativa; a etapa fica na fila com motivo CAPACIDADE e a hora de voltar; aviso em 1 hora; em 6 horas você escolhe ESPERAR, MODELO_MENOR (só nas condições acima) ou cancelar."
+  uso_medido_separado: "O uso da v1 e o da v2 são medidos separados (teste 1)."
+  se_o_teste_1_falhar: "Primeira saída: passar tarefas simples para o modelo menor, trocando o modelo de um apelido de AUTOR por PR neste arquivo, com os testes de troca e o seu toque (nunca a coordenação nem a revisão). Segunda: decisão sua entre o plano Pro e créditos avulsos. A DEC-014 continua valendo nos dois casos."
+
+# Trocar o modelo de um apelido (plano v3, "Manutenção"; C-17; MEL-31).
+troca_de_modelo:
+  exige:
+    - "60 casos simulados e 60 reais, e o placar de 20 casos rodado 3 vezes lado a lado."
+    - "Regressão 3 de 3 em cada caso de regressão; caso que passa a errar sempre bloqueia, mesmo com a média boa."
+    - "Nota conferida pelo código cai no máximo 5 pontos."
+    - "Troca do apelido revisao-padrao: o teste 9 de todos os pares com aptidão APTA roda de novo (MEL-41)."
+    - "48 horas em observação depois de publicar."
+  vigilancia_de_troca_escondida: "Toda noite, 5 casos fixos com conferência só por código; duas noites seguidas de falha geram aviso para você (o ChatGPT não diz qual modelo respondeu)."

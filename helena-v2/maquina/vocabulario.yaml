@@ -1,0 +1,257 @@
+# Vocabulário da máquina de passagens do Sistema Helena (v2.0)
+#
+# Fonte ÚNICA dos nomes (MEL-22). A tabela (passagens.yaml), a prova (provar.py),
+# a trava no banco e o vigia usam estes nomes e nenhum outro. Um nome que não está
+# aqui é recusado pelo provar.py antes de qualquer outra conferência.
+#
+# Neutro quanto ao motor: nada aqui depende de DBOS nem de motor próprio. O estado
+# do card vive em tabelas nossas e na tabela de passagens; "MOTOR" é o papel de quem
+# executa, seja qual for a biblioteca.
+#
+# Regra de ouro: papel não é agente. AUTOR e REVISOR são posições numa etapa; quem
+# ocupa a posição (CAIO, CLARA, HELENA...) é a identidade, conferida pela regra 4.
+# Sirlene, Doutor Vital, Alex e Rafael são personagens do produto eLiving™, nunca
+# funcionários, e não aparecem aqui.
+
+versao: "2.0.0"
+
+papeis:
+  AUTOR:
+    descricao: Agente dono do serviço da etapa. Só escreve conteúdo e devolve UMA ação.
+    e_ia: true
+    pode_agir_fora: false
+  REVISOR:
+    descricao: Agente designado pelo motor para conferir a entrega (nunca o autor nem quem julga a peça depois).
+    e_ia: true
+    pode_agir_fora: false
+  HELENA:
+    descricao: AGT-01 como dona do card (leitura de volta, recomendação numa resolução). Quando a Helena escreve uma entrega ela é AUTOR; quando revisa, é REVISOR.
+    e_ia: true
+    pode_agir_fora: false
+  FUNDADOR:
+    descricao: Você. Botões do card no app; única fonte de prioridade, prazo e ok para ação externa.
+    e_ia: false
+    pode_agir_fora: true
+  MOTOR:
+    descricao: Quem executa (fila, execuções, validação por código, sinais entre etapas). Só ele grava, pela função única do banco.
+    e_ia: false
+    pode_agir_fora: true   # somente pela máquina acao_externa, depois do ok registrado do fundador, uma vez
+  RELOGIO:
+    descricao: Relógio dos prazos, dentro do banco, horário de Brasília. Cada nível dispara uma vez.
+    e_ia: false
+    pode_agir_fora: false
+  VIGIA:
+    descricao: Checagem a cada 5 minutos. Devolve à fila a execução sem processo vivo e acende a luz; nunca congela card.
+    e_ia: false
+    pode_agir_fora: false
+
+# Papéis cujo evento faz o sistema andar sozinho (sem IA e sem você). A prova exige
+# que todo estado aberto tenha pelo menos uma saída por um destes papéis.
+papeis_do_sistema: [MOTOR, RELOGIO, VIGIA]
+
+# Quem pode ocupar AUTOR e REVISOR: os 21 agentes do organograma (docs/AGENTES-SISTEMA-HELENA.md),
+# na ordem AGT-01 a AGT-21, sem acento (o banco grava só A-Z). Esta lista é a fonte ÚNICA:
+# o domínio do revisor (passagens.yaml) e o parâmetro 'escolhido' de PORTAO1_OK são
+# derivados dela ("revisores_possiveis" = agentes + fundador). Um roteiro com autor ou
+# revisor fora daqui é recusado como ESTRUTURA antes de qualquer conferência.
+identidades:
+  agentes: [HELENA, LAURA, AUGUSTO, MARINA, CAIO, CLARA, BIANCA, DANIEL, THEO, NINA, RAVI,
+            MAYA, BRUNO, OLIVIA, VICTOR, CAMILA, ISABELA, PEDRO, RENATA, JOANA, FELIPE]
+  fundador: FUNDADOR
+
+maquinas:
+  card:
+    abertos: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR]
+    finais: [PRONTO, CANCELADO, ENCERRADO_COM_FALHA]
+  etapa:
+    abertos: [AGUARDANDO_ANTERIORES, NA_FILA, EXECUTANDO, VALIDACAO, REVISAO, ESPERANDO_FUNDADOR, EM_RESOLUCAO, APROVADA]
+    finais: [PRONTA, CANCELADA, ENCERRADA_COM_FALHA]
+  acao_externa:
+    abertos: [PROPOSTA, AUTORIZADA, EXECUTANDO_ACAO, INCERTA]
+    finais: [EXECUTADA, FEITA_PELO_FUNDADOR, RECUSADA, EXPIRADA, FALHOU, NAO_CONFIRMADA, CANCELADA]
+
+# Motivos que qualificam um estado (não são estados escondidos: aparecem no card).
+motivos:
+  fila: [NORMAL, CAPACIDADE]               # CAPACIDADE = cota, login, banco ou agente pausado, com hora de voltar
+  espera_da_etapa: [PERGUNTA, REVISAO, RESOLUCAO, INFRA]
+  espera_do_card: [HELENA_FALHOU, PLANO_INVALIDO, VALIDADOR_FALHOU, DEPENDENCIA, NAO_PODE]
+  # Calculado pelo CÓDIGO, nunca pelo agente: externa só quando o roteiro declara prazo de
+  # terceiro na etapa. Interna: lembrete em 24h e 48h e depois o padrão; externa: um lembrete
+  # antes do prazo da pergunta e depois o padrão. Nenhum padrão sem lembrete entregue (MEL-37).
+  tipo_de_espera: [INTERNA, EXTERNA]
+  fim: [PAI, PADRAO, PULADA, ENCERRAR_CARD, CARD_PRONTO, FUNDADOR, SUBSTITUIDO, FALHA, NENHUM]
+
+# Ações e eventos por papel. "parametros" dá o domínio fechado de cada parâmetro.
+# "efeito": interno (só muda dado nosso) ou externo (cadastro, contato, gasto,
+# contrato, publicação). Nenhuma ação de IA pode ter efeito externo (regra 8).
+acoes:
+  AUTOR:
+    # Toda resposta do autor chega com 'usou_internet', preenchido pelo MOTOR a partir do
+    # registro de uso daquela mesma execução (contagem do nosso servidor de ferramentas
+    # 'buscar' e 'ler página'), nunca pelo agente. O uso viaja DENTRO da resposta: não existe
+    # ordem entre dois eventos que deixe uma pergunta passar antes do registro de uso.
+    ENTREGAR:
+      efeito: interno
+      parametros:
+        parecer: [OK, AJUSTE, NAO_PODE]          # só a etapa julgadora usa AJUSTE e NAO_PODE
+        acao_externa: [NENHUMA, SO_FUNDADOR, PELO_MOTOR]   # fica guardada na etapa; só vira proposta na sua lista quando o card fica pronto
+        usou_internet: [NAO, SIM]
+      preenchidos_pelo_motor: [usou_internet]
+    PERGUNTAR:
+      efeito: interno
+      parametros:
+        usou_internet: [NAO, SIM]
+      preenchidos_pelo_motor: [usou_internet]
+      nota: "O tipo da espera (interna ou externa) não é parâmetro do agente: o código decide pelo roteiro."
+    DEVOLVER_A_QUEM_PEDIU:
+      efeito: interno
+      parametros:
+        usou_internet: [NAO, SIM]
+      preenchidos_pelo_motor: [usou_internet]
+    REGISTRAR_FALHA:
+      efeito: interno
+      parametros:
+        motivo_falha: [NAO_CONSIGO, FALTAM_DADOS, FONTE_INSUFICIENTE]
+        usou_internet: [NAO, SIM]
+      preenchidos_pelo_motor: [usou_internet]
+    PEDIR_SUBCARD:
+      efeito: interno
+      parametros:
+        usou_internet: [NAO, SIM]
+      preenchidos_pelo_motor: [usou_internet]
+      desligado: "v2.0 (MEL-24): sem sub-card até a fase 4; se chegar, conta como FORMATO_ERRADO"
+  REVISOR:
+    APROVAR:
+      efeito: interno
+      parametros: {}
+      nota: "Resumo calculado pelo código a partir dos critérios (MEL-29): todos APROVADO, ou só NAO_CONSIGO_CONFERIR de risco baixo, que fica marcado 'sem conferir' na faixa."
+    REPROVAR:
+      efeito: interno
+      parametros: {}
+      nota: "Algum critério REPROVADO, ou NAO_CONSIGO_CONFERIR por falta de prova na entrega (defeito do autor)."
+    NAO_CONSIGO_CONFERIR:
+      efeito: interno
+      parametros: {}
+      nota: "Critério de risco alto fora do alcance do revisor: vira cartão de revisão para você, com texto montado pelo código."
+  HELENA:
+    LER_DE_VOLTA:
+      efeito: interno
+      parametros: {}
+    RECOMENDAR:
+      efeito: interno
+      parametros:
+        opcao: [REFAZER, SEGUIR_SEM, ENCERRAR]   # lista fechada; a Helena não replaneja (MEL-24)
+    SUGERIR_PRAZO:
+      efeito: interno
+      parametros: {}
+      nota: "Vira item na lista do fundador; o prazo só muda pelo botão dele (regra 7)."
+  FUNDADOR:
+    APROVAR:
+      efeito: interno
+      parametros: {}
+    PEDIR_AJUSTE:
+      efeito: interno
+      parametros:
+        motivo_ajuste: [ERRO_DE_FATO, FALTOU_TEMA, TOM, FORMATO]
+    USAR_COMO_EXEMPLO:
+      efeito: interno
+      parametros: {}
+    CANCELAR:
+      efeito: interno
+      parametros: {}
+    RESPONDER:
+      efeito: interno
+      parametros:
+        opcao: [RESPOSTA_A, RESPOSTA_B, RESPOSTA_C, CONFIRMO, REFAZER, SEGUIR_SEM, ENCERRAR, PULAR, ESPERAR, MODELO_MENOR, ACONTECEU, NAO_ACONTECEU, FEITO_POR_MIM]
+    PAUSAR_TUDO:
+      efeito: interno
+      parametros: {}
+    MUDAR_PRIORIDADE:
+      efeito: interno
+      parametros: {}
+      muda_campo: prioridade
+    MUDAR_PRAZO:
+      efeito: interno
+      parametros: {}
+      muda_campo: prazo
+  MOTOR:
+    INICIAR_EXECUCAO: {efeito: interno, parametros: {}}
+    INICIAR_REVISAO: {efeito: interno, parametros: {}}
+    PORTAO1_OK:
+      efeito: interno
+      parametros:
+        escolhido: revisores_possiveis   # derivado de identidades (agentes + fundador); o código filtra pela regra 4
+    PORTAO1_RECUSOU: {efeito: interno, parametros: {}}
+    FALHA:
+      efeito: interno
+      parametros:
+        classe: [FORMATO_ERRADO, LIMITE_CHAMADAS, GRANDE_DEMAIS, SITE, DESCONHECIDA]
+    FALHA_INFRA:
+      efeito: interno
+      parametros:
+        classe: [COTA, LOGIN, PROVEDOR, QUEDA, BANCO, FERRAMENTA]
+    SEM_CAPACIDADE:
+      efeito: interno
+      parametros:
+        classe: [COTA, LOGIN, BANCO, AGENTE_PAUSADO]
+    CAPACIDADE_VOLTOU: {efeito: interno, parametros: {}}
+    TETO_EXECUCOES: {efeito: interno, parametros: {}}
+    DEPENDENCIAS_PRONTAS: {efeito: interno, parametros: {}}
+    DEPENDENCIA_MUDOU: {efeito: interno, parametros: {}}
+    DECISAO_MUDOU: {efeito: interno, parametros: {}}
+    AJUSTE_DO_JULGADOR: {efeito: interno, parametros: {}}
+    REABRIR_POR_ORDEM: {efeito: interno, parametros: {}}
+    CANCELADO_PAI: {efeito: interno, parametros: {}}
+    CARD_PRONTO: {efeito: interno, parametros: {}}
+    PLANO_VALIDO: {efeito: interno, parametros: {}}
+    PLANO_INVALIDO: {efeito: interno, parametros: {}}
+    TODAS_PRONTAS: {efeito: interno, parametros: {}}
+    PERGUNTAR_AO_FUNDADOR: {efeito: interno, parametros: {}}
+    MOTIVO_RESOLVIDO: {efeito: interno, parametros: {}, nota: "A pergunta do card perdeu o objeto (a etapa que a causou foi reaberta ou refeita): o card volta a andar sem gastar ordem sua."}
+    ENCERRAR_CARD: {efeito: interno, parametros: {}}
+    SUBSTITUIR_CARD: {efeito: interno, parametros: {}, nota: "Ordem sua acima do teto de ordens numa etapa: o card é substituído por um card novo ligado, com as entregas e o seu pedido."}
+    EXECUTAR_ACAO: {efeito: externo, parametros: {}, nota: "Único evento com efeito externo. Só o MOTOR, só depois do ok registrado, no máximo uma vez."}
+    ACAO_CONCLUIDA: {efeito: interno, parametros: {}}
+    ACAO_FALHOU: {efeito: interno, parametros: {}}
+  RELOGIO:
+    TEMPO_ESGOTADO: {efeito: interno, parametros: {}}
+    PRAZO_80: {efeito: interno, parametros: {}}
+    PRAZO_VENCIDO: {efeito: interno, parametros: {}}
+    PRAZO_MAIS_1H: {efeito: interno, parametros: {}}
+    LEMBRETE_24H: {efeito: interno, parametros: {}}
+    LEMBRETE_48H: {efeito: interno, parametros: {}}
+    PRAZO_ESPERA_VENCIDO: {efeito: interno, parametros: {}}
+    AVISO_1H: {efeito: interno, parametros: {}}
+    ESPERA_6H: {efeito: interno, parametros: {}}
+  VIGIA:
+    SEM_EXECUCAO_VIVA: {efeito: interno, parametros: {}}
+    REGRA_QUEBRADA: {efeito: interno, parametros: {}}
+
+# Botões do card no app (MEL-25). Toda mensagem do fundador é um destes, a caixa
+# "Novo pedido" ou texto no card. Nenhum tipo de mensagem é decidido por IA na v2.0.
+botoes_do_fundador: [APROVAR, PEDIR_AJUSTE, USAR_COMO_EXEMPLO, CANCELAR, RESPONDER, PAUSAR_TUDO, MUDAR_PRIORIDADE, MUDAR_PRAZO]
+entradas_do_app:
+  NOVO_PEDIDO: "O código grava a mensagem com o número único do app e cria o card em RASCUNHO, antes de qualquer IA."
+  TEXTO_NO_CARD: "Vira comentário do card e nunca muda estado."
+  BOTAO: "Leva o número único do toque e a versão que você viu (regras_gerais.toques_do_fundador_exigem_versao_vista); com versão antiga, Aprovar, Pedir ajuste e Responder nunca mudam estado."
+
+# Classes de falha (plano v3, "Falhas e esperas"). O tipo é lido pelo motor no
+# registro de uso e no veredito do validador, nunca no texto do agente.
+classes_de_falha:
+  COTA:            {gasta_tentativa: false, evento: [FALHA_INFRA, SEM_CAPACIDADE], resposta: "fila com motivo CAPACIDADE e hora de voltar; aviso em 1h; em 6h você escolhe"}
+  LOGIN:           {gasta_tentativa: false, evento: [FALHA_INFRA, SEM_CAPACIDADE], resposta: "pausa sem perder etapa; aviso na hora com o passo a passo"}
+  PROVEDOR:        {gasta_tentativa: false, evento: [FALHA_INFRA], resposta: "refaz sem gastar tentativa"}
+  QUEDA:           {gasta_tentativa: false, evento: [FALHA_INFRA, SEM_EXECUCAO_VIVA], resposta: "retoma do último passo; resposta gravada é reusada"}
+  BANCO:           {gasta_tentativa: false, evento: [FALHA_INFRA, SEM_CAPACIDADE], resposta: "pausa a fila; aviso direto, sem passar pelo banco"}
+  FERRAMENTA:      {gasta_tentativa: false, evento: [FALHA_INFRA], resposta: "execução não conta e é refeita"}
+  TEMPO:           {gasta_tentativa: true,  evento: [TEMPO_ESGOTADO], resposta: "mais uma, com 50% mais tempo; na segunda, em resolução"}
+  SITE:            {gasta_tentativa: true,  evento: [FALHA], resposta: "a ferramenta já tentou 3 vezes e trocou de fonte; sem alternativa, em resolução"}
+  GRANDE_DEMAIS:   {gasta_tentativa: true,  evento: [FALHA], resposta: "em resolução; divisão só a declarada no roteiro (MEL-24)"}
+  LIMITE_CHAMADAS: {gasta_tentativa: true,  evento: [FALHA], resposta: "mais chamadas uma vez; na segunda, em resolução"}
+  FORMATO_ERRADO:  {gasta_tentativa: true,  evento: [FALHA], resposta: "uma nova tentativa só de formato; na segunda, em resolução"}
+  REPROVADO:       {gasta_tentativa: true,  evento: [REPROVAR], resposta: "volta ao autor com os critérios; depois de 2 voltas, em resolução"}
+  ACAO_EXTERNA:    {gasta_tentativa: false, evento: [ENTREGAR], resposta: "vai para a lista do que só você faz; nunca é executada pelo agente"}
+  DESCONHECIDA:    {gasta_tentativa: true,  evento: [FALHA], resposta: "para só a etapa, guarda tudo, aviso na hora; em resolução"}
+
+motivos_do_agente: [NAO_CONSIGO, FALTAM_DADOS, FONTE_INSUFICIENTE]
+motivos_de_ajuste: [ERRO_DE_FATO, FALTOU_TEMA, TOM, FORMATO]

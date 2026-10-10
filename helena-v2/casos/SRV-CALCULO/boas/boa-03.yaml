@@ -1,0 +1,24 @@
+# Caso BOM do SRV-CALCULO (Caio, AGT-05) para o pedido ../pedido.yaml (variante SEM-PERIODO).
+# A 'resposta' é a saída do Caio no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: falta só o período (ENT-CALCULO-PERIODO, se_faltar PERGUNTAR). Uma pergunta, com
+# A/B/C fechados, sem número inventado nas opções; a sua resposta chega como RESPOSTA_A/B/C.
+id: CALC-BOA-03
+servico: SRV-CALCULO
+pedido: ../pedido.yaml
+variante: SEM-PERIODO
+nota: Pergunta o período em vez de adivinhar; recomenda B (por mês), o mais comum para dinheiro que se repete.
+resposta:
+  acao: PERGUNTAR
+  pergunta: Para qual período você quer o valor que a Humano Digital recebe da plataforma com 10 pessoas gravando
+    5 horas por semana?
+  opcoes:
+  - letra: A
+    texto: Por semana
+    consequencia: A conta usa direto as 5 horas por semana de cada pessoa.
+  - letra: B
+    texto: Por mês
+    consequencia: Cada mês conta 52 ÷ 12 semanas, para não subestimar o mês.
+  - letra: C
+    texto: Nos próximos 3 meses
+    consequencia: Soma três meses com os mesmos números em cada um.
+  recomendacao: B

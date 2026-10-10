@@ -1,0 +1,137 @@
+# Jornada de FALHA do card da Clara (AGT-06), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O pedido (eLiving™, BIZ-004, pacote CONFIRMADO), variante V-SEM-PODE-LER de casos/SRV-PARECER/pedido.yaml:
+#   "Faz a legenda do post de lançamento da eLiving™ no Instagram... A política de privacidade (rascunho)
+#    está neste link: https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+# Você colou o link no pedido, mas NÃO ligou 'pode ler': a lista de páginas do parecer fica vazia
+# (fontes_que_pode_ler: []). A legenda (E1) foi escrita e aprovada pelo Caio; ela promete algo sobre os
+# dados e manda ler a política. O parecer (E2) precisa da política para dizer se a promessa vale, e a
+# nossa ler_pagina recusa o endereço fora da lista (casos/SRV-PARECER/fitas/03-politica-fora-da-lista.yaml).
+#
+# A resposta da Clara nesta jornada é casos/SRV-PARECER/boas/boa-03-fonte-insuficiente.yaml:
+#   acao: REGISTRAR_FALHA
+#   motivo_falha: FONTE_INSUFICIENTE
+#   explicacao: "A legenda promete algo sobre os dados e manda ler a política de privacidade, mas o link
+#                da política não está na lista de páginas que posso ler... Sem a política, qualquer
+#                conclusão sobre essa promessa seria inventada."
+# (O agente escreve só o motivo; o TIPO da falha é do motor. O motor marca usou_internet = SIM, porque
+# houve uma chamada à ferramenta de leitura, mesmo recusada; com internet, a Clara só pode entregar ou
+# registrar falha, MAT-09. A falha conta como tentativa.)
+#
+# O caminho: REGISTRAR_FALHA -> etapa EM_RESOLUCAO (E23) -> a Helena recomenda (E100). Ela pode ser
+# chamada: não é autora nem revisora DESIGNADA desta etapa (nenhuma revisão começou; MAT-26). Recomenda
+# ENCERRAR, porque REFAZER rodaria sobre o mesmo pacote, sem a política, e falharia de novo gastando
+# execução; SEGUIR_SEM não existe no jurídico (a E2 não é pulável; E86). A etapa vai a VOCÊ
+# (ESPERANDO_FUNDADOR, motivo RESOLUCAO), com dono e prazo. Você encerra (E87): a E2 fecha como
+# ENCERRADA_COM_FALHA, o sinal ENCERRAR_CARD cancela o resto e o card fica ENCERRADO_COM_FALHA. Nada vai
+# a público: a legenda (E1) não tem parecer e a ação de publicar nunca nasce.
+#
+# O que você faz depois (não está na jornada): Pedir ajuste no card fechado abre um card novo ligado,
+# onde o pedido traz o link com 'pode ler' ligado e o parecer roda com a política na lista.
+#   - Se você não responde: lembrete em 24 h e 48 h e depois o padrão (E91), que CANCELA a etapa sem
+#     aprovar nada; o card então chama você de novo (C13). O padrão nunca aprova parecer.
+#
+# Contas da E2: execuções 1 de 6 (a falha registrada conta, E23); replanejamento 0 de 1; perguntas do
+# card 0 de 2. Nenhum teto estourado; nenhuma ação externa nasce.
+
+id: AGT-06-clara-falta-fonte
+descricao: "Card da eLiving™ sem 'pode ler' no link da política: a Clara registra a fonte insuficiente em vez de julgar sem a política, a Helena recomenda encerrar e você encerra."
+agente: AGT-06
+empresa: "eLiving™ (BIZ-004)"
+automatico: false
+card:
+  pedido_grande: true
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "legenda do post de lançamento (Isabela, SRV-COPY), julgada pela E2"
+      autor: ISABELA
+      revisores: [CAIO, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    - id: E2
+      nome: "parecer (Clara, SRV-PARECER), julga a E1; você é o segundo revisor"
+      autor: CLARA
+      revisores: [HELENA, FUNDADOR]
+      depende_de: [E1]
+      julga: [E1]
+      internet: true
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+
+eventos:
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C01. Pedido grande: 'Entendi assim: legenda do post de lançamento da eLiving™ no Instagram, com os 4 pilares e uma frase de confiança sobre os dados. Confirma?' Escolha: SRV-COPY."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    params: {opcao: CONFIRMO}
+    nota: "C06. Seu toque."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Grafo fixo do serviço sempre julgado (E1 legenda, E2 parecer); BIZ-004 e pacote CONFIRMADO (MAT-23); revisores efetivos E1 = [CAIO, FUNDADOR], E2 = [HELENA, FUNDADOR]. Card EM_ANDAMENTO."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. A E1 vai para a fila."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1 da legenda."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: SO_FUNDADOR, usou_internet: NAO}
+    nota: "E20. Versão 1 da legenda, com a frase 'só no Brasil'. Propõe AF-COPY-ENVIAR-OU-PUBLICAR (só vira proposta no card pronto, que aqui não chega)."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: CAIO}
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+  - papel: REVISOR
+    evento: APROVAR
+    alvo: E1
+    ator: CAIO
+    nota: "E54. E1 APROVADA; a E2 entra na fila."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E2
+    nota: "E01. A E2 vai para a fila, na vaga de trabalho da Clara."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E2
+    nota: "E10. Execução 1 do parecer. Lista de páginas VAZIA: a política não foi ligada como 'pode ler'."
+  - papel: AUTOR
+    evento: REGISTRAR_FALHA
+    alvo: E2
+    params: {motivo_falha: FONTE_INSUFICIENTE, usou_internet: SIM}
+    nota: "E23. A ler_pagina respondeu 'fonte insuficiente' (fitas/03). A explicação está no cabeçalho. Etapa EM_RESOLUCAO; execuções 1 de 6."
+  - papel: HELENA
+    evento: RECOMENDAR
+    alvo: E2
+    params: {opcao: ENCERRAR}
+    nota: "E100. Motivo: 'O link da política não está liberado para leitura; refazer sem ele falharia de novo.' A etapa vai a você (ESPERANDO_FUNDADOR, motivo RESOLUCAO, espera INTERNA), com a recomendação. Opções: ENCERRAR ou REFAZER."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    alvo: E2
+    params: {opcao: ENCERRAR}
+    nota: "E87. Você encerra. A E2 fecha ENCERRADA_COM_FALHA com fim seu, e o sinal ENCERRAR_CARD fecha o card."
+
+esperado:
+  estado_card: ENCERRADO_COM_FALHA
+  etapas: {E1: CANCELADA, E2: ENCERRADA_COM_FALHA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

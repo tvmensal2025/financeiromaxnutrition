@@ -1,0 +1,32 @@
+# Fita (MEL-31): resposta GRAVADA da nossa ferramenta ler_pagina, para o teste rodar o modelo com a
+# ferramenta simulada (camada B) e para o código conferir citações sem internet (camada A).
+# FITA SINTÉTICA: página e texto escritos para o teste. Não é a política de privacidade real da
+# eLiving™ e o domínio '.invalid' não existe (RFC 2606). Partes reais têm até 20 mil caracteres; aqui
+# são curtas de propósito.
+id: FITA-PAR-01
+ferramenta: ler_pagina
+efeito: LER
+sintetica: true
+chamada:
+  url: "https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+  parte: 1
+resposta:
+  situacao: LIDA
+  leitura_id: LEI-PAR-0001
+  parte: 1
+  partes_total: 2
+  url_final: "https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+  redirecionamentos: 0
+  lida_em: "2026-10-10T14:31:10-03:00"
+  texto: >-
+    Política de privacidade da eLiving™ — rascunho de 01/10/2026.
+    1. Quem somos. A eLiving™ é uma inteligência pessoal de evolução. Esta política explica como
+    tratamos os seus dados pessoais no aplicativo.
+    2. Quem pode usar. O uso do aplicativo é destinado somente a pessoas com 18 anos ou mais. Se você
+    tem menos de 18 anos, não crie uma conta.
+    3. Que dados coletamos. Coletamos os dados que você informa no cadastro e os dados de saúde que você
+    decidir registrar, como peso, sono, exames e medicamentos. Você escolhe o que registrar e pode apagar
+    cada registro quando quiser.
+    4. Para que usamos. Usamos os seus dados para montar o seu acompanhamento diário e para mostrar os
+    seus indicadores em linguagem simples. Os pilares do aplicativo não fazem diagnóstico nem prescrevem
+    tratamento.

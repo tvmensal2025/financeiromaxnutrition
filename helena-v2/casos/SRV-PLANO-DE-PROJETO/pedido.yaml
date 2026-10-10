@@ -1,0 +1,106 @@
+# Pedido de teste do SRV-PLANO-DE-PROJETO (Marina, AGT-04). Caso SINTÉTICO: escrito para o teste;
+# as pessoas (Paula Reis, Tiago Lima) e as datas são fictícias.
+#
+# Empresa: eLiving™ (BIZ-004), pacote CONFIRMADO (organograma.yaml). Por que a eLiving™: o serviço
+# atende as 4 empresas, mas iGreen (BIZ-001) e Ecossistema de Saúde (BIZ-002) ainda têm pacote
+# NAO_CONFIRMADO (card delas dá PLANO_INVALIDO, MAT-23). A jornada de falha usa a Humano Digital
+# (BIZ-003), para variar.
+#
+# O que tem aqui, na ordem em que acontece:
+#   1. pacote_da_empresa: o que a Marina recebe junto com o card (grafia, voz, proibições).
+#   2. card: a ordem de serviço criada pela caixa Novo pedido (empresa, prazo e prioridade são seus,
+#      gravados pelo código antes de qualquer IA), completada pela leitura de volta da Helena e pelo
+#      seu CONFIRMO; e o plano de UMA etapa montado pelo CÓDIGO (servicos.yaml, montagem_do_plano,
+#      SERVICO_NAO_JULGADO). Formato: schemas/card.schema.json.
+#   3. o_que_o_codigo_confere: os números que as checagens CHK-PROJETO-* refazem contra este pedido.
+#
+# O pedido original fica guardado como fonte importada do card (FON-PEDIDO-PROJETO-01) antes de
+# qualquer IA: é contra ele que a CHK-PROJETO-TRECHOS confere os trechos e a CHK-PROJETO-DONO
+# confere os nomes de pessoa. Cada item do pedido está numa frase própria, de propósito.
+#
+# Sem fitas: o serviço não usa internet (ferramentas: []), então não há resposta de ferramenta para
+# gravar. Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: PEDIDO-PROJETO-01
+servico: SRV-PLANO-DE-PROJETO
+agente: AGT-04
+empresa: BIZ-004
+descricao: "Cronograma do que falta para a primeira versão do app da eLiving™ chegar às lojas da Apple e do Google até 18/12/2026."
+
+pacote_da_empresa:
+  empresa: BIZ-004
+  nome: "eLiving™"
+  estado: CONFIRMADO
+  grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')"
+  slogan: "Onde sua evolução ganha direção."
+  voz: "Guia, cuidadora e inovadora: clara, acolhedora e direta (docs/COMANDO-MASTER-ELIVING.md)."
+  decisoes: [DEC-023]
+  proibicoes:
+    - "Tratar a eLiving™ como app fitness comum ou contador de calorias: é inteligência pessoal de evolução."
+    - "Tratar Sirlene, Doutor Vital, Alex e Rafael como funcionários: são os quatro pilares do produto (Nutrição, Saúde, Movimento e Hábitos)."
+    - "Diagnóstico, prescrição, treino clínico ou promessa de cura em nome dos pilares."
+  # Lista fechada lida pela CHK-PROJETO-PACOTE. LISTA DE TESTE: até você registrar a lista oficial
+  # do pacote (FORA-PACOTE-DE-VOZ), o caso usa estes termos.
+  termos_proibidos_em_todo_texto: ["app fitness", "aplicativo fitness", "contador de calorias", "dieta milagrosa", "cura garantida"]
+
+material:
+  fonte_importada_id: FON-PEDIDO-PROJETO-01
+  de_onde: "ordem_de_servico.pedido_original (gravado pelo código antes da IA)"
+  pessoas_no_pedido: ["Paula Reis", "Tiago Lima"]     # só informativo: a CHK-PROJETO-DONO procura o nome no próprio pedido
+
+card:
+  card_id: "CARD-TESTE-PROJETO-01"
+  versao: 3
+  id_mensagem_origem: {canal: APP, numero: "app-20261010-100000-0042"}
+  ordem_de_servico:
+    empresa: BIZ-004
+    prazo: "2026-10-13T18:00:00-03:00"      # prazo DO CARD (desta entrega), não do projeto
+    prioridade: 2
+    pedido_original: |
+      Organiza em marcos e datas o que falta para a eLiving™ ter a primeira versão do app nas lojas da Apple e do Google. Quero o app enviado e aprovado nas duas lojas até 18 de dezembro de 2026. Já fiz o desenho das telas principais com a Paula Reis, minha designer, e ela já me entregou os arquivos. Eu mesmo vou escrever os textos de boas-vindas dos quatro pilares: Sirlene, Doutor Vital, Alex e Rafael. O Tiago Lima, desenvolvedor que eu já contratei, vai montar a primeira versão do app a partir das telas. Depois quero testar o app com 5 pessoas conhecidas antes de enviar. Ainda preciso criar as contas de desenvolvedor na Apple e no Google. No fim, eu envio o app para as duas lojas. Tenho 6 horas por semana para este projeto, fora o que o Tiago faz. Eu mesmo combino as datas com o Tiago.
+    o_que_quer: "Cronograma, em marcos com datas, do que falta para a primeira versão do app da eLiving™ ser enviada e aprovada nas lojas da Apple e do Google até 18/12/2026, cabendo nas suas 6 horas por semana."
+    como_e_o_pronto:
+      - {id: CARD-1, texto: "Marcos com data e hora de Brasília, cada um com o seu dono.", quem_confere: CODIGO, checagem: CHK-PROJETO-DATAS, risco: BAIXO}
+      - {id: CARD-2, texto: "Tudo cabe nas minhas 6 horas por semana.", quem_confere: CODIGO, checagem: CHK-PROJETO-CAPACIDADE, risco: BAIXO}
+      - {id: CARD-3, texto: "O primeiro passo que eu faço sozinho nesta segunda-feira.", quem_confere: IA, risco: BAIXO}
+      - {id: CARD-4, texto: "Não mexer na data final de 18 de dezembro.", quem_confere: IA, risco: ALTO}
+      - {id: CARD-5, texto: "Não tratar a eLiving™ como app fitness ou contador de calorias.", quem_confere: CODIGO, checagem: CHK-PROJETO-PACOTE, risco: ALTO}
+    nao_pode:
+      - "Mudar a data final de 18 de dezembro."
+      - "Tratar a eLiving™ como app fitness ou contador de calorias."
+  pedido_grande: true                       # você marcou 'confirmar antes' na caixa Novo pedido
+  escolha: {tipo: SERVICO, id: SRV-PLANO-DE-PROJETO}
+  plano:
+    origem: SERVICO_NAO_JULGADO
+    versao_do_catalogo: "3.1.0"
+    montado_em: "2026-10-10T10:07:00-03:00"
+    # Revisores EFETIVOS (MAT-21): [revisor, reserva] do serviço só com aptidão APTA no tipo, e
+    # FUNDADOR no fim. Quando a Marina vai a ESTAGIO (passo 5), o Augusto (passo 3) já está APTO em
+    # plano_de_projeto (MAT-12), mas o Felipe (passo 7) ainda não foi ligado: fica fora da lista.
+    # Depois do passo 7, com o teste 9 do Felipe e o seu toque, cards NOVOS levam [AUGUSTO, FELIPE,
+    # FUNDADOR]; este card fica com a lista congelada.
+    etapas:
+      - {id: E1, servico: SRV-PLANO-DE-PROJETO, autor: MARINA, revisores: [AUGUSTO, FUNDADOR], depende_de: []}
+  estado: EM_ANDAMENTO
+  motivo: NENHUM
+  fim: NENHUM
+  card_anterior: null
+  encaminhamento: null
+  decisoes_versao: "DEC-023@2026-10-04"
+  criado_em: "2026-10-10T10:00:00-03:00"
+
+# O que o código refaz contra este pedido (CHK-PROJETO-*), para conferir boas/ e defeitos/.
+o_que_o_codigo_confere:
+  data_do_card: "2026-10-10 (sábado), de criado_em"
+  semana: "segunda a domingo, Brasília"
+  horas_por_semana_do_pedido: 6
+  data_final_do_pedido: "18 de dezembro de 2026 (sem hora: 18:00) -> 2026-12-18T18:00-03:00"
+  donos_aceitos: ["Você", "Paula Reis", "Tiago Lima", "Paula", "Tiago"]
+  na_boa_01:
+    horas_suas_por_semana:
+      "2026-10-12 a 2026-10-18": 3.0        # M1: 3 h em 5 dias (12 a 16)
+      "2026-10-19 a 2026-10-25": 4.667      # M2: 8 h em 12 dias (19/10 a 30/10) -> 7 dias
+      "2026-10-26 a 2026-11-01": 3.333      # M2: 5 dias (26 a 30)
+      "2026-11-23 a 2026-11-29": 5.0        # M4: 5 h em 5 dias
+      "2026-12-07 a 2026-12-13": 3.0        # M6: 3 h em 5 dias
+    folga_dias: 7                            # 2026-12-11 (prazo de M6) -> 2026-12-18

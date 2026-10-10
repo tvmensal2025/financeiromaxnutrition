@@ -1,0 +1,160 @@
+# Caso BOM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml, variante V-ADOLESCENTES.
+# A 'resposta' é a saída da Clara no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-PARECER-*) e na rubrica (RUB-PARECER-01 a 08).
+# 'leituras_feitas' é o registro de uso da ler_pagina nesta execução (as fitas que o motor devolveu).
+id: PARECER-BOA-04
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+variante: V-ADOLESCENTES
+nota: 'Variante V-ADOLESCENTES: legenda para quem tem de 13 a 17 anos, e a política diz 18+. NAO_PODE sem ajuste de texto;
+  o card para e pergunta a você.'
+deve_passar_em:
+- CHK-PARECER-SO-SECOES
+- CHK-PARECER-TAMANHO
+- CHK-PARECER-PECAS
+- CHK-PARECER-SEMAFORO
+- CHK-PARECER-AJUSTE
+- CHK-PARECER-TRECHO-DA-PECA
+- CHK-PARECER-PASSOS-FIXOS
+- CHK-PARECER-TEMAS
+- CHK-PARECER-FUNDAMENTOS
+- CHK-PARECER-CONDICOES
+- CHK-PARECER-ADVOGADO
+- CHK-PARECER-SEM-GARANTIA
+- CHK-PARECER-LEI-NA-TABELA
+- CHK-PARECER-LEI-NAO-CONFERIDA
+- CHK-PARECER-NOTA-DE-JURISPRUDENCIA
+- CHK-PARECER-TERMOS-INTEIROS
+- CHK-PARECER-AUSENCIA
+- RUB-PARECER-01
+- RUB-PARECER-02
+- RUB-PARECER-03
+- RUB-PARECER-04
+- RUB-PARECER-05
+- RUB-PARECER-06
+- RUB-PARECER-07
+- RUB-PARECER-08
+veredito_esperado_do_revisor: APROVAR
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-politica-parte-1.yaml
+- fitas/02-politica-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: NAO_PODE
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    pecas:
+    - etapa: E1
+      versao: 1
+      semaforo: NAO_PODE
+      por_que: 'A política da própria eLiving™ diz que o app é só para maiores de 18 anos (item 2), e a legenda chama quem
+        tem de 13 a 17. O app trata dado de saúde, que é sensível. Não é ajuste de texto: depende de você decidir o público,
+        com advogado.'
+      trecho_da_peca: feita para quem tem de 13 a 17 anos
+      ajuste: nenhum
+      fundamentos: F1, F2
+    temas:
+    - tema: TEMA-IMAGEM
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa foto, vídeo nem rosto de pessoa.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-VOZ
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa gravação, áudio nem voz de ninguém.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-DADO-SENSIVEL
+      aplica: SIM
+      natureza: PONTO_INCERTO
+      resposta: A legenda fala de exames, que são dado de saúde, a um público de adolescentes. O art. 11, I, fala do titular
+        ou do responsável legal; a tabela não diz a partir de que idade o responsável é exigido. Não sei responder.
+      trecho_da_peca: o Doutor Vital traduz seus exames em linguagem simples
+      fundamentos: F3, F4
+    - tema: TEMA-TRANSFERENCIA-INTERNACIONAL
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: A legenda não fala de onde os dados ficam.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-MENORES
+      aplica: SIM
+      natureza: OBRIGACAO_CONFIRMADA
+      resposta: 'A política diz que o app é só para maiores de 18 anos e a legenda se dirige a quem tem de 13 a 17: a contradição
+        está nos dois textos. Pela tabela, dados de adolescentes só podem ser tratados no melhor interesse deles.'
+      trecho_da_peca: feita para quem tem de 13 a 17 anos
+      fundamentos: F1, F2
+    - tema: TEMA-VINCULO-DE-TRABALHO
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: A legenda não fala de tarefa, de pagamento a pessoas nem de trabalho.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-PUBLICIDADE
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: Convidar adolescentes a baixar um app que a política diz ser só para maiores de 18 anos pode induzir ao
+        erro. É leitura minha do art. 37, não afirmação do trecho citado.
+      trecho_da_peca: Baixe e comece hoje.
+      fundamentos: F5
+    - tema: TEMA-PASSOS-FIXOS
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: O plano deste card não tem passo fixo do roteiro.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    condicoes:
+    - condicao: Nenhum texto dirigido a menores de 18 anos vai a público enquanto você não decidir o público do app.
+      antes_de: AF-COPY-ENVIAR-OU-PUBLICAR
+      fundamentos: F2
+    quando_chamar_advogado:
+    - gatilho: Antes de decidir abrir o app a menores de 18 anos ou de dirigir qualquer texto a esse público.
+      cobre: E1, TEMA-MENORES, TEMA-DADO-SENSIVEL
+    nao_coberto:
+    - 'A política de privacidade em si: este parecer julga a legenda, não o documento (FORA-CONTRATOS-E-PRIVACIDADE).'
+    fundamentos:
+    - id: F1
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 14, caput
+      citacao:
+        trecho_original: O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor
+          interesse, nos termos deste artigo e da legislação pertinente.
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F2
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 2 (Quem pode usar)
+      citacao:
+        trecho_original: O uso do aplicativo é destinado somente a pessoas com 18 anos ou mais. Se você tem menos de 18
+          anos, não crie uma conta.
+        leitura_id: LEI-PAR-0001
+        parte: 1
+      nota: nenhuma
+    - id: F3
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 5º, II
+      citacao:
+        trecho_original: dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa
+          natural;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F4
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 11, I
+      citacao:
+        trecho_original: quando o titular ou seu responsável legal consentir, de forma específica e destacada, para finalidades
+          específicas;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F5
+      origem: TABELA_DE_LEIS
+      referencia: CDC, art. 37, § 1º
+      citacao:
+        trecho_original: É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou
+          parcialmente falsa
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
