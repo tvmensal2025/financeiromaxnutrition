@@ -126,14 +126,14 @@ Para cada um dos 21, a fase 1 entrega cinco peças, todas em arquivo e conferida
    - a separação entre regressão (o que já passava e tem de continuar passando, em 3 de 3 rodadas) e capacidade (casos novos, que só mostram evolução).
 
    Casos tirados da v1 só entram sem dados pessoais e com a sua autorização.
-4. **Ação por ferramenta tipada.** A resposta do agente chega como uma das ações, com campos conferidos na hora (ver "O agente"), e os casos conferem isso também. Se o dia de prova da fase 2 mostrar que o Hermes não respeita esse canal, o canal volta a ser o texto final conferido, e a decisão fica registrada.
+4. **Ação por ferramenta tipada.** A resposta do agente chega como uma das ações, com campos conferidos na hora (ver "O agente"), e os casos conferem isso também. (mudou na v3.1) Os casos conferem a ação num formato neutro (tipo, campos e conteúdo), que sai igual pelos dois canais, para as 21 pastas de casos e fitas não precisarem ser reescritas se o dia de prova da fase 2 mostrar que o Hermes não respeita o canal por ferramenta. Até esse dia, o canal de referência é o texto final conferido da v3 (MEL-35 da análise); o canal por ferramenta tipada fica como variante marcada "depende do dia de prova". Se o Hermes não respeitar o canal, o canal volta a ser o texto final conferido, e a decisão fica registrada.
 5. **Jornada que a máquina percorre.** Um arquivo de jornada por agente (a lista de eventos que a máquina reproduz, do pedido ao card pronto), com a empresa do card, o serviço e o revisor do catálogo. A máquina reproduz, sobre a tabela de passagens real: pedido, card em rascunho, leitura de volta, sua confirmação, plano validado, etapa na fila, execução, entrega, portão 1, revisor designado, aprovação, relatório da Helena e card pronto. Reproduz também os caminhos ruins: reprovação e volta ao autor, formato errado, revisor titular fora e reserva entrando, você cancelando no meio e o prazo vencendo. A jornada passa quando chega ao estado esperado, sem violação das 13 regras e sem nenhum toque seu sem destino.
 
 A máquina em construção já tem um teste que leva cada um dos 21 de ponta a ponta, com um revisor de exemplo. Na fase 1, ele passa a usar o serviço, o revisor e as reservas do catálogo, e ganha uma jornada por empresa (mais abaixo).
 
 **O que a fase 1 não prova.** Ela prova a lógica: quem faz, quem revisa, para onde vai cada resposta e que nenhuma regra quebra nos eventos percorridos. Ela não prova que o modelo real escreve bem, que a cota cabe ou que o revisor real pega o erro. Isso só aparece no estágio, com o modelo de verdade.
 
-**O defeito que cada um precisa recusar.** Além dos defeitos de cada checagem, cada agente recebe o caso do risco típico da função dele. A lista vem do mapa de triagem de 02/10, que registrou riscos a testar, não falhas comprovadas.
+**O defeito que cada um precisa recusar.** Além dos defeitos de cada checagem, cada agente recebe o caso do risco típico da função dele. A lista vem do mapa de triagem de 02/10, que registrou uma falha observada (a da Helena, no teste real com a frase "Gastei R$ 100") e, para os outros 20, riscos a testar, não falhas comprovadas.
 
 | Agente | Defeito plantado | O que conta como certo |
 | --- | --- | --- |
@@ -161,26 +161,26 @@ A máquina em construção já tem um teste que leva cada um dos 21 de ponta a p
 
 ### Como cada agente liga em produção
 
-**Uma tabela só de estados.** (novo na v3.1) Na análise dos especialistas, três regras soltas mexiam no mesmo serviço (rebaixar a cada escape, observar depois de 2 escapes e suspender o revisor), além do disjuntor de falhas. Era o mesmo risco das 7 guardas da v1, que se atrapalhavam. Agora existe uma tabela só, com uma ordem de quem vence. Ela entra na tabela de passagens na fase 1 (hoje ainda não está lá), como uma máquina própria, e a prova em camadas a percorre como as outras.
+**Uma tabela só de estados, em três eixos.** (novo na v3.1) Na análise dos especialistas, três regras soltas mexiam no mesmo serviço (rebaixar a cada escape, observar depois de 2 escapes e suspender o revisor), além do disjuntor de falhas. Era o mesmo risco das 7 guardas da v1, que se atrapalhavam. Agora existe uma tabela só, com uma ordem de quem vence, e ela mora na seção de qualidade ("Estados de qualidade: uma tabela só"). Esta seção só resume o que ela muda para cada agente, e se as duas divergirem vale a de qualidade. Ela entra na tabela de passagens na fase 1 (hoje ainda não está lá), como uma máquina própria, e a prova em camadas a percorre como as outras. (mudou na v3.1) O catálogo separa o estado em três eixos que não se misturam (regra MAT-13): o estado do serviço, só no papel de autor; a aptidão de revisão, por par de agente e tipo de entrega; e a coordenação da Helena (leitura de volta e recomendação). O disjuntor só pausa o serviço como autor. O estado do agente que aparece no organograma é só um resumo para a tela e nunca decide quem revisa. O estado "observação" da versão anterior deste texto não existe nem na seção de qualidade nem no catálogo: a regra dos 2 escapes em 10 desce o ativo para estágio.
 
 | Estado do serviço | O que quer dizer | Onde roda o pedido | Como sobe | Como desce |
 | --- | --- | --- | --- | --- |
-| Rascunho | Ficha e serviço sendo escritos | Na v1 | O validador e a prova passam, e ele vira "em teste" sozinho | — |
-| Em teste | Provado no papel e na máquina | Na v1 | 10 casos de regressão em 3 de 3 com o modelo real, o teste 3 do perfil dele e o teste 9 do par revisor; o código marca "apto" e você toca | — |
-| Estágio | Trabalha em cards reais, com o selo "em estágio" no card | Na v2 | 5 cards reais seguidos sem escape; o código marca "apto" e você toca | Para observação ou pausado, sozinho |
-| Ativo | Trabalha normalmente | Na v2 | — | Para observação ou pausado, sozinho |
-| Observação | Teve 2 escapes nas últimas 10 entregas | Na v2, e você passa a ser o revisor final, com o aviso "leia antes de agir" | O caso do escape passa em 3 de 3 e mais 5 entregas seguem sem escape; você toca para voltar | Para pausado |
-| Pausado | Você pausou, ou o disjuntor parou o agente depois de 3 falhas de execução seguidas | A etapa espera na fila, com o motivo e a hora de voltar | O disjuntor volta na hora marcada; a sua pausa, com o seu toque | — |
+| Rascunho | Ficha e serviço sendo escritos | Na v1 | O validador e a prova passam; a rodada com o modelo real, que gasta cota, só começa com o seu toque | — |
+| Em teste | Provado no papel e na máquina | Na v1 | 10 casos aprovados em 3 de 3 com o modelo real, o teste 3 do perfil dele e o teste 9 do par revisor; o código marca "apto" e você toca | — |
+| Estágio | Trabalha em cards reais, com o selo "em estágio" no card e você como revisor a mais de cada entrega | Na v2 | 5 cards reais seguidos sem escape, em que você abriu a entrega e marcou "conferi" (proposta, veja abaixo); o código marca "apto" e você toca | Para pausado, sozinho |
+| Ativo | Trabalha normalmente | Na v2 | — | Para estágio (2 escapes nas últimas 10 entregas) ou para pausado, sozinho |
+| Pausado | Você pausou, ou o disjuntor parou o serviço, como autor, depois de 3 falhas de execução seguidas | A etapa espera na fila, com o motivo, aviso em 1 hora e cartão em 6 horas | Só o seu toque religa, e o serviço volta ao estado que tinha antes da pausa (proposta, para a tabela da fase 1) | — |
 | Aposentado | Saiu do catálogo | Não roda | — | — |
 
-- **Escape** é uma entrega aprovada que você devolve com o motivo "erro de fato".
-- **Quem vence.** Quando duas regras valem ao mesmo tempo, vence a mais restritiva, nesta ordem: aposentado, pausado, observação, estágio, ativo. O card mostra as duas.
-- **Um escape sozinho não rebaixa.** Ele vira caso de regressão, conta para a regra dos 2 em 10 e, no estágio, zera a contagem dos 5 cards.
-- **O disjuntor olha outra coisa.** Ele conta falhas de execução (formato, tempo e ferramenta), não entrega errada. Um não conta para o outro.
-- **Subir é seu, descer é do código.** O código só calcula "apto". Cada subida é um toque seu no app, registrado com a versão do serviço e as empresas liberadas. Esse toque não vence por data: vale até ser usado, e só é pedido de novo se a versão, o estado ou as empresas mudarem.
-- **O revisor também tem estado.** Cada par de revisor e tipo de entrega fica habilitado depois do teste 9 daquele par. De madrugada, fora dos cards de verdade, roda um caso com erro plantado. Se o revisor deixar passar, roda uma prova de confirmação; se ele falhar de novo, o par fica suspenso naquele tipo, a próxima reserva assume e você recebe o aviso. Ele volta com um novo teste 9 do par e o seu toque.
-- **O modelo real só em teste.** Os casos com o modelo real e as respostas de ferramenta gravadas rodam na VPS, num modo que só existe em teste; o motor se recusa a ligar em produção nesse modo. Eles rodam de madrugada, dentro de um orçamento de cota.
-- **Sua frase.** Escrever o catálogo e esta tabela é texto do plano. Criar no banco a tabela de estados dos serviços é mudança no banco, e entra na frase das mudanças de banco da fase 2.
+- **Escape** é uma entrega já aprovada que volta por erro: você a devolve com o motivo "erro de fato" ou "faltou tema", ou uma etapa seguinte que a julga a reprova (a definição completa está em "Qualidade").
+- **Quem vence.** Quando duas regras valem ao mesmo tempo, vence a mais restritiva, nesta ordem: aposentado, pausado, estágio, ativo. (mudou na v3.1) O código guarda o estado do serviço e as marcas (a sua pausa, a pausa do disjuntor) separados e calcula o estado efetivo por essa ordem, e tirar uma marca não apaga as outras (proposta, para a tabela da fase 1). O card mostra as duas. O par revisor entra na mesma ordem: um par sem prova ou pausado nunca é designado, e sem nenhum revisor de IA apto o serviço desce para pausado (regra MAT-12 do catálogo).
+- **Um escape sozinho não rebaixa.** Ele vira caso de conserto, conta para a regra dos 2 em 10 (que desce o ativo para estágio) e, no estágio, zera a contagem dos 5 cards. (novo na v3.1) Ele também é gravado no boletim do par revisor que aprovou a entrega, sem suspender o par sozinho: quem suspende é o canário confirmado ou o teste 9 (proposta, a confirmar com a seção de qualidade).
+- **O disjuntor olha outra coisa.** (mudou na v3.1) Ele conta as falhas do agente como autor do serviço: formato errado, limite de chamadas, entrega grande demais e tempo esgotado só quando o motor estava vivo (veja "Falhas do trabalho"). Falha de sistema (ferramenta, provedor, cota, login, queda ou banco) e falha desconhecida não contam: a regra 12 diz que falha do servidor não pune o agente, e três culpas assim pausariam um agente inocente. O simulador da esteira ganha o caso "servidor de ferramentas lento 3 vezes seguidas, e o disjuntor não abre". Um não conta para o outro.
+- **Subir é seu, descer é do código.** O código só calcula "apto". Cada subida é um toque seu no app, registrado com a versão do serviço e as empresas liberadas. Esse toque não vence por data: vale até ser usado, e só é pedido de novo se a versão, o estado ou as empresas mudarem. (mudou na v3.1) Isso inclui sair de rascunho, porque a rodada com o modelo real gasta cota, e religar um serviço que o disjuntor pausou: antes, o rascunho virava "em teste" sozinho e o disjuntor voltava na hora marcada, o que contrariava esta regra. No estágio, um card só conta como "sem escape" se você abriu a entrega e marcou "conferi", e o app registra isso: cinco aprovações apressadas no celular não bastam para subir (proposta, a confirmar com a seção de qualidade). O painel mostra quantos dos 5 foram conferidos de fato. Uma versão nova do serviço só é publicada se os casos de regressão passarem em 3 de 3, e então o estado se mantém; uma rubrica nova refaz o teste 9 dos pares daquele tipo.
+- **O revisor também tem estado, por par.** (mudou na v3.1) Cada par de agente e tipo de entrega só é designado depois do teste 9 daquele par e do seu toque (a aptidão "apta" do catálogo). O teste 9 tem números, e eles moram na seção de qualidade: pegar pelo menos 90% dos erros plantados do revisor e recusar no máximo 20% das limpas, e, além disso, o piso por par de 3 de 5 erros pegos e no máximo 2 de 5 limpas recusadas, com 2 de 3 rodadas por erro nos tipos de risco alto. O piso soma ao critério por revisor e não o substitui, para um revisor que pega só 60% não passar. Hoje o catálogo escreve só o piso em `como_fica_apta`; o critério por revisor entra nele na fase 1 (divergência a corrigir no catálogo, e não neste plano). De madrugada, fora dos cards de verdade, roda 1 canário por noite, em rodízio entre os pares: um caso com erro plantado. Se o revisor deixar passar, roda uma prova de confirmação, com 5 erros plantados, e só se a falha se confirmar o par sai daquele tipo; um canário isolado não suspende. A reserva assume só se o par dela estiver apto naquele tipo. Se nenhuma reserva estiver apta, o serviço desce para pausado e o card diz o motivo, em vez de a revisão cair em quem nunca foi medido ou virar fila sua. O par volta com um novo teste 9 e o seu toque.
+- **O modelo real só em teste.** Os casos com o modelo real e as respostas de ferramenta gravadas rodam na VPS, num modo que só existe em teste; o motor se recusa a ligar em produção nesse modo. (mudou na v3.1) Esse modo grava num banco separado do de produção, sem a trava única do motor de produção, e ocupa no máximo 1 das 3 vagas da VPS, só fora do horário que você definir, cedendo a vaga a um card real que chegue (seção de qualidade). Tempo esgotado numa execução de teste não conta para o disjuntor de produção. Qual banco separado (um Postgres local na VPS ou um esquema separado) é decisão da fase 2, NÃO CONFIRMADO; o login que o modo de teste usa e o caso de dois motores renovando ao mesmo tempo ficam para a seção de testes (aberto para ela).
+- **O orçamento de cota é um só.** (novo na v3.1) Os casos rodam de madrugada dentro do orçamento de cota dos testes, que está na seção de qualidade: prioridade fixa (card real, depois os 5 casos da noite e o canário, depois o resto) e teto da janela curta e da semanal, medidos pelo medidor de cota. Os custos que crescem a cada agente ligado (o canário por par, os 5 casos da noite, a regressão em 3 de 3 de quem vai subir, o teste 9 de cada par novo e tudo de novo na troca de modelo) saem todos dessa tabela, e nada deles passa na frente de card real. A v1 divide a mesma cota (DEC-014); se os testes cedem a ela também, a seção de qualidade ainda não diz (NÃO CONFIRMADO, aberto para ela). Um agente novo só sobe se o custo fixo noturno dele couber nela (proposta, a confirmar na seção de qualidade); quando não couber, o painel mostra "sem canário há N noites" em vez de estourar a cota. Todos os valores são NÃO CONFIRMADO até o teste de cota próprio.
+- **Sua frase.** Escrever o catálogo e esta tabela é texto do plano. Criar no banco a tabela de estados dos serviços é mudança no banco, e entra na frase das mudanças de banco da fase 2. (novo na v3.1) Ligar o modo de teste na VPS e a rodada noturna é mudança no servidor: pede a sua frase exata para essa ação, como toda mudança no servidor, e cada serviço só entra em "em teste" com o seu toque.
 
 **Por que um por vez.** É uma questão de limite, e vale dizer com clareza:
 - A cota do ChatGPT é uma conta só, dividida com a v1 enquanto ela rodar (DEC-014). Só os 10 casos em 3 de 3 de um serviço já são cerca de 30 execuções do modelo, fora o teste 9 do revisor dele.
@@ -192,86 +192,96 @@ Com isso, os 21 ficam provados no papel e na máquina na fase 1. Ligar os 21 em 
 
 **A exceção da primeira meta.** A primeira meta põe juntos em estágio 5 serviços de 4 agentes, porque ela precisa de todos. Depois dela, é um por vez.
 
-**Ordem proposta para os outros 17.** A ordem é sua e muda se a prioridade das empresas mudar. Esta proposta segue três critérios: o que as empresas pedem hoje, quem revisa já estar no ar, e o que depende de uma decisão sua.
+**Ordem proposta para os outros 17.** (mudou na v3.1) A ordem é sua e muda se a prioridade das empresas mudar. Esta é a `ordem_de_ativacao` do `servicos.yaml` (versão 3.1.0): cada revisor titular entra antes do dono do serviço que ele revisa (regra MAT-12 do catálogo). A versão anterior desta tabela punha a Camila e a Olívia antes do revisor delas, e o catálogo recusa isso. Qualquer outra ordem serve, se passar na MAT-12.
 
 | # | Agente | Por que nessa posição |
 | --- | --- | --- |
-| 1 | Daniel | Acompanha as horas das 10 pessoas e é reserva de revisão do Caio; nada do que ele escreve sai para fora |
-| 2 | Renata | Ativação das pessoas da Humano Digital |
-| 3 | Joana | Respostas-modelo para as dúvidas; quem a revisa (Renata) já está no ar |
-| 4 | Camila | Captação para a Humano Digital e a iGreen; tira da Helena a revisão da Isabela |
-| 5 | Victor | Roteiro comercial da iGreen; quem o revisa (Camila) já está no ar |
-| 6 | Augusto | Estratégia; revisa a Nina |
-| 7 | Nina | Produto da Saúde e da eLiving™ |
-| 8 | Maya | Visual da eLiving™, em especificação; arquivo de arte depende de ferramenta nova e de decisão sua |
-| 9 | Theo | Diagnóstico técnico; até o Bruno subir, a reserva (Helena) o revisa |
-| 10 | Bruno | Plano de teste; revisa o Theo |
-| 11 | Olívia | Procedimentos de rotina |
-| 12 | Felipe | Documentos e vencimentos; revisado pela Olívia |
-| 13 | Pedro | Parcerias, como Mimix e Hub, sem contato |
-| 14 | Bianca | Papéis e critérios, quando houver equipe humana |
-| 15 | Ravi | Depende de você escolher o serviço de busca, que pode ter custo |
-| 16 | Marina | Só se o catálogo achar um serviço só dela |
-| 17 | Laura | Escopo pessoal; quando você quiser |
+| 1 | Ravi (fase 3) | Revisa Augusto, Daniel e Nina. A ficha dele prevê só "ler página", sobre fontes que você aprova. "Buscar" fica para a fase 4; se o serviço de busca for pago, é exceção à DEC-014 e vem como cartão de decisão |
+| 2 | Laura | Escopo pessoal; revisada pela Helena, que já está ligada |
+| 3 | Augusto | Estratégia; revisado pelo Ravi; revisa Marina e Pedro |
+| 4 | Daniel | Indicadores, como as horas das 10 pessoas; revisado pelo Ravi; revisa Camila e Renata |
+| 5 | Marina | Plano de projeto para você executar; revisada pelo Augusto; revisa a Olívia |
+| 6 | Olívia | Procedimentos de rotina; revisada pela Marina; revisa Bianca e Felipe |
+| 7 | Felipe | Documentos e vencimentos; revisado pela Olívia |
+| 8 | Bianca | Papéis e critérios, quando houver equipe humana; revisada pela Olívia |
+| 9 | Camila | Captação para a Humano Digital e a iGreen; revisada pelo Daniel |
+| 10 | Victor | Roteiro comercial da iGreen; revisado pela Isabela, que já está ligada |
+| 11 | Pedro | Parcerias, como Mimix e Hub, sem contato; revisado pelo Augusto |
+| 12 | Renata | Ativação das pessoas da Humano Digital; revisada pelo Daniel |
+| 13 | Joana | Respostas-modelo para as dúvidas; revisada pela Renata |
+| 14 | Nina | Produto da Saúde e da eLiving™; revisada pelo Ravi; revisa Maya e Theo |
+| 15 | Maya | Visual da eLiving™, em especificação; arquivo de arte depende de ferramenta nova e de decisão sua |
+| 16 | Theo | Diagnóstico técnico; revisado pela Nina |
+| 17 | Bruno | Plano de teste; revisado pelo Theo |
+
+**Passos mínimos de cada roteiro.** (novo na v3.1) Contados pela MAT-12, e a ordem acima é só uma das que passam. iGreen: o Victor (a Isabela, revisora dele, já está ligada) e o pacote da iGreen. Saúde: Ravi, Augusto e Nina. Humano Digital, na ativação: Ravi, Daniel, Renata e Joana. eLiving™: Ravi, Nina e Maya. Em três dos quatro, o Ravi vem primeiro, porque revisa Augusto, Daniel e Nina. Se a prioridade das empresas pedir isso, você pode subir esses passos antes dos outros: a regra é só o titular entrar antes do dono. A contagem é do plano e deve ser conferida pelo validador na fase 1 (NÃO CONFIRMADO).
 
 ### Roteiro de ponta a ponta para cada empresa
 
 Todo roteiro segue o mesmo caminho. Você escreve na caixa "Novo pedido" do app; o código grava e cria o card em rascunho; a Helena lê de volta ("Entendi assim... Confirma?"); você confirma; o código monta as etapas a partir do roteiro do catálogo; cada etapa passa pelos três portões; e o card volta com o relatório e a lista do que só você faz.
 
-Cada roteiro abaixo vira uma jornada que a máquina percorre na fase 1, com a empresa no card. Todos são proposta, a confirmar no catálogo da fase 1, e só rodam na v2 quando os agentes de cada um estiverem em estágio ou ativos. Até lá, o pedido segue na v1.
+Cada roteiro abaixo vira uma jornada que a máquina percorre na fase 1, com a empresa no card. Todos são proposta, a confirmar no catálogo da fase 1, e só rodam na v2 quando os agentes de cada um estiverem em estágio ou ativos. Até lá, o pedido segue na v1; a exceção é o que a central de atendimento da v1 faz com clientes, que você decidiu desligar (veja "Ninguém age fora"). (mudou na v3.1) As colunas de revisor são as do catálogo (fotografia de 10/10/2026). Todo serviço "sempre julgado" (roteiro comercial, texto, treinamento, plano de sucesso e resposta ao cliente) precisa de uma etapa de parecer da Clara que o julgue no mesmo plano (regra MAT-22), e o plano é recusado sem ela; por isso as etapas de parecer abaixo cobrem todas as peças desses serviços.
 
-**iGreen (BIZ-001): abordagem comercial para indicações.** Precisa no ar: Victor e Camila.
+**iGreen (BIZ-001): abordagem comercial para indicações.** Precisa no ar: Victor (a Isabela, revisora dele, já está ligada). A Camila só entra como reserva de revisão, se estiver apta.
 
 | Etapa | Quem faz | Revisor → reservas | Depende de |
 | --- | --- | --- | --- |
-| I1 · Roteiro comercial | Victor | Camila → Helena | Nada |
-| I2 · Mensagens de abordagem | Isabela | Camila → Caio (a Helena revisa o jurídico desta peça) | I1 |
-| I3 · Parecer sobre a I2: publicidade, promessa de economia sem fonte e dados de quem é contatado | Clara | Helena, e você como segundo revisor | I2 |
-| I4 · Custo por cliente conquistado, em 3 cenários | Caio | Helena → Daniel | Nada |
+| I1 · Roteiro comercial | Victor | Isabela → Camila | Nada |
+| I2 · Mensagens de abordagem | Isabela | Caio → Camila | I1 |
+| I3 · Parecer sobre a I1 e a I2: publicidade, promessa de economia sem fonte e dados de quem é contatado | Clara | Helena, e você como segundo revisor | I1 e I2 |
+| I4 · Custo por cliente conquistado, em 3 cenários | Caio | Helena → Clara | Nada |
 | I5 · Relatório, com a lista do que só você faz | Helena | Clara → Caio, só fidelidade | Todas |
 
-- **Só você:** enviar as mensagens, ligar e fechar. A v2 não tem ferramenta de ligação, e na v1 a ligação de saída só acontece com o seu toque.
+- **Só você:** enviar as mensagens, ligar e fechar. A v2 não tem ferramenta de ligação. (mudou na v3.1) Que, na v1, a ligação de saída só acontece com o seu toque é NÃO CONFIRMADO: nas duas rotas de ligação que conferi no código de 10/10/2026 (`/api/integrations/call-engine/call-phone` e `/api/integrations/meowcaller/call`) há exigência de login, mas isso não prova o que roda em produção nem que o toque seja seu. Você decidiu desligar a central; até o desligamento, valem as ordens da fase 0a (seção de abertura): a ligação de saída fecha primeiro, com a sua frase.
 - **Antes:** o pacote da iGreen. Regras do setor de energia não estão na tabela de leis; se o pedido tocar nelas, entram com pesquisa e data.
 
-**Ecossistema de Saúde (BIZ-002): o MVP em uma página.** Precisa no ar: Nina e Augusto.
+**Ecossistema de Saúde (BIZ-002): o MVP em uma página.** Precisa no ar: Nina e Augusto, e o Ravi, que revisa os dois.
 
 | Etapa | Quem faz | Revisor → reservas | Depende de |
 | --- | --- | --- | --- |
-| S1 · Especificação do MVP | Nina | Augusto (a Helena revisa o jurídico desta peça) | Nada |
-| S2 · Tese e modelo de negócio, em 3 cenários | Augusto | Helena → Caio | Nada |
+| S1 · Especificação do MVP | Nina | Ravi → Maya | Nada |
+| S2 · Tese e modelo de negócio, em 3 cenários | Augusto | Ravi → Caio | Nada |
 | S3 · Parecer sobre a S1: dado de saúde e alegações de saúde | Clara | Helena, e você como segundo revisor | S1 |
-| S4 · Custo e preço do MVP, em 3 cenários | Caio | Helena → Daniel → Clara | S1 e S2 |
+| S4 · Custo e preço do MVP, em 3 cenários | Caio | Helena → Clara | S1 e S2 |
 | S5 · Relatório | Helena | Clara → Caio, só fidelidade | Todas |
 
-- **Antes:** confirmar a que produto o "Saúde 360" pertence, e a pesquisa jurídica antes do primeiro texto sobre saúde. Dado de saúde é dado sensível na LGPD (artigo a conferir na tabela de leis).
+- **Antes:** confirmar a que produto o "Saúde 360" pertence, e a pesquisa jurídica de saúde (definida mais abaixo) antes do primeiro texto sobre saúde. Dado de saúde é dado sensível na LGPD (artigo a conferir na tabela de leis).
 - A arquitetura técnica entra no roteiro quando o Theo estiver no ar.
 
-**Humano Digital (BIZ-003): a primeira meta e, depois, a ativação.** O primeiro card é a meta das 10 pessoas (próxima seção). O segundo roteiro proposto ativa essas pessoas. Precisa no ar: Renata, Joana e Daniel.
+**Humano Digital (BIZ-003): a primeira meta e, depois, a ativação.** O primeiro card é a meta das 10 pessoas (próxima seção). O segundo roteiro proposto ativa essas pessoas. Precisa no ar: Renata, Joana e Daniel, e o Ravi, que revisa o Daniel (a Isabela, reserva da Joana, já está ligada).
 
 | Etapa | Quem faz | Revisor → reservas | Depende de |
 | --- | --- | --- | --- |
-| H1 · Plano de ativação da primeira semana | Renata | Helena → Victor | Nada |
-| H2 · Respostas-modelo para as dúvidas mais comuns | Joana | Renata → Caio | H1 |
-| H3 · Painel das horas aprovadas, com fórmula e fonte (os números que você informa) | Daniel | Caio → Helena | Nada |
-| H4 · Parecer sobre a H2: dados dos participantes e promessa | Clara | Helena, e você como segundo revisor | H2 |
+| H1 · Plano de ativação da primeira semana | Renata | Daniel → Victor | Nada |
+| H2 · Respostas-modelo para as dúvidas mais comuns | Joana | Renata → Isabela | H1 |
+| H3 · Painel das horas aprovadas, com fórmula e fonte (os números que você informa) | Daniel | Ravi → Caio | Nada |
+| H4 · Parecer sobre a H1 e a H2: dados dos participantes e promessa | Clara | Helena, e você como segundo revisor | H1 e H2 |
 | H5 · Relatório | Helena | Clara → Caio, só fidelidade | Todas |
 
 - **Só você:** falar com as pessoas, mandar as respostas e informar as horas aprovadas.
-- **Dados:** o card guarda só números somados, como "7 de 10 ativas", nunca nome ou telefone.
+- **Dados:** o card guarda só números somados, como "7 de 10 ativas", e não nome ou telefone. (mudou na v3.1) Nada garantia isso: o pedido viaja inteiro por todas as etapas, e o único filtro de entrada escrito é o de chave colada. A regra vale para todo card de empresa sobre pessoas de fora, e não só para a Humano Digital (a iGreen trabalha com indicações, a Joana responde casos de clientes, e a URA da v1 já pede CPF e CNPJ). Proposta, para a fase 1 e a seção de segurança (aberto para ela, NÃO CONFIRMADO que exista lá): um filtro de dado pessoal na caixa "Novo pedido" e nos anexos (telefone, e-mail, CPF/CNPJ, listas de nomes), como o de chave colada, que troca o dado por "[dado pessoal removido]" e avisa você. Um exemplo é a planilha da Mimix com nome, e-mail e horas, colada para o painel H3. O código também confere o critério 7 da meta no histórico do card.
 
-**eLiving™ (BIZ-004): apresentação dos quatro pilares.** Precisa no ar: Nina e Maya (a Camila, se você quiser a revisão de marketing).
+**eLiving™ (BIZ-004): apresentação dos quatro pilares.** Precisa no ar: Nina e Maya, e o Ravi, que revisa a Nina. A Camila (reserva do texto) e o Bruno (reserva da Maya) só entram se estiverem aptos.
 
 | Etapa | Quem faz | Revisor → reservas | Depende de |
 | --- | --- | --- | --- |
-| L1 · Proposta de valor e escopo, com os quatro pilares | Nina | Helena → Augusto | Nada |
-| L2 · Textos de apresentação, na voz de cada pilar | Isabela | Camila → Caio (a Helena revisa o jurídico desta peça) | L1 |
-| L3 · Especificação visual: cores oficiais, hierarquia e acessibilidade | Maya | Nina → Isabela | L1 |
+| L1 · Proposta de valor e escopo, com os quatro pilares | Nina | Ravi → Maya | Nada |
+| L2 · Textos de apresentação, na voz de cada pilar | Isabela | Caio → Camila | L1 |
+| L3 · Especificação visual: cores oficiais, hierarquia e acessibilidade | Maya | Nina → Bruno | L1 |
 | L4 · Parecer sobre a L2: alegações de saúde e publicidade | Clara | Helena, e você como segundo revisor | L2 |
 | L5 · Relatório | Helena | Clara → Caio, só fidelidade | Todas |
 
-- **O pacote da eLiving™ tem checagens por código:** grafia exata eLiving™ (recusa "E-living", "Iliving" e variações), o slogan exato, os quatro pilares com os nomes exatos, e o produto nunca descrito como app fitness ou contador de calorias.
+- **O pacote da eLiving™ tem checagens por código:** o slogan exato, os quatro pilares com os nomes exatos, e a recusa dos termos "app fitness" e "contador de calorias" e das variações da lista. A grafia exata eLiving™ (recusa "E-living", "Iliving" e variações) vale em todo card, como dito no começo desta seção. (mudou na v3.1) O código só pega o que está na lista: um texto que diga "o app que registra cada caloria do seu dia" passaria. Por isso o revisor confere o posicionamento (inteligência pessoal de evolução, e não app fitness nem contador de calorias, como manda a DEC-023) por um critério da rubrica do texto e da apresentação, e o parecer da L4 não cobre isso (proposta, para a fase 1).
 - **Personagens:** a Isabela escreve na voz deles; eles não são autores nem revisores.
-- **Antes do primeiro texto que fale de saúde:** a pesquisa jurídica de alegações de saúde.
+- **Antes do primeiro texto que fale de saúde:** a pesquisa jurídica de saúde, definida logo abaixo.
+
+**A pesquisa jurídica de saúde, para a Saúde (BIZ-002) e a eLiving™ (BIZ-004).** (novo na v3.1) A versão anterior citava essa pesquisa três vezes e nunca a definia, ao contrário da pesquisa da Humano Digital. Ela segue o mesmo molde: cada resposta vem com um trecho literal da fonte e a data, e o que a fonte não responder fica "sem resposta na fonte". Sem ela, a S3 e a L4 chegariam com as leis de saúde marcadas "não conferida", a faixa do card ficaria vermelha, e a Clara não decidiria sozinha. As perguntas abaixo são propostas, a confirmar com você, e as normas que elas mencionam são hipóteses de pesquisa (NÃO CONFIRMADO, artigos a conferir na fonte oficial):
+1. O que a publicidade de produto ou serviço de saúde pode e não pode prometer (Código de Defesa do Consumidor e normas do setor).
+2. Dado de saúde como dado pessoal sensível na LGPD: o que se guarda, com qual base, por quanto tempo e como se apaga.
+3. O que a eLiving™ pode dizer sobre nutrição, saúde, movimento e hábitos sem parecer diagnóstico ou prescrição, e o que as regras dos conselhos profissionais da área dizem sobre isso.
+4. Em que ponto um aplicativo de bem-estar passa a ser produto de saúde regulado.
+
+**As fontes:** só oficiais, e a lista exata vai para você aprovar antes (o site do Planalto, o da ANPD e os dos órgãos e conselhos que a pesquisa indicar). **Quem faz:** eu, numa sessão de construção, em arquivo, na fase 1, lendo só as fontes que você aprovou; se algum site me bloquear, eu digo qual, e aquela fonte espera. A pesquisa não substitui um advogado. **O que muda:** o que a pesquisa achar entra na tabela de leis, com texto e data, e os temas obrigatórios do parecer da Saúde e da eLiving™ (por empresa, no pacote) passam a citá-lo. Até a pesquisa existir, o primeiro texto que fale de saúde não sai.
 
 ## Os primeiros agentes no ar e a primeira meta
 
@@ -279,7 +289,7 @@ Cada roteiro abaixo vira uma jornada que a máquina percorre na fase 1, com a em
 
 A v2 começa com 4 agentes no ar e uma meta real da Humano Digital (BIZ-003): o plano para recrutar as 10 primeiras pessoas nas plataformas Mimix e Hub. Os agentes são Helena, Caio, Isabela e Clara, com 5 serviços em estágio: cálculo, roteiro de treinamento, texto do convite, parecer jurídico e relatório final.
 
-Os outros 17 têm ficha, casos e jornada desde a fase 1 e entram no ar um por vez, pela tabela de estados da seção anterior. Até lá, o que só eles fazem continua na v1. (mudou na v3.1: na v3, os 16 ficavam só pausados até a fase 4.)
+Os outros 17 têm ficha, casos e jornada desde a fase 1 e entram no ar um por vez, pela tabela de estados da seção anterior. Até lá, o que só eles fazem continua na v1, com uma exceção: o que o Victor e a Joana fazem na central de atendimento da v1 (a URA e as ligações) é justamente o que você decidiu desligar em 10/10/2026. Nesse caso, o pedido de cliente não continua na v1: ele vai para você, até haver um serviço da v2 que o atenda. (mudou na v3.1: na v3, os 16 ficavam pausados e voltavam um por vez na fase 4, sem critério escrito para cada um.)
 
 ### Antes do plano da meta: a pesquisa jurídica
 
@@ -296,13 +306,14 @@ Os outros 17 têm ficha, casos e jornada desde a fase 1 e entram no ar um por ve
 
 **As fontes.** Só oficiais, e a lista exata vai para você aprovar antes: o site do Planalto (texto das leis: Lei 1.521/1951, Código de Defesa do Consumidor, LGPD, CLT, Código Civil e Lei 9.610/1998), o site da ANPD (os guias dela), os sites do STJ e do STF (decisões com data) e os termos de uso e do programa de indicação nos sites oficiais da Mimix e do Hub.
 
-**Quem faz e como.** Eu faço, numa sessão de construção, em arquivo, na fase 1, lendo só as fontes que você aprovou. Se o meu acesso a algum desses sites for bloqueado, eu digo qual, e aquela fonte espera: ou você me manda o arquivo oficial, ou a Clara a lê na fase 3, antes do plano. A pesquisa não substitui um advogado: se o risco sair alto, a recomendação inclui ouvir um.
+**Quem faz e como.** Eu faço, numa sessão de construção, em arquivo, na fase 1, lendo só as fontes que você aprovou. Se o meu acesso a algum desses sites for bloqueado, eu digo qual, e aquela fonte espera: ou você me manda o arquivo oficial, ou o Ravi a lê na fase 3, com "ler página" sobre a lista aprovada, antes do plano. A Clara não faz pesquisa, porque o serviço dela é o parecer sobre peças do card, e ela julgaria depois as fontes que ela mesma levantou. O dossiê do Ravi é revisado pelo Caio, que não está na cadeia do parecer. A pesquisa não substitui um advogado: se o risco sair alto, a recomendação inclui ouvir um.
 
 **O que a pesquisa muda.**
 - A tabela de leis ganha a Lei 1.521/51, com o texto oficial e a data, e os artigos da LGPD que a meta usa.
 - O parecer da E4 ganha dois temas obrigatórios: o modelo de indicação (risco de pirâmide) e os dados de quem é recrutado (o que se guarda, por quanto tempo e como se apaga).
 - O relatório da E5 ganha uma linha fixa de dados: o que guardar, com qual base, por quanto tempo e como apagar.
 - As três entregas da v1 que a meta usa como entrada (a pesquisa da Mimix e do Hub, a pesquisa de indicação de equipe e as condições do participante) são conferidas contra as fontes: o que não tiver fonte oficial fica marcado "não conferido".
+- (novo na v3.1) Se a fonte exigir alguma informação sobre pagamento no convite (por exemplo, que não há taxa de entrada, ou quem paga o participante e por quê), a lista de termos proibidos do convite muda por decisão sua, no cartão de decisão, e não por palpite: veja "O convite não vê números", abaixo. Isso faz parte da opção B do cartão.
 
 **O cartão de decisão.** Depois da pesquisa, você recebe um cartão com três opções, a consequência de cada uma e a minha recomendação, que só existe depois de ler as fontes: (A) seguir com o modelo como está; (B) seguir com mudanças que a pesquisa indicar; (C) não seguir agora, ou ouvir um advogado antes. A meta só começa depois da sua resposta.
 
@@ -313,19 +324,19 @@ Aprovar o roteiro das 10 pessoas na frase do plano não começa a meta. Começa 
 | Etapa | Quem faz | Quem revisa → reservas | Depende de |
 | --- | --- | --- | --- |
 | E1 · Conta da receita: 10 pessoas × horas × US$ 0,50 por hora aprovada, em 3 cenários, e quanto cada pessoa recebe | Caio | Helena → Clara → você, e o código refaz cada conta | Nada |
-| E2 · Roteiro de treinamento: como gravar atividades do dia a dia com qualidade e privacidade | Isabela | Caio → você (mudou na v3.1: era a Helena) | Nada |
-| E3 · Texto do convite, sem promessa de renda e sem nenhum número de ganho | Isabela | Caio → você (mudou na v3.1: era a Helena), e o código barra termos de ganho | Nada |
+| E2 · Roteiro de treinamento: como gravar atividades do dia a dia com qualidade e privacidade | Isabela | Caio → Olívia, quando apta → você (mudou na v3.1: era a Helena) | Nada |
+| E3 · Texto do convite, sem promessa de renda e sem nenhum número de ganho | Isabela | Caio → Camila, quando apta → você (mudou na v3.1: era a Helena), e o código barra termos de ganho | Nada |
 | E4 · Parecer jurídico sobre E2 e E3: imagem, voz, LGPD, os temas obrigatórios e os pontos da pesquisa | Clara | Helena, e você como segundo revisor; reserva: você | E2 e E3 |
 | E5 · Relatório final: o plano para recrutar, com o passo a passo e a lista do que só você faz | O código monta; a Helena escreve o resumo e os próximos passos | Clara → Caio, só fidelidade | E1 a E4 |
 
-O arquivo do roteiro na especificação ainda tem a versão antiga: a E3 depende da E1, o jurídico tem uma volta só e o relatório é revisado pelo código e por um polegar. Na fase 1, ele é alinhado a esta tabela, e a máquina percorre a jornada da meta com ele.
+O arquivo do roteiro na especificação (`helena-v2/playbooks/recrutar-10-pessoas.yaml`) ainda tem a versão antiga: a E3 depende da E1 e o jurídico tem uma volta só (`max_ciclos: 1`). Ele também não diz quem revisa o relatório; a ficha antiga da Helena dizia que o relatório era aprovado pelo código e por um botão de curtir (o 👍/👎, que sai), e a ficha atual já aponta a Clara e o Caio. Na fase 1, o roteiro é alinhado a esta tabela, e a máquina percorre a jornada da meta com ele.
 
 - **A conta trata o número como premissa.** O US$ 0,50 por hora e o que cada pessoa recebe vêm do roteiro atual. A E1 os mostra como dado seu a confirmar, ou como fonte oficial com data, nunca como fato. O checkpoint de 01/10 diz que a comissão depende de regra confirmada.
-- **O convite não vê números.** (mudou na v3.1: a v3 já dizia que a E3 não recebe os números do Caio; agora isso fica exato.) A E3 não recebe a E1 e só recebe os campos das condições do participante que não têm valor em dinheiro. O código recusa no convite qualquer valor em dinheiro e os termos de ganho: R$, US$, dólar, renda, ganho, ganhar, remuneração, pagamento, salário, lucro, comissão, "por hora" e emojis de dinheiro. Falso alarme é barato: o texto volta para a Isabela trocar a palavra. O card mostra dois vereditos separados: "Código: nenhum termo de ganho" e "Clara: sem promessa disfarçada (julgamento)".
+- **O convite não vê números.** (mudou na v3.1: a v3 já dizia que a E3 não recebe os números do Caio; agora isso fica exato.) A E3 não recebe a E1 e só recebe os campos das condições do participante que não têm valor em dinheiro. O código recusa no convite qualquer valor em dinheiro e os termos de ganho: R$, US$, dólar, renda, ganho, ganhar, remuneração, pagamento, salário, lucro, comissão, "por hora" e emojis de dinheiro. Falso alarme é barato: o texto volta para a Isabela trocar a palavra. (novo na v3.1) A pesquisa jurídica pode concluir que o convite precisa dizer como a pessoa é paga, para mostrar que o ganho vem do trabalho e não de trazer gente, e para evitar publicidade enganosa por omissão (artigo a conferir). Nesse caso a barreira passa a ser "termo de ganho fora de frase aprovada": o cartão de decisão registra frases fixas de transparência, com o texto exato aprovado por você e pela Clara, e o código aceita só essas frases, letra por letra. Sem isso, a Clara pediria o ajuste, a Isabela escreveria, o código recusaria, e a meta travaria por uma regra do próprio plano. Um teste confere que a frase aprovada passa e que as variações dela são barradas. O card mostra dois vereditos separados: "Código: nenhum termo de ganho" e "Clara: sem promessa disfarçada (julgamento)".
 - **O treinamento também vai para as pessoas.** (novo na v3.1) A mesma barreira de termos de ganho vale para a E2.
-- **Ninguém revisa o que vai julgar, nem o que já foi julgado por quem ele revisou.** A Clara não revisa o convite, porque é ela quem julga o convite na E4, inclusive promessa de ganho escondida. (mudou na v3.1) A Helena também não revisa E2 e E3: ela revisa a E4, e quem revisa o parecer decide se ele vale, então julgaria de novo a peça que aprovou. A v3 tinha esse conflito na tabela. Ele apareceu ao conferir a tabela contra a máquina de passagens em construção, que já pula a Helena nesse caso. Por isso o Caio, que era reserva, vira o revisor de E2 e E3, e a reserva passa a ser você.
+- **Ninguém revisa uma peça que vai julgar depois, nem uma peça que será julgada por um parecer que ele mesmo vai revisar.** (mudou na v3.1: a frase anterior falava de "já julgado", e E2 e E3 são revisadas antes de a E4 julgá-las.) A Clara não revisa o convite, porque é ela quem julga o convite na E4, inclusive promessa de ganho escondida. (mudou na v3.1) A Helena também não revisa E2 e E3: ela revisa a E4, e quem revisa o parecer decide se ele vale, então julgaria de novo a peça que aprovou. A v3 tinha esse conflito na tabela. Ele apareceu ao conferir a tabela contra a máquina de passagens em construção, que já pula a Helena nesse caso. Por isso o Caio, que era reserva, vira o revisor de E2 e E3, e a reserva passa a ser você. (novo na v3.1) O mesmo raciocínio vale para você: é a última reserva de toda lista e também o segundo revisor da E4, e só o seu Aprovar faz o parecer valer. Se um dia você ocupar os dois papéis, é permitido por você ser o dono, mas o card marca "você aprovou a peça que agora julga" e, na E4, "jurídico com uma revisão só". Antes de você, o catálogo põe uma reserva de agente, quando ela estiver apta: a Olívia no treinamento e a Camila no convite. Sem nenhum revisor de IA apto, o plano é recusado (veja abaixo).
 - **A regra 4 no relatório final, por extenso.** (novo na v3.1) O revisor do relatório final nunca é o autor do relatório (a Helena). Ele pode ser o autor de uma entrega que o relatório resume: a Clara escreveu a E4, e o Caio, a E1. Isso é permitido porque, no relatório, ele não julga aquela entrega de novo. Ele confere só a fidelidade: se o relatório diz o mesmo que as entregas aprovadas, se não esconde nem suaviza risco e se respeita as dependências. Ele não aprova de novo nem reprova o mérito de nenhuma entrega pelo relatório. Se achar um erro numa entrega, isso vira uma observação para você, e só um pedido seu reabre aquela etapa.
-- **Revisor fora, reserva entra.** Se o revisor estiver pausado ou sem vaga, entra a reserva da lista. Se a regra 4 impedir todas as reservas, a revisão vem para você, como cartão. (novo na v3.1) Quando a única reserva que sobra é você e o titular só está sem vaga, a revisão espera a vaga dele, dentro do prazo do card, em vez de te chamar à toa.
+- **Revisor fora, reserva entra, só se apta.** (mudou na v3.1: a versão anterior trocava o revisor também por falta de vaga, e o catálogo não faz isso.) A lista de revisores de cada etapa é calculada ao montar o plano e gravada no card: só entram agentes com o par apto naquele tipo, e você fica por último. Se a aptidão do titular é pausada (por você, ou pelo canário confirmado), a reserva apta assume, só em planos novos; os cards em andamento mantêm o revisor. Se a regra 4 impedir todas as reservas, a revisão vem para você, como cartão. Falta de vaga nunca troca o revisor: a revisão espera a vaga dele, dentro do prazo do card, com o atraso à vista, em vez de te chamar à toa. Se a lista de uma etapa ficar só com você, o validador recusa o plano com o motivo à vista: nenhum serviço roda na v2 com você como único revisor. Isso reabre o que o texto anterior aceitava (E2 e E3 como "Caio → você"): hoje, com o Caio apto, a lista tem dois nomes; se o par do Caio for suspenso antes de o plano ser montado, o plano da meta é recusado até o par voltar.
 - **Internet só por lista.** (mudou na v3.1: na meta, não existe "buscar".) A Isabela trabalha sem ferramenta de leitura. A Clara só tem "ler página", numa lista montada pelo código: os links do seu pedido, as fontes aprovadas na pesquisa, os termos da Mimix e do Hub e a tabela de leis. Uma fonte fora da lista vira "fonte insuficiente".
 - **Entradas da v1 com cópia datada.** (novo na v3.1) As três entregas aprovadas da v1 entram como cópia datada, marcadas como fotografia da v1. Trazê-las exige ler o banco da v1, que hoje só o seu PC alcança: é um passo seu, só de leitura, com o script pronto e a sua autorização.
 
@@ -342,12 +353,12 @@ O arquivo do roteiro na especificação ainda tem a versão antiga: a E3 depende
 ### O caminho de volta e os limites
 
 - **Ajuste tem caminho de volta, com teto.** Se a Clara pedir ajuste no parecer, você lê o parecer como segundo revisor. Quando você aprova o ajuste, só a peça apontada volta (E2, E3 ou as duas) para a Isabela, passa de novo pela revisão do Caio, e a E4 é refeita sobre o texto novo. São no máximo 2 voltas, contadas no card. (mudou na v3.1: o roteiro antigo dizia 1 volta e o plano dizia 2; fica um teto só, 2, como já está na tabela de passagens em construção.) Se depois da segunda volta a Clara ainda pedir ajuste, a etapa vai para em resolução, com as provas.
-- **Em resolução, opções fixas.** A Helena recomenda uma de três opções, e você escolhe: refazer uma vez, com 50% mais tempo e chamadas; seguir sem a etapa; ou encerrar o card.
+- **Em resolução, opções fixas.** A Helena recomenda uma de três opções, e você escolhe: refazer uma vez, com 50% mais tempo e chamadas; seguir sem a etapa; ou encerrar o card. (novo na v3.1) Se a Helena for autora ou revisora designada da etapa, como na E1 e na E4 (que ela revisa) e na E5 (que ela escreve), ela não recomenda: o cartão chega a você sem recomendação, com a marca "a Helena participou desta peça" (regra MAT-26 do catálogo). Senão ela recomendaria sobre um parecer que ela mesma aprovaria.
 - **Seguir sem uma etapa não vale nesta meta.** (novo na v3.1) Nenhuma etapa da meta é pulável: E2 e E3 porque são julgadas pelo jurídico, a E4 porque é o jurídico, a E5 porque é o relatório, e a E1 porque o relatório precisa dos números (proposta, a confirmar no roteiro da fase 1).
 - **"Não pode" para tudo.** (novo na v3.1) Se a Clara disser "não pode", o card para e pergunta a você, com as opções. Nada volta sozinho.
 - **O Ravi entra quando precisar.** Pesquisa nova só entra quando o roteiro pede, e a primeira meta não pede: a pesquisa jurídica é feita antes, em arquivo. O Ravi tem ficha, casos e jornada na fase 1, e liga em produção quando você escolher o serviço de busca.
 - **A Marina não volta pelo acompanhamento.** (mudou na v3.1: na v3, ela "ficava para a fase 4".) O acompanhamento do plano, que na v1 era dela, é do motor, do relógio e dos roteiros, sem exceção. Ela só volta se o catálogo achar um serviço só dela.
-- **Os dados de quem é recrutado.** (novo na v3.1) Na meta, nenhum agente recebe dado pessoal de nenhuma pessoa recrutada. O card guarda só números somados, como "10 pessoas". Nome, telefone e documentos ficam com você, e a E5 diz como guardar, por quanto tempo e como apagar, conforme a pesquisa.
+- **Os dados de quem é recrutado.** (novo na v3.1) Na meta, nenhum agente deve receber dado pessoal de pessoa recrutada. (mudou na v3.1) Isso é uma meta, e só vira garantia com o filtro de dado pessoal descrito em "Dados", mais acima (proposta, NÃO CONFIRMADO que exista). O card guarda só números somados, como "10 pessoas". Nome, telefone e documentos ficam com você, e a E5 diz como guardar, por quanto tempo e como apagar, conforme a pesquisa.
 - **O prazo, com honestidade.** (novo na v3.1) A meta foi pedida em 08/10 com prazo de 7 dias (roteiro atual). A v2 só roda a meta na fase 3, depois dos portões, e eu não prometo data. Se você precisar do plano antes, a escolha é sua: seguir pela v1 ou esperar a v2. Em qualquer caso, a pesquisa jurídica vem antes de qualquer convite sair.
 - **Nada sai sem você.** Nenhum agente cadastra, contata, gasta, assina ou publica, porque nenhum tem ferramenta para isso. O que é de fora vem na lista do que só você faz: cadastrar a empresa na Mimix e no Hub, enviar os convites aprovados e acompanhar as primeiras horas aprovadas. O convite é enviado por você.
 
@@ -359,7 +370,7 @@ O arquivo do roteiro na especificação ainda tem a versão antiga: a E3 depende
 4. O convite e o treinamento passaram no código sem nenhum termo de ganho, e a Clara não achou promessa disfarçada, com os dois vereditos separados no card.
 5. O relatório traz a linha de dados e a lista do que só você faz, e a revisora conferiu a fidelidade.
 6. Houve no máximo 1 cartão de resolução no card.
-7. Nenhum dado pessoal de pessoa recrutada entrou na v2.
+7. Nenhum dado pessoal de pessoa recrutada entrou na v2, conferido pelo código no histórico do card (e não só por declaração), com o filtro de dado pessoal descrito em "Dados" (proposta, NÃO CONFIRMADO que já exista).
 8. Nenhum agente cadastrou, contatou, gastou, assinou ou publicou.
 
 Os outros itens do portão da fase 3 (teste 9 por par, regressão em 3 de 3 e os demais) estão em "Fases com portão".
