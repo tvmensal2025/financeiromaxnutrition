@@ -1,0 +1,19 @@
+# Caso BOM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml, variante V-SEM-TABELA.
+# A 'resposta' é a saída da Clara no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# É um REGISTRAR_FALHA: não vai a revisão; a etapa vai a EM_RESOLUCAO e a Helena recomenda (E23, E100).
+# 'leituras_feitas' é o registro de uso da ler_pagina nesta execução (as fitas que o motor devolveu).
+id: PARECER-BOA-06
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+variante: V-SEM-TABELA
+nota: 'Variante V-SEM-TABELA: o pacote veio sem a tabela de leis. A Clara registra a falta em vez de citar lei de memória.'
+deve_passar_em:
+- CHK-COMUM-05
+proximo_estado_da_etapa: EM_RESOLUCAO
+usou_internet: NAO
+leituras_feitas: []
+resposta:
+  acao: REGISTRAR_FALHA
+  motivo_falha: FALTAM_DADOS
+  explicacao: A tabela de leis do pacote (FON-LEIS-v<n>) não veio. Sem ela nenhum trecho de lei pode fundamentar o parecer,
+    e eu não cito lei de memória. Falta a tabela de leis publicada no pacote da empresa.

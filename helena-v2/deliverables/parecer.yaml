@@ -253,6 +253,18 @@ checagens_codigo:
                "conformidade total", "total conformidade", "conformidade certificada", "certificado de conformidade",
                "aprovado juridicamente", "dispensa advogado", "não precisa de advogado", "sou advogada",
                "como sua advogada", "parecer de advogado", "zero furo"]
+  - id: CHK-PARECER-TERMO-DO-PACOTE
+    descricao: >-
+      Nenhum termo proibido pelo pacote da empresa (lista lida na hora) no texto da Clara, sem diferenciar
+      maiúscula nem acento. Ficam de fora as citações e a coluna trecho_da_peca, cópia da peça julgada. O
+      ajuste nunca sugere o termo (a eLiving™ nunca é 'contador de calorias'; DEC-023).
+    fecha_furos: [DEC-023, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações e a coluna trecho_da_peca"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
   - id: CHK-PARECER-LEI-NA-TABELA
     descricao: >-
       Fundamento TABELA_DE_LEIS: fonte_importada_id é a tabela do pacote, a referencia é a de uma linha
@@ -447,7 +459,7 @@ criterio_de_pronto:
   codigo: [CHK-PARECER-SO-SECOES, CHK-PARECER-TAMANHO, CHK-PARECER-PECAS, CHK-PARECER-SEMAFORO,
            CHK-PARECER-AJUSTE, CHK-PARECER-TRECHO-DA-PECA, CHK-PARECER-PASSOS-FIXOS, CHK-PARECER-TEMAS,
            CHK-PARECER-FUNDAMENTOS, CHK-PARECER-CONDICOES, CHK-PARECER-ADVOGADO, CHK-PARECER-SEM-GARANTIA,
-           CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA,
+           CHK-PARECER-TERMO-DO-PACOTE, CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA,
            CHK-PARECER-TERMOS-INTEIROS, CHK-PARECER-AUSENCIA]
   rubrica: [RUB-PARECER-01, RUB-PARECER-02, RUB-PARECER-03, RUB-PARECER-04, RUB-PARECER-05,
             RUB-PARECER-06, RUB-PARECER-07, RUB-PARECER-08]

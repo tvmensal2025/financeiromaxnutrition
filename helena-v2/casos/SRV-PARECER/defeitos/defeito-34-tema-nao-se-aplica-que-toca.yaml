@@ -1,0 +1,169 @@
+# Caso RUIM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml.
+# Igual à boa-05-roteiro-passo-fixo (menos onde o defeito mexe), com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código; RECUSA volta ao autor, MARCA vai para a faixa do card); RUB-... = portão 2 (revisora, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x parecer (Helena).
+id: PARECER-RUIM-34
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+variante: V-ROTEIRO-HUMANO-DIGITAL
+derivado_de: ../boas/boa-05-roteiro-passo-fixo.yaml
+defeito_plantado: Marca TEMA-MENORES como 'não se aplica', mas o roteiro tem um passo sobre não gravar crianças e adolescentes.
+deve_falhar_em: RUB-PARECER-04
+portao: 2 (revisor)
+motivo_esperado: um tema 'não se aplica' que a peça toca.
+usou_internet: NAO
+leituras_feitas: []
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    pecas:
+    - etapa: E2
+      versao: 1
+      semaforo: OK
+      por_que: O roteiro manda gravar só quem autorizou, proíbe gravar crianças e adolescentes e põe rosto ou voz de outra
+        pessoa sem autorização entre os erros que reprovam. Está de acordo com o cuidado que a tabela pede com imagem e
+        com menores.
+      trecho_da_peca: nenhum
+      ajuste: nenhum
+      fundamentos: F1, F2
+    - etapa: E3
+      versao: 2
+      semaforo: OK
+      por_que: O convite não promete renda, vaga nem disponibilidade e diz que a participação é por cadastro na plataforma.
+        Nada nele induz ao erro.
+      trecho_da_peca: nenhum
+      ajuste: nenhum
+      fundamentos: F3
+    passos_fixos:
+    - passo: PF-01
+      semaforo: OK
+      condicao: Ler os termos de cada plataforma antes de aceitar o cadastro; eles não vieram para este parecer.
+      por_que: 'Cadastrar a empresa é ato seu, fora do sistema. Nada no pacote impede o cadastro, mas os termos das plataformas
+        não vieram: não dá para dizer o que elas fazem com as gravações.'
+      fundamentos: F4
+    temas:
+    - tema: TEMA-IMAGEM
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'O roteiro manda gravar atividades em casa. A tabela diz que o uso da imagem de uma pessoa pode ser proibido
+        se ela não autorizou; o roteiro trata disso (grave só quem autorizou). Leitura minha: basta, se a regra for cumprida.'
+      trecho_da_peca: Rosto ou voz de outra pessoa sem autorização.
+      fundamentos: F1
+    - tema: TEMA-VOZ
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'O roteiro trata a voz como a imagem: só de quem autorizou. A tabela fala em ''transmissão da palavra''
+        no mesmo artigo. Leitura minha.'
+      trecho_da_peca: grave só quem autorizou
+      fundamentos: F1
+    - tema: TEMA-DADO-SENSIVEL
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'Rosto e voz podem ser dado biométrico quando ligados a uma pessoa (tabela). Isso é leitura minha: o texto
+        não diz que a gravação do dia a dia seja biométrica.'
+      trecho_da_peca: Rosto ou voz de outra pessoa sem autorização.
+      fundamentos: F5
+    - tema: TEMA-TRANSFERENCIA-INTERNACIONAL
+      aplica: SIM
+      natureza: PONTO_INCERTO
+      resposta: 'A participação é por cadastro nas plataformas, e os termos delas não vieram. Não sei se as gravações vão
+        para fora do país, nem se isso é permitido: a tabela traz só o começo do art. 33.'
+      trecho_da_peca: a participação é feita por cadastro na plataforma
+      fundamentos: F4
+    - tema: TEMA-MENORES
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: O roteiro e o convite falam com adultos que querem gravar; não tratam de crianças nem de adolescentes.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-VINCULO-DE-TRABALHO
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'O convite forma um grupo de 10 pessoas para gravar. A tabela define empregado como quem presta serviço
+        não eventual, sob dependência e mediante salário. O convite não promete salário nem horário. Leitura minha: sem
+        vínculo, nestes termos.'
+      trecho_da_peca: Humano Digital está montando um grupo de 10 pessoas para gravar atividades do dia a dia
+      fundamentos: F6
+    - tema: TEMA-PUBLICIDADE
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'O convite diz que a gente ensina tudo passo a passo e que a participação é por cadastro. Não promete renda,
+        vaga nem resultado. Leitura minha: sem promessa enganosa.'
+      trecho_da_peca: A gente ensina tudo passo a passo, e a participação é feita por cadastro na plataforma.
+      fundamentos: F3
+    - tema: TEMA-PASSOS-FIXOS
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: O plano diz que esta etapa cobre o PF-01 (cadastro na Mimix e no Hub); ele tem linha em passos_fixos.
+      trecho_da_peca: PF-01
+      fundamentos: F4
+    condicoes:
+    - condicao: Ninguém grava rosto ou voz de outra pessoa sem a autorização dela.
+      antes_de: qualquer passo de fora
+      fundamentos: F1
+    - condicao: O cadastro da empresa na Mimix e no Hub vem antes de qualquer convite.
+      antes_de: AF-COPY-ENVIAR-OU-PUBLICAR
+      fundamentos: F3
+    - condicao: Ler os termos de cada plataforma antes de aceitar o cadastro; eles não vieram para este parecer.
+      antes_de: PF-01
+      fundamentos: F4
+    quando_chamar_advogado:
+    - gatilho: Antes de passar de 10 pessoas ou se houver indicação paga a participante.
+      cobre: TEMA-VINCULO-DE-TRABALHO, E3
+    - gatilho: Se os termos de uma plataforma disserem que as gravações ficam em servidores fora do Brasil.
+      cobre: TEMA-TRANSFERENCIA-INTERNACIONAL, PF-01
+    nao_coberto:
+    - Os termos da Mimix e do Hub, que não vieram para este parecer.
+    - 'O envio em si: é ação sua, depois deste parecer aprovado.'
+    fundamentos:
+    - id: F1
+      origem: TABELA_DE_LEIS
+      referencia: Código Civil, art. 20, caput
+      citacao:
+        trecho_original: Salvo se autorizadas, ou se necessárias à administração da justiça ou à manutenção da ordem pública,
+          a divulgação de escritos, a transmissão da palavra, ou a publicação, a exposição ou a utilização da imagem de
+          uma pessoa poderão ser proibidas, a seu requerimento e sem prejuízo da indenização que couber
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: NOTA-TESTE-02
+    - id: F2
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 14, caput
+      citacao:
+        trecho_original: O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor
+          interesse, nos termos deste artigo e da legislação pertinente.
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F3
+      origem: TABELA_DE_LEIS
+      referencia: CDC, art. 37, § 1º
+      citacao:
+        trecho_original: É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou
+          parcialmente falsa
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F4
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 33, caput
+      citacao:
+        trecho_original: 'A transferência internacional de dados pessoais somente é permitida nos seguintes casos:'
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: NOTA-TESTE-01
+    - id: F5
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 5º, II
+      citacao:
+        trecho_original: dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa
+          natural;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F6
+      origem: TABELA_DE_LEIS
+      referencia: CLT, art. 3º, caput
+      citacao:
+        trecho_original: Considera-se empregado toda pessoa física que prestar serviços de natureza não eventual a empregador,
+          sob a dependência deste e mediante salário.
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma

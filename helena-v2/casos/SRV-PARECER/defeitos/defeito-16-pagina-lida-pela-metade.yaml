@@ -1,0 +1,139 @@
+# Caso RUIM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml.
+# Igual à boa-02-ok-versao-2 (menos onde o defeito mexe), com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código; RECUSA volta ao autor, MARCA vai para a faixa do card); RUB-... = portão 2 (revisora, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x parecer (Helena).
+id: PARECER-RUIM-16
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-02-ok-versao-2.yaml
+defeito_plantado: Só a parte 1 de 2 da política foi lida e o parecer conclui sobre ela como se fosse inteira.
+deve_falhar_em: CHK-PARECER-TERMOS-INTEIROS
+portao: 1 (código)
+motivo_esperado: 'registro de uso: política lida 1 de 2.'
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-politica-parte-1.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    pecas:
+    - etapa: E1
+      versao: 2
+      semaforo: OK
+      por_que: A legenda diz que o app é para maiores de 18 anos, como a política (item 2), e não promete diagnóstico, que
+        a política também nega (item 4). Nada a ajustar.
+      trecho_da_peca: nenhum
+      ajuste: nenhum
+      fundamentos: F1, F2
+    temas:
+    - tema: TEMA-IMAGEM
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa foto, vídeo nem rosto de pessoa.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-VOZ
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa gravação, áudio nem voz de ninguém.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-DADO-SENSIVEL
+      aplica: SIM
+      natureza: OBRIGACAO_CONFIRMADA
+      resposta: A política diz que o app coleta dados de saúde que a pessoa decidir registrar (item 3). Dado de saúde é
+        sensível pela tabela.
+      trecho_da_peca: Você escolhe o que registrar
+      fundamentos: F3, F4
+    - tema: TEMA-TRANSFERENCIA-INTERNACIONAL
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: A legenda não fala de onde os dados ficam.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-MENORES
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'A legenda traz o aviso para maiores de 18 anos, igual ao item 2 da política. Leitura minha: basta para
+        a legenda.'
+      trecho_da_peca: Para maiores de 18 anos.
+      fundamentos: F5
+    - tema: TEMA-VINCULO-DE-TRABALHO
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: A legenda não fala de tarefa, de pagamento a pessoas nem de trabalho.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-PUBLICIDADE
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'A legenda diz que o Doutor Vital traduz exames em linguagem simples; a política diz que os pilares não
+        fazem diagnóstico (item 4). Leitura minha: sem promessa enganosa.'
+      trecho_da_peca: o Doutor Vital traduz seus exames em linguagem simples
+      fundamentos: F6
+    - tema: TEMA-PASSOS-FIXOS
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: O plano deste card não tem passo fixo do roteiro.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    quando_chamar_advogado:
+    - gatilho: Se a política mudar o que diz sobre dados de saúde ou sobre diagnóstico.
+      cobre: TEMA-DADO-SENSIVEL
+    nao_coberto:
+    - 'A política de privacidade em si: este parecer julga a legenda, não o documento (FORA-CONTRATOS-E-PRIVACIDADE).'
+    fundamentos:
+    - id: F1
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 2 (Quem pode usar)
+      citacao:
+        trecho_original: O uso do aplicativo é destinado somente a pessoas com 18 anos ou mais. Se você tem menos de 18
+          anos, não crie uma conta.
+        leitura_id: LEI-PAR-0001
+        parte: 1
+      nota: nenhuma
+    - id: F2
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 4 (Para que usamos)
+      citacao:
+        trecho_original: Usamos os seus dados para montar o seu acompanhamento diário e para mostrar os seus indicadores
+          em linguagem simples. Os pilares do aplicativo não fazem diagnóstico nem prescrevem tratamento.
+        leitura_id: LEI-PAR-0001
+        parte: 1
+      nota: nenhuma
+    - id: F3
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 5º, II
+      citacao:
+        trecho_original: dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa
+          natural;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F4
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 3 (Que dados coletamos)
+      citacao:
+        trecho_original: Coletamos os dados que você informa no cadastro e os dados de saúde que você decidir registrar,
+          como peso, sono, exames e medicamentos.
+        leitura_id: LEI-PAR-0001
+        parte: 1
+      nota: nenhuma
+    - id: F5
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 14, caput
+      citacao:
+        trecho_original: O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor
+          interesse, nos termos deste artigo e da legislação pertinente.
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F6
+      origem: TABELA_DE_LEIS
+      referencia: CDC, art. 37, § 1º
+      citacao:
+        trecho_original: É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou
+          parcialmente falsa
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma

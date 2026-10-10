@@ -1,0 +1,173 @@
+# Caso RUIM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml.
+# Igual à boa-01-ajuste-so-no-brasil (menos onde o defeito mexe), com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código; RECUSA volta ao autor, MARCA vai para a faixa do card); RUB-... = portão 2 (revisora, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x parecer (Helena).
+id: PARECER-RUIM-36
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01-ajuste-so-no-brasil.yaml
+defeito_plantado: O gatilho de advogado é 'Em caso de dúvida, procurar um advogado.'
+deve_falhar_em: RUB-PARECER-06
+portao: 2 (revisor)
+motivo_esperado: gatilho que ninguém reconhece quando acontece.
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-politica-parte-1.yaml
+- fitas/02-politica-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: AJUSTE
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    pecas:
+    - etapa: E1
+      versao: 1
+      semaforo: AJUSTE
+      por_que: A legenda diz que os dados de saúde ficam 'só no Brasil', mas a política de privacidade (item 6) diz que
+        podem ficar em servidores fora do Brasil. Prometer o que a própria política contradiz pode enganar quem lê.
+      trecho_da_peca: Seus dados de saúde ficam guardados com total segurança, só no Brasil.
+      ajuste: Tirar a frase 'Seus dados de saúde ficam guardados com total segurança, só no Brasil.' e pôr no lugar 'Você
+        escolhe o que registrar; a política de privacidade explica onde seus dados ficam.' Depois de 'Baixe e comece hoje.',
+        acrescentar 'Para maiores de 18 anos.'
+      fundamentos: F1, F2, F3
+    temas:
+    - tema: TEMA-IMAGEM
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa foto, vídeo nem rosto de pessoa. As imagens do post são outra peça e não
+        vieram.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-VOZ
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: 'A legenda é só texto: não usa gravação, áudio nem voz de ninguém.'
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-DADO-SENSIVEL
+      aplica: SIM
+      natureza: OBRIGACAO_CONFIRMADA
+      resposta: A legenda fala de dados de saúde, que a lei da tabela trata como sensíveis. Para eles a lei pede consentimento
+        específico e destacado, e a política diz que o app pede esse consentimento antes do primeiro registro de saúde (item
+        5).
+      trecho_da_peca: Seus dados de saúde ficam guardados com total segurança, só no Brasil.
+      fundamentos: F4, F5, F6
+    - tema: TEMA-TRANSFERENCIA-INTERNACIONAL
+      aplica: SIM
+      natureza: PONTO_INCERTO
+      resposta: 'A política diz que os dados, inclusive os de saúde, podem ficar em servidores fora do Brasil, e a legenda
+        diz ''só no Brasil''. A política não diz em que país ficam os servidores. A tabela traz só o começo do art. 33,
+        sem a lista de casos permitidos: não sei dizer se essa transferência é permitida.'
+      trecho_da_peca: Seus dados de saúde ficam guardados com total segurança, só no Brasil.
+      fundamentos: F2, F3
+    - tema: TEMA-MENORES
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: 'A legenda fala a um público aberto no Instagram, onde há menores de 18 anos, e não diz que o app é só para
+        maiores. A política diz que é (item 2). Leitura minha: avisar isso na legenda.'
+      trecho_da_peca: Baixe e comece hoje.
+      fundamentos: F7, F8
+    - tema: TEMA-VINCULO-DE-TRABALHO
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: A legenda não fala de tarefa, de pagamento a pessoas nem de trabalho.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    - tema: TEMA-PUBLICIDADE
+      aplica: SIM
+      natureza: INTERPRETACAO
+      resposta: A frase 'só no Brasil' contradiz a política e pode ser publicidade parcialmente falsa; 'total segurança'
+        é promessa sem limite que o texto não sustenta. É leitura minha, não afirmação do trecho citado.
+      trecho_da_peca: Seus dados de saúde ficam guardados com total segurança, só no Brasil.
+      fundamentos: F1
+    - tema: TEMA-PASSOS-FIXOS
+      aplica: NAO
+      natureza: NAO_SE_APLICA
+      resposta: O plano deste card não tem passo fixo do roteiro.
+      trecho_da_peca: nenhum
+      fundamentos: nenhum
+    condicoes:
+    - condicao: Publicar só depois de aplicar o ajuste acima e de você conferir, com quem cuida do aplicativo, onde os dados
+        de fato ficam.
+      antes_de: AF-COPY-ENVIAR-OU-PUBLICAR
+      fundamentos: F3, F1
+    quando_chamar_advogado:
+    - gatilho: Em caso de dúvida, procurar um advogado.
+      cobre: TEMA-TRANSFERENCIA-INTERNACIONAL, E1
+    - gatilho: Se o post passar a falar com menores de 18 anos ou o app aceitar usuários dessa idade.
+      cobre: TEMA-MENORES
+    ausencias:
+    - documento: LEI-PAR-0001
+      o_que_nao_consta: A política não diz em que país ficam os servidores.
+      termos_procurados: Estados Unidos, Europa, Irlanda, nuvem
+    nao_coberto:
+    - 'A política de privacidade em si: este parecer julga a legenda, não o documento (FORA-CONTRATOS-E-PRIVACIDADE).'
+    - As imagens e as telas do post, que não vieram para este parecer.
+    fundamentos:
+    - id: F1
+      origem: TABELA_DE_LEIS
+      referencia: CDC, art. 37, § 1º
+      citacao:
+        trecho_original: É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou
+          parcialmente falsa
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F2
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 33, caput
+      citacao:
+        trecho_original: 'A transferência internacional de dados pessoais somente é permitida nos seguintes casos:'
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: NOTA-TESTE-01
+    - id: F3
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 6 (Onde os dados ficam)
+      citacao:
+        trecho_original: Os dados pessoais, inclusive os dados de saúde que você registrar no aplicativo, podem ser armazenados
+          e processados em servidores localizados fora do Brasil, contratados pela eLiving™.
+        leitura_id: LEI-PAR-0001
+        parte: 2
+      nota: nenhuma
+    - id: F4
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 5º, II
+      citacao:
+        trecho_original: dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa
+          natural;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F5
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 11, I
+      citacao:
+        trecho_original: quando o titular ou seu responsável legal consentir, de forma específica e destacada, para finalidades
+          específicas;
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F6
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 5 (Consentimento)
+      citacao:
+        trecho_original: Antes de você registrar um dado de saúde pela primeira vez, o aplicativo pede o seu consentimento
+          específico para isso, em uma tela própria.
+        leitura_id: LEI-PAR-0001
+        parte: 2
+      nota: nenhuma
+    - id: F7
+      origem: TABELA_DE_LEIS
+      referencia: LGPD, art. 14, caput
+      citacao:
+        trecho_original: O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor
+          interesse, nos termos deste artigo e da legislação pertinente.
+        fonte_importada_id: FON-LEIS-TESTE-v0
+      nota: nenhuma
+    - id: F8
+      origem: TERMOS_LIDOS
+      referencia: Política de privacidade, item 2 (Quem pode usar)
+      citacao:
+        trecho_original: O uso do aplicativo é destinado somente a pessoas com 18 anos ou mais. Se você tem menos de 18
+          anos, não crie uma conta.
+        leitura_id: LEI-PAR-0001
+        parte: 1
+      nota: nenhuma
