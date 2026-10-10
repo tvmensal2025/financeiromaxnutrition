@@ -42,7 +42,7 @@ pacote_da_empresa:
   posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
   pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
   decisoes: [DEC-023]
-  fontes: [docs/COMANDO-MASTER-ELIVING.md, docs/MANUAL-DE-COMPORTAMENTO-AGENTES-ELIVING.md]
+  fontes: [docs/manual/eliving/comando-master-eliving.md, docs/manual/eliving/manual-de-comportamento-agentes-eliving.md]
   # Lista fechada lida pela CHK-ESTRATEGIA-08. LISTA DE TESTE: até você registrar a lista oficial
   # do pacote (FORA-PACOTE-DE-VOZ), o caso usa estes termos (tirados do "O que a eLiving NÃO É").
   termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "contagem de calorias", "dieta restritiva", "perder peso rápido", "emagrecimento garantido", "promessa de cura"]

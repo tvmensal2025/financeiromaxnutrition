@@ -13,7 +13,7 @@ O objetivo não é substituir o ecossistema existente de áudio, mas sim adicion
 > personagem; o Google Chirp 3 HD é **reserva** e só entra quando acabam créditos/minutos da ElevenLabs (HTTP 429/cota)
 > ou ela falha. Uma voz por personagem nos dois provedores; antes do Google as tags `[ ]` saem. Vozes, modelos e a voz
 > reserva de cada personagem vêm só de `services/helena-gateway/src/integrations/eliving-voice-config.mjs` (gerado da
-> fonte única do app; regras em `docs/AUDIO-ROUTING.md`).
+> fonte única do app; regras em `docs/manual/voz/audio-routing.md`).
 
 ```text
 LIGAÇÃO / CALL / TELEFONIA (personagem da ligação)
@@ -66,7 +66,7 @@ Nenhum áudio gravado, catálogo de voz ou configuração de outros provedores f
 2. **Roteador Canônico de Contexto (`audio-router.mjs`):**
    - Arquivo: `services/helena-gateway/src/integrations/audio-router.mjs`
    - Funções: `routeCallAudio({ text, callId, voice, characterId })` (ligação do Meowcaller) e `routeCallPreviewAudio({ text, characterId, voice })` (abertura e turnos sem streaming da ligação do app)
-   - Tenta primeiro a ElevenLabs V4 Turbo com a voz e o padrão do personagem; em 429/cota ou falha usa o Google Chirp 3 HD com a voz fixa do personagem e o texto sem tags (ver `eliving-voice-config.mjs` e `docs/AUDIO-ROUTING.md`).
+   - Tenta primeiro a ElevenLabs V4 Turbo com a voz e o padrão do personagem; em 429/cota ou falha usa o Google Chirp 3 HD com a voz fixa do personagem e o texto sem tags (ver `eliving-voice-config.mjs` e `docs/manual/voz/audio-routing.md`).
 
 3. **Ponto de Injeção no Atendente Telefônico (`voice-agent.mjs`):**
    - Função: `speakInCall({ callId, text, voice })`

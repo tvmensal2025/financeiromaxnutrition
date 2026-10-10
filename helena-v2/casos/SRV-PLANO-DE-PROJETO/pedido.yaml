@@ -33,7 +33,7 @@ pacote_da_empresa:
   estado: CONFIRMADO
   grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')"
   slogan: "Onde sua evolução ganha direção."
-  voz: "Guia, cuidadora e inovadora: clara, acolhedora e direta (docs/COMANDO-MASTER-ELIVING.md)."
+  voz: "Guia, cuidadora e inovadora: clara, acolhedora e direta (docs/manual/eliving/comando-master-eliving.md)."
   decisoes: [DEC-023]
   proibicoes:
     - "Tratar a eLiving™ como app fitness comum ou contador de calorias: é inteligência pessoal de evolução."

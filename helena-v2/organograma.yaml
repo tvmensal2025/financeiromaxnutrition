@@ -75,8 +75,8 @@ empresas:
         Grafia exata 'eLiving™' (nunca 'E-living', 'Eliving' ou 'Iliving'); slogan 'Onde sua evolução
         ganha direção.'; quatro pilares do produto: Sirlene (Nutrição), Doutor Vital (Saúde), Alex
         (Movimento) e Rafael (Hábitos), com os limites deles (nenhum diagnóstico, prescrição, treino
-        clínico ou promessa de cura). Fontes: docs/COMANDO-MASTER-ELIVING.md e
-        docs/MANUAL-DE-COMPORTAMENTO-AGENTES-ELIVING.md (DEC-023).
+        clínico ou promessa de cura). Fontes: docs/manual/eliving/comando-master-eliving.md e
+        docs/manual/eliving/manual-de-comportamento-agentes-eliving.md (DEC-023).
 
 # Escopo pessoal: não é empresa. Só a Laura atende; o card PESSOAL nunca recebe pacote de
 # empresa e só passa pela Laura, pela Helena e por você (servicos.yaml, MAT-14).

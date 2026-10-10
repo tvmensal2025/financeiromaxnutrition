@@ -49,7 +49,7 @@ papeis:
 # que todo estado aberto tenha pelo menos uma saída por um destes papéis.
 papeis_do_sistema: [MOTOR, RELOGIO, VIGIA]
 
-# Quem pode ocupar AUTOR e REVISOR: os 21 agentes do organograma (docs/AGENTES-SISTEMA-HELENA.md),
+# Quem pode ocupar AUTOR e REVISOR: os 21 agentes do organograma (docs/manual/agentes-v1.md),
 # na ordem AGT-01 a AGT-21, sem acento (o banco grava só A-Z). Esta lista é a fonte ÚNICA:
 # o domínio do revisor (passagens.yaml) e o parâmetro 'escolhido' de PORTAO1_OK são
 # derivados dela ("revisores_possiveis" = agentes + fundador). Um roteiro com autor ou

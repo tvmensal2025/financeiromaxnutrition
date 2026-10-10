@@ -1,4 +1,6 @@
-# Guia de Gerenciamento e Proteção de Segredos (SECRETS.md)
+# Guia de Gerenciamento e Proteção de Segredos
+
+> Antes chamado `docs/SECRETS.md`. Roteiro de troca e de volta de chaves, sem nenhum valor de chave.
 
 Este documento descreve os padrões de governança, injeção e rotação de credenciais de voz e telemetria no ecossistema do **Sistema Helena**, com foco no **Google Cloud Text-to-Speech Chirp 3 HD**.
 
