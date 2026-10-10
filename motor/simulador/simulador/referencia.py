@@ -5,6 +5,13 @@ de passagens (helena-v2/maquina): só tem o teto geral de 6 execuções e o de i
 não tem motivo CAPACIDADE, plano inválido, divisão de etapa nem "pular". O que importa é que as
 regras que as invariantes vigiam estejam aqui, certas.
 
+Diferenças CONHECIDAS em relação à máquina real (os testes de cenário só usam o que as duas fazem igual):
+  - formato errado, tempo esgotado e limite de chamadas: a máquina dá UMA nova tentativa de cada e depois manda
+    para "em resolução"; aqui a etapa tenta de novo até o teto geral de 6 execuções;
+  - jurídico (etapa que julga outra): na máquina o fundador é o segundo revisor, e só o Aprovar dele vale; aqui
+    o revisor da etapa julgadora já aprova;
+  - falha de cota ou login: a máquina põe a etapa na fila com motivo CAPACIDADE; aqui conta como infraestrutura comum.
+
 Cada ponto de decisão que uma invariante vigia é um método pequeno (começa com "_" e tem
 nome de regra). Os testes de mutação criam subclasses que estragam UM desses métodos e provam
 que o verificador pega o defeito. Por isso: não junte esses métodos.
@@ -14,8 +21,8 @@ from dataclasses import dataclass
 from .alvo import Alvo
 from .eventos import Foto, FotoAcao, FotoEtapa, Resposta
 from .vocabulario import (
-    BOTOES_COM_VERSAO, CARD_ATIVO, CARD_FINAIS, ESTADOS, ETAPA_FINAIS, FUNDADOR, TETO_EXECUCOES, TETO_INFRA,
-    TETO_LEMBRETES, TETO_MUDANCAS_PRAZO, TETO_NIVEL_PRAZO, TETO_ORDENS, TETO_PERGUNTAS, TETO_REPROVACOES,
+    BOTOES_COM_VERSAO, CARD_ATIVO, CARD_FINAIS, ESTADOS, ETAPA_FINAIS, EVENTOS_DO_PAPEL, FUNDADOR, TETO_EXECUCOES,
+    TETO_INFRA, TETO_LEMBRETES, TETO_MUDANCAS_PRAZO, TETO_ORDENS, TETO_PERGUNTAS, TETO_REPROVACOES,
     CLASSES_DE_FALHA,
 )
 
@@ -136,6 +143,8 @@ class Referencia(Alvo):
 
     # ------------------------------------------------------------------ despacho
     def _tratar(self, ev):
+        if not self._evento_conhecido(ev):
+            return Resposta(False, "RECUSADO")
         if ev.alvo.startswith("acao:"):
             a = self.acoes.get(ev.alvo[5:])
             if a is None:
@@ -191,6 +200,22 @@ class Referencia(Alvo):
         return e.estado == estado and e.exec_viva == 1 and ev.chave == "atual" and ator_certo
 
     # ------------------------------------------------------------------ pontos de decisão (as mutações estragam estes)
+    def _evento_conhecido(self, ev):
+        """Evento que o papel não tem no vocabulário nunca entra: nem como passagem, nem como "formato errado"."""
+        return ev.evento in EVENTOS_DO_PAPEL.get(ev.papel, ())
+
+    def _todas_aprovadas(self):
+        """Regra 9 e 10: o card só fica pronto com TODAS as etapas aprovadas."""
+        return all(e.estado == "APROVADA" for e in self.etapas.values())
+
+    def _anteriores_aprovadas(self, e):
+        """Regra 6: ninguém trabalha sem a anterior aprovada."""
+        return all(self.etapas[d].estado == "APROVADA" for d in e.cfg.depende_de)
+
+    def _pode_executar_a_acao(self, a):
+        """Regra 8: só executa depois do ok registrado do fundador, no máximo uma vez."""
+        return a.estado == "AUTORIZADA" and a.ok_registrado == 1 and a.tentativas < 1
+
     def _cabe_mais_uma_execucao(self, e):
         """Regra 5: cada etapa roda no máximo TETO_EXECUCOES vezes por rodada."""
         return e.execucoes < TETO_EXECUCOES
@@ -629,7 +654,7 @@ class Referencia(Alvo):
             c["estado"] = "EM_ANDAMENTO"
             return ("MOTOR", "PLANO_VALIDO", "card")
         if c["estado"] == "EM_ANDAMENTO":
-            if all(e.estado == "APROVADA" for e in self.etapas.values()):
+            if self._todas_aprovadas():
                 c["estado"], c["fim"] = "PRONTO", "CARD_PRONTO"
                 self._card_pronto()
                 return ("MOTOR", "TODAS_PRONTAS", "card")
@@ -642,14 +667,14 @@ class Referencia(Alvo):
                 if passo:
                     return passo
         for a in self.acoes.values():
-            if a.estado == "AUTORIZADA" and a.ok_registrado == 1 and a.tentativas < 1:
+            if self._pode_executar_a_acao(a):
                 a.estado, a.tentativas = "EXECUTANDO_ACAO", a.tentativas + 1
                 return ("MOTOR", "EXECUTAR_ACAO", f"acao:{a.id}")
         return None
 
     def _automatico_da_etapa(self, e):
         i = e.cfg.id
-        if e.estado == "AGUARDANDO_ANTERIORES" and all(self.etapas[d].estado == "APROVADA" for d in e.cfg.depende_de):
+        if e.estado == "AGUARDANDO_ANTERIORES" and self._anteriores_aprovadas(e):
             e.estado, e.motivo = "NA_FILA", "NORMAL"
             return ("MOTOR", "DEPENDENCIAS_PRONTAS", i)
         if e.estado == "NA_FILA" and e.motivo == "NORMAL":

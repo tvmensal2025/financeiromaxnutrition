@@ -21,8 +21,11 @@ Cada comportamento abaixo foi copiado de execuções REAIS do Hermes 0.19.0 cont
     incompleta; conversa grande demais com o resumo automático desligado: imprime uma frase dele, sem erro gravado;
   - teto de 90 voltas ("I reached the iteration limit"), que o -z não deixa mudar;
   - reserva (fallback_providers) configurada é usada na falha: por isso o perfil nunca a tem;
-  - na recusa de login (401) adota ~/.codex/auth.json (ou $CODEX_HOME) se existir: o Hermes real só faz
-    isso no caminho openai-codex; aqui vale para qualquer provedor para o teste enxergar a trava;
+  - na recusa de login (401) adota ~/.codex/auth.json (ou $CODEX_HOME) se existir, UMA vez só e tenta de novo
+    (se a recusa continuar, é falha de login): o Hermes real só faz isso no caminho openai-codex; aqui vale
+    para qualquer provedor para o teste enxergar a trava;
+  - servidor MCP que não responde ao aperto de mão em `connect_timeout` (10 s aqui, 60 s no Hermes real) é
+    largado e o Hermes segue sem as ferramentas dele, em vez de esperar para sempre;
   - grava state.db (sessions e messages) e o arquivo de uso (--usage-file) como o Hermes.
 
 Ganchos de teste dentro do pacote (texto no pedido): [[FILHO_TEIMOSO]] cria um processo que ignora

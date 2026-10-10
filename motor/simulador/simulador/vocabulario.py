@@ -60,6 +60,25 @@ def e_conhecido(maquina, estado):
     return estado in ESTADOS[maquina]["abertos"] or estado in ESTADOS[maquina]["finais"]
 
 
+# ---------------------------------------------------------------- eventos que cada papel pode mandar
+# Espelha vocabulario.yaml, bloco "acoes". Evento fora desta lista nunca entra (a máquina real o recusa
+# como "fora do vocabulário"). Inclusive para o agente: quem não está aqui não vira nem "formato errado".
+EVENTOS_DO_PAPEL = {
+    "AUTOR": ("ENTREGAR", "PERGUNTAR", "DEVOLVER_A_QUEM_PEDIU", "REGISTRAR_FALHA", "PEDIR_SUBCARD"),
+    "REVISOR": ("APROVAR", "REPROVAR", "NAO_CONSIGO_CONFERIR"),
+    "HELENA": ("LER_DE_VOLTA", "RECOMENDAR", "SUGERIR_PRAZO"),
+    "FUNDADOR": ("APROVAR", "PEDIR_AJUSTE", "USAR_COMO_EXEMPLO", "CANCELAR", "RESPONDER", "PAUSAR_TUDO",
+                 "MUDAR_PRIORIDADE", "MUDAR_PRAZO"),
+    "MOTOR": ("INICIAR_EXECUCAO", "INICIAR_REVISAO", "PORTAO1_OK", "PORTAO1_RECUSOU", "FALHA", "FALHA_INFRA",
+              "SEM_CAPACIDADE", "CAPACIDADE_VOLTOU", "TETO_EXECUCOES", "DEPENDENCIAS_PRONTAS", "DEPENDENCIA_MUDOU",
+              "DECISAO_MUDOU", "AJUSTE_DO_JULGADOR", "REABRIR_POR_ORDEM", "CANCELADO_PAI", "CARD_PRONTO",
+              "PLANO_VALIDO", "PLANO_INVALIDO", "TODAS_PRONTAS", "PERGUNTAR_AO_FUNDADOR", "MOTIVO_RESOLVIDO",
+              "ENCERRAR_CARD", "SUBSTITUIR_CARD", "EXECUTAR_ACAO", "ACAO_CONCLUIDA", "ACAO_FALHOU"),
+    "RELOGIO": ("TEMPO_ESGOTADO", "PRAZO_80", "PRAZO_VENCIDO", "PRAZO_MAIS_1H", "LEMBRETE_24H", "LEMBRETE_48H",
+                "PRAZO_ESPERA_VENCIDO", "AVISO_1H", "ESPERA_6H"),
+    "VIGIA": ("SEM_EXECUCAO_VIVA", "REGRA_QUEBRADA"),
+}
+
 # ---------------------------------------------------------------- botões e opções do fundador
 BOTOES_COM_VERSAO = ("APROVAR", "PEDIR_AJUSTE", "RESPONDER")   # com versão antiga nunca mudam estado
 MOTIVOS_DE_AJUSTE = ("ERRO_DE_FATO", "FALTOU_TEMA", "TOM", "FORMATO")
@@ -67,6 +86,13 @@ OPCOES_DE_RESPOSTA = (
     "RESPOSTA_A", "RESPOSTA_B", "RESPOSTA_C", "CONFIRMO", "REFAZER", "SEGUIR_SEM", "ENCERRAR", "PULAR",
     "ESPERAR", "MODELO_MENOR", "ACONTECEU", "NAO_ACONTECEU", "FEITO_POR_MIM",
 )
+
+# Todo toque do fundador sem passagem acaba num destes (regra 11). RESPOSTA_GUARDADA: resposta tardia a uma etapa
+# já encerrada pelo padrão, com o card ainda aberto (só a máquina real tem).
+DESTINOS_DE_UM_TOQUE = ("REACAO", "COMENTARIO_NO_CARD", "CARD_NOVO_LIGADO", "RESPOSTA_GUARDADA")
+# Ordens do fundador que abrem uma rodada nova de trabalho (as tentativas da etapa recomeçam).
+ORDENS_QUE_REABREM = ("REFAZER", "ESPERAR", "MODELO_MENOR")
+EVENTOS_DE_INFRA = ("FALHA_INFRA", "SEM_EXECUCAO_VIVA", "SEM_CAPACIDADE")
 
 # ---------------------------------------------------------------- falhas
 CLASSES_DE_FALHA = ("FORMATO_ERRADO", "LIMITE_CHAMADAS", "GRANDE_DEMAIS", "SITE", "DESCONHECIDA")

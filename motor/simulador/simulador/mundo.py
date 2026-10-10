@@ -20,7 +20,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from . import eventos as ev
-from .agentes import COMPORTAMENTOS_DE_AUTOR, COMPORTAMENTOS_DE_REVISOR, AgenteDeMentira, Comportamento
+from .agentes import AgenteDeMentira, Comportamento
 from .motor_falso import RegistroDeRespostas, so_de_agente, traduzir
 from .roteiro import ROTEIROS_PRONTOS
 from .vocabulario import (
@@ -348,9 +348,9 @@ class Mundo:
 
     # --- eventos que o alvo tem que recusar
     def _cat_ilegal(self, foto):
-        formas = [self._ilegal_portao_proibido, self._ilegal_auto_aprovacao, self._ilegal_sinal_direto,
-                  self._ilegal_entrega_fora_de_hora, self._ilegal_agente_age_fora, self._ilegal_helena_atrasada,
-                  self._ilegal_aprovar_sem_pedir, self._ilegal_qualquer]
+        formas = [self._ilegal_portao_proibido, self._ilegal_auto_aprovacao, self._ilegal_autor_julga,
+                  self._ilegal_sinal_direto, self._ilegal_entrega_fora_de_hora, self._ilegal_agente_age_fora,
+                  self._ilegal_helena_atrasada, self._ilegal_aprovar_sem_pedir, self._ilegal_qualquer]
         self.rng.shuffle(formas)
         for forma in formas:
             evento = forma(foto)
@@ -371,6 +371,11 @@ class Mundo:
             return None
         i = self.rng.choice(em_revisao)
         return ev.revisor("APROVAR", i, self.roteiro.etapa(i).autor)
+
+    def _ilegal_autor_julga(self, foto):
+        """O autor tenta aprovar ou reprovar a própria peça (esse evento nem existe para o autor)."""
+        i = self.rng.choice(self.roteiro.ids())
+        return ev.autor(self.rng.choice(["APROVAR", "REPROVAR"]), i, self.roteiro.etapa(i).autor)
 
     def _ilegal_sinal_direto(self, foto):
         """Sinais entre máquinas só existem dentro da passagem que os emite: mandar direto é recusado."""
