@@ -1,7 +1,41 @@
 # Passagem de contexto para outro Claude Code — Sistema Helena
 
-Data: 09/10/2026. Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
+Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
+
+## 0. Estado em 10/10/2026 — leia primeiro
+
+**Organização.** O repositório foi organizado no ramo `organizacao-2026-10-10` (a partir de `missao-cumprida-v4`). Onde está cada coisa: `README.md` e `docs/INDICE.md`. A auditoria do que foi feito em 09 e 10/10 está em `docs/auditoria/AUDITORIA-2026-10-10.md`. Nada foi apagado: o antigo está em `docs/arquivo/` (o `LEIA.md` diz o porquê de cada item).
+
+**Decisões de 10/10** (`docs/decisoes/`, números provisórios): DEC-026 motor DBOS; DEC-027 troca das chaves no fim dos testes; DEC-028 desligar a central da v1 (só com a frase dele e com os clientes avisados); DEC-029 códigos das empresas (BIZ-001 iGreen, BIZ-002 Ecossistema de Saúde, BIZ-003 Humano Digital, BIZ-004 eLiving™).
+
+**O que existe da v2 (só arquivos e testes; nada no ar):**
+
+| Peça | Onde | Como conferir |
+|---|---|---|
+| Regras do card (tabela de passagens) e a prova das 13 regras | `helena-v2/maquina/` | `cd helena-v2 && python -m pytest -q` (cerca de 7 min) |
+| Catálogo dos 21 agentes, 7 fichas v3.1, formatos de entrega, casos e jornadas | `helena-v2/` | `cd helena-v2 && python validar.py` (OK com 6 pendências conhecidas, em `PENDENCIAS.yaml`) |
+| Servidor de ferramentas dos agentes (só leitura) | `motor/ferramentas/` | `python -m pytest -q` |
+| Validador de entregas (portão 1) | `motor/validador/` | `python -m pytest -q` |
+| Executor (adaptador do Hermes, com servidor falso) | `motor/executor/` | `python -m pytest -q` (cerca de 2 min) |
+| Simulador da esteira | `motor/simulador/` | `python -m pytest -q` |
+
+**Ainda NÃO existe:** o banco da v2 (tabelas e a função única que muda o estado), o motor DBOS rodando, a tela do card no app, o backup e os testes automáticos no GitHub.
+
+**Fila de trabalho, em ordem:**
+1. Fichas v3.1 dos 14 agentes que faltam, e os casos do convite e do roteiro de treinamento da Isabela (ver `helena-v2/PENDENCIAS.yaml`). Ao resolver, tire a linha da lista.
+2. Reescrever `helena-v2/playbooks/recrutar-10-pessoas.yaml` na v3.1, e criar os roteiros das outras 3 empresas.
+3. Ligar o validador de entregas (`motor/validador/`) aos IDs de checagem das entregas: hoje as entregas citam 106 IDs (CHK-...) e o código implementa 28, com só 3 em comum.
+4. Simulador: usar só a máquina de `helena-v2/maquina/` (hoje ele tem uma cópia dos nomes e uma segunda implementação das regras em `referencia.py`, o padrão que travou a v1).
+5. Executor: escrever o README e confirmar no "dia de prova" (fase 2, na VPS) as suposições sobre o Hermes real.
+6. Construção: banco da v2 (testado em Postgres local), motor DBOS, tela do card, backup e testes no GitHub, nesta ordem e cada etapa com testes.
+7. Manual do mantenedor e os roteiros de restauração e de publicação (`docs/manual/`). Ainda não existem.
+
+**Lições desta sessão (não repetir):**
+- Não diga que algo está pronto sem rodar o teste e mostrar a saída. Workflow "concluído" pode ter agentes que falharam: confira o campo de falhas.
+- Não esconda mensagem de erro de comando (ex.: `2>/dev/null` num `git add`).
+- Plano é texto curto para o fundador; regra exata mora em arquivo de dados que o validador confere. Atacar texto sem limite só faz o texto crescer.
+- Poucos agentes por vez e modelo barato para tarefa repetitiva: a cota do fundador é limitada.
 
 ## 1. O que estamos construindo
 
@@ -10,7 +44,7 @@ O Fundador quer uma **empresa operada por agentes de IA**, no lugar de funcioná
 - Ele conversa com a **Helena** (CEO virtual), que vira a ponte.
 - Tudo o que ele pede vira um **card**. O card anda sozinho entre agentes especialistas: cada um executa, outro revisa.
 - O card volta com um **relatório final bonito e legível**.
-- O Fundador avalia com 👍/👎 e assim "treina" os agentes no jeito dele.
+- O Fundador avalia pelos botões do card (Aprovar, Pedir ajuste com motivo, Usar como exemplo, Cancelar) e assim "treina" os agentes no jeito dele.
 
 Exigências dele: lógica exata, zero erro de processo, manutenção rápida e organização melhor que a dos cursos e guias de mercado.
 
@@ -18,10 +52,10 @@ Empresas do grupo:
 
 | Código | Empresa | Observação |
 |---|---|---|
-| BIZ-001 | — | — |
-| BIZ-002 | — | — |
+| BIZ-001 | iGreen | DEC-029 |
+| BIZ-002 | Ecossistema de Saúde | DEC-029 |
 | BIZ-003 | Humano Digital | Empresa de teste agora |
-| BIZ-004 | — | — |
+| BIZ-004 | eLiving™ | Grafia exata "eLiving™"; regras em `docs/manual/eliving/` |
 
 A marca eLiving™ tem regras próprias em `AGENTS.md`.
 
@@ -42,7 +76,7 @@ Modelo de negócio da Humano Digital (decisões DEC-024 e DEC-025 no banco):
 | Ciclo | Cron Hermes `helena-gateway-poll` a cada 2 min → `/data/helena-runtime/hermes_pipeline.py` | Executa `hermes_dispatch_once.py` (executor) e `hermes_workflow_tick.py` (Helena: COORDINATE / REVIEW / HANDOFF / RESOLVE / REPLAN). Fontes em `services/helena-gateway/scripts/`. Deploy no servidor: copiar para `/data/helena-runtime/` (root, 644, backup `.bak-*`). |
 | Migrations | `supabase/migrations/` | Funções `gateway_workflow`, `gateway_workflow_checkpoint`, `gateway_record_coordination_note`, `gateway_replan_job` etc. |
 
-Branch de trabalho: `missao-cumprida-v4`.
+Ramo base: `missao-cumprida-v4`. Organização de 10/10: `organizacao-2026-10-10` (ainda não juntado).
 
 ## 3. O que foi corrigido em 08–09/10 (commits na branch)
 
@@ -74,31 +108,22 @@ Branch de trabalho: `missao-cumprida-v4`.
 - Problema estrutural observado: continuações de diligência furam a fila na frente da missão da meta, `JOB-HR-54d05d6e9fe145997abf038235d326d2`, que segue em DRAFT. É resolvido pelo escalonador da v3 (invariante 9).
 - No PC do Fundador, o Windows "Controle de Aplicativo" passou a bloquear `supabase.exe`. Não altere configurações de segurança; acompanhe pelo servidor (Gateway com token de perfil, lido no servidor e nunca impresso).
 
-## 5. Plano atual: Helena v3
+## 5. Plano atual: Helena v3 (motor DBOS)
 
 `docs/plano/PLANO-HELENA-V3.md` (motor DBOS; 171 furos com conserto, teste e fase em `docs/plano/REGISTRO-DE-FUROS.md`). A versão anterior, com motor no Postgres e 37 furos, está em `docs/arquivo/planos/plano-helena-v3-motor-postgres.md`.
 
-- Princípio: o **código decide o processo** (estados, destino, prioridade, divisão, orçamento); a **IA decide o conteúdo**.
-- 13 invariantes no Postgres.
-- Máquinas de estado de card e etapa.
-- Fases:
-  - Fase 0 — segurança;
-  - Fase 1 — especificações (**pronta**);
-  - Fase 2 — motor no Postgres + workers + simulador + banco de casos;
-  - Fase 3 — card no app + meta de ponta a ponta;
-  - Fase 4 — demais agentes.
+- Princípio: o banco manda, o motor executa e o agente só escreve conteúdo. O código decide o processo; a IA decide o conteúdo.
+- 13 regras de ferro: a tabela de passagens está em `helena-v2/maquina/passagens.yaml`, e a prova delas em `helena-v2/maquina/provar.py`.
+- Agente: devolve uma de 5 ações, sem ferramenta que grava; no máximo "buscar" e "ler página", que são nossas (`motor/ferramentas/`).
+- Qualidade em 3 portões: validador por código (`motor/validador/`), revisor com rubrica e o fundador no plano da meta e em ação externa.
+- Fases: 0 segurança; 1 especificação (em andamento: 7 de 21 fichas); 2 motor e testes de base; 3 primeira meta real; 4 demais agentes. Nenhuma fase avança por data, só por teste.
 
-Especificações em `helena-v2/`:
+Especificação em `helena-v2/` (ver `helena-v2/README.md`):
 
-- **Fichas** (`agents/`): Helena, Ravi, Isabela, Clara, Caio.
-- **Modelos de entrega** (`deliverables/entregas.yaml`).
-- **Roteiro** `playbooks/recrutar-10-pessoas.yaml`.
-- **Esquemas** (`schemas/`).
-- **Catálogo de modelos** (`models.yaml`).
-- **Validador:** `cd helena-v2 && python validar.py`, que deve imprimir "OK: especificações coerentes".
-- **Testes:** `python -m pytest -q test_validar.py` (9 testes de mutação). Requer `pyyaml` e `jsonschema`.
+- `python validar.py` deve terminar em "OK" ou "OK com N pendência(s) conhecida(s)". Erro novo sai com código 1.
+- `python -m pytest -q` roda os testes do validador e da máquina.
 
-Próxima decisão do Fundador: "aprovo o plano v3 e o roteiro das 10 pessoas".
+Frase de aprovação proposta ao fundador: "aprovo o plano v3 e o roteiro das 10 pessoas, com o motor DBOS".
 
 ## 6. Pendências do Fundador
 
@@ -106,10 +131,14 @@ Próxima decisão do Fundador: "aprovo o plano v3 e o roteiro das 10 pessoas".
 2. Publicar o `helena-gateway-decisoes.zip` (Downloads) no EasyPanel.
 3. **Trocar chaves.**
    - Segredos vazaram em log de build.
-   - A chave `service_role` do Supabase está gravada em 11 arquivos rastreados (`scripts/*eliving*.mjs`, `scripts/inspecionar-tabelas.mjs`, `scripts/publicar-checkpoint-v035.mjs`, `scripts/testar-leitura-supabase-real.mjs`, `services/helena-gateway/dev-server.mjs`). Esses arquivos foram **excluídos deste pacote**.
-   - Rotacionar a `service_role` e trocar os scripts para variável de ambiente.
+   - Há chave do Supabase escrita em 11 arquivos rastreados do repositório (9 com a chave de acesso total e 2 com a chave pública), em `scripts/` e em `services/helena-gateway/dev-server.mjs`. **Eles continuam no repositório** (o texto antigo dizia que tinham sido excluídos do pacote; não foram). Lista: `git grep -l eyJhbGciOi`.
+   - Por decisão do fundador (DEC-027), a troca fica para o fim dos testes. Até lá: repositório privado e nenhum arquivo novo com chave. Roteiro: `docs/manual/troca-de-chaves.md`.
 4. Liberar `supabase.exe` no Windows, se quiser o CLI local de volta.
 5. Missões antigas da Marina em WAITING_APPROVAL (`...683aabcc`, `...218deee`), já substituídas: encerrar com o ok dele.
+6. Hostinger: conferir no painel o que vence em 27/10/2026 (sem recomendação até ele conferir).
+7. Conferir no Supabase (só leitura) se os números DEC-026 a DEC-029 estão livres antes de gravar as decisões lá.
+8. Pesquisa jurídica sobre recrutar pessoas para Mimix e Hub (pirâmide e marketing multinível, LGPD) antes do plano da meta.
+9. Central da v1 (DEC-028): inventário só de leitura, aviso aos clientes e só então a frase dele para desligar. No mesmo inventário, ver se a voz da v1 usa API paga da OpenAI (DEC-014).
 
 ## 7. Regras de trabalho com este Fundador
 
