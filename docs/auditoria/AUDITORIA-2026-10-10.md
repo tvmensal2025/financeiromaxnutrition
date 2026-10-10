@@ -1,6 +1,5 @@
 # Auditoria — 10/10/2026
 
-> **RASCUNHO — verificações em andamento.** A seção 5 e o resumo serão preenchidos quando todos os testes terminarem.
 
 Auditoria do trabalho feito pelo Claude Code nesta sessão (09 e 10/10/2026), só leitura. A única escrita foi este arquivo.
 
@@ -81,7 +80,7 @@ Os dois se chamam "plano v3". Esta auditoria usou os **critérios que você list
 | 29 | `helena-v2/README.md` | 1 | **CORRIGIR** | igual ao da base; descreve a estrutura antiga | helena-v2/ |
 | 30 | `motor/ferramentas/` | 36 | **MANTER** | servidor de ferramentas seguro | motor/ferramentas/ |
 | 31 | `motor/validador/` | 64 | **CORRIGIR** | funciona, mas só 3 dos 106 IDs de checagem das entregas existem no código | motor/validador/ |
-| 32 | `motor/executor/` | 50 | **CORRIGIR** | sem README; suposições sobre o Hermes não confirmadas | motor/executor/ |
+| 32 | `motor/executor/` | 50 | **CORRIGIR** | sem README; 2 testes falham com a ficha nova da Isabela; suposições sobre o Hermes não confirmadas | motor/executor/ |
 | 33 | `motor/simulador/` | 26 | **CORRIGIR** | cópia do vocabulário e 2ª implementação das regras do card | motor/simulador/ |
 | 34 | `helena-v2/test_validar.py` (não commitado) | 1 | **CORRIGIR** | conserto de 4 testes frágeis, já aplicado no disco | helena-v2/ |
 
@@ -120,7 +119,7 @@ Vários commits são "wip" (fotografias intermediárias) feitos a pedido do vigi
 2. **`helena-v2/validar.py`:** sai **vermelho de propósito** por 6 pendências reais: 14 fichas faltando, o roteiro das 10 pessoas ainda da v1, e os casos da Isabela (copy e roteiro de treinamento). Isso choca com a regra "tudo precisa passar". **Decisão sua:** (a) manter vermelho até as 21 fichas existirem, ou (b) separar "pendência conhecida" (aviso, saída 0) de "erro novo" (saída 1), com a lista de pendências num arquivo versionado.
 3. **`motor/validador/`:** funciona (677 testes), mas **não está ligado à especificação**. As entregas citam 106 IDs de checagem (CHK-...), e o código implementa 28, com só 3 em comum. Os "defeitos plantados" dos casos ainda não são conferidos pelo código.
 4. **`motor/simulador/`:** tem uma **segunda cópia** dos nomes da máquina (`vocabulario.py`, vigiada por um teste) e uma **segunda implementação** das regras do card (`referencia.py`, 693 linhas). Duas fontes da verdade para a mesma lógica é o padrão que travou a v1. O certo é usar só `helena-v2/maquina/`.
-5. **`motor/executor/`:** **sem README**. As suposições sobre o Hermes real (opções da linha de comando, nomes das chaves de configuração) **não foram confirmadas** e só ficam nos relatórios.
+5. **`motor/executor/`:** **2 testes falham** (`test_ficha.py::test_fichas_reais_da_v2_continuam_legiveis` e `test_teste3.py::...[isabela]`). Eles leem as fichas reais da `helena-v2`, e a ficha nova da Isabela tem dois serviços; o executor exige que se diga qual (`servico=...`), e o teste não diz. **Sem README**. As suposições sobre o Hermes real (opções da linha de comando, nomes das chaves de configuração) **não foram confirmadas** e só ficam nos relatórios.
 6. **`helena-v2/README.md`:** descreve a estrutura antiga.
 7. **`HANDOFF-CONTINUAR-V31.md`:** está fora do lugar; deve entrar no `HANDOFF-CLAUDE-CODE.md`.
 8. **`DECISOES-DO-FUNDADOR-20261010.md`:** tem 4 decisões num arquivo só; deve virar um arquivo por decisão.
