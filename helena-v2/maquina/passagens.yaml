@@ -419,6 +419,8 @@ reacoes:
 # (o destino é decidido pelo estado do ALVO do toque: card, etapa ou ação):
 recusa_do_fundador:
   aberto: COMENTARIO_NO_CARD     # vira comentário visível no card, sem mudar nada
-  final: CARD_NOVO_LIGADO        # resposta tardia ou pedido sobre card fechado abre card novo já preenchido
+  final: CARD_NOVO_LIGADO        # Responder ou Pedir ajuste sobre card fechado abre card novo já preenchido (plano: 'vale o que chegar primeiro')
+  final_abre_card_para: [RESPONDER, PEDIR_AJUSTE]
+  final_outros_botoes: COMENTARIO_NO_CARD   # Aprovar, Cancelar ou Usar como exemplo sobre card fechado: comentário; nada se aprova nem se abre
   versao_antiga: COMENTARIO_NO_CARD   # "a peça mudou, veja a versão nova"; nunca muda estado
   resposta_tardia_com_card_aberto: RESPOSTA_GUARDADA   # Responder a uma etapa já encerrada pelo padrão: decisão sua registrada, ligada à pergunta pelo número; viaja com REFAZER_FALHAS para a versão nova

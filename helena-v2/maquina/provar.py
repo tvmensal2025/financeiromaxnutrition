@@ -2155,11 +2155,13 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
             if papel == "FUNDADOR":
                 # o destino é decidido pelo estado do ALVO do toque
                 card_final = E["card"][0] in mc.finais
+                abre = rec.get("final_abre_card_para")
+                final_dest = rec.get("final") if (abre is None or evento in abre) else (rec.get("final_outros_botoes") or rec.get("final"))
                 if alvo == "card":
-                    destino = rec.get("final" if card_final else "aberto")
+                    destino = final_dest if card_final else rec.get("aberto")
                 elif alvo in E["etapas"]:
                     if card_final:
-                        destino = rec.get("final")
+                        destino = final_dest
                     elif E["etapas"][alvo][0] in me.finais and evento == "RESPONDER" and rec.get("resposta_tardia_com_card_aberto"):
                         destino = rec["resposta_tardia_com_card_aberto"]
                         E["guardadas"][alvo].append(params.get("opcao"))
@@ -2171,7 +2173,7 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
                     destino = rec.get("final" if E["acoes"][alvo][0] in ma.finais else
                                       ("versao_antiga" if chave != "atual" else "aberto")) or rec.get("aberto")
                 else:
-                    destino = rec.get("final" if card_final else "aberto")
+                    destino = final_dest if card_final else rec.get("aberto")
                 if not destino:
                     viol(idx, "R11", f"toque {evento} sem destino")
                 if destino == "CARD_NOVO_LIGADO":
