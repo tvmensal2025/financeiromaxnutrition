@@ -85,6 +85,10 @@ ESPEC_CARD_ATIVO = ("EM_ANDAMENTO", "ESPERANDO_FUNDADOR")    # regra 6: só aqui
 ESPEC_BOTOES_COM_VERSAO = ("APROVAR", "PEDIR_AJUSTE", "RESPONDER")   # A-6: toque sobre versão antiga nunca muda estado
 ESPEC_NIVEIS_PRAZO = {"PRAZO_80": 1, "PRAZO_VENCIDO": 2, "PRAZO_MAIS_1H": 3}   # regra 1: cada aviso vale até disparar
 ESPEC_VARS_DE_ESPERA = ("espera",)                          # regime da sua espera: só o código decide, nunca a IA
+# Parâmetros que a ESPECIFICAÇÃO lê (None = em todo evento). Um parâmetro que nem a tabela nem a
+# especificação leem não muda nada: a busca usa um valor só dele (simetria, ver eventos_da_maquina).
+ESPEC_PARAMS_LIDOS = {"usou_internet": {"PERGUNTAR", "DEVOLVER_A_QUEM_PEDIU", "PEDIR_SUBCARD"},
+                      "classe": {"FALHA"}, "opcao": None, "escolhido": None}
 SITUACOES_FINAIS = ("PRONTA", "FIM_PAI", "FALHOU", "PULADA", "ENCERROU")
 MAX_ESTADOS = 3_000_000   # se passar disso a prova FALHA de forma visível (contador sem teto)
 
@@ -650,7 +654,6 @@ def perfis_do_roteiro(roteiro, tab, vocab=None):
             "permite_devolver": "DEVOLVER_A_QUEM_PEDIU" in perm,
             "usa_decisao": bool(e.get("usa_decisao", True)),
             "prazo_de_terceiro": bool(e.get("prazo_de_terceiro", False)),
-            "estado_card": "EM_ANDAMENTO",   # a camada 1 percorre a etapa com o card ativo; a camada 2, todos os estados do card
         }
         validos = []
         for r in e.get("revisores", []):
@@ -717,6 +720,22 @@ def agentes_representativos(vocab, pf):
     return [a for a in agentes if a in dentro] + fora[:1]
 
 
+def parametros_lidos(maq, papel, evento):
+    """Parâmetros do evento que alguma linha da máquina lê (guarda, efeito '$' ou condição de sinal)."""
+    import re as _re
+    nomes = set(maq.parametros.get((papel, evento), {}))
+    lidos = set()
+    for ln in maq.linhas:
+        if ln.papel != papel or ln.evento != evento:
+            continue
+        textos = [ln.guarda_txt] + [s.get("se", "") for s in (ln.bruta.get("sinais") or []) if isinstance(s, dict)]
+        for nome in nomes:
+            if any(_re.search(r"\b%s\b" % nome, tx) for tx in textos):
+                lidos.add(nome)
+        lidos |= {v for _p, tp, v in ln.efeitos if tp == "param"}
+    return lidos
+
+
 def eventos_da_maquina(maq, vocab, cfg, autor=None, predicados=None, pf=None):
     """Todos os eventos de todos os papéis que a máquina conhece, com todos os parâmetros.
     Respostas de IA vêm com a chave atual e a antiga; seus toques que exigem versão vêm com a
@@ -730,6 +749,11 @@ def eventos_da_maquina(maq, vocab, cfg, autor=None, predicados=None, pf=None):
     evs = []
     for papel, evento in sorted(usados):
         params = dict(maq.parametros.get((papel, evento), {}))
+        lidos = parametros_lidos(maq, papel, evento)
+        for nome in list(params):
+            espec = ESPEC_PARAMS_LIDOS.get(nome, ())
+            if nome not in lidos and not (espec is None or evento in espec):
+                params[nome] = params[nome][:1]   # ninguém lê: todos os valores dão o mesmo passo
         if "escolhido" in params and pf is not None:   # mesma simetria para o revisor escolhido
             params["escolhido"] = [x for x in params["escolhido"] if x in set(atores) | {vocab["identidades"]["fundador"]}]
         externos = sorted({x for ln in maq.linhas if ln.papel == papel and ln.evento == evento for x in ln.usa_ext})
@@ -1195,7 +1219,10 @@ def camada1(vocab, tab, maqs, rel, perfis):
 
         def pred(p, validos=validos):
             return {"revisor_valido": p.get("escolhido") in validos} if "escolhido" in p else {}
-        evs = eventos_da_maquina(m, vocab, pf["cfg"], autor=pf["autor"], predicados=pred, pf=pf)
+        # a camada 1 percorre a etapa com o card ativo; a camada 2 percorre todos os estados do card
+        # e deixa a regra da tabela (etapa_so_anda_com_card_ativo) recusar
+        cfg = dict(pf["cfg"], estado_card="EM_ANDAMENTO")
+        evs = eventos_da_maquina(m, vocab, cfg, autor=pf["autor"], predicados=pred, pf=pf)
         rot = f"etapa {pf['id']}"
         med = explorar(m, evs, conferir_etapa, FANTASMA_ETAPA_INICIAL, rel, tetos, sistema, alfa=alfa, pf=pf, rotulo=rot)
         med["reproduzidos"] = 0 if rel.parou else reproduzir_amostra(m, med, conferir_etapa, FANTASMA_ETAPA_INICIAL, rel, tetos, pf=pf, rotulo=rot)
@@ -1838,7 +1865,8 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
     rec = tabela.get("recusa_do_fundador") or {}
     E = {"card": mc.inicial(), "g_plano": 0, "etapas": {i: me.inicial() + FANTASMA_ETAPA_INICIAL for i in ordem},
          "versao": {i: 0 for i in ordem}, "puladas": set(), "acoes": {}, "acoes_cfg": {}, "acoes_por_etapa": defaultdict(int),
-         "cards_ligados": 0, "guardadas": {i: [] for i in ordem}, "da_versao": {i: [] for i in ordem}}
+         "cards_ligados": 0, "guardadas": {i: [] for i in ordem}, "da_versao": {i: [] for i in ordem},
+         "proposta": {i: "NENHUMA" for i in ordem}}
     raiz = {"papel": None}
     violacoes, recusados, historico, reacoes, conversoes = [], [], [], [], []
 
@@ -1935,6 +1963,8 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
             g, V = conferir_etapa(me, s, ev, ln, pos, pf[alvo], tetos)
             E["etapas"][alvo] = pos[:me.n] + g
             devolve_card(pos)
+            if evento == "ENTREGAR":   # campo da entrega (dado): a ação externa que ela propõe
+                E["proposta"][alvo] = params.get("acao_externa", "NENHUMA")
         elif m is ma:
             g, V = conferir_acao(ma, s, ev, ln, pos)
             E["acoes"][alvo] = pos[:ma.n] + g
@@ -1993,11 +2023,12 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
                     if E["acoes_por_etapa"][origem] >= 1:
                         viol(idx, "R08", f"segunda ação externa para a mesma etapa ({origem})")
                     E["acoes_por_etapa"][origem] += 1
-                    aid = f"A{len(E['acoes']) + 1}"
-                    tipo = st[me.idx["acao"]] if st is not None else params.get("acao_externa")
-                    E["acoes"][aid] = ma.inicial() + FANTASMA_ACAO_INICIAL
-                    E["acoes_cfg"][aid] = {"tem_ferramenta": tipo == "PELO_MOTOR", "origem": origem, "tipo": tipo}
-                    efeitos.append(f"{aid}: ação externa proposta na sua lista ({origem}, {tipo})")
+                    tipo = E["proposta"].get(origem, "NENHUMA")
+                    if tipo != "NENHUMA":
+                        aid = f"A{len(E['acoes']) + 1}"
+                        E["acoes"][aid] = ma.inicial() + FANTASMA_ACAO_INICIAL
+                        E["acoes_cfg"][aid] = {"tem_ferramenta": tipo == "PELO_MOTOR", "origem": origem, "tipo": tipo}
+                        efeitos.append(f"{aid}: ação externa proposta na sua lista ({origem}, {tipo})")
                 elif acao == "criar_card_ligado":
                     E["cards_ligados"] += 1
                     efeitos.append("card novo ligado")
@@ -2117,6 +2148,9 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
                     viol(idx, "R07", f"{papel} mudou {r['muda_campo']}")
                 if r.get("abre_card_ligado"):
                     E["cards_ligados"] += 1
+                registro["destino"] = "REACAO"
+                registro["via"] = via
+                historico.append(registro)   # regra 13: todo toque com destino fica no histórico
                 return
             if papel == "FUNDADOR":
                 # o destino é decidido pelo estado do ALVO do toque
@@ -2143,6 +2177,9 @@ def replay(jornada, vocab=None, tabela=None, conferir_historico=True):
                 if destino == "CARD_NOVO_LIGADO":
                     E["cards_ligados"] += 1
                 recusados.append({"indice": idx, "evento": f"{papel} {evento}", "motivo": motivo, "destino": destino})
+                registro["destino"] = destino
+                registro["via"] = via
+                historico.append(registro)   # regra 11 e 13: o seu toque é gravado uma vez, com o destino
             else:
                 recusados.append({"indice": idx, "evento": f"{papel} {evento}", "motivo": motivo, "destino": "recusado pelo banco"})
             return

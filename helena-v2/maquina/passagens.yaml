@@ -66,7 +66,6 @@ tetos:
   TETO_NIVEL_PRAZO:     {valor: 3, por_que: "Três níveis de prazo do card, cada um dispara uma vez: 80%, vencido, mais 1 hora."}
   TETO_FALHAS_HELENA:   {valor: 2, por_que: "Se a leitura de volta da Helena falhar duas vezes, o card vai para você sem ela."}
   TETO_EXECUCOES_ACAO:  {valor: 1, por_que: "Regra 8: uma ação externa é executada no máximo uma vez, só pelo motor."}
-  TETO_RETOMADAS_INFRA: {valor: 1, por_que: "Regra 12: quando a capacidade volta, a etapa que esperava você por infraestrutura volta sozinha à fila uma vez por rodada; na falha seguinte chama você na hora e espera a sua resposta. Sem esse teto, falha e volta virariam laço sem fim."}
   TETO_MUDANCAS_PRAZO:  {valor: 3, por_que: "Cada mudança de prazo sua rearma os 3 avisos do prazo novo. O teto deixa a prova terminar; na 4ª, o campo muda e os avisos ficam como estão (reação). PROPOSTA: depende do seu sim."}
   TETO_VALIDACAO_PLANO: {valor: 2, por_que: "O validador do plano é código nosso e roda na hora: se não responder em 60 s, roda de novo uma vez; na 2ª, o card espera você com o motivo VALIDADOR_FALHOU."}
 
@@ -116,7 +115,6 @@ variaveis:
     chamadas:     {teto: TETO_CHAMADAS, inicial: 0}
     reprovacoes:  {teto: TETO_REPROVACOES, inicial: 0}
     infra:        {teto: TETO_INFRA, inicial: 0}
-    retomadas:    {teto: TETO_RETOMADAS_INFRA, inicial: 0}
     aviso:        {teto: TETO_AVISO_ESPERA, inicial: 0}
     replan:       {teto: TETO_REPLANEJAMENTO, inicial: 0}
     ordens:       {teto: TETO_ORDENS, inicial: 0, compartilhada: true}
@@ -130,7 +128,6 @@ variaveis:
     leu_internet: {teto: 1, inicial: 0}
     revisor:      {dominio: [NENHUM], mais: revisores_possiveis, inicial: NENHUM}   # o resto do domínio vem de vocabulario.identidades
     semaforo:     {dominio: [NENHUM, OK, AJUSTE, NAO_PODE], inicial: NENHUM}
-    acao:         {dominio: [NENHUMA, SO_FUNDADOR, PELO_MOTOR], inicial: NENHUMA}   # ação externa que a entrega ATUAL propõe; só vira proposta quando o card fica pronto
     fim:          {dominio: [NENHUM, PAI, PADRAO, PULADA, ENCERRAR_CARD, CARD_PRONTO, FUNDADOR, SUBSTITUIDO, FALHA], inicial: NENHUM}
   acao_externa:
     ok_registrado: {teto: 1, inicial: 0}
@@ -142,10 +139,10 @@ macros:
   # Rodada nova aberta por uma ordem sua (ou por decisão nova): zera os contadores
   # de tentativa. Não zera replan, ordens, perguntas nem voltas.
   # Decisão nova enquanto a etapa espera: zera só as tentativas (a espera continua).
-  ZERAR_TENTATIVAS: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, retomadas: 0, aviso: 0}
-  NOVA_RODADA: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, retomadas: 0, aviso: 0, lembretes: 0, exec_viva: 0, leu_internet: 0, motivo: NORMAL, espera: NENHUMA, semaforo: NENHUM, revisor: NENHUM, acao: NENHUMA}
-  # A entrega atual deixa de valer (recusada, reprovada, envelhecida): some o parecer, o revisor e a ação proposta.
-  LIMPAR_ENTREGA: {semaforo: NENHUM, revisor: NENHUM, acao: NENHUMA}
+  ZERAR_TENTATIVAS: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, aviso: 0}
+  NOVA_RODADA: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, aviso: 0, lembretes: 0, exec_viva: 0, leu_internet: 0, motivo: NORMAL, espera: NENHUMA, semaforo: NENHUM, revisor: NENHUM}
+  # A entrega atual deixa de valer (recusada, reprovada, envelhecida): some o parecer e o revisor designado.
+  LIMPAR_ENTREGA: {semaforo: NENHUM, revisor: NENHUM}
 
 estados:
   card:
@@ -248,12 +245,13 @@ linhas:
     - {id: E18, de: NA_FILA, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: MESMO}
     - {id: E19, de: NA_FILA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI, motivo: NENHUM}, para: CANCELADA}
     # --- Executando (dono: autor; prazo: tempo máximo da ficha)
-    - {id: E20, de: EXECUTANDO, evento: ENTREGAR, papel: AUTOR, guarda: "parecer == 'OK' or julgadora", efeito: {execucoes: "+1", exec_viva: 0, semaforo: "$parecer", acao: "$acao_externa", leu_internet: 0}, para: VALIDACAO, nota: "A ação externa proposta fica guardada na etapa; só vira proposta na sua lista quando o card fica pronto (E110)."}
+    - {id: E20, de: EXECUTANDO, evento: ENTREGAR, papel: AUTOR, guarda: "parecer == 'OK' or julgadora", efeito: {execucoes: "+1", exec_viva: 0, semaforo: "$parecer", leu_internet: 0}, para: VALIDACAO, nota: "A ação externa proposta é um campo desta entrega (dado, não estado): só vira proposta na sua lista quando o card fica pronto (E110), e só a da entrega que passou pelos portões."}
     - {id: E21, de: EXECUTANDO, evento: PERGUNTAR, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_perguntar and perguntas < TETO_PERGUNTAS and not prazo_de_terceiro", efeito: {execucoes: "+1", exec_viva: 0, perguntas: "+1", motivo: PERGUNTA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Quem leu a internet (nesta execução, pelo registro de uso, ou na anterior de que esta é continuação de formato) só entrega ou registra falha."}
     - {id: E120, de: EXECUTANDO, evento: PERGUNTAR, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_perguntar and perguntas < TETO_PERGUNTAS and prazo_de_terceiro", efeito: {execucoes: "+1", exec_viva: 0, perguntas: "+1", motivo: PERGUNTA, espera: EXTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Espera externa só quando o roteiro declara prazo de terceiro na etapa; o agente nunca escolhe o tipo."}
     - {id: E22, de: EXECUTANDO, evento: DEVOLVER_A_QUEM_PEDIU, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_devolver", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO, nota: "Sem sub-card, quem pediu é o card: vira cartão de resolução para você."}
     - {id: E23, de: EXECUTANDO, evento: REGISTRAR_FALHA, papel: AUTOR, efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
-    - {id: E24, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1", motivo: NORMAL, leu_internet: 1}, para: NA_FILA, nota: "Nova tentativa só de formato, sobre o mesmo texto: numa etapa com internet a restrição continua valendo (MEL-27 d)."}
+    - {id: E24, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO and tem_internet", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1", motivo: NORMAL, leu_internet: 1}, para: NA_FILA, nota: "Nova tentativa só de formato, sobre o mesmo texto: numa etapa com internet a restrição continua valendo (MEL-27 d), porque a execução que falhou pode ter lido a internet."}
+    - {id: E121, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO and not tem_internet", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA, nota: "Etapa sem internet (servidor de ferramentas vazio): a nova tentativa de formato não herda restrição."}
     - {id: E25, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato >= TETO_FORMATO", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
     - {id: E26, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'LIMITE_CHAMADAS' and chamadas < TETO_CHAMADAS", efeito: {execucoes: "+1", exec_viva: 0, chamadas: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA}
     - {id: E27, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'LIMITE_CHAMADAS' and chamadas >= TETO_CHAMADAS", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
@@ -323,7 +321,7 @@ linhas:
     - {id: E93, de: ESPERANDO_FUNDADOR, evento: DECISAO_MUDOU, papel: MOTOR, guarda: "motivo == 'REVISAO'", efeito: {_macro: NOVA_RODADA}, para: NA_FILA}
     - {id: E94, de: ESPERANDO_FUNDADOR, evento: DECISAO_MUDOU, papel: MOTOR, guarda: "motivo != 'REVISAO'", efeito: {_macro: ZERAR_TENTATIVAS}, para: MESMO}
     - {id: E95, de: ESPERANDO_FUNDADOR, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
-    - {id: E99, de: ESPERANDO_FUNDADOR, evento: CAPACIDADE_VOLTOU, papel: MOTOR, guarda: "motivo == 'INFRA' and retomadas < TETO_RETOMADAS_INFRA", efeito: {_macro: LIMPAR_ENTREGA, motivo: NORMAL, espera: NENHUMA, lembretes: 0, infra: TETO_INFRA, retomadas: "+1", leu_internet: 0}, para: NA_FILA, nota: "A capacidade voltou antes da sua resposta: a etapa volta sozinha à fila, sem gastar tentativa nem ordem; como o infra fica no teto, a próxima falha chama você na hora. Uma vez por rodada (TETO_RETOMADAS_INFRA)."}
+    - {id: E99, de: ESPERANDO_FUNDADOR, evento: CAPACIDADE_VOLTOU, papel: MOTOR, guarda: "motivo == 'INFRA' and infra < TETO_INFRA", efeito: {_macro: LIMPAR_ENTREGA, motivo: NORMAL, espera: NENHUMA, lembretes: 0, infra: TETO_INFRA, leu_internet: 0}, para: NA_FILA, nota: "Espera de capacidade (cota, login, banco: 6 horas sem voltar) e a capacidade voltou antes da sua resposta: a etapa volta sozinha à fila, sem gastar tentativa nem ordem. O infra vai ao teto: a próxima falha chama você na hora e esta linha não vale de novo nesta rodada (sem laço). Na 3ª falha seguida (infra já no teto), quem decide é você."}
     # --- Em resolução (dona: Helena, depois você) — opções fixas (MEL-24)
     - {id: E100, de: EM_RESOLUCAO, evento: RECOMENDAR, papel: HELENA, guarda: "(opcao != 'SEGUIR_SEM' or pulavel) and (opcao != 'REFAZER' or (replan < TETO_REPLANEJAMENTO and ordens < TETO_ORDENS))", efeito: {motivo: RESOLUCAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Só a chave da chamada atual da Helena grava (regra 3)."}
     - {id: E101, de: EM_RESOLUCAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, efeito: {motivo: RESOLUCAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
@@ -331,7 +329,7 @@ linhas:
     - {id: E103, de: EM_RESOLUCAO, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: ZERAR_TENTATIVAS}, para: MESMO}
     - {id: E104, de: EM_RESOLUCAO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
     # --- Aprovada (esperando o card fechar; regra 10 pode reabrir)
-    - {id: E110, de: APROVADA, evento: CARD_PRONTO, papel: MOTOR, efeito: {fim: CARD_PRONTO}, para: PRONTA, sinais: [{sinal: CRIAR_ACAO_EXTERNA, se: "acao != 'NENHUMA'"}], nota: "Só aqui nasce a ação externa proposta: depois dos portões 1 e 2, do jurídico e do card pronto, sobre a entrega final. No máximo uma por etapa (identidade: card + etapa)."}
+    - {id: E110, de: APROVADA, evento: CARD_PRONTO, papel: MOTOR, efeito: {fim: CARD_PRONTO}, para: PRONTA, sinais: [CRIAR_ACAO_EXTERNA], nota: "Só aqui nasce a ação externa proposta: depois dos portões 1 e 2, do jurídico e do card pronto, a partir da entrega aprovada (se ela propõe uma). No máximo uma por etapa (identidade: card + etapa)."}
     - {id: E111, de: APROVADA, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "ordens < TETO_ORDENS", efeito: {_macro: NOVA_RODADA, ordens: "+1"}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU], nota: "Volta ao autor; quem dependia dela é refeito (regra 10)."}
     - {id: E117, de: APROVADA, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "ordens >= TETO_ORDENS", efeito: {_macro: LIMPAR_ENTREGA, fim: SUBSTITUIDO}, para: CANCELADA, sinais: [SUBSTITUIR_CARD], nota: "Teto de ordens: o seu ajuste substitui o card por um card novo ligado (C28); o card nunca fecha com a peça que você marcou como errada."}
     - {id: E112, de: APROVADA, evento: AJUSTE_DO_JULGADOR, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, motivo: NORMAL, leu_internet: 0}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU]}
@@ -375,7 +373,7 @@ ligacoes:
   SUBSTITUIR_CARD:    {entrega: {papel: MOTOR, evento: SUBSTITUIR_CARD}, para: [card]}
   PULAR_FALHAS:       {no_card: marcar_falhas_como_puladas}
   REFAZER_FALHAS:     {no_card: nova_versao_das_falhas, nota: "A etapa final continua final no histórico; nasce uma versão nova dela, que leva as suas respostas guardadas (recusa_do_fundador.resposta_tardia_com_card_aberto)."}
-  CRIAR_ACAO_EXTERNA: {no_card: criar_acao_externa, nota: "Só a E110 emite (etapa pronta, card pronto). Vai para a lista do que só você faz; nunca é executada pelo agente. Identidade card + etapa: no máximo uma."}
+  CRIAR_ACAO_EXTERNA: {no_card: criar_acao_externa, nota: "Só a E110 emite (etapa pronta, card pronto). Cria a proposta se a entrega aprovada propõe ação externa (campo acao_externa da última entrega, a que passou pelos portões). Vai para a lista do que só você faz; nunca é executada pelo agente. Identidade card + etapa: no máximo uma; índice único no banco."}
   CARD_LIGADO:        {no_card: criar_card_ligado}
 
 # Como o card enxerga cada etapa (camadas 2 e 3 da prova). Primeira regra que casa vale.

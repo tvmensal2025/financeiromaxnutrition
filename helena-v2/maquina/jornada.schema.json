@@ -36,12 +36,13 @@
             "properties": {
               "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,15}$"},
               "nome": {"type": "string"},
-              "autor": {"type": "string", "pattern": "^[A-Z][A-Z_]+$"},
-              "revisores": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z_]+$"}, "description": "Ordem da ficha: titular e reservas. O código pula o autor e quem julga a peça depois; você é sempre a última reserva."},
+              "autor": {"type": "string", "pattern": "^[A-Z][A-Z_]+$", "description": "Um dos 21 agentes de vocabulario.identidades.agentes; outro nome é recusado como ESTRUTURA."},
+              "revisores": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z_]+$"}, "description": "Ordem da ficha: titular e reservas (agentes de vocabulario.identidades ou FUNDADOR). O código pula o autor e quem julga a peça depois (autor e revisores possíveis da julgadora); você é sempre a última reserva."},
               "depende_de": {"type": "array", "items": {"type": "string"}, "default": []},
               "julga": {"type": "array", "items": {"type": "string"}, "default": [], "description": "Etapas que esta julga depois (ex.: jurídico). Precisa depender delas."},
               "internet": {"type": "boolean", "default": false},
               "pulavel": {"type": "boolean", "default": false, "description": "Só se o roteiro permitir; nunca jurídico nem relatório."},
+              "prazo_de_terceiro": {"type": "boolean", "default": false, "description": "A etapa depende de um prazo de terceiro declarado no plano: a pergunta dela vira espera EXTERNA (um lembrete antes do prazo e depois o padrão). Nunca é escolha do agente."},
               "usa_decisao": {"type": "boolean", "default": true},
               "acoes_permitidas": {
                 "type": "array",
@@ -65,7 +66,8 @@
           "alvo": {"type": "string", "default": "card", "description": "'card', o id de uma etapa do roteiro, ou 'acao:A1' para uma ação externa proposta."},
           "params": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Parâmetros do evento, com valores do domínio fechado do vocabulário."},
           "ator": {"type": "string", "description": "Agente que responde (AUTOR/REVISOR). Padrão: o autor da etapa ou o revisor designado."},
-          "chave": {"enum": ["atual", "antiga"], "default": "atual", "description": "Chave da execução: 'antiga' simula resposta atrasada de uma execução que já passou."},
+          "chave": {"enum": ["atual", "antiga"], "default": "atual", "description": "Chave da chamada (AUTOR, REVISOR, HELENA): 'antiga' simula resposta atrasada de uma chamada que já passou."},
+          "versao_vista": {"enum": ["atual", "antiga"], "default": "atual", "description": "Só FUNDADOR: versão da peça que você viu ao tocar. 'antiga' = a peça mudou depois que você abriu a tela; Aprovar, Pedir ajuste e Responder nunca mudam estado."},
           "nota": {"type": "string"}
         },
         "allOf": [
@@ -80,7 +82,7 @@
       "properties": {
         "estado_card": {"enum": ["RASCUNHO", "ESPERANDO_CONFIRMACAO", "VALIDANDO_PLANO", "EM_ANDAMENTO", "ESPERANDO_FUNDADOR", "PRONTO", "CANCELADO", "ENCERRADO_COM_FALHA"]},
         "etapas": {"type": "object", "additionalProperties": {"enum": ["AGUARDANDO_ANTERIORES", "NA_FILA", "EXECUTANDO", "VALIDACAO", "REVISAO", "ESPERANDO_FUNDADOR", "EM_RESOLUCAO", "APROVADA", "PRONTA", "CANCELADA", "ENCERRADA_COM_FALHA"]}},
-        "acoes": {"type": "object", "additionalProperties": {"enum": ["PROPOSTA", "AUTORIZADA", "EXECUTANDO_ACAO", "INCERTA", "EXECUTADA", "FEITA_PELO_FUNDADOR", "RECUSADA", "EXPIRADA", "FALHOU", "CANCELADA"]}},
+        "acoes": {"type": "object", "additionalProperties": {"enum": ["PROPOSTA", "AUTORIZADA", "EXECUTANDO_ACAO", "INCERTA", "EXECUTADA", "FEITA_PELO_FUNDADOR", "RECUSADA", "EXPIRADA", "FALHOU", "NAO_CONFIRMADA", "CANCELADA"]}},
         "violacoes": {"type": "integer", "minimum": 0},
         "recusados": {"type": "integer", "minimum": 0}
       }
