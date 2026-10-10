@@ -8,7 +8,7 @@ com o **item exato** que falhou e o que o autor deve corrigir. Roda em milissegu
 
 - **RECUSA**: a entrega volta ao autor. **MARCA**: a entrega segue, mas com um aviso na faixa do card.
 - Só usa a biblioteca padrão do Python 3.13. Não tem nada para instalar em produção.
-- Plano de origem: `docs/planos/sistema-helena-pacote/01-plano-v3.md` (seções "O agente", "Qualidade em 3 portões", "Os testes que decidem").
+- Plano de origem: `docs/plano/PLANO-HELENA-V3.md` (seções "O agente", "Qualidade em 3 portões", "Os testes que decidem").
 
 ## Como rodar os testes
 

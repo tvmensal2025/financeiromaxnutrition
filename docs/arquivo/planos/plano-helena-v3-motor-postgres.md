@@ -1,3 +1,5 @@
+> **Arquivado em 10/10/2026.** Versão anterior do plano v3 (motor no Postgres, 37 furos). Substituída por `docs/plano/PLANO-HELENA-V3.md` (motor DBOS, decisão do fundador de 10/10/2026). Só consulta.
+
 # Sistema Helena v3 — plano consolidado
 
 Data: 09/10/2026. Substitui a v2/v2.1 (`PLANO-ARQUITETURA-V2.md` fica como histórico).

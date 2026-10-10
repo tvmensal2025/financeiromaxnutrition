@@ -1,7 +1,7 @@
 # Passagem de contexto para outro Claude Code — Sistema Helena
 
 Data: 09/10/2026. Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
-Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/PLANO-HELENA-V3.md` (plano atual) e `helena-v2/` (especificações).
+Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
 ## 1. O que estamos construindo
 
@@ -76,7 +76,7 @@ Branch de trabalho: `missao-cumprida-v4`.
 
 ## 5. Plano atual: Helena v3
 
-`docs/PLANO-HELENA-V3.md` (consolidado após uma revisão adversarial independente: 37 furos fechados).
+`docs/plano/PLANO-HELENA-V3.md` (motor DBOS; 171 furos com conserto, teste e fase em `docs/plano/REGISTRO-DE-FUROS.md`). A versão anterior, com motor no Postgres e 37 furos, está em `docs/arquivo/planos/plano-helena-v3-motor-postgres.md`.
 
 - Princípio: o **código decide o processo** (estados, destino, prioridade, divisão, orçamento); a **IA decide o conteúdo**.
 - 13 invariantes no Postgres.
