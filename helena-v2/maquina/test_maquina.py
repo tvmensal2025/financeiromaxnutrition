@@ -81,6 +81,18 @@ def test_os_21_agentes_e_o_dominio_do_revisor_vem_deles():
     assert set(maqs["etapa"].parametros[("MOTOR", "PORTAO1_OK")]["escolhido"]) == set(agentes) | {"FUNDADOR"}
 
 
+def test_efeito_que_copia_parametro_recusa_valor_fora_do_dominio():
+    # furo 4: mesmo com a guarda dizendo 'válido', o banco nunca grava um revisor fora de identidades
+    maqs = P.montar(VOCAB, TABELA)
+    me = maqs["etapa"]
+    s = list(me.inicial())
+    s[0] = "VALIDACAO"
+    cfg = P.perfis_do_roteiro(P.ROTEIRO_DE_PROVA, TABELA, VOCAB)[0]["cfg"]
+    q = dict(cfg, estado_card="EM_ANDAMENTO", revisor_valido=True)
+    assert me.casar(tuple(s), "MOTOR", "PORTAO1_OK", dict(q, escolhido="LUCAS")) == []
+    assert [l.id for l in me.casar(tuple(s), "MOTOR", "PORTAO1_OK", dict(q, escolhido="BRUNO"))] == ["E40"]
+
+
 def test_todo_estado_aberto_tem_dono_e_prazo_escritos_uma_vez():
     for maquina, ests in TABELA["estados"].items():
         for nome, d in ests.items():
@@ -471,6 +483,18 @@ def test_sao_pelo_menos_dez_mutacoes():
     assert len(MUTACOES) >= 10
 
 
+def test_prova_com_outros_agentes_do_organograma():
+    """Furo 4: a prova não pode valer só para os 5 da primeira meta. Um roteiro com outros agentes
+    passa, e todo revisor válido da ficha é de fato percorrido (senão a prova acusa R04)."""
+    rot = {"etapas": [
+        {"id": "S1", "autor": "OLIVIA", "revisores": ["BRUNO", "MARINA", "FUNDADOR"], "internet": True,
+         "acoes_permitidas": ["ENTREGAR", "PERGUNTAR", "REGISTRAR_FALHA"]},
+        {"id": "REL", "autor": "HELENA", "revisores": ["HELENA", "THEO"], "depende_de": ["S1"]}]}
+    rel, med = P.provar(copy.deepcopy(VOCAB), copy.deepcopy(TABELA), roteiro=rot)
+    assert rel.vazio(), [f"[{i['regra']}] {i['mensagem']}" for i in rel.lista()]
+    assert med["camada2"]["finais"].get("PRONTO", 0) > 0
+
+
 def test_roteiro_com_agente_fora_do_vocabulario_e_estrutura():
     rot = copy.deepcopy(P.ROTEIRO_DE_PROVA)
     rot["etapas"][0]["revisores"] = ["LUCAS"]
@@ -569,6 +593,20 @@ def test_resposta_antiga_da_helena_e_recusada():
                    {"papel": "HELENA", "evento": "RECOMENDAR", "alvo": "E1", "params": {"opcao": "SEGUIR_SEM"}, "chave": "antiga"}]
     r = P.replay(_jornada(ev))
     assert r["etapas"]["E1"] == "EM_RESOLUCAO" and r["recusados"][-1]["evento"] == "HELENA RECOMENDAR" and not r["violacoes"]
+
+
+def test_numero_de_execucao_e_declarado_e_resposta_da_execucao_dada_como_morta_nao_grava():
+    # furo 14: a chave é um número monotônico do banco, nunca 'execucoes' (que zera em rodada nova)
+    ne = TABELA["regras_gerais"]["numero_de_execucao"]
+    assert ne["nunca_zera"] is True and ne["nao_e"] == "execucoes"
+    assert TABELA["macros"]["NOVA_RODADA"]["execucoes"] == 0   # por isso 'execucoes' nunca pode ser a chave
+    assert set(TABELA["regras_gerais"]["respostas_de_agente_exigem_chave_atual"]) == {"AUTOR", "REVISOR", "HELENA"}
+    # INICIAR, o vigia dá a execução como morta, INICIAR de novo; a resposta da 1ª chega atrasada
+    ev = INICIO + [{"papel": "VIGIA", "evento": "SEM_EXECUCAO_VIVA", "alvo": "E1"},
+                   {"papel": "AUTOR", "evento": "ENTREGAR", "alvo": "E1", "chave": "antiga"}]
+    r = P.replay(_jornada(ev))
+    assert r["etapas"]["E1"] == "EXECUTANDO" and r["final"]["etapas"]["E1"]["execucoes"] == 0
+    assert r["recusados"][-1]["evento"] == "AUTOR ENTREGAR" and not r["violacoes"]
 
 
 def test_cancelar_cancela_em_cascata_e_resposta_tardia_vira_card_novo():

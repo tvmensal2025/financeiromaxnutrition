@@ -14,7 +14,10 @@ Camadas (MEL-23), todas com o tamanho impresso:
      momento. A máquina da ação externa é percorrida inteira do mesmo jeito.
   2. CARD: busca sobre o roteiro de prova (E1 paralela; E2 -> EJ em cadeia; EJ jurídica
      que julga E2; ER relatório que depende de todas), com cada etapa resumida na sua
-     situação (derivada da camada 1, nunca escrita à mão) e os contadores do card.
+     situação (derivada da camada 1, nunca escrita à mão), os contadores do card e as ações
+     externas criadas por etapa. As etapas andam em TODO estado do card: quem recusa é a
+     regra da tabela, nunca uma constante da prova. Termina com a vivacidade: de todo card
+     com tudo aprovado, PRONTO é alcançável só por passos do sistema.
   3. LIGAÇÃO: todo estado concreto cai em exatamente uma situação; toda passagem
      concreta é passo parado ou passo da camada 2; todo sinal que o card manda é aceito
      por TODO estado concreto daquela situação.
@@ -392,22 +395,28 @@ class Maquina:
             return True
         return estado_card in self._card_ativo
 
-    def casar_cands(self, s, cands, ev, autor=None):
+    def recusa_por_regra(self, ev, evento, autor=None):
+        """Regras gerais da tabela que dependem só do evento (não do estado): chave antiga,
+        versão antiga, card não ativo, ator que não é o autor. A busca as decide uma vez por evento."""
+        papel = ev.papel
+        if papel in self._papeis_chave and ev.chave != "atual":
+            return True
+        if papel == "FUNDADOR" and evento in self._botoes_versao and ev.chave != "atual":
+            return True
+        if self._card_ativo is not None and not self.permite_com_card(evento, ev.q.get("estado_card")):
+            return True
+        if papel == "AUTOR" and autor is not None and ev.ator not in (None, autor):
+            return True
+        return False
+
+    def casar_cands(self, s, cands, ev, autor=None, sem_regra_estatica=False):
         """Aplica as regras gerais da tabela e depois as guardas. ev.chave é a chave da chamada
         (AUTOR, REVISOR, HELENA) ou a versão vista (FUNDADOR)."""
-        papel = ev.papel
-        evento = cands[0].evento
+        if not sem_regra_estatica and self.recusa_por_regra(ev, cands[0].evento, autor):
+            return []
+        if ev.papel == "REVISOR" and self._exige_revisor and self._i_revisor and ev.ator != s[self._i_revisor]:
+            return []
         q = ev.q
-        if papel in self._papeis_chave and ev.chave != "atual":
-            return []
-        if papel == "FUNDADOR" and evento in self._botoes_versao and ev.chave != "atual":
-            return []
-        if self._card_ativo is not None and not self.permite_com_card(evento, q.get("estado_card")):
-            return []
-        if papel == "AUTOR" and autor is not None and ev.ator not in (None, autor):
-            return []
-        if papel == "REVISOR" and self._exige_revisor and self._i_revisor and ev.ator != s[self._i_revisor]:
-            return []
         return [ln for ln in cands if (ln.guarda is None or ln.guarda(s, q))
                 and all(q.get(p) in dom for p, dom in ln.checa_param)]
 
@@ -1051,12 +1060,16 @@ def explorar(m, evs, conferir, fantasma_ini, rel, tetos, papeis_sistema, alfa=No
     estados = [ini]
     pais = [None]
     adj = [[]]
+    autor = pf["autor"] if pf else None
+    # regra geral que só depende do evento: decidida uma vez (o evento recusado nunca anda)
+    recusado = [m.recusa_por_regra(ev, ev.evento, autor) for ev in evs]
+    ordem_f = [ordem_do_fundador(ev) for ev in evs]
     eventos_por_estado = {}
     for est in m.estados:
         lst = []
         for k, ev in enumerate(evs):
             cands = [ln for ln in m.por_chave.get((est, ev.evento), ()) if ln.papel == ev.papel]
-            if cands:
+            if cands and not recusado[k]:
                 lst.append((k, ev, cands, m.atribuicoes(cands)))
             elif (est, ev.evento) in m.por_chave or ev.evento in m.entradas:
                 lst.append((k, ev, [], ((),)))
@@ -1070,7 +1083,6 @@ def explorar(m, evs, conferir, fantasma_ini, rel, tetos, papeis_sistema, alfa=No
         if ev.evento in m.entradas and ev.evento not in entradas_unicas:
             entradas_unicas[ev.evento] = k
     transicoes = paradas = 0
-    autor = pf["autor"] if pf else None
     i_ord = m.idx.get("ordens")
     teto_ord = m.teto_var.get("ordens")
     i = 0
@@ -1084,10 +1096,10 @@ def explorar(m, evs, conferir, fantasma_ini, rel, tetos, papeis_sistema, alfa=No
         if alfa and a_s[0] is None:
             rel.add("LIGACAO", f"{rotulo}: estado concreto sem situação ({est})", caminho(pais, evs, i))
         for k, ev, cands, atribs in eventos_por_estado.get(est, ()):
-            aceitos = {} if (i_ord and len(atribs) > 1 and ordem_do_fundador(ev)) else None
+            aceitos = {} if (i_ord and len(atribs) > 1 and ordem_f[k]) else None
             for na, atrib in enumerate(atribs):
                 s2 = m.com(s, atrib)
-                lns = m.casar_cands(s2, cands, ev, autor) if cands else cands
+                lns = m.casar_cands(s2, cands, ev, autor, sem_regra_estatica=True) if cands else cands
                 if aceitos is not None:
                     aceitos[atrib] = bool(lns)
                 if not lns:
@@ -1808,29 +1820,39 @@ def provar(vocab=None, tabela=None, roteiro=None, parar_em=None, usar_cache=Fals
 
 # ----------------------------------------------------------------------------- jornadas (replay)
 COBERTURA = {
-    "R01": ("prova", "Todo estado aberto tem dono, prazo e saída pelo relógio/motor (estrutura + cada estado alcançável).",
+    "R01": ("prova", "Todo estado aberto tem dono, prazo e saída pelo relógio/motor; nenhum prazo sem evento ('na hora' tem TEMPO_ESGOTADO); "
+                     "os 3 avisos do prazo do card existem em todo estado aberto, um aviso perdido não trava os seguintes e mudar o prazo os rearma; "
+                     "nenhum padrão corre sem lembrete entregue (MEL-37).",
             "O disparo no horário certo é do relógio dentro do banco (teste 7)."),
-    "R02": ("prova", "Finais sem saída; nenhum estado aberto sem saída; nenhum ciclo sem contador com teto.",
-            "Vale enquanto você não passar do teto de ordens (3 por card; a 4ª abre card novo ligado)."),
-    "R03": ("prova", "Uma execução viva por etapa; resposta de chave antiga ou sem execução viva nunca grava.",
-            "Concorrência real (dois motores, duas transações): índice único etapa+número no banco e trava única do motor (teste 4)."),
-    "R04": ("prova", "Designação nunca escolhe o autor nem quem julga a peça depois; só o designado responde.",
+    "R02": ("prova", "Finais sem saída; nenhum estado aberto sem saída; nenhum ciclo sem contador com teto; nenhuma etapa pronta ou encerrada "
+                     "com o card aberto; de todo card com as etapas aprovadas e frescas, PRONTO é alcançável só pelo sistema (vivacidade).",
+            "Vale enquanto você não passar do teto de ordens (3 por card; a 4ª ordem substitui o card por um card novo ligado)."),
+    "R03": ("prova", "Uma execução viva por etapa; resposta de chave antiga (autor, revisor e Helena) ou sem execução viva nunca grava.",
+            "Número de execução monotônico do banco (sequência, nunca reaproveitada) e trava única do motor (teste 4)."),
+    "R04": ("prova", "Designação nunca escolhe o autor, o autor do jurídico nem quem pode revisar o jurídico; só o designado responde; "
+                     "todo revisor válido da ficha é de fato percorrido; autor e revisor só dos 21 agentes do vocabulário.",
             "Que o processo é mesmo o do revisor designado: motor confere o perfil no registro de uso (teste 3)."),
-    "R05": ("prova", "Ajuste volta ao autor; no máximo 6 execuções por rodada; todo contador no teto.", ""),
-    "R06": ("prova", "Roteiro sem ciclo; ninguém trabalha sem a anterior aprovada; falha faz o card perguntar; sub-card desligado.", ""),
-    "R07": ("estrutura", "Só o fundador tem ação ou reação que muda prioridade ou prazo.",
+    "R05": ("prova", "Ajuste volta ao autor (ou, no teto das suas ordens, substitui o card); no máximo 6 execuções por rodada; todo contador no teto.", ""),
+    "R06": ("prova", "Roteiro sem ciclo; nenhuma etapa anda com o card fora de EM_ANDAMENTO/ESPERANDO_FUNDADOR (trava na tabela); "
+                     "ninguém trabalha sem a anterior aprovada (guarda calculada pelo banco); falha faz o card perguntar; sub-card desligado.", ""),
+    "R07": ("estrutura", "Só o fundador tem ação ou reação que muda prioridade ou prazo; o regime da sua espera nunca vem de parâmetro de IA.",
             "'Continuar um card nunca fura a fila de outro' é entre cards: fila única do motor por prioridade e chegada (teste 4)."),
-    "R08": ("prova", "Só o motor executa, só com o seu ok registrado, no máximo uma vez; nenhuma ação de IA tem efeito externo.",
-            "Idempotência no serviço de fora e o código do autenticador no app (fase 4)."),
-    "R09": ("prova", "Aprovada só por revisor ou por você, depois do portão 1; nenhum padrão nem automático aprova; card pronto só com todas aprovadas.",
+    "R08": ("prova", "Só o motor executa, só com o seu ok registrado, no máximo uma vez; a ação nasce só do card pronto, uma por etapa; "
+                     "ação incerta nunca vira falha sem a sua confirmação; nenhuma ação de IA tem efeito externo.",
+            "Idempotência no serviço de fora, índice único (card, etapa) da ação no banco e o código do autenticador no app (fase 4)."),
+    "R09": ("prova", "Aprovada só por revisor ou por você, depois do portão 1; no jurídico, só com o seu Aprovar; toque sobre versão que você "
+                     "não viu nunca muda estado; nenhum padrão nem automático aprova; card pronto só com todas aprovadas.",
             "O conteúdo do portão 1 (citação, conta, lei) é do validador (teste 5); a qualidade da rubrica é do teste 9."),
-    "R10": ("prova", "Decisão nova, dependência reaberta ou ajuste tornam a entrega velha; nada velho fica aprovado nem pronto.",
+    "R10": ("prova", "Decisão nova, dependência reaberta ou ajuste tornam a entrega velha; nada velho fica aprovado, pronto ou vira ação externa; "
+                     "seu ajuste no teto de ordens nunca deixa o card fechar com a peça marcada.",
             "Saber quais decisões cada execução usou: motor registra na execução."),
-    "R11": ("estrutura", "Todo botão em todo estado tem destino: passagem, reação, comentário ou card novo.",
+    "R11": ("prova", "Todo botão em todo estado tem destino; uma ordem sua aceita abaixo do teto tem passagem também no teto (nunca vira comentário).",
             "'Gravada uma vez': índice único (canal, número da mensagem) no banco (teste 11)."),
-    "R12": ("prova", "Falha de infraestrutura não gasta tentativa; na 3ª da rodada chama você.",
+    "R12": ("prova", "Falha de infraestrutura (inclusive do validador) não gasta tentativa; na 3ª da rodada chama você; capacidade que volta "
+                     "desfaz a espera uma vez por rodada.",
             "A origem da falha é lida pelo motor no registro de uso do Hermes, nunca no texto do agente."),
-    "R13": ("prova", "No máximo uma linha por evento (determinismo) e reprodução do histórico igual.",
+    "R13": ("prova", "No máximo uma linha por evento (determinismo); reprodução do histórico igual, com todo toque seu e o destino dele; "
+                     "fim registrado como seu só com toque seu; entradas só por sinal.",
             "Histórico só de acréscimo: o banco recusa UPDATE/DELETE nos eventos; backup semanal restaurado (teste 8)."),
 }
 
