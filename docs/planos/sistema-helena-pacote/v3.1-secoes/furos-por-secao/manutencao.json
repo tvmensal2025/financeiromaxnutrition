@@ -1,0 +1,338 @@
+[
+ {
+  "trecho": "No repositório principal ficam só duas credenciais, as duas de leitura, numa lista fechada",
+  "gravidade": "alta",
+  "problema": "Esta frase não é verdade durante todas as fases 0 a 3. Pela decisão 2 do fundador, a chave de acesso total ao banco (service_role) só é trocada no fim dos testes. Ela está escrita em 9 arquivos rastreados do repositório principal: scripts/cadastrar-eliving.mjs, inserir-memoria-eliving.mjs, inserir-estado-mestre-eliving.mjs, atualizar-marca-eliving.mjs, publicar-checkpoint-v035.mjs, services/helena-gateway/dev-server.mjs e outros. Vários desses scripts GRAVAM na produção. Mesmo depois de os arquivos passarem a ler de variável, a chave continua no histórico e continua valendo. A sessão na nuvem recebe recusa ao chegar ao banco, mas uma rotina do GitHub (o runner) tem internet e qualquer sessão, como administradora, escreve rotinas. O teste 11 confere só os NOMES dos segredos do GitHub, então passa verde com uma credencial de escrita total dentro do repositório. Com isso, ficam falsas também as frases 'A produção só muda pelas suas mãos', 'nada consegue publicar sozinho' e 'O que segura a produção é o seu toque'.",
+  "cenario": "Uma sessão, por engano e sem nenhum desvio, cria a checagem 'v1 continua igual' e põe nela node scripts/inserir-memoria-eliving.mjs, ou um teste do gateway que importa dev-server.mjs. O runner do GitHub grava na produção com a chave fixa, sem nenhum toque do fundador. O teste 11 fica verde e o cartão de diagnóstico não mostra nada. O fundador acredita que nada muda sem ele.",
+  "conserto": "Escrever a verdade nesta seção, respeitando a decisão dele: 'Até a troca das chaves (decisão sua: no fim dos testes), a chave de acesso total está no histórico do repositório e vale. Nesse período, quem roda código no GitHub consegue mudar a produção. O que segura é a conduta das sessões e as checagens, não uma trava.' O teste 11 ganha uma linha: o gitleaks varre o histórico inteiro e lista as chaves encontradas, só com nome e arquivo. O cartão de diagnóstico mostra o código fixo 'CHAVE_TOTAL_NO_HISTORICO: válida, risco aceito até a troca'. A checagem leve recusa rotina ou teste que rode scripts/*.mjs da v1 ou importe dev-server.mjs. Os scripts que gravam na produção vão para docs/historico/. A frase 'nenhuma credencial de produção no GitHub' só passa a valer depois da troca."
+ },
+ {
+  "trecho": "No EasyPanel, pelo celular, você cola a impressão digital no campo da imagem e toca Deploy.",
+  "gravidade": "alta",
+  "problema": "Na v3.1, o login do EasyPanel virou a única trava de produção. Ele também dá controle total da VPS e de todas as variáveis: token do Telegram, credencial de mudança do banco e token do GHCR. O README do gateway (seção 6) registra o painel do EasyPanel num endereço http, sem https, por IP e porta 3000. O texto confere a verificação em duas etapas (NÃO CONFIRMADA), mas não confere que o painel só abre por https nem que a porta do painel está restrita. O caso das portas 9119 e 8642 mostra que painéis abertos são justamente a porta de entrada que a fase 0 quer fechar.",
+  "cenario": "O fundador publica pelo celular num Wi-Fi de rua ou na rede do celular. A senha do EasyPanel trafega em texto aberto. Outra possibilidade: o painel exposto na porta 3000 sofre tentativa de senha em massa. Quem pega a senha publica qualquer imagem, lê todas as variáveis e desliga avisos, e nenhuma checagem do plano percebe.",
+  "conserto": "Pôr na fase 0a, como item de 'Antes de mexer' e dos ensaios: o painel do EasyPanel só abre por domínio com https (NÃO CONFIRMADO o nome exato da opção no EasyPanel), e o acesso por http e IP fica fechado para a internet ou restrito. O teste 11 confere, de fora, que o painel não responde por http nem pelo IP na porta do painel. Se o EasyPanel não tiver verificação em duas etapas, isso vira condição do portão 0a, e não só 'risco escrito'."
+ },
+ {
+  "trecho": "o motor liga vazio, com a fila pausada, e o vigia devolve uma vez cada etapa \"na fila\" ou \"executando\" sem execução viva, com número novo e sem gastar tentativa; toda ação externa aprovada que não esteja registrada como concluída volta para \"esperando você\" ... a lista de apagamentos (LGPD) é aplicada de novo, para nenhum dado apagado voltar.",
+  "gravidade": "alta",
+  "problema": "No roteiro de restauração, a ordem dos passos põe o motor ligado ANTES de as ações externas voltarem para 'esperando você' e ANTES de a lista de apagamentos ser reaplicada. A única pausa definida no plano é a de 20 minutos, que se desliga sozinha (passagens.yaml: PAUSAR_TUDO, 'pausa a fila por 20 minutos e desliga sozinha'). O vigia, que roda no Supabase, devolve etapas à fila sem esperar esses passos.",
+  "cenario": "Uma restauração num domingo, com o fundador seguindo o roteiro pelo celular. Os passos de ações e LGPD levam 40 minutos. A pausa vence aos 20. O motor retoma uma etapa cujo card tem o telefone de uma pessoa recrutada que pediu apagamento depois da cópia. O dado vai no pacote do agente para a OpenAI e para uma entrega nova, que entra no backup seguinte e reinicia o prazo de 8 semanas. No mesmo intervalo, uma ação externa aprovada antes da cópia e feita depois (a conclusão só estava no banco perdido) está 'aprovada' no banco restaurado, e o motor a executa de novo, o que fere a regra 8.",
+  "conserto": "Reordenar o roteiro: (1) recriar o esquema do DBOS; (2) aplicar a lista de apagamentos; (3) devolver para 'esperando você' as ações externas aprovadas e não concluídas; (4) rodar de novo o teste 11 e o checklist da v1; (5) só então ligar o motor, com uma 'pausa de restauração' que NÃO vence sozinha e que só o toque do fundador desliga. O teste 8 ganha o caso 'dado apagado depois da cópia não aparece em nenhum pacote de agente depois de restaurar'."
+ },
+ {
+  "trecho": "derrubar o motor à força, sem desligar direito, e conferir que a trava única se solta e que o motor seguinte liga sozinho, num tempo medido, pelo mesmo caminho do pooler de sessão",
+  "gravidade": "media",
+  "problema": "Matar o processo (docker kill) fecha a conexão de rede do jeito normal, então a trava se solta e o teste passa. O caso perigoso fica de fora: a VPS cai de vez (falta de energia, reinício forçado da Hostinger, travamento) ou a rede entre a VPS e o Supabase é cortada. Aí não chega nenhum aviso de fim de conexão, e o Postgres ou o pooler mantém a sessão, com a trava, até o tempo de vida da conexão vencer. No Linux, esse tempo padrão passa de 2 horas (NÃO CONFIRMADO o valor no Supavisor). Há um segundo problema: se a trava for do tipo trava de aviso do Postgres, qualquer papel que conecta consegue pegá-la, inclusive o papel do diagnóstico. A frase 'não consegue pegar a trava do motor' não tem mecanismo escrito, e no Supabase o papel postgres não é dono dessas funções para tirar a permissão (NÃO CONFIRMADO).",
+  "cenario": "A VPS reinicia à força às 02h. O motor novo sobe e fica esperando a trava por horas, porque a sessão antiga continua 'viva' do lado do banco. O healthchecks avisa 'motor fora', mas o fundador não tem receita para soltar a trava, e as sessões não alcançam o banco. Todos os cards ficam parados até de manhã.",
+  "conserto": "O teste que bloqueia o portão ganha dois casos: cortar a saída de rede da VPS sem fechar a conexão, e reiniciar a VPS à força. Ele só passa se o motor seguinte ligar sozinho num tempo medido e escrito. A forma principal da trava passa a ser uma reserva com prazo numa linha de tabela, renovada pelo motor vivo, que só o papel do motor pode mudar. Isso resolve a queda sem aviso e também torna verdadeiro 'o diagnóstico não pega a trava'. Criar a receita 'motor-nao-liga', com a consulta só de leitura que mostra quem segura a trava e o comando de encerrar aquela sessão no editor SQL (nível 2, frase pronta)."
+ },
+ {
+  "trecho": "você recebe em até 10 minutos: \"publicação falhou: no EasyPanel, cole a impressão anterior e toque Deploy\", com a impressão pronta para copiar",
+  "gravidade": "media",
+  "problema": "O aviso de que a publicação falhou sai do próprio motor ('Quem manda: só o motor'), e o motor é justamente a versão que falhou. Na v3, o botão do GitHub sabia que tinha publicado; na v3.1, nada fora da imagem nova sabe que houve um Deploy. Pelo mesmo motivo, o gatilho do cartão de diagnóstico ('e sempre que uma publicação falhar, um job do GitHub atualiza...', também na tabela de minutos) não tem como disparar: o motor não tem token do GitHub e o EasyPanel não avisa o GitHub. Isso reabre o B-12 e o B-14 (aviso por um caminho que não depende da peça que caiu).",
+  "cenario": "Às 23h, Deploy de uma imagem em que o envio ao Telegram quebrou, ou em que falta uma variável. Pode acontecer de duas formas. Na primeira, ela cai ao ligar, e o healthchecks só diz 'motor fora' depois de até 15 minutos, sem a impressão para voltar. Na segunda, ela fica viva sem abrir a fila e continua mandando o sinal de vida, o healthchecks fica verde e a fila fica parada até de manhã. O cartão de diagnóstico só se atualiza na próxima rodada de 3 horas.",
+  "conserto": "'Preparar publicação' passa a gravar no banco: 'publicação esperada: imagem X até HH:MM, impressão anterior Y'. O vigia, dentro do Supabase e fora do motor, confere se chegou sinal de vida da versão X com a conferência aprovada dentro do prazo. Se não chegou, marca falha numa checagem própria do healthchecks chamada 'publicação' (HealthchecksBot e e-mail), um caminho independente da imagem nova. O motor só manda sinal de vida ao healthchecks depois de a própria conferência passar. O app mostra a impressão Y gravada no pedido. Tirar do texto e da tabela de minutos o gatilho 'quando uma publicação falha', ou dizer qual credencial o dispararia."
+ },
+ {
+  "trecho": "Os workflows dele são preparados como texto pelas sessões, guardados como modelo revisado em `ops/helena-backup/` no repositório principal, e colados por você.",
+  "gravidade": "media",
+  "problema": "O helena-backup fica fora do acesso direto das IAs, mas o código que roda lá dentro, inclusive o único job que tem a chave que abre os backups, é escrito por elas e colado por um fundador que não lê código. Além disso, a restauração semanal executa SQL que vem dentro da própria cópia ('roda a checagem das 13 regras do vigia', 'chama a função do vigia'), escrito pelas sessões por meio de migrations. Esse SQL roda com a cópia aberta (dados reais de pessoas) e com internet ligada, e o Supabase local inclui a extensão que faz chamadas HTTP de dentro do banco (pg_net). O texto diz 'que nenhuma IA alcança', o que exagera a garantia justamente contra a sessão desviada que esta seção admite como risco.",
+  "cenario": "Uma de três coisas acontece. (1) Um modelo de workflow 'revisado' ganha um passo que manda a cópia aberta ou a chave para fora, e o fundador cola sem perceber. (2) Uma função do vigia, vinda de uma migration, faz um envio HTTP quando roda na restauração. (3) Uma tarefa agendada restaurada, com endereço escrito por extenso, passa a chamar a produção de dentro da máquina do GitHub a cada minuto, durante os 30 minutos da restauração.",
+  "conserto": "Na restauração: baixar e abrir a cópia numa rede do Docker sem saída para a internet (NÃO CONFIRMADO o jeito exato com o Supabase local). Desligar todas as tarefas agendadas restauradas antes de ligar o agendador, e religar só o vigia e o relógio, com os envios apontando para lugar nenhum. O workflow do helena-backup fica curto e fixo. Qualquer mudança nele vira AUT de nível 2, com a diferença explicada em português e com a pergunta fixa da revisão independente: 'algum passo envia algo para fora?'. Trocar 'nenhuma IA alcança' por 'nenhuma IA tem acesso direto; o código dele é escrito por IA e revisado'."
+ },
+ {
+  "trecho": "e o `helena-backup` gasta da mesma cota ... Backup, restauração e varredura de senhas nunca são cortados.",
+  "gravidade": "media",
+  "problema": "Os cortes previstos protegem o backup só contra o gasto planejado. Um gasto descontrolado no repositório principal esgota os 2.000 minutos da conta, e aí todos os workflows param, inclusive o backup, até o mês virar. Exemplos: um workflow que dispara a si mesmo ao enviar, uma matriz grande, reexecuções. A própria tabela já soma de 1.400 a 1.460 minutos antes de especificações, app, banco, imagem e prévia. Não existe caminho alternativo para a cópia: o PC dele bloqueia o programa do Supabase e as sessões não alcançam o banco. Também não dá para montar uma imagem de conserto urgente.",
+  "cenario": "No dia 12, uma sessão cria uma rotina que se redispara e queima 1.800 minutos em poucas horas. O backup das 03:17 deixa de rodar por 18 dias. O healthchecks avisa, mas a única saída é cadastrar um cartão às pressas. Se houver um desastre nesse período, a cópia mais nova tem semanas.",
+  "conserto": "Criar o helena-backup numa organização gratuita só do fundador (cartão de decisão). Ela tem cota própria de minutos (NÃO CONFIRMADO para a conta dele), os apps de IA instalados na conta pessoal não chegam lá, e a organização permite restringir apps de terceiros. Assim o backup não depende dos minutos do repositório principal. Junto, deixar escrita uma decisão prévia: se a cota do repositório principal passar de 90%, os workflows dele são desligados à mão (receita de um toque em Settings), nunca o backup."
+ },
+ {
+  "trecho": "e revoga os apps e os tokens clássicos que alcançam todos os repositórios privados.",
+  "gravidade": "media",
+  "problema": "O EasyPanel puxa o gateway direto do GitHub: o README registra fonte GitHub, repositório principal e ramo main. Para isso, ele guarda um token do GitHub na VPS (NÃO CONFIRMADO o tipo; o EasyPanel costuma pedir um token pessoal). Esse token não está na lista de chaves nem nesta seção. Há duas saídas e as duas furam o plano. Se o token alcança todos os repositórios, ele lê, e talvez escreve, o helena-backup, e mora na VPS onde rodam os agentes da v1 com terminal. Se o fundador o revogar, seguindo esta frase, o próximo Deploy ou reconstrução de qualquer serviço com fonte GitHub falha, e o texto não avisa disso.",
+  "cenario": "O fundador revoga todos os tokens clássicos antes de criar o helena-backup. Dias depois, um Deploy do gateway ou do laya-service falha sem explicação. Ou ele não revoga esse token, porque não sabe que existe, e o teste 11 nunca tenta ler o helena-backup com ele.",
+  "conserto": "Na fase 0a, fazer o inventário do token do GitHub guardado no EasyPanel (tipo e alcance, sem valor) e pôr na lista de chaves. Antes de criar o helena-backup, trocar esse token por um de granularidade fina, só do repositório principal e só de leitura, ou tirar a fonte GitHub dos serviços da v1. O teste 11 tenta listar e ler o helena-backup também com esse token."
+ },
+ {
+  "trecho": "Se uma autorização ficar parada por muito tempo, a sessão só reconfere o estado antes de usar.",
+  "gravidade": "media",
+  "problema": "As sessões não alcançam o banco: recebem recusa na nuvem, o PC dele bloqueia o programa do Supabase e o cartão só tem números agregados. Por isso, 'a pré-condição ... conferida só por leitura', 'reconfere o estado' e, na execução item a item, 'confere o que foi e o que não foi aplicado' não têm quem execute quando a mudança é no banco. A sessão 'reconfere' relendo arquivos, não o estado real.",
+  "cenario": "Um AUT para revogar o acesso público das 38 funções é concedido no dia 1 e usado no dia 20. Nesse meio tempo, a v1 ganhou duas funções novas, por zip ou migration de outra ferramenta. A sessão 'reconfere' e diz que está tudo igual. O fundador cola o script antigo, e duas funções seguem públicas. Ou o script falha na metade, metade fica aplicada, e ninguém vê, porque a sessão não lê o banco.",
+  "conserto": "Todo script de AUT para o editor SQL passa a ter três partes. (1) Começa com a pré-condição em SQL, que interrompe tudo com uma mensagem clara se o estado não bater (por exemplo, a contagem esperada de funções públicas). (2) Roda numa transação só, tudo ou nada. (3) Termina com uma consulta só de leitura cuja saída, só números e códigos, o fundador cola de volta. O AUT só vira 'usada' com essa saída colada. Escrever no texto que, até existir o cartão, quem confere o estado do banco é o próprio script, rodado por ele."
+ },
+ {
+  "trecho": "a sessão abre o AUT já como usado, com as suas palavras, sem pergunta a mais, e a gravação na tabela de destino (empresas em `public.portfolio`) acontece na hora pelo caminho que alcança o banco: hoje, você no editor SQL com o script pronto, ou uma sessão que alcance o banco.",
+  "gravidade": "media",
+  "problema": "O AUT é marcado 'usado' antes de a gravação acontecer, e a gravação depende de o fundador rodar o script. 'Conferida depois' (na tabela final) não tem quem confira, porque as sessões não leem o banco. Assim, a DEC-022 ('materializar imediatamente') pode falhar em silêncio, com o livro dizendo que já foi feito. Além disso, 'ou uma sessão que alcance o banco' admite um caminho de escrita por sessão, o que contradiz 'A produção só muda pelas suas mãos', sem dizer com qual credencial.",
+  "cenario": "À noite, pelo celular, ele manda 'crie a empresa BIZ-005'. O AUT fica 'usado'. O script fica no meio de outras mensagens e ele não roda. Semanas depois, os agentes não têm a empresa no contexto, o livro diz que ela foi criada e nada avisa.",
+  "conserto": "O AUT de DEC-022 abre como 'concedida', sem pergunta nenhuma, e vira 'usada' só com a linha de confirmação colada de volta (contagem e código da empresa). Ao mesmo tempo, entra sozinho um item em 'Precisa de você' com prazo de 24 horas. A view do diagnóstico ganha o número de empresas e o último código, que é número ou código de lista fixa, para conferir sem ler o banco. Tirar 'ou uma sessão que alcance o banco', ou dizer qual credencial é essa e que ela é exceção escrita à regra do toque."
+ },
+ {
+  "trecho": "Junto vai uma lista: a contagem de linhas de cada tabela e os nomes das extensões, dos papéis e das tarefas agendadas, sem nenhum valor secreto.",
+  "gravidade": "media",
+  "problema": "A lista é feita pelo mesmo papel e com o mesmo recorte da cópia, então tudo o que ficar fora dos dois não aparece como falta, e a restauração semanal ('confere a contagem de linhas de cada tabela contra a lista') fica verde. O texto lista o que fica fora de propósito (DBOS, cofre, Storage, segredos), mas não diz nada das contas de login (o esquema auth, que o Supabase controla). Delas dependem a conta do fundador, as regras de acesso que olham o identificador dele e, na fase 4, o código do autenticador. Também não diz o que fazer com os erros esperados ao restaurar sobre um Supabase local, que já traz os próprios esquemas: se os erros forem ignorados em bloco, um erro real some junto.",
+  "cenario": "O papel de leitura não consegue ler o esquema auth (NÃO CONFIRMADO o que o papel postgres pode conceder), e a cópia passa a ser feita só dos esquemas que ele lê. Seguem 8 semanas de restaurações verdes. No desastre, o banco volta sem as contas: ninguém entra no app, e as regras de acesso recusam tudo.",
+  "conserto": "A lista passa a sair do catálogo do banco, que qualquer papel lê. Ela traz todos os esquemas e tabelas, com a marca 'sem permissão' quando não der para contar. A restauração falha se uma tabela do catálogo não estiver nem na cópia nem na lista fixa 'fora de propósito'. O roteiro diz por extenso o que acontece com as contas de login: copiadas com o mesmo identificador, ou recriadas com passo a passo. A restauração falha em qualquer erro que não esteja numa lista fixa de erros esperados."
+ },
+ {
+  "trecho": "Como as sessões não alcançam o `helena-backup`, você passa esse arquivo uma vez para o repositório principal, com o passo a passo na mensagem da fase 0b",
+  "gravidade": "media",
+  "problema": "A cópia é criptografada, e a chave que abre fica 'com você, fora do computador'. Para tirar dela a estrutura sem dados, alguém precisa abrir a cópia num computador e rodar ferramentas de banco. O PC dele bloqueia o programa do Supabase e ele não programa. Sem esse arquivo, o ambiente descartável não tem a estrutura da v1: a prévia 'reprova' e os testes que dependem dela não rodam, então a fase 2 trava.",
+  "cenario": "Na fase 0b, o passo a passo pede para instalar uma ferramenta e usar a chave privada no PC. Ou ele não consegue e a construção para, ou a chave que abre todos os backups vai parar na pasta Downloads, o que enfraquece o backup inteiro.",
+  "conserto": "O próprio workflow da cópia no helena-backup gera também, quando a estrutura muda, um arquivo só de estrutura: sem dados, sem tarefas agendadas e sem cofre. Esse arquivo passa pela varredura de senhas lá dentro e é anexado separado, sem criptografia. O fundador só baixa e envia pelo site do GitHub (NÃO CONFIRMADO o envio de arquivo pelo celular). A chave privada nunca precisa sair do lugar."
+ },
+ {
+  "trecho": "É a mesma pausa do botão \"Pausar tudo\", que se desliga sozinha em 20 minutos.",
+  "gravidade": "media",
+  "problema": "A pausa deixa terminar as execuções vivas e só depois mostra 'pode publicar'. A Clara tem 900 segundos e, depois de esgotar o tempo, ganha mais uma tentativa com 50% a mais (TETO_TEMPO): 1.350 segundos, ou 22,5 minutos. As fichas permitem até 900 segundos, então qualquer serviço pode chegar a esse tamanho. Uma execução viva pode durar mais que a pausa. Nesse caso a fila nunca esvazia dentro dela, e quando ela vence o motor já pega a próxima etapa.",
+  "cenario": "Ele toca 'Preparar publicação' às 21:00, com a Clara recém-começada na segunda tentativa. Às 21:20 a pausa vence sem 'pode publicar', e o motor inicia outra etapa de 15 minutos. Com a fila cheia da meta das 10 pessoas, uma publicação com mudança no banco exige toques repetidos por horas.",
+  "conserto": "'Preparar publicação' vira uma pausa própria, que dura até o Deploy ou até ele cancelar, com teto escrito (por exemplo, 2 horas) e aviso. Outra opção: os 20 minutos começam a contar a partir do 'pode publicar'. O app mostra a previsão, que é o maior tempo restante entre as execuções vivas. O teste 4 ganha o caso 'pausa pedida no começo de uma segunda tentativa da Clara'."
+ },
+ {
+  "trecho": "A credencial dessa mudança existe só no EasyPanel. Depois de aplicar, o programa a descarta e passa ao motor sem ela",
+  "gravidade": "media",
+  "problema": "'Descarta' só vale dentro do processo. A credencial fica guardada como variável do serviço do motor, presente em todo reinício e visível a quem inspeciona o contêiner no servidor. Ela fica lá por tempo indeterminado, na VPS dividida com a v1, cujos agentes têm terminal. O texto também não limita o poder dela: ela poderia mudar tabelas da v1, contas e acessos de funções. É a credencial mais forte do sistema, morando de forma permanente no lugar mais exposto.",
+  "cenario": "Uma biblioteca de conexão imprime a configuração ao cair, e a credencial vai para os registros do EasyPanel. Ou uma checagem da v1 com acesso ao Docker lê as variáveis do contêiner do motor. Quem pega a credencial muda qualquer tabela, inclusive da v1, sem passar por publicação.",
+  "conserto": "Escrever a verdade: 'fica guardada no serviço do motor no EasyPanel'. O papel de mudança passa a ser dono só do esquema da v2, sem poder sobre public, auth ou funções da v1 (mudança na v1 continua pelo editor SQL, com AUT). O teste 11 confere que esse papel não altera uma tabela da v1. Cartão de decisão: colar a credencial só na publicação com mudança e apagar depois, com o custo de um passo a mais para ele."
+ },
+ {
+  "trecho": "Cada ramo ganha uma etiqueta de arquivo (`arquivo/2026-10-10/<ramo>`) antes de ser apagado, em duas rodadas e só depois do seu OK.",
+  "gravidade": "baixa",
+  "problema": "Há duas falhas. (1) A conferência de 'de onde cada serviço publica' é exigida antes de juntar, mas não antes de apagar ramos. Ramos com nome de publicação (infra/helena-gateway, infra/helena-laya-meowcaller) podem estar 'inteiros na main' e cair na primeira rodada; é NÃO CONFIRMADO se algum serviço do EasyPanel os usa como fonte. (2) As etiquetas não são protegidas e o espelho é semanal. Entre criar a etiqueta, apagar o ramo e o próximo espelho, apagar uma etiqueta por engano perde o código de vez. E se o 'espelho' for do tipo que reflete apagamentos, ele mesmo propaga a perda.",
+  "cenario": "A primeira rodada apaga infra/helena-laya-meowcaller na segunda-feira. O serviço no EasyPanel aponta para esse ramo, e o próximo Deploy ou reconstrução falha na quinta, sem ligação aparente com o apagamento.",
+  "conserto": "O print da fonte de cada serviço no EasyPanel vira pré-condição também de cada rodada de apagamento. Nenhum ramo é apagado antes de rodar e passar um espelho no helena-backup feito depois das etiquetas. O espelho guarda um pacote por semana (git bundle) com a mesma retenção do backup, nunca uma cópia que repete apagamentos e envios forçados."
+ },
+ {
+  "trecho": "o healthchecks avisa você se ele passar de 7 horas sem atualizar",
+  "gravidade": "baixa",
+  "problema": "Para o healthchecks saber que o cartão foi atualizado, o job precisa mandar sinal de vida com um endereço de sinal, que o próprio texto chama de segredo ('quem tiver um deles pode fingir que o sistema está vivo'). A chave só de leitura não manda sinal. Esse terceiro item não está na 'lista fechada' de duas credenciais que o teste 11 confere pelos nomes. Ou a lista está errada, ou o vigia do cartão não existe.",
+  "cenario": "A sessão põe o endereço num terceiro segredo, e o teste 11 fica vermelho toda semana até ser 'ajustado', o que vira ruído. Ou o endereço fica de fora, e o cartão para por dias sem nenhum aviso.",
+  "conserto": "Incluir na lista fechada um terceiro item: o endereço de sinal só da checagem do cartão de diagnóstico. Escrever o risco: quem tiver esse endereço só consegue fingir que o cartão está em dia, e mais nada."
+ },
+ {
+  "trecho": "a impressão digital da imagem nova e a da imagem que está no ar, para voltar",
+  "gravidade": "baixa",
+  "problema": "A impressão digital usada para voltar vem do pedido escrito pela sessão. O cartão mostra o commit no ar, não a impressão digital. São três serviços (motor, servidor de ferramentas e app), cada um com seu campo. Um engano, como a impressão de outro serviço ou de uma versão mais antiga, só aparece na hora de voltar, sob pressão.",
+  "cenario": "Uma falha à noite. Ele cola a 'anterior' do pedido, que era a do servidor de ferramentas. O serviço do motor sobe o programa errado, falha de novo, e o sistema fica mais tempo fora.",
+  "conserto": "No passo 3, antes de apagar o campo, ele copia a impressão que está lá, que é a de voltar e vem de uma fonte que nenhuma sessão escreve, e guarda numa nota. Cada imagem leva gravado o nome do próprio serviço e não liga se a variável fixa do serviço no EasyPanel indicar outro. O pedido mostra as impressões separadas por serviço, com o nome de cada um."
+ },
+ {
+  "trecho": "Uma sessão de construção por vez (WIP = 1 também para as sessões), para não haver conflito.",
+  "gravidade": "baixa",
+  "problema": "Nada faz essa regra valer. O fundador usa várias ferramentas de IA ao mesmo tempo, e os 33 ramos de Codex, Cursor, Claude e Antigravity mostram isso. Os números de AUT são escolhidos pelas sessões nos próprios ramos, então dois arquivos diferentes podem ter o mesmo número (AUT-0007-papel-backup.md e AUT-0007-portas.md), sem conflito no git.",
+  "cenario": "Duas sessões abrem o AUT-0007 para coisas diferentes. Ele digita 'autorizo AUT-0007: ...' sem a versão certa, ou copia a frase de um e executa o script do outro.",
+  "conserto": "O conferidor do envio falha quando há número de AUT repetido na main. O número só é dado na junção, ou passa a ser data mais assunto. O construcao.md ganha um campo 'sessão ativa desde HH:MM (ferramenta)': uma sessão que encontra outra ativa há menos de X horas para e avisa."
+ },
+ {
+  "trecho": "na fase 0a, 24 horas de medição do processador e da memória como estão hoje, para o teste 6 ter com o que comparar",
+  "gravidade": "baixa",
+  "problema": "O texto não diz quem mede nem como. As sessões não alcançam a VPS, o motor (cujo sinal de vida leva disco e memória) não existe na fase 0, e o EasyPanel mostra o momento, não 24 horas guardadas (NÃO CONFIRMADO). É o mesmo tipo de furo do ponto 2 da crítica: um passo sem quem execute.",
+  "cenario": "O portão 0a chega sem a medição. Ou o portão trava, ou o teste 6 passa a comparar com nada.",
+  "conserto": "Escrever o executor: ele cola no console do servidor um comando só de leitura, que roda em segundo plano (sem depender da tela aberta), grava os números a cada 5 minutos por 24 horas, e depois cola o resumo de volta, só com números. Se não der, aceitar prints do painel em 4 horários marcados, dizendo que é uma medida fraca."
+ },
+ {
+  "trecho": "O motor também não liga se encontrar no ambiente dele ou do Hermes uma chave de API paga (OPENAI_API_KEY, AI_GATEWAY_API_KEY ou VERCEL_*). Assim nenhuma cota paga é gasta sem ninguém ver (DEC-014).",
+  "gravidade": "baixa",
+  "problema": "É uma lista de nomes proibidos, mas a frase conclui de forma absoluta ('nenhuma cota paga'). O Hermes aceita outros provedores pagos (NÃO CONFIRMADO a lista na versão fixada) e lê chaves também de arquivos do perfil, não só do ambiente. A v1 já usa APIs pagas na voz (ElevenLabs e Chirp no gateway), e uma sessão pode copiar essa configuração.",
+  "cenario": "Uma chave de outro provedor, com outro nome, ou guardada num arquivo do perfil do Hermes da v2, passa pela conferência. Cota paga é gasta sem ninguém ver.",
+  "conserto": "Trocar por uma lista de nomes PERMITIDOS: qualquer outro nome no ambiente do motor ou do Hermes impede ligar. Conferir também, por nome de chave e nunca pelo valor, os arquivos do perfil do Hermes da v2. Frase medida: 'o motor não liga com chave fora da lista; o teste 3 confere o pedido real'."
+ },
+ {
+  "trecho": "a gravação na tabela de destino (empresas em `public.portfolio`) acontece na hora pelo caminho que alcança o banco: hoje, você no editor SQL com o script pronto, ou uma sessão que alcance o banco.  /  Porta v1 [...] Mudança no banco, no servidor ou na publicação pede a sua frase de nível 2.",
+  "problema": "Contradiz a regra central da mesma seção: \"Nem a senha de mudar o banco [...] e nenhum deles é ligado a uma sessão de IA\". Dois trechos supõem uma sessão de IA que grava no banco ou no servidor. Isso também contradiz \"quem executa: você no editor SQL, você no EasyPanel ou a imagem ao ligar\", no livro de autorizações.",
+  "cenario": "Uma sessão local no PC, com acesso de escrita ao banco (por exemplo, pelo MCP do Supabase), cumpre a DEC-022 ou a porta v1 gravando direto. Ela passa a ser exatamente a credencial de produção ligada a uma IA que o plano diz não existir. Nem o teste 11 nem a lista de chaves a enxergam.",
+  "conserto": "Escrever uma regra só: nenhuma sessão de IA tem credencial que grava no banco ou no servidor, nem no PC. Pela DEC-022, a sessão prepara o script e abre o AUT já como usado; você roda o script no editor SQL, e \"na hora\" quer dizer \"assim que você roda\". Na porta v1, a sessão prepara e você executa (editor SQL ou EasyPanel) com a frase de nível 2. Se existir hoje um acesso de escrita de IA no PC, ele vai para o inventário de chaves como exceção escrita, com o risco e a recomendação de desligar.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Se um item falhar, a sessão para, confere o que foi e o que não foi aplicado, desfaz o que o \"como desfazer\" mandar e marca \"interrompida\".  /  Se uma autorização ficar parada por muito tempo, a sessão só reconfere o estado antes de usar.",
+  "problema": "As sessões não alcançam o banco nem o EasyPanel (a própria seção diz que elas recebem recusa). Então não conseguem conferir a pré-condição, nem ver o que foi aplicado, nem desfazer. Quem executa é você ou a imagem. O texto dá à sessão um papel que ela não tem como cumprir.",
+  "cenario": "Um passo SQL da fase 0a falha no meio, no editor. A sessão \"marca interrompida\" sem saber o que ficou aplicado e manda desfazer às cegas. Ou dá a pré-condição como conferida sem ter lido nada.",
+  "conserto": "Cada AUT traz um script de conferência só de leitura. Você o roda no editor SQL (ou manda um print do EasyPanel) e cola o resultado, só com números e nomes. A sessão compara e devolve o script de desfazer. Enquanto isso não acontece, a pré-condição fica \"NÃO CONFIRMADO\". A partir da fase 2, a conferência vem do cartão de diagnóstico.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Como as sessões têm administração, elas conseguem desfazer isso; o teste 11 confere os valores toda semana.  /  e passa a conferir essa lista, pelos nomes, nunca pelos valores.",
+  "problema": "Não há como rodar essa conferência automática sem uma credencial nova. A permissão interna dos workflows (GITHUB_TOKEN) não lê a lista de segredos nem as configurações de Actions, porque isso pede permissão de administração. As sessões recebem recusa (403) nesses endereços, como registrou a verificação da MEL-05. O plano promete uma conferência semanal que não roda.",
+  "cenario": "Uma sessão desfaz \"exigir ações fixadas por SHA\" ou cria um segredo novo. O teste 11 \"verde\" não viu nada, e o fundador acredita que está conferido.",
+  "conserto": "Escrever que essa parte é \"conferência manual — NÃO CONFIRMADO\": um print seu de Settings > Actions e da lista de nomes dos segredos, no portão de cada fase (ou mensal), comparado com a lista fechada. O teste 11 automático confere só o que o repositório mostra, por exemplo que os workflows citam apenas nomes da lista.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Ele lê só uma view [...] com um papel do banco que não lê mais nada, tem no máximo 2 conexões e tempo máximo por consulta, e não consegue pegar a trava do motor.  /  Nenhuma credencial que mude a produção fica no GitHub.",
+  "problema": "\"Não consegue pegar a trava\" é dado como fato e não foi conferido. Uma trava de sessão no Postgres (advisory lock) pode ser pega por qualquer papel, porque essas funções vêm liberadas para todos. No Supabase, o papel postgres não é superusuário, então provavelmente não consegue tirar esse acesso. O \"tempo máximo por consulta\" também não solta uma trava de sessão. Além disso, a decisão fixa diz \"nenhuma credencial de produção no GitHub\", e o texto troca isso, sem avisar, por \"que mude a produção\".",
+  "cenario": "Uma sessão desviada escreve um workflow que usa o segredo do diagnóstico e chama a trava com o mesmo número. O motor novo espera para sempre e nada publica nem roda, sem que nenhuma credencial \"de mudança\" tenha sido usada.",
+  "conserto": "Marcar NÃO CONFIRMADO e escolher uma de duas saídas. (a) A trava única exige escrever numa tabela nossa, por exemplo uma reserva com prazo, o que o papel de leitura não pode fazer. (b) O teste 11 prova que o papel do diagnóstico recebe recusa ao tentar a trava. Escrever também, como mudança marcada, que ficam no GitHub credenciais de LEITURA da produção, com o motivo e o risco, e pedir o seu OK de nível 1.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "**O que segura a produção** é o seu toque no EasyPanel e no editor SQL, o banco recusando qualquer passagem fora da tabela e o motor se recusando a ligar com acesso de administrador.  /  O conteúdo é protegido pelos testes da versão candidata (contra erro), pela revisão independente no portão de cada fase e pelas travas do banco.",
+  "problema": "A partir da fase 2, a mudança no banco vem dentro da imagem que a sessão monta e roda com a credencial de migração, que pode alterar ou apagar a tabela de passagens, as travas e os acessos. Contra uma sessão desviada, \"as travas do banco\" não protegem o conteúdo da imagem. E a revisão independente só acontece no portão da fase, não a cada publicação.",
+  "cenario": "Entre dois portões, uma sessão inclui numa migration a remoção de uma trava. O fundador cola a impressão digital (que não consegue avaliar) e a migration desliga a proteção que o plano lista como \"o que segura a produção\".",
+  "conserto": "Escrever por extenso: \"a mudança no banco dentro da imagem roda com uma credencial que pode mudar as travas; contra uma sessão desviada, o que segura é só o seu toque\". O pedido de publicar lista cada migration pelo nome e pela impressão digital. Publicação com mudança no banco só depois de uma revisão independente daquela versão. Migration que mexe em passagens, papéis ou acessos pede frase de nível 2 que cite a migration.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "No repositório principal ficam só duas credenciais, as duas de leitura, numa lista fechada: o papel do banco que lê apenas a tabela de números do diagnóstico e a chave só de leitura do healthchecks.io.  /  Ele guarda três segredos: o endereço do papel de leitura do banco; a chave que abre os backups, usada só pela restauração; e uma chave só de leitura do repositório principal, para o espelho do código.",
+  "problema": "As contagens não fecham com o resto do texto. O cartão de diagnóstico precisa mandar sinal ao healthchecks (\"o healthchecks avisa você se ele passar de 7 horas sem atualizar\"), o que exige um endereço de sinal no repositório principal. O backup e a restauração do helena-backup também mandam sinal. O próprio plano diz que \"quem tiver um deles pode fingir que o sistema está vivo\", e esses endereços ficaram fora das duas listas.",
+  "cenario": "O teste 11 confere a \"lista fechada\" e reprova, ou a lista é ajustada sem registro. Ou uma sessão usa o endereço de sinal do cartão para fingir que ele está vivo, e nenhuma lista de chaves o cobre.",
+  "conserto": "Listar todas pelo nome. No principal: papel de leitura da view, chave de leitura do healthchecks e endereço de sinal do cartão (3), com o risco do sinal falso escrito. No helena-backup: os 3 de hoje mais os sinais do backup e da restauração. Atualizar a lista do teste 11 e a lista de chaves.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Um teste, num Postgres local, falha se a view ganhar uma coluna que não seja número, data, sim ou não, ou código da lista.",
+  "problema": "Contradiz o que o cartão promete mostrar: \"versão no ar\" (o código do commit), \"as impressões digitais da lista do que fica fora do GitHub\" e os nomes das tarefas agendadas por impressão digital. Um código de commit ou uma impressão digital é um texto que não está numa lista fixa, então pela regra vira \"valor recusado\" ou derruba o teste.",
+  "cenario": "Quando a impressão digital entra na view, o teste de tipos falha. Se a regra for afrouxada para aceitar texto, reabre o caminho de texto livre que ela queria fechar.",
+  "conserto": "Criar um tipo a mais, \"impressão digital\": texto de exatamente 40 ou 64 caracteres de 0-9 e a-f, conferido por regra fixa. Ou o banco compara com a versão aprovada e a view mostra só \"bate / não bate\" (sim ou não). Escrever qual das duas vale.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A cada 3 horas, num minuto fora da hora cheia, e sempre que uma publicação falhar, um job do GitHub atualiza um cartão fixo de diagnóstico.",
+  "problema": "É uma sobra da v3, quando publicar era um workflow do GitHub. Agora a publicação é no EasyPanel, e o GitHub não fica sabendo que ela falhou. Disparar o cartão de fora exigiria um token do GitHub dentro da produção, que não está em nenhuma lista. Também contradiz a regra \"um job com segredo só roda agendado ou disparado à mão\". O mesmo erro aparece na tabela de minutos.",
+  "cenario": "A publicação falha e o cartão não se atualiza até a próxima rodada de 3 horas. Ou alguém cria às pressas um token de disparo na VPS, fora da lista de chaves.",
+  "conserto": "Tirar \"sempre que uma publicação falhar\" do cartão e da tabela de minutos. A falha já chega pelo Telegram em até 10 minutos e pode ir ao healthchecks como falha de uma checagem \"publicação\". O cartão mostra na rodada seguinte. Se quiser disparo imediato, levar a você um cartão de decisão sobre um token só de disparo, que entra na lista de chaves.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "No EasyPanel, o campo da imagem recebe sempre a impressão digital, nunca uma etiqueta que pode ser regravada, e a publicação automática fica desligada.",
+  "problema": "É um absoluto que a própria seção desmente: aceitar a impressão digital no campo está \"NÃO CONFIRMADO\", e o plano B é \"cada versão ganha uma etiqueta única\". Os passos 3 e \"Voltar é colar a impressão digital anterior\" também são escritos como certos.",
+  "cenario": "O ensaio mostra que o EasyPanel não aceita a impressão digital. O texto que o fundador leu diz \"nunca uma etiqueta\", e a receita \"publicar-e-voltar\" fica errada.",
+  "conserto": "Escrever de forma condicional: \"se o ensaio da fase 2 confirmar que o EasyPanel aceita, o campo recebe a impressão digital; se não, uma etiqueta única por versão, e o cartão compara a versão no ar com a aprovada\". O mesmo vale para os passos de publicar e voltar.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A receita \"mudar-banco\" só pede o seu toque quando o cartão de diagnóstico mostra o backup da última noite e a última restauração semanal verdes.",
+  "problema": "Na fase 0a, isso não tem como acontecer. O cartão de diagnóstico, o backup da noite e a restauração semanal só existem na 0b, e a receita \"mudar-banco\" é escrita na fase 0 para valer já nos passos de SQL da 0a.",
+  "cenario": "Lida ao pé da letra, a receita trava todos os SQL da 0a (portas, acesso público, papel de fundador). Se for ignorada, a regra perde o valor.",
+  "conserto": "Dar duas condições. Na 0a: \"cópia completa nova feita e restaurada, com as contagens batendo, vista no resultado do workflow no celular\". A partir da 0b: o cartão com o backup e a restauração verdes.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os workflows dele são preparados como texto pelas sessões, guardados como modelo revisado em `ops/helena-backup/` no repositório principal, e colados por você.",
+  "problema": "O \"fora do alcance das IAs\" depende de um texto que as IAs escrevem e que um fundador leigo cola sem conseguir ler. \"Revisado\" não diz por quem. O helena-backup guarda a credencial que lê o banco inteiro e a chave que abre os backups, então um modelo desviado anula o isolamento. É o mesmo caso de \"protege contra erro, não contra uma sessão desviada\", e aqui isso não foi escrito.",
+  "cenario": "Um modelo de workflow manda a cópia aberta ou o endereço do banco para um site de fora. O fundador cola e os dados pessoais saem, apesar do repositório separado.",
+  "conserto": "Escrever o limite. Revisão por uma sessão independente, de outro fornecedor, com uma lista curta: nenhum endereço de rede fora de uma lista fixa (pooler do Supabase, healthchecks e api.github.com) e nenhum segredo fora do passo que o usa. Uma checagem confere a impressão digital do arquivo colado contra o modelo revisado. Marcar isso como proteção contra erro.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A cópia sai comprimida e criptografada com uma chave pública, que fica num arquivo e não é segredo. [...] A chave que abre fica num segredo usado só pela restauração, e uma cópia dela fica com você, fora do computador, em dois lugares.",
+  "problema": "Não diz quem gera o par de chaves nem onde. Se for uma sessão de IA, ela já teve a chave que abre todos os backups e o repositório separado perde o sentido. Se for o fundador no PC, o mesmo bloqueio do Windows que barra o programa do Supabase pode barrar a ferramenta de chaves (NÃO CONFIRMADO).",
+  "cenario": "Para ajudar, uma sessão gera o par e mostra a chave privada no chat, que fica guardada para sempre no histórico da conversa.",
+  "conserto": "Escrever que o par é gerado por você, com passo a passo, nunca por uma sessão nem no chat. Indicar um caminho que funcione mesmo com o bloqueio do Windows (NÃO CONFIRMADO até o ensaio) e pôr esse passo na mensagem da 0a, antes da primeira cópia.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Assim nenhuma cota paga é gasta sem ninguém ver (DEC-014).",
+  "problema": "É um absoluto falso. A checagem só olha três nomes no ambiente do motor e do Hermes. O Hermes aceita outros provedores (por exemplo OPENROUTER_API_KEY e ANTHROPIC_API_KEY) e arquivos de configuração. E a v1 pode estar usando a API paga da OpenAI na voz agora, o que só o inventário vai responder.",
+  "cenario": "A voz da v1 continua gastando API paga até o inventário, ou um perfil do Hermes recebe outra chave paga por arquivo. O plano disse \"nenhuma\".",
+  "conserto": "Trocar por: \"na v2, o motor não liga se encontrar uma chave de API paga da lista (guardada no repositório, com OPENAI_API_KEY, AI_GATEWAY_API_KEY, OPENROUTER_API_KEY, ANTHROPIC_API_KEY e VERCEL_*), e o provedor é sempre escrito na ficha. Isso reduz o risco; a v1 fica fora até o inventário e o desligamento da central\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "com conserto escrito; provado, quando existe um caso que reproduz o furo e um teste que o recusa; substituído; ou não confirmado.",
+  "problema": "Contar \"com conserto escrito\" e \"não confirmado\" como \"fechado\" deixa a frase \"nenhum furo conhecido em aberto\" aparecer com consertos que só existem no papel ou que não foram conferidos. É o tipo de absoluto que a crítica (ponto 9) mandou medir.",
+  "cenario": "A contagem de abertos dá zero porque 150 furos estão \"com conserto escrito\" e 10 \"não confirmados\". O plano imprime \"nenhum furo conhecido em aberto\" e o fundador entende que está provado.",
+  "conserto": "Chamar de \"fechado\" só o provado ou substituído. Mostrar sempre três números: provados, só com conserto escrito e não confirmados. A frase só aparece com os três últimos números explícitos, por exemplo: \"nenhum aberto sem conserto; N com conserto ainda não provado; M não confirmados\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Por isso esta tabela é medida na fase 0, antes de ligar qualquer workflow novo [...]  /  O cartão de diagnóstico mostra uma estimativa dos minutos do mês, calculada pela duração dos jobs, sem token novo.",
+  "problema": "A \"tabela única\" deixa de fora rotinas semanais que o próprio plano cria: o teste 11 semanal, a conferência semanal das etiquetas, a varredura semanal de portas da v3 e a conferência das chaves. E a estimativa do cartão roda no repositório principal, que não enxerga o helena-backup (\"nada no repositório principal alcança o helena-backup\"), então ela esconde de 100 a 150 minutos.",
+  "cenario": "Os avisos de 60% e 80% saem tarde, a cota acaba antes da conta e o backup para, justamente o que a tabela queria evitar.",
+  "conserto": "Pôr na tabela cada rotina semanal, com a conta. Dizer que a estimativa do cartão soma um valor fixo medido para o helena-backup e que o número oficial é o da tela de cobrança, conferido por você uma vez por mês (item com data na lista \"Precisa de você\").",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "um job com segredo só roda agendado ou disparado à mão, só na main, e não instala pacotes nem roda testes do repositório.  /  Eles não usam ações de terceiros: só programas instalados, em versão fixa.",
+  "problema": "A restauração semanal, o job com a chave que abre os backups, monta \"um Supabase na própria máquina do GitHub\", o que exige baixar o programa do Supabase e as imagens dele. Ela também precisa do programa de cópia na versão exata do servidor, que pode não vir na máquina. Isso fere a regra escrita. E o padrão (\"só o mínimo: ler o código\") não cita as permissões de escrita que o job da imagem (pacotes) e o da versão imutável (conteúdo) precisam.",
+  "cenario": "A auditoria dos workflows acusa vermelho no backup, ou a regra é quebrada sem registro, justamente no job mais sensível.",
+  "conserto": "Escrever as exceções. A restauração instala o Supabase local e o programa de cópia em versões fixas, conferidas por impressão digital, antes de abrir a chave. O job da imagem tem escrita em pacotes, e o da versão, em conteúdo, cada um sem segredo e sem rodar código de teste.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Repetir a mesma versão sobre o mesmo estado, depois de uma tentativa que falhou, não pede frase nova.  /  Para continuar: \"continuo AUT-NNNN\".  /  Uma frase antiga, sem número, não é executada nem ignorada: a sessão responde uma vez, com a frase numerada pronta para copiar.",
+  "problema": "As regras se contradizem: depois de uma falha desfeita (mesmo estado), uma diz que não se pede frase nova e outra exige \"continuo AUT-NNNN\". E pedir de novo, em formato numerado, uma autorização explícita que você já deu fere o AGENTS.md (\"não pedir novamente se já concedida para a mesma ação\").",
+  "cenario": "Você autorizou fechar as portas antes de o livro existir. A sessão pede de novo a frase numerada. Ou, depois de uma falha desfeita, a sessão para à espera de \"continuo\".",
+  "conserto": "Depois de uma falha com desfazer completo (mesmo estado), seguir sem frase nova. \"Continuo AUT-NNNN\" só quando o estado ficou parcial. Para uma frase antiga explícita, da mesma ação e sem mudança de estado ou de escopo, a sessão registra o AUT como concedido com as suas palavras (como na DEC-022), em vez de pedir de novo.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Hoje só o seu PC alcança o banco, e isso trava a manutenção quando ele está desligado. (mudou na v3.1: no PC, o Windows passou a bloquear o programa do Supabase, e as sessões de IA na nuvem recebem recusa ao tentar chegar ao banco.)",
+  "problema": "A frase se contradiz: se o Windows bloqueia o programa do Supabase, o PC não alcança o banco por ele. E o próprio plano manda você usar o editor SQL do Supabase no navegador, inclusive no celular. A v1, na VPS, também alcança o banco.",
+  "cenario": "O fundador entende que precisa do PC ligado para os passos da fase 0, quando eles são feitos no navegador e no celular.",
+  "conserto": "Trocar por: \"Hoje as sessões de IA não alcançam o banco: as da nuvem recebem recusa e, no PC, o Windows bloqueia o programa do Supabase. Você alcança pelo editor SQL do Supabase, no navegador, inclusive no celular.\" Também \"nos passos da fase 0\" vira \"nos passos que pedem SQL\", porque apagar dado pessoal e restaurar também passam por você.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Primeiro, os que já estão inteiros na main e os sem base comum. [...] O PR #5 é decisão sua.",
+  "problema": "O ramo `cursor/redefinir-senha-8d40`, do PR #5 aberto, é um dos 17 sem base comum e tem 8 arquivos que a main não tem. Na rodada 1, apagá-lo fecha o PR antes da sua decisão.",
+  "cenario": "Você dá o OK da rodada 1 sem saber disso e o PR #5 é fechado.",
+  "conserto": "Tirar `cursor/redefinir-senha-8d40` da rodada 1 até você decidir sobre o PR #5, e escrever isso na mensagem do OK.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Uma checagem de \"fonte única\" acusa uma segunda frase de aprovação, um segundo LEIA-PRIMEIRO ou HANDOFF fora do histórico",
+  "problema": "Já existem na main `docs/LEIA-PRIMEIRO-CONTINUIDADE-HELENA-20261001.md` e `docs/helena-handoff-limite-20261001.md`, da v1, que ficam onde estão. A checagem acusaria esses dois para sempre.",
+  "cenario": "A checagem fica vermelha desde o primeiro dia, as sessões se acostumam a juntar com vermelho e a regra perde o efeito.",
+  "conserto": "Pôr na checagem a lista explícita dos arquivos da v1 que ficam, como fez a verificação da MEL-08.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "No plano grátis, uma checagem vermelha não impede juntar na main: ela avisa. A regra da sessão é nunca juntar com vermelho e nunca enviar direto para a main, e quebrar essa regra aparece no registro de quem enviou cada mudança.",
+  "problema": "Afirmação exagerada. Para o GitHub, você e a sessão são a mesma pessoa, então o \"registro de quem enviou\" depende do que a própria sessão escreve no commit. Uma sessão desviada pode escrever outra coisa.",
+  "cenario": "Uma sessão junta com vermelho e se identifica como outra ferramenta. O registro não acusa nada.",
+  "conserto": "Escrever: \"o registro mostra o que a sessão declarou e as identidades que o GitHub separa (como cursor[bot]); serve para rastrear engano, não prova quem foi\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Enquanto a tela nova do app não existe (começo da fase 2, com o motor de ensaio), não há fila para esvaziar, e este passo é pulado.",
+  "problema": "Na mesma seção, a versão com mudança no banco \"exige a pausa ligada e a fila vazia\", e a pausa é ligada pelo app. No começo da fase 2, a primeira imagem do motor já traz mudança no banco (as tabelas da v2), e não há como ligar a pausa.",
+  "cenario": "A primeira publicação da fase 2 nunca liga: espera uma pausa que nenhum botão consegue ligar.",
+  "conserto": "Dizer como a pausa é ligada antes da tela nova: por exemplo, um passo SQL seu, com script pronto, que liga a pausa, ou a regra \"sem fila real, a exigência de pausa não se aplica\" escrita e testada.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Quando um dado pessoal é apagado, por prazo ou a pedido da pessoa, a receita \"apagar-dado-pessoal\", com a sua frase de nível 2, o apaga do banco",
+  "problema": "Exigir a sua frase a cada apagamento por prazo deixa o prazo da linha de LGPD depender da sua resposta. E quem executa é você no editor SQL, pessoa por pessoa.",
+  "cenario": "Você não responde por duas semanas e dados vencidos ficam guardados além do prazo aprovado, contra a própria linha de LGPD.",
+  "conserto": "Para o apagamento por prazo, a frase de nível 2 aprova a regra uma vez e o apagamento roda sozinho, com registro. Frase por pedido só no apagamento a pedido da pessoa, com prazo e lembrete na lista \"Precisa de você\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "a impressão digital aprovada fica anexada a uma versão do GitHub que não pode ser alterada (release imutável).",
+  "problema": "A verificação da MEL-06 marcou como NÃO CONFIRMADO que as versões imutáveis existam em repositório privado no plano grátis. E \"aprovada\" engana: quem cria a versão é a sessão, e o seu toque vem depois.",
+  "cenario": "A opção não aparece no plano grátis, ou a sessão cria outra versão com outra impressão digital, e o fundador acha que a \"aprovada\" foi travada por alguém.",
+  "conserto": "Marcar NÃO CONFIRMADO e dizer que a versão imutável só evita engano. \"Aprovada\" quer dizer \"a que consta do pedido que você aceitou\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "O GitHub Pro daria proteção de ramo e regras para a main, mas nem ele dá revisor obrigatório em repositório privado",
+  "problema": "Frase imprecisa. O Pro dá revisão obrigatória de PR na proteção de ramo em repositório privado. O que ele não dá é a aprovação obrigatória antes de publicar (ambientes com revisor), que é o que o anexo da v3 dizia.",
+  "cenario": "Alguém confere a página do GitHub, vê \"required reviews\" no Pro e conclui que o plano errou o fato.",
+  "conserto": "Trocar por: \"nem ele dá aprovação obrigatória antes de publicar (ambiente com revisor) em repositório privado; a revisão obrigatória de PR que ele dá não serve com uma pessoa só\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "60 casos simulados e 60 reais. (mudou na v3.1: [...] cada caso de regressão precisa acertar nas 3 rodadas com o modelo novo.)",
+  "problema": "Perdeu-se o teto de custo que a MEL-31 verificada trazia (no máximo 15 casos de regressão por serviço, cerca de 45 execuções por mudança). Sem ele, rodar 3 vezes com o modelo real gasta cota do ChatGPT sem limite escrito, e com 21 agentes isso se multiplica.",
+  "cenario": "Uma troca de modelo dispara centenas de execuções reais e esgota a cota do Plus por dias, parando a v1 e a v2.",
+  "conserto": "Escrever o teto (15 casos de regressão por serviço, rodada de madrugada) e a cota estimada de cada troca, marcada \"a medir\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "**Antes do motor:** nas fases 0 e 1, os avisos vêm só do healthchecks (backup, restauração, cartão de diagnóstico e sinal do Supabase)",
+  "problema": "Nas fases 0 e 1 não existe tarefa agendada no Supabase para mandar o sinal: o vigia e o relógio só chegam na fase 2, e a v1 não usa pg_cron nem pg_net. Criar uma tarefa assim é mudança no banco (nível 2), e ela não aparece em nenhum passo.",
+  "cenario": "O healthchecks espera um \"sinal do Supabase\" que nunca chega e acusa falha falsa, ou o item fica esquecido.",
+  "conserto": "Pôr na 0b o passo \"criar a tarefa de sinal do Supabase\", com frase de nível 2 e script, ou tirá-la da lista e escrever que, nas fases 0 e 1, a prova de vida do banco é o backup da noite.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Como as sessões não alcançam o `helena-backup`, você passa esse arquivo uma vez para o repositório principal, com o passo a passo na mensagem da fase 0b",
+  "problema": "A cópia completa está criptografada e só a restauração tem a chave. Tirar dela a estrutura sem dados exige abrir o backup num computador, um passo técnico que o fundador leigo não tem como fazer (e o PC tem bloqueio de programas).",
+  "cenario": "O passo trava na 0b, ou alguém abre a cópia com dados pessoais no PC ou num chat para tirar a estrutura.",
+  "conserto": "Um workflow do helena-backup gera só a estrutura, sem dados (--schema-only), já varrida pelo gitleaks, como anexo separado. Você só baixa e envia, sem abrir a cópia completa.",
+  "gravidade": "baixa"
+ }
+]

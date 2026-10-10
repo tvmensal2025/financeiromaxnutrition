@@ -1,0 +1,282 @@
+[
+ {
+  "trecho": "Pelo código lido, essa rota só confere se quem chama tem um login válido, a senha fixa do gateway ou a de um perfil do Hermes. Ela não confere se é você, ao contrário das telas de configuração da voz, que conferem.",
+  "problema": "O inventário do gateway da v1 está errado e estreito demais. No código lido (services/helena-gateway/src/routes/integrations.mjs), várias rotas não pedem login nenhum, e outras aceitam qualquer login, não só o seu. Sem login: /api/integrations/call-engine/call-phone (l. 1791, liga para qualquer número), /voice-agent/test-dialogue (l. 1027, chama a API paga da OpenAI se a chave existir) e /call-engine/history e /history/:callId (l. 1633 e 1652, devolvem as conversas das ligações). Com qualquer login: /evolution/send-test (manda WhatsApp do número da empresa para qualquer pessoa), /evolution/webhook/setup (muda para onde vão TODAS as mensagens recebidas, e o código ainda pendura a senha no endereço novo), GET /evolution/webhook (devolve a configuração, com a senha) e /call-engine/config e /profiles (reescrevem o roteiro da voz). As telas de voz caem no mesmo 'qualquer login' quando o token é do projeto oficial (voice-admin-auth.mjs). A 0a só fecha 'a rota de ligação' e conta com o cadastro desligado. Mas a conta helenasistema.publico só perde o papel de fundador: o login dela continua valendo, e a senha está no .env.local do modo de teste (VITE_TESTE_EMAIL/VITE_TESTE_SENHA), que pode existir no seu PC e nas ferramentas. E as rotas sem login não dependem de conta nenhuma.",
+  "cenario": "Alguém acha o domínio público do gateway e, sem login, manda POST para call-phone com um telefone qualquer. O sistema liga em nome da BIZ-001, com voz de IA. Ou alguém com a senha da conta de teste entra, aponta o aviso do WhatsApp para um servidor dele e passa a receber todas as mensagens (as suas e as de clientes) junto com a senha do aviso. O portão 0a passa, porque o teste 11 só confere 'a rota de ligação recusando'.",
+  "conserto": "Na 0a, logo depois das portas: (1) inventário de TODAS as rotas do gateway e do que cada uma confere, tirado do código que está no ar (o gateway sobe por zip; a versão no ar está NÃO CONFIRMADO). (2) Uma publicação do gateway, com a sua frase e com volta (o zip anterior), que exige você (fundador) em todas as rotas /api/integrations/* e tira o acesso sem login das rotas de ligação, envio, configuração do aviso, histórico e APIs pagas. (3) No Supabase Auth, bloquear ou apagar a conta helenasistema.publico e qualquer conta que não seja a sua. Tirar só o papel não basta. (4) O teste 11 chama cada rota sem login e com um usuário de fora e espera recusa. O portão 0a ganha essa linha.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "A sua decisão de 10/10, de trocar as chaves só no fim dos testes, foi tomada sem sinal de invasão. Com sinal, a recomendação muda, e a escolha continua sua.",
+  "problema": "A checagem procura coisas plantadas: chaves de acesso, servidores de ferramentas, tarefas e arquivos mudados. Só que ler segredos não deixa rastro nesses lugares. Pela pesquisa B-1, o painel do Hermes aberto na 9119 permitia ler as variáveis de ambiente e os arquivos. Por ali dava para levar o login do ChatGPT da v1, os tokens dos perfis (hhs_) e o que estivesse no ambiente do Hermes, sem plantar nada. 'Checagem limpa' não prova que nada foi levado. Além disso, 'login novo do ChatGPT' não derruba o login antigo: o acesso roubado continua valendo até ser revogado na conta.",
+  "cenario": "Em setembro, alguém leu o arquivo de login do ChatGPT pela 9119 e foi embora. A checagem sai limpa, e a 0a segue sem trocar nada. A pessoa gasta a cota da sua única conta do ChatGPT, e o teste 1 e a v1 dão erro de cota sem causa visível. Ou a OpenAI vê uso anormal e suspende a conta (risco aceito K-16, só que causado por terceiro). Com os tokens hhs_, a pessoa ainda chama o gateway como um agente.",
+  "conserto": "Tratar como exposto, com ou sem sinal de invasão, tudo o que morava no contêiner do Hermes enquanto as portas estavam abertas. Nada disso é chave do banco, então nada disso entra na decisão de 10/10. Na 0a: (1) no ChatGPT, sair de todos os dispositivos e revogar os apps conectados, depois fazer um login novo para a v1 (a v2 nasce depois, com login próprio); (2) revogar e recriar os tokens hhs_ dos perfis; (3) listar só os nomes do que estava no ambiente do Hermes e pôr cada item no cartão de troca. Escrever no plano: 'a checagem acha o que foi plantado; não prova que nada foi lido'.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "A trava real é o seu login no EasyPanel, que nenhuma sessão tem.",
+  "problema": "O inventário de chaves só olha a main deste repositório. Pelo checkpoint mestre de 01/10 (risks[6]), o repositório tvmensal2025/ids-max tem gravados em .cursor/mcp.json um SUPABASE_ACCESS_TOKEN e uma service_role do projeto imvfmjgmacrulhztrqlh. O PR que tirava esses arquivos ficou em rascunho, e a troca (TSK-0012) ficou pendente. Um SUPABASE_ACCESS_TOKEN (token pessoal da conta) vale para a gestão de todos os projetos que a sua conta alcança: rodar SQL como dono do banco, ler as chaves, religar o cadastro, publicar Edge Functions. Se a mesma conta é dona do ecosistemadossonhos (NÃO CONFIRMADO), esse token passa por cima de tudo na 0a: do 'SQL só por você no editor', do esquema fechado helena_v2 e da trava no EasyPanel. Ferramentas no seu PC com o Supabase ligado (o AGENTS.md manda o Codex consultar o Supabase; o supabase.exe guarda um token de login) também têm esse poder. Nada disso está no inventário de 'quem escreve' nem na decisão de 10/10.",
+  "cenario": "Uma cópia do ids-max (Cursor, Codex, Lovable ou o PC) é lida por alguém, ou uma ferramenta local erra. Com o token pessoal, roda um SQL no projeto oficial que devolve acesso à chave pública ou cria um usuário fundador. O teste de catálogo pode até acusar depois, mas o estrago já foi feito sem o seu toque.",
+  "conserto": "Na 0a, fora da decisão das chaves do banco, porque esse token é de gestão da conta e trocá-lo não derruba a v1: (1) em Supabase > Account > Access Tokens, revogar todos e não criar nenhum para IA; (2) conferir os membros da organização e os apps OAuth autorizados (Lovable, por exemplo); (3) rodar o gitleaks em TODOS os repositórios da conta, inclusive o ids-max, e listar os achados só por nome; (4) a lista de plataformas conectadas ganha 'quem tem acesso de gestão ao Supabase'. A frase 'trava real' passa a dizer: 'a trava de publicar é o EasyPanel; a do banco depende de nenhum token de gestão ativo fora da lista'.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Elas entram no mesmo cartão, com a recomendação de seguir a mesma data.",
+  "problema": "A decisão de 10/10 aceitou adiar só as chaves do banco. O plano estende o adiamento, por recomendação, à chave geral da Evolution e às senhas do gateway e do Meowcaller, que estão no histórico do repositório e nas cópias. A chave geral da Evolution, no domínio público helena-automation-evolution-api, dá controle total do WhatsApp: mandar mensagem como a empresa, ler a configuração do aviso (onde está a senha, no endereço e no cabeçalho), mudar o aviso e parear o número de novo. Com essa senha, quem forja uma mensagem escolhe o número de origem no conteúdo. Assim, 'só o seu número, com a senha' fica verde no portão 0a sem proteger. A senha fixa do gateway (MCP_BEARER_TOKEN) vira 'service-admin' em todas as ferramentas do gateway. Isso reabre parte do B-3, que na v3 mandava regenerar a chave da Evolution já na fase 0.",
+  "cenario": "Alguém com uma cópia do repositório pede a configuração do aviso à Evolution, pega a senha e manda ao gateway uma mensagem 'do seu número' com um comando. Ou manda WhatsApp a clientes em nome da empresa, o contato externo sem o seu toque que o plano proíbe.",
+  "conserto": "Separar o cartão: chaves do banco (decisão sua, no fim dos testes) e senhas do canal (Evolution, aviso do WhatsApp, gateway, Meowcaller, Kokoro). Para estas, recomendar a troca na 0a, porque cada uma é uma variável em um ou dois serviços, com volta (pôr o valor antigo). A senha do aviso vai só no cabeçalho, nunca no endereço. Enquanto a senha da Evolution não for trocada, o item do WhatsApp aparece no portão 0a como 'risco aceito', nunca como verde.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Se a contagem não bater, nenhuma mudança no banco acontece, e eu trago as opções num cartão. Um motivo possível: o Supabase pode não deixar um papel só de leitura enxergar todas as linhas das tabelas protegidas (NÃO CONFIRMADO).",
+  "problema": "A conferência não acha o defeito que ela mesma cita. A contagem da cópia é tirada pelo mesmo papel que faz a cópia. Se a proteção por linha esconde linhas desse papel, a cópia e a contagem saem incompletas do mesmo jeito, e a restauração 'bate'. O mesmo vale para as tarefas agendadas: no pg_cron, a tabela cron.job só mostra a cada papel as tarefas dele, e as da v1 são do papel postgres. Um papel novo, sem regra que o inclua, enxerga zero linhas nas tabelas protegidas.",
+  "cenario": "O portão 0a passa com 'a cópia completa existe e a restauração bateu'. Depois, um passo da 0a fecha acessos e quebra uma tabela da v1. Na hora de voltar, a cópia tem as tabelas protegidas vazias e nenhuma tarefa agendada. O dado perdido não volta, sem aviso nenhum.",
+  "conserto": "A contagem de referência vem de fora do papel de backup. Você roda no editor SQL (como dono) um script só de leitura que devolve só 'tabela: número' para todas as tabelas, inclusive cron.job, auth.users e storage.objects. A cópia só vale se cada número restaurado bater com esse. Se não bater, o cartão traz as opções: um papel que ignora a proteção por linha (se o Supabase permitir: NÃO CONFIRMADO) ou a cópia feita por você mesmo. O portão 0a passa a dizer 'bateu com a contagem tirada pelo dono'.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Você, no console do EasyPanel, com o roteiro que eu mando.",
+  "problema": "O console do EasyPanel abre dentro de um serviço (contêiner), não no servidor. A campanha de junho/2026 deixava chave SSH escondida e configuração persistente (pesquisa B-1, que pedia 'um bloco no contêiner e outro no servidor'). Uma chave plantada no servidor (root, usuário do Hermes, pastas montadas, docker.sock) não aparece no console do serviço. E a contenção 'refazer a v1 de uma imagem limpa' troca a imagem, mas mantém o volume /data, onde ficam os perfis, as tarefas agendadas, os servidores de ferramentas e o /data/helena-runtime copiado como root. A v2 vai ser publicada nesse mesmo servidor. Isso reabre o B-1.",
+  "cenario": "Uma chave SSH plantada em /root/.ssh no servidor não aparece na checagem. Ou aparece um sinal, a v1 é refeita de imagem limpa, e o servidor de ferramentas plantado no /data volta a carregar. A v2 nasce num servidor que outra pessoa controla.",
+  "conserto": "Duas checagens só de leitura: uma no contêiner e outra no servidor (por SSH ou pelo console do provedor da VPS; qual existe para você: NÃO CONFIRMADO). A do servidor confere chaves autorizadas, usuários, tarefas agendadas do servidor, serviços, montagens do docker.sock e usuários e tokens do próprio EasyPanel. Na contenção, refazer também o volume, copiando só o que foi aberto e conferido. Abrir um cartão 'refazer a VPS do zero' como opção se o sinal estiver no servidor.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O jeito com volta é parar o serviço de ligações no EasyPanel, que religa com um clique.",
+  "problema": "O serviço de ligações (Meowcaller) também atende as ligações que CHEGAM: o código tem answerCall e registra ligações de entrada com o perfil 'sirlene_normal' e a saudação 'Max Nutrition, aqui é o Pedro' (voice-agent.mjs l. 113 e 565). Parar o serviço derruba esse atendimento de clientes por voz, ao contrário do que diz 'não depende de avisar clientes'. O inventário da central lista o menu do WhatsApp e as ligações de saída, mas não as de entrada.",
+  "cenario": "Você diz a frase, o serviço para, e os clientes que ligam para o número deixam de ser atendidos, sem aviso. Isso fere a regra do próprio plano (avisar antes de desligar o que atende clientes) e não aparece no checklist, que só confere a URA de texto.",
+  "conserto": "O inventário conta também as ligações de entrada por semana. Se houver entrada, fechar a saída sem parar o serviço: publicar o gateway (com a frase e com volta) com as rotas de ligação de saída fechadas, e deixar a entrada para o aviso aos clientes, junto com a URA. Se não houver entrada, parar o serviço como está escrito. O checklist da v1 ganha 'ligação de entrada' como item.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "um teste semanal confere a lista contra o que está de fato configurado",
+  "problema": "Pela regra nova, o GitHub não tem nenhum acesso ao EasyPanel e as sessões não alcançam o servidor. Esse teste e o 'teste semanal falha se a chave da API da OpenAI ou do AI Gateway aparecer sem decisão escrita' não têm de onde ler as variáveis do EasyPanel. Os dois viram verde sem conferir nada, ou exigem pôr um acesso ao EasyPanel no GitHub, o que a própria seção proíbe. O mesmo vale para o 'teste de catálogo toda semana na produção': ele precisa de uma senha do banco no GitHub, e o texto não diz qual papel é. Se for o papel do backup, que lê todos os dados, ele vai parar no repositório principal. Isso reabre a prova do B-3 e do M-10, que comparava os nomes das variáveis do EasyPanel com a lista.",
+  "cenario": "Na fase 1, você põe a chave da OpenAI de volta na voz da v1 para um teste. Nenhum teste semanal acusa, porque nenhum teste enxerga o EasyPanel, e a API paga volta a cobrar sem decisão escrita.",
+  "conserto": "Escrever o que é automático e o que é manual. A conferência das variáveis do EasyPanel vira um item mensal seu (colar só os nomes), com a data mostrada no cartão de diagnóstico e o aviso 'vencido' depois de 35 dias. A v2 confere só o próprio ambiente ao ligar. O teste de catálogo na produção usa um papel criado por você que só lê o catálogo, sem SELECT em nenhuma tabela, e nunca o papel do backup.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Na produção, o teste usa a mesma chave pública que o app já usa: chama cada função conhecida sem login e espera recusa",
+  "problema": "Nas Edge Functions, a opção 'exige JWT' não exige login: a chave pública antiga (anon) é um JWT válido e passa por essa conferência. Testar 'sem login' (sem cabeçalho) dá recusa, mas qualquer pessoa que copie a chave pública do app (ela está no pacote) chama a função. O teste do GitHub, que 'lê a configuração', também conta 'exige JWT' como fechado.",
+  "cenario": "Uma Edge Function antiga da v1, marcada como 'exige JWT', grava leads ou manda mensagens. O teste semanal fica verde, e um robô que leu a chave pública no pacote do app chama a função em laço, enchendo a tabela de dados falsos ou gastando o serviço pago que ela usa.",
+  "conserto": "O teste chama cada função de dois jeitos: sem cabeçalho e com a chave pública no Authorization, como faz o app. Só a lista de funções públicas (receive-leads, se for o formulário) pode aceitar a segunda chamada. Para as outras, a guarda fica dentro da função (confere que é você ou o motor). O teste do GitHub acusa função que dependa só de 'exige JWT'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Dois pontos estão NÃO CONFIRMADOS: se o EasyPanel aceita a impressão digital no campo da imagem e se ele tem verificação em duas etapas. O ensaio da fase 2 decide. Se ele não aceitar a impressão digital, a saída é uma etiqueta única por versão",
+  "problema": "Existe plano B para a impressão digital, mas não para a verificação em duas etapas. E a 'trava real' do plano inteiro passa a ser o login do EasyPanel já na 0a, não na fase 2. Se o EasyPanel não tiver a verificação, a única trava é uma senha num painel aberto na internet (porta própria ou domínio), e esse painel lê todas as variáveis, ou seja, todas as chaves de produção. O portão 0a não confere se o painel do EasyPanel está exposto.",
+  "cenario": "A senha do EasyPanel é reaproveitada de outro site que vazou. Alguém entra, lê todas as variáveis e publica uma imagem dele. Nenhum aviso dispara, porque nada no plano vigia os logins do EasyPanel.",
+  "conserto": "Conferir a verificação em duas etapas do EasyPanel já na 0a, e não no ensaio da fase 2. Se ela não existir, um cartão com as opções: senha única e longa num gerenciador, com o painel só acessível pela lista de endereços do firewall do provedor (o que funciona: NÃO CONFIRMADO), ou aceitar o risco por escrito. A varredura de fora passa a dizer se o painel do EasyPanel responde para a internet.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A mudança do banco roda quando a versão nova liga, com uma credencial que só existe no EasyPanel.",
+  "problema": "O seu toque decide quando e qual imagem vai ao ar, mas não o que ela faz. O SQL da mudança é escrito pela sessão e conferido por testes que a própria sessão consegue mudar. Você não lê esse SQL antes de colar a impressão digital. Se a credencial de mudança puder fazer qualquer coisa no banco, uma sessão desviada consegue dar acesso à chave pública, criar papéis ou mandar dados para fora (pg_net), e o 'toque' só carimba. O texto chama o login do EasyPanel de 'a trava real' sem dizer contra o quê ela trava.",
+  "cenario": "Uma sessão lê uma página com instrução escondida e escreve uma mudança que dá SELECT ao anon numa tabela de recrutados. Os testes alterados passam, você cola a impressão digital como sempre (no máximo uma vez por dia), e os dados pessoais ficam abertos até o próximo teste de catálogo, que a sessão também escreve.",
+  "conserto": "Criar a credencial de mudança, por você no editor SQL e uma vez só, com o mínimo: ela é dona só do esquema helena_v2 e das funções v2_, não pode dar acesso a anon, authenticated ou PUBLIC, não cria papéis e não usa pg_net, http, cron, vault, auth ou as tabelas da v1. Essa limitação a sessão não consegue mudar. Escrever: 'o toque trava quando; o limite da credencial trava o que'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "a varredura de fora mostra só as portas previstas",
+  "problema": "No EasyPanel, cada serviço pode ter um domínio na porta 443 (helena-automation-<serviço>.d9v63q.easypanel.host: o código cita gateway, evolution-api, meowcaller-service, laya-service e kokoro). Um serviço com domínio passa pela porta 443, que é 'prevista'. Se o Hermes tiver um domínio apontando para o painel (9119) ou para a API (8642), tirar as portas não fecha nada, e o portão passa. Os nomes sob o certificado coringa não podem ser descobertos de fora: só a lista do EasyPanel mostra.",
+  "cenario": "Você remove as portas 9119 e 8642, a varredura mostra só 80 e 443, e o portão fica verde. O painel do Hermes continua aberto em https://helena-automation-hermes...easypanel.host (existência NÃO CONFIRMADA).",
+  "conserto": "O portão passa a dizer: 'só as portas previstas, e cada domínio da lista do EasyPanel responde só o serviço esperado, e só com login'. Você cola a lista de domínios de todos os serviços (só os nomes). A varredura semanal pede cada domínio e falha se algum responder o painel do Hermes, a API dele, a tela da Evolution ou o EasyPanel sem login.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Assim, as minhas sessões não o alcançam, desde que os apps continuem restritos, o que a lista de apps confere.",
+  "problema": "'Only select repositories' só vale para apps do tipo GitHub App. O Codex, o Cursor e o Antigravity no seu PC usam o seu login do git (Git Credential Manager, gh), que alcança todos os seus repositórios, inclusive o helena-backup. No GitHub grátis, qualquer rotina enviada a um repositório lê os segredos dele (MEL-16). Ali ficam a senha do papel que lê o banco inteiro e a chave que abre todas as cópias.",
+  "cenario": "Uma ferramenta local, a pedido de outra tarefa ou desviada, envia ao helena-backup uma rotina que imprime ou envia os 2 segredos. Todas as cópias, com os dados de recrutados e clientes, passam a poder ser abertas fora.",
+  "conserto": "Escrever o limite: 'fora do alcance das sessões na nuvem; ferramentas no seu PC que usam o seu login do git alcançam'. Na lista de quem escreve, incluir os logins do git do PC e os tokens do gh. Recomendar, como cartão, trocar esses logins por tokens com acesso só ao repositório principal, ou aceitar o risco por escrito. O teste semanal do helena-backup acusa qualquer envio que não seja seu.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Você cola 2 segredos no `helena-backup`:",
+  "problema": "O texto não diz onde nascem a senha do papel de backup e o par de chaves da criptografia. Pela receita, 'eu mando cada passo pronto, num bloco só'. Se o script SQL vier com a senha escrita, ou se a sessão gerar as chaves, os dois passam pela sessão e pelo chat, contra 'nenhuma chave passa pelo chat comigo'. E a sessão fica com acesso de leitura a todos os dados e às cópias.",
+  "cenario": "O bloco SQL traz CREATE ROLE ... PASSWORD 'valor gerado pela sessão'. A senha fica no histórico da conversa e na sessão. A promessa de que o backup fica fora do alcance das IAs cai já no primeiro dia.",
+  "conserto": "Escrever: a senha do papel nasce no editor SQL, gerada pelo próprio banco, e aparece só para você copiar direto no helena-backup. O par de chaves nasce na rotina do helena-backup ou no seu PC, nunca na sessão. O resultado que volta ao chat traz só 'papel criado: sim'.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Isso acontece antes de qualquer outro passo, sem esperar a cópia do banco, porque fechar uma porta não toca no banco e não apaga as provas que a checagem lê.",
+  "problema": "Pelo mesmo motivo escrito, as portas podem fechar ANTES da checagem: fechar não apaga o que a checagem lê. A ordem 'depois da checagem' deixa as portas abertas enquanto o roteiro é preparado e você acha tempo de rodá-lo no console, o que pode levar dias, sem nenhum ganho.",
+  "cenario": "O plano é aprovado e o roteiro da checagem demora 3 dias para ser rodado. Nesse tempo, as portas 9119 e 8642 continuam abertas para a mesma campanha que motivou a checagem.",
+  "conserto": "Primeiro passo da 0a: tirar as duas portas no EasyPanel, com a frase e com volta (pôr de novo). A checagem vem logo depois, e o resto da ordem fica igual.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Pelo código lido, essa rota só confere se quem chama tem um login válido, a senha fixa do gateway ou a de um perfil do Hermes. Ela não confere se é você, ao contrário das telas de configuração da voz, que conferem. Somado ao cadastro de contas aberto, isso pode deixar uma pessoa de fora criar uma conta e disparar ligações.",
+  "problema": "O texto diminui o risco. Na mesma cópia do código (services/helena-gateway/src/routes/integrations.mjs) existe uma segunda rota de ligação, POST /api/integrations/call-engine/call-phone, protegida só por 'optionalAuth'. Quando o pedido chega sem o cabeçalho de login, essa proteção deixa passar sem conferir nada. Então qualquer pessoa na internet, sem conta, pode disparar uma ligação de WhatsApp para qualquer número, bastando a linha do Meowcaller estar conectada. Outras rotas que gastam API paga também aceitam pedido sem login: /api/integrations/voice-agent/test-dialogue chama a OpenAI ou a xAI, e /google-chirp3-hd/preview e /call-engine/preview chamam o Google. O teste 11 só prevê 'a rota de ligação recusando', no singular.",
+  "cenario": "Alguém descobre o domínio público do gateway e manda POST /api/integrations/call-engine/call-phone com {\"phone\":\"...\"}, sem login. O sistema liga com voz de IA para um terceiro, em nome da empresa. Ou essa pessoa chama test-dialogue em laço e gasta a chave paga da OpenAI. Nenhum item da 0a fecha isso antes do inventário e do aviso aos clientes.",
+  "conserto": "Escrever que hoje existem rotas de ligação e de voz paga abertas sem login (versão no ar: NÃO CONFIRMADO). Tratar o caso com a mesma urgência das portas: logo depois da checagem de invasão, parar o serviço de ligações (respeitando o próximo furo) ou publicar no gateway a exigência de login nessas rotas, com a frase dele. Listar todas as rotas de voz e de ligação no inventário. No teste 11, pôr 'cada rota de ligação e de voz paga, chamada sem login, responde 401'. Pôr limite de gasto nas contas pagas.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "**A ligação de saída fecha primeiro,** com a sua frase, porque não depende de avisar clientes. O jeito com volta é parar o serviço de ligações no EasyPanel, que religa com um clique.",
+  "problema": "Pelo código, a voz e o Meowcaller não servem só à 'central'. caller-context.mjs busca o contexto de quem liga 'server-to-server from Max' (MAX_VOICE_CONTEXT_URL e MAX_VOICE_CONTEXT_TOKEN). voice-admin-auth.mjs aceita administradores de OUTRO projeto Supabase (MAX_SUPABASE_URL e MAX_SUPABASE_ANON_KEY). A rota call-phone liga 'para o celular do usuário' com os personagens Vital, Sirlene, Alex e Rafael, e o Meowcaller também atende chamadas recebidas (rota /answer). O documento docs/helena/conversation-naturalness.md fala da 'Max' e diz que 'nenhum dado de paciente foi usado nas simulações'. Parar o serviço de ligações pode derrubar uma função de um produto com usuários de fora, e então isso depende, sim, de avisar. O plano também não cita: dados de saúde (dados sensíveis na LGPD, art. 11) indo para a API paga da OpenAI; o segundo projeto Supabase e as chaves dele na lista de chaves e no inventário da superfície; as contas desse projeto na lista de contas.",
+  "cenario": "O fundador diz a frase, o serviço de ligações para, e pacientes ou usuários da Max/eLiving™ ficam sem a ligação com o personagem, sem aviso. Ou a voz continua 'como exceção' e os dados de saúde seguem para a OpenAI sem nenhum cartão de LGPD.",
+  "conserto": "No inventário só de leitura, separar três coisas: a URA, a ligação de saída da central e a voz do produto Max/eLiving™. Para cada uma: quem usa, quantas chamadas por semana, que dados passam (inclusive de saúde) e para qual API. Se usuários reais dependem da voz (NÃO CONFIRMADO), o desligamento segue o mesmo caminho da URA: aviso antes e frase dele. Pôr o projeto Supabase da Max, MAX_VOICE_CONTEXT_TOKEN e MAX_SUPABASE_ANON_KEY na lista de chaves, no inventário e na lista de contas. Pôr os dados de saúde no cartão de LGPD.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Elas entram no mesmo cartão, com a recomendação de seguir a mesma data. A do Meowcaller perde o uso quando a central for desligada.",
+  "problema": "A decisão de 10/10 vale só para as chaves do banco, mas o plano recomenda adiar também chaves que permitem contato com pessoas de fora:\n- A chave da Evolution está no repositório (dev-server.mjs) e controla a API pública da Evolution (helena-automation-evolution-api…easypanel.host, por http no padrão do código). Quem tem uma cópia do repositório manda mensagem de WhatsApp para qualquer pessoa pelo número da empresa.\n- O token do Meowcaller permite ligar direto pelo serviço público do Meowcaller, sem passar pelo gateway.\n- A senha do gateway abre a rota de ligação.\n\nAs chaves pagas que apareceram no chat em 07/10 (OPENAI_API_KEY, Google, R2, ElevenLabs e TypeSafe, conforme o CHECKPOINT-MESTRE-20261007) ficaram sem nenhuma recomendação, e são risco direto de gasto. A 'Exceção conhecida' do GitHub lista só a chave do banco. Isso contradiz a regra de que contato com gente de fora nunca acontece sem o toque dele.",
+  "cenario": "Uma das cópias do repositório (Codex, Cursor, Antigravity, PC) ou uma sessão desviada usa a chave da Evolution para mandar mensagens aos clientes da URA, ou usa a chave do Google ou da ElevenLabs. Isso dura semanas, até o 'fim dos testes', e nada no portão 0a acusa.",
+  "conserto": "Dizer por extenso que a decisão de 10/10 não cobre esses segredos. Recomendar a troca já na 0a, porque têm volta: se algo parar, a variável antiga volta. A ordem é a do inventário de uso: Evolution, a senha do gateway e o Meowcaller (ou parar esse serviço), e as chaves pagas de 07/10 com limite de gasto. Se ele preferir esperar, pôr cada uma na 'Exceção conhecida' e no teste 11 como risco aceito, nunca como verde. Incluir no inventário os domínios públicos da Evolution, do Meowcaller e do Laya.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "O gateway sobe por zip, então a versão no ar pode ser outra (NÃO CONFIRMADO).",
+  "problema": "Vários passos da 0a exigem publicar o gateway da v1: a senha no endereço do WhatsApp, só o número dele e a retirada da reserva do voice-agent.mjs ('Eu escrevo. Você publica e diz a frase'). Só que o caminho de publicar pela impressão digital só nasce na fase 2. O próprio mapa diz que o servidor não bate com o repositório: scripts copiados à mão e o zip helena-gateway-decisoes.zip pronto, mas não publicado. O script de volta só existe para SQL. Para o gateway não há cópia da versão no ar nem caminho de volta.",
+  "cenario": "O zip montado do repositório leva junto mudanças que não estavam no ar (as 'decisões', por exemplo) e perde remendos feitos à mão. O checklist piora, e não existe zip anterior para voltar, porque ninguém guardou a versão que estava rodando.",
+  "conserto": "Antes da primeira publicação do gateway na 0a: (1) o fundador baixa e guarda uma cópia da versão no ar (o zip ou os arquivos do contêiner); essa cópia é o caminho de volta. (2) A sessão compara, só lendo, a versão no ar com o repositório. (3) O zip da 0a parte da versão no ar e leva só a mudança mínima. (4) A volta é subir de novo o zip guardado. Escrever esse caminho em 'Como cada passo anda'.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Eu mando cada passo pronto, num bloco só, com quatro partes: a conferência de antes (só leitura), a mudança, a conferência de depois e o script de volta, que desfaz a mudança.",
+  "problema": "No editor SQL do Supabase, o botão de rodar executa tudo o que foi colado. Um leigo que cola 'um bloco só' pode rodar a mudança e a volta juntas, ou fazer a mudança sem ter visto o resultado da conferência de antes. O 'só leitura' também não é garantido pelo banco, e o AGENTS.md manda usar transações READ ONLY nas consultas de auditoria.",
+  "cenario": "O fundador cola o bloco e aperta Run. A mudança roda e a volta desfaz em seguida, ou roda num estado diferente do esperado. O checklist sai 'igual', e todos acreditam que o passo foi feito.",
+  "conserto": "Quatro blocos separados e numerados, rodados um de cada vez. As conferências começam com 'begin transaction read only'. A mudança fica numa transação que primeiro confere o estado esperado e para com erro se ele não bater. O script de volta nunca vai no mesmo bloco da mudança, e só é mandado se o checklist piorar.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A trava real é o seu login no EasyPanel, que nenhuma sessão tem.",
+  "problema": "A frase promete mais do que entrega (crítica, ponto 9, sobre a MEL-06). O fundador cola a impressão digital de uma imagem que a sessão escreveu, testou e montou, e roda no editor SQL e no console do EasyPanel scripts escritos pelas sessões. Uma sessão desviada controla o conteúdo. O toque decide quando e qual versão vai ao ar, não o que tem dentro. Além disso, o EasyPanel pode não ter verificação em duas etapas (NÃO CONFIRMADO), e o painel dele fica na própria VPS, possivelmente aberto na internet.",
+  "cenario": "Uma sessão desviada põe no código um envio de dados para fora, que passa nos testes escritos por ela. O fundador cola a impressão digital e publica, e a 'trava real' não segura nada.",
+  "conserto": "Trocar por: 'O seu toque no EasyPanel decide quando e qual versão vai ao ar; ele não prova o que está dentro dela. Os testes pegam erro, não uma sessão desviada.' Acrescentar: se o EasyPanel não tiver duas etapas, restringir o acesso ao painel (por exemplo, por endereço) e conferir isso na varredura de fora.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O roteiro imprime só nomes, caminhos, datas e impressões digitais de arquivos, nunca o conteúdo.",
+  "problema": "Com só isso, a checagem de invasão fica cega:\n- uma tarefa agendada ou um servidor de ferramentas maliciosos só se revelam pelo comando que rodam, que é conteúdo;\n- os 'acessos recentes' só se julgam com a origem (endereço).\n\nMesmo assim, o portão 0a exige que a checagem tenha 'saído limpa', que é uma conclusão absoluta (crítica, ponto 9).",
+  "cenario": "Existe uma tarefa agendada que baixa e roda um script de fora, com um nome inocente. O roteiro imprime o nome e a data, nada parece estranho, e a 0a segue como 'limpa'.",
+  "conserto": "O roteiro imprime os comandos das tarefas agendadas e dos servidores de ferramentas com os valores que parecem segredo mascarados por regra, a impressão digital de cada chave de acesso autorizada e um resumo das origens dos acessos. No portão, escrever 'nenhum sinal encontrado nos itens A, B e C', nunca 'limpa'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Ela leva a estrutura, os dados, os papéis e as tarefas agendadas, e nunca as senhas, o cofre de segredos ou as sessões.",
+  "problema": "A própria verificação da MEL-03 manda olhar o 'cron.job, inclusive chave escrita no texto do comando'. Se uma tarefa agendada da v1 tem chave no texto, a cópia leva essa chave, o que contradiz o 'nunca as senhas'. Pior: ao restaurar no banco descartável da máquina do GitHub, as tarefas agendadas (pg_cron, com pg_net) podem voltar a disparar e chamar endereços de produção com as chaves de verdade.",
+  "cenario": "O teste de restauração sobe a cópia, o pg_cron volta a rodar e a máquina do GitHub chama o gateway ou as funções de produção. Isso cria tarefas ou dispara ações, a partir de um teste que deveria ser descartável.",
+  "conserto": "Restaurar com as tarefas agendadas desligadas: desativar ou remover os agendamentos antes de ligar o pg_cron, e sem saída de rede para o pg_net. No inventário, marcar as tarefas agendadas com chave no texto e pôr essas chaves na lista de chaves. Escrever 'a cópia pode levar chave escrita dentro de uma tarefa agendada (NÃO CONFIRMADO)'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Ele roda a cada mudança no banco, num Supabase local montado no GitHub, e toda semana na produção, antes e depois de 30/10/2026.",
+  "problema": "Três testes semanais precisam de acessos que o próprio plano proíbe, e o plano não diz como funcionam:\n- ler o catálogo da produção pede uma credencial do banco no GitHub, contra 'nenhuma senha do banco pode ficar no repositório principal';\n- 'um teste semanal confere a lista contra o que está de fato configurado' pede leitura das variáveis do EasyPanel;\n- 'Um teste semanal falha se a chave da API da OpenAI ou do AI Gateway aparecer' também pede essa leitura, e o plano proíbe 'o acesso ao EasyPanel' no GitHub.",
+  "cenario": "Na hora de montar, a sessão põe no GitHub uma credencial do banco para o teste semanal, quebrando a regra sem que ninguém decida. Ou o teste nunca roda de verdade e aparece como verde no papel.",
+  "conserto": "Dizer qual acesso cada teste usa. Para o catálogo, um papel só de leitura sobre uma visão de números, como o do cartão de diagnóstico (MEL-36), escrito como exceção à regra e com a frase dele. Para as variáveis, a v2 informa os nomes no sinal de vida, e a v1 depende do fundador colar os nomes uma vez por mês. Ajustar a frase 'nenhuma senha do banco' para 'nenhuma credencial que mude o banco'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Na produção, o teste usa a mesma chave pública que o app já usa: chama cada função conhecida sem login e espera recusa, e confere que o cadastro de contas novas está desligado.",
+  "problema": "Chamar de verdade, na produção, funções que talvez estejam abertas executa essas funções. O receive-leads está configurado para aceitar chamada sem login, então chamá-lo grava um lead ou dispara o que ele faz. O teste 11 também prevê 'cada função chamada com a chave pública e com um usuário de fora'. Com o cadastro desligado, esse usuário precisa ser uma conta real criada na produção, com a senha guardada no GitHub, e o plano não diz isso.",
+  "cenario": "O teste semanal chama uma função da v1 que ainda está aberta, ela roda e grava ou muda dados de produção, toda semana, enquanto o teste 'espera recusa'.",
+  "conserto": "Na produção, conferir pelo catálogo (quem tem permissão de executar) e pela configuração. A chamada de verdade fica só no Supabase descartável. Para Edge Functions abertas por escolha, não chamar na produção. Se o 'usuário de fora' for necessário na produção, ele vira uma conta dedicada, criada pelo fundador com frase e sem permissões, e entra na lista de contas.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Cada passo da 0a que muda alguma coisa tem a frase dele, e eu peço todas numa mensagem só. A frase vale até ser usada e não vence por data. Só peço de novo se mudarem o script, o estado conferido antes ou o alcance do passo, como manda o AGENTS.md.",
+  "problema": "Os passos são em sequência, e cada um muda o estado que o próximo vai conferir antes. Se todas as frases forem pedidas de uma vez, ou elas 'vencem' pela regra assim que o passo anterior roda, ou são usadas num estado que não é aquele que o fundador viu ao autorizar. A regra fica sem critério verificável.",
+  "cenario": "O passo 2 roda, o estado muda, e a frase do passo 3 é usada sem pedir de novo. Ou cada frase é pedida de novo, contradizendo o 'numa mensagem só'.",
+  "conserto": "Para cada passo, escrever no pedido o 'estado esperado antes', já contando os passos anteriores. A frase vale se a conferência de antes bater com esse estado escrito. Se não bater, a frase é pedida de novo.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Pode existir uma cópia do app publicada no Lovable, fora da varredura.",
+  "problema": "Isso contradiz a seção 'Primeiro, ver se alguém entrou', que inclui 'uma possível cópia do app no Lovable' na varredura. Há também dois riscos:\n- varrer todas as portas da infraestrutura do Lovable (de terceiros) não é nosso direito;\n- 'tirar do ar a cópia publicada' pode derrubar a produção, já que 'quem serve o app hoje está NÃO CONFIRMADO', e a verificação da MEL-04 diz que desconectar o GitHub talvez não tenha volta e que o 'Lovable Cloud' pode guardar dados do app antigo.",
+  "cenario": "O fundador diz que não usa o Lovable, a sessão manda tirar a cópia do ar, e era essa cópia que servia o app aos usuários. Ou a varredura de portas atinge servidores do Lovable.",
+  "conserto": "Unificar: a cópia do Lovable é conferida só por uma visita comum à página (se existe e para qual banco aponta), nunca por varredura de portas. Antes de desligar qualquer coisa, confirmar, só lendo, quem serve o app. Marcar 'desconectar pode não ter volta (NÃO CONFIRMADO)' e incluir o banco do Lovable Cloud no inventário.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Ele só tinha a chave pública, então o risco é baixo.",
+  "problema": "Isso contradiz o raciocínio da própria seção: o plano diz que a chave pública dá leitura e gravação em toda tabela nova e execução em toda função, até alguém tirar. Esse projeto antigo (provavelmente o 'Lovable Cloud', segundo a MEL-04) pode guardar dados pessoais do app antigo, e a chave dele está no histórico do git. O risco não foi medido.",
+  "cenario": "O projeto antigo continua no ar com as tabelas abertas para a chave pública. Quem tem uma cópia do repositório lê ou apaga dados pessoais, e o plano tinha classificado isso como 'baixo'.",
+  "conserto": "Trocar por 'risco não medido: depende de o projeto existir e do que a chave pública abre nele'. O fundador confere no painel. Se o projeto existir, ele entra no inventário e é pausado ou fechado, com frase.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Assim, as minhas sessões não o alcançam, desde que os apps continuem restritos, o que a lista de apps confere.",
+  "problema": "Restringir os apps não cobre os apps OAuth nem os tokens clássicos com escopo 'repo', que alcançam todo repositório privado. Também não cobre as ferramentas de IA no PC (Codex, Cursor, Antigravity), que usam o login do git dele. A MEL-16 verificada pedia revogar esses tokens e pôr no teste 11 o caso 'cada acesso de IA tenta ler o helena-backup e recebe recusa'. Os dois sumiram. O texto também não diz quem põe a rotina de backup num repositório que as sessões não alcançam.",
+  "cenario": "Uma IA no PC lê o helena-backup e muda a rotina para mandar para fora a credencial do papel de leitura ou a chave que abre a cópia.",
+  "conserto": "Acrescentar ao passo 1: revogar apps OAuth e tokens clássicos com 'repo', e usar no PC só tokens finos, por repositório. Acrescentar ao teste 11 a recusa de leitura do helena-backup. Dizer que a sessão prepara a rotina como texto e o fundador cola pelo site do GitHub antes de pôr os segredos.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "nenhum arquivo novo pode ter chave, e a varredura de segredos roda a cada envio;",
+  "problema": "Contradiz o próprio texto: 'Até o job do GitHub ser ligado na 0b, cada sessão roda o gitleaks antes de enviar'. Na 0a não há varredura a cada envio, só um passo de receita. Esse passo:\n- a sessão da nuvem pode nem conseguir cumprir, porque baixar o gitleaks do github.com deu 403 no teste da MEL-02;\n- o Codex, o Cursor e o Antigravity não seguem.\n\nMesmo assim, o portão 0a exige 'a varredura não acha chave nova'.",
+  "cenario": "O Cursor envia um script com chave durante a 0a. Nenhuma varredura roda, e o portão passa porque ninguém rodou a varredura completa.",
+  "conserto": "Ligar o job leve do gitleaks já na 0a (cerca de 4 segundos, junto com as outras checagens leves) ou escrever 'na 0a, só a receita'. Pôr no portão 0a uma varredura completa, rodada uma vez no GitHub.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Nenhum app ganha permissão de mexer nas rotinas automáticas (workflows).",
+  "problema": "As sessões entram no GitHub pelo app do Claude, como administradoras, e precisam criar e mudar as rotinas que o plano pede: gitleaks, varredura, teste de catálogo e montagem da imagem. A própria seção diz que a sessão 'consegue mudar a própria rotina do gitleaks', e a crítica (ponto 1) diz que essa perda de permissão 'nunca vai acontecer'. A regra, ou é falsa, ou trava o trabalho das sessões.",
+  "cenario": "O fundador tira a permissão de rotinas de todos os apps, como manda o texto. As sessões não conseguem mais enviar nenhuma rotina, e cada uma precisa ser colada à mão por ele.",
+  "conserto": "Trocar por 'Nenhum app de terceiros (Lovable e outros) ganha permissão de mexer nas rotinas. A sessão do Claude mantém essa permissão, porque no GitHub sessão = você, e por isso as rotinas protegem contra erro, não contra desvio.'",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "**Com os clientes avisados, a sua frase desliga a URA.**",
+  "problema": "Até o aviso, cada mensagem de cliente continua virando uma tarefa READY para a Joana ou o Victor, com o texto do cliente dentro da instrução (confirmado em routes/integrations.mjs). Esses agentes têm ferramentas de busca e as do gateway. O motivo citado ('o texto do cliente vira instrução de agente') não depende do aviso: dá para parar a criação de tarefas logo e manter só a resposta automática do menu.",
+  "cenario": "O aviso aos clientes demora dias, e nesse tempo uma mensagem plantada por um 'cliente' vira instrução de um agente com ferramentas.",
+  "conserto": "Separar em dois passos. (a) Já na 0a, com frase e sem precisar de aviso: mensagem de número que não é o dele deixa de criar tarefa e só recebe o menu, com 'a equipe responde por este canal'. (b) Depois do aviso: a resposta automática para.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "**Nenhuma conta nova sem linha na lista.** Um teste falha se o plano citar uma conta que não está nela.",
+  "problema": "A lista de 'Contas cobertas' deixa de fora contas que a própria seção cita: Lovable, a plataforma da API da OpenAI (cobrança separada do ChatGPT), Google Cloud, ElevenLabs, xAI, TypeSafe, Cloudflare (R2, citado no 07/10), o projeto Supabase da Max e o registro de domínio (DNS). Pela regra do texto, o teste nasce vermelho, ou essas contas ficam sem duas etapas.",
+  "cenario": "Alguém entra na conta do registro de domínio ou do Lovable, protegidas só por senha, e redireciona o app ou empurra código. Nenhum item do portão 0a cobre isso.",
+  "conserto": "Incluir essas contas na lista e no portão, ou criar uma linha 'conta de serviço pago ou de terceiro', com duas etapas e limite de gasto conforme o cartão de cada serviço.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A 0a só fecha com tudo isto conferido por teste, nunca por data:",
+  "problema": "Vários itens da tabela da 0a não entram no portão: o app que falha fechado, os cartões das APIs pagas, o receive-leads, as chaves de 07/10 que não são do banco e a decisão sobre o Lovable. E vários itens do portão não são teste, são palavra do fundador: duas etapas, aviso aos clientes, apps restritos.",
+  "cenario": "O portão passa com o app ainda falando com a produção por padrão e com a API paga da voz sem decisão. Assim, o próprio teste semanal da OpenAI fica vermelho logo depois.",
+  "conserto": "Pôr no portão: 'a montagem sem variáveis falha', 'cada serviço pago tem cartão decidido' e 'Lovable decidido'. Separar 'conferido por teste' de 'confirmado por você', com a data da confirmação.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "você confirma no ChatGPT que o saldo de créditos é zero e que a recarga automática está desligada.",
+  "problema": "A seção é sobre API paga, mas a chave da API da OpenAI que a voz usa é cobrada na plataforma da API, separada da assinatura do ChatGPT. Conferir no ChatGPT não mostra o saldo, a recarga automática nem o gasto da API. Um leigo vai achar que a DEC-014 está conferida.",
+  "cenario": "O ChatGPT mostra créditos zerados, mas a plataforma da API tem saldo e recarga automática ligados. A voz segue gastando, e o fundador acredita que está tudo zerado.",
+  "conserto": "Dois itens. (1) No ChatGPT: créditos zerados e recarga desligada, por causa da cota. (2) Na plataforma da API da OpenAI: saldo, recarga automática e limite de gasto da chave usada pela voz.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "o formulário de leads;",
+  "problema": "O checklist roda antes e depois de cada passo, e o texto não diz como conferir o formulário sem criar um lead real na produção, possivelmente disparando o receive-leads. 'Uma tarefa do Hermes' e 'o WhatsApp respondendo' também criam tarefas reais e gastam cota a cada rodada. Para a DEC-022, o plano teve esse cuidado ('sem criar empresa de mentira'), mas não aqui.",
+  "cenario": "Dez passos dão vinte envios de teste: vinte leads falsos e vinte tarefas na fila da v1, que já está travada.",
+  "conserto": "Para cada item, dizer como conferir só lendo (por exemplo, a data do último lead recebido) ou com um registro marcado como teste e apagado depois, e contar a cota gasta pelo checklist.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Hoje não existe nenhuma cópia completa do banco, e o plano grátis do Supabase não faz backup.",
+  "problema": "Afirmações absolutas e números sem verificação (crítica, ponto 9):\n- 'não existe nenhuma cópia' não foi conferido, e o próprio mapa diz 'plano provavelmente grátis';\n- 'o GitHub e o Supabase dizem que não devolvem o acesso' exagera para o GitHub, que tem um pedido de recuperação que leva dias e diz que 'pode não' conseguir restaurar;\n- 'cerca de 13 arquivos' mais os 11 dá 24, não os 'cerca de 23' do texto, e parte deles são testes com valores possivelmente falsos (NÃO CONFIRMADO).",
+  "cenario": "O fundador lê 'não existe' e 'não devolvem' como fatos conferidos, e as contas não fecham para quem lê no celular.",
+  "conserto": "Trocar por 'não achamos nenhuma cópia completa; o seu plano do Supabase é provavelmente o grátis (NÃO CONFIRMADO), que não inclui backup'. Para o GitHub: 'podem não conseguir devolver o acesso'. Para os arquivos: 'cerca de 23 arquivos no total, contando os 11', e marcar os de teste como NÃO CONFIRMADO.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "uma tabela exposta estiver sem a proteção por linha;",
+  "problema": "Termos técnicos sem explicação, contra o estilo do v3: 'proteção por linha' (RLS), 'esquema próprio… fora da API', 'papel do motor', 'catálogo do banco', 'AI Gateway' (que nem é dito ser da Vercel) e 'Login do Supabase. Ele só aceita voltar para o endereço do app.'",
+  "cenario": "O fundador, leigo e lendo no celular, aprova a seção sem entender o que cada teste confere nem o que muda no login.",
+  "conserto": "Explicar entre parênteses na primeira vez:\n- proteção por linha: regra do banco que decide quais linhas cada pessoa vê;\n- esquema: uma 'pasta' de tabelas;\n- papel: um tipo de acesso ao banco;\n- AI Gateway: serviço pago da Vercel para chamar modelos de IA.\n\nReescrever o item do login: 'depois de entrar, o Supabase só devolve a pessoa para o endereço do app, e nunca para outro site'.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "e nem elas separariam vocês dois enquanto a sessão for administradora.",
+  "problema": "A opção B é justamente uma conta 'sem papel de administrador'. Dizer que as regras não separam 'enquanto a sessão for administradora' contradiz a premissa da própria opção e confunde a escolha.",
+  "cenario": "O fundador entende que a opção B não muda nada e descarta a opção sem saber o ganho real dela.",
+  "conserto": "Trocar por: 'com elas, e com a sessão sem papel de administrador, a sessão não conseguiria mudar a proteção da main; sem elas, ainda consegue mudar os testes'.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "um programa grátis que procura chaves no código e só exige licença de organizações.",
+  "problema": "O programa gitleaks não exige licença de ninguém. A licença é do gitleaks-action, a ação do GitHub que embala o programa, e o plano nem usa essa ação, porque baixa o programa direto, com versão fixa e conferência do arquivo.",
+  "cenario": "O fundador acha que, se um dia criar uma organização, vai precisar pagar pelo gitleaks.",
+  "conserto": "Trocar por 'um programa grátis e aberto que procura chaves no código. Usamos o programa direto, sem a ação do GitHub que pede licença a organizações'.",
+  "gravidade": "baixa"
+ }
+]
