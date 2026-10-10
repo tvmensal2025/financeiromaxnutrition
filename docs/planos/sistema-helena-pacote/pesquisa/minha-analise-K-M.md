@@ -1,0 +1,30 @@
+# My extra round-3 holes (M-list), found while red-team agents ran
+
+M1 CRITICAL (verified in Hermes source): per-task profile must BORROW the root grant.
+ - hermes_constants.py:216-233 get_default_hermes_root: HERMES_HOME=<root>/profiles/<name> -> root=<root>; any other dir -> root=HERMES_HOME itself.
+ - auth_codex.py:174-215 _save_codex_tokens docstring: a profile without its own providers.openai-codex block reads root's grant; refresh writes through to ROOT under root's lock; "a profile copy would shadow root" -> next process replays consumed refresh token -> OpenAI revokes whole family (#87503, #74339).
+ - So: per-task HERMES_HOME = /data/hermes/profiles/task-<id> (never /tmp/x), with NO auth.json tokens inside; the single grant lives in /data/hermes/auth.json.
+ - auth_codex.py:217-257 + agent/credential_sources.py:32-45: auth.adopt_external_logins defaults TRUE (config_defaults.py:1760). On a relogin-type refresh failure Hermes adopts ~/.codex/auth.json (or $CODEX_HOME) tokens of the SAME workspace -> Hermes and Codex CLI end up sharing one family -> whichever refreshes first logs the other out. Fix: auth.adopt_external_logins: false in v2 config; Codex CLI gets its own CODEX_HOME passed only to its own subprocess.
+ - Test: 3 parallel tasks while forcing token refresh; zero revocations; root auth.json rotated once; per-task dirs contain no tokens (checked by the profile generator test).
+M2 HIGH: two plans in two places (PC file docs/PLANO-HELENA-V3.md vs the Claude Doc). Fix: the doc is the single plan; repo holds machine specs (fichas, roteiros, regras); one approval phrase.
+M3 HIGH (PC P4): doc's Clara example "24 passos, 25 buscas" is an impossible budget. Rule: passos >= buscas + leituras + 3; MCP server enforces search/page caps; spec validator refuses impossible budgets.
+M4 HIGH (PC P1/P2/P3): reviewer never author; Clara must not review E3 and then judge E3 in E4; E5 (Helena's final report) needs a reviewer; every "pedir ajuste" returns to the author with the rework counter; a change to an approved section re-runs dependents (rule 10).
+M5 HIGH (PC P5): priority is a DB field set by the founder; agents can't change it; queue orders by (priority, arrival); vigia flags any step waiting past its deadline.
+M6 MED (PC practice): every phase gate includes a NEW independent red-team review; zero open holes (or explicitly accepted by him) to advance.
+M7 MED: GitHub Free private repos have no branch protection / environment reviewers -> the "typed phrase" gate for migrations stays a process rule; mitigate with dry-run job + expand-only lint + backup-within-1h check + audit log of who triggered.
+M8 HIGH: Supabase direct connection is IPv6-only on Free; GitHub-hosted runners have no IPv6; Docker bridge usually no IPv6 -> motor and Actions must use the SESSION pooler (IPv4, port 5432), never transaction mode 6543 for DBOS; small pool. (verify)
+M9 HIGH: who watches the watcher: if Supabase is paused/down, pg_cron vigia dies silently. Fix: external dead-man switch (healthchecks.io free) pinged by pg_cron and by the motor; alerts his phone when pings stop. He signs up (agents never sign up).
+M10 MED: key rotation needs an inventory of where each exposed key lives (v1 gateway, v1 Hermes, app, PC .env) and an order; v2 never uses the service role.
+M11 = K5/K6 detail: app buttons call SECURITY DEFINER rail RPCs that check auth.uid() = founder.
+M13 CRITICAL?: stored XSS: agent text rendered as HTML/markdown in the founder's authenticated app could call approval RPCs. Fix: plain text or sanitized markdown (no raw HTML, no javascript: links, no external images, links show domain); validator rejects HTML in fields; test with planted payloads.
+M14 MED: Storage growth: Free Storage 1 GB; snapshots ~100 KB x ~20 pages x 20 tasks/day ~ 40 MB/day. Fix: gzip + keep full snapshot until card closed +7 days, then keep only excerpts around quotes; bucket private; snapshots never rendered as HTML.
+M15/M16: claims must be structured {afirmação, citação, fonte}; Caio inputs each tagged dado do fundador / fonte citada / suposição marcada.
+M23 MED: v1 cron and v2 share one ChatGPT account quota; test 1 must run with v1 as it will be during coexistence (paused except in-flight).
+Doc claims to fix: Clara budget example; "segundo revisor em jurídico e finanças" vs cuts table "só no jurídico"; "Codex ... no mesmo login" (line 451) contradicts K3.
+
+## Verified on DBOS docs (2026-10-09)
+Sources: https://docs.dbos.dev/python/tutorials/queue-tutorial ; https://docs.dbos.dev/python/tutorials/upgrading-workflows
+M24 HIGH: "Deduplication is not supported on partitioned queues." The plan mixed per-agent partitioned queue + dedup IDs (K12). Fix: one plain queue per agent (5 queues, worker_concurrency 1-2) OR rely only on workflow ID idempotency (etapa+tentativa); vigia re-enqueue uses a NEW workflow id (etapa+tentativa+r<n>) only after confirming the old one is not ENQUEUED/PENDING.
+M25 HIGH: "Workflows with no priority set are dequeued before those with a priority" (low number = higher priority, 1..2^31-1, FIFO within equal). Fix: single enqueue path (rail function) always sets priority from the card's founder-set field; test mixes priorities and checks order. Closes PC P5 mechanically.
+M26 HIGH: recovery only for matching application_version; scheduled workflows go to latest version; docs don't say old-version ENQUEUED work is dequeued by new version; DBOS recommends blue-green drain. Fix: explicit fixed application_version across deploys while the (tiny) workflow functions keep the same step sequence; DBOS.patch() for compatible changes; when a workflow function's steps change: bump version + drain deploy (stop enqueue, wait PENDING/ENQUEUED = 0, max 15 min) ; vigia safety net re-enqueues orphaned etapas with a new id. Test 4 includes a deploy with version bump mid-queue.
+M27: workflow timeout clock starts at dequeue (queue waits never time out) -> our DB deadlines cover queue waits. Sync step not preemptible -> subprocess timeout + process-group kill inside the step.

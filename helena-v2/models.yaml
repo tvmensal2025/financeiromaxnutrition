@@ -1,0 +1,8 @@
+# Catalogo de modelos por apelido. Agentes apontam para o apelido; trocar modelo = mudar aqui
+# (depois de passar no banco de casos reais). "reserva" e usada quando o principal falha ou a cota acaba.
+coordenacao-padrao: { principal: gpt-6.1-sol, reserva: gpt-6-sol, provedor: openai-codex }
+pesquisa-padrao:    { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
+conteudo-padrao:    { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
+analise-padrao:     { principal: gpt-6-sol,   reserva: gpt-6.1-sol, provedor: openai-codex }
+cota:
+  reserva_prioritaria_pct: 30   # nunca gastar estes 30% com trabalho de prioridade baixa ou banco de testes
