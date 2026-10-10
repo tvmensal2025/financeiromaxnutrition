@@ -11,6 +11,14 @@ from executor_helena.tipos import ErroDeFicha, Orcamento
 
 FIX = Path(__file__).parent / "fixtures"
 V2 = Path(__file__).resolve().parents[3] / "helena-v2"
+
+
+def servicos_da_ficha(caminho):
+    """Serviços de uma ficha v3.1 com mais de um serviço; [None] quando há um só (ou ficha antiga)."""
+    servicos = (yaml.safe_load(caminho.read_text(encoding="utf-8")) or {}).get("servicos")
+    if isinstance(servicos, list) and len(servicos) > 1:
+        return [item["servico"] for item in servicos]
+    return [None]
 MODELOS = FIX / "models.yaml"
 
 
@@ -92,9 +100,11 @@ def test_fichas_reais_da_v2_continuam_legiveis():
     fichas = sorted((V2 / "agents").glob("*.yaml"))
     assert len(fichas) >= 2, "não achei as fichas da v2"
     for caminho in fichas:
-        f = ler_ficha(caminho, caminho_dos_modelos=V2 / "models.yaml", fase_em_curso="fase 4")
-        assert f.provedor == "openai-codex" and f.regras and f.nunca and f.orcamento.chamadas_total >= 1, caminho.name
-        assert set(f.ferramentas) <= {"ler_pagina", "buscar"}, caminho.name
+        for servico in servicos_da_ficha(caminho):                      # ficha com 2+ serviços: lê cada um
+            f = ler_ficha(caminho, caminho_dos_modelos=V2 / "models.yaml", fase_em_curso="fase 4", servico=servico)
+            onde = f"{caminho.name} ({servico or 'serviço único'})"
+            assert f.provedor == "openai-codex" and f.regras and f.nunca and f.orcamento.chamadas_total >= 1, onde
+            assert set(f.ferramentas) <= {"ler_pagina", "buscar"}, onde
     laura = ler_ficha(V2 / "agents" / "laura.yaml", caminho_dos_modelos=V2 / "models.yaml", fase_em_curso="fase 4")
     assert laura.formato_da_ficha == "3.1" and laura.ferramentas == ()
 

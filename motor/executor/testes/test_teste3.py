@@ -7,6 +7,7 @@ verificacao_real/ (veja o README). Os defeitos que cada cenário pega estão pro
 from pathlib import Path
 
 import pytest
+import yaml
 
 import cenarios
 from cenarios import (TEXTO_DIZ_COTA, verificador_de_acao)
@@ -22,7 +23,12 @@ def fichas_reais():
     """Toda ficha de helena-v2/agents, em todos os papéis que ela tem (alerta se a spec mudar)."""
     casos = []
     for caminho in sorted((V2 / "agents").glob("*.yaml")):
-        casos.append((caminho.stem, caminho, dict(papel="AUTOR")))
+        servicos = (yaml.safe_load(caminho.read_text(encoding="utf-8")) or {}).get("servicos")
+        if isinstance(servicos, list) and len(servicos) > 1:          # ficha com 2+ serviços: um caso por serviço
+            for item in servicos:
+                casos.append((f"{caminho.stem}-{item['servico']}", caminho, dict(papel="AUTOR", servico=item["servico"])))
+        else:
+            casos.append((caminho.stem, caminho, dict(papel="AUTOR")))
         if caminho.stem == "helena":
             casos.append(("helena-revisor", caminho, dict(papel="REVISOR")))
             casos.append(("helena-le-de-volta", caminho, dict(papel="COORDENACAO", evento="LER_DE_VOLTA")))
