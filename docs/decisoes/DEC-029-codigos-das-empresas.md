@@ -18,4 +18,4 @@ Os códigos das empresas usados na v2 são os que já estão nos checkpoints mes
 O fundador pediu que os códigos fossem descobertos nos documentos, sem perguntar de novo.
 
 ## Fonte
-Checkpoints mestre de 01/10, 04/10 e 07/10/2026 e `docs/arquivo/sessao-20261010/DECISOES-DO-FUNDADOR-20261010.md`.
+Checkpoints mestre de 01/10, 04/10 e 07/10/2026 e `docs/arquivo/sessao-20261010/decisoes-do-fundador-20261010.md`.

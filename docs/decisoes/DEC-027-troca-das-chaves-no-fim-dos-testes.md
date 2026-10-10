@@ -20,4 +20,4 @@ Até a troca, a chave de acesso total continua valendo, e ela está escrita em 9
 O roteiro de troca está em `docs/manual/troca-de-chaves.md`.
 
 ## Fonte
-`docs/arquivo/sessao-20261010/DECISOES-DO-FUNDADOR-20261010.md`
+`docs/arquivo/sessao-20261010/decisoes-do-fundador-20261010.md`

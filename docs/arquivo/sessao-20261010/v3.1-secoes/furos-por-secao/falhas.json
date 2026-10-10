@@ -1,0 +1,261 @@
+[
+ {
+  "trecho": "Provedor, queda, ferramenta, cota, login, banco e conferência sem resposta somam no mesmo contador da etapa. Na 3ª, seja qual for o tipo, a etapa para e chama você com a causa.",
+  "problema": "O contador único da etapa soma a falta de capacidade da conta inteira (cota, login, banco) com as falhas daquela execução. Uma etapa que só espera na fila acumula 'falhas' sem nunca ter rodado e, na 3ª oscilação da faixa, vai direto para você. Isso pula o '1 hora: aviso / 6 horas: você escolhe' da linha 'Cota do ChatGPT esgotada' e contraria a regra 12 ('não punem'). A máquina confirma: E12 e E13 somam infra em SEM_CAPACIDADE, e E14 (CAPACIDADE_VOLTOU) não zera. E o E99 põe infra no teto depois de uma volta automática, então a 1ª falha de provedor seguinte já chama você, e não a 3ª.",
+  "cenario": "Segunda-feira, com a v1 em pico, a janela curta cruza 80% três vezes no dia. Com 1 vaga de trabalho e 21 agentes, há 8 etapas de 5 cards na fila. Em cada cruzamento, as 8 recebem SEM_CAPACIDADE (+1). No 3º, as 8 vão para 'esperando você' com motivo INFRA: são 8 cartões no celular por um aperto normal de cota, e cada um tem um padrão que cancela a etapa em 48 h.",
+  "conserto": "Separar dois contadores. (1) Falhas da execução desta etapa (provedor, queda, ferramenta, validador sem resposta), com teto 3. (2) Espera por capacidade da conta (cota, login, banco, cota desconhecida, crédito): não soma por etapa e é tratada uma vez para a v2 inteira, com um aviso e um cartão global às 6 h. Tirar 'infra: TETO_INFRA' do E99. Caso na prova: 3 oscilações da faixa com 8 etapas na fila geram 1 aviso e 0 cartões por etapa.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "| Cartão de espera por capacidade (cota, login ou banco, depois de 6 horas) | 24 e 48 horas | A etapa é cancelada.",
+  "problema": "A espera por capacidade usa o mesmo padrão de cancelamento das perguntas: cerca de 6 h + 48 h. Só que a janela semanal pode levar até 7 dias para voltar. E 'esperar' não tem duração: pela máquina (E88), só põe a etapa de novo na fila, o ciclo de 6 h recomeça, e a resposta gasta uma das 3 ordens do card; na 4ª, o card é substituído (E98). Um problema da conta acaba cancelando cards, contra a regra 12.",
+  "cenario": "Na quinta, a janela semanal passa de 80% e só volta na segunda. Às 6 h chegam os cartões. O fundador viaja no fim de semana. Em 48 h o padrão cancela as etapas, o card pergunta pular/refazer/encerrar, cai de novo no padrão, e os cards são cancelados por falta de cota. Se ele responde 'esperar', 6 h depois chega outro cartão igual. Na 4ª ordem (somando os ajustes que já tinha pedido), o card vira um card novo que precisa da Helena, e ela está parada na faixa vermelha.",
+  "conserto": "Com motivo de capacidade, o padrão é continuar esperando e nunca cancela. 'Esperar' passa a valer até a capacidade voltar, usando a hora de volta lida no medidor, e não gasta ordem. Um cartão só para a v2 inteira, com no máximo um lembrete por dia. Caso na prova: espera de 7 dias sem resposta, com nenhum card cancelado pela cota.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Até o tempo máximo de cada execução é marcado por esse relógio; quem encerra o agente é o motor, que confere a cada 5 segundos e encerra o processo em até 15 segundos.",
+  "problema": "O relógio roda no Supabase e continua contando com a VPS ou o motor fora. Ele dispara TEMPO_ESGOTADO (E29: gasta tentativa e é falha do trabalho, que entra no disjuntor) para uma execução que morreu com a VPS. Isso acontece antes de o vigia (a cada 5 min) ver 'sem execução viva', que não gastaria tentativa. Uma falha de sistema vira culpa do agente, e isso reabre a C-4. Na volta, o DBOS retoma sozinho o fluxo da execução já vencida e chama o agente de novo, porque o passo 1 não tinha terminado. Isso gasta cota numa execução cujo número o banco já recusa, enquanto a execução nova da fila também roda.",
+  "cenario": "A VPS dividida trava no minuto 12 de uma execução da Clara (teto de 15 min). Três minutos depois, o relógio marca tempo esgotado: tentativa gasta e 'mais uma com 50% mais tempo'. A VPS volta 30 min depois: o DBOS refaz a chamada antiga, que gasta cota e tem a resposta recusada por chave velha, e o motor abre a nova. Duas travadas assim na mesma etapa a levam para 'em resolução'. Três seguidas pausam a Clara pelo disjuntor sem ela ter errado.",
+  "conserto": "O relógio só marca tempo esgotado se o motor tiver sinal de vida recente. Sem esse sinal, a execução conta como queda (SEM_EXECUCAO_VIVA) e não gasta tentativa. Antes de chamar o modelo, o passo 1 confere no banco que o número da execução ainda é o atual; se não for, o fluxo termina sem chamar. Teste: travar a VPS no meio de uma execução por mais tempo que o máximo da ficha.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "A v1 roda fora do motor e continua usando a conta, por isso a v2 para em 80% e os últimos 20% ficam para a v1.",
+  "problema": "O corte de 80% só vale quando uma etapa começa: a execução que já está rodando continua. Pelos números do próprio texto (15 a 160 mensagens a cada 5 horas, NÃO CONFIRMADO) e pelo orçamento da Clara (45 chamadas), uma única execução que começa em 79% pode levar a janela curta além de 100%. Os 20% da v1 não estão garantidos, e o critério do teste 1 ('a janela curta nunca passa de 80%') não tem mecanismo que o faça valer. Isso reabre a K-15 e cria um caminho para gastar crédito, se houver saldo ou se a recarga for ligada.",
+  "cenario": "Às 16h a janela curta está em 78%. Começam uma etapa da Clara e uma revisão, e a v1 atende o fundador no WhatsApp ao mesmo tempo. Em 15 min a conta chega a 100%. A Helena da v1 para de responder, e o resto da execução da v2 sai do crédito sem nenhum erro. O medidor só pausa a v2 na leitura seguinte, quando o gasto já aconteceu.",
+  "conserto": "Só começar uma etapa se a leitura atual somada ao custo máximo da ficha (medido por ficha no teste 1) ficar abaixo de 80%. O servidor de ferramentas consulta a última leitura a cada chamada e responde 'entregue agora' acima de 85%. Acima de 95%, o motor encerra a execução como falha de sistema, sem gastar tentativa.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "| Falha desconhecida | Para só aquela etapa e guarda tudo | Na hora: aviso para você, e a etapa vai para em resolução. O caso vira teste novo |",
+  "problema": "'Falha desconhecida' está entre as falhas do trabalho: gasta tentativa (E28), vai na hora para 'em resolução' e entra no disjuntor. Só que o caso mais provável de falha desconhecida é um erro novo do provedor que o tradutor do registro do Hermes ainda não conhece, e esse erro atinge todas as etapas ao mesmo tempo sem pausar a fila. O próprio texto supõe, sem ter conferido, que 'a conta suspensa aparece como login recusado'. Isso reabre a C-4 e a C-20 por outro caminho.",
+  "cenario": "A OpenAI aposenta o nome do GPT-6.1 Sol, ou suspende a conta com um código de erro novo. O tradutor não reconhece o erro e o classifica como desconhecida. O motor pega a próxima etapa, falha do mesmo jeito e segue: cada etapa da fila vira um cartão de resolução no celular, e o disjuntor pausa os agentes um a um com 3 'falhas seguidas', marcando no boletim de qualidade um problema que é da conta.",
+  "conserto": "A falha desconhecida não gasta tentativa nem conta no disjuntor enquanto não for classificada. Duas desconhecidas seguidas em etapas diferentes pausam a fila inteira como falha de sistema, com um aviso e um cartão únicos. Marcar NÃO CONFIRMADO como a suspensão aparece no registro do Hermes, e o tradutor ganha esse caso como teste.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Se a cota voltar antes da sua resposta, a etapa volta sozinha à fila (novo na v3.1)",
+  "problema": "Quando a falha de sistema chega ao teto na validação ou na revisão, a máquina descarta a entrega pronta (LIMPAR_ENTREGA em E42, E48, E53, E68 e E70). Depois, a 'volta à fila' (E99) devolve a etapa ao autor, que refaz o trabalho, gasta cota e soma +1 no teto de 6, porque o E99 não zera as execuções. Isso contradiz 'Nenhuma delas gasta tentativa' e gasta mais cota justamente quando ela está faltando.",
+  "cenario": "No convite da meta: o autor entrega (1), o revisor reprova (2), o autor corrige (3), o validador aprova e a etapa vai para revisão. A conta entra no vermelho 3 vezes durante a revisão, e o E53 joga fora o convite corrigido. A cota volta, e pelo E99 o autor refaz (4). O revisor (5) reprova por outro critério, o autor refaz (6), e a etapa bate o teto de 6 e vai para 'em resolução'. Sem a falta de cota, teria terminado.",
+  "conserto": "Falha de sistema na validação ou na revisão guarda a entrega e volta ao mesmo ponto (validação ou revisão), nunca ao autor, e não soma no teto de 6. Regra na prova: nenhuma linha de classe de sistema tem LIMPAR_ENTREGA nem leva de REVISAO ou VALIDACAO para NA_FILA.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "quem manda pelo Telegram é o motor, com reenvio até o Telegram aceitar.",
+  "problema": "O reenvio não separa erro passageiro (429, 5xx) de recusa permanente, como mensagem com mais de 4.096 caracteres ou marcação de texto que o Telegram não consegue ler. Um aviso sempre recusado nunca é aceito. Se a fila de envio anda em ordem, ele prende todos os avisos de trás. E, como 'Uma espera por você só aplica o padrão depois que o lembrete foi aceito pelo Telegram', as esperas ligadas a esses avisos nunca terminam.",
+  "cenario": "O título de um card traz um '<' ou '_' vindo do texto de um agente, e o envio usa formatação. O Telegram responde 400 ('can't parse entities'), e o motor reenvia sem parar. Depois de 15 min, o vigia de fora acusa 'avisos parados'. Você recebe o alarme, mas não tem como consertar. Os lembretes de todos os cards ficam presos atrás desse aviso, e nenhum padrão anda.",
+  "conserto": "Enviar sempre em texto simples, cortado em 4.000 caracteres, com o link do card. Um erro 4xx (fora o 429) não é reenviado igual: vai uma versão mínima ('Card X precisa de você, abra o app'). Se essa também falhar, o aviso fica 'não entregue' e segue pelo e-mail do vigia de fora, que conta como lembrete entregue. Cada aviso é enviado de forma independente.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "| Cota desconhecida: o medidor não consegue ler (novo na v3.1) | Nenhum card novo começa, e nenhuma etapa nova de autor; seguem só a Helena recebendo os seus pedidos e os revisores | Na hora: um aviso só, e não um por leitura que falhar |",
+  "problema": "Duas pausas novas não existem na máquina (as classes de SEM_CAPACIDADE são só COTA, LOGIN, BANCO e AGENTE_PAUSADO) e não têm teto nem saída. A 'cota desconhecida' manda um aviso só e para os autores sem prazo. O 'Saldo de crédito caiu' pausa a v2 inteira sem dizer quando ela volta nem o que você pode escolher. Assim, é falsa a frase 'Cada tipo das tabelas abaixo é um evento da tabela de passagens ... e a prova percorre todos'. Na cota desconhecida, os revisores e a Helena continuam gastando às cegas, sem limite de tempo.",
+  "cenario": "O 'hermes usage --json' lê um endereço interno da OpenAI. A versão do Hermes está fixada, mas a OpenAI muda o formato do lado dela. Todas as leituras falham: sai um aviso às 9h, e nenhuma etapa de autor roda mais. As revisões seguem sem saber se a conta está em 99%. Sem cartão de decisão, o fundador só pode cancelar, e tudo fica assim até alguém abrir uma sessão de manutenção.",
+  "conserto": "Pôr COTA_DESCONHECIDA e CREDITO_CAIU na máquina, com teto. Depois de, por exemplo, 2 h com a cota desconhecida, chega um cartão com opções fixas: esperar, ou rodar com um teto diário de execuções contado pelo motor (o número que coube no teste 1). O aviso se repete a cada 24 h, e os revisores também param depois de 1 h. Para o saldo que caiu: cartão 'caiu de X para Y', e a v2 só volta pelo seu botão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "6 horas: você escolhe entre esperar, usar o modelo menor ou encerrar o card",
+  "problema": "A opção 'usar o modelo menor' não destrava nada e não tem caminho escrito. A faixa vermelha pausa a v2 inteira pela porcentagem da conta, qualquer que seja o modelo. E o motor descarta a execução cujo modelo não é o da ficha ('o motor confere no registro de uso que o modelo e o provedor foram os da ficha'). Mesmo assim, o toque gasta uma das 3 ordens do card (E88).",
+  "cenario": "Às 6 h chega o cartão, e o fundador toca 'modelo menor' para a etapa urgente. A etapa volta à fila, mas a faixa continua vermelha e ela não roda; 6 h depois chega outro cartão igual. Se a faixa estivesse amarela e a etapa rodasse com o Luna, o registro de uso mostraria um modelo diferente do da ficha, e o motor descartaria a execução como suspeita.",
+  "conserto": "Só oferecer o modelo menor quando o medidor ler uma janela própria dele abaixo do limite (NÃO CONFIRMADO se dá para ler). Gravar a troca como versão da ficha daquela etapa, para a conferência de modelo aceitar, e não gastar ordem. Se não der, tirar a opção do cartão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Por isso virou teste que bloqueia: o teste 4 mata o motor à força e exige que o novo ligue.",
+  "problema": "Quando o processo é morto, o sistema fecha a conexão e a trava cai na hora, então o teste passa. Neste setup, o caso real é outro: a VPS dividida trava ou reinicia, ou a rede cai. A conexão fica meio aberta no pooler do Supabase, e a sessão que segura a trava continua viva até o tempo limite de TCP (pode levar horas; NÃO CONFIRMADO). O motor novo não liga, e o texto não diz o que você faz. O inverso também não é testado: o motor vivo perde a trava (por exemplo, quando o pooler reinicia) e não percebe. Numa publicação em que o contêiner novo sobe antes de o velho parar, ficam dois motores, o que reabre a M-28.",
+  "cenario": "A Hostinger reinicia a VPS às 3h. O EasyPanel sobe o motor às 3h04, mas ele não consegue a trava. Às 3h15, o healthchecks avisa 'motor fora'. Você reinicia pelo EasyPanel e nada muda: a trava só cai quando o Supabase desistir da conexão antiga. Os cards ficam parados a manhã inteira.",
+  "conserto": "Trocar a trava de sessão por um aluguel numa tabela: dono, hora de expirar e renovação a cada 5 s, e o motor que não consegue renovar para sozinho. O número de execução continua servindo de cerca contra gravação antiga. O teste 4 passa a cobrir quatro casos: matar o processo, cortar a rede do contêiner, reiniciar a VPS e publicar com os dois contêineres ao mesmo tempo. E deixar pronto um script para o editor SQL que encerra a sessão presa, com o passo a passo dentro do aviso.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O motor manda o aviso direto pelo Telegram, sem passar pela tabela de avisos, que mora no banco, e guarda consigo o que já mandou, para não repetir em laço",
+  "problema": "O registro do que já foi avisado fica na memória do processo. Se o motor reinicia enquanto o banco está fora, essa memória zera a cada vez. Isso acontece se ele não consegue subir sem o banco (o DBOS precisa do banco ao ligar, para retomar os fluxos) ou se o EasyPanel o reinicia porque a checagem de saúde falha. Com o banco só leitura (500 MB no plano grátis, B-4), se a retomada ao ligar, que precisa gravar, derruba o motor é NÃO CONFIRMADO.",
+  "cenario": "Num sábado à noite, o banco passa de 500 MB e fica só leitura. O motor entra em laço de reinício a cada 30 s e, a cada vez, manda 'banco fora do ar': são cerca de 120 mensagens por hora, até o Telegram limitar o robô. O alarme que importa se perde no meio delas.",
+  "conserto": "Guardar o 'já avisei' num arquivo do volume do motor, fora do banco, com a hora, e reavisar no máximo a cada 6 h. O motor sem banco não encerra o processo: fica vivo em modo 'esperando banco', com um sinal próprio no healthchecks. Teste: 1 hora de banco só leitura gera 1 aviso.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "| Ferramenta fora do ar | Se o agente não recebeu exatamente as ferramentas da ficha, a execução não conta e é refeita |",
+  "problema": "A falta de ferramenta só é vista depois que a execução termina, porque o Hermes segue sem o servidor e o modelo responde de memória (C-6). Assim, cada tentativa gasta uma execução inteira de cota. Não há conferência antes de abrir o agente nem pausa da fila: se o nosso servidor de ferramentas cai para todos (falta de memória na VPS dividida ou publicação ruim), cada etapa da fila queima até 3 execuções inteiras antes de chamar você.",
+  "cenario": "Depois de uma publicação, o servidor de ferramentas não sobe, e há 6 etapas na fila. São 6 × 3 = 18 execuções completas jogadas fora (até 15 min cada), gastando a janela curta que a v1 também usa, e no fim chegam 6 cartões de falha de sistema.",
+  "conserto": "Antes de abrir o agente, o motor testa o servidor pedindo a lista de ferramentas da ficha. Se o teste falhar, a etapa nem abre e conta como falha de sistema, sem gasto de cota. Duas falhas de ferramenta seguidas em etapas diferentes pausam a fila inteira, com um aviso só. E a execução é encerrada assim que o registro do Hermes mostrar que o servidor não conectou.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Uma noite sem os casos fica marcada como \"sem conferência por cota\" e não conta como falha nem como acerto.",
+  "problema": "Os 5 casos fixos da noite são o único meio de pegar uma troca escondida de modelo, e só rodam na faixa verde. As noites puladas não disparam nada, e a janela semanal pode passar dias acima de 60% (faixa amarela). Nesse tempo, as etapas em andamento continuam sendo entregues e aprovadas sem nenhuma conferência, e nenhum limite de noites seguidas sem conferência foi escrito. Resultado pior chega sem aviso.",
+  "cenario": "A janela semanal passa de 60% na quarta e só volta no domingo. Na quinta, a OpenAI troca o modelo por trás do mesmo nome. Quinta, sexta e sábado ficam como 'sem conferência por cota', e as etapas em andamento terminam aprovadas com o modelo pior. A primeira conferência roda no domingo, e o aviso só sai na terça, depois de duas noites de falha.",
+  "conserto": "Contar as noites seguidas sem conferência: na 2ª, aviso; na 3ª, a faixa do card mostra 'modelo não conferido há N noites'. Reservar cota para 1 caso fixo por noite também na faixa amarela, cortado logo depois dos revisores.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Entrega: na 3ª, chama você. Plano: na 2ª, o card espera você, com o motivo",
+  "problema": "No teto das falhas de sistema, a etapa chama você. Só que as opções da máquina para motivo INFRA (esperar, modelo menor, encerrar) não consertam um defeito nosso, como validador que trava sempre na mesma entrega, servidor de ferramentas caído ou motor em laço. Você não programa. 'Esperar' refaz a etapa e gasta ordem, e na 4ª ordem o card é substituído. Nenhum passo chama quem faz a manutenção.",
+  "cenario": "Um erro no validador o faz travar sempre que a entrega tem uma tabela grande. Na 3ª vez, chega o cartão 'conferência do código sem resposta'. Você toca 'esperar': o autor refaz (gastando cota) e o validador trava de novo, até o card ser substituído e o card novo repetir o mesmo caminho. O cartão de diagnóstico mostra o número, mas ninguém abriu uma sessão de manutenção.",
+  "conserto": "Para causa interna (validador, ferramenta ou motor), o cartão diz 'é defeito do sistema; esperar não resolve' e oferece 'parar e chamar manutenção'. Essa opção abre um item na issue fixa 'Precisa de você', com o código do caso, e congela a etapa sem padrão de cancelamento até o conserto. 'Esperar' fica só para cota, login e banco.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Não aparece para \"entrega grande demais\".",
+  "problema": "Para 'entrega grande demais' não existe a opção refazer, e 'seguir sem a etapa' nunca vale 'no jurídico (E4) nem no relatório final (E5)'. Nessas etapas, a única opção é encerrar o card. O texto diz que a saída é dividir a entrega 'ao montar o plano', mas o cartão não tem opção para mudar o roteiro de um card em andamento, e um card novo repete o mesmo roteiro.",
+  "cenario": "A meta das 10 pessoas chega ao E5 com todas as entregas aprovadas. O relatório final recebe tudo e passa do tamanho que o modelo aceita: 'entrega grande demais', em resolução, e a única opção é encerrar com falha. O trabalho aprovado fica sem relatório, e pedir de novo dá o mesmo resultado.",
+  "conserto": "Acrescentar a opção fixa 'dividir esta etapa': o código troca a etapa pelo roteiro de divisão por seção declarado no modelo do serviço, que passa pela validação do plano e pelo seu Aprovar. O E5 já nasce dividido quando o número de entregas passar de um limite medido na fase 2.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O DBOS fica configurado para no máximo 3 retomadas da mesma etapa; o padrão dele é 100, conferido no código do DBOS (novo na v3.1)",
+  "problema": "No código do DBOS, o limite de retomadas vale por fluxo e conta qualquer queda do processo. Uma resposta que derruba o motor faz cair também os fluxos que rodavam junto, como a Helena entendendo uma mensagem sua, e eles gastam retomadas sem ter culpa. E a etapa culpada só chega a você depois de muitas quedas: o DBOS esgota as retomadas, o vigia conta 1 queda e devolve a etapa à fila, e o agente roda de novo pago, três vezes. Isso dá algo como 9 a 12 quedas e 3 execuções pagas, e não '3ª queda da mesma etapa, inclusive quando é a própria resposta que derruba o motor'.",
+  "cenario": "O agente devolve um texto enorme que estoura a memória do contêiner do motor quando é lido. O motor cai, volta, relê a resposta gravada e cai de novo. Cada queda leva junto a vaga da Helena, e o pedido que você mandou nesse minuto vai para 'sem classificar'. Como o motor volta em segundos, o vigia de fora (15 min) não avisa nada.",
+  "conserto": "Ler a resposta gravada com limite de tamanho antes de interpretá-la; a que não couber vira 'entrega grande demais' sem passar pelo interpretador. Se o motor cair 2 vezes lendo a mesma resposta, a etapa vai direto para você, sem nova execução paga. E sai um aviso no 2º reinício do motor em 10 min.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Cada mudança de prazo sua rearma os três avisos para o prazo novo, e o nível que o prazo novo já passou dispara na hora.",
+  "problema": "O texto promete rearmar os avisos a cada mudança de prazo, mas a máquina que ele diz seguir só rearma nas 3 primeiras (TETO_MUDANCAS_PRAZO = 3, ainda em proposta). Da 4ª mudança em diante, o prazo muda e nenhum aviso dispara para o prazo novo.",
+  "cenario": "A meta das 10 pessoas é longa, e o fundador estende o prazo semana a semana. Na 4ª extensão, o card já está no nível 3. O prazo novo vence, a etapa continua parada na fila e ninguém é avisado.",
+  "conserto": "Fazer o texto e a máquina dizerem o mesmo. Uma saída é a 4ª mudança seguir a regra das ordens acima do teto (card novo ligado, com os avisos novos). A outra é escrever com clareza que, a partir da 4ª, sobra só o aviso de vencimento, uma vez.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "As duas já estão no inventário da fase 0, com cartão de decisão.",
+  "problema": "O texto trata a URA e as ligações de saída da v1 como decisão em aberto: fala em 'cartão de decisão' e em 'Se a URA de clientes estiver ligada como exceção'. Mas em 10/10 você já decidiu desligar a central da v1 (URA e ligações de saída), com a sua frase exata para a ação e com os clientes avisados antes. Perguntar de novo contraria o AGENTS.md ('não pedir novamente se já concedida') e o registro de decisões.",
+  "cenario": "No inventário da fase 0, chega a você um cartão 'desligar ou manter como exceção?' sobre algo já decidido. Uma sessão lê 'ligada como exceção' e planeja trocar a resposta da URA por um aviso de demora, em vez de preparar o desligamento.",
+  "conserto": "Escrever: 'Decidido em 10/10: desligar a central da v1. Falta a sua frase exata para a ação no ar, depois do inventário somente leitura e do aviso aos clientes.' O cartão de decisão fica só para a voz paga, se ela for separada da central.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Cada tipo das tabelas abaixo é um evento da tabela de passagens (`helena-v2/maquina/vocabulario.yaml` e `passagens.yaml`), e a prova percorre todos.",
+  "problema": "A frase é falsa para pelo menos 4 linhas das tabelas. No vocabulario.yaml, FALHA_INFRA só tem as classes COTA, LOGIN, PROVEDOR, QUEDA, BANCO e FERRAMENTA, e SEM_CAPACIDADE só tem COTA, LOGIN, BANCO e AGENTE_PAUSADO. Não existe evento nem classe para 'Cota desconhecida' (que deixa revisores rodando e trava só os autores), 'Saldo de crédito caiu', 'Motor ou VPS fora do ar' e 'Avisos parados'. Por isso a prova não percorre esses casos. É a promessa central do plano (\"a prova percorre todos\"), dita sobre algo que a prova não cobre.",
+  "cenario": "O fundador lê que tudo foi provado. Depois, a leitura de cota falha, e o motor aplica uma regra que nunca passou pela prova: deixa revisores rodando e autores parados, sem teto. Um erro nessa regra não é pego antes de ir ao ar.",
+  "conserto": "Separar com nome as linhas que são eventos da tabela (indicando o evento: FALHA_INFRA/COTA, TEMPO_ESGOTADO, AJUSTE_DO_JULGADOR etc.) das que são regras do motor, fora da tabela, cobertas pelo simulador ou pelo teste 7. A outra saída é criar no vocabulário as classes que faltam (por exemplo COTA_DESCONHECIDA e CREDITO) antes de escrever \"a prova percorre todos\". Escrever: \"o que passou na prova da versão 2.0.0 da tabela\".",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Provedor, queda, ferramenta, cota, login, banco e conferência sem resposta somam no mesmo contador da etapa. Na 3ª, seja qual for o tipo, a etapa para e chama você com a causa.",
+  "problema": "A pausa planejada do medidor (faixa vermelha em 80%) passa a contar como falha. Na máquina, cada SEM_CAPACIDADE na fila soma 1 ao contador (linhas E12/E13), e na 3ª a etapa vai para você. Isso contradiz a linha da cota (aviso em 1 hora, escolha em 6 horas) e o objetivo de não fazer de você um gargalo. A faixa entra e sai no mesmo número (80%), sem folga entre um e outro, e a v1 continua gastando, então a pausa se repete. Há ainda um efeito escondido: quando a capacidade volta depois da espera de 6 horas, a máquina põe o contador no teto (E99), e a próxima falha de provedor chama você na hora. O texto só diz que 'a etapa volta sozinha à fila'.",
+  "cenario": "Com fila única e cota apertada, uma etapa espera atravessando 3 períodos vermelhos de 5 horas. Ela e todas as outras que estão na fila viram, cada uma, um cartão 'falha de sistema' para o fundador, numa operação que está normal.",
+  "conserto": "A pausa por faixa do medidor não é falha e não soma no contador. Só soma o erro devolvido por uma execução que rodou. Dar uma folga à faixa: entra em 80% e só sai abaixo de, por exemplo, 75%. Escrever que, depois da volta de uma espera de 6 horas, a próxima falha de sistema chama você na hora, ou mudar a E99.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "1 hora: aviso para você. 6 horas: você escolhe entre esperar, usar o modelo menor ou encerrar o card [...] A primeira saída continua sendo passar as tarefas simples para o GPT-6 Luna, e o medidor passa a ler a janela que vale para ele (mudou na v3.1).",
+  "problema": "São duas incoerências. (1) A v2 pausa inteira com 80% ou mais em qualquer janela da conta, e o Luna gasta das mesmas janelas da conta. Escolher 'modelo menor' com a conta no vermelho não faz nada, porque o medidor continua pausando. Além disso, o motor confere que o modelo usado foi 'o da ficha', e o Luna não é. (2) 'O medidor passa a ler a janela que vale para ele' é afirmado como fato, mas a mesma seção diz que ler o limite próprio de um modelo é NÃO CONFIRMADO. A verificação da MEL-19 diz que o `hermes usage` da versão fixada não lista os limites por modelo.",
+  "cenario": "Depois de 6 horas, o fundador toca 'usar o modelo menor', achando que destrava. O card continua 'esperando capacidade', e ele gastou um dos seus 3 pedidos sem efeito.",
+  "conserto": "Mostrar 'modelo menor' só quando a causa for o limite próprio do modelo e as janelas da conta estiverem abaixo de 80%. Escrever que a conferência do modelo aceita 'o da ficha ou o que você escolheu'. Na saída do teste 1, marcar como NÃO CONFIRMADO, a conferir no dia de prova, se dá para ler uma janela própria do Luna.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O motor conta isso como execução inteira, e não como queda, porque lê primeiro o registro de uso e depois a ação gravada.",
+  "problema": "O 'porque' não explica nada e contradiz a regra de abertura da seção (\"uma execução que não terminou inteira nem tem o texto lido como resposta\") e a l. 96 da v3. Se o Hermes gravar a execução encerrada pelo nosso servidor como interrompida, ler primeiro o registro de uso leva justamente a classificá-la como queda. A crítica (ponto 12) apontou esse choque e pediu exceção explícita. O aviso de mudança também omite que a ação por ferramenta derruba duas regras da v3: 'no máximo duas ferramentas' e 'o serviço sem internet recebe o servidor vazio'.",
+  "cenario": "No dia de prova, o registro do Hermes vem marcado como interrompido. O motor segue a regra escrita, conta queda, refaz a etapa e gasta cota de novo a cada entrega boa. Ou alguém 'conserta' no código sem regra escrita.",
+  "conserto": "Escrever a exceção por extenso: 'se há ação aceita e gravada com a chave desta execução, ela vale, mesmo que o registro diga que nós encerramos; sem ação aceita, vale a regra de queda'. No aviso de mudança, listar também 'terceira ferramenta (entregar)' e 'fim do servidor vazio', valendo só se o dia de prova aprovar.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A vaga da etapa se libera sozinha quando o processo morre (novo na v3.1: na v1, uma vaga presa travava a fila inteira).",
+  "problema": "Com o DBOS, isso é falso. A fila do DBOS conta como ocupada toda execução em PENDING, esteja o processo vivo ou não (sys_db.py, `_queue_pending_filter` e `count_pending_queue_workflows`). A vaga só se libera quando o motor volta e retoma a execução, ou quando ela passa do teto de retomadas. O próprio anexo da v3 diz que trabalho de versão antiga prende vaga 'para sempre'. A frase veio da MEL-21, escrita para o motor próprio, e a crítica (ponto 11) mandou reescrever a MEL-21 para o DBOS. A frase sobre a v1 não tem fonte: o HANDOFF fala de fila furada, não de vaga presa. Além disso, 'no máximo 3 retomadas da mesma etapa' confunde as coisas: o DBOS conta por execução, e o teto por etapa é o nosso contador.",
+  "cenario": "O fundador entende que uma queda nunca prende a fila. Depois de uma publicação com troca de versão, uma execução antiga fica em PENDING segurando a única vaga de trabalho, e a fila para até a limpeza ao ligar rodar.",
+  "conserto": "Trocar por: 'a vaga fica com a execução até o motor voltar e retomá-la; ao ligar, o motor cancela o que é de outra versão, e o teste 4 confere as mesmas vagas no fim'. Tirar a frase sobre a v1 ou citar a fonte. Escrever '3 retomadas por execução no DBOS; por etapa vale o nosso contador'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se o validador da entrega ou o do plano não responder em 60 segundos, ele roda de novo, sem gastar tentativa do agente",
+  "problema": "O validador é código que roda dentro do motor, mas os 60 segundos são contados pelo relógio do Supabase, que continua rodando com o motor fora. Pelo texto, uma queda curta do motor vira 'conferência sem resposta'. Uma etapa em validação chega à 3ª em cerca de 3 minutos e vai para você. Um card validando o plano chega à 2ª em cerca de 2 minutos e espera você com VALIDADOR_FALHOU. Na máquina (C31 e TETO_ORDENS), 'confirmar de novo' gasta um dos seus 3 pedidos. Isso contradiz a linha 'Queda... na 3ª queda' e a linha 'Motor fora do ar: os avisos esperam'. A lista 'Os seus pedidos têm teto próprio' também não cita esse pedido. Além disso, o plano tem contador próprio (teto 2) e não soma no 'contador só da etapa', como a lista diz.",
+  "cenario": "O motor reinicia por 3 minutos durante uma publicação. Dois cards que estavam validando o plano vão para o fundador sem aviso, porque o motor estava fora, e cada 'confirmar de novo' consome 1 dos 3 pedidos do card.",
+  "conserto": "Contar os 60 segundos só a partir do momento em que o motor, vivo, entrega a conferência. Com o motor sem sinal de vida, a etapa fica como queda, regida pelo vigia. Incluir 'confirmar de novo depois de o validador falhar' na lista dos seus pedidos, ou não contá-lo. Corrigir a lista do contador único: 'conferência da entrega'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "As duas já estão no inventário da fase 0, com cartão de decisão.",
+  "problema": "Contradiz uma decisão já registrada do fundador. Em 10/10, ele decidiu DESLIGAR a central da v1, que é a URA de clientes mais as ligações de saída por IA (DECISOES-DO-FUNDADOR-20261010.md, nº 3, com a regra 'Não precisam ser perguntadas de novo'). O AGENTS.md também diz 'não pedir novamente se já concedida'. O texto reabre a escolha: 'Se a URA de clientes estiver ligada como exceção' e 'cartão por serviço: desligar, manter como exceção escrita com teto, ou manter só para teste'.",
+  "cenario": "O fundador recebe de novo um cartão perguntando se mantém a URA como exceção, algo que ele já decidiu, e perde confiança de que as decisões dele ficam registradas.",
+  "conserto": "Escrever: 'Decidido em 10/10: desligar a central. Antes, inventário só de leitura; falta só a sua frase para executar e o aviso aos clientes.' Deixar o cartão só para os serviços pagos fora da central e para o 'quando'. Até o desligamento, se a conta cair, vale a troca da resposta automática por um aviso de demora, com a sua frase.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A voz da v1 chama a API paga da OpenAI, e a v1 também usa outros serviços pagos (xAI, ElevenLabs, Google Cloud e TypeSafe); esse gasto não aparece aqui.",
+  "problema": "Isso é afirmado como fato sobre a produção, mas só foi visto no código. voice-agent.mjs, live-transcription.mjs e voice-facts.mjs chamam api.openai.com com OPENAI_API_KEY, e há módulos para xAI, ElevenLabs, Google e TypeSafe. Se as chaves estão configuradas e gastando no ar não foi conferido, e o arquivo de decisões lista 'se a voz da v1 usa a API paga' como pendência aberta. A outra frase ('A voz da v1 usa a API paga da OpenAI, que é outro produto') repete o problema. 'Serviços pagos' também generaliza sem conferir planos grátis. E, se for verdade, é uma exceção à DEC-014 já em vigor, o que precisa ser dito com clareza.",
+  "cenario": "O fundador conclui que já paga API da OpenAI, ou conclui que não paga, sem que ninguém tenha olhado o painel ou as variáveis do EasyPanel, e decide desligar ou manter com base nisso.",
+  "conserto": "Escrever: 'o código da v1 tem chamadas à API paga da OpenAI (variável OPENAI_API_KEY) e a xAI, ElevenLabs, Google Cloud e TypeSafe; se estão ligadas e gastando no ar é NÃO CONFIRMADO, e o inventário só de leitura da fase 0 mostra. Se estiverem, é uma exceção à DEC-014 já em uso.'",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O uso pelo Hermes é permitido: desde 29/09/2026, ele é uma das ferramentas parceiras em que a OpenAI deixa usar a cota do ChatGPT (fonte no anexo).",
+  "problema": "É uma afirmação absoluta com fonte secundária (The New Stack, não a OpenAI). O que foi conferido é que o Hermes aceita entrar com o login do ChatGPT. Não foi conferido que este jeito de usar cabe nos termos do plano: 21 agentes automáticos, 24 horas, numa VPS, para uma empresa, com dois logins (v1 e v2) da mesma conta. Além disso, o anexo citado como fonte diz que 'o uso para quando o limite acaba', o que contradiz a própria seção ('depois do limite do plano o uso passa a sair do saldo de créditos, sem erro').",
+  "cenario": "O fundador entende que não há risco de violar os termos e não pesa esse risco ao aceitar a 'conta única'. Se houver suspensão por padrão de uso automático, ele foi informado errado.",
+  "conserto": "Escrever: 'A OpenAI aceita o login do ChatGPT no Hermes (fonte: The New Stack; texto da OpenAI não conferido). Se o uso automático contínuo, com dois logins, cabe nos termos do plano é NÃO CONFIRMADO; por isso a suspensão está nos riscos aceitos.' Corrigir no anexo a frase 'para quando o limite acaba'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se não der para saber se há crédito, o motor trata como \"pode haver crédito\".",
+  "problema": "A frase não diz o que acontece. Na correção verificada (MEL-19), 'pode haver crédito' queria dizer 'a v2 nunca roda acima de 80%'. E, na faixa Desconhecida, em que ninguém sabe a porcentagem, a Helena e os revisores continuam rodando, então a v2 pode passar de 80% e de 100% sem saber e gastar crédito sem erro. Isso contradiz 'Usar crédito só com decisão sua registrada'. Além disso, 'A cada leitura, o motor compara o saldo' é dado como certo, mas o `hermes usage` só traz o crédito como texto livre em 'details', e 'onde aparece o saldo' é item do dia de prova (NÃO CONFIRMADO).",
+  "cenario": "Uma atualização quebra a leitura do medidor. A faixa fica 'desconhecida' por horas, os revisores seguem gastando, a conta passa do limite e o uso sai do crédito, sem aviso de queda de saldo, porque o saldo também não é lido.",
+  "conserto": "Definir: 'pode haver crédito' + 'cota desconhecida' = a v2 pausa inteira (ou pausa depois de N minutos). Marcar a leitura do saldo como NÃO CONFIRMADA até o dia de prova, dizendo de onde vem o número.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Na hora: um aviso só, e não um por leitura que falhar",
+  "problema": "A abertura da seção diz que 'cada tipo tem ... um teto', mas 'Cota desconhecida' não tem teto nem cartão. 'Saldo de crédito caiu' também não diz como sai da pausa. Além disso, 'a leitura acontece no máximo a cada 5 minutos ... refeita antes de cada etapa se estiver velha' não garante leitura quando o sistema está parado. Por isso, 'última leitura boa com mais de 15 minutos' vira 'desconhecida' em qualquer período sem trabalho.",
+  "cenario": "Uma atualização do Hermes muda o formato do `hermes usage --json`. Os autores ficam parados por dias, e o fundador recebe um único aviso e depois só os avisos de prazo de cada card, sem cartão com opções. Ou, ao contrário, toda madrugada sem trabalho dispara um aviso falso de cota desconhecida.",
+  "conserto": "Dar à 'Cota desconhecida' o mesmo caminho da cota: aviso em 1 hora e cartão em 6 horas (esperar, liberar com teto diário manual ou encerrar). Escrever como sai a pausa por saldo (só com a sua decisão). Fixar uma leitura periódica, por exemplo a cada 5 minutos mesmo sem trabalho.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Cada mudança de prazo sua rearma os três avisos para o prazo novo, e o nível que o prazo novo já passou dispara na hora.",
+  "problema": "O 'cada' é absoluto e é falso diante da máquina citada como fonte. Lá, TETO_MUDANCAS_PRAZO = 3: na 4ª mudança, o campo muda e os avisos ficam como estão. E esse teto é marcado como 'PROPOSTA: depende do seu sim'. O texto não avisa o teto, nem que ele é proposta, ao contrário do que faz com o teto de 3 pedidos.",
+  "cenario": "Na 4ª mudança de prazo de um card longo, o fundador espera os avisos de 80%, vencido e +1 hora do prazo novo. Eles não vêm, e o card atrasa em silêncio.",
+  "conserto": "Escrever: 'As 3 primeiras mudanças de prazo rearmam os avisos; da 4ª em diante, o prazo muda, mas os avisos não rearmam (proposta que depende do seu sim)'. Ou tirar o teto e provar de outro jeito.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Ação de fora que o motor executou e não confirmou em 15 minutos (só da fase 4 em diante)",
+  "problema": "Uma linha da v3 foi perdida sem aviso: 'Ação externa proposta | Vai para a lista do que só você faz; nunca é executada | Sempre você'. A v3.1 passa a prever que o motor executa ações de fora (cadastro, contato, gasto) a partir da fase 4, depois do seu ok. É uma mudança grande de comportamento, que aparece escondida numa tabela de esperas, sem '(mudou na v3.1: na v3, nunca era executada)'.",
+  "cenario": "O fundador aprova o plano lembrando da v3, 'nada externo é executado; só eu faço', e na fase 4 o sistema passa a executar contatos depois de um toque dele, sem ele ter percebido a mudança.",
+  "conserto": "Recolocar na tabela de falhas a linha da ação de fora com '(mudou na v3.1: na v3, nunca era executada; da fase 4 em diante o motor executa uma vez, só depois do seu ok registrado e da sua frase para ligar esse caminho)'. Dizer que até a fase 4 vale a regra da v3.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Falhas do trabalho: gastam tentativa",
+  "problema": "'Falha desconhecida' e 'Site fora do ar' entram na tabela das falhas do agente. Uma falha desconhecida pode ser do provedor ou do servidor, justamente porque não se sabe a causa, e site fora do ar é externo. Contar isso como tentativa do agente, e possivelmente no disjuntor ('3 falhas seguidas de um agente pausam só ele') e no boletim de qualidade, contradiz a regra 12 e a frase 'Falha de sistema não conta contra o agente'.",
+  "cenario": "Um erro novo do Hermes, ainda não classificado, acontece 3 vezes seguidas com a Clara. O disjuntor pausa a Clara, e o boletim de qualidade dela piora por uma falha que não é dela.",
+  "conserto": "Escrever que 'desconhecida' e 'site fora' gastam tentativa da etapa, mas não abrem o disjuntor nem pesam no boletim até a causa ser classificada. Ou criar uma classe neutra.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Para o motor, a conta suspensa aparece como login recusado",
+  "problema": "É afirmado sem verificação. Uma conta suspensa pode devolver outro erro, como 403 ou 'conta desativada', diferente do 401 de login vencido. O tradutor pode classificar esse erro como 'provedor instável' (refaz com intervalo e só chama na 3ª) ou como 'falha desconhecida' (cada etapa vai para em resolução). 'O simulador da esteira prova que ... o aviso chega a você' também promete o que o simulador não testa: a entrega real pelo Telegram.",
+  "cenario": "A conta é suspensa. O motor trata como provedor instável, gasta horas refazendo e depois abre um cartão de resolução por etapa, em vez de um aviso único de conta suspensa.",
+  "conserto": "Marcar como NÃO CONFIRMADO e pôr no teste do tradutor uma resposta gravada de conta suspensa (e de 403) que precisa virar LOGIN. Trocar 'prova que o aviso chega' por 'prova que o aviso é gravado; a entrega é conferida no teste 7'.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "o card pergunta o que fazer (pular, refazer ou encerrar), com os mesmos lembretes",
+  "problema": "Oferece 'pular' sem a restrição que o próprio texto impõe em 'Em resolução' ('só se o roteiro marcar que ela pode ser pulada, e nunca no jurídico (E4) nem no relatório final (E5)'). A máquina tem a guarda (falhas_pulaveis), mas o texto lido pelo fundador sugere o contrário.",
+  "cenario": "O fundador não revisa o jurídico em 48 horas, e o padrão cancela a E4. Ele lê que pode 'pular' e conclui que o card pode fechar sem o parecer jurídico.",
+  "conserto": "Escrever: 'pular só aparece se o roteiro permitir, e nunca na E4 nem na E5'.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Trocar de executor um dia vira escrever outro adaptador e passar nos mesmos testes.",
+  "problema": "Promete demais. Na própria seção, há peças só do Hermes fora desse tradutor: o medidor de cota (`hermes usage --json`), o login com renovação travada e a pasta de perfis. Trocar de executor exige também outro medidor e outro login, e não só outro adaptador. Além disso, 'contrato fixo', 'adaptador' e 'executor' aparecem sem explicação entre parênteses para um leitor leigo.",
+  "cenario": "O fundador acredita que trocar o Hermes pelo Codex é uma troca pequena e decide com base nisso quando o programa de parceiros mudar.",
+  "conserto": "Escrever: 'Trocar de executor fica mais simples: além de outro tradutor, é preciso outro medidor de cota e outro login, e passar nos testes 2, 3 e 5'. Explicar os termos entre parênteses (executor = o programa que roda o agente).",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Na hora: em resolução, sem a opção de refazer com mais tempo, que não resolve esse caso",
+  "problema": "A mudança está marcada, mas a consequência fica escondida. Na E4 e na E5 'seguir sem' é proibido e 'refazer' não aparece, então a única opção do cartão é 'Encerrar o card'. Na v3, o motor dividia a etapa. O fundador perde o relatório final e precisa pedir tudo de novo.",
+  "cenario": "O relatório final (E5) da meta das 10 pessoas sai grande demais. O cartão só oferece encerrar, e o fundador fica sem o relatório depois de dias de trabalho.",
+  "conserto": "Dizer isso por extenso e acrescentar a opção 'pedir de novo com o roteiro dividido', que abre um card novo ligado, com as entregas já aprovadas.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "É esse caminho que leva todo card a um final, e a prova confere isso.",
+  "problema": "É uma frase absoluta, do tipo que a crítica (ponto 9) mandou medir. A própria seção diz que 'nenhum padrão vence sem o lembrete entregue' (aceito pelo Telegram). Se o Telegram ficar quebrado de vez (chave do robô revogada, robô bloqueado), nenhum padrão vence, e o card não termina. A prova da tabela não modela a entrega pelo Telegram.",
+  "cenario": "A chave do robô do Telegram é revogada. O vigia de fora acusa 'avisos parados', mas, enquanto ninguém conserta, os cards esperando o fundador ficam abertos para sempre.",
+  "conserto": "Escrever: 'Com os lembretes entregues, todo card chega a um final, e a prova confere isso na tabela; se os avisos pararem, os cards esperam e o vigia de fora acusa'.",
+  "gravidade": "baixa"
+ }
+]

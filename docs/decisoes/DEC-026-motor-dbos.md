@@ -15,4 +15,4 @@ O motor da v2 é o **DBOS Transact** (biblioteca Python, licença MIT), como est
 - "A trava única do motor é liberada quando ele cai" vira um teste que bloqueia a fase 2.
 
 ## Fonte
-`docs/arquivo/sessao-20261010/DECISOES-DO-FUNDADOR-20261010.md`
+`docs/arquivo/sessao-20261010/decisoes-do-fundador-20261010.md`

@@ -17,4 +17,4 @@ A central conversa com pessoas de fora, e a regra do sistema é que agentes nunc
 4. Enquanto não desliga, nenhum agente liga ou responde cliente sozinho.
 
 ## Fonte
-`docs/arquivo/sessao-20261010/DECISOES-DO-FUNDADOR-20261010.md`
+`docs/arquivo/sessao-20261010/decisoes-do-fundador-20261010.md`

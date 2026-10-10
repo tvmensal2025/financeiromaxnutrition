@@ -1,0 +1,799 @@
+{
+ "maquina": {
+  "arquivos": [
+   "/home/user/financeiromaxnutrition/helena-v2/maquina/passagens.yaml",
+   "/home/user/financeiromaxnutrition/helena-v2/maquina/vocabulario.yaml",
+   "/home/user/financeiromaxnutrition/helena-v2/maquina/provar.py",
+   "/home/user/financeiromaxnutrition/helena-v2/maquina/test_maquina.py",
+   "/home/user/financeiromaxnutrition/helena-v2/maquina/jornada.schema.json"
+  ],
+  "estados_card": [
+   "RASCUNHO (dona Helena; prazo leitura de volta)",
+   "ESPERANDO_CONFIRMACAO (você; motivos HELENA_FALHOU, PLANO_INVALIDO, VALIDADOR_FALHOU — este é novo)",
+   "VALIDANDO_PLANO (motor; na hora: agora tem RELOGIO TEMPO_ESGOTADO, C30/C31)",
+   "EM_ANDAMENTO (Helena; prazo do card)",
+   "ESPERANDO_FUNDADOR (você; motivos DEPENDENCIA e NAO_PODE; sai sozinho por MOTIVO_RESOLVIDO quando a pergunta perde o objeto)",
+   "PRONTO (final)",
+   "CANCELADO (final; fim PADRAO, FUNDADOR ou SUBSTITUIDO)",
+   "ENCERRADO_COM_FALHA (final)"
+  ],
+  "estados_etapa": [
+   "AGUARDANDO_ANTERIORES (Helena; prazo do card)",
+   "NA_FILA (autor; agora prazo do card — prazo_da_etapa saiu do catálogo)",
+   "EXECUTANDO (autor; tempo máximo da ficha)",
+   "VALIDACAO (motor; na hora: agora FALHA_INFRA/TEMPO_ESGOTADO sem gastar tentativa, E47/E48/E49/E42)",
+   "REVISAO (revisor designado)",
+   "ESPERANDO_FUNDADOR (você; motivos PERGUNTA, REVISAO, RESOLUCAO, INFRA; INFRA de capacidade se desfaz com CAPACIDADE_VOLTOU, E99)",
+   "EM_RESOLUCAO (Helena, depois você)",
+   "APROVADA (esperando o card fechar)",
+   "PRONTA (final; único ponto onde nasce ação externa, E110)",
+   "CANCELADA (final; fim PAI, PADRAO ou SUBSTITUIDO)",
+   "ENCERRADA_COM_FALHA (final; PULADA ou ENCERRAR_CARD)"
+  ],
+  "acoes_por_papel": "AUTOR -> ENTREGAR{parecer, acao_externa, usou_internet}, PERGUNTAR{usou_internet} (o tipo da espera NÃO é mais parâmetro do agente), DEVOLVER_A_QUEM_PEDIU{usou_internet}, REGISTRAR_FALHA{motivo_falha, usou_internet}, PEDIR_SUBCARD (desligado). 'usou_internet' é preenchido pelo MOTOR a partir do registro de uso da mesma execução, nunca pelo agente.\nREVISOR -> APROVAR (no jurídico leva a ESPERANDO_FUNDADOR(REVISAO); só o seu Aprovar faz o parecer valer), REPROVAR, NAO_CONSIGO_CONFERIR. Só o designado responde, com a chave atual.\nHELENA -> LER_DE_VOLTA, RECOMENDAR{REFAZER|SEGUIR_SEM|ENCERRAR}; as duas agora exigem a chave atual. SUGERIR_PRAZO é só reação.\nFUNDADOR -> APROVAR, PEDIR_AJUSTE, RESPONDER: exigem a versão vista atual; com versão antiga, viram comentário. CANCELAR, USAR_COMO_EXEMPLO, PAUSAR_TUDO, MUDAR_PRIORIDADE: reação. MUDAR_PRAZO virou linha C26 (rearma os 3 avisos) até TETO_MUDANCAS_PRAZO; depois disso, reação. No teto de ordens, toda ordem é linha que substitui o card por um card novo ligado (E96, E97, E98, E117, C29, C33, C17).\nMOTOR -> INICIAR_EXECUCAO, INICIAR_REVISAO, PORTAO1_OK{escolhido: derivado de identidades}, PORTAO1_RECUSOU, FALHA, FALHA_INFRA, SEM_CAPACIDADE, CAPACIDADE_VOLTOU, TETO_EXECUCOES, DEPENDENCIAS_PRONTAS (guarda anteriores_satisfeitas, calculada pelo banco), DECISAO_MUDOU (card), PLANO_VALIDO, PLANO_INVALIDO, TODAS_PRONTAS, PERGUNTAR_AO_FUNDADOR, MOTIVO_RESOLVIDO (novo, automático), EXECUTAR_ACAO (único efeito externo), ACAO_CONCLUIDA, ACAO_FALHOU.\nSó por sinal (regras_gerais.entradas_so_por_sinal): DEPENDENCIA_MUDOU, DECISAO_MUDOU (etapa), AJUSTE_DO_JULGADOR, REABRIR_POR_ORDEM, CANCELADO_PAI, CARD_PRONTO, ENCERRAR_CARD e SUBSTITUIR_CARD (novo). LEU_INTERNET foi removido do vocabulário.\nRELOGIO -> TEMPO_ESGOTADO (também em VALIDANDO_PLANO, VALIDACAO e AUTORIZADA); PRAZO_80, PRAZO_VENCIDO e PRAZO_MAIS_1H em todo estado aberto, com guarda '<'; LEMBRETE_24H (também na espera externa e na ação PROPOSTA), LEMBRETE_48H; PRAZO_ESPERA_VENCIDO só depois de lembrete entregue; AVISO_1H, ESPERA_6H.\nVIGIA -> SEM_EXECUCAO_VIVA; REGRA_QUEBRADA (reação).\nAção externa -> PROPOSTA, AUTORIZADA, EXECUTANDO_ACAO, INCERTA, com finais EXECUTADA, FEITA_PELO_FUNDADOR, RECUSADA, EXPIRADA, FALHOU, NAO_CONFIRMADA (novo; X34) e CANCELADA. Nasce só da E110 (card pronto), no máximo uma por etapa; o ok autorizado vence em 60 s (X13, EXPIRADA).",
+  "regras_provadas": [
+   "R01 — prova + estrutura. Nenhum prazo pode ter evento nulo: 'na hora' agora tem TEMPO_ESGOTADO, com linhas em VALIDANDO_PLANO, VALIDACAO e AUTORIZADA (furo 7). Os 3 avisos do prazo do card existem em todo estado aberto; conferir_prazo_do_card testa cada estado × nível × mudanças e acusa aviso perdido e mudança de prazo que não rearma (furos 6 e 17). O fantasma g_lemb acusa padrão sem lembrete entregue, na etapa e na ação (furo 19).",
+   "R02 — prova. Há conferência nova de vivacidade: de todo card aberto com todas as etapas aprovadas e frescas (ou puladas), PRONTO é alcançável só por passos do sistema; são 468 estados (furos 1 e 16). Etapa PRONTA ou FIM_PAI com o card aberto é violação (furos 13 e 15). Os laços falha/volta de capacidade são pegos como ciclo (furo 5).",
+   "R03 — prova. A chave atual é exigida de AUTOR, REVISOR e HELENA; a camada 1 e a camada 2 geram as respostas da Helena com chave atual e antiga (furo 14). numero_de_execucao está declarado na tabela: monotônico, nunca zera, nunca é 'execucoes'.",
+   "R04 — prova. Quem julga a peça depois agora é o autor da julgadora E os revisores possíveis dela (furo 11b). Todo revisor válido da ficha precisa ser percorrido de fato, senão é violação. Autor e revisor fora dos 21 agentes do vocabulário são recusados como ESTRUTURA. O domínio do revisor e de PORTAO1_OK.escolhido é derivado de identidades, e o efeito '$param' recusa valor fora do domínio (furo 4).",
+   "R05 — prova. O ajuste volta ao autor ou, no teto, a peça é descartada e o card substituído. Teto de 6 por rodada. Todo contador no teto, inclusive na camada 2: o passo que passaria do teto agora é acusado, não pulado em silêncio.",
+   "R06 — prova. A trava 'etapa só anda com o card ativo' saiu da constante ATIVOS do provar.py e foi para regras_gerais.etapa_so_anda_com_card_ativo. A camada 2 gera passos de etapa em TODO estado do card e quem recusa é a regra da tabela (furo 2). DEPENDENCIAS_PRONTAS ganhou a guarda anteriores_satisfeitas (furo 13).",
+   "R07 — estrutura. Só você muda prioridade e prazo. O regime da sua espera (interna ou externa) nunca vem de parâmetro escrito por IA: E21/E120 decidem pelo prazo_de_terceiro do roteiro (furo 19).",
+   "R08 — prova. A ação externa só nasce na E110 (etapa PRONTA, card PRONTO, entrega fresca), no máximo uma por etapa; a camada 2 agora conta as ações por etapa e confere isso (furos 3 e 9). INCERTA nunca vira FALHOU sem a sua confirmação (X34 vai para NAO_CONFIRMADA). Ok sobre versão da ação que você não viu é violação.",
+   "R09 — prova. No jurídico, a etapa só fica APROVADA com o SEU Aprovar; o APROVAR do revisor de IA leva a ESPERANDO_FUNDADOR(REVISAO) (E74; furo 11). Toque sobre versão que você não viu nunca muda estado: os seus eventos são gerados com versão atual e antiga, e a regra fica em regras_gerais.toques_do_fundador_exigem_versao_vista (furo 10).",
+   "R10 — prova. Nada velho fica aprovado, pronto ou vira ação externa. No teto de ordens, o seu ajuste nunca deixa o card fechar com a peça marcada: a E117 substitui o card, e a conferência 'ordem aceita abaixo do teto tem linha no teto' acusa R10 para PEDIR_AJUSTE (furo 15).",
+   "R11 — prova. Uma ordem sua aceita abaixo do teto tem passagem também no teto (ESPERAR, MODELO_MENOR, REFAZER, CONFIRMO), conferida na camada 1 e na camada 2 (furo 8). O destino da recusa segue o estado do ALVO: resposta tardia com o card aberto vira RESPOSTA_GUARDADA e viaja para a versão nova; com o card fechado, abre card novo ligado (furo 18).",
+   "R12 — prova. Falha ou parada do validador (FALHA_INFRA, TEMPO_ESGOTADO em VALIDACAO) não gasta tentativa do autor e chama você na 3ª (furo 7). A espera por capacidade se desfaz com CAPACIDADE_VOLTOU (E99) uma vez por rodada; o infra vai ao teto e não há laço (furo 5).",
+   "R13 — prova. Uma linha por evento. A reprodução do histórico agora inclui todo toque seu com o destino dele; o defeito de reprodução que isso tinha foi pego e corrigido durante o trabalho. O fim só fica registrado como seu com toque seu: há conferência na estrutura (emissores) e na especificação (furo 13). Entradas só por sinal; no replay, uma entrada direta do motor é recusada.",
+   "INTERNET — prova. O uso da internet viaja DENTRO da resposta (usou_internet, preenchido pelo motor), então nenhuma ordem de eventos deixa a pergunta passar. A tentativa só de formato numa etapa com internet herda a restrição (E24/E121; furo 12)."
+  ],
+  "regras_nao_cobertas": [
+   "Concorrência real (dois motores, duas transações): índice único e trava única do motor. Quem cobre: banco + teste 4.",
+   "A chave da execução e a versão vista são abstraídas como 'atual/antiga'. Que o número seja monotônico e nunca reaproveitado (inclusive depois de NOVA_RODADA e da execução dada como morta) é garantia da sequência do banco, declarada em regras_gerais.numero_de_execucao. Quem cobre: banco e motor.",
+   "Que o relógio dispare no horário certo (80%, vencido, +1h, 24h/48h, 60 s do 'na hora'). Quem cobre: relógio no banco, teste 7.",
+   "Identidade da ação externa ENTRE cards ligados. Um card novo ligado que herda a mesma ação pode propor de novo uma ação que ficou INCERTA ou NAO_CONFIRMADA no card anterior; esta máquina só vê um card. Quem cobre: índice único no banco pela cadeia de cards (card raiz + etapa + tipo + destino).",
+   "Que 'usou_internet' venha mesmo da contagem do servidor de ferramentas, e que o motor marque o número da execução morta antes do próximo INICIAR. Quem cobre: integração do motor (vale para DBOS ou motor próprio).",
+   "Conteúdo do portão 1 (citação, conta, lei) e qualidade da rubrica. Quem cobre: validador (teste 5) e teste 9.",
+   "Os 21 agentes são cobertos por simetria: a busca usa um representante para os agentes fora da ficha, e parâmetros que ninguém lê (motivo_ajuste, motivo_falha, acao_externa) usam um valor só. A cobertura real vem dos 21 replays de ponta a ponta e de uma prova com OLIVIA/BRUNO/MARINA/THEO. Fichas reais por agente (helena-v2/agents) não entram na prova da máquina."
+  ],
+  "tamanho_da_prova": "A prova completa leva 24,7 s, abaixo do limite de 60 s (antes: 11,6 s).\n- Camada 1: 121.949 estados e 1.088.524 passagens em ~15 s (E1 27.595; E2 27.530; EJ 39.208; ER 27.594; ação externa 16 + 6). Cerca de 300 históricos reproduzidos por etapa.\n- Camada 2: 88.743 estados e 590.892 passagens em ~8,6 s. Finais alcançados: CANCELADO 17.005, ENCERRADO_COM_FALHA 15.570, PRONTO 144.\n- Vivacidade: 468 estados com tudo aprovado, todos chegam a PRONTO sem você.\n- Grupo independente do prazo (nivel_prazo × mudancas_prazo): 16 valores, sem ciclo. Prazo do card: 80 combinações conferidas.\n- Antes: camada 1 com 90.043 estados e camada 2 com 42.762.\n- Suíte: 118 testes (58 de mutação, 21 de agente) em 4 min 46 s (antes ~40 s).",
+  "comando_de_teste": "cd /home/user/financeiromaxnutrition/helena-v2 && python maquina/provar.py && python -m pytest -q maquina/test_maquina.py",
+  "resultado_testes": "- provar.py: saída 0, 'Violações: 0. Nenhuma violação conhecida nesta configuração de prova.', 24,7 s.\n- pytest: '118 passed in 286.35s'.\n- Os 19 furos foram confirmados lendo a tabela e rodando os scripts (nenhum era falso); o 16 duplica o 1 e o 17 duplica parte do 6.\n- Cada furo tem pelo menos uma mutação que o reabre, e todas as 58 mutações são pegas pela regra certa.\n- Scripts originais dos atacantes, rodados sem mudança:\n  - j2 e j7: nível de prazo chega a 3, sem recusa.\n  - j3: nenhuma ação criada, nenhuma execução externa.\n  - j4(a): o validador roda de novo sem gastar tentativa. j4(c): o card é substituído e a E2 fica com fim SUBSTITUIDO, não PADRAO.\n  - j5: LUCAS é recusado como ESTRUTURA.\n  - j6: a E2 volta a EXECUTANDO e o card não é cancelado.\n  - j7, parte 2: a tabela recusa a etapa sem o card ativo.\n  - j1 original: agora para na revisão do jurídico, que exige o seu Aprovar. A versão com o seu Aprovar fecha PRONTO sem toque seu depois da ER.\n- c2grafo.py não roda mais, porque o estado da camada 2 agora tem 4 itens.\n- Durante o trabalho a prova pegou um defeito meu (o toque recusado com efeito não entrava no histórico, R13), que foi corrigido.",
+  "pendencias": [
+   "Decisões que dependem do seu sim: TETO_MUDANCAS_PRAZO = 3 (no 4º, o prazo muda mas os avisos não voltam) e TETO_VALIDACAO_PLANO = 2 (validador do plano roda 2 vezes e depois espera você).",
+   "Decisão de desenho para o seu sim: a ação externa só aparece na sua lista quando o CARD inteiro fica pronto (depois do jurídico e do relatório), não na aprovação da etapa. É mais seguro, mas a proposta chega mais tarde.",
+   "Decisão de desenho para o seu sim: no jurídico, TODO parecer (OK, AJUSTE ou NAO_PODE) espera o seu Aprovar. Sem a sua resposta, o padrão cancela a etapa e o card pergunta. Isso segue o plano (l. 142 e 367), mas o card jurídico não fecha sem você.",
+   "Decisão de desenho para o seu sim: um 2º REFAZER na mesma etapa (replanejamento já usado) substitui o card por um card novo ligado, em vez de virar comentário (E97).",
+   "Decisão de desenho para o seu sim: a volta automática por CAPACIDADE_VOLTOU só vale para a espera de capacidade (infra abaixo do teto, 6 h de cota/login/banco). Na 3ª falha seguida quem decide é você. Isso não usa contador novo; difere do conserto sugerido (contador de retomadas), que dobrava os estados.",
+   "Divergência com o plano v3: a tabela 'Na fila | prazo: O da etapa' não bate mais. prazo_da_etapa saiu do catálogo (não tinha evento) e NA_FILA usa o prazo do card. O plano e a docs/CONFERENCIA-HELENA-V2-X-PLANO-V3.md precisam de ajuste (fora da pasta desta etapa).",
+   "Divergência com o plano v3: 'Pergunta sobre algo externo: cancela no prazo' agora exige um lembrete entregue antes (MEL-37). E a espera externa só existe quando o roteiro declara prazo_de_terceiro.",
+   "Banco: índice único da ação externa pela cadeia de cards ligados, com bloqueio enquanto houver INCERTA ou NAO_CONFIRMADA da mesma identidade.",
+   "Motor (neutro: DBOS ou próprio) precisa: preencher usou_internet pela contagem do servidor de ferramentas; usar número de execução da sequência do banco e marcá-lo morto antes do novo INICIAR; mandar a versão vista em todo botão do app.",
+   "A suíte de testes passou de ~40 s para ~4 min 46 s. A prova continua abaixo de 60 s (24,7 s).",
+   "Registrar os 19 furos como fechados em 02-registro-de-furos.md e atualizar a conferência; não fiz porque esta etapa só permitia editar helena-v2/maquina/.",
+   "Não rodei git (nada de commit), conforme as regras da tarefa."
+  ]
+ },
+ "contratos": {
+  "arquivos": [
+   "/home/user/financeiromaxnutrition/helena-v2/servicos.yaml",
+   "/home/user/financeiromaxnutrition/helena-v2/organograma.yaml",
+   "/home/user/financeiromaxnutrition/helena-v2/models.yaml",
+   "/home/user/financeiromaxnutrition/helena-v2/schemas/agent.schema.json",
+   "/home/user/financeiromaxnutrition/helena-v2/schemas/entrega.schema.json",
+   "/home/user/financeiromaxnutrition/helena-v2/schemas/acao.schema.json",
+   "/home/user/financeiromaxnutrition/helena-v2/schemas/card.schema.json",
+   "/home/user/financeiromaxnutrition/helena-v2/schemas/playbook.schema.json"
+  ],
+  "agentes": [
+   {
+    "id": "AGT-01",
+    "nome": "Helena",
+    "arquivo_ficha": "agents/helena.yaml",
+    "servicos": [
+     "SRV-RELATORIO-FINAL"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/relatorio_final.yaml"
+    ],
+    "revisor": "CLARA",
+    "reserva": "CAIO",
+    "ferramentas": [],
+    "fase_de_ativacao": "v2.0 (ESTAGIO)",
+    "resumo_do_papel": "Coordenadora e dona de todo card. Faz a leitura de volta: escolhe 1 serviço, 1 roteiro ou 'fora da v2', e nunca escolhe empresa, prioridade ou prazo. Recomenda numa resolução, com lista fechada, e não é chamada quando participou da peça (MAT-26). Escreve o relatório final, sem nenhuma ação do fundador. Revisa só cálculo e parecer (aptidão APTA) e prática pessoal (SEM_PROVA). Tem três estados separados: coordenação, aptidões de revisão e serviço de relatório. O disjuntor só pausa o relatório. Modelo: coordenacao-padrao só para coordenar e revisao-padrao para revisar. Tem uma vaga própria de coordenação."
+   },
+   {
+    "id": "AGT-02",
+    "nome": "Laura",
+    "arquivo_ficha": "agents/laura.yaml",
+    "servicos": [
+     "SRV-PLANO-DE-PRATICA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/plano_de_pratica.yaml"
+    ],
+    "revisor": "HELENA",
+    "reserva": "FUNDADOR",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 2",
+    "resumo_do_papel": "Só o desenvolvimento pessoal do fundador, com escopo PESSOAL e sem pacote de empresa. O card passa só por ela, pela Helena e por você. Um card PESSOAL com serviço de empresa, ou o serviço dela num card de empresa, é recusado pelo esquema e pelo validador do plano."
+   },
+   {
+    "id": "AGT-03",
+    "nome": "Augusto",
+    "arquivo_ficha": "agents/augusto.yaml",
+    "servicos": [
+     "SRV-ANALISE-ESTRATEGICA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/analise_estrategica.yaml"
+    ],
+    "revisor": "RAVI",
+    "reserva": "CAIO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 3",
+    "resumo_do_papel": "Estratégia: compara opções de negócio pelos mesmos critérios. É o revisor titular do plano de projeto e da tese de parceria, e reserva de perfil de função, plano de campanha e dossiê."
+   },
+   {
+    "id": "AGT-04",
+    "nome": "Marina",
+    "arquivo_ficha": "agents/marina.yaml",
+    "servicos": [
+     "SRV-PLANO-DE-PROJETO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/plano_de_projeto.yaml"
+    ],
+    "revisor": "AUGUSTO",
+    "reserva": "FELIPE",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 5",
+    "resumo_do_papel": "Escreve planos de projeto e cronogramas para o fundador executar. Nunca acompanha, move ou cobra cards, porque isso é do motor (FORA-COORDENACAO). É a revisora titular do procedimento operacional e reserva do controle administrativo."
+   },
+   {
+    "id": "AGT-05",
+    "nome": "Caio",
+    "arquivo_ficha": "agents/caio.yaml",
+    "servicos": [
+     "SRV-CALCULO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/calculo.yaml"
+    ],
+    "revisor": "HELENA",
+    "reserva": "CLARA",
+    "ferramentas": [],
+    "fase_de_ativacao": "v2.0 (ESTAGIO)",
+    "resumo_do_papel": "Faz conta e cenários em dinheiro. Não faz fiscal/contábil (fica com o contador) nem agenda de vencimentos (fica com o Felipe). É o revisor titular, com aptidão APTA, do convite e do roteiro de treinamento (a regra 4 tira a Helena dessas peças). É o titular do dossiê (SEM_PROVA até o Ravi ser ligado). É reserva do relatório final (APTA), da análise estratégica e da análise de dados. Tem 3 titularidades, que é o teto."
+   },
+   {
+    "id": "AGT-06",
+    "nome": "Clara",
+    "arquivo_ficha": "agents/clara.yaml",
+    "servicos": [
+     "SRV-PARECER"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/parecer.yaml"
+    ],
+    "revisor": "HELENA",
+    "reserva": "FUNDADOR",
+    "ferramentas": [
+     "ler_pagina"
+    ],
+    "fase_de_ativacao": "v2.0 (ESTAGIO)",
+    "resumo_do_papel": "É a única julgadora. O parecer nunca é card sozinho (não é escolhível nem avulso). Entra num roteiro ou no grafo fixo de todo serviço com ação do fundador. Julga 14 tipos, incluindo controle administrativo e dossiê, e também os passos fixos do roteiro, com OK ou NÃO PODE. Você é o segundo revisor obrigatório. Revisa o relatório final (só fidelidade e linguagem) e é reserva do cálculo. Lê páginas só da lista aprovada, com acesso sem efeito. Nunca usa o modelo menor."
+   },
+   {
+    "id": "AGT-07",
+    "nome": "Bianca",
+    "arquivo_ficha": "agents/bianca.yaml",
+    "servicos": [
+     "SRV-PERFIL-DE-FUNCAO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/perfil_de_funcao.yaml"
+    ],
+    "revisor": "OLIVIA",
+    "reserva": "AUGUSTO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 8",
+    "resumo_do_papel": "Cuida de funções, vagas e desempenho nas empresas. É sempre julgada pelo parecer, porque tem a ação PUBLICAR VAGA. Não revisa nenhum tipo."
+   },
+   {
+    "id": "AGT-08",
+    "nome": "Daniel",
+    "arquivo_ficha": "agents/daniel.yaml",
+    "servicos": [
+     "SRV-ANALISE-DE-DADOS"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/analise_de_dados.yaml"
+    ],
+    "revisor": "RAVI",
+    "reserva": "CAIO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 4",
+    "resumo_do_papel": "Cuida de indicadores que não são dinheiro, incluindo classificar e contar um lote de reclamações. É o revisor titular do plano de campanha e do plano de sucesso."
+   },
+   {
+    "id": "AGT-09",
+    "nome": "Theo",
+    "arquivo_ficha": "agents/theo.yaml",
+    "servicos": [
+     "SRV-PROPOSTA-TECNICA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/proposta_tecnica.yaml"
+    ],
+    "revisor": "NINA",
+    "reserva": "BRUNO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 16",
+    "resumo_do_papel": "Faz proposta técnica. É sempre julgada pelo parecer, porque tem a ação CONTRATAR SERVIÇO, com as categorias CONTRATO e GASTO. É o revisor titular do plano de testes."
+   },
+   {
+    "id": "AGT-10",
+    "nome": "Nina",
+    "arquivo_ficha": "agents/nina.yaml",
+    "servicos": [
+     "SRV-REQUISITOS-DE-PRODUTO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/requisitos_de_produto.yaml"
+    ],
+    "revisor": "RAVI",
+    "reserva": "MAYA",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 14",
+    "resumo_do_papel": "Cuida do problema e dos requisitos de produto, e é a primeira do quarteto de produto. O revisor dela é o Ravi, ligado antes, o que desfaz o ciclo do quarteto. É a revisora titular da especificação de interface e da proposta técnica, e reserva do plano de testes."
+   },
+   {
+    "id": "AGT-11",
+    "nome": "Ravi",
+    "arquivo_ficha": "agents/ravi.yaml",
+    "servicos": [
+     "SRV-DOSSIE"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/dossie.yaml"
+    ],
+    "revisor": "CAIO",
+    "reserva": "AUGUSTO",
+    "ferramentas": [
+     "ler_pagina",
+     "buscar"
+    ],
+    "fase_de_ativacao": "fase 3, passo 1: no primeiro roteiro que pedir pesquisa, no mais tardar como 1º passo da fase 4 (dono: você)",
+    "resumo_do_papel": "Faz o dossiê de fatos sobre uma entidade, com citação. O dossiê está em julga_tipos, então quem o revisa nunca é a Clara nem a Helena, e o parecer pode julgar o dossiê (caminho da dúvida Mimix/Hub). É o revisor titular da análise estratégica, da análise de dados e dos requisitos de produto. Só ENTREGAR e REGISTRAR_FALHA; a ferramenta buscar só na fase 4."
+   },
+   {
+    "id": "AGT-12",
+    "nome": "Maya",
+    "arquivo_ficha": "agents/maya.yaml",
+    "servicos": [
+     "SRV-ESPECIFICACAO-DE-INTERFACE"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/especificacao_de_interface.yaml"
+    ],
+    "revisor": "NINA",
+    "reserva": "BRUNO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 15",
+    "resumo_do_papel": "Faz fluxos e especificação de tela. Não mexe na voz da marca. É reserva dos requisitos de produto."
+   },
+   {
+    "id": "AGT-13",
+    "nome": "Bruno",
+    "arquivo_ficha": "agents/bruno.yaml",
+    "servicos": [
+     "SRV-PLANO-DE-TESTES"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/plano_de_testes.yaml"
+    ],
+    "revisor": "THEO",
+    "reserva": "NINA",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 17",
+    "resumo_do_papel": "Faz plano e leitura de testes de produto e software. Não é revisor universal: só é reserva da especificação de interface e da proposta técnica."
+   },
+   {
+    "id": "AGT-14",
+    "nome": "Olívia",
+    "arquivo_ficha": "agents/olivia.yaml",
+    "servicos": [
+     "SRV-PROCEDIMENTO-OPERACIONAL"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/procedimento_operacional.yaml"
+    ],
+    "revisor": "MARINA",
+    "reserva": "FELIPE",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 6",
+    "resumo_do_papel": "Faz procedimentos de rotina interna para a SUA equipe; o treinamento de leigo de fora é da Isabela. É a revisora titular do controle administrativo e do perfil de função, e reserva do roteiro de treinamento (SEM_PROVA até ser ligada e testada)."
+   },
+   {
+    "id": "AGT-15",
+    "nome": "Victor",
+    "arquivo_ficha": "agents/victor.yaml",
+    "servicos": [
+     "SRV-ROTEIRO-COMERCIAL"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/roteiro_comercial.yaml"
+    ],
+    "revisor": "ISABELA",
+    "reserva": "CAMILA",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 10",
+    "resumo_do_papel": "Faz abordagem comercial um a um e funil. É sempre julgado pelo parecer (ação CONTATAR). É reserva da tese de parceria e do plano de sucesso."
+   },
+   {
+    "id": "AGT-16",
+    "nome": "Camila",
+    "arquivo_ficha": "agents/camila.yaml",
+    "servicos": [
+     "SRV-PLANO-DE-CAMPANHA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/plano_de_campanha.yaml"
+    ],
+    "revisor": "DANIEL",
+    "reserva": "AUGUSTO",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 9",
+    "resumo_do_papel": "Faz plano de campanha e experimento, sem texto final. É sempre julgada pelo parecer (ação LANÇAR, com as categorias GASTO e PUBLICACAO). É reserva da copy e do roteiro comercial. Só entra na revisão quando estiver APTA (teste 9 + seu toque), e nunca muda o titular."
+   },
+   {
+    "id": "AGT-17",
+    "nome": "Isabela",
+    "arquivo_ficha": "agents/isabela.yaml",
+    "servicos": [
+     "SRV-COPY",
+     "SRV-ROTEIRO-TREINAMENTO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/copy.yaml",
+     "deliverables/roteiro_treinamento.yaml"
+    ],
+    "revisor": "SRV-COPY: CAIO; SRV-ROTEIRO-TREINAMENTO: CAIO",
+    "reserva": "SRV-COPY: CAMILA; SRV-ROTEIRO-TREINAMENTO: OLIVIA",
+    "ferramentas": [],
+    "fase_de_ativacao": "v2.0 (ESTAGIO)",
+    "resumo_do_papel": "Escreve conteúdo e texto (o cargo não promete mais 'Marca'). Faz texto pronto e roteiro de treinamento para leigo de fora. Os dois serviços são sempre julgados pelo parecer, mesmo pedidos sozinhos, e atendem só BIZ-003 e BIZ-004 até haver pacote. É a revisora titular do roteiro comercial e reserva do rascunho de resposta."
+   },
+   {
+    "id": "AGT-18",
+    "nome": "Pedro",
+    "arquivo_ficha": "agents/pedro.yaml",
+    "servicos": [
+     "SRV-TESE-DE-PARCERIA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/tese_de_parceria.yaml"
+    ],
+    "revisor": "AUGUSTO",
+    "reserva": "VICTOR",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 11",
+    "resumo_do_papel": "Faz tese de parceria. É sempre julgado pelo parecer (ação CONTATAR PARCEIRO). Não revisa nenhum tipo."
+   },
+   {
+    "id": "AGT-19",
+    "nome": "Renata",
+    "arquivo_ficha": "agents/renata.yaml",
+    "servicos": [
+     "SRV-PLANO-DE-SUCESSO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/plano_de_sucesso.yaml"
+    ],
+    "revisor": "DANIEL",
+    "reserva": "VICTOR",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 12",
+    "resumo_do_papel": "Faz plano de sucesso e retenção de clientes. É sempre julgada pelo parecer. É a revisora titular do rascunho de resposta."
+   },
+   {
+    "id": "AGT-20",
+    "nome": "Joana",
+    "arquivo_ficha": "agents/joana.yaml",
+    "servicos": [
+     "SRV-RASCUNHO-DE-RESPOSTA"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/rascunho_de_resposta.yaml"
+    ],
+    "revisor": "RENATA",
+    "reserva": "ISABELA",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 13",
+    "resumo_do_papel": "Escreve o rascunho de resposta a UMA solicitação, com a categoria do caso. Lote e tendência de reclamações vão para o Daniel. É sempre julgada pelo parecer. Quem envia é você."
+   },
+   {
+    "id": "AGT-21",
+    "nome": "Felipe",
+    "arquivo_ficha": "agents/felipe.yaml",
+    "servicos": [
+     "SRV-CONTROLE-ADMINISTRATIVO"
+    ],
+    "tipos_de_entrega_que_possui": [
+     "deliverables/controle_administrativo.yaml"
+    ],
+    "revisor": "OLIVIA",
+    "reserva": "MARINA",
+    "ferramentas": [],
+    "fase_de_ativacao": "fase 4, passo 7",
+    "resumo_do_papel": "Cuida de documentos, fornecedores e da agenda de vencimentos, sem valores de caixa. Agora é julgado pelo parecer (ação PAGAR, RENOVAR OU ASSINAR, com as categorias GASTO e CONTRATO). É reserva do plano de projeto e do procedimento operacional."
+   }
+  ],
+  "sobreposicoes_resolvidas": [
+   "Marina e o motor: o motor coordena (FORA-COORDENACAO). A Marina só escreve planos de projeto e cronogramas para você executar.",
+   "Bruno e os revisores: cada serviço tem o seu revisor. O Bruno testa produto e software e é só reserva de 2 tipos de produto.",
+   "Olívia e Felipe: a Olívia diz COMO a rotina interna funciona; o Felipe diz O QUE existe e QUANDO vence.",
+   "Olívia e Isabela (nova): a Olívia faz o procedimento para a sua equipe; a Isabela, o treinamento para leigo de fora. O exemplo do atendimento por WhatsApp saiu da Isabela, e os nao_atende foram cruzados.",
+   "Augusto, Camila e Nina: o Augusto decide onde jogar, a Camila como atrair (sem texto final) e a Nina o que construir.",
+   "Camila, Isabela e Victor: a Camila planeja a campanha para muitos, a Isabela escreve o texto final e o Victor aborda um a um.",
+   "Caio, Felipe e Daniel (nova): o Caio cuida de valores, caixa e cenários; o Felipe, da agenda de vencimentos sem valores; o Daniel, de indicadores que não são dinheiro. Os nao_atende foram cruzados.",
+   "Renata, Joana e Daniel (nova): a Joana responde a UMA solicitação; a Renata faz a retenção; o Daniel cuida de lote, contagem e tendência de reclamações.",
+   "Laura e Bianca: a Laura só cuida do pessoal do fundador (PESSOAL); a Bianca, das funções nas empresas.",
+   "Helena e as revisões: a Helena revisa só cálculo, parecer e prática pessoal. O Caio é o titular do convite e do roteiro, porque a regra 4 tira a Helena dessas peças.",
+   "Revisor x quem julga depois (furo 18): o dossiê entrou em julga_tipos e passou a ser revisado por Caio e Augusto, nunca por Clara ou Helena. O parecer só recebe como entrada as etapas que julga, o dossiê e as entradas externas.",
+   "Relatório x ação externa: o relatório não tem ação do fundador. A lista do que só você faz é montada pelo código com as ações das etapas aprovadas e os passos fixos do roteiro.",
+   "Pedidos de fronteira: 18 pedidos têm gabarito de exatamente 1 destino (servicos.yaml, pedidos_de_fronteira). As 25 áreas apontam cada uma para 1 serviço ou 1 item de fora_do_catalogo com destino, dono e prazo (mapa_de_areas)."
+  ],
+  "decisoes_para_o_fundador": [
+   "1. O Caio passa a ser o revisor titular do convite e do roteiro de treinamento. O plano v3 dizia 'Helena (Caio)', mas a regra 4 tira a Helena, porque ela revisa o parecer que julga essas peças. Camila e Olívia ficam só como reservas, e só entram depois de ligadas, testadas (teste 9 do par) e com o seu toque. Elas nunca trocam o titular.",
+   "2. Todo pedido avulso de serviço com ação externa ganha automaticamente o parecer da Clara e o seu Aprovar. Isso vale para convite, roteiro, vaga, resposta a cliente, campanha, abordagem, parceria, sucesso, contratação técnica e pagar/renovar. É mais seguro, mas custa cerca de 3 execuções a mais e 1 toque seu por card.",
+   "3. A ordem de volta da fase 4 é uma proposta e depende do seu sim. Ravi: no mais tardar no 1º passo. Depois, Laura, Augusto, Daniel, Marina, Olívia, Felipe, Bianca, Camila, Victor, Pedro, Renata, Joana, Nina, Maya, Theo e Bruno. Qualquer outra ordem serve se passar na MAT-12.",
+   "4. Sem vaga, a revisão espera o revisor designado e não troca de revisor. Isso diverge do plano (l. 270: 'sem vaga, entra o reserva'). A reserva só entra pela aptidão, na montagem do plano.",
+   "5. O disjuntor pausa só o serviço em que o agente falhou como autor. Nunca pausa as revisões nem a coordenação da Helena. Isso diverge do plano, que diz 'pausa só ele'.",
+   "6. Caixa 'Novo pedido': empresa obrigatória. Prioridade padrão 3 e prazo padrão de 3 dias corridos, às 18:00 de Brasília (propostas). Um botão 'confirmar antes' marca o pedido como grande; roteiro e 'fora da v2' também viram pedido grande sozinhos.",
+   "7. Pacote de voz e proibições da iGreen e do Ecossistema de Saúde: quem escreve é você, até o portão da fase 4. Até lá, cards dessas empresas dão PLANO_INVALIDO e você pode encaminhá-los à v1. Quer que a Isabela ganhe um serviço de rascunho do pacote?",
+   "8. Ficam fora do catálogo, com destino, dono e prazo: fiscal/contábil (contador) e contratos, termos e privacidade de documento seu (advogado). No portão da fase 4 você decide se a Clara ganha um 'parecer sobre documento seu', que exige linha nova na tabela.",
+   "9. 'Cadastrar a empresa na Mimix e no Hub' deixa de ser proposta da IA e vira passo fixo do roteiro, escrito por você. O parecer E4 o julga com OK ou NÃO PODE, incluindo pirâmide/MMN e LGPD.",
+   "10. Pedido que a v2 ainda não atende vira 'fora da v2'. Você encaminha à v1 com um toque (Cancelar com encaminhar). Sem resposta, o padrão cancela e não encaminha.",
+   "11. Modelo menor: só para o autor, só quando falta cota e só em serviço com bateria aprovada no modelo menor. Nunca no parecer nem no relatório. Hoje não aparece em nenhum cartão.",
+   "12. As revisões da Helena passam ao apelido revisao-padrao (gpt-6-sol). O gpt-6.1-sol fica só para a leitura de volta e a recomendação.",
+   "13. A Helena não recomenda numa resolução de peça de que participou. O cartão chega a você na hora, sem recomendação."
+  ],
+  "resultado_validacao": "Confirmei cada um dos 25 furos lendo os arquivos, a tabela da máquina e o plano v3. Todos eram reais. Os de nº 13, 14, 20 e 24 duplicam os de nº 1, 8, 3 e 10. Nenhum foi falso.\n\n**Conferência do catálogo** (scratchpad/catalogo/conferir_catalogo.py, que lê helena-v2 sem gravar nada). Saída: 'OK: nenhuma divergência conhecida nesta conferência.', em cerca de 6 s.\n- 22 serviços, 22 tipos e 21 agentes.\n- Titulares: CAIO 3, HELENA 3, RAVI 3, os outros no máximo 2.\n- Os 5 esquemas passam em check_schema (Draft 2020-12), e os YAML carregam em UTF-8.\n- MAT-01 a MAT-26 são conferidas, com a ordem de ativação simulada passo a passo (MAT-12 e o MAT-08 efetivo por passo).\n- 22 jornadas de ponta a ponta na máquina real (provar.replay), todas em PRONTO, com 0 violações e 0 recusados:\n  - a primeira meta com os estados desta versão: a E2 e a E3 são revisadas pelo CAIO e nascem 2 ações propostas;\n  - cada serviço escolhível montado pela montagem_do_plano, e os sempre julgados com o parecer;\n  - todos os julgáveis num roteiro só.\n- O PORTAO1_OK com escolhido=CAMILA na E3 é RECUSADO.\n- Mutações internas pegas:\n  - Caio pausado em copy deixa a E3 só com você;\n  - Camila APTA não troca o titular;\n  - pausar o relatório mantém a Helena revisora de cálculo e parecer;\n  - Bruno primeiro, Olívia antes da Marina, quarteto só entre si e Caio com 4 titularidades.\n- Validador do plano (mini): recusa a iGreen sem pacote, o sempre julgado sem parecer, o cálculo como entrada do parecer ou do convite, a ação no relatório, o passo fixo sem parecer, o serviço que ainda não recebe card e a prática pessoal num card de empresa.\n- Esquema das ações: as 4 saídas do atacante do furo 15 são recusadas, e a da Isabela (AF-COPY na E3) é aceita. Também são recusados:\n  - NENHUM com pergunta A/B/C e SRV-PARECER escolhido sozinho;\n  - empresa, prioridade e prazo vindos da Helena.\n- Esquema do card: o RASCUNHO só com a caixa Novo pedido passa. São recusados:\n  - card sem empresa ou sem prioridade;\n  - etapa só com você de revisor;\n  - fonte com token;\n  - encaminhado com o card andando.\n\n**Mutações do catálogo** (scratchpad/catalogo/mutar3.py, em cópias temporárias): 38 de 38 pegas pela regra certa, 0 escaparam.\n\n**Fora desta etapa**\n- O validar.py antigo (que não posso editar) falha em test_especificacoes_reais_passam. Rodei a mesma suíte com os arquivos de antes desta revisão e ela já falhava igual: as fichas antigas não batem com o esquema v3.1. As etapas das fichas e do validador resolvem isso.\n\n**Pendências para outras etapas**\n- Máquina:\n  - guarda em E52/E53 para não aceitar SEM_CAPACIDADE com classe AGENTE_PAUSADO em REVISAO;\n  - prazo 'na hora' da E101 quando a Helena participou da peça (MAT-26);\n  - a prova trata MODELO_MENOR fora das condições igual a ESPERAR (já é a E88).\n- Validador: implementar CHK-COMUM-10, as razões de PLANO_INVALIDO da montagem_do_plano e as MAT-21 a MAT-26.\n- Fichas: usar revisao.aptidao, modelo por papel (autor, revisao, coordenacao), vagas e coordenacao.estado.\n- Tipos de entrega:\n  - nenhum critério de lei fora do parecer;\n  - o parecer ganha o tema dos passos fixos e as entradas PACOTE_DA_EMPRESA e PASSOS_FIXOS_DO_ROTEIRO.\n- Playbook recrutar-10-pessoas:\n  - ações nas E2 e E3;\n  - PF-01 'Cadastrar na Mimix e no Hub' coberto pela E4;\n  - nenhuma ação na E5.\n- Plano v3 e docs/CONFERENCIA:\n  - E2 e E3 'Caio (você)';\n  - 'sem vaga, espera';\n  - disjuntor por serviço;\n  - avulso julgável com parecer.\n\n**Regras da tarefa**\n- Não deixei arquivo extra em helena-v2/ e não editei maquina/, agents/, deliverables/, playbooks/ nem validar.py.\n- Rodei uma vez, por engano, um 'git status' só de leitura (sem commit, add ou qualquer escrita), apesar da regra 'não rode git'.\n- Não acessei banco nem servidor.\n- Nenhum furo conhecido em aberto nesta conferência."
+ },
+ "agentes": [
+  {
+   "id": "AGT-01",
+   "nome": "Helena",
+   "r": {
+    "id": "AGT-01",
+    "arquivos_escritos": [
+     "/home/user/financeiromaxnutrition/helena-v2/agents/helena.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/deliverables/relatorio_final.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/boas/01-completa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/boas/02-curta.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/boas/03-com-pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/boas/04-falta-dado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/01-numero-inventado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/02-risco-suavizado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/03-pergunta-omitida.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/04-tudo-certo.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/05-acao-nova.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/06-codigo-interno.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/07-diz-que-agiu.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/08-ref-invalida.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/09-escreve-parte-do-codigo.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/10-ordem-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/11-acao-externa-no-relatorio.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/12-ordem-com-buraco.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/13-acao-disfarcada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/14-frase-longa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/15-termo-do-pacote.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/16-conclusao-que-a-conta-nao-tem.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/17-passo-que-leigo-nao-faz.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/defeitos/18-nao-responde-ao-pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/jornada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/jornada-falha.yaml"
+    ],
+    "servicos": [
+     {
+      "id": "SRV-RELATORIO-FINAL",
+      "criterio_de_pronto": "3 camadas (deliverables/relatorio_final.yaml). CÓDIGO: as comuns CHK-COMUM-01 a 10 e mais 10 próprias: CHK-REL-SO-SECOES (a Helena só escreve resumo e proximos_passos; o resto é montado pelo código), TAMANHO-DAS-LINHAS, ORDEM, SEM-CODIGO, SEM-OTIMISMO, PACOTE, REFS (cada linha ligada a uma etapa aprovada, AF-, PF- ou PEDIDO), NUMEROS (todo número está na fonte citada na mesma linha), RISCO-ALTO-NO-RESUMO (toda etapa com risco ALTO, pergunta aberta ou item sem conferir aparece no resumo) e SEM-ACAO-NOVA (verbo de ação de fora só com um AF/PF da lista do código). RUBRICA (Clara; reserva Caio; só fidelidade e linguagem, nunca o mérito): RUB-REL-01 fidelidade, 02 nada suavizado, 03 ordem das dependências, 04 nenhuma ação de fora disfarçada, 05 responde ao pedido, 06 leigo consegue fazer. FUNDADOR: NUNCA, porque o relatório não tem ação do fundador.",
+      "casos_bons": 4,
+      "defeitos_plantados": 18
+     }
+    ],
+    "jornada": "Jornada principal em /home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/jornada.yaml, sobre o card real da primeira meta (roteiro recrutar-10-pessoas, Humano Digital BIZ-003, E1 a E5). Passos: a Helena lê de volta o pedido (C01); ela sugere um prazo, e isso só vira item na lista do fundador; o fundador responde CONFIRMO; o plano é validado e E1, E2 e E3 entram na fila e executam. A Helena revisa a conta (E1). O Caio revisa o treinamento (E2) e o convite (E3), e as duas entregas propõem uma ação SO_FUNDADOR. Depois vem o parecer (E4), com a Helena como revisora e o Aprovar do fundador como segundo revisor (E74 e E81). Na E5, o relatório da Helena é recusado pelo portão 1 (E43, número sem origem), reprovado pela Clara com critério (E57, RUB-REL-02), corrigido e aprovado (E54). O card fica PRONTO (C12), e a E110 cria A1 e A2 na lista do fundador. Por fim, o Aprovar do fundador no card pronto é só reação. Resultado do replay: card PRONTO; E1 a E5 PRONTA; A1 e A2 PROPOSTA; 0 violações; 0 recusados; histórico reconstruído (R13); confere=true. Jornada de falha em /home/user/financeiromaxnutrition/helena-v2/casos/SRV-RELATORIO-FINAL/jornada-falha.yaml, com falta de dado: E1 a E4 aprovadas, e na E5 o pacote chega sem o passo fixo PF-01. A Helena registra REGISTRAR_FALHA com motivo FALTAM_DADOS (E23, EM_RESOLUCAO). Pela MAT-26 ela não recomenda, porque é a autora, e o relógio leva a etapa direto ao fundador (E101). Resultado do replay: card EM_ANDAMENTO; E1 a E4 APROVADA; E5 ESPERANDO_FUNDADOR com motivo RESOLUCAO e espera INTERNA; nenhuma ação nasce; 0 violações; 0 recusados; confere=true. As jornadas estão em YAML e rodam por provar.replay(yaml.safe_load(...)), porque o --replay da linha de comando só lê JSON.",
+    "pedidos_ao_catalogo": [
+     "maquina/passagens.yaml (MAT-26 não está na tabela; provado por replay): numa etapa em EM_RESOLUCAO cuja autora é HELENA, o evento HELENA RECOMENDAR é aceito pela E100 e leva a etapa a ESPERANDO_FUNDADOR. Hoje a regra depende só de o motor não chamar a Helena e da chave da regra 3. Pedido: um predicado do banco 'helena_participou' (autora ou revisora designada da etapa), a guarda 'not helena_participou' na E100 e um teste de mutação. O prazo 'recomendacao_da_helena' (30 min) também precisa virar 'na hora' quando helena_participou, porque o servicos.yaml diz que a E101 leva a etapa ao fundador na hora.",
+     "maquina/provar.py main(): o '--replay' usa json.loads e não lê as jornadas dos casos, que estão em YAML. Pedido: aceitar YAML com yaml.safe_load; a função replay(dict) já funciona.",
+     "validar.py (fase 1 antiga) quebra com as fichas v3.1 (TypeError: unhashable type: 'dict' em a.get('modelo')). Precisa ser reescrito para as x-regras-do-validador dos esquemas v3.1. Conferi à mão, para a Helena, as regras que ele deve automatizar: espelho do organograma e do catálogo, aptidões iguais a 'revisa', MAT-03, apelidos por papel, orçamento possível e pronto igual às checagens e à rubrica.",
+     "organograma.yaml, pacote de cada empresa: falta uma lista fechada 'termos_proibidos_em_todo_texto' (e, para o convite, 'termos_proibidos_no_convite') para a CHK-REL-PACOTE e as outras checagens de pacote lerem; hoje o conteúdo é texto livre. O caso usa uma lista de teste marcada como tal ('renda garantida', 'ganho garantido', 'dinheiro fácil', 'renda extra garantida') até o fundador registrar a oficial (FORA-PACOTE-DE-VOZ).",
+     "servicos.yaml portao1_comum, CHK-COMUM-05: o texto diz 'e parecidas'; precisa de parâmetro com lista fechada (enviei, cadastrei, publiquei, paguei, liguei, assinei, contratei, postei, mandei, contatei, inscrevi, transferi, comprei, divulguei, anunciei, renovei, convidei, abordei, respondi), para a função ter caso bom e caso ruim.",
+     "card.schema.json (ou tabela própria): não há lugar para a parte do relatório montada pelo código (referências etapa + versão aprovada + campo, riscos, perguntas abertas, itens sem conferir e lista do que só você faz por etapa). As checagens CHK-REL-REFS, NUMEROS, RISCO-ALTO-NO-RESUMO e SEM-ACAO-NOVA leem esses dados; o caso usa o bloco 'pacote_do_relatorio.parte_montada_pelo_codigo' de pedido.yaml como proposta de formato.",
+     "schemas/caso.schema.json (MEL-31) não existe. Proposta, com os campos usados aqui: pedido.yaml (id, servico, agente, empresa, pacote_da_empresa, card, leitura_de_volta, etapa_do_relatorio, pacote_do_relatorio); boas e defeitos (id, caso, descricao ou defeito_plantado, deve_falhar_em, camada CODIGO/RUBRICA, veredito_esperado_do_revisor, variante_do_pedido.remover_do_pacote, resposta).",
+     "Casos da coordenação da Helena (LER_DE_VOLTA e RECOMENDAR): não são serviço, então não têm pasta em casos/<serviço>. Pedido: criar casos/COORDENACAO-HELENA/ usando os 18 pedidos_de_fronteira do servicos.yaml como gabarito (placar 3 de 3 antes de publicar a coordenação) e casos de RECOMENDAR por tipo de falha. Nesta etapa, a leitura de volta aparece só dentro do pedido.yaml do relatório.",
+     "playbooks/recrutar-10-pessoas.yaml ainda está no formato antigo (E3 depende de E1, max_ciclos 1, responsável por AGT e ações do fundador em texto livre). O caso e as jornadas usam a forma v3.1 esperada: E3 sem E1, acoes_do_fundador E2=AF-TREINAMENTO-ENVIAR e E3=AF-COPY-ENVIAR-OU-PUBLICAR, PF-01 (cadastro na Mimix e no Hub) coberto pela E4, E5 dependendo de todas e revisores efetivos como no pedido.yaml.",
+     "eLiving™ (BIZ-004) está nas empresas do SRV-RELATORIO-FINAL, mas não existe roteiro eLiving™, e o relatório só existe como última etapa de roteiro. Por isso o caso da Helena teve de usar a Humano Digital. Decisão do fundador: criar um roteiro eLiving™ (ex.: ponto de equilíbrio da assinatura, legenda de lançamento, parecer e relatório) ou deixar registrado que o relatório da eLiving™ só existe quando houver roteiro.",
+     "Calibração (PROPOSTA): os orçamentos da Helena (relatório: 3 chamadas e 300 s; revisão: 3 chamadas e 360 s; leitura de volta: 3 e 180 s; recomendação: 3 e 240 s) são estimativas com margem de 3x, com a conta escrita na ficha, e precisam ser medidos no teste 1. As 2 chamadas de folga dependem da recusa imediata de formato da MEL-27, a confirmar no dia de prova da fase 2; sem ela, chamadas_total pode ser 1."
+    ],
+    "resultado_checagem": "1) jsonschema (Draft 2020-12): agents/helena.yaml contra schemas/agent.schema.json teve 0 erros; deliverables/relatorio_final.yaml contra schemas/entrega.schema.json, 0 erros; no pedido.yaml, o card contra card.schema.json teve 0 erros e a leitura_de_volta contra acao.schema.json $defs/LER_DE_VOLTA, 0 erros; os vereditos_esperados dos defeitos de rubrica contra $defs/veredito, 0 erros. 2) Conferência cruzada com o catálogo (regras x-regras-do-validador dos esquemas): 'ERROS: nenhum'. Ela cobriu o espelho do organograma (id, identidade, nome, cargo, grupo, escopo, fase, estado), o serviço igual ao servicos.yaml (tipo, ações, ferramentas, revisor CLARA, reserva CAIO), as empresas iguais à união do serviço, a aptidão igual a revisa (plano_de_pratica SEM_PROVA, calculo APTA, parecer APTA), os apelidos de modelo por papel, o estado derivado, o orçamento possível (3 >= 0+0+1), o pronto igual às checagens e à rubrica, a rubrica sem checagem mecânica nem lei, nenhuma colisão de IDs com deliverables/plano_de_pratica.yaml e se_faltar sempre REGISTRAR_FALHA. 3) Protótipo das checagens (só no scratchpad, fora do repositório: /tmp/claude-0/-home-user-financeiromaxnutrition/e6bad39a-0168-57f5-beb5-182463b5f582/scratchpad/agt01-helena/checar_rel.py): saída 'TUDO CERTO NO PROTÓTIPO'. As 4 boas passaram sem nenhuma recusa. Cada um dos 12 defeitos de código foi recusado só pela checagem indicada (NUMEROS, RISCO-ALTO-NO-RESUMO, SEM-OTIMISMO, SEM-ACAO-NOVA, SEM-CODIGO, COMUM-05, REFS, SO-SECOES, COMUM-10, ORDEM, TAMANHO-DAS-LINHAS e PACOTE). Os 6 defeitos de rubrica (RUB-REL-01 a 06) passaram no código, como deve ser, para a revisora pegar. Com a variante sem PF-01, a boa 01 passa a ser recusada (CHK-REL-REFS e CHK-REL-SEM-ACAO-NOVA), o que prova que REGISTRAR_FALHA é a resposta certa. As boas somam 1147, 710 e 783 caracteres, abaixo do limite de 3500. 4) provar.replay: jornada.yaml terminou com card PRONTO, E1 a E5 PRONTA, A1 e A2 PROPOSTA, violacoes [] e recusados [], confere true. jornada-falha.yaml terminou com card EM_ANDAMENTO, E1 a E4 APROVADA, E5 ESPERANDO_FUNDADOR (motivo RESOLUCAO), violacoes [] e recusados [], confere true. Um replay extra (só de diagnóstico, sem arquivo) provou a lacuna da MAT-26 que está nos pedidos. 5) validar.py antigo: quebra com TypeError por causa do formato v3.1 (pedido ao catálogo). Nenhum git, banco ou servidor foi tocado. Fora de casos/SRV-RELATORIO-FINAL/, só foram alterados agents/helena.yaml e deliverables/relatorio_final.yaml. Nenhuma violação conhecida em aberto nestas jornadas; isso não é promessa de zero furo."
+   },
+   "furos": []
+  },
+  {
+   "id": "AGT-02",
+   "nome": "Laura",
+   "r": {
+    "id": "AGT-02",
+    "arquivos_escritos": [
+     "/home/user/financeiromaxnutrition/helena-v2/agents/laura.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/deliverables/plano_de_pratica.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/boas/boa-01.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/boas/boa-02.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/boas/boa-03.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/boas/boa-04.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/boas/boa-05.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-01-trecho-inventado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-02-trecho-do-ouvinte.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-03-contagem-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-04-exercicio-sem-padrao.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-05-exercicio-longo.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-06-termo-clinico.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-07-nome-de-empresa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-08-tres-padroes.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-09-html.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-10-agiu-fora.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-11-acao-externa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-12-rotulo-de-personalidade.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-13-criterio-nao-observavel.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-14-conteudo-de-negocio.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-15-diagnostico-disfarcado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-16-padroes-menores.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-17-exercicio-depende-de-outro.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-18-medida-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/defeitos/defeito-19-promessa-de-resultado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/jornada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/jornada-falha.yaml"
+    ],
+    "servicos": [
+     {
+      "id": "SRV-PLANO-DE-PRATICA",
+      "criterio_de_pronto": "Camada 1, código: as checagens comuns CHK-COMUM-01 a 10 e mais CHK-PRATICA-01 a 06. São elas: trecho copiado ao pé da letra de uma fala SUA (linha 'EU:'), com frase inteira ou 12 palavras seguidas; contagem de palavras e de muletas refeita pelo código, que tem de bater exatamente; exercício e registro apontando para um padrão que existe; exercício de 1 a 15 minutos; nenhum termo clínico e nenhum nome de empresa fora dos trechos citados. Camada 2, rubrica tipada: RUB-PRATICA-01 a 08, todas no pronto, cada uma com a prova exigida (TRECHO, AUSENCIA ou TEXTO_INTEIRO) e o risco fixo. Três são de risco ALTO: rótulo de personalidade, conteúdo de negócio e diagnóstico dito com palavras comuns. Camada 3, você: NUNCA, porque o serviço não tem ação do fundador nem parecer. Você só entra como última reserva da revisão, e nenhum padrão automático aprova. Revisora: Helena. Reserva: FUNDADOR. Card PESSOAL e sem pacote de empresa. A ação externa é sempre NENHUMA.",
+      "casos_bons": 5,
+      "defeitos_plantados": 19
+     }
+    ],
+    "jornada": "Arquivos: /home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PRATICA/jornada.yaml e jornada-falha.yaml. Os dois foram reproduzidos com provar.replay() sobre a tabela real (passagens.yaml) e rodam com automatico: false, ou seja, todo evento do motor está escrito por extenso.\n\n(1) jornada.yaml: 19 eventos, card PESSOAL. A sequência é:\n- HELENA lê de volta (C01); você responde CONFIRMO (C06); o motor valida o plano (C10).\n- A etapa vai para a fila (E01) e começa a execução (E10).\n- 1ª entrega (E20) com 7 'né': o portão 1 recusa pela CHK-PRATICA-02, porque o código contou 6 (E43).\n- 2ª execução: o portão 1 passa e designa HELENA (E40). Ela reprova pelo RUB-PRATICA-01, porque o texto dizia 'Você é inseguro...' (E57).\n- Correção: a 3ª entrega é a boa-01. O portão 1 passa e HELENA aprova (E54).\n- TODAS_PRONTAS (C12) leva a etapa a PRONTA (E110). Nenhuma ação externa nasce.\n- Seu APROVAR no card pronto entra como reação, sem mudar estado.\n\nResultado: card PRONTO, E1 PRONTA, ações {}, 0 violações, 0 recusados, confere=True. Foram 5 execuções de um teto de 6 e 1 reprovação de um teto de 2.\n\n(2) jornada-falha.yaml: 9 eventos, pedido pequeno e sem material. A sequência é:\n- C02 e C10; depois E01 e E10.\n- FALHA_INFRA COTA (E32): a etapa volta à fila com motivo CAPACIDADE e não gasta tentativa. CAPACIDADE_VOLTOU (E14) e nova execução (E10).\n- A Laura faz REGISTRAR_FALHA com FALTAM_DADOS (E23) e não inventa nada. A etapa fica EM_RESOLUCAO.\n- HELENA recomenda ENCERRAR (E100). A etapa fica ESPERANDO_FUNDADOR, com motivo RESOLUCAO e espera INTERNA (lembretes em 24 h e 48 h; depois o padrão, que nunca aprova).\n\nResultado: card EM_ANDAMENTO, E1 ESPERANDO_FUNDADOR (você é chamado), 0 violações, 0 recusados, confere=True.",
+    "pedidos_ao_catalogo": [
+     "acao.schema.json ($defs/citacao) e CHK-COMUM-06: hoje a citação só aceita leitura_id (página lida) ou fonte_importada_id ('que veio no pacote'), e o card PESSOAL não tem pacote. Proposta: escrever que o código grava o pedido_original do card como fonte importada FON-PEDIDO-<card> antes de qualquer IA (é o que os casos usam: FON-PEDIDO-PRATICA-01), ou criar uma origem própria 'pedido_do_card'.",
+     "Registro de furos / entrega.schema.json (fecha_furos): não há furo para o escopo PESSOAL (MAT-14) nem para 'nenhum diagnóstico'. Por isso usei o furo mais próximo e deixei a escolha marcada no arquivo: C-5 na CHK-PRATICA-06 e C-11 (mesmo mecanismo de lista fechada) na CHK-PRATICA-05. Pedido: abrir esses furos ou aceitar MAT-nn no padrão de fecha_furos.",
+     "CHK-COMUM-09 (grafia eLiving™): dizer que a grafia se confere fora do trecho_original. Se você escrever 'E-living' no seu material e a Laura citar ao pé da letra, a citação honesta seria recusada.",
+     "CHK-COMUM-01: confirmar que 'formato de campo do tipo' inclui itens_min, itens_max e as colunas da tabela. O defeito-08 (3 padrões, quando o máximo é 2) depende disso.",
+     "helena-v2/checagens/ (MEL-28): criar as funções CHK-PRATICA-01 a 06 conforme os 'parametros' do tipo, usando boas/ e defeitos/ como casos bom e ruim. Contagens que servem de gabarito, só nas falas 'EU:' do pedido: 160 palavras, 6 'né' e 3 'tipo'. No material inteiro são 7 'né'.",
+     "validar.py (fase 1) quebra com qualquer ficha v3.1: em validar_agentes, 'modelo' agora é um objeto (TypeError: unhashable type: 'dict'). Quebra também numa cópia sem a ficha da Laura. Ele precisa ser reescrito para os esquemas v3.1, com as x-regras-do-validador e a rodagem dos casos.",
+     "servicos.yaml (sem mudar agora, só pré-requisito): a aptidão HELENA x plano_de_pratica está SEM_PROVA. Enquanto não ficar APTA, a lista efetiva da etapa fica só com FUNDADOR, e isso dá PLANO_INVALIDO (MAT-12, MAT-21). Os casos do teste 9 desse par estão prontos: 8 erros de rubrica plantados (um por critério) e 5 entregas limpas. Falta rodar o teste e o seu toque.",
+     "Bateria para ESTAGIO (MEL-26, 10 casos 3 de 3): hoje há 1 pedido. Faltam 9 pedidos PESSOAIS, entre eles um sem material (REGISTRAR_FALHA), um com objetivo ambíguo (PERGUNTAR) e um que pede diagnóstico ou trata de assunto de empresa (DEVOLVER_A_QUEM_PEDIU).",
+     "MAT-26: esclarecer o que é 'revisora designada' quando a Helena é a única IA da lista efetiva e a falha veio antes de qualquer revisão, que é sempre o caso da Laura. Na jornada-falha assumi que ela recomenda, porque não participou da peça. Se a regra incluir a titular, o caminho vira E101 (o relógio leva a etapa a você na hora), que também é válido na tabela.",
+     "Comentário no card (TEXTO_NO_CARD): dizer se ele entra no pacote da próxima execução. Sem isso, a falta de material só se resolve com Encerrar e um pedido novo; com isso, Refazer funcionaria.",
+     "Card PESSOAL e decisões: definir o valor de card.decisoes_versao (campo obrigatório) para card PESSOAL e escrever em montagem_do_plano que a etapa da Laura não usa decisão de empresa (usa_decisao false; DECISAO_MUDOU não a refaz). As jornadas já supõem isso.",
+     "LGPD (MEL-16): definir o prazo de guarda e de apagamento do pedido_original de card PESSOAL e da cópia FON-PEDIDO-<card>, que são material pessoal seu."
+    ],
+    "resultado_checagem": "Conferência feita com jsonschema e com o replay. O script de rascunho foi apagado no fim. Saída real, resumida:\n\n1. Esquemas\n- agents/laura.yaml contra agent.schema.json: OK.\n- deliverables/plano_de_pratica.yaml contra entrega.schema.json: OK.\n\n2. Ficha contra catálogo, organograma e models.yaml: OK\n- Os campos id, identidade, nome, função (= cargo), grupo, escopo, fase e estado são iguais ao organograma. O estado PAUSADO foi derivado do serviço em RASCUNHO.\n- O serviço, o tipo, as ações, as ferramentas ([]), o revisor (HELENA) e a reserva (FUNDADOR) são iguais aos de servicos.yaml.\n- Empresas = [PESSOAL]; aptidão de revisão = {}, igual a 'revisa'.\n- Modelo: autor analise-padrao (papel AUTOR, não usa pesquisa-padrao) e revisão revisao-padrao.\n- Orçamento possível: 2 chamadas, maior ou igual a 0 + 0 + 1.\n\n3. Tipo de entrega: OK\n- 6 checagens e 8 critérios, sem ID repetido nem colisão com outros tipos.\n- O pronto cita só IDs deste arquivo e inclui toda a rubrica.\n- Camada do fundador NUNCA, coerente com acoes_do_fundador vazio. Nenhuma checagem comum repetida.\n\n4. Pedido e esquema do card\n- ordem_de_servico contra card.schema.json: OK.\n- Card PESSOAL com SRV-PLANO-DE-PRATICA: passa.\n- Card BIZ-004 (eLiving™) com SRV-PLANO-DE-PRATICA: RECUSADO pelo esquema.\n- Card PESSOAL com SRV-COPY: RECUSADO pelo esquema.\n\n5. Casos: 24 arquivos no formato saida_do_autor, e os vereditos esperados no formato $defs/veredito\n- Contagem conferida nas falas EU: 160 palavras, 6 'né', 3 'tipo'. No material inteiro, 7 'né'.\n- As 5 boas passam em todas as checagens de código.\n- Cada um dos 11 defeitos de código é pego exatamente pela checagem declarada, e só por ela:\n  - CHK-PRATICA-01: 2 defeitos;\n  - CHK-PRATICA-02 a 06: 1 defeito cada;\n  - CHK-COMUM-01, 04, 05 e 10: 1 defeito cada.\n- Os 8 defeitos de rubrica passam no código e cada um aponta um critério diferente (RUB-PRATICA-01 a 08).\n- Teste 9 do par (HELENA, plano_de_pratica): 8 erros plantados e 5 limpas (o mínimo é 5 e 5).\n\n6. Replay\n- jornada.yaml: card PRONTO, E1 PRONTA, 0 violações, 0 recusados, confere=True.\n- jornada-falha.yaml: card EM_ANDAMENTO, E1 ESPERANDO_FUNDADOR, 0 violações, 0 recusados, confere=True.\n\nRESULTADO: TUDO OK.\n\nFora do resultado acima: o validar.py antigo dá TypeError com as fichas v3.1, inclusive sem a da Laura (está em pedidos_ao_catalogo). Não usei git e não acessei banco, servidor nem Supabase. Não editei catálogo, esquemas, máquina, validar.py nem arquivos de outro agente."
+   },
+   "furos": []
+  },
+  {
+   "id": "AGT-03",
+   "nome": "Augusto",
+   "r": {
+    "id": "AGT-03",
+    "arquivos_escritos": [
+     "/home/user/financeiromaxnutrition/helena-v2/agents/augusto.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/deliverables/analise_estrategica.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-01.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-02.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-03.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-04.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-05.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-06.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-07.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/boas/boa-08.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-01-matriz-incompleta.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-02-dado-sem-trecho.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-03-estimativa-como-dado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-04-conta-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-05-numero-solto.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-06-muda-se-sem-opcao.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-07-validacao-sem-decisao.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-08-pedido-novo-servico-errado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-09-projecao-como-fato.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-10-decide-pelo-fundador.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-11-termo-do-pacote.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-12-grafia.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-13-agiu-fora.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-14-acao-externa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-15-html.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-16-estimativa-como-fato.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-17-base-nao-sustenta.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-18-recomendacao-contra-a-comparacao.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-19-opcao-espantalho.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-20-validacao-nao-mede.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-21-contato-escondido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-22-contra-o-posicionamento.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/defeitos/defeito-23-sem-criterio-de-risco.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/jornada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/jornada-falha.yaml"
+    ],
+    "servicos": [
+     {
+      "id": "SRV-ANALISE-ESTRATEGICA",
+      "criterio_de_pronto": "Três camadas. (1) Código: as comuns CHK-COMUM-01 a 10 mais CHK-ESTRATEGIA-01 a 09: a matriz tem uma linha por par opção x critério; cada DADO tem trecho literal da fonte, com o número dentro dele; as contas são refeitas pelo código; a recomendação depende de ESTIMATIVA ou HIPOTESE e diz para qual opção muda; o plano de validação cobre cada premissa, com janela de 1 a 90 dias e uma opção diferente para cada resultado; não aparece projeção como fato, nem decisão tomada no seu lugar, nem termo proibido do pacote, nem número solto. (2) Rubrica RUB-ESTRATEGIA-01 a 08, aplicada pelo Ravi (reserva: Caio): critérios relevantes, avaliação sustentada pela base, estimativa nunca como fato, recomendação que segue da comparação, opções reais, validação que mede a premissa, nenhuma ação externa escondida, posicionamento do pacote respeitado. (3) Fundador: NUNCA, porque o serviço não tem ação do fundador nem parecer. Você só entra como última reserva da revisão, e nenhum padrão aprova a entrega.",
+      "casos_bons": 8,
+      "defeitos_plantados": 23
+     }
+    ],
+    "jornada": "Arquivo principal: /home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/jornada.yaml. É um card da eLiving™ (BIZ-004) que passa por estas etapas: leitura de volta (C01), seu CONFIRMO (C06), PLANO_VALIDO, etapa na fila, execução 1, portão 1 recusa por CHK-ESTRATEGIA-01 (matriz incompleta), execução 2, portão 1 ok com o revisor RAVI, o Ravi REPROVA por RUB-ESTRATEGIA-03 (estimativa dita como fato, com o trecho), execução 3 (boa-01), portão 1 ok, o Ravi APROVA, TODAS_PRONTAS, o card fica PRONTO e a E1 fica PRONTA. Seu Aprovar entra só como reação e não muda estado. Contagem: 5 de 6 execuções, 1 de 2 reprovações, nenhuma ação externa.\n\nResultado do replay: card PRONTO, E1 PRONTA, ações {}, 0 violações, 0 recusados, nenhuma divergência, confere=True.\n\nArquivo de falha: /home/user/financeiromaxnutrition/helena-v2/casos/SRV-ANALISE-ESTRATEGICA/jornada-falha.yaml. É um card da Humano Digital (BIZ-003) em que falta o horizonte. Caminho: o Augusto PERGUNTA (E21, opções A/B/C), você não responde, chegam os lembretes de 24 h e 48 h, e o padrão cancela a etapa (E91, fim PADRAO, nunca aprova). Então PERGUNTAR_AO_FUNDADOR (C13) chama você, com o card em ESPERANDO_FUNDADOR, motivo DEPENDENCIA.\n\nResultado do replay: card ESPERANDO_FUNDADOR, E1 CANCELADA, ações {}, 0 violações, 0 recusados, confere=True.\n\nConferi também, sem gravar arquivo, os próximos toques possíveis. REFAZER volta o card a EM_ANDAMENTO. ENCERRAR leva a ENCERRADO_COM_FALHA. PULAR vira só comentário. Se você também não responder ao card, ele fica CANCELADO. Em todos os casos houve 0 violações.",
+    "pedidos_ao_catalogo": [
+     "entrega.schema.json: hoje a coluna de tabela não tem o campo 'obrigatoria'. A analise_estrategica usa 'valor' e 'prova' como opcionais na tabela premissas, e a exigência por tipo fica na CHK-ESTRATEGIA-02. Proposta: criar 'obrigatoria' (ou 'quando') em colunas, para a CHK-COMUM-01 conferir sem exceção escrita à mão.",
+     "servicos.yaml, portao1_comum: a checagem de termos proibidos do pacote da empresa já existe em três tipos (CHK-REL-PACOTE, CHK-ESTRATEGIA-08 e a equivalente do plano_de_projeto). Proposta: promovê-la a CHK-COMUM-11, com furo próprio no registro. Hoje ela só aponta DEC-023.",
+     "Registro de furos: faltam furos próprios para dois riscos. (a) A IA decide no lugar do fundador em texto, limite da v1 do AGT-03: a CHK-ESTRATEGIA-07 usa M-5 e C-13 de forma provisória. (b) Projeção apresentada como resultado: a CHK-ESTRATEGIA-06 usa só C-13.",
+     "card.schema.json / acao.schema.json: padronizar os ids de fonte importada que o código grava antes da IA: FON-PEDIDO-<card> (pedido original), FON-PACOTE-<empresa> (pacote da empresa) e FON-ENTREGA-<card>-<etapa> (entrega aprovada). Hoje é uma convenção que cada tipo de entrega escreve por conta própria (Laura e Augusto).",
+     "servicos.yaml, montagem_do_plano (SERVICO_NAO_JULGADO): dizer que, no avulso, a etapa única tem pulavel false. O SRV-ANALISE-ESTRATEGICA tem pode_ser_pulada: true, mas isso é só o teto para roteiro; as jornadas usam false.",
+     "acao.schema.json, escolha_da_helena: o enum de SERVICO só aceita os serviços em ESTAGIO ou ATIVO (CALCULO, COPY, ROTEIRO-TREINAMENTO). Quando o SRV-ANALISE-ESTRATEGICA subir para ESTAGIO, o enum precisa ser regerado. Até lá, a leitura de volta do caso devolveria FORA_DA_V2, com servico_que_atenderia SRV-ANALISE-ESTRATEGICA.",
+     "Nenhum serviço tem ação do fundador para 'pedir cotação ou orçamento a fornecedor' (contato). Por isso, um plano de validação que precise de cotação não tem caminho PEDIDO_NOVO válido. Decidir se a AF-ADMIN-PAGAR-RENOVAR-ASSINAR do Felipe passa a cobrir também a cotação (categoria CONTATO) ou se isso fica fora do catálogo.",
+     "Pacote BIZ-004 (organograma.yaml): falta o campo termos_proibidos_em_todo_texto. O caso usa uma LISTA DE TESTE tirada de 'O que a eLiving NÃO É' (app fitness, contador ou contagem de calorias, dieta restritiva...). Você precisa registrar a lista oficial (FORA-PACOTE-DE-VOZ).",
+     "Etapa do validador: o validar.py e o test_validar.py da fase 1 quebram com o formato v3.1. O campo modelo agora é um objeto e gera 'TypeError: unhashable type: dict' em validar_agentes. Isso já acontecia com helena.yaml e laura.yaml, não começou com o augusto.yaml. É preciso reescrever o validador e incluir as funções CHK-ESTRATEGIA-01 a 09 (a lógica está nos parametros de cada checagem), com teste de mutação usando os 15 defeitos de código de casos/SRV-ANALISE-ESTRATEGICA/defeitos.",
+     "A CHK-ESTRATEGIA-03 usa o mesmo avaliador de expressão do modelo de cálculo do Caio (K-8; por isso está marcada como 'fase 2'). Falta confirmar um formato único de expressão: ids, + - × ÷ ( ) e as constantes 100, 12, 30, 52 e 365.",
+     "Antes de o serviço ir a ESTAGIO: o Ravi (titular) precisa passar no teste 9 do par RAVI x analise_estrategica e receber o seu toque; o Caio (reserva) também está SEM_PROVA. Para o teste 9 já existem 5 entregas limpas (boa-01, 02, 03, 07 e 08) e 8 defeitos de rubrica (defeito-16 a 23). Falta escrever o placar de 10 casos 3 de 3 (MEL-26)."
+    ],
+    "resultado_checagem": "1) jsonschema: o agents/augusto.yaml contra o agent.schema.json deu 0 erros, e o deliverables/analise_estrategica.yaml contra o entrega.schema.json também deu 0 erros. O pedido.yaml foi validado nas partes ordem_de_servico e plano contra os $defs do card.schema.json, também com 0 erros.\n\n2) Espelho do catálogo e do organograma: 25 de 25 itens conferem. Entram nessa conta: serviço, tipo, ações, ferramentas [], revisor RAVI, reserva CAIO, empresas, as 5 aptidões SEM_PROVA na ordem do catálogo, MAT-03, orçamento possível (3 >= 0+0+1), apelidos analise-padrao e revisao-padrao, fase 4, estado PAUSADO (o serviço está em RASCUNHO), passo 3, e id, nome, cargo, grupo e escopo.\n\n3) Os IDs CHK e RUB não se repetem em nenhum outro arquivo de deliverables/. O criterio_de_pronto cita todas as checagens CHK-ESTRATEGIA e a rubrica inteira.\n\n4) Escrevi um verificador de rascunho, fora do repositório (scratchpad/augusto/checar.py), que implementa CHK-COMUM-01, 02, 04, 05, 09 e 10 e CHK-ESTRATEGIA-01 a 09. Saída: 'TUDO CERTO', código 0.\n- As 8 boas passam no esquema saida_do_autor e no portão 1. Cinco são ENTREGAR, com 5071, 3432, 2033, 3752 e 4795 caracteres (limite 6000); as outras três são PERGUNTAR, REGISTRAR_FALHA e DEVOLVER_A_QUEM_PEDIU.\n- Os 15 defeitos de código caem exatamente e só no ID declarado: CHK-ESTRATEGIA-01 a 09 e CHK-COMUM-04, 05, 09 e 10.\n- Os 8 defeitos de rubrica (RUB-ESTRATEGIA-01 a 08) passam em todo o código, e o trecho do veredito esperado está, palavra por palavra, na entrega.\n- A CHK-COMUM-03 (português) não foi implementada no rascunho.\n\n5) Replay com provar.replay(), lendo o YAML: as duas jornadas terminam com 0 violações, 0 recusados e confere=True. A principal termina com o card PRONTO e a E1 PRONTA; a de falha, com o card ESPERANDO_FUNDADOR e a E1 CANCELADA.\n\n6) O python validar.py antigo, da fase 1, quebra com TypeError porque o campo modelo agora é um objeto. Isso já acontecia com as fichas novas da Helena e da Laura; está registrado em pedidos_ao_catalogo. Não rodei git, não acessei banco nem servidor e não deixei arquivo extra no repositório: os scripts ficaram no scratchpad."
+   },
+   "furos": []
+  },
+  {
+   "id": "AGT-04",
+   "nome": "Marina",
+   "r": {
+    "id": "AGT-04",
+    "arquivos_escritos": [
+     "/home/user/financeiromaxnutrition/helena-v2/agents/marina.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/deliverables/plano_de_projeto.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/boas/boa-01.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/boas/boa-02.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/boas/boa-03.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/boas/boa-04.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-01-data-fora-do-formato.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-02-marco-depois-da-data-final.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-03-comeca-antes-da-dependencia.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-04-trecho-inventado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-05-marco-para-item-feito.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-06-agente-como-dono.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-07-horas-acima-da-semana.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-08-folga-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-09-horas-sem-seu-trecho.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-10-primeiro-passo-em-marco-dependente.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-11-promete-lembrete.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-12-valor-em-dinheiro.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-13-termo-do-pacote.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-14-diz-que-agiu.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-15-acao-externa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-16-grafia-da-marca.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-17-html.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-18-pronto-nao-observavel.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-19-dependencia-faltando.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-20-data-final-trocada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-21-dado-como-feito.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-22-esforco-implausivel.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-23-primeiro-passo-depende-de-outro.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-24-posicionamento-errado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/defeitos/defeito-25-marco-nao-pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/jornada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/jornada-falha.yaml"
+    ],
+    "servicos": [
+     {
+      "id": "SRV-PLANO-DE-PROJETO",
+      "criterio_de_pronto": "Três camadas. (1) Código: as checagens comuns CHK-COMUM-01 a 10 e as 13 do tipo: CHK-PROJETO-DATAS (formato AAAA-MM-DD e AAAA-MM-DDTHH:MM-03:00), JANELA (tudo entre o dia do card e a data final que você deu), DEPENDENCIAS (ids que existem, sem ciclo, nada começa antes do que precisa), TRECHOS (escopo, data final e horas com trecho literal do seu pedido), COBERTURA (todo item 'a fazer' tem marco; item 'feito, segundo você' não tem), DONO ('Você' ou pessoa nomeada no pedido; nunca agente, Helena, sistema ou personagem da eLiving™), CAPACIDADE (suas horas por semana, de segunda a domingo, refeitas pelo código), FOLGA (dias até a data final, refeita), ORIGEM (horas são dado seu com trecho; esforço é premissa), PRIMEIRO-PASSO (em marco sem dependência), SEM-COORDENACAO (sem prometer acompanhar, cobrar ou lembrar; sem mexer em prioridade ou prazo do card), SEM-DINHEIRO (valor em dinheiro é do Caio) e PACOTE (termos proibidos da empresa). (2) Rubrica do revisor (Augusto), RUB-PROJETO-01 a 08, cada uma com evidência exigida: cobertura real, pronto que se vê, dependência que falta e risco de terceiro, janela igual ao seu trecho, nada dado como feito sem você dizer, esforço plausível, primeiro passo que você faz sozinho, nada contra o 'não pode' e o posicionamento do pacote. (3) Você: NUNCA, porque o serviço não tem ação do fundador nem parecer (só como última reserva da revisão). Nenhum padrão automático aprova.",
+      "casos_bons": 4,
+      "defeitos_plantados": 25
+     }
+    ],
+    "jornada": "Duas jornadas, as duas reproduzidas por maquina/provar.py, função replay(), sobre a tabela real. (1) /home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/jornada.yaml (eLiving™, BIZ-004, automatico: false, 19 eventos). Caminho: LER_DE_VOLTA (C01), seu CONFIRMO (C06), PLANO_VALIDO (C10), etapa na fila (E01), execução (E10), 1ª entrega recusada pelo código com CHK-PROJETO-DEPENDENCIAS (E20 e E43, defeito-03), nova execução, 2ª entrega passa no portão 1 com o Augusto designado (E40), revisão (E50), REPROVAR por RUB-PROJETO-02 'App bem encaminhado.' (E57, defeito-18), correção (boa-01), portão 1 de novo, APROVAR (E54), TODAS_PRONTAS (C12) e a etapa PRONTA (E110). Resultado: card PRONTO, E1 PRONTA, nenhuma ação externa, 0 violações, 0 recusados, 0 divergências, confere True. (2) /home/user/financeiromaxnutrition/helena-v2/casos/SRV-PLANO-DE-PROJETO/jornada-falha.yaml (Humano Digital, BIZ-003, pedido pequeno sem escopo, 9 eventos). A 1ª entrega inventa o escopo e propõe uma ação externa (SO_FUNDADOR) e é recusada no portão 1 (CHK-COMUM-10 e CHK-PROJETO-TRECHOS). A ação nunca vira item na sua lista, porque o card não fica pronto. Na 2ª execução a Marina registra REGISTRAR_FALHA com FALTAM_DADOS (E23), em vez de inventar. A Helena recomenda ENCERRAR (E100), e a etapa fica ESPERANDO_FUNDADOR, com você chamado, dono e prazo. Resultado: card EM_ANDAMENTO, E1 ESPERANDO_FUNDADOR, nenhuma ação, 0 violações, 0 recusados, confere True.",
+    "pedidos_ao_catalogo": [
+     "organograma.yaml, pacote de cada empresa: incluir a lista fechada 'termos_proibidos_em_todo_texto'. A CHK-PROJETO-PACOTE lê essa lista, assim como a CHK-REL-PACOTE da Helena. Hoje o pacote só tem texto corrido, e o caso da eLiving™ usa uma LISTA DE TESTE ('app fitness', 'contador de calorias'...) até você registrar a oficial (FORA-PACOTE-DE-VOZ).",
+     "card.schema.json, ordem_de_servico (caixa Novo pedido): considerar dois campos opcionais com toque seu, 'data_final_do_projeto' e 'horas_por_semana', para o SRV-PLANO-DE-PROJETO. Hoje o código não lê data escrita por extenso ('até 18 de dezembro'), e a conferência de que a janela bate com o seu pedido fica no revisor (RUB-PROJETO-04). Com os campos, ela vira checagem de código.",
+     "servicos.yaml, portao1_comum: criar uma checagem comum de fase 1, 'trecho literal do pedido original (FON-PEDIDO-<card>)', porque a CHK-COMUM-06 é de fase 2. Laura (CHK-PRATICA-01) e Marina (CHK-PROJETO-TRECHOS) estão repetindo a mesma regra.",
+     "servicos.yaml, CHK-COMUM-05: fechar a lista ('e parecidas' não é verificável) e incluir 'agendei', 'contratei', 'criei a conta', 'mandei' e 'postei', que são as alegações típicas num plano de projeto.",
+     "Registro de furos e entrega.schema.json (padrão de fecha_furos): não há furo próprio para 'agente ou personagem como dono de marco' (MAT-18) nem para 'agente promete acompanhar ou cobrar card' (FORA-COORDENACAO). Usei os mais próximos (B-17 e DEC-023; CONF-20 e M-5). Pedido: abrir os furos ou aceitar MAT-nn no padrão de fecha_furos.",
+     "helena-v2/checagens/ (MEL-28): implementar as funções CHK-PROJETO-* (13). Os casos bons e ruins de cada uma já estão em casos/SRV-PLANO-DE-PROJETO. Usei uma versão de bancada só no scratchpad, fora do repositório, que confirmou cada caso.",
+     "Ordem de ativação: a reserva da Marina (Felipe) é o passo 7, depois dela (passo 5). Por isso, quando o serviço for a ESTAGIO, a lista efetiva de revisores será só [AUGUSTO, FUNDADOR], sem reserva de IA até o Felipe ficar APTO. A regra permite (há um revisor de IA), mas vale você saber ou trocar a reserva.",
+     "servicos.yaml, SRV-PLANO-DE-PROJETO: a lista de empresas inclui BIZ-001 e BIZ-002, que têm pacote NAO_CONFIRMADO. Isso vale em RASCUNHO, mas antes de ESTAGIO a lista precisa ficar só com empresa CONFIRMADA (MAT-23).",
+     "maquina/provar.py (opção --replay da linha de comando): hoje só lê JSON (json.loads); as jornadas em YAML só rodam chamando replay() em Python. Sugestão: aceitar YAML na linha de comando.",
+     "validar.py ainda confere o plano antigo e o formato antigo das fichas. Não passa as fichas v3.1, problema já conhecido na conferência e que precisa ser reescrito na etapa do validador."
+    ],
+    "resultado_checagem": "Saída real das validações (10/10/2026):\n1) jsonschema: agents/marina.yaml x schemas/agent.schema.json: 0 erros; deliverables/plano_de_projeto.yaml x schemas/entrega.schema.json: 0 erros; card do pedido.yaml x schemas/card.schema.json: OK.\n2) Regras do validador escritas nos esquemas (script rápido): 'ficha x catalogo/organograma: OK' (id, nome, cargo, grupo, escopo, fase e estado iguais ao organograma; serviço, ações, ferramentas, revisor AUGUSTO e reserva FELIPE iguais ao catálogo; aptidão de revisão = {controle_administrativo: SEM_PROVA, procedimento_operacional: SEM_PROVA}; orçamento possível 3 >= 0+0+1; modelo analise-padrao/revisao-padrao). 'tipo x catalogo: OK' (dono e serviço batem; o pronto só cita IDs do arquivo; toda a rubrica está no pronto; fundador NUNCA; nenhum ID repetido com os outros 4 tipos nem com os CHK-COMUM).\n3) Conferidor de bancada (scratchpad, reimplementa CHK-COMUM-01/02/04/05/09/10 e as 13 CHK-PROJETO, e valida cada resposta contra acao.schema.json saida_do_autor): boa-01 a boa-04: PASSA. Os 17 defeitos de código foram recusados exatamente pelo ID de deve_falhar_em: DATAS, JANELA, DEPENDENCIAS, TRECHOS, COBERTURA, DONO, CAPACIDADE ('semana 2026-11-23: 10.0 horas suas, acima de 6'), FOLGA ('entrega diz 10, o código contou 7'), ORIGEM, PRIMEIRO-PASSO, SEM-COORDENACAO ('vou te lembrar'), SEM-DINHEIRO ('US$ 9…'), PACOTE ('app fitness'), CHK-COMUM-05 ('cadastrei'), 10, 09 ('E-living') e 04. Os 8 defeitos de rubrica (RUB-PROJETO-01 a 08) passam no código, e o trecho do veredito esperado existe na entrega. 'IDs do tipo sem defeito plantado: nenhum'. 'RESULTADO: OK'.\n4) replay: jornada.yaml: card PRONTO, etapas {'E1': 'PRONTA'}, acoes {}, violacoes 0, recusados 0, divergencias [], confere True. jornada-falha.yaml: card EM_ANDAMENTO, etapas {'E1': 'ESPERANDO_FUNDADOR'}, acoes {}, violacoes 0, recusados 0, divergencias [], confere True.\nNão há fitas/, porque o serviço não usa internet (ferramentas: []). Nenhum arquivo extra ficou no repositório: os scripts de gerar e de conferir estão só no scratchpad, e maquina/__pycache__ não mudou. Não rodei git, não acessei banco nem servidor, e não editei catálogo, esquemas, máquina, validar.py, playbooks nem arquivos de outro agente. Nenhum furo conhecido em aberto nestes arquivos; os itens acima de 'pedidos_ao_catalogo' ficam com o integrador."
+   },
+   "furos": []
+  },
+  {
+   "id": "AGT-05",
+   "nome": "Caio",
+   "r": {
+    "id": "AGT-05",
+    "arquivos_escritos": [
+     "/home/user/financeiromaxnutrition/helena-v2/agents/caio.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/deliverables/calculo.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/pedido.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/jornada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/jornada-falha.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/boas/boa-01.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/boas/boa-02.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/boas/boa-03.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/boas/boa-04.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/boas/boa-05.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-01-conta-errada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-02-mes-de-4-semanas.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-03-trecho-inventado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-04-cambio-como-premissa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-05-soma-de-moedas.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-06-cenario-muda-dado-seu.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-07-otimista-abaixo-da-base.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-08-premissa-escondida.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-09-numero-solto.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-10-certeza.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-11-conta-fiscal.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-12-previsao-como-realizado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-13-diz-que-agiu.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-14-html.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-15-acao-externa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-16-trecho-cortado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-17-entrada-calculada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-18-termo-do-pacote.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-19-formula-sem-fator.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-20-responde-outra-pergunta.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-21-unidade-trocada.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-22-premissa-como-dado-de-mercado.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-23-faixa-estreita.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-24-previsao-como-caixa.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-25-risco-generico.yaml",
+     "/home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/defeitos/defeito-26-numero-no-convite.yaml"
+    ],
+    "servicos": [
+     {
+      "id": "SRV-CALCULO",
+      "criterio_de_pronto": "Os três critérios abaixo valem juntos. 1) Código: as checagens CHK-COMUM-01 a 10 e as checagens CHK-CALCULO-01 a 12 passam. Elas conferem: entradas V1 a V15 com origem; dado seu, fonte ou entrega aprovada com o trecho literal que contém o número; câmbio só com dado seu ou fonte com data; contas refeitas com os valores exatos (só as constantes 100, 12, 30, 52 e 365; mês = 52 ÷ 12 semanas); moeda coerente; três cenários refeitos e em ordem pelo sentido, mudando só premissas; toda premissa em premissas_a_confirmar; o que depende de premissa é PREVISTO; nenhum número solto; nenhuma palavra de certeza; nenhum termo proibido do pacote; nenhuma conta de imposto. As checagens 03 a 06 são da fase 2, porque usam o mesmo avaliador de expressões (K-8, MEL-28). 2) Rubrica: RUB-CALCULO-01 a 08, todas verificáveis com evidência exigida, mais os itens CARD-n de IA do card. 3) Fundador: NUNCA, porque o serviço não tem ação do fundador nem parecer. Nenhum padrão aprova, e o card mostra 'contas conferidas pelo código; premissas não'.",
+      "casos_bons": 5,
+      "defeitos_plantados": 26
+     }
+    ],
+    "jornada": "Dois arquivos, os dois com automatico: false (todo evento do motor aparece escrito) e roteiro de uma etapa E1 (autor CAIO; revisores efetivos HELENA, CLARA e FUNDADOR).\n\n1) /home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/jornada.yaml (AGT-05-caio-calculo-ponta-a-ponta, Humano Digital, BIZ-003). Caminho: LER_DE_VOLTA (C01), seu CONFIRMO (C06), PLANO_VALIDO (C10), DEPENDENCIAS_PRONTAS (E01), INICIAR_EXECUCAO (E10). A 1ª entrega (defeito-01, K2 declara 160) é recusada no portão 1 (E43, CHK-CALCULO-04). A 2ª entrega (defeito-22) passa no código (PORTAO1_OK, revisora HELENA), e a Helena reprova (E57) por RUB-CALCULO-04, com o trecho: a premissa estava dita como dado de mercado. A 3ª entrega (boa-01) é aprovada (E54). Depois vêm TODAS_PRONTAS (C12, E110 deixa E1 PRONTA) e o seu Aprovar como reação. Replay: card PRONTO, E1 PRONTA, ações {}, violações 0, recusados 0, confere True, 19 eventos no histórico. Contadores: execuções 5 de 6, reprovações 1 de 2.\n\n2) /home/user/financeiromaxnutrition/helena-v2/casos/SRV-CALCULO/jornada-falha.yaml (AGT-05-caio-falta-dado, eLiving™, BIZ-004). Pedido pequeno: 'Qual o ponto de equilíbrio da eLiving™ com assinatura de R$ 29 por mês?'. Caminho: C02, C10, E01, E10. Faltam os custos, e o Caio responde REGISTRAR_FALHA com FALTAM_DADOS (E23), sem inventar. A etapa vai para EM_RESOLUCAO. A Helena pode recomendar, porque não é autora nem revisora designada (MAT-26), e recomenda ENCERRAR (E100). A etapa vai a você: ESPERANDO_FUNDADOR, motivo RESOLUCAO. Replay: card EM_ANDAMENTO, E1 ESPERANDO_FUNDADOR (motivo RESOLUCAO, espera INTERNA), violações 0, recusados 0, confere True.\n\nComando usado: cd helena-v2 && python -c \"import sys,yaml; sys.path.insert(0,'maquina'); import provar; provar.replay(yaml.safe_load(open(f)))\" para cada arquivo.",
+    "pedidos_ao_catalogo": [
+     "O validar.py antigo quebra com as fichas v3.1. Ao rodar 'python validar.py' dá TypeError: unhashable type: 'dict' na linha 57, porque modelo agora é um objeto com um apelido por papel. Isso já acontecia antes da ficha do Caio, com as fichas novas de Helena, Augusto, Laura e Marina. Ele precisa ser reescrito para conferir as x-regras-do-validador de agent.schema.json e entrega.schema.json: espelho do catálogo, aptidões, IDs únicos e pronto cobrindo a rubrica.",
+     "servicos.yaml diz, em estados_do_servico.ESTAGIO, 'você como revisor a mais', mas passagens.yaml não tem passagem para isso em etapa não julgadora: o E54 leva direto a APROVADA. Uma das duas coisas precisa mudar: o texto do ESTAGIO, ou uma guarda 'em_estagio' no E54 que leve a ESPERANDO_FUNDADOR com motivo REVISAO, como faz o E74.",
+     "Falta um caminho para o número que só você sabe chegar ao agente no MESMO card depois de um REGISTRAR_FALHA com FALTAM_DADOS. Hoje o texto no card vira comentário e não entra no pacote, e o REFAZER (E85) roda sobre o mesmo pacote. As saídas: (a) RESPONDER REFAZER com um complemento, gravado pelo código como fonte importada FON-COMPLEMENTO-<card>-n antes da IA e contado no TETO_ORDENS; ou (b) escrever que o caminho é ENCERRAR seguido de Pedir ajuste no card fechado, que abre um card novo ligado. Isso afeta o Caio diretamente: falta de dado é a falha mais comum dele.",
+     "Abrir no registro um furo próprio para 'agente faz trabalho de fora do serviço ou do catálogo' (ex.: conta de imposto no SRV-CALCULO). A CHK-CALCULO-12 usa a A-12 como o furo mais próximo.",
+     "Na lista fechada da CHK-COMUM-05 (servicos.yaml, portao1_comum), incluir os verbos financeiros 'lancei', 'transferi', 'depositei' e 'contratei'. O defeito-13 do Caio usa 'Já lancei o cenário base no financeiro'.",
+     "playbooks/recrutar-10-pessoas.yaml, que é do formato antigo, ainda dá a E1 (conta do Caio) como entrada e dependência da E3 (convite). Isso contradiz a MAT-16 e o ponto 1 da conferência. Reescrever o roteiro no formato v3.1 (playbook.schema.json) sem E1 para E3.",
+     "casos/SRV-RELATORIO-FINAL/pedido.yaml (caso da Helena) traz trechos da E1 no formato antigo. A fórmula está em texto ('receita por semana = pessoas x horas por semana x US$ 0,50') e trata hora gravada como hora aprovada. Pela rubrica nova, isso cairia em RUB-CALCULO-01 e 03. Alinhar ao formato de deliverables/calculo.yaml quando o dono daquele caso revisar. Não mexi, porque é arquivo de outro agente.",
+     "Falta a lista oficial termos_proibidos_em_todo_texto do pacote da Humano Digital, que é FORA-PACOTE-DE-VOZ e decisão sua. Os casos do Caio usam a mesma lista de teste do caso do relatório final.",
+     "Confirmar as vagas do Caio (trabalho: 2), que são PROPOSTA. Na primeira meta, a E1 (ele é o autor), a E2 e a E3 (ele é o revisor) nascem juntas. Com 1 vaga, as revisões esperariam a conta. Medir no teste 4 e no teste 6."
+    ],
+    "resultado_checagem": "Saída real das validações. Rodei tudo em Python com jsonschema; os scripts ficaram só no scratchpad.\n\n1) agents/caio.yaml contra schemas/agent.schema.json: 'erros de esquema: 0'. Contra o catálogo (organograma, servicos.yaml SRV-CALCULO e agentes.CAIO.revisa, models.yaml papel_do_apelido, MAT-03, orçamento possível): 'problemas vs catálogo: []'. Regras: 12, maior com 204 caracteres. Nunca: 12, maior com 158 caracteres.\n\n2) deliverables/calculo.yaml contra schemas/entrega.schema.json: 'erros: 0'. O critério de pronto cobre todas as 12 CHK e as 8 RUB. Os IDs CHK-CALCULO e RUB-CALCULO não existiam no repositório antes.\n\n3) pedido.yaml: ordem_de_servico e plano contra card.schema.json, e leitura_de_volta contra acao.schema.json LER_DE_VOLTA. Resultado: 'erros: []' nos três.\n\n4) As 31 respostas (boas e defeitos) passam no esquema acao.schema.json saida_do_autor. Os veredito_esperado passam no esquema veredito, e cada trecho existe literalmente na entrega: 'ok 31'.\n\n5) Um checador de rascunho implementa CHK-COMUM-01/02/04/05/09/10 e CHK-CALCULO-01 a 12 como o arquivo descreve. Resultado em disco:\n- As 5 boas (ENTREGAR, ENTREGAR só em dólar, PERGUNTAR, REGISTRAR_FALHA, DEVOLVER_A_QUEM_PEDIU): 'falhas: nenhuma'.\n- Os 18 defeitos de código caem exatamente e só no ID de deve_falhar_em: CHK-CALCULO-01 a 12 (a 02, a 04 e a 06 com dois casos cada), CHK-COMUM-04, 05 e 10.\n- Os 8 defeitos de rubrica (RUB-CALCULO-01 a 08) passam em todo o código e ficam para a revisora.\n- Total: 'total conferidos certos: 31'.\n\n6) Replay (maquina/provar.py replay):\n- jornada.yaml: card PRONTO, E1 PRONTA, violações 0, recusados 0, confere True.\n- jornada-falha.yaml: card EM_ANDAMENTO, E1 ESPERANDO_FUNDADOR, violações 0, recusados 0, confere True.\n\n7) 'python validar.py' (o antigo, fase 1) falha com TypeError: unhashable type: 'dict' por causa do formato v3.1 das fichas; ver pedidos ao catálogo.\n\n8) Comecei maquina/test_maquina.py em segundo plano e parei antes de terminar. Eu não mexi na máquina.\n\nNenhum outro arquivo foi criado ou alterado no repositório, e git não foi usado."
+   },
+   "furos": []
+  }
+ ],
+ "integracao": null,
+ "ataque": {
+  "rodadas": 2,
+  "secas": 2,
+  "confirmados": []
+ },
+ "relatorio": null
+}
