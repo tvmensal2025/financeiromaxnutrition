@@ -1,0 +1,2792 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "helena-v2/acao",
+  "title": "Ação tipada de cada papel (v3.1)",
+  "description": "Registro de UMA resposta, gravado pelo MOTOR: a saída que o agente, a Helena ou você produziu, mais os campos que só o motor preenche (chave da execução, usou_internet, número do toque). Os nomes de ação são os de maquina/vocabulario.yaml (versão 2.0.0): 4 ações do AUTOR liberadas (PEDIR_SUBCARD desligado), 3 do REVISOR (calculadas pelo código a partir dos vereditos), 3 da HELENA e os 8 botões do FUNDADOR. O agente valida a própria saída contra $defs/saida_do_autor, $defs/saida_do_revisor ou $defs/saida_da_helena; o envelope confere também a lista fechada de ações do fundador de cada agente.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "papel",
+    "evento",
+    "card_id",
+    "recebido_em"
+  ],
+  "properties": {
+    "papel": {
+      "enum": [
+        "AUTOR",
+        "REVISOR",
+        "HELENA",
+        "FUNDADOR"
+      ]
+    },
+    "evento": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]+$"
+    },
+    "card_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "etapa_id": {
+      "type": "string",
+      "pattern": "^E[0-9]{1,2}$"
+    },
+    "acao_externa_id": {
+      "type": "string",
+      "pattern": "^A[0-9]{1,3}$"
+    },
+    "ator": {
+      "enum": [
+        "HELENA",
+        "LAURA",
+        "AUGUSTO",
+        "MARINA",
+        "CAIO",
+        "CLARA",
+        "BIANCA",
+        "DANIEL",
+        "THEO",
+        "NINA",
+        "RAVI",
+        "MAYA",
+        "BRUNO",
+        "OLIVIA",
+        "VICTOR",
+        "CAMILA",
+        "ISABELA",
+        "PEDRO",
+        "RENATA",
+        "JOANA",
+        "FELIPE",
+        "FUNDADOR"
+      ]
+    },
+    "numero_de_execucao": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Chave da chamada (regra 3): sequência do banco, monotônica, nunca zera e nunca é 'execucoes' (passagens.yaml regras_gerais.numero_de_execucao). Resposta com número antigo não grava."
+    },
+    "usou_internet": {
+      "enum": [
+        "NAO",
+        "SIM"
+      ],
+      "description": "Preenchido pelo MOTOR a partir do registro de uso da mesma execução (contagem do nosso servidor de ferramentas), nunca pelo agente."
+    },
+    "id_toque": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "versao_vista": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Versão da peça (card, etapa ou ação) que você viu ao tocar."
+    },
+    "recebido_em": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+    },
+    "saida": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "evento": {
+            "const": "ENTREGAR"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "ENTREGAR"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "evento": {
+            "const": "PERGUNTAR"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "PERGUNTAR"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "evento": {
+            "const": "DEVOLVER_A_QUEM_PEDIU"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "DEVOLVER_A_QUEM_PEDIU"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "evento": {
+            "const": "REGISTRAR_FALHA"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "REGISTRAR_FALHA"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "HELENA"
+          },
+          "evento": {
+            "const": "LER_DE_VOLTA"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "LER_DE_VOLTA"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "HELENA"
+          },
+          "evento": {
+            "const": "RECOMENDAR"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "RECOMENDAR"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "HELENA"
+          },
+          "evento": {
+            "const": "SUGERIR_PRAZO"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "SUGERIR_PRAZO"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "APROVAR"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "APROVAR"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "PEDIR_AJUSTE"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "PEDIR_AJUSTE"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "USAR_COMO_EXEMPLO"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "USAR_COMO_EXEMPLO"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "CANCELAR"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "CANCELAR"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "RESPONDER"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "RESPONDER"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "PAUSAR_TUDO"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "PAUSAR_TUDO"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "MUDAR_PRIORIDADE"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "MUDAR_PRIORIDADE"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "const": "MUDAR_PRAZO"
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao": {
+                "const": "MUDAR_PRAZO"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "HELENA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "HELENA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "LAURA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "LAURA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "AUGUSTO"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "AUGUSTO: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "MARINA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "MARINA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "CAIO"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "CAIO: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "CLARA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "CLARA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "BIANCA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-PESSOAS-PUBLICAR-VAGA"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "BIANCA: ações do fundador permitidas = ['AF-PESSOAS-PUBLICAR-VAGA'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "DANIEL"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "DANIEL: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "THEO"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-TECNICA-CONTRATAR-SERVICO"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "THEO: ações do fundador permitidas = ['AF-TECNICA-CONTRATAR-SERVICO'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "NINA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "NINA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "RAVI"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "RAVI: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "MAYA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "MAYA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "BRUNO"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "BRUNO: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "OLIVIA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "properties": {
+                  "tipo": {
+                    "const": "NENHUMA"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "OLIVIA: ações do fundador permitidas = ['nenhuma'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "VICTOR"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-VENDAS-CONTATAR"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "VICTOR: ações do fundador permitidas = ['AF-VENDAS-CONTATAR'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "CAMILA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-CAMPANHA-LANCAR"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "CAMILA: ações do fundador permitidas = ['AF-CAMPANHA-LANCAR'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "ISABELA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-COPY-ENVIAR-OU-PUBLICAR",
+                          "AF-TREINAMENTO-ENVIAR"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "ISABELA: ações do fundador permitidas = ['AF-COPY-ENVIAR-OU-PUBLICAR', 'AF-TREINAMENTO-ENVIAR'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "PEDRO"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-PARCERIA-CONTATAR"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "PEDRO: ações do fundador permitidas = ['AF-PARCERIA-CONTATAR'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "RENATA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-SUCESSO-FALAR-COM-CLIENTE"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "RENATA: ações do fundador permitidas = ['AF-SUCESSO-FALAR-COM-CLIENTE'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "JOANA"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-ATENDIMENTO-ENVIAR-RESPOSTA"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "JOANA: ações do fundador permitidas = ['AF-ATENDIMENTO-ENVIAR-RESPOSTA'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          },
+          "ator": {
+            "const": "FELIPE"
+          }
+        },
+        "required": [
+          "papel",
+          "ator"
+        ]
+      },
+      "then": {
+        "properties": {
+          "saida": {
+            "properties": {
+              "acao_externa": {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "NENHUMA"
+                      }
+                    },
+                    "required": [
+                      "tipo"
+                    ]
+                  },
+                  {
+                    "properties": {
+                      "tipo": {
+                        "const": "SO_FUNDADOR"
+                      },
+                      "acao_do_fundador": {
+                        "enum": [
+                          "AF-ADMIN-PAGAR-RENOVAR-ASSINAR"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "tipo",
+                      "acao_do_fundador"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "FELIPE: ações do fundador permitidas = ['AF-ADMIN-PAGAR-RENOVAR-ASSINAR'] (servicos.yaml)."
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "AUTOR"
+          }
+        },
+        "required": [
+          "papel"
+        ]
+      },
+      "then": {
+        "required": [
+          "etapa_id",
+          "ator",
+          "numero_de_execucao",
+          "usou_internet",
+          "saida"
+        ],
+        "properties": {
+          "evento": {
+            "enum": [
+              "ENTREGAR",
+              "PERGUNTAR",
+              "DEVOLVER_A_QUEM_PEDIU",
+              "REGISTRAR_FALHA"
+            ]
+          },
+          "ator": {
+            "enum": [
+              "HELENA",
+              "LAURA",
+              "AUGUSTO",
+              "MARINA",
+              "CAIO",
+              "CLARA",
+              "BIANCA",
+              "DANIEL",
+              "THEO",
+              "NINA",
+              "RAVI",
+              "MAYA",
+              "BRUNO",
+              "OLIVIA",
+              "VICTOR",
+              "CAMILA",
+              "ISABELA",
+              "PEDRO",
+              "RENATA",
+              "JOANA",
+              "FELIPE"
+            ]
+          },
+          "saida": {
+            "$ref": "#/$defs/saida_do_autor"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "id_toque"
+              ]
+            },
+            {
+              "required": [
+                "versao_vista"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "REVISOR"
+          }
+        },
+        "required": [
+          "papel"
+        ]
+      },
+      "then": {
+        "required": [
+          "etapa_id",
+          "ator",
+          "numero_de_execucao",
+          "saida"
+        ],
+        "properties": {
+          "evento": {
+            "enum": [
+              "APROVAR",
+              "REPROVAR",
+              "NAO_CONSIGO_CONFERIR"
+            ]
+          },
+          "ator": {
+            "enum": [
+              "HELENA",
+              "LAURA",
+              "AUGUSTO",
+              "MARINA",
+              "CAIO",
+              "CLARA",
+              "BIANCA",
+              "DANIEL",
+              "THEO",
+              "NINA",
+              "RAVI",
+              "MAYA",
+              "BRUNO",
+              "OLIVIA",
+              "VICTOR",
+              "CAMILA",
+              "ISABELA",
+              "PEDRO",
+              "RENATA",
+              "JOANA",
+              "FELIPE"
+            ]
+          },
+          "saida": {
+            "$ref": "#/$defs/saida_do_revisor"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "usou_internet"
+              ]
+            },
+            {
+              "required": [
+                "id_toque"
+              ]
+            },
+            {
+              "required": [
+                "versao_vista"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "HELENA"
+          }
+        },
+        "required": [
+          "papel"
+        ]
+      },
+      "then": {
+        "required": [
+          "numero_de_execucao",
+          "saida"
+        ],
+        "properties": {
+          "evento": {
+            "enum": [
+              "LER_DE_VOLTA",
+              "RECOMENDAR",
+              "SUGERIR_PRAZO"
+            ]
+          },
+          "ator": {
+            "const": "HELENA"
+          },
+          "saida": {
+            "$ref": "#/$defs/saida_da_helena"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "usou_internet"
+              ]
+            },
+            {
+              "required": [
+                "id_toque"
+              ]
+            },
+            {
+              "required": [
+                "versao_vista"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          }
+        },
+        "required": [
+          "papel"
+        ]
+      },
+      "then": {
+        "required": [
+          "id_toque",
+          "saida"
+        ],
+        "properties": {
+          "evento": {
+            "enum": [
+              "APROVAR",
+              "PEDIR_AJUSTE",
+              "USAR_COMO_EXEMPLO",
+              "CANCELAR",
+              "RESPONDER",
+              "PAUSAR_TUDO",
+              "MUDAR_PRIORIDADE",
+              "MUDAR_PRAZO"
+            ]
+          },
+          "ator": {
+            "const": "FUNDADOR"
+          },
+          "saida": {
+            "$ref": "#/$defs/toque_do_fundador"
+          }
+        },
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "usou_internet"
+              ]
+            },
+            {
+              "required": [
+                "numero_de_execucao"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "papel": {
+            "const": "FUNDADOR"
+          },
+          "evento": {
+            "enum": [
+              "APROVAR",
+              "PEDIR_AJUSTE",
+              "RESPONDER"
+            ]
+          }
+        },
+        "required": [
+          "papel",
+          "evento"
+        ]
+      },
+      "then": {
+        "required": [
+          "versao_vista"
+        ]
+      },
+      "description": "passagens.yaml regras_gerais.toques_do_fundador_exigem_versao_vista: com versão antiga, viram comentário e nunca mudam estado."
+    }
+  ],
+  "x-regras-do-validador": [
+    "CHK-COMUM-10 (portão 1): acao_externa.tipo está em acao_externa_permitida do serviço da etapa; com SO_FUNDADOR, acao_do_fundador está em acoes_do_fundador do serviço e é a ação que o plano deu àquela etapa (no avulso, a única do serviço); senão PORTAO1_RECUSOU com o item exato, e nada nasce na E110",
+    "PELO_MOTOR nunca é aceito na saída do agente enquanto nenhum serviço o liberar (MAT-11); o vocabulário mantém o nome para a fase 4",
+    "RECOMENDAR só grava se o motor chamou a Helena com a chave atual; o motor não a chama quando ela é autora ou revisora designada da etapa (MAT-26)",
+    "CANCELAR com encaminhar_para_v1 só vale com o card em ESPERANDO_CONFIRMACAO; em outro estado, é um Cancelar comum e o app avisa",
+    "RESPONDER CONFIRMO com escolha só vale em ESPERANDO_CONFIRMACAO com motivo NENHUM ou HELENA_FALHOU; em outro motivo, a escolha é ignorada e o app avisa"
+  ],
+  "$defs": {
+    "citacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trecho_original"
+      ],
+      "description": "Citação: trecho contínuo (12 palavras ou mais, ou frase inteira) conferido pelo código contra a cópia guardada. Nunca confia num endereço escrito pelo agente (MEL-27 b). Exatamente uma origem.",
+      "properties": {
+        "trecho_original": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "leitura_id": {
+          "type": "string",
+          "pattern": "^LEI-[A-Za-z0-9-]+$",
+          "description": "Cópia de página lida NESTA execução pela nossa ferramenta."
+        },
+        "parte": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fonte_importada_id": {
+          "type": "string",
+          "pattern": "^FON-[A-Za-z0-9-]+$",
+          "description": "Fonte importada que veio no pacote (pesquisa aprovada, tabela de leis)."
+        },
+        "traducao": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "leitura_id",
+            "parte"
+          ],
+          "not": {
+            "required": [
+              "fonte_importada_id"
+            ]
+          }
+        },
+        {
+          "required": [
+            "fonte_importada_id"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "leitura_id"
+                ]
+              },
+              {
+                "required": [
+                  "parte"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "numero": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "valor",
+        "unidade",
+        "origem"
+      ],
+      "description": "Número com unidade e origem (C-9, M-16, K-8). Câmbio só com fonte datada ou dado seu.",
+      "properties": {
+        "valor": {
+          "type": "number"
+        },
+        "unidade": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "origem": {
+          "enum": [
+            "DADO_DO_FUNDADOR",
+            "FONTE_CITADA",
+            "ENTREGA_APROVADA",
+            "PREMISSA",
+            "CALCULADO"
+          ]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "data_da_fonte": {
+          "type": "string",
+          "format": "date"
+        },
+        "citacao": {
+          "$ref": "#/$defs/citacao"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origem": {
+                "const": "FONTE_CITADA"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "citacao",
+              "data_da_fonte"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "origem": {
+                "enum": [
+                  "ENTREGA_APROVADA",
+                  "CALCULADO",
+                  "DADO_DO_FUNDADOR"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "ref"
+            ]
+          }
+        }
+      ]
+    },
+    "item_com_citacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texto",
+        "citacoes"
+      ],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "citacoes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/citacao"
+          }
+        }
+      }
+    },
+    "valor_texto": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12000
+    },
+    "valor_lista": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          },
+          {
+            "$ref": "#/$defs/item_com_citacao"
+          }
+        ]
+      }
+    },
+    "valor_tabela": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1500
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/numero"
+            },
+            {
+              "$ref": "#/$defs/citacao"
+            }
+          ]
+        }
+      }
+    },
+    "valor_de_secao": {
+      "description": "A forma exigida em cada seção vem do tipo de entrega (deliverables/<tipo>.yaml, secoes[].tipo_de_campo); o código confere.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/valor_texto"
+        },
+        {
+          "$ref": "#/$defs/valor_lista"
+        },
+        {
+          "$ref": "#/$defs/valor_tabela"
+        },
+        {
+          "$ref": "#/$defs/numero"
+        },
+        {
+          "$ref": "#/$defs/citacao"
+        }
+      ]
+    },
+    "acao_externa_proposta": {
+      "description": "Parâmetro acao_externa de ENTREGAR (maquina/vocabulario.yaml (versão 2.0.0)). O agente só diz NENHUMA ou SO_FUNDADOR com o id da ação, da lista fechada do catálogo; nunca escreve texto sobre a ação (o texto que você vê vem da descrição fixa da ação e do roteiro). PELO_MOTOR não é aceito (nenhum serviço o libera; MAT-11). Fica guardado na etapa e só vira proposta na sua lista quando o card fica PRONTO (E110), no máximo uma por etapa. A CHK-COMUM-10 confere que o id é o que o plano deu àquela etapa.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "NENHUMA"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "acao_do_fundador"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "SO_FUNDADOR"
+            },
+            "acao_do_fundador": {
+              "enum": [
+                "AF-ADMIN-PAGAR-RENOVAR-ASSINAR",
+                "AF-PESSOAS-PUBLICAR-VAGA",
+                "AF-TECNICA-CONTRATAR-SERVICO",
+                "AF-CAMPANHA-LANCAR",
+                "AF-COPY-ENVIAR-OU-PUBLICAR",
+                "AF-TREINAMENTO-ENVIAR",
+                "AF-VENDAS-CONTATAR",
+                "AF-PARCERIA-CONTATAR",
+                "AF-SUCESSO-FALAR-COM-CLIENTE",
+                "AF-ATENDIMENTO-ENVIAR-RESPOSTA"
+              ],
+              "description": "Uma das ações do fundador de servicos.yaml (lista fechada)."
+            }
+          }
+        }
+      ]
+    },
+    "ENTREGAR": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "parecer",
+        "acao_externa",
+        "entrega"
+      ],
+      "properties": {
+        "acao": {
+          "const": "ENTREGAR"
+        },
+        "parecer": {
+          "enum": [
+            "OK",
+            "AJUSTE",
+            "NAO_PODE"
+          ],
+          "description": "Só a etapa julgadora usa AJUSTE ou NAO_PODE; nas outras é sempre OK (passagens.yaml E20). No jurídico é o semáforo sobre as peças julgadas e os passos fixos do roteiro."
+        },
+        "acao_externa": {
+          "$ref": "#/$defs/acao_externa_proposta"
+        },
+        "entrega": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/valor_de_secao"
+          },
+          "description": "Uma chave por seção do tipo de entrega (deliverables/<tipo>.yaml)."
+        },
+        "autoavaliacao": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "opcao_de_pergunta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "letra",
+        "texto",
+        "consequencia"
+      ],
+      "properties": {
+        "letra": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "texto": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "consequencia": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        }
+      }
+    },
+    "opcoes_A_B_C": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "items": false,
+      "prefixItems": [
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/opcao_de_pergunta"
+            },
+            {
+              "properties": {
+                "letra": {
+                  "const": "A"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/opcao_de_pergunta"
+            },
+            {
+              "properties": {
+                "letra": {
+                  "const": "B"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {
+              "$ref": "#/$defs/opcao_de_pergunta"
+            },
+            {
+              "properties": {
+                "letra": {
+                  "const": "C"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "A, B e (opcional) C, nessa ordem. Sua resposta chega como RESPONDER RESPOSTA_A/B/C na etapa que perguntou (ESPERANDO_FUNDADOR com motivo PERGUNTA)."
+    },
+    "PERGUNTAR": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "pergunta",
+        "opcoes"
+      ],
+      "description": "Vai pela Helena, com opções, dentro do limite de perguntas do card. O tipo da espera (interna ou externa) NÃO é escolha do agente: o código decide pelo roteiro (prazo_de_terceiro). Bloqueada quando a execução usou a internet (C-7).",
+      "properties": {
+        "acao": {
+          "const": "PERGUNTAR"
+        },
+        "pergunta": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300
+        },
+        "opcoes": {
+          "$ref": "#/$defs/opcoes_A_B_C"
+        },
+        "recomendacao": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      }
+    },
+    "DEVOLVER_A_QUEM_PEDIU": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "motivo",
+        "explicacao"
+      ],
+      "properties": {
+        "acao": {
+          "const": "DEVOLVER_A_QUEM_PEDIU"
+        },
+        "motivo": {
+          "enum": [
+            "PEDIDO_AMBIGUO",
+            "PEDIDO_IMPOSSIVEL",
+            "FORA_DO_SERVICO",
+            "CONFLITA_COM_O_QUE_NAO_PODE"
+          ]
+        },
+        "explicacao": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        }
+      }
+    },
+    "REGISTRAR_FALHA": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "motivo_falha",
+        "explicacao"
+      ],
+      "description": "Sempre conta como tentativa. O agente escreve só o motivo; o TIPO da falha é lido pelo motor no registro de uso e no veredito do validador, nunca no texto (C-20).",
+      "properties": {
+        "acao": {
+          "const": "REGISTRAR_FALHA"
+        },
+        "motivo_falha": {
+          "enum": [
+            "NAO_CONSIGO",
+            "FALTAM_DADOS",
+            "FONTE_INSUFICIENTE"
+          ]
+        },
+        "explicacao": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        }
+      }
+    },
+    "PEDIR_SUBCARD_desligado": {
+      "description": "PEDIR_SUBCARD existe no vocabulário mas está DESLIGADO até a fase 4 (MEL-24). Não faz parte de saida_do_autor: se chegar, não fecha o esquema e conta como FORMATO_ERRADO (regras_gerais.resposta_de_agente_sem_linha).",
+      "type": "object",
+      "required": [
+        "acao"
+      ],
+      "properties": {
+        "acao": {
+          "const": "PEDIR_SUBCARD"
+        }
+      }
+    },
+    "saida_do_autor": {
+      "description": "Exatamente UMA ação do AUTOR. Resposta sem ação, com duas ações ou fora do formato é FORMATO_ERRADO (uma nova tentativa só de formato; K-13).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ENTREGAR"
+        },
+        {
+          "$ref": "#/$defs/PERGUNTAR"
+        },
+        {
+          "$ref": "#/$defs/DEVOLVER_A_QUEM_PEDIU"
+        },
+        {
+          "$ref": "#/$defs/REGISTRAR_FALHA"
+        }
+      ]
+    },
+    "veredito": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criterio",
+        "veredito"
+      ],
+      "properties": {
+        "criterio": {
+          "type": "string",
+          "pattern": "^(RUB-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]{2}|CARD-[1-5])$"
+        },
+        "veredito": {
+          "enum": [
+            "PASSOU",
+            "FALHOU",
+            "NAO_CONSIGO_CONFERIR"
+          ]
+        },
+        "trecho": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "secao": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "motivo_nao_confere": {
+          "enum": [
+            "FALTA_PROVA_NA_ENTREGA",
+            "FORA_DO_ALCANCE"
+          ]
+        },
+        "justificativa": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 280
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "veredito": {
+                "const": "FALHOU"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "trecho"
+                ]
+              },
+              {
+                "required": [
+                  "secao"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "veredito": {
+                "const": "NAO_CONSIGO_CONFERIR"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "motivo_nao_confere"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "motivo_nao_confere"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "saida_do_revisor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "vereditos"
+      ],
+      "description": "Um veredito por critério da rubrica e por item CARD-n marcado IA. Faltar um ID ou trazer ID desconhecido é FORMATO_ERRADO. O revisor nunca escolhe APROVAR ou REPROVAR: o código calcula (x-evento-calculado). O texto do cartão para você é montado pelo código, nunca com as palavras do revisor.",
+      "properties": {
+        "vereditos": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/veredito"
+          }
+        }
+      },
+      "x-evento-calculado": [
+        "algum FALHOU, ou NAO_CONSIGO_CONFERIR com FALTA_PROVA_NA_ENTREGA -> REPROVAR (volta ao autor; conta reprovação)",
+        "senão, algum NAO_CONSIGO_CONFERIR com FORA_DO_ALCANCE em critério de risco ALTO -> NAO_CONSIGO_CONFERIR (cartão de revisão para você)",
+        "senão -> APROVAR (NAO_CONSIGO_CONFERIR de risco BAIXO fica 'sem conferir' na faixa e a entrega não pode virar 'Usar como exemplo')",
+        "PASSOU em critério TRECHO exige 'trecho', que o código confere literalmente na entrega ou na cópia lida"
+      ]
+    },
+    "item_do_pronto_proposto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "texto",
+        "quem_confere",
+        "risco"
+      ],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "quem_confere": {
+          "enum": [
+            "CODIGO",
+            "IA",
+            "FUNDADOR"
+          ]
+        },
+        "checagem": {
+          "type": "string",
+          "pattern": "^CHK-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "risco": {
+          "enum": [
+            "ALTO",
+            "BAIXO"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "quem_confere": {
+                "const": "CODIGO"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "checagem"
+            ]
+          }
+        }
+      ]
+    },
+    "escolha_da_helena": {
+      "description": "A Helena só escolhe: 1 serviço que recebe card (e que o código sabe montar sozinho), 1 roteiro, ou FORA_DA_V2. Os ids de serviço vêm de servicos.yaml (escolhivel, avulso e em ESTAGIO/ATIVO nesta versão do catálogo); o validador do plano confere o estado na hora. Não existe 'nenhum' com pergunta A/B/C: não há passagem para essa resposta no card.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "id"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "SERVICO"
+            },
+            "id": {
+              "enum": [
+                "SRV-CALCULO",
+                "SRV-COPY",
+                "SRV-ROTEIRO-TREINAMENTO"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "id"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "ROTEIRO"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "maxLength": 80
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo"
+          ],
+          "description": "O pedido ainda não roda na v2 (servicos.yaml, destino_fora_da_v2). O card vira pedido grande e mostra a você quem atenderia; você encaminha à v1, escolhe outro serviço ou cancela.",
+          "properties": {
+            "tipo": {
+              "const": "FORA_DA_V2"
+            },
+            "servico_que_atenderia": {
+              "enum": [
+                "SRV-PLANO-DE-PRATICA",
+                "SRV-ANALISE-ESTRATEGICA",
+                "SRV-PLANO-DE-PROJETO",
+                "SRV-CALCULO",
+                "SRV-ANALISE-DE-DADOS",
+                "SRV-CONTROLE-ADMINISTRATIVO",
+                "SRV-PERFIL-DE-FUNCAO",
+                "SRV-REQUISITOS-DE-PRODUTO",
+                "SRV-ESPECIFICACAO-DE-INTERFACE",
+                "SRV-PROPOSTA-TECNICA",
+                "SRV-PLANO-DE-TESTES",
+                "SRV-DOSSIE",
+                "SRV-PLANO-DE-CAMPANHA",
+                "SRV-COPY",
+                "SRV-ROTEIRO-TREINAMENTO",
+                "SRV-ROTEIRO-COMERCIAL",
+                "SRV-TESE-DE-PARCERIA",
+                "SRV-PLANO-DE-SUCESSO",
+                "SRV-RASCUNHO-DE-RESPOSTA",
+                "SRV-PROCEDIMENTO-OPERACIONAL"
+              ]
+            },
+            "roteiro_que_atenderia": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "maxLength": 80
+            }
+          },
+          "not": {
+            "required": [
+              "servico_que_atenderia",
+              "roteiro_que_atenderia"
+            ]
+          }
+        }
+      ]
+    },
+    "LER_DE_VOLTA": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "escolha",
+        "entendi_assim"
+      ],
+      "description": "'Entendi assim... Confirma?' (só no pedido grande; no pequeno vale na hora, com desfazer). A Helena escolhe; o código monta o grafo (servicos.yaml, montagem_do_plano). Empresa, prioridade e prazo do card NÃO vêm daqui: vêm da caixa Novo pedido, como toque seu.",
+      "properties": {
+        "acao": {
+          "const": "LER_DE_VOLTA"
+        },
+        "escolha": {
+          "$ref": "#/$defs/escolha_da_helena"
+        },
+        "entendi_assim": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "o_que_quer",
+            "como_e_o_pronto",
+            "nao_pode"
+          ],
+          "properties": {
+            "o_que_quer": {
+              "type": "string",
+              "minLength": 10,
+              "maxLength": 400
+            },
+            "como_e_o_pronto": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "items": {
+                "$ref": "#/$defs/item_do_pronto_proposto"
+              }
+            },
+            "nao_pode": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 200
+              }
+            }
+          }
+        },
+        "prazo_sugerido": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$",
+          "description": "Só sugestão: vira item na sua lista. O prazo do card só muda pelo seu botão MUDAR_PRAZO (regra 7)."
+        }
+      }
+    },
+    "RECOMENDAR": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "opcao",
+        "motivo"
+      ],
+      "description": "Só quando a Helena NÃO é autora nem revisora designada da etapa em resolução (servicos.yaml, MAT-26): nesse caso o motor nem a chama.",
+      "properties": {
+        "acao": {
+          "const": "RECOMENDAR"
+        },
+        "opcao": {
+          "enum": [
+            "REFAZER",
+            "SEGUIR_SEM",
+            "ENCERRAR"
+          ]
+        },
+        "motivo": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        }
+      }
+    },
+    "SUGERIR_PRAZO": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acao",
+        "prazo_sugerido",
+        "motivo"
+      ],
+      "description": "Só reação: vira item na sua lista. O prazo só muda pelo seu botão (regra 7).",
+      "properties": {
+        "acao": {
+          "const": "SUGERIR_PRAZO"
+        },
+        "prazo_sugerido": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+        },
+        "motivo": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300
+        }
+      }
+    },
+    "saida_da_helena": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LER_DE_VOLTA"
+        },
+        {
+          "$ref": "#/$defs/RECOMENDAR"
+        },
+        {
+          "$ref": "#/$defs/SUGERIR_PRAZO"
+        }
+      ]
+    },
+    "botao_APROVAR": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "APROVAR"
+        }
+      },
+      "required": [
+        "acao"
+      ]
+    },
+    "botao_PEDIR_AJUSTE": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "PEDIR_AJUSTE"
+        },
+        "motivo_ajuste": {
+          "enum": [
+            "ERRO_DE_FATO",
+            "FALTOU_TEMA",
+            "TOM",
+            "FORMATO"
+          ]
+        },
+        "comentario": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "acao",
+        "motivo_ajuste"
+      ]
+    },
+    "botao_USAR_COMO_EXEMPLO": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "USAR_COMO_EXEMPLO"
+        }
+      },
+      "required": [
+        "acao"
+      ]
+    },
+    "botao_CANCELAR": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "CANCELAR"
+        },
+        "confirmado": {
+          "const": true
+        },
+        "encaminhar_para_v1": {
+          "type": "boolean",
+          "description": "Só com o card em ESPERANDO_CONFIRMACAO: o código cria o trabalho na v1 com o seu pedido original e grava o número no card (servicos.yaml, destino_fora_da_v2). A passagem é a mesma do Cancelar (C22, fim FUNDADOR)."
+        }
+      },
+      "required": [
+        "acao",
+        "confirmado"
+      ]
+    },
+    "botao_RESPONDER": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "RESPONDER"
+        },
+        "pergunta_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "opcao": {
+          "enum": [
+            "RESPOSTA_A",
+            "RESPOSTA_B",
+            "RESPOSTA_C",
+            "CONFIRMO",
+            "REFAZER",
+            "SEGUIR_SEM",
+            "ENCERRAR",
+            "PULAR",
+            "ESPERAR",
+            "MODELO_MENOR",
+            "ACONTECEU",
+            "NAO_ACONTECEU",
+            "FEITO_POR_MIM"
+          ]
+        },
+        "escolha": {
+          "description": "Só no CONFIRMO de um card em ESPERANDO_CONFIRMACAO (motivo NENHUM ou HELENA_FALHOU; C06): o serviço ou roteiro que você escolheu na lista do app. Substitui a escolha da Helena. Sem escolha válida, o validador do plano recusa (PLANO_INVALIDO).",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tipo",
+                "id"
+              ],
+              "properties": {
+                "tipo": {
+                  "const": "SERVICO"
+                },
+                "id": {
+                  "enum": [
+                    "SRV-CALCULO",
+                    "SRV-COPY",
+                    "SRV-ROTEIRO-TREINAMENTO"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tipo",
+                "id"
+              ],
+              "properties": {
+                "tipo": {
+                  "const": "ROTEIRO"
+                },
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "maxLength": 80
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "acao",
+        "pergunta_id",
+        "opcao"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "opcao": {
+                "not": {
+                  "const": "CONFIRMO"
+                }
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "escolha"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "botao_PAUSAR_TUDO": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "PAUSAR_TUDO"
+        }
+      },
+      "required": [
+        "acao"
+      ]
+    },
+    "botao_MUDAR_PRIORIDADE": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "MUDAR_PRIORIDADE"
+        },
+        "prioridade": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "required": [
+        "acao",
+        "prioridade"
+      ]
+    },
+    "botao_MUDAR_PRAZO": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "acao": {
+          "const": "MUDAR_PRAZO"
+        },
+        "prazo": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+        }
+      },
+      "required": [
+        "acao",
+        "prazo"
+      ]
+    },
+    "toque_do_fundador": {
+      "description": "Um botão do app (vocabulario.botoes_do_fundador). Texto fora de botão vira comentário e nunca muda estado (MEL-25).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/botao_APROVAR"
+        },
+        {
+          "$ref": "#/$defs/botao_PEDIR_AJUSTE"
+        },
+        {
+          "$ref": "#/$defs/botao_USAR_COMO_EXEMPLO"
+        },
+        {
+          "$ref": "#/$defs/botao_CANCELAR"
+        },
+        {
+          "$ref": "#/$defs/botao_RESPONDER"
+        },
+        {
+          "$ref": "#/$defs/botao_PAUSAR_TUDO"
+        },
+        {
+          "$ref": "#/$defs/botao_MUDAR_PRIORIDADE"
+        },
+        {
+          "$ref": "#/$defs/botao_MUDAR_PRAZO"
+        }
+      ]
+    }
+  }
+}

@@ -257,7 +257,7 @@ def m_sem_teto_de_6_execucoes(v, t):
     linha(t, "etapa", "E10")["guarda"] = "motivo == 'NORMAL'"
 
 
-# --- furo 1 e 15: pergunta do card que perdeu o objeto
+# --- furos 1 e 16: pergunta do card que perdeu o objeto
 def m_sem_motivo_resolvido(v, t):
     tira_linha(t, "card", "C27")
 
@@ -303,7 +303,7 @@ def m_retomada_zera_o_infra(v, t):
     linha(t, "etapa", "E99")["efeito"]["infra"] = 0
 
 
-# --- furo 6 e 17: prazo do card
+# --- furos 6 e 17: prazo do card
 def m_aviso_80_fora_do_validando_plano(v, t):
     linha(t, "card", "C23")["de"].remove("VALIDANDO_PLANO")
 
@@ -332,7 +332,7 @@ def m_validador_parado_gasta_tentativa(v, t):
     linha(t, "etapa", "E47")["efeito"]["execucoes"] = "+1"
 
 
-# --- furos 8 e 16: ordem sua no teto vira comentário
+# --- furos 8 e 15: ordem sua no teto vira comentário
 def m_esperar_no_teto_vira_comentario(v, t):
     tira_linha(t, "etapa", "E98")
 
@@ -394,7 +394,7 @@ def m_helena_sem_chave(v, t):
     t["regras_gerais"]["respostas_de_agente_exigem_chave_atual"].remove("HELENA")
 
 
-# --- furo 18: o agente escolhe o regime da sua espera; padrão sem lembrete
+# --- furo 19: o agente escolhe o regime da sua espera; padrão sem lembrete
 def m_agente_escolhe_o_tipo_da_espera(v, t):
     v["acoes"]["AUTOR"]["PERGUNTAR"]["parametros"]["tipo"] = ["INTERNA", "EXTERNA"]
     linha(t, "etapa", "E21")["efeito"]["espera"] = "$tipo"
@@ -436,7 +436,7 @@ MUTACOES = [
     ("plano inválido deixar as etapas andarem", m_plano_invalido_deixa_etapas_andarem, "R06"),
     ("tirar o teto de 6 execuções", m_sem_teto_de_6_execucoes, "R05"),
     # furos apontados pelos atacantes (cada um reabre o furo e precisa ser pego)
-    ("furo 1/15: tirar a linha MOTIVO_RESOLVIDO (tudo aprovado preso numa pergunta velha)", m_sem_motivo_resolvido, "R02"),
+    ("furo 1/16: tirar a linha MOTIVO_RESOLVIDO (tudo aprovado preso numa pergunta velha)", m_sem_motivo_resolvido, "R02"),
     ("furo 2: tirar da tabela a trava 'etapa só anda com o card ativo'", m_sem_trava_de_card_ativo, "R06"),
     ("furo 2: card ativo incluir VALIDANDO_PLANO", m_card_ativo_inclui_validando_plano, "R06"),
     ("furo 3/9: ação externa nascer na entrega, antes dos portões", m_acao_nasce_na_entrega, "R08"),
@@ -454,8 +454,8 @@ MUTACOES = [
     ("furo 7: validador parado gastar tentativa do autor", m_validador_parado_gasta_tentativa, "R12"),
     ("furo 8: ESPERAR no teto de ordens virar comentário", m_esperar_no_teto_vira_comentario, "R11"),
     ("furo 8: REFAZER do card no teto virar comentário", m_refazer_do_card_no_teto_vira_comentario, "R11"),
-    ("furo 16: 4º ajuste voltar a ser reação ('o card segue como está')", m_quarto_ajuste_volta_a_ser_reacao, "R10"),
-    ("furo 16: ajuste no teto descartar a peça sem substituir o card", m_substituir_sem_avisar_o_card, "R02"),
+    ("furo 15: 4º ajuste voltar a ser reação ('o card segue como está')", m_quarto_ajuste_volta_a_ser_reacao, "R10"),
+    ("furo 15: ajuste no teto descartar a peça sem substituir o card", m_substituir_sem_avisar_o_card, "R02"),
     ("furo 10: tirar a conferência da versão vista", m_sem_versao_vista, "R09"),
     ("furo 11: parecer jurídico aprovado só pela IA", m_juridico_aprovado_so_pela_ia, "R09"),
     ("furo 11: mesmo revisor na julgada e na julgadora", m_mesmo_revisor_na_julgada_e_na_julgadora, "R04"),
@@ -465,9 +465,9 @@ MUTACOES = [
     ("furo 13: DEPENDENCIAS_PRONTAS sem guarda", m_dependencias_prontas_sem_guarda, "R06"),
     ("furo 13: motor encerrar o card como se fosse você", m_motor_encerra_o_card_como_se_fosse_voce, "R13"),
     ("furo 14: resposta antiga da Helena gravar", m_helena_sem_chave, "R03"),
-    ("furo 18: o agente escolher o tipo da sua espera", m_agente_escolhe_o_tipo_da_espera, "R07"),
-    ("furo 18: espera externa cair no padrão sem lembrete", m_espera_externa_sem_lembrete, "R01"),
-    ("furo 18: ação proposta expirar sem lembrete", m_acao_expira_sem_lembrete, "R01"),
+    ("furo 19: o agente escolher o tipo da sua espera", m_agente_escolhe_o_tipo_da_espera, "R07"),
+    ("furo 19: espera externa cair no padrão sem lembrete", m_espera_externa_sem_lembrete, "R01"),
+    ("furo 19: ação proposta expirar sem lembrete", m_acao_expira_sem_lembrete, "R01"),
 ]
 
 
@@ -636,7 +636,7 @@ def test_padrao_nunca_aprova_e_o_card_pergunta_antes_de_cancelar():
 
 
 def test_quarta_ordem_substitui_o_card_e_ele_nunca_fica_pronto():
-    # furo 16: o 4º ajuste não é comentário; o card é substituído por um card novo ligado
+    # furo 15: o 4º ajuste não é comentário; o card é substituído por um card novo ligado
     ev = INICIO + _aprova("E1")
     for _ in range(3):
         ev += _ajuste("E1") + _aprova("E1")
@@ -711,7 +711,7 @@ def test_esquema_da_jornada_recusa_resposta_sem_opcao():
         P.replay(_jornada([{"papel": "ESTAGIARIO", "evento": "ENTREGAR"}]))
 
 
-# --- furos 1 e 15: pergunta do card que perdeu o objeto
+# --- furos 1 e 16: pergunta do card que perdeu o objeto
 def test_nao_pode_resolvido_fecha_pronto_sem_o_seu_toque():
     # j1: o jurídico diz NAO_PODE, o card pergunta; com o card ainda esperando, você pede ajuste na E2,
     # o jurídico é refeito e sai OK; mais 2 ajustes na E1 (ordens = 3); a ER é aprovada
@@ -865,7 +865,7 @@ def test_entradas_diretas_do_motor_sao_recusadas():
     assert not r["violacoes"]
 
 
-# --- furo 17: resposta depois do padrão vira decisão guardada
+# --- furo 18: resposta depois do padrão vira decisão guardada
 def test_resposta_tardia_viaja_para_a_versao_nova():
     ev = INICIO + [{"papel": "AUTOR", "evento": "PERGUNTAR", "alvo": "E1"},
                    R("LEMBRETE_24H", "E1"), R("LEMBRETE_48H", "E1"), R("PRAZO_ESPERA_VENCIDO", "E1"),
@@ -880,7 +880,7 @@ def test_resposta_tardia_viaja_para_a_versao_nova():
     assert r["recusados"][-1]["destino"] == "CARD_NOVO_LIGADO" and r["final"]["cards_ligados"] == 1
 
 
-# --- furo 18: o regime da espera é do código; nenhum padrão sem lembrete
+# --- furo 19: o regime da espera é do código; nenhum padrão sem lembrete
 def test_padrao_so_depois_de_lembrete_e_tipo_pelo_roteiro():
     ev = INICIO + [{"papel": "AUTOR", "evento": "PERGUNTAR", "alvo": "E2"}, R("PRAZO_ESPERA_VENCIDO", "E2")]
     r = P.replay(_jornada(ev))

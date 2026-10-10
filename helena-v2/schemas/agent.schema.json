@@ -1,33 +1,871 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "helena-v2/agent",
-  "title": "Ficha de agente",
+  "title": "Ficha de agente (v3.1)",
+  "description": "Ficha de um dos 21 agentes (agents/<nome-sem-acento-minusculo>.yaml). O perfil de cada execução é gerado desta ficha e do serviço pedido. Fonte única de: orçamento por serviço, orçamento de revisão, vagas, modelo por papel, regras, nunca e aprendizados. O resto é espelho conferido de organograma.yaml e servicos.yaml. Três estados separados (MAT-13): o do serviço (papel AUTOR), a aptidão de revisão por tipo e, só na Helena, o da coordenação; 'estado' no topo é só o resumo para a tela. Nomes de maquina/vocabulario.yaml (versão 2.0.0).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "nome", "funcao", "papel", "produz", "ferramentas", "modelo", "orcamento", "orcamento_revisao", "revisor", "regras", "nunca"],
+  "required": [
+    "versao",
+    "id",
+    "identidade",
+    "nome",
+    "funcao",
+    "papel",
+    "grupo",
+    "escopo",
+    "empresas",
+    "missao",
+    "servicos",
+    "revisao",
+    "modelo",
+    "vagas",
+    "regras",
+    "nunca",
+    "aprendizados",
+    "fase_de_ativacao",
+    "estado"
+  ],
   "properties": {
-    "id": { "type": "string", "pattern": "^AGT-[0-9]{2}$" },
-    "nome": { "type": "string", "minLength": 2, "maxLength": 40 },
-    "funcao": { "type": "string", "minLength": 3, "maxLength": 80 },
-    "papel": { "enum": ["ORQUESTRADORA", "ESPECIALISTA"] },
-    "missao": { "type": "string", "maxLength": 600 },
-    "produz": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z_]+$" }, "description": "Tipos de entrega (arquivos em deliverables/) que este agente pode produzir" },
-    "revisa": { "type": "array", "items": { "type": "string", "pattern": "^[a-z_]+$" }, "description": "Tipos de entrega que este agente pode revisar (nunca as proprias)" },
-    "ferramentas": { "type": "array", "items": { "enum": ["web_search", "web_extract", "vision_analyze", "registrar_lancamento", "get_visual_asset", "gerar_imagem"] } },
-    "modelo": { "type": "string", "description": "Apelido do catalogo models.yaml, nunca o nome do modelo" },
-    "orcamento": {
-      "type": "object", "additionalProperties": false,
-      "required": ["tempo_s", "passos", "buscas"],
-      "properties": {
-        "tempo_s": { "type": "integer", "minimum": 60, "maximum": 900 },
-        "passos": { "type": "integer", "minimum": 4, "maximum": 40 },
-        "buscas": { "type": "integer", "minimum": 0, "maximum": 25 }
+    "versao": {
+      "type": "string",
+      "pattern": "^3\\.1\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^AGT-(0[1-9]|1[0-9]|2[01])$"
+    },
+    "identidade": {
+      "enum": [
+        "HELENA",
+        "LAURA",
+        "AUGUSTO",
+        "MARINA",
+        "CAIO",
+        "CLARA",
+        "BIANCA",
+        "DANIEL",
+        "THEO",
+        "NINA",
+        "RAVI",
+        "MAYA",
+        "BRUNO",
+        "OLIVIA",
+        "VICTOR",
+        "CAMILA",
+        "ISABELA",
+        "PEDRO",
+        "RENATA",
+        "JOANA",
+        "FELIPE"
+      ],
+      "description": "Uma das 21 identidades de vocabulario.identidades.agentes (sem acento, como o banco grava)."
+    },
+    "nome": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 40
+    },
+    "funcao": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80
+    },
+    "papel": {
+      "enum": [
+        "COORDENADORA",
+        "ESPECIALISTA"
+      ],
+      "description": "Posição no organograma. Não é papel da máquina (AUTOR, REVISOR, HELENA)."
+    },
+    "grupo": {
+      "type": "string",
+      "pattern": "^GRP-[A-Z-]+$"
+    },
+    "escopo": {
+      "enum": [
+        "EMPRESAS",
+        "PESSOAL"
+      ]
+    },
+    "empresas": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "BIZ-001",
+          "BIZ-002",
+          "BIZ-003",
+          "BIZ-004",
+          "PESSOAL"
+        ]
+      },
+      "description": "Empresas atendidas (a união das empresas dos serviços do agente no catálogo): BIZ-001 iGreen Energy, BIZ-002 Ecossistema de Saúde, BIZ-003 Humano Digital, BIZ-004 eLiving™; PESSOAL só a Laura."
+    },
+    "missao": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 600
+    },
+    "servicos": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/servico_da_ficha"
       }
     },
-    "orcamento_revisao": { "type": "object", "additionalProperties": false, "required": ["tempo_s", "passos", "buscas"], "properties": { "tempo_s": { "type": "integer", "minimum": 60, "maximum": 600 }, "passos": { "type": "integer", "minimum": 4, "maximum": 20 }, "buscas": { "type": "integer", "minimum": 0, "maximum": 5 } } },
-    "revisor": { "type": "string", "pattern": "^(AGT-[0-9]{2}|CODIGO|FUNDADOR)$", "description": "Revisor padrao (CODIGO = so validacao mecanica; FUNDADOR = aprovacao do Fundador); nunca o proprio autor" },
-    "regras": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "type": "string", "maxLength": 240 } },
-    "nunca": { "type": "array", "minItems": 1, "items": { "type": "string", "maxLength": 200 } },
-    "aprendizados": { "type": "array", "items": { "type": "object", "required": ["regra", "origem", "aprovado_em"], "properties": { "regra": { "type": "string" }, "origem": { "type": "string" }, "aprovado_em": { "type": "string" } } } }
+    "revisao": {
+      "$ref": "#/$defs/revisao"
+    },
+    "coordenacao": {
+      "$ref": "#/$defs/coordenacao"
+    },
+    "modelo": {
+      "$ref": "#/$defs/modelo"
+    },
+    "vagas": {
+      "$ref": "#/$defs/vagas"
+    },
+    "regras": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 240
+      }
+    },
+    "nunca": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      }
+    },
+    "aprendizados": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/aprendizado"
+      }
+    },
+    "fase_de_ativacao": {
+      "enum": [
+        "v2.0",
+        "fase 3",
+        "fase 4"
+      ]
+    },
+    "estado": {
+      "enum": [
+        "ATIVO",
+        "ESTAGIO",
+        "PAUSADO"
+      ],
+      "description": "Resumo para a tela, derivado dos serviços (servicos.yaml, MAT-13): ATIVO se algum serviço ATIVO; ESTAGIO se algum ESTAGIO; senão PAUSADO. Nunca usado para designar revisor nem para a coordenação."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "identidade": {
+            "const": "HELENA"
+          }
+        },
+        "required": [
+          "identidade"
+        ]
+      },
+      "then": {
+        "required": [
+          "coordenacao"
+        ],
+        "properties": {
+          "papel": {
+            "const": "COORDENADORA"
+          },
+          "modelo": {
+            "required": [
+              "coordenacao"
+            ]
+          },
+          "vagas": {
+            "required": [
+              "coordenacao"
+            ]
+          }
+        }
+      },
+      "else": {
+        "not": {
+          "required": [
+            "coordenacao"
+          ]
+        },
+        "properties": {
+          "papel": {
+            "const": "ESPECIALISTA"
+          },
+          "modelo": {
+            "not": {
+              "required": [
+                "coordenacao"
+              ]
+            }
+          },
+          "vagas": {
+            "not": {
+              "required": [
+                "coordenacao"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "escopo": {
+            "const": "PESSOAL"
+          }
+        },
+        "required": [
+          "escopo"
+        ]
+      },
+      "then": {
+        "properties": {
+          "empresas": {
+            "const": [
+              "PESSOAL"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "empresas": {
+            "items": {
+              "enum": [
+                "BIZ-001",
+                "BIZ-002",
+                "BIZ-003",
+                "BIZ-004"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "x-regras-do-validador": [
+    "id, identidade, nome, funcao (=cargo), grupo, escopo, fase_de_ativacao e estado iguais à linha de organograma.yaml",
+    "arquivo = agents/<identidade em minúsculas>.yaml",
+    "servicos = exatamente os serviços de servicos.yaml com dono = identidade, com os mesmos campos; empresas = união das empresas desses serviços",
+    "revisao.aptidao = exatamente servicos.yaml agentes.<identidade>.revisa (mesmos tipos e mesmos estados)",
+    "revisor != identidade; reserva != identidade e != revisor (MAT-03)",
+    "modelo.autor = pesquisa-padrao se algum serviço do agente tem ferramenta; senão, outro apelido de AUTOR; modelo.revisao = revisao-padrao; modelo.coordenacao só na Helena (models.yaml, papel_do_apelido)",
+    "orcamento possível: chamadas_total >= buscas + partes_de_pagina + 1"
+  ],
+  "$defs": {
+    "ferramenta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "efeito",
+        "desde"
+      ],
+      "description": "Uma das NOSSAS ferramentas (servicos.yaml, ferramentas_nossas). Só leem: efeito LER, com o acesso_sem_efeito do catálogo (só GET, sem cookie, sem login, sem caminho de ação, sem consulta com token, sem redirecionamento para outro domínio, só fonte que você ligou como 'pode ler'). Nenhuma ferramenta grava ou age fora (B-6, B-17, K-19).",
+      "properties": {
+        "nome": {
+          "enum": [
+            "ler_pagina",
+            "buscar"
+          ]
+        },
+        "efeito": {
+          "const": "LER"
+        },
+        "desde": {
+          "enum": [
+            "fase 3",
+            "fase 4"
+          ],
+          "description": "A ferramenta só entra no perfil a partir desta fase (MEL-34)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "nome": {
+                "const": "ler_pagina"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "desde": {
+                "const": "fase 3"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "nome": {
+                "const": "buscar"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "desde": {
+                "const": "fase 4"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "orcamento": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buscas",
+        "partes_de_pagina",
+        "chamadas_total",
+        "tempo_s"
+      ],
+      "description": "Orçamento de UMA execução do serviço, em chamadas ao nosso servidor de ferramentas e em tempo (no modo do Hermes que usamos não existe limite de passos; FC-1, M-3, C-3). No limite, o servidor responde 'entregue agora'; se o agente insistir 3 vezes, a execução termina como LIMITE_CHAMADAS. O tempo é cortado pelo motor.",
+      "properties": {
+        "buscas": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "partes_de_pagina": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 40,
+          "description": "Partes de até 20 mil caracteres entregues por ler_pagina."
+        },
+        "chamadas_total": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "Todas as chamadas da execução, incluindo a resposta final."
+        },
+        "tempo_s": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 900,
+          "description": "Tempo máximo da execução (prazo do estado EXECUTANDO, passagens.yaml tempo_maximo_da_ficha). Exemplo do plano: Clara 900 s."
+        }
+      },
+      "x-regras-do-validador": [
+        "chamadas_total >= buscas + partes_de_pagina + 1 (orçamento possível; M-3)",
+        "a soma das buscas das etapas de um roteiro cabe no orcamento_meta.buscas dele (furo 9)"
+      ]
+    },
+    "servico_da_ficha": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "servico",
+        "tipo_de_entrega",
+        "acoes_permitidas",
+        "ferramentas",
+        "orcamento",
+        "revisor",
+        "reserva"
+      ],
+      "description": "Um serviço do catálogo de que este agente é dono (papel AUTOR). servico, tipo_de_entrega, acoes_permitidas, ferramentas, revisor e reserva têm de ser IGUAIS aos de servicos.yaml (fonte única); o validador recusa divergência. O orçamento é só da ficha. O estado do serviço (e o disjuntor) vale só para este papel de autor (MAT-13).",
+      "properties": {
+        "servico": {
+          "type": "string",
+          "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "tipo_de_entrega": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Arquivo deliverables/<tipo>.yaml."
+        },
+        "acoes_permitidas": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "items": {
+            "enum": [
+              "ENTREGAR",
+              "PERGUNTAR",
+              "DEVOLVER_A_QUEM_PEDIU",
+              "REGISTRAR_FALHA"
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "const": "ENTREGAR"
+              }
+            },
+            {
+              "contains": {
+                "const": "REGISTRAR_FALHA"
+              }
+            }
+          ],
+          "description": "Ações do papel AUTOR liberadas para o serviço (maquina/vocabulario.yaml (versão 2.0.0)). PEDIR_SUBCARD fica fora: desligado até a fase 4 (MEL-24). Sempre ENTREGAR e REGISTRAR_FALHA."
+        },
+        "ferramentas": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/ferramenta"
+          },
+          "description": "Lista SEMPRE por extenso. Vazia é permitida e quer dizer: o perfil recebe o nosso servidor vazio (no Hermes, lista vazia liberaria todas; B-6). Antes de contar a execução, o motor confere que o agente recebeu exatamente estas (filtradas pela fase em curso)."
+        },
+        "orcamento": {
+          "$ref": "#/$defs/orcamento"
+        },
+        "revisor": {
+          "enum": [
+            "HELENA",
+            "LAURA",
+            "AUGUSTO",
+            "MARINA",
+            "CAIO",
+            "CLARA",
+            "BIANCA",
+            "DANIEL",
+            "THEO",
+            "NINA",
+            "RAVI",
+            "MAYA",
+            "BRUNO",
+            "OLIVIA",
+            "VICTOR",
+            "CAMILA",
+            "ISABELA",
+            "PEDRO",
+            "RENATA",
+            "JOANA",
+            "FELIPE"
+          ],
+          "description": "Uma das 21 identidades de vocabulario.identidades.agentes (sem acento, como o banco grava)."
+        },
+        "reserva": {
+          "enum": [
+            "HELENA",
+            "LAURA",
+            "AUGUSTO",
+            "MARINA",
+            "CAIO",
+            "CLARA",
+            "BIANCA",
+            "DANIEL",
+            "THEO",
+            "NINA",
+            "RAVI",
+            "MAYA",
+            "BRUNO",
+            "OLIVIA",
+            "VICTOR",
+            "CAMILA",
+            "ISABELA",
+            "PEDRO",
+            "RENATA",
+            "JOANA",
+            "FELIPE",
+            "FUNDADOR"
+          ],
+          "description": "Agente diferente do dono e do revisor, ou FUNDADOR. Você é sempre a última reserva, mesmo sem estar escrito. Só entra na lista efetiva com aptidão APTA (MAT-21)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "ferramentas": {
+                "minItems": 1
+              }
+            },
+            "required": [
+              "ferramentas"
+            ]
+          },
+          "then": {
+            "properties": {
+              "acoes_permitidas": {
+                "items": {
+                  "enum": [
+                    "ENTREGAR",
+                    "REGISTRAR_FALHA"
+                  ]
+                }
+              }
+            }
+          },
+          "description": "Quem lê a internet só entrega ou registra falha (C-7)."
+        },
+        {
+          "if": {
+            "properties": {
+              "ferramentas": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "nome": {
+                        "const": "buscar"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "ferramentas"
+            ]
+          },
+          "then": {
+            "properties": {
+              "orcamento": {
+                "properties": {
+                  "buscas": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "ferramentas": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "nome": {
+                        "const": "ler_pagina"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "ferramentas"
+            ]
+          },
+          "then": {
+            "properties": {
+              "orcamento": {
+                "properties": {
+                  "partes_de_pagina": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "so_resposta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ferramentas",
+        "orcamento"
+      ],
+      "properties": {
+        "ferramentas": {
+          "type": "array",
+          "maxItems": 0,
+          "description": "Sempre vazia: servidor vazio."
+        },
+        "orcamento": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chamadas_total",
+            "tempo_s"
+          ],
+          "properties": {
+            "chamadas_total": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "tempo_s": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 600
+            }
+          }
+        }
+      }
+    },
+    "aptidao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tipo",
+        "estado"
+      ],
+      "description": "Aptidão de revisão do par (este agente, tipo). Igual a servicos.yaml agentes.<identidade>.revisa (fonte única). APTA só depois do teste 9 do par com a rubrica atual e do seu toque, registrados na publicação; só você muda; o disjuntor nunca mexe (servicos.yaml, aptidao_de_revisao).",
+      "properties": {
+        "tipo": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "estado": {
+          "enum": [
+            "SEM_PROVA",
+            "APTA",
+            "PAUSADA"
+          ]
+        }
+      }
+    },
+    "revisao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aptidao",
+        "ferramentas",
+        "orcamento"
+      ],
+      "description": "Como este agente revisa (papel REVISOR). Revisão roda sempre sem ferramenta e com modelo.revisao: o código entrega o parágrafo em volta de cada citação (MAT-10). O tempo é o prazo do estado REVISAO (prazo_da_revisao). Só é designado para tipo com aptidão APTA (MAT-21).",
+      "properties": {
+        "aptidao": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/aptidao"
+          },
+          "description": "Um item por tipo em que o agente é revisor titular ou reserva no catálogo; vazia se não revisa nada."
+        },
+        "ferramentas": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "orcamento": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "chamadas_total",
+            "tempo_s"
+          ],
+          "properties": {
+            "chamadas_total": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3
+            },
+            "tempo_s": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 600
+            }
+          }
+        }
+      }
+    },
+    "coordenacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estado",
+        "LER_DE_VOLTA",
+        "RECOMENDAR"
+      ],
+      "description": "Só a Helena: as respostas do papel HELENA (não são serviços). Sem ferramenta e com modelo.coordenacao. O estado é independente do serviço de relatório e das aptidões de revisão: só você muda (servicos.yaml, estado_da_coordenacao). SUGERIR_PRAZO é só reação e não roda execução própria.",
+      "properties": {
+        "estado": {
+          "enum": [
+            "ATIVA",
+            "PAUSADA"
+          ]
+        },
+        "LER_DE_VOLTA": {
+          "$ref": "#/$defs/so_resposta"
+        },
+        "RECOMENDAR": {
+          "$ref": "#/$defs/so_resposta"
+        }
+      }
+    },
+    "modelo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "autor",
+        "revisao"
+      ],
+      "description": "Apelido de models.yaml por papel, nunca o nome do modelo. Cada apelido só no papel dele (models.yaml, papel_do_apelido).",
+      "properties": {
+        "autor": {
+          "enum": [
+            "analise-padrao",
+            "pesquisa-padrao",
+            "conteudo-padrao"
+          ],
+          "description": "Para os serviços de que o agente é dono. Serviço com leitura de página usa pesquisa-padrao."
+        },
+        "revisao": {
+          "const": "revisao-padrao",
+          "description": "Toda revisão usa o mesmo apelido (MAT-10)."
+        },
+        "coordenacao": {
+          "const": "coordenacao-padrao",
+          "description": "Só a Helena (leitura de volta e recomendação)."
+        }
+      }
+    },
+    "vagas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trabalho"
+      ],
+      "description": "Vagas do agente no motor (plano v3: 1 ou 2 por agente; a Helena tem uma vaga separada de coordenação). Falta de vaga nunca troca autor nem revisor: a etapa espera a vaga do designado (servicos.yaml, capacidade).",
+      "properties": {
+        "trabalho": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2,
+          "description": "Execuções de autor e de revisor deste agente ao mesmo tempo."
+        },
+        "coordenacao": {
+          "const": 1,
+          "description": "Só a Helena: leitura de volta e recomendação, nunca atrás de uma revisão."
+        }
+      }
+    },
+    "aprendizado": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "servico",
+        "regra",
+        "origem",
+        "estado"
+      ],
+      "description": "Lição com versão. Nasce PROPOSTA e fica inativa até passar pela bateria de testes do serviço; aprovar uma entrega nunca vira lição (C-18, FC-13). Só ATIVA entra no pacote do agente.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^LIC-[0-9]{4}$"
+        },
+        "servico": {
+          "type": "string",
+          "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "regra": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240
+        },
+        "origem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "card_id"
+          ],
+          "properties": {
+            "tipo": {
+              "enum": [
+                "PEDIR_AJUSTE",
+                "NUNCA_FACA_ISSO",
+                "VALE_SEMPRE",
+                "CORRECAO_REPETIDA_3_VEZES"
+              ]
+            },
+            "card_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "motivo_ajuste": {
+              "enum": [
+                "ERRO_DE_FATO",
+                "FALTOU_TEMA",
+                "TOM",
+                "FORMATO"
+              ]
+            }
+          }
+        },
+        "estado": {
+          "enum": [
+            "PROPOSTA",
+            "EM_PROVA",
+            "ATIVA",
+            "REVOGADA"
+          ]
+        },
+        "prova": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "casos",
+            "resultado",
+            "versao_da_ficha"
+          ],
+          "properties": {
+            "casos": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "resultado": {
+              "const": "3 de 3 em todos os casos"
+            },
+            "versao_da_ficha": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            }
+          }
+        },
+        "ativada_em": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "estado": {
+                "const": "ATIVA"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "prova",
+              "ativada_em"
+            ]
+          }
+        }
+      ]
+    }
   }
 }

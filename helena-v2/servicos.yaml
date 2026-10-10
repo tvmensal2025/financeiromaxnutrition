@@ -1,0 +1,1175 @@
+# Catálogo de serviços do Sistema Helena (v3.1) — O CARDÁPIO.
+#
+# O que é um serviço: uma coisa que você pode pedir, com UM dono (agente), UM tipo de
+# entrega, um revisor titular, uma reserva, as ações que o dono pode devolver e as
+# ferramentas que ele recebe. A Helena só escolhe um id desta lista (ou um roteiro, ou
+# "fora da v2"); o caminho do card é montado pelo código a partir daqui (MEL-24 e MEL-26).
+#
+# Fonte única (MEL-22): dono, revisor, reserva, aptidão de revisão, ações, ferramentas,
+# fase, estado e empresas de cada serviço são escritos AQUI. A ficha de cada agente
+# (agents/<nome>.yaml) repete o que o perfil da execução precisa; o validador recusa
+# qualquer divergência entre a ficha e este catálogo.
+#
+# Os nomes de ações, papéis, estados e identidades vêm de maquina/vocabulario.yaml
+# (versão 2.0.0). Um nome que não estiver lá é recusado.
+#
+# Neutro quanto ao motor: nada aqui depende de DBOS nem de motor próprio. "Motor" é o papel
+# de quem executa; o estado do card vive nas nossas tabelas e em maquina/passagens.yaml.
+#
+# O que "estado" quer dizer aqui: é o estado que ESTA VERSÃO da especificação pede quando
+# for publicada. Hoje nada está publicado e nenhum serviço roda na v2. Publicar só passa se
+# o código calcular "apto" (para ESTAGIO: 10 casos 3 de 3, o teste 3 e o revisor titular
+# APTO no tipo; para ATIVO: 5 cards reais em estágio sem escape) e com o seu toque no botão
+# de publicar. Descer de estado é automático e nunca mexe em card em andamento.
+
+versao: "3.1.0"
+fonte_dos_nomes: maquina/vocabulario.yaml
+
+# Ordem das fases (a primeira é a mais cedo). "v2.0" = nasce com a v2.0: entra no esqueleto
+# da fase 2 e roda a primeira meta (fase 3). "fase 3" = liga durante a fase 3, quando um
+# roteiro pedir. "fase 4" = os que voltam um por vez (WIP = 1), na ordem_de_ativacao abaixo.
+fases: ["v2.0", "fase 3", "fase 4"]
+
+# ---------------------------------------------------------------------------------------
+# TRÊS estados separados (furo 16). Nenhum depende do outro.
+#   1. estado do SERVIÇO  -> vale só para o papel de AUTOR daquele serviço.
+#   2. aptidão de REVISÃO -> vale por par (agente, tipo de entrega).
+#   3. estado da COORDENAÇÃO -> só a Helena (leitura de volta e recomendação).
+# O "estado" do agente no organograma é só um resumo para a tela; nunca é usado para
+# designar revisor nem para decidir se a Helena coordena.
+# ---------------------------------------------------------------------------------------
+estados_do_servico:
+  RASCUNHO:   "Especificado, sem casos aprovados. Não recebe card na v2."
+  EM_TESTE:   "Rodando a bateria de casos (camada A e B). Não recebe card real."
+  ESTAGIO:    "Recebe card real pela tela nova, com a faixa 'em estágio: x de 5' e você como revisor a mais."
+  ATIVO:      "Recebe card real normalmente."
+  PAUSADO:    "Parado por você ou pelo disjuntor (3 falhas seguidas do agente COMO AUTOR deste serviço). Pedidos novos não entram. Não mexe nas aptidões de revisão do agente nem na coordenação da Helena."
+  APOSENTADO: "Saiu do cardápio; nenhum card novo."
+
+# Estados que recebem card real na v2. Um plano só roda na v2 se TODOS os serviços dele
+# estiverem num destes estados; senão o pedido vai para o destino_fora_da_v2 (A-12).
+recebem_card: [ESTAGIO, ATIVO]
+
+aptidao_de_revisao:
+  estados:
+    SEM_PROVA: "O par (agente, tipo) nunca passou no teste de revisão daquele tipo com a rubrica atual. Nunca é designado."
+    APTA:      "Passou no teste 9 daquele par e você tocou em 'ligar'. Pode ser designado."
+    PAUSADA:   "Você desligou. Não é designado em plano novo; as revisões já designadas a ele terminam com ele."
+  designavel: [APTA]
+  como_fica_apta: >-
+    Teste 9 do par revisor x tipo (MEL-41): pega pelo menos 3 de 5 erros plantados daquele tipo e
+    recusa no máximo 2 de 5 entregas limpas; nos tipos de risco alto, cada erro é pego em pelo
+    menos 2 de 3 rodadas; com a versão atual da rubrica do tipo. Depois, o seu toque. Só vale para
+    agente já ligado (o passo dele na ordem_de_ativacao já foi feito).
+  quem_muda: "Só você. O disjuntor nunca mexe em aptidão. Pausar o serviço de autor de um agente não mexe nas aptidões de revisão dele."
+  rubrica_mudou: "Mudar a rubrica de um tipo faz as aptidões daquele tipo exigirem o teste 9 de novo antes de qualquer plano novo; as revisões já designadas terminam."
+
+estado_da_coordenacao:
+  valores: [ATIVA, PAUSADA]
+  vale_para: "Respostas do papel HELENA: LER_DE_VOLTA e RECOMENDAR."
+  quem_muda: "Só você (e PAUSAR_TUDO). O disjuntor nunca pausa a coordenação. Pausar o SRV-RELATORIO-FINAL não mexe na coordenação nem nas aptidões de revisão da Helena."
+  pausada: "Card novo: a leitura de volta não roda; o relógio leva o rascunho a você em 15 min (C05, HELENA_FALHOU). Etapa em resolução: o cartão chega a você sem recomendação (E101)."
+
+# ---------------------------------------------------------------------------------------
+# Revisores efetivos (MAT-21; furos 1 e 13). É isto que o motor usa para designar.
+# ---------------------------------------------------------------------------------------
+revisores_efetivos:
+  regra: >-
+    Ao montar o plano (estado VALIDANDO_PLANO do card), o código calcula, para cada etapa, a lista
+    [revisor, reserva] do serviço, tira dela todo agente cuja aptidão no tipo não esteja APTA e põe
+    FUNDADOR no fim. A lista é gravada no plano do card (card.schema.json, plano.etapas[].revisores)
+    e é ela, e não a do catálogo, que vai para o roteiro da máquina (campo 'revisores'). A máquina
+    ainda tira o autor e quem julga a peça depois (passagens.yaml, designacao_de_revisor).
+  congelada: "A lista não muda durante a vida do card, nem quando o motor designa de novo depois de uma rodada nova. Uma aptidão pausada depois vale só para planos novos (descer nunca mexe em card em andamento)."
+  disponivel_quer_dizer: "Na lista efetiva. Falta de vaga NUNCA troca o revisor: a revisão espera a vaga do designado (fila por prioridade e chegada); o atraso aparece nos avisos do prazo do card."
+  sem_capacidade_na_revisao: "Na etapa em REVISAO, o motor só manda SEM_CAPACIDADE com classe COTA, LOGIN ou BANCO. Nunca AGENTE_PAUSADO: aptidão pausada não tira revisão já designada. (Guarda a acrescentar na tabela pela etapa da máquina; ver pendências.)"
+  sem_revisor_de_ia: "Se a lista efetiva de uma etapa ficar só com FUNDADOR, o validador do plano recusa (PLANO_INVALIDO): nenhum serviço roda na v2 com você como único revisor."
+
+# Vagas (plano v3, 'Uma fila, com vagas por agente'; furo 19). A quantidade de cada agente
+# fica na ficha (agent.schema.json, vagas).
+capacidade:
+  agentes_ao_mesmo_tempo: 3
+  vaga_da_helena: "A Helena tem 1 vaga própria de coordenação (leitura de volta e recomendação), separada da vaga de trabalho (relatório e revisões): as suas mensagens nunca esperam atrás de uma revisão."
+  regra: "Falta de vaga nunca troca autor nem revisor e nunca gera evento na máquina: a etapa espera a vaga do designado, na ordem da prioridade do card (só você muda) e da chegada."
+
+# ---------------------------------------------------------------------------------------
+# Ordem de ativação (MAT-12; furos 3, 20 e 21). PROPOSTA: depende do seu sim. Qualquer outra
+# ordem serve, desde que passe na MAT-12. Um passo por vez (WIP = 1): o seguinte só começa
+# depois de o serviço do passo anterior estar em ESTAGIO.
+# ---------------------------------------------------------------------------------------
+ordem_de_ativacao:
+  ligados_desde_o_inicio: [HELENA, CAIO, CLARA, ISABELA]
+  passos:
+    - {passo: 1,  agente: RAVI,    fase: "fase 3", quando: "No primeiro roteiro que pedir pesquisa (você decide). No mais tardar, como primeiro passo da fase 4."}
+    - {passo: 2,  agente: LAURA,   fase: "fase 4"}
+    - {passo: 3,  agente: AUGUSTO, fase: "fase 4"}
+    - {passo: 4,  agente: DANIEL,  fase: "fase 4"}
+    - {passo: 5,  agente: MARINA,  fase: "fase 4"}
+    - {passo: 6,  agente: OLIVIA,  fase: "fase 4"}
+    - {passo: 7,  agente: FELIPE,  fase: "fase 4"}
+    - {passo: 8,  agente: BIANCA,  fase: "fase 4"}
+    - {passo: 9,  agente: CAMILA,  fase: "fase 4"}
+    - {passo: 10, agente: VICTOR,  fase: "fase 4"}
+    - {passo: 11, agente: PEDRO,   fase: "fase 4"}
+    - {passo: 12, agente: RENATA,  fase: "fase 4"}
+    - {passo: 13, agente: JOANA,   fase: "fase 4"}
+    - {passo: 14, agente: NINA,    fase: "fase 4"}
+    - {passo: 15, agente: MAYA,    fase: "fase 4"}
+    - {passo: 16, agente: THEO,    fase: "fase 4"}
+    - {passo: 17, agente: BRUNO,   fase: "fase 4"}
+  ligar_um_passo: >-
+    No passo, o agente passa a 'ligado': os serviços dele podem ser publicados e as aptidões de
+    revisão dele podem ser ligadas (teste 9 + seu toque). O revisor titular de cada serviço do
+    agente já está ligado e APTO no tipo antes de o serviço ir a ESTAGIO.
+  ate_ligar: "Pedido de serviço de agente ainda não ligado vai para o destino_fora_da_v2 (v1)."
+
+# ---------------------------------------------------------------------------------------
+# Como o código monta o plano do card (MEL-24). A Helena só escolhe; quem monta é o código.
+# ---------------------------------------------------------------------------------------
+montagem_do_plano:
+  SERVICO_NAO_JULGADO: "Uma etapa só: E1 = o serviço escolhido."
+  SERVICO_SEMPRE_JULGADO: >-
+    Grafo fixo de duas etapas (furo 2): E1 = o serviço escolhido; E2 = SRV-PARECER, julga [E1],
+    depende de [E1], entradas [E1] e o pacote da empresa, se_semaforo AJUSTE refazer [E1] com
+    max_ciclos 2 e NAO_PODE aguardar você. Você é o segundo revisor do parecer (E74).
+  ROTEIRO: "As etapas do roteiro escolhido (playbooks/<id>.yaml), validadas pelas regras do playbook.schema.json."
+  FORA_DA_V2: "Nenhum plano: o card mostra o destino_fora_da_v2."
+  validador_do_plano_recusa:
+    - "Escolha ausente ou FORA_DA_V2."
+    - "Serviço fora de ESTAGIO/ATIVO agora, ou cujo dono ainda não foi ligado."
+    - "Empresa do card fora das empresas de algum serviço do plano, ou com pacote não CONFIRMADO (MAT-23)."
+    - "Card PESSOAL com serviço de empresa, ou card de empresa com serviço PESSOAL (MAT-14)."
+    - "Etapa de serviço SEMPRE julgado sem etapa SRV-PARECER que a julgue no mesmo plano (MAT-22)."
+    - "Etapa cuja lista de revisores efetivos fica só com FUNDADOR (MAT-21)."
+    - "Ação do fundador fora da lista do serviço da etapa, ação do fundador no relatório, ou passo fixo sem parecer que o cubra (MAT-11)."
+    - "Entrada do SRV-PARECER que não é etapa julgada, etapa SRV-DOSSIE ou entrada externa (MAT-05)."
+    - "Ciclo, dependência inexistente, relatório que não é a última etapa, cálculo como entrada do convite (MAT-15, MAT-16) ou orçamento que não cabe."
+  o_motivo_aparece: "O card mostra o motivo exato da recusa em linguagem simples (C11)."
+
+# ---------------------------------------------------------------------------------------
+# Destino do pedido que a v2 ainda não atende (furo 5). Neutro quanto ao motor.
+# ---------------------------------------------------------------------------------------
+destino_fora_da_v2:
+  quando: "A Helena devolve a escolha FORA_DA_V2 (o serviço que atenderia ainda não recebe card, ou nenhum serviço atende), ou o validador do plano recusa pela empresa ou pelo estado do serviço."
+  caminho_na_maquina: >-
+    FORA_DA_V2 sempre marca o card como pedido grande (o código só aumenta a confirmação, nunca
+    diminui): C01 leva a ESPERANDO_CONFIRMACAO e o app mostra 'Isto ainda não está na v2: quem
+    atenderia é <serviço>'. Recusa do validador leva a ESPERANDO_CONFIRMACAO com PLANO_INVALIDO (C11).
+  o_que_voce_pode_fazer:
+    - "Encaminhar à v1: botão CANCELAR com encaminhar_para_v1 (C22). O código cria o trabalho na v1 com o seu pedido original, grava o número dele no card (encaminhamento) e mostra a você. Um sistema por pedido (A-12)."
+    - "Confirmar com outro serviço ou roteiro da lista do app: RESPONDER CONFIRMO com escolha (C06)."
+    - "Cancelar sem encaminhar: CANCELAR."
+  sem_resposta: "Lembrete em 24 h e 48 h e depois o padrão (C07-C09): o card fecha CANCELADO com fim PADRAO e marcado 'não encaminhado'. O padrão nunca encaminha nem aprova."
+
+# ---------------------------------------------------------------------------------------
+# Mapa de áreas (MAT-24; furo 9). Toda área que as empresas precisam aponta para exatamente
+# 1 serviço ou para 1 item de fora_do_catalogo (com destino, dono e prazo).
+# ---------------------------------------------------------------------------------------
+mapa_de_areas:
+  - {area: "Estratégia do negócio",                          atende: SRV-ANALISE-ESTRATEGICA}
+  - {area: "Projetos e cronogramas para você",               atende: SRV-PLANO-DE-PROJETO}
+  - {area: "Finanças: conta, caixa, custo, margem, cenários", atende: SRV-CALCULO}
+  - {area: "Fiscal e contábil: imposto, nota, fechamento",  atende: FORA-FISCAL-CONTABIL}
+  - {area: "Dados e indicadores",                            atende: SRV-ANALISE-DE-DADOS}
+  - {area: "Administração: documentos, fornecedores, vencimentos", atende: SRV-CONTROLE-ADMINISTRATIVO}
+  - {area: "Jurídico das peças do card (antes de agir)",     atende: SRV-PARECER}
+  - {area: "Contratos, termos de uso e privacidade de documento seu", atende: FORA-CONTRATOS-E-PRIVACIDADE}
+  - {area: "Pesquisa com fontes",                            atende: SRV-DOSSIE}
+  - {area: "Pessoas: funções, vagas, desempenho",           atende: SRV-PERFIL-DE-FUNCAO}
+  - {area: "Produto: problema e requisitos",                 atende: SRV-REQUISITOS-DE-PRODUTO}
+  - {area: "Design de telas",                                atende: SRV-ESPECIFICACAO-DE-INTERFACE}
+  - {area: "Tecnologia",                                     atende: SRV-PROPOSTA-TECNICA}
+  - {area: "Testes de produto e software",                   atende: SRV-PLANO-DE-TESTES}
+  - {area: "Marketing: campanhas e experimentos",            atende: SRV-PLANO-DE-CAMPANHA}
+  - {area: "Texto pronto: convite, anúncio, mensagem",       atende: SRV-COPY}
+  - {area: "Treinamento de pessoa leiga de fora (participante, cliente)", atende: SRV-ROTEIRO-TREINAMENTO}
+  - {area: "Marca: pacote de voz e proibições de cada empresa", atende: FORA-PACOTE-DE-VOZ}
+  - {area: "Vendas: abordagem um a um e funil",              atende: SRV-ROTEIRO-COMERCIAL}
+  - {area: "Parcerias",                                      atende: SRV-TESE-DE-PARCERIA}
+  - {area: "Sucesso e retenção de clientes",                 atende: SRV-PLANO-DE-SUCESSO}
+  - {area: "Atendimento: resposta a uma solicitação",        atende: SRV-RASCUNHO-DE-RESPOSTA}
+  - {area: "Operação: rotina interna",                       atende: SRV-PROCEDIMENTO-OPERACIONAL}
+  - {area: "Seu desenvolvimento pessoal",                    atende: SRV-PLANO-DE-PRATICA}
+  - {area: "Coordenar cards e etapas",                       atende: FORA-COORDENACAO}
+
+# Pedidos de fronteira (MAT-19; furo 11): cada um tem exatamente 1 destino certo. Servem de
+# gabarito para a leitura de volta da Helena (placar 3 de 3 antes de publicar a coordenação).
+pedidos_de_fronteira:
+  - {pedido: "Monta o fluxo de caixa dos próximos 3 meses com estes números.",                    certo: SRV-CALCULO}
+  - {pedido: "Quais contratos e boletos vencem nos próximos 60 dias e o que cada um exige?",      certo: SRV-CONTROLE-ADMINISTRATIVO}
+  - {pedido: "Classifica estas 20 reclamações por motivo e conta quantas se repetem.",           certo: SRV-ANALISE-DE-DADOS}
+  - {pedido: "Um cliente reclamou da fatura: o que eu respondo para ele?",                        certo: SRV-RASCUNHO-DE-RESPOSTA}
+  - {pedido: "Ensina o participante a gravar sem ser reprovado.",                                certo: SRV-ROTEIRO-TREINAMENTO}
+  - {pedido: "Como a minha equipe confere as horas dos participantes toda semana?",              certo: SRV-PROCEDIMENTO-OPERACIONAL}
+  - {pedido: "Qual canal testar para achar participantes e como medir?",                          certo: SRV-PLANO-DE-CAMPANHA}
+  - {pedido: "Escreve o texto do anúncio da campanha que eu aprovei.",                            certo: SRV-COPY}
+  - {pedido: "Como abordar um síndico, um por um?",                                               certo: SRV-ROTEIRO-COMERCIAL}
+  - {pedido: "O que eu faço em cada semana até o lançamento?",                                    certo: SRV-PLANO-DE-PROJETO}
+  - {pedido: "Vale mais vender para residências ou para empresas?",                               certo: SRV-ANALISE-ESTRATEGICA}
+  - {pedido: "O que construir primeiro no app?",                                                  certo: SRV-REQUISITOS-DE-PRODUTO}
+  - {pedido: "O que a página de termos da Mimix diz sobre indicação?",                            certo: SRV-DOSSIE}
+  - {pedido: "Quais clientes estão em risco de cancelar?",                                        certo: SRV-PLANO-DE-SUCESSO}
+  - {pedido: "Quero treinar falar em público sem travar.",                                        certo: SRV-PLANO-DE-PRATICA}
+  - {pedido: "Este contrato de fornecedor tem alguma cláusula perigosa?",                         certo: FORA-CONTRATOS-E-PRIVACIDADE}
+  - {pedido: "Quanto imposto a empresa paga neste mês?",                                          certo: FORA-FISCAL-CONTABIL}
+  - {pedido: "Escreve a voz e as palavras proibidas da iGreen.",                                  certo: FORA-PACOTE-DE-VOZ}
+
+# As únicas ferramentas que um agente pode receber. As duas são NOSSAS (nosso servidor de
+# ferramentas), só LEEM, guardam cópia de cada página lida e só alcançam endereços públicos
+# (B-8). Nenhuma ferramenta grava ou age fora (B-6, B-17, K-19). Lista vazia = o perfil recebe
+# o nosso servidor vazio, porque no Hermes uma lista vazia liberaria todas (B-6).
+ferramentas_nossas:
+  ler_pagina:
+    efeito: LER
+    desde: "fase 3"
+    o_que_faz: "Lê uma página da lista montada pelo código, em partes de até 20 mil caracteres. Fora da lista: 'fonte insuficiente' (MEL-34)."
+    lista: "Fontes que você aprovou: links que você ligou como 'pode ler' na caixa Novo pedido (ou na leitura de volta), fontes importadas aprovadas, termos das plataformas e a tabela de leis. Link colado no pedido sem o seu 'pode ler' NÃO entra."
+    acesso_sem_efeito:   # furo 22: ler nunca pode ser um clique de ação
+      - "Só leitura (GET), sem cookie, sem login, sem formulário e sem executar código da página."
+      - "Antes de entrar na lista, o código tira consulta (?...) e fragmento (#...) do endereço; endereço que só funciona com eles fica fora."
+      - "Recusa caminho de ação: confirmar, confirm, verificar, verify, aceitar, accept, convite, invite, indicacao, ref, descadastrar, unsubscribe, token, login, signin, signup, cadastro, register, checkout, pagar, pay."
+      - "Não segue redirecionamento para outro domínio; no mesmo domínio, no máximo 3, cada um passando pelas mesmas regras."
+      - "Cada acesso fica registrado (endereço, hora, tamanho e cópia guardada)."
+      - "Fora disso, a resposta é 'fonte insuficiente' e o acesso não acontece."
+  buscar:
+    efeito: LER
+    desde: "fase 4"
+    o_que_faz: "Busca aberta. Só na fase 4, depois de você escolher o serviço de busca e o custo (MEL-34). Os resultados passam pelas mesmas regras de acesso de ler_pagina."
+
+# Ações do AUTOR que um serviço pode liberar (vocabulario.acoes.AUTOR). PEDIR_SUBCARD fica
+# fora: desligado até a fase 4 (MEL-24); se chegar, conta como formato errado.
+acoes_do_autor_liberaveis: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+# O que é "externo" (regra 8). Tudo isso só acontece como ação SUA, depois do seu ok.
+categorias_de_acao_externa: [CADASTRO, CONTATO, GASTO, CONTRATO, PUBLICACAO]
+
+# ---------------------------------------------------------------------------------------
+# Regras da matriz. Cada uma é conferida pelo validar.py (na etapa do validador) e tem um
+# teste de mutação. Juntas, garantem que a designação de revisor nunca precise "pular"
+# ninguém por conflito: o conflito não existe no catálogo.
+# ---------------------------------------------------------------------------------------
+regras_da_matriz:
+  - id: MAT-01
+    regra: "Cada um dos 21 agentes de vocabulario.identidades.agentes é dono de pelo menos 1 serviço, e esse serviço é só dele."
+  - id: MAT-02
+    regra: "Todo serviço tem exatamente 1 dono e 1 tipo de entrega; todo tipo de entrega pertence a exatamente 1 serviço (e portanto a 1 dono). Não existe autor reserva: com o serviço pausado, a etapa espera na fila com motivo CAPACIDADE (classe AGENTE_PAUSADO), com aviso em 1 hora e cartão em 6 horas, onde você religa o serviço e escolhe ESPERAR, ou cancela."
+  - id: MAT-03
+    regra: "Revisor ≠ dono. Reserva ≠ dono e ≠ revisor. O revisor é um dos 21 agentes; a reserva é um dos 21 ou FUNDADOR. Você é sempre a última reserva (passagens.yaml, designacao_de_revisor.ultima_reserva), mesmo quando não está escrito."
+  - id: MAT-04
+    regra: "Revisor e reserva (quando agentes) têm o tipo em 'revisa', com a aptidão do par. E 'revisa' de cada agente lista só os tipos em que ele é revisor ou reserva: capacidade declarada é capacidade usada."
+  - id: MAT-05
+    regra: "Regra 4 (julgar depois): para todo tipo de julga_tipos, o revisor e a reserva desse tipo não são o dono da julgadora nem o revisor ou a reserva dela. Como o dossiê está em julga_tipos, a base de fato do parecer também nunca é revisada por quem julga (furo 18). E a etapa SRV-PARECER só recebe como entrada etapas que ela julga, etapas SRV-DOSSIE e entradas externas: nenhuma peça revisada pela cadeia do parecer entra nele."
+  - id: MAT-06
+    regra: "O dono de um tipo que a julgadora julga não é revisor nem reserva da julgadora: ninguém aprova o parecer sobre a própria peça."
+  - id: MAT-07
+    regra: "A julgadora (só o SRV-PARECER) nunca é card sozinho (escolhivel e avulso false): entra num roteiro ou no grafo fixo do serviço sempre julgado (montagem_do_plano). Julga pelo menos uma etapa, só de tipos de julga_tipos, depende das etapas que julga e tem você como segundo revisor obrigatório (passagens.yaml E74 e E81-E83): o parecer só vale com o seu Aprovar."
+  - id: MAT-08
+    regra: "Ninguém é revisor titular de mais de 3 tipos, e em nenhum passo da ordem_de_ativacao alguém é o primeiro revisor efetivo de mais de 3 tipos publicados. A Helena não é revisora universal: como revisa o parecer, pela MAT-05 ela não revisa nenhum tipo que o parecer julga."
+  - id: MAT-09
+    regra: "Serviço com ferramenta (usa_internet: true) só libera ENTREGAR e REGISTRAR_FALHA, e só acao_externa NENHUMA: texto de página lida nunca vira pergunta para você, pedido a outro agente nem proposta na sua lista (C-7, MEL-27). Ferramentas: só ler_pagina e buscar, efeito LER, cada uma a partir da fase dela e com o acesso_sem_efeito (MEL-34)."
+  - id: MAT-10
+    regra: "Toda revisão roda sem ferramenta (servidor vazio) e com o apelido revisao-padrao (models.yaml). O revisor recebe do código o parágrafo em volta de cada citação; ele não lê a internet (MEL-30, C-7)."
+  - id: MAT-11
+    regra: "Efeito de todo serviço: interno. O que é externo só existe como ação do fundador da lista fechada do serviço: no máximo 1 por serviço, com no máximo 2 categorias e descrição fixa. A entrega só diz SO_FUNDADOR ou NENHUMA e o id da ação (checagem CHK-COMUM-10); o texto que você vê vem da descrição fixa e do roteiro, nunca da IA. Nasce quando o card fica PRONTO (passagens.yaml E110), no máximo uma por etapa, e é feita por você. PELO_MOTOR não está liberado para nenhum serviço (exige executor próprio, teste e decisão sua, na fase 4 ou depois). O relatório final não tem ação do fundador."
+  - id: MAT-12
+    regra: "Um serviço só vai a ESTAGIO com o dono ligado e o revisor titular ligado e APTO no tipo (o titular é sempre de passo igual ou anterior ao do dono na ordem_de_ativacao). O titular é fixo: trocá-lo é versão nova do serviço, com o teste 9 do par novo e o seu toque (furos 10 e 24). A reserva só entra na lista efetiva quando a aptidão dela fica APTA (teste 9 + seu toque), e nunca muda o titular. Sem nenhum revisor de IA apto, o serviço desce para PAUSADO."
+  - id: MAT-13
+    regra: "Estados separados: serviço (papel AUTOR), aptidão de revisão (por agente e tipo) e coordenação (Helena). O disjuntor só pausa serviço. O estado do agente no organograma é um resumo para a tela, derivado dos serviços (ATIVO se algum ATIVO; ESTAGIO se algum ESTAGIO; senão PAUSADO), e nunca é usado para designar. A fase do agente é a primeira fase entre os serviços dele."
+  - id: MAT-14
+    regra: "Escopo PESSOAL: só os serviços da Laura têm a empresa PESSOAL, e eles não têm nenhuma outra. Card PESSOAL nunca recebe pacote de empresa, só passa pela Laura, pela Helena (dona do card e revisora) e por você, e nunca entra em roteiro com etapa de empresa."
+  - id: MAT-15
+    regra: "Relatório final: exatamente um serviço (dono HELENA), nunca avulso, sempre a última etapa do roteiro, dependendo de todas as outras, nunca pulado, sem ação do fundador; a revisora nunca é a Helena e segue a regra_do_relatorio_final."
+  - id: MAT-16
+    regra: "Nenhum roteiro dá a saída do SRV-CALCULO como entrada do SRV-COPY: o convite nem recebe os números (C-11)."
+  - id: MAT-17
+    regra: "Toda lista de ações tem ENTREGAR e REGISTRAR_FALHA e só usa nomes de acoes_do_autor_liberaveis; PEDIR_SUBCARD não aparece (MEL-24)."
+  - id: MAT-18
+    regra: "Sirlene, Doutor Vital, Alex e Rafael são personagens do produto eLiving™, nunca dono, revisor ou reserva de serviço."
+  - id: MAT-19
+    regra: "Escolhível implica avulso (o código sabe montar o plano dele sozinho). Serviço escolhível tem de 3 a 5 exemplos de pedido, sem repetir exemplo de outro serviço; serviço não escolhível não tem exemplos. Cada pedido_de_fronteira aponta para exatamente 1 destino que existe, e nenhum serviço manda para si mesmo no 'nao_atende'."
+  - id: MAT-20
+    regra: "Nenhum serviço muda prioridade ou prazo: só você muda (regra 7). A sugestão de prazo da Helena vira item na sua lista."
+  - id: MAT-21
+    regra: "Revisores efetivos: só agente com aptidão APTA no tipo, mais FUNDADOR no fim, calculados ao montar o plano e gravados no card (bloco revisores_efetivos). Falta de vaga nunca troca revisor."
+  - id: MAT-22
+    regra: "Sempre julgado: todo serviço com ação do fundador tem o tipo em julga_tipos (julgado_pelo_parecer: SEMPRE), e toda etapa dele, em qualquer plano (roteiro ou grafo do avulso), é julgada por uma etapa SRV-PARECER do mesmo card. Por isso a ação dele só nasce com o parecer aprovado por você no mesmo card (o card só fica PRONTO assim). Tipo de julga_tipos sem ação do fundador é julgado só quando o roteiro pede (SE_O_ROTEIRO_PEDIR); sem parecer, a faixa do card mostra 'sem conferência jurídica'."
+  - id: MAT-23
+    regra: "Empresa: serviço em ESTAGIO ou ATIVO só lista empresa com pacote CONFIRMADO (organograma.yaml). O validador do plano recusa card cuja empresa não está em todos os serviços do plano ou cujo pacote não está CONFIRMADO, com o motivo à vista."
+  - id: MAT-24
+    regra: "Toda área do mapa_de_areas aponta para exatamente 1 serviço ou para 1 item de fora_do_catalogo com destino, dono e prazo."
+  - id: MAT-25
+    regra: "MODELO_MENOR (sua resposta no cartão de cota) vale só para a execução do AUTOR, só na classe COTA, só em serviço com modelo_menor APTO (bateria 3 de 3 no modelo menor), nunca no SRV-PARECER nem no SRV-RELATORIO-FINAL. Fora disso o cartão não oferece, e se chegar o motor trata como ESPERAR (mesma passagem E88). Revisão e Helena rodam sempre no apelido."
+  - id: MAT-26
+    regra: "Conflito da Helena: quando a Helena é autora ou revisora designada da etapa em resolução, o motor não pede RECOMENDAR; o relógio leva a etapa a você na hora (E101), sem recomendação, com a marca 'a Helena participou desta peça'."
+
+# Exceção escrita à regra 4 para o relatório final (crítica da análise, ponto 12; conferência
+# §6.6; MEL-30). Vale só para o SRV-RELATORIO-FINAL.
+regra_do_relatorio_final: >-
+  O relatório final junta entregas de vários autores, e quem o revisa pode ter feito uma delas
+  (a Clara fez o parecer; o Caio, reserva, fez o cálculo). Por isso quem revisa o relatório:
+  (1) confere SÓ a fidelidade às entregas aprovadas — cada frase escrita pela Helena diz o mesmo
+  que a entrega aprovada que ela cita, nenhum risco ou pergunta foi escondido ou suavizado, a ordem
+  das dependências foi respeitada — e a linguagem — simples, sem códigos internos;
+  (2) NUNCA reavalia o mérito de nenhuma entrega, inclusive a própria: entrega aprovada não volta a
+  ser julgada no relatório; (3) revisa sem internet; (4) nunca é a autora do relatório (Helena).
+  A parte montada pelo código (entregas aprovadas, números, riscos, perguntas, fontes, as ações do
+  fundador das etapas aprovadas e os passos fixos do roteiro) não é reescrita por ninguém.
+
+# O que a Helena faz e NÃO é serviço: são respostas do papel HELENA na máquina (vocabulário).
+coordenacao_da_helena:
+  LER_DE_VOLTA: >-
+    Só lê o pedido e escolhe: 1 serviço escolhível que recebe card, 1 roteiro, ou FORA_DA_V2 (com o
+    serviço que atenderia, quando houver). Escreve o que entendeu (o que você quer, como é o pronto,
+    o que não pode) e pode sugerir um prazo, que vira item na sua lista. Nunca escolhe empresa,
+    prioridade nem prazo do card (vêm da caixa Novo pedido). Não faz pergunta de opções A/B/C: em
+    caso de dúvida, você confirma com outra escolha da lista do app.
+  RECOMENDAR: "Numa etapa em resolução, escolhe uma opção da lista fechada: REFAZER, SEGUIR_SEM ou ENCERRAR. Não replaneja nem divide etapa (MEL-24). Não é chamada quando participou da peça (MAT-26)."
+  SUGERIR_PRAZO: "Vira item na sua lista. O prazo só muda pelo seu botão."
+
+# O que não é serviço de nenhum agente, para onde vai, quem é o dono e até quando.
+fora_do_catalogo:
+  - id: FORA-COORDENACAO
+    o_que: "Coordenar cards e etapas: fila, dependências, prazos, avisos e designação do revisor."
+    destino: "O motor e o relógio do banco, pela tabela de passagens (neutro: DBOS ou motor próprio). Por isso a Marina não acompanha nem move cards."
+    dono: MOTOR
+    prazo: "Permanente (decisão de desenho)."
+  - id: FORA-FISCAL-CONTABIL
+    o_que: "Imposto, nota fiscal, enquadramento e fechamento contábil."
+    destino: "Contador contratado por você; enquanto isso, a v1. O Caio faz conta e cenário, não fechamento nem imposto."
+    dono: FUNDADOR
+    prazo: "Decidir no portão da fase 4 se vira serviço próprio (com tipo, dono, revisor e fase)."
+  - id: FORA-CONTRATOS-E-PRIVACIDADE
+    o_que: "Revisar contrato que você recebeu, termos de uso, política de privacidade ou outro documento seu, sem peça do card para julgar."
+    destino: "Advogado; enquanto isso, a v1. Na v2, o parecer da Clara julga só peças do card e os passos fixos do roteiro (o cadastro na Mimix e no Hub é julgado assim, na primeira meta)."
+    dono: FUNDADOR
+    prazo: "Decidir no portão da fase 4 se a Clara ganha 'parecer sobre documento seu' (precisa de linha nova na tabela para você ser o segundo revisor sem etapa julgada)."
+  - id: FORA-PACOTE-DE-VOZ
+    o_que: "Escrever a voz e as proibições de cada empresa (o 'pacote' que o agente recebe com o card)."
+    destino: "Você escreve e registra como decisão. Hoje confirmados: Humano Digital (BIZ-003) e eLiving™ (BIZ-004)."
+    dono: FUNDADOR
+    prazo: "iGreen (BIZ-001) e Ecossistema de Saúde (BIZ-002): antes de qualquer serviço atender essas empresas; no mais tardar, no portão da fase 4. Até lá, card delas dá PLANO_INVALIDO com o motivo, e você pode encaminhar à v1."
+  - id: FORA-CLASSIFICAR-MENSAGEM
+    o_que: "Classificar mensagem livre."
+    destino: "Ninguém na v2.0: o tipo da mensagem vem do botão do app (MEL-25)."
+    dono: FUNDADOR
+    prazo: "Permanente na v2.0."
+  - id: FORA-COMANDOS-DIRETOS
+    o_que: "Seus comandos diretos de criar empresa, conta ou outra entidade (DEC-022)."
+    destino: "O código materializa na tabela de destino, fora da esteira de agentes. Nenhum agente grava em tabela."
+    dono: FUNDADOR
+    prazo: "Permanente."
+  - id: FORA-RESPONDER-CLIENTE
+    o_que: "Responder cliente, ligar para alguém, URA."
+    destino: "Nenhum agente. A central da v1 será desligada (sua decisão de 10/10/2026); a Joana só escreve o rascunho, que você envia."
+    dono: FUNDADOR
+    prazo: "Permanente."
+  - id: FORA-SUBCARD
+    o_que: "Pedir sub-card."
+    destino: "Desligado (MEL-24)."
+    dono: FUNDADOR
+    prazo: "Fase 4, com decisão sua."
+  - id: FORA-PERSONAGENS
+    o_que: "Sirlene, Doutor Vital, Alex e Rafael."
+    destino: "Personagens do produto eLiving™, não funcionários. Ficam fora do organograma e deste catálogo."
+    dono: FUNDADOR
+    prazo: "Permanente."
+
+# Checagens do portão 1 que valem para TODO tipo de entrega. Os tipos (deliverables/) só
+# listam as checagens próprias deles; estas valem sempre, sem repetir.
+portao1_comum:
+  - {id: CHK-COMUM-01, descricao: "Todas as seções obrigatórias do tipo, no formato de campo do tipo.", fecha_furos: [K-13, A-17], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-02, descricao: "Dentro do limite de caracteres do tipo.", fecha_furos: [CONF-21], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-03, descricao: "Texto em português (citação original pode estar em outra língua, com a tradução em campo à parte).", fecha_furos: [CONF-21], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-04, descricao: "Texto puro: sem HTML, código de página, imagem ou caractere invisível.", fecha_furos: [M-13, B-9], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-05, descricao: "Nenhuma frase dizendo que o agente agiu fora ('enviei', 'cadastrei', 'publiquei', 'paguei', 'liguei', 'assinei' e parecidas).", fecha_furos: [CONF-20, B-17], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-06, descricao: "Toda afirmação com fonte traz citação: trecho contínuo de 12 palavras ou mais (ou frase inteira) de página lida NESTA execução pela nossa ferramenta, ou de fonte importada que veio no pacote; tradução só em campo à parte.", fecha_furos: [C-8, K-1, M-15], gravidade: RECUSA, fase: "fase 2"}
+  - {id: CHK-COMUM-07, descricao: "Link só de página lida na tarefa; qualquer outro chega marcado 'link não conferido'.", fecha_furos: [C-7, B-9], gravidade: MARCA, fase: "fase 2"}
+  - {id: CHK-COMUM-08, descricao: "Confiança declarada pela IA chega marcada 'autoavaliação da IA' e nunca entra na faixa.", fecha_furos: [C-13], gravidade: MARCA, fase: "fase 2"}
+  - {id: CHK-COMUM-09, descricao: "Grafia oficial da marca: eLiving™ (nunca 'E-living', 'Eliving', 'E-Living' ou 'Iliving').", fecha_furos: [DEC-023], gravidade: RECUSA, fase: "fase 1"}
+  - {id: CHK-COMUM-10, descricao: "Ação externa da entrega: tipo dentro de acao_externa_permitida do serviço da etapa; com SO_FUNDADOR, o id está em acoes_do_fundador do serviço e é exatamente a ação que o plano deu àquela etapa (no avulso, a única do serviço). Nenhum texto livre da IA sobre a ação.", fecha_furos: [CONF-20, B-17, MAQ-08], gravidade: RECUSA, fase: "fase 1"}
+
+# ---------------------------------------------------------------------------------------
+# Índice por agente: caminho da ficha, tipos de entrega que ele possui e tipos que revisa
+# (com a aptidão de cada par pedida por esta versão). Ordem de vocabulario.identidades.agentes.
+# ---------------------------------------------------------------------------------------
+agentes:
+  HELENA:  {id: AGT-01, ficha: agents/helena.yaml,  possui: {relatorio_final: deliverables/relatorio_final.yaml}, revisa: {plano_de_pratica: SEM_PROVA, calculo: APTA, parecer: APTA}}
+  LAURA:   {id: AGT-02, ficha: agents/laura.yaml,   possui: {plano_de_pratica: deliverables/plano_de_pratica.yaml}, revisa: {}}
+  AUGUSTO: {id: AGT-03, ficha: agents/augusto.yaml, possui: {analise_estrategica: deliverables/analise_estrategica.yaml}, revisa: {plano_de_projeto: SEM_PROVA, perfil_de_funcao: SEM_PROVA, dossie: SEM_PROVA, plano_de_campanha: SEM_PROVA, tese_de_parceria: SEM_PROVA}}
+  MARINA:  {id: AGT-04, ficha: agents/marina.yaml,  possui: {plano_de_projeto: deliverables/plano_de_projeto.yaml}, revisa: {controle_administrativo: SEM_PROVA, procedimento_operacional: SEM_PROVA}}
+  CAIO:    {id: AGT-05, ficha: agents/caio.yaml,    possui: {calculo: deliverables/calculo.yaml}, revisa: {relatorio_final: APTA, analise_estrategica: SEM_PROVA, analise_de_dados: SEM_PROVA, dossie: SEM_PROVA, copy: APTA, roteiro_treinamento: APTA}}
+  CLARA:   {id: AGT-06, ficha: agents/clara.yaml,   possui: {parecer: deliverables/parecer.yaml}, revisa: {relatorio_final: APTA, calculo: APTA}}
+  BIANCA:  {id: AGT-07, ficha: agents/bianca.yaml,  possui: {perfil_de_funcao: deliverables/perfil_de_funcao.yaml}, revisa: {}}
+  DANIEL:  {id: AGT-08, ficha: agents/daniel.yaml,  possui: {analise_de_dados: deliverables/analise_de_dados.yaml}, revisa: {plano_de_campanha: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
+  THEO:    {id: AGT-09, ficha: agents/theo.yaml,    possui: {proposta_tecnica: deliverables/proposta_tecnica.yaml}, revisa: {plano_de_testes: SEM_PROVA}}
+  NINA:    {id: AGT-10, ficha: agents/nina.yaml,    possui: {requisitos_de_produto: deliverables/requisitos_de_produto.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA, plano_de_testes: SEM_PROVA}}
+  RAVI:    {id: AGT-11, ficha: agents/ravi.yaml,    possui: {dossie: deliverables/dossie.yaml}, revisa: {analise_estrategica: SEM_PROVA, analise_de_dados: SEM_PROVA, requisitos_de_produto: SEM_PROVA}}
+  MAYA:    {id: AGT-12, ficha: agents/maya.yaml,    possui: {especificacao_de_interface: deliverables/especificacao_de_interface.yaml}, revisa: {requisitos_de_produto: SEM_PROVA}}
+  BRUNO:   {id: AGT-13, ficha: agents/bruno.yaml,   possui: {plano_de_testes: deliverables/plano_de_testes.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA}}
+  OLIVIA:  {id: AGT-14, ficha: agents/olivia.yaml,  possui: {procedimento_operacional: deliverables/procedimento_operacional.yaml}, revisa: {controle_administrativo: SEM_PROVA, perfil_de_funcao: SEM_PROVA, roteiro_treinamento: SEM_PROVA}}
+  VICTOR:  {id: AGT-15, ficha: agents/victor.yaml,  possui: {roteiro_comercial: deliverables/roteiro_comercial.yaml}, revisa: {tese_de_parceria: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
+  CAMILA:  {id: AGT-16, ficha: agents/camila.yaml,  possui: {plano_de_campanha: deliverables/plano_de_campanha.yaml}, revisa: {copy: SEM_PROVA, roteiro_comercial: SEM_PROVA}}
+  ISABELA: {id: AGT-17, ficha: agents/isabela.yaml, possui: {copy: deliverables/copy.yaml, roteiro_treinamento: deliverables/roteiro_treinamento.yaml}, revisa: {roteiro_comercial: SEM_PROVA, rascunho_de_resposta: SEM_PROVA}}
+  PEDRO:   {id: AGT-18, ficha: agents/pedro.yaml,   possui: {tese_de_parceria: deliverables/tese_de_parceria.yaml}, revisa: {}}
+  RENATA:  {id: AGT-19, ficha: agents/renata.yaml,  possui: {plano_de_sucesso: deliverables/plano_de_sucesso.yaml}, revisa: {rascunho_de_resposta: SEM_PROVA}}
+  JOANA:   {id: AGT-20, ficha: agents/joana.yaml,   possui: {rascunho_de_resposta: deliverables/rascunho_de_resposta.yaml}, revisa: {}}
+  FELIPE:  {id: AGT-21, ficha: agents/felipe.yaml,  possui: {controle_administrativo: deliverables/controle_administrativo.yaml}, revisa: {plano_de_projeto: SEM_PROVA, procedimento_operacional: SEM_PROVA}}
+
+# ---------------------------------------------------------------------------------------
+# Os serviços. Campos de cada um:
+#   id, nome (para você), dono, tipo_de_entrega, entrega (arquivo do tipo), revisor (titular),
+#   reserva, acoes_permitidas, ferramentas, usa_internet, efeito (sempre interno),
+#   acao_externa_permitida (valores de ENTREGAR.acao_externa), acoes_do_fundador (lista
+#   fechada, no máximo 1), julgado_pelo_parecer (SEMPRE, SE_O_ROTEIRO_PEDIR ou NUNCA),
+#   modelo_menor (NUNCA, SEM_PROVA ou APTO; MAT-25), fase_de_ativacao, estado, empresas,
+#   escolhivel (a Helena pode escolher), avulso (o código monta o plano sozinho),
+#   pode_entrar_em_roteiro, pode_ser_pulada (teto do que o roteiro pode dizer),
+#   pronto_padrao, exemplos_de_pedido, nao_atende.
+# Empresas: BIZ-001 iGreen Energy, BIZ-002 Ecossistema de Saúde, BIZ-003 Humano Digital,
+# BIZ-004 eLiving™; PESSOAL só para a Laura (organograma.yaml). Serviço publicado lista só
+# empresa com pacote CONFIRMADO (MAT-23).
+# ---------------------------------------------------------------------------------------
+servicos:
+
+  # ===== Coordenação =====
+  - id: SRV-RELATORIO-FINAL
+    nome: "Relatório final do card"
+    dono: HELENA
+    tipo_de_entrega: relatorio_final
+    entrega: deliverables/relatorio_final.yaml
+    revisor: CLARA
+    reserva: CAIO
+    regra_do_revisor: regra_do_relatorio_final
+    acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: NUNCA
+    fase_de_ativacao: "v2.0"
+    estado: ESTAGIO
+    empresas: [BIZ-003, BIZ-004]
+    escolhivel: false
+    avulso: false
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Parte montada pelo código (entregas aprovadas, números, riscos, perguntas, fontes, as ações do fundador das etapas aprovadas e os passos fixos do roteiro) e, escrito pela Helena, um resumo de 5 linhas e os próximos passos, cada frase ligada a uma entrega aprovada."
+    exemplos_de_pedido: []
+    nao_atende:
+      - "Pedido direto: o relatório só existe como última etapa de um roteiro."
+      - "Rever o mérito das entregas: isso já foi feito na revisão de cada uma."
+      - "Propor ação externa: a lista do que só você faz é montada pelo código com as ações das etapas aprovadas e os passos fixos do roteiro."
+
+  # ===== Pessoal do fundador =====
+  - id: SRV-PLANO-DE-PRATICA
+    nome: "Prática de comunicação do fundador"
+    dono: LAURA
+    tipo_de_entrega: plano_de_pratica
+    entrega: deliverables/plano_de_pratica.yaml
+    revisor: HELENA
+    reserva: FUNDADOR
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [PESSOAL]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: false
+    pode_ser_pulada: false
+    pronto_padrao: "Até 2 padrões, cada um com trecho do seu material; 1 exercício curto com critério para praticar; registro comparável da evolução e a próxima prática."
+    exemplos_de_pedido:
+      - "Quero explicar meu projeto em 1 minuto sem rodeio; segue a transcrição da minha última tentativa."
+      - "Me ajuda a responder críticas sem ficar na defensiva; aqui está a última conversa."
+      - "Quero praticar pedir as coisas de forma mais direta nas reuniões."
+    nao_atende:
+      - "Assunto de empresa: vai para o serviço da área."
+      - "Diagnóstico clínico ou psicológico."
+      - "Funções, vagas e desempenho de pessoas das empresas: SRV-PERFIL-DE-FUNCAO (Bianca)."
+
+  # ===== Estratégia e projetos =====
+  - id: SRV-ANALISE-ESTRATEGICA
+    nome: "Análise de opções estratégicas"
+    dono: AUGUSTO
+    tipo_de_entrega: analise_estrategica
+    entrega: deliverables/analise_estrategica.yaml
+    revisor: RAVI
+    reserva: CAIO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Duas ou mais opções comparadas pelos mesmos critérios, premissas marcadas (dado, estimativa ou hipótese), recomendação condicionada às provas e plano de validação com indicador e decisão."
+    exemplos_de_pedido:
+      - "Vale mais focar a iGreen em residências ou em pequenas empresas nos próximos 6 meses?"
+      - "Quais são 3 caminhos para a Humano Digital crescer sem contratar ninguém?"
+      - "Lanço a eLiving™ primeiro só no Brasil ou já em inglês?"
+    nao_atende:
+      - "Plano de campanha e canais: SRV-PLANO-DE-CAMPANHA (Camila)."
+      - "O que construir no produto: SRV-REQUISITOS-DE-PRODUTO (Nina)."
+      - "Conta detalhada: SRV-CALCULO (Caio)."
+      - "Decidir no seu lugar: a escolha é sua."
+
+  - id: SRV-PLANO-DE-PROJETO
+    nome: "Plano de projeto e cronograma para você"
+    dono: MARINA
+    tipo_de_entrega: plano_de_projeto
+    entrega: deliverables/plano_de_projeto.yaml
+    revisor: AUGUSTO
+    reserva: FELIPE
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Marcos com data e hora de Brasília, dono humano de cada marco (você ou quem você indicar), dependências, o pronto de cada marco e o primeiro passo."
+    exemplos_de_pedido:
+      - "Monta o cronograma do lançamento do site da iGreen, com o que eu faço em cada semana."
+      - "Quero um plano de 30 dias para abrir a conta PJ e organizar os contratos."
+      - "Organiza em marcos e datas o que falta para a eLiving™ ter a primeira versão do app."
+    nao_atende:
+      - "Acompanhar, mover ou cobrar cards e etapas dos agentes: é o motor (FORA-COORDENACAO)."
+      - "Escolher a fila ou a prioridade: é sua."
+      - "Rotina recorrente da operação: SRV-PROCEDIMENTO-OPERACIONAL (Olívia)."
+      - "Documentos e vencimentos: SRV-CONTROLE-ADMINISTRATIVO (Felipe)."
+
+  # ===== Finanças, dados e administração =====
+  - id: SRV-CALCULO
+    nome: "Conta e cenários financeiros"
+    dono: CAIO
+    tipo_de_entrega: calculo
+    entrega: deliverables/calculo.yaml
+    revisor: HELENA
+    reserva: CLARA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "v2.0"
+    estado: ESTAGIO
+    empresas: [BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Modelo com entradas (cada uma com origem: dado seu, fonte com data ou premissa marcada), fórmulas que o código refaz, 3 cenários e os riscos dos números; previsão nunca aparece como caixa."
+    exemplos_de_pedido:
+      - "Quanto entra por mês com 10 pessoas gravando 5 horas por semana a US$ 0,50 a hora?"
+      - "Qual o ponto de equilíbrio da eLiving™ com assinatura de R$ 29 por mês?"
+      - "Monta a projeção de caixa da Humano Digital para os próximos 3 meses com estes números."
+    nao_atende:
+      - "Pagar, transferir ou lançar no financeiro: ação sua."
+      - "Agenda de vencimentos, contratos e boletos: SRV-CONTROLE-ADMINISTRATIVO (Felipe)."
+      - "Imposto, nota fiscal e fechamento contábil: FORA-FISCAL-CONTABIL."
+      - "Indicador que não é dinheiro: SRV-ANALISE-DE-DADOS (Daniel)."
+      - "Escolher entre estratégias: SRV-ANALISE-ESTRATEGICA (Augusto)."
+
+  - id: SRV-ANALISE-DE-DADOS
+    nome: "Indicador e leitura de dados"
+    dono: DANIEL
+    tipo_de_entrega: analise_de_dados
+    entrega: deliverables/analise_de_dados.yaml
+    revisor: RAVI
+    reserva: CAIO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Indicador com fórmula, unidade, janela e fonte; leitura que responde à pergunta; denominador, duplicatas e ausências conferidos (ausência não é zero); lacunas e próximo passo de medição."
+    exemplos_de_pedido:
+      - "Qual foi a taxa de conversão do funil da iGreen em setembro, com estes dados?"
+      - "Define o indicador de engajamento semanal da eLiving™ e como medir."
+      - "Estes números do atendimento mostram aumento de reclamação?"
+      - "Quantos pacientes voltaram para a segunda consulta no Ecossistema de Saúde, com esta planilha?"
+    nao_atende:
+      - "Conta de dinheiro: SRV-CALCULO (Caio)."
+      - "Responder uma solicitação de cliente: SRV-RASCUNHO-DE-RESPOSTA (Joana)."
+      - "Coletar dado de pessoa ou de sistema: você fornece os dados."
+      - "Mudar o app para medir: SRV-PROPOSTA-TECNICA (Theo)."
+
+  - id: SRV-CONTROLE-ADMINISTRATIVO
+    nome: "Controle de documentos, fornecedores e vencimentos"
+    dono: FELIPE
+    tipo_de_entrega: controle_administrativo
+    entrega: deliverables/controle_administrativo.yaml
+    revisor: OLIVIA
+    reserva: MARINA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-ADMIN-PAGAR-RENOVAR-ASSINAR, categorias: [GASTO, CONTRATO], descricao: "Pagar, renovar ou assinar o que vence, conforme a agenda aprovada e o parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Cada registro com tipo, fonte, dono e onde está; agenda de vencimentos com antecedência e a ação necessária; documento recebido separado de obrigação conferida."
+    exemplos_de_pedido:
+      - "Que documentos e prazos vencem nos próximos 60 dias, com estes contratos?"
+      - "Organiza os documentos da Humano Digital com o dono e onde está cada um."
+      - "Lista os fornecedores da iGreen e o que falta de cada um."
+    nao_atende:
+      - "Pagar, assinar, contratar ou renovar: ação sua."
+      - "Valores, saldo e projeção de caixa: SRV-CALCULO (Caio)."
+      - "Alterar documento original."
+      - "Dizer se uma cláusula é arriscada: FORA-CONTRATOS-E-PRIVACIDADE (o parecer do card julga só a agenda e a ação proposta)."
+      - "Como a rotina da operação funciona: SRV-PROCEDIMENTO-OPERACIONAL (Olívia)."
+
+  # ===== Jurídico e risco =====
+  - id: SRV-PARECER
+    nome: "Parecer jurídico e de risco sobre peças do card"
+    dono: CLARA
+    tipo_de_entrega: parecer
+    entrega: deliverables/parecer.yaml
+    revisor: HELENA
+    reserva: FUNDADOR
+    segundo_revisor: FUNDADOR          # sempre: só o seu Aprovar faz o parecer valer (passagens.yaml E74, E81-E83)
+    julgadora: true
+    julga_tipos: [copy, roteiro_treinamento, plano_de_campanha, roteiro_comercial, tese_de_parceria,
+                  rascunho_de_resposta, perfil_de_funcao, procedimento_operacional,
+                  especificacao_de_interface, requisitos_de_produto, proposta_tecnica, plano_de_sucesso,
+                  controle_administrativo, dossie]
+    julga_tambem: "Os passos fixos do roteiro (playbook.schema.json, passos_fixos_do_fundador), como tema obrigatório: para cada um, OK ou NÃO PODE (um passo fixo não é refeito por agente)."
+    acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+    ferramentas:
+      - {nome: ler_pagina, efeito: LER, desde: "fase 3"}
+    usa_internet: true
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: NUNCA
+    fase_de_ativacao: "v2.0"
+    estado: ESTAGIO
+    empresas: [BIZ-003, BIZ-004]
+    escolhivel: false
+    avulso: false
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Para cada peça julgada: OK, AJUSTE (com o ajuste concreto por peça) ou NÃO PODE; para cada passo fixo do roteiro: OK ou NÃO PODE; cada conclusão com trecho da tabela de leis ou dos termos lidos por inteiro; temas obrigatórios respondidos; quando chamar advogado; vale só com o seu Aprovar ('leia antes de agir')."
+    exemplos_de_pedido: []
+    nao_atende:
+      - "Card sozinho: o parecer entra num roteiro ou no grafo fixo de um serviço sempre julgado."
+      - "Documento seu sem peça do card (contrato recebido, termos, política de privacidade): FORA-CONTRATOS-E-PRIVACIDADE."
+      - "Assinar, aceitar contrato ou representar a empresa."
+      - "Substituir advogado: o parecer diz quando chamar um."
+
+  # ===== Pessoas =====
+  - id: SRV-PERFIL-DE-FUNCAO
+    nome: "Perfil de função, vaga ou desempenho"
+    dono: BIANCA
+    tipo_de_entrega: perfil_de_funcao
+    entrega: deliverables/perfil_de_funcao.yaml
+    revisor: OLIVIA
+    reserva: AUGUSTO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-PESSOAS-PUBLICAR-VAGA, categorias: [PUBLICACAO], descricao: "Publicar a vaga aprovada, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Papel com responsabilidades e com quem conversa; critérios observáveis ligados ao trabalho (nenhuma característica protegida); próximo passo com dono e prazo."
+    exemplos_de_pedido:
+      - "Escreve o perfil da primeira pessoa de atendimento da iGreen."
+      - "Quais responsabilidades separam quem vende de quem atende na Humano Digital?"
+      - "Monta critérios observáveis para avaliar o primeiro mês de um estagiário."
+    nao_atende:
+      - "Contratar, demitir ou definir salário: decisão sua."
+      - "Publicar a vaga: ação sua."
+      - "Seu desenvolvimento pessoal: SRV-PLANO-DE-PRATICA (Laura)."
+
+  # ===== Produto e tecnologia =====
+  - id: SRV-REQUISITOS-DE-PRODUTO
+    nome: "Problema e requisitos de produto"
+    dono: NINA
+    tipo_de_entrega: requisitos_de_produto
+    entrega: deliverables/requisitos_de_produto.yaml
+    revisor: RAVI
+    reserva: MAYA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: SE_O_ROTEIRO_PEDIR
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Problema e solução separados, origem e força da prova de usuário, prioridade justificada (valor, prova, esforço e risco) e requisitos com critério de aceite observável."
+    exemplos_de_pedido:
+      - "Qual deve ser o mínimo da primeira versão do app da eLiving™?"
+      - "Os participantes reclamam do cadastro da Humano Digital: o que mudar primeiro?"
+      - "Prioriza estas 8 ideias de funcionalidade."
+    nao_atende:
+      - "Estratégia do negócio: SRV-ANALISE-ESTRATEGICA (Augusto)."
+      - "Desenho de tela: SRV-ESPECIFICACAO-DE-INTERFACE (Maya)."
+      - "Solução técnica: SRV-PROPOSTA-TECNICA (Theo)."
+      - "Prometer prazo de entrega."
+
+  - id: SRV-ESPECIFICACAO-DE-INTERFACE
+    nome: "Fluxo e especificação de tela"
+    dono: MAYA
+    tipo_de_entrega: especificacao_de_interface
+    entrega: deliverables/especificacao_de_interface.yaml
+    revisor: NINA
+    reserva: BRUNO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: SE_O_ROTEIRO_PEDIR
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Fluxo com os estados vazio, erro e sucesso e o caminho de volta; especificação da tela (conteúdo, hierarquia e comportamento); critério de usabilidade observável; passagem pronta para implementar."
+    exemplos_de_pedido:
+      - "Desenha o fluxo de cadastro do participante da Humano Digital, com os erros possíveis."
+      - "Especifica a tela inicial da eLiving™ com as cores e fontes oficiais."
+      - "Como mostrar a economia na conta de energia no app da iGreen de um jeito simples?"
+    nao_atende:
+      - "Gerar imagem ou arquivo de design: não há ferramenta para isso na v2."
+      - "Implementar: SRV-PROPOSTA-TECNICA (Theo) e depois você."
+      - "Mudar regra de negócio ou a voz da marca (FORA-PACOTE-DE-VOZ)."
+
+  - id: SRV-PROPOSTA-TECNICA
+    nome: "Proposta técnica"
+    dono: THEO
+    tipo_de_entrega: proposta_tecnica
+    entrega: deliverables/proposta_tecnica.yaml
+    revisor: NINA
+    reserva: BRUNO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-TECNICA-CONTRATAR-SERVICO, categorias: [CONTRATO, GASTO], descricao: "Contratar o serviço técnico da proposta aprovada (com o cadastro e o pagamento que ele exigir), depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Cada componente ligado a um requisito; fluxo de dados com dado sensível marcado; alternativas com custo, risco e manutenção; modos de falha e recuperação; plano de implementação com critérios de aceite; suposições marcadas."
+    exemplos_de_pedido:
+      - "Como integrar o pagamento por Pix no app da eLiving™?"
+      - "Qual a forma mais barata e segura de guardar os vídeos dos participantes da Humano Digital?"
+      - "Por que o painel financeiro demora a abrir? Proponha o conserto."
+    nao_atende:
+      - "Mexer em produção, publicar, fazer commit, instalar ou criar conta: ação sua ou do fluxo de publicação."
+      - "Plano de testes: SRV-PLANO-DE-TESTES (Bruno)."
+      - "Desenho de tela: SRV-ESPECIFICACAO-DE-INTERFACE (Maya)."
+
+  - id: SRV-PLANO-DE-TESTES
+    nome: "Plano e leitura de testes de produto e software"
+    dono: BRUNO
+    tipo_de_entrega: plano_de_testes
+    entrega: deliverables/plano_de_testes.yaml
+    revisor: THEO
+    reserva: NINA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Casos com passos, resultado esperado e critério de aceite; com os resultados que você trouxe, cada caso marcado passou, falhou ou não testado, com a prova; conclusão limitada ao que foi verificado."
+    exemplos_de_pedido:
+      - "Quais testes fazer antes de liberar o novo cadastro do app?"
+      - "Aqui estão os resultados do teste de pagamento: passou ou não?"
+      - "Monta os critérios de aceite da tela de fatura da iGreen."
+    nao_atende:
+      - "Revisar entrega de outro agente: cada serviço tem o seu revisor; o Bruno não é revisor universal."
+      - "Rodar o software ou mexer em produção: quem executa é você ou o fluxo de publicação."
+      - "Corrigir e aprovar a própria correção."
+
+  # ===== Mercado e crescimento =====
+  - id: SRV-DOSSIE
+    nome: "Dossiê de pesquisa com fontes"
+    dono: RAVI
+    tipo_de_entrega: dossie
+    entrega: deliverables/dossie.yaml
+    revisor: CAIO
+    reserva: AUGUSTO
+    acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+    ferramentas:
+      - {nome: ler_pagina, efeito: LER, desde: "fase 3"}
+      - {nome: buscar, efeito: LER, desde: "fase 4"}
+    usa_internet: true
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: SE_O_ROTEIRO_PEDIR
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 3"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Fatos sobre UMA entidade (plataforma, empresa ou lei), cada um com citação de página lida; fato, interpretação e lacuna separados; cada lacuna diz o documento que falta e onde procurar."
+    exemplos_de_pedido:
+      - "O que os termos da Mimix dizem sobre indicação e pagamento?"
+      - "Quais leis tratam de gravar voz de pessoas para treinar IA no Brasil?"
+      - "Quem são 3 concorrentes da eLiving™ e o que cada um promete?"
+    nao_atende:
+      - "Dizer se pode ou não pode: SRV-PARECER (Clara), num roteiro que julga o dossiê."
+      - "Cadastrar, contatar ou testar em plataforma."
+      - "Entrevistar pessoas: nenhum agente contata gente de fora."
+
+  - id: SRV-PLANO-DE-CAMPANHA
+    nome: "Plano de campanha e experimento de marketing"
+    dono: CAMILA
+    tipo_de_entrega: plano_de_campanha
+    entrega: deliverables/plano_de_campanha.yaml
+    revisor: DANIEL
+    reserva: AUGUSTO
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-CAMPANHA-LANCAR, categorias: [GASTO, PUBLICACAO], descricao: "Lançar a campanha aprovada e aprovar o gasto dela, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Público, oferta e etapa do funil alinhados; canal e mensagem-chave (sem o texto final); hipótese, métrica, fonte, janela e regra de decisão definidas antes; orçamento só como proposta para você."
+    exemplos_de_pedido:
+      - "Planeja um teste de 2 semanas no Instagram para a eLiving™."
+      - "Qual canal testar primeiro para achar participantes da Humano Digital?"
+      - "Lê os resultados da campanha de setembro do Ecossistema de Saúde e diz o próximo teste."
+    nao_atende:
+      - "Texto final: SRV-COPY (Isabela)."
+      - "Lançar campanha ou gastar: ação sua."
+      - "Estratégia do negócio: SRV-ANALISE-ESTRATEGICA (Augusto)."
+      - "Abordagem um a um de cliente: SRV-ROTEIRO-COMERCIAL (Victor)."
+
+  - id: SRV-COPY
+    nome: "Texto pronto (convite, anúncio, mensagem)"
+    dono: ISABELA
+    tipo_de_entrega: copy
+    entrega: deliverables/copy.yaml
+    revisor: CAIO
+    reserva: CAMILA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-COPY-ENVIAR-OU-PUBLICAR, categorias: [CONTATO, PUBLICACAO], descricao: "Enviar ou publicar o texto aprovado, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "v2.0"
+    estado: ESTAGIO
+    empresas: [BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Versão final e uma alternativa curta, na voz do pacote da empresa do card, sem nenhum termo de ganho, com o que precisa do seu ok antes de publicar."
+    exemplos_de_pedido:
+      - "Escreve o convite para as primeiras 10 pessoas, sem promessa de renda."
+      - "Faz a legenda do post de lançamento da eLiving™."
+      - "Reescreve a mensagem de boas-vindas dos participantes da Humano Digital em linguagem simples."
+    nao_atende:
+      - "Publicar ou enviar: ação sua."
+      - "Plano de canais: SRV-PLANO-DE-CAMPANHA (Camila)."
+      - "Números de ganho: o convite nem recebe o cálculo (C-11)."
+      - "Depoimento, prova ou resultado inventado."
+      - "Escrever o pacote de voz da empresa: FORA-PACOTE-DE-VOZ."
+
+  - id: SRV-ROTEIRO-TREINAMENTO
+    nome: "Roteiro de treinamento para pessoa leiga de fora"
+    dono: ISABELA
+    tipo_de_entrega: roteiro_treinamento
+    entrega: deliverables/roteiro_treinamento.yaml
+    revisor: CAIO
+    reserva: OLIVIA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-TREINAMENTO-ENVIAR, categorias: [CONTATO], descricao: "Enviar o roteiro aprovado às pessoas, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "v2.0"
+    estado: ESTAGIO
+    empresas: [BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Objetivo, preparação, passo a passo que uma pessoa leiga faz sem ajuda, erros que reprovam, privacidade de terceiros e de ambientes, e checklist final."
+    exemplos_de_pedido:
+      - "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado?"
+      - "Passo a passo para o participante instalar e usar o aplicativo da plataforma."
+      - "Como o participante confere as horas aprovadas no aplicativo da plataforma?"
+    nao_atende:
+      - "Treinar a sua equipe interna numa rotina da operação: SRV-PROCEDIMENTO-OPERACIONAL (Olívia)."
+      - "Enviar o treinamento às pessoas: ação sua."
+
+  - id: SRV-ROTEIRO-COMERCIAL
+    nome: "Abordagem comercial e funil de vendas"
+    dono: VICTOR
+    tipo_de_entrega: roteiro_comercial
+    entrega: deliverables/roteiro_comercial.yaml
+    revisor: ISABELA
+    reserva: CAMILA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-VENDAS-CONTATAR, categorias: [CONTATO], descricao: "Fazer o contato comercial com o roteiro aprovado, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Funil por etapa, com prova e próxima ação datada; roteiro adaptado ao perfil e à oferta aprovada; objeções com resposta dentro das condições aprovadas; contato, oportunidade, proposta e venda nunca misturados."
+    exemplos_de_pedido:
+      - "Monta o roteiro de abordagem para síndicos interessados em energia solar."
+      - "Organiza estes 15 contatos por etapa e diz a próxima ação de cada um."
+      - "Como responder à objeção 'está caro' na iGreen?"
+    nao_atende:
+      - "Contatar cliente ou enviar proposta: ação sua."
+      - "Prometer preço, prazo ou condição que você não aprovou."
+      - "Campanha para muitas pessoas: SRV-PLANO-DE-CAMPANHA (Camila)."
+      - "Texto final de anúncio: SRV-COPY (Isabela)."
+
+  - id: SRV-TESE-DE-PARCERIA
+    nome: "Tese de parceria"
+    dono: PEDRO
+    tipo_de_entrega: tese_de_parceria
+    entrega: deliverables/tese_de_parceria.yaml
+    revisor: AUGUSTO
+    reserva: VICTOR
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-PARCERIA-CONTATAR, categorias: [CONTATO], descricao: "Contatar o possível parceiro com a tese aprovada, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "O que cada parte dá e recebe; riscos e dependências dos dois lados; estágio com prova; próxima ação proposta com dono e o que falta saber; hipótese separada de compromisso."
+    exemplos_de_pedido:
+      - "Faz sentido uma parceria da iGreen com instaladoras de painel solar?"
+      - "Como seria uma parceria da eLiving™ com academias de bairro?"
+      - "Em que estágio está a conversa com a Mimix e qual o próximo passo?"
+    nao_atende:
+      - "Negociar, aceitar termos ou representar a empresa."
+      - "Contatar o parceiro: ação sua."
+      - "Venda a cliente final: SRV-ROTEIRO-COMERCIAL (Victor)."
+
+  # ===== Clientes e operação =====
+  - id: SRV-PLANO-DE-SUCESSO
+    nome: "Plano de sucesso e retenção de clientes"
+    dono: RENATA
+    tipo_de_entrega: plano_de_sucesso
+    entrega: deliverables/plano_de_sucesso.yaml
+    revisor: DANIEL
+    reserva: VICTOR
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-SUCESSO-FALAR-COM-CLIENTE, categorias: [CONTATO], descricao: "Falar com o cliente conforme o plano aprovado, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Valor alcançado e pendências por cliente, com prova datada; ações com dono, prazo e sinal de uso; risco de cancelamento fundamentado; relato do cliente separado de métrica."
+    exemplos_de_pedido:
+      - "Quais clientes da iGreen estão em risco de cancelar e por quê?"
+      - "Monta o plano dos primeiros 30 dias de um cliente novo."
+      - "O que fazer com quem parou de usar o app da eLiving™ há 2 semanas?"
+    nao_atende:
+      - "Responder uma solicitação: SRV-RASCUNHO-DE-RESPOSTA (Joana)."
+      - "Prometer reembolso, desconto ou funcionalidade."
+      - "Falar com o cliente: ação sua."
+
+  - id: SRV-RASCUNHO-DE-RESPOSTA
+    nome: "Rascunho de resposta a uma solicitação de cliente"
+    dono: JOANA
+    tipo_de_entrega: rascunho_de_resposta
+    entrega: deliverables/rascunho_de_resposta.yaml
+    revisor: RENATA
+    reserva: ISABELA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA, SO_FUNDADOR]
+    acoes_do_fundador:
+      - {id: AF-ATENDIMENTO-ENVIAR-RESPOSTA, categorias: [CONTATO], descricao: "Enviar a resposta aprovada ao cliente, depois do parecer aprovado."}
+    julgado_pelo_parecer: SEMPRE
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: false
+    pronto_padrao: "Resposta clara com a solução ou com o que falta saber; registro do problema, dos passos e da prova; categoria do caso marcada (para o Daniel contar); orientação separada de problema resolvido."
+    exemplos_de_pedido:
+      - "Um cliente da iGreen diz que a conta não baixou: qual a resposta e o que verificar?"
+      - "Um participante perguntou quando recebe pelas horas: como responder?"
+      - "Uma cliente da eLiving™ pediu o cancelamento da assinatura: rascunha a resposta dentro da política."
+    nao_atende:
+      - "Responder ou ligar para o cliente: só você envia."
+      - "Prometer compensação ou inventar política ou diagnóstico técnico."
+      - "Analisar um lote de reclamações ou a tendência delas: SRV-ANALISE-DE-DADOS (Daniel)."
+      - "Plano de retenção: SRV-PLANO-DE-SUCESSO (Renata)."
+
+  - id: SRV-PROCEDIMENTO-OPERACIONAL
+    nome: "Procedimento de rotina interna da operação"
+    dono: OLIVIA
+    tipo_de_entrega: procedimento_operacional
+    entrega: deliverables/procedimento_operacional.yaml
+    revisor: MARINA
+    reserva: FELIPE
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: SE_O_ROTEIRO_PEDIR
+    modelo_menor: SEM_PROVA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Gatilho; passos com dono e saída de cada um; controles com a prova exigida; exceções frequentes e quando escalar; uma medida de tempo, erro ou resultado. Proposta, nunca descrita como já adotada."
+    exemplos_de_pedido:
+      - "Como deve funcionar, passo a passo, a conferência semanal das horas dos participantes?"
+      - "Cria o procedimento de entrada de um cliente novo na iGreen."
+      - "O que a equipe faz quando um participante reclama de pagamento atrasado?"
+    nao_atende:
+      - "Material de treinamento para participante ou cliente leigo: SRV-ROTEIRO-TREINAMENTO (Isabela)."
+      - "Guardar documentos e vencimentos: SRV-CONTROLE-ADMINISTRATIVO (Felipe)."
+      - "Cronograma de projeto: SRV-PLANO-DE-PROJETO (Marina)."
+      - "Ligar uma rotina ou recorrência: decisão sua."

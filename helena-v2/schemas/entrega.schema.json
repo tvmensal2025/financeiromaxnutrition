@@ -1,0 +1,547 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "helena-v2/entrega",
+  "title": "Tipo de entrega (v3.1)",
+  "description": "Formato de um tipo de entrega (deliverables/<tipo>.yaml): seções tipadas, limite, checagens de código com ID, rubrica tipada do revisor e critério de pronto em 3 camadas. Cada tipo tem exatamente 1 dono e 1 serviço (servicos.yaml, MAT-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tipo",
+    "versao",
+    "descricao",
+    "dono",
+    "servico",
+    "secoes",
+    "limite",
+    "checagens_codigo",
+    "rubrica",
+    "criterio_de_pronto",
+    "revisor_confere",
+    "entrada_minima"
+  ],
+  "properties": {
+    "tipo": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Igual ao nome do arquivo."
+    },
+    "versao": {
+      "type": "string",
+      "pattern": "^3\\.1\\.[0-9]+$"
+    },
+    "descricao": {
+      "type": "string",
+      "minLength": 10,
+      "maxLength": 300
+    },
+    "dono": {
+      "enum": [
+        "HELENA",
+        "LAURA",
+        "AUGUSTO",
+        "MARINA",
+        "CAIO",
+        "CLARA",
+        "BIANCA",
+        "DANIEL",
+        "THEO",
+        "NINA",
+        "RAVI",
+        "MAYA",
+        "BRUNO",
+        "OLIVIA",
+        "VICTOR",
+        "CAMILA",
+        "ISABELA",
+        "PEDRO",
+        "RENATA",
+        "JOANA",
+        "FELIPE"
+      ],
+      "description": "Uma das 21 identidades de vocabulario.identidades.agentes (sem acento, como o banco grava)."
+    },
+    "servico": {
+      "type": "string",
+      "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+    },
+    "secoes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "items": {
+        "$ref": "#/$defs/secao"
+      }
+    },
+    "limite": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 12000,
+      "description": "Caracteres do conteúdo legível (CHK-COMUM-02)."
+    },
+    "checagens_codigo": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/checagem"
+      }
+    },
+    "rubrica": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/criterio"
+      }
+    },
+    "criterio_de_pronto": {
+      "$ref": "#/$defs/pronto"
+    },
+    "temas_obrigatorios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/tema"
+      },
+      "description": "Quando o tipo tem tema que não pode faltar (ex.: parecer: imagem, voz, dado sensível, transferência para fora do país, menores, vínculo de trabalho, publicidade e os passos fixos do roteiro; C-10)."
+    },
+    "revisor_confere": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 240
+      },
+      "description": "O que o revisor olha, em frases curtas (a rubrica é a forma verificável disso)."
+    },
+    "revisor_nao_reavalia": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 240
+      },
+      "description": "O que o revisor NÃO julga (ex.: no relatório final, o mérito das entregas aprovadas)."
+    },
+    "entrada_minima": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entrada"
+      }
+    }
+  },
+  "x-regras-do-validador": [
+    "dono e servico batem com servicos.yaml; arquivo = deliverables/<tipo>.yaml",
+    "ids de checagem e de rubrica únicos no repositório; cada CHK tem função com caso bom e caso ruim (MEL-28)",
+    "criterio_de_pronto.codigo e .rubrica só citam IDs deste arquivo; toda a rubrica está no pronto",
+    "critério de rubrica cujo texto repete uma checagem mecânica é recusado (lista fechada; MEL-29)",
+    "nenhum critério de rubrica depende de lei, em nenhum tipo, salvo no próprio parecer: quem julga lei é só o parecer (MAT-22); tipo SEMPRE julgado tem o parecer no mesmo card, e tipo sem parecer mostra 'sem conferência jurídica' na faixa",
+    "tipo de serviço com ação do fundador: criterio_de_pronto.fundador.quando = QUANDO_HA_ACAO_EXTERNA",
+    "relatorio_final: revisor_nao_reavalia é obrigatório e repete a regra_do_relatorio_final de servicos.yaml (fidelidade e linguagem; nunca o mérito, nem da própria entrega)",
+    "parecer: temas_obrigatorios é obrigatório (imagem, voz, dado sensível, transferência para fora do país, menores, vínculo de trabalho, publicidade e os passos fixos do roteiro; C-10); entrada_minima tem PACOTE_DA_EMPRESA e PASSOS_FIXOS_DO_ROTEIRO",
+    "serviço com internet (servicos.yaml usa_internet) só usa se_faltar = REGISTRAR_FALHA em entrada_minima (MAT-09)"
+  ],
+  "$defs": {
+    "secao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "titulo",
+        "tipo_de_campo",
+        "obrigatoria"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "titulo": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "tipo_de_campo": {
+          "enum": [
+            "texto",
+            "lista",
+            "tabela",
+            "numero",
+            "citacao"
+          ],
+          "description": "Forma do valor na entrega (acao.schema.json, $defs valor_*): texto = texto puro; lista = itens de texto, cada um com citações quando a seção exigir fonte; tabela = linhas com as colunas declaradas; numero = valor com unidade e origem; citacao = trecho original apontando para a cópia guardada."
+        },
+        "obrigatoria": {
+          "type": "boolean"
+        },
+        "descricao": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "limite_caracteres": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 12000
+        },
+        "itens_min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "itens_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "exige_citacao": {
+          "type": "boolean",
+          "description": "Cada item precisa de citação (CHK-COMUM-06)."
+        },
+        "unidade": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 30
+        },
+        "colunas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "tipo_de_campo"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "tipo_de_campo": {
+                "enum": [
+                  "texto",
+                  "numero",
+                  "citacao"
+                ]
+              },
+              "descricao": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "tipo_de_campo": {
+                "const": "tabela"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "colunas"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "colunas"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "tipo_de_campo": {
+                "const": "numero"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "unidade"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "tipo_de_campo": {
+                "enum": [
+                  "texto",
+                  "numero",
+                  "citacao"
+                ]
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "itens_min"
+                  ]
+                },
+                {
+                  "required": [
+                    "itens_max"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "checagem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "descricao",
+        "fecha_furos",
+        "gravidade",
+        "fase"
+      ],
+      "description": "Checagem do portão 1, feita por código. Cada ID é estável e é o nome de uma função em helena-v2/checagens/ com caso bom e caso ruim (MEL-28). As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se repetem aqui.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^CHK-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "descricao": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300
+        },
+        "fecha_furos": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^((A|B|C|K|M)-[0-9]{1,3}|F[ABC]-[0-9]{1,2}|R[1-3]-[0-9]{2}|CONF-[0-9]{2}|MAQ-[0-9]{2}[a-z]?|DEC-[0-9]{3})$"
+          },
+          "description": "Furo(s) que esta checagem fecha: IDs do registro (A-, B-, C-, K-, M-, FA-, FB-, FC-, R1-/R2-/R3-), da conferência v2 x v3 (CONF-nn), da prova da máquina (MAQ-nn) ou a decisão que ela garante (DEC-nnn)."
+        },
+        "gravidade": {
+          "enum": [
+            "RECUSA",
+            "MARCA"
+          ],
+          "description": "RECUSA = volta ao autor com o item exato; MARCA = segue com marca na faixa."
+        },
+        "fase": {
+          "enum": [
+            "fase 1",
+            "fase 2",
+            "fase 3"
+          ],
+          "description": "Fase em que a função existe. 'fase 2' = ID reservado até existir a ferramenta, o modelo de cálculo ou a tabela de leis."
+        },
+        "parametros": {
+          "type": "object",
+          "description": "Parâmetros fechados da checagem (ex.: lista de termos proibidos)."
+        }
+      }
+    },
+    "criterio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "pergunta",
+        "evidencia_exigida",
+        "risco",
+        "por_que_o_codigo_nao_confere",
+        "vereditos"
+      ],
+      "description": "Critério da rubrica do revisor (portão 2; MEL-29). Só julgamento que o código não confere; nada de tamanho, seção, [Fn], HTML, idioma, termos de ganho, 'enviei/cadastrei'. Nenhum critério depende de lei, salvo na rubrica do próprio parecer: quem julga lei é só o parecer (MAT-22).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^RUB-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]{2}$"
+        },
+        "pergunta": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 240,
+          "pattern": "\\?$",
+          "description": "Pergunta verificável, que termina com '?'."
+        },
+        "evidencia_exigida": {
+          "enum": [
+            "TRECHO",
+            "AUSENCIA",
+            "TEXTO_INTEIRO"
+          ],
+          "description": "TRECHO: o revisor cita o trecho literal que prova (o código confere que existe). AUSENCIA: algo que não pode estar. TEXTO_INTEIRO: tom, clareza, executável por leigo."
+        },
+        "risco": {
+          "enum": [
+            "ALTO",
+            "BAIXO"
+          ],
+          "description": "Fixo no arquivo, nunca escolhido pelo revisor. NAO_CONSIGO_CONFERIR por estar fora do alcance: ALTO vira cartão de revisão para você; BAIXO segue marcado 'sem conferir' na faixa."
+        },
+        "por_que_o_codigo_nao_confere": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200
+        },
+        "vereditos": {
+          "const": [
+            "PASSOU",
+            "FALHOU",
+            "NAO_CONSIGO_CONFERIR"
+          ]
+        }
+      }
+    },
+    "pronto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "codigo",
+        "rubrica",
+        "fundador"
+      ],
+      "description": "Critério de pronto em 3 camadas. A entrega só fica APROVADA com as 3 (e, no jurídico, com o seu Aprovar). Os itens CARD-n do card entram na camada código (se apontam para uma checagem existente) ou na rubrica (se são de IA).",
+      "properties": {
+        "codigo": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^CHK-[A-Z0-9]+(-[A-Z0-9]+)*$"
+          },
+          "description": "IDs de checagens_codigo deste tipo (as comuns valem sempre)."
+        },
+        "rubrica": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^RUB-[A-Z0-9]+(-[A-Z0-9]+)*-[0-9]{2}$"
+          }
+        },
+        "fundador": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "quando"
+          ],
+          "properties": {
+            "quando": {
+              "enum": [
+                "NUNCA",
+                "QUANDO_HA_ACAO_EXTERNA",
+                "SEMPRE_NO_JURIDICO"
+              ],
+              "description": "Você só entra no pronto onde o plano já põe você: ação externa (seu ok, uma vez) e jurídico (segundo revisor). Nenhum padrão automático aprova."
+            },
+            "o_que_confere": {
+              "type": "string",
+              "minLength": 5,
+              "maxLength": 300
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "quando": {
+                    "not": {
+                      "const": "NUNCA"
+                    }
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "o_que_confere"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "tema",
+        "como_conferir"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^TEMA-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "tema": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120
+        },
+        "como_conferir": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 300
+        }
+      }
+    },
+    "entrada": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "o_que",
+        "de_onde",
+        "se_faltar"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ENT-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "o_que": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "de_onde": {
+          "enum": [
+            "PEDIDO_DO_CARD",
+            "ENTREGA_APROVADA",
+            "FONTE_IMPORTADA",
+            "DECISAO_VIGENTE",
+            "PACOTE_DA_EMPRESA",
+            "PAGINA_DA_LISTA",
+            "PASSOS_FIXOS_DO_ROTEIRO"
+          ]
+        },
+        "se_faltar": {
+          "enum": [
+            "PERGUNTAR",
+            "DEVOLVER_A_QUEM_PEDIU",
+            "REGISTRAR_FALHA"
+          ],
+          "description": "Ação do autor quando falta (REGISTRAR_FALHA com motivo FALTAM_DADOS). Serviço com internet só pode REGISTRAR_FALHA (MAT-09)."
+        }
+      }
+    }
+  }
+}
