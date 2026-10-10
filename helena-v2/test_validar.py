@@ -12,6 +12,8 @@ ele passa limpo antes de estragá-lo.
 """
 import copy
 import re
+
+import pytest
 from collections import Counter
 from pathlib import Path
 
@@ -21,14 +23,8 @@ CODIGO_DESTE_ARQUIVO = Path(__file__).read_text(encoding='utf-8')
 BASE = v.carregar()
 _erros_da_base = {}
 
-# O que o dado real ainda tem de pendente (sabido e anotado). Tire daqui conforme for resolvendo;
-# quando esta lista ficar vazia, "python validar.py" tem de sair limpo.
-PENDENCIAS_CONHECIDAS = {
-    'FICHA-AUSENTE': 'faltam fichas v3.1 (a contagem real sai do validar.py)',
-    'ROTEIRO-ANTIGO': 'playbooks/recrutar-10-pessoas.yaml ainda é da v1',
-    'CASOS-BOAS': 'serviço com ficha pronta ainda sem os 3 casos bons',
-    'CASOS-DEFEITOS': 'serviço com ficha pronta ainda sem os 4 defeitos plantados',
-}
+# O que o dado real ainda tem de pendente vem de UM lugar só: PENDENCIAS.yaml (lido pelo validar.py).
+PENDENCIAS = v.ler_pendencias()
 
 
 # ---------------------------------------------------------------------------------------
@@ -75,8 +71,9 @@ def recusa(D, tag, trecho):
 # O dado real
 # ---------------------------------------------------------------------------------------
 def test_dado_real_so_tem_as_pendencias_conhecidas():
-    por_regra = Counter(re.search(r'\[([A-Z0-9-]+)\]', e).group(1) for e in v.rodar(BASE))
-    assert set(por_regra) <= set(PENDENCIAS_CONHECIDAS), f'problema novo no dado real: {sorted(set(por_regra) - set(PENDENCIAS_CONHECIDAS))}'
+    novos, _, resolvidas = v.separar(v.rodar(BASE), PENDENCIAS)
+    assert novos == [], f'problema novo no dado real: {novos}'
+    assert resolvidas == [], f'pendência já resolvida continua em PENDENCIAS.yaml: {resolvidas}'
 
 
 def test_fichas_ausentes_aparecem_com_contagem():
@@ -104,10 +101,55 @@ def test_toda_regra_tem_descricao_e_teste_de_mutacao():
         assert re.search(r"recusa\([^\n]*?'" + re.escape(tag) + "'", CODIGO_DESTE_ARQUIVO), f'{tag} sem teste de mutação'
 
 
-def test_main_sai_com_codigo_1_e_mostra_os_problemas(capsys):
-    assert v.main() == 1
+def test_main_aceita_so_as_pendencias_conhecidas_e_mostra_cada_uma(capsys):
+    assert v.main([]) == 0
     saida = capsys.readouterr().out
-    assert 'ERRO agents: [FICHA-AUSENTE]' in saida and 'problema(s)' in saida and 'Conferido:' in saida
+    assert 'Conferido:' in saida and 'ERRO' not in saida
+    if PENDENCIAS:
+        assert 'PENDENTE agents: [FICHA-AUSENTE]' in saida and 'pendência(s) conhecida(s)' in saida
+
+
+def test_main_estrito_trata_pendencia_como_erro(capsys):
+    if not PENDENCIAS:
+        pytest.skip('sem pendências: o modo estrito equivale ao normal')
+    assert v.main(['--estrito']) == 1
+    saida = capsys.readouterr().out
+    assert 'ERRO agents: [FICHA-AUSENTE]' in saida and 'problema(s)' in saida
+
+
+def test_problema_fora_da_lista_e_erro_mesmo_com_pendencias(monkeypatch, capsys):
+    reais = v.rodar(BASE)
+    monkeypatch.setattr(v, 'rodar', lambda D, so=None: reais + ['agents/caio.yaml: [MAT-03] problema plantado pelo teste'])
+    assert v.main([]) == 1
+    assert 'ERRO agents/caio.yaml: [MAT-03] problema plantado pelo teste' in capsys.readouterr().out
+
+
+def test_pendencia_ja_resolvida_e_erro(monkeypatch, capsys):
+    monkeypatch.setattr(v, 'ler_pendencias', lambda caminho=None: PENDENCIAS + [
+        {'regra': 'MAT-03', 'alvo': 'agents/caio.yaml', 'motivo': 'pendência que não acontece mais'}])
+    assert v.main([]) == 1
+    assert '[PENDENCIA-RESOLVIDA] MAT-03 em agents/caio.yaml' in capsys.readouterr().out
+
+
+def test_pendencia_com_teto_vira_erro_quando_passa_do_teto():
+    pend = [{'regra': 'FICHA-AUSENTE', 'alvo': 'agents', 'maximo': 14, 'motivo': 'teste'}]
+    novos, pendentes, _ = v.separar(['agents: [FICHA-AUSENTE] 15 de 21 fichas ausentes: X'], pend)
+    assert novos and not pendentes                                        # 15 > 14: não pode se esconder
+    novos, pendentes, _ = v.separar(['agents: [FICHA-AUSENTE] 13 de 21 fichas ausentes: X'], pend)
+    assert pendentes and not novos
+
+
+def test_pendencia_so_cobre_o_alvo_exato():
+    pend = [{'regra': 'CASOS-BOAS', 'alvo': 'casos/SRV-COPY', 'motivo': 'teste'}]
+    novos, pendentes, _ = v.separar(['casos/SRV-CALCULO: [CASOS-BOAS] 0 caso(s) bom(ns); o mínimo é 3'], pend)
+    assert novos and not pendentes                                        # outro serviço sem casos é erro novo
+
+
+def test_pendencias_yaml_exige_regra_alvo_e_motivo(tmp_path):
+    arquivo = tmp_path / 'PENDENCIAS.yaml'
+    arquivo.write_text('pendencias:\n  - regra: FICHA-AUSENTE\n    alvo: agents\n', encoding='utf-8')
+    with pytest.raises(ValueError):
+        v.ler_pendencias(arquivo)
 
 
 def test_regra_que_quebra_vira_problema_e_nao_silencio(monkeypatch):

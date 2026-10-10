@@ -1,0 +1,29 @@
+# Pendências conhecidas da especificação: problemas REAIS, já sabidos, com o motivo.
+#
+# O validar.py mostra cada uma como PENDENTE (aviso) e sai com código 0 se só houver pendências.
+# Qualquer problema que NÃO esteja aqui é ERRO e faz o validar.py sair com código 1.
+# Uma pendência que já foi resolvida e continua aqui também é ERRO: tire a linha dela.
+# Para tratar tudo como erro (sem aceitar pendência):  python validar.py --estrito
+#
+# Campos: regra (a etiqueta entre colchetes), alvo (o arquivo ou pasta antes dos dois-pontos),
+# motivo, e "maximo" (opcional) — se a mensagem trouxer um número maior que este, vira ERRO.
+pendencias:
+  - regra: FICHA-AUSENTE
+    alvo: agents
+    maximo: 14
+    motivo: faltam as fichas v3.1 de 14 agentes (fila no HANDOFF-CLAUDE-CODE.md); se faltar mais de 14, é erro
+  - regra: ROTEIRO-ANTIGO
+    alvo: playbooks/recrutar-10-pessoas.yaml
+    motivo: o roteiro das 10 pessoas ainda está no formato da v1; reescrever na v3.1
+  - regra: CASOS-BOAS
+    alvo: casos/SRV-COPY
+    motivo: a ficha da Isabela está pronta, mas faltam os casos bons do convite
+  - regra: CASOS-DEFEITOS
+    alvo: casos/SRV-COPY
+    motivo: a ficha da Isabela está pronta, mas faltam os defeitos plantados do convite
+  - regra: CASOS-BOAS
+    alvo: casos/SRV-ROTEIRO-TREINAMENTO
+    motivo: a ficha da Isabela está pronta, mas faltam os casos bons do roteiro de treinamento
+  - regra: CASOS-DEFEITOS
+    alvo: casos/SRV-ROTEIRO-TREINAMENTO
+    motivo: a ficha da Isabela está pronta, mas faltam os defeitos plantados do roteiro de treinamento

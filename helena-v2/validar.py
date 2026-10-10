@@ -1,8 +1,13 @@
 """Validador das especificações do Sistema Helena v3.1 (o portão de tudo).
 
 Uso:
-    python validar.py                      confere tudo; sai com código 1 se houver algum problema
+    python validar.py                      confere tudo; sai com código 1 se houver erro novo
+    python validar.py --estrito            idem, mas as pendências conhecidas também contam como erro
     python -m pytest -q test_validar.py    prova que o validador recusa cada defeito
+
+Pendências conhecidas (problemas reais, já sabidos) ficam em PENDENCIAS.yaml e aparecem como
+PENDENTE, sem falhar. Problema fora dessa lista é ERRO. Pendência que já foi resolvida e continua
+na lista também é ERRO (a lista não pode mentir).
 
 Só LÊ arquivos desta pasta. Não toca em banco, servidor nem rede.
 
@@ -1507,14 +1512,72 @@ def resumo(D):
             f"{len(D['jornadas'])} jornadas no replay da máquina, {len(REGRAS)} regras.")
 
 
-def main():
+CAMINHO_PENDENCIAS = RAIZ / 'PENDENCIAS.yaml'
+
+
+def ler_pendencias(caminho=CAMINHO_PENDENCIAS):
+    """Lê a lista de pendências conhecidas. Cada item: regra, alvo, motivo e, opcional, maximo."""
+    if not Path(caminho).exists():
+        return []
+    dado = yaml.safe_load(Path(caminho).read_text(encoding='utf-8')) or {}
+    lista = dado.get('pendencias') or []
+    for item in lista:
+        if not isinstance(item, dict) or not all(isinstance(item.get(c), str) and item.get(c) for c in ('regra', 'alvo', 'motivo')):
+            raise ValueError(f'PENDENCIAS.yaml: item sem regra, alvo ou motivo: {item!r}')
+    return lista
+
+
+def separar(erros, pendencias):
+    """Divide os problemas em (novos, pendentes, resolvidas).
+
+    novos: não estão na lista; pendentes: (problema, motivo) que estão na lista;
+    resolvidas: itens da lista que já não acontecem (precisam sair dela)."""
+    usadas, novos, pendentes = set(), [], []
+    for e in erros:
+        achado = None
+        m = re.match(r'(.+?): \[([A-Z0-9-]+)\]', e)
+        if m:
+            alvo, tag = m.group(1), m.group(2)
+            for i, p in enumerate(pendencias):
+                if p['regra'] != tag or p['alvo'] != alvo:
+                    continue
+                if p.get('maximo') is not None:
+                    numero = re.search(r'\] (\d+)', e)
+                    if not numero or int(numero.group(1)) > p['maximo']:
+                        break                                    # passou do teto: é erro, não pendência
+                achado = i
+                break
+        if achado is None:
+            novos.append(e)
+        else:
+            usadas.add(achado)
+            pendentes.append((e, pendencias[achado]['motivo']))
+    resolvidas = [p for i, p in enumerate(pendencias) if i not in usadas]
+    return novos, pendentes, resolvidas
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+    estrito = '--estrito' in argv
     D = carregar()
     erros = rodar(D)
-    for e in erros:
+    novos, pendentes, resolvidas = separar(erros, [] if estrito else ler_pendencias())
+    for e in novos:
         print('ERRO', e)
+    for p in resolvidas:
+        print(f"ERRO PENDENCIAS.yaml: [PENDENCIA-RESOLVIDA] {p['regra']} em {p['alvo']} já não acontece: tire esta linha da lista")
+    for e, motivo in pendentes:
+        print('PENDENTE', e, f'— {motivo}')
     print(resumo(D))
-    print('OK: especificações coerentes' if not erros else f'{len(erros)} problema(s)')
-    return 1 if erros else 0
+    falhas = len(novos) + len(resolvidas)
+    if falhas:
+        print(f'{falhas} problema(s)')
+        return 1
+    if pendentes:
+        print(f'OK com {len(pendentes)} pendência(s) conhecida(s) (lista em PENDENCIAS.yaml; use --estrito para tratá-las como erro)')
+        return 0
+    print('OK: especificações coerentes')
+    return 0
 
 
 if __name__ == '__main__':
