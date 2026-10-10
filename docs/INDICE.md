@@ -180,13 +180,13 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/arquivo/pacote-plano-v3/historico/documento-completo-rev105.md` | Sistema Helena: plano v3, o melhor até agora | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/historico/plano-rev80.md` | Sistema Helena v2: arquitetura de agentes profissionais | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/historico/plano-rev90.md` | Sistema Helena: plano v3, o melhor até agora | 09/10/2026 |
-| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-A-ciclo-do-card.md` | Red-team A: card lifecycle and engine logic (plano-rev80.md) | 09/10/2026 |
-| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-B-operacao-seguranca.md` | Red team, lens B (operations, security, maintenance): Sistema Helena v2, plano-rev80.md | 09/10/2026 |
-| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-B-verificacao-nas-fontes.md` | Verification of 17 documentation claims (read-only, public pages only) | 09/10/2026 |
-| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-C-qualidade.md` | Red-team lens C: content quality and agent behavior (plano-rev80.md) | 09/10/2026 |
+| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-a-ciclo-do-card.md` | Red-team A: card lifecycle and engine logic (plano-rev80.md) | 09/10/2026 |
+| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-b-operacao-seguranca.md` | Red team, lens B (operations, security, maintenance): Sistema Helena v2, plano-rev80.md | 09/10/2026 |
+| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-b-verificacao-nas-fontes.md` | Verification of 17 documentation claims (read-only, public pages only) | 09/10/2026 |
+| `docs/arquivo/pacote-plano-v3/pesquisa/ataque-c-qualidade.md` | Red-team lens C: content quality and agent behavior (plano-rev80.md) | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/pesquisa/contexto-do-sistema.md` | Brief for round 3: attack the corrected "Sistema Helena v2" plan | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/pesquisa/furos-conhecidos.md` | Holes already found in round 3 (do NOT re-report; DO report a flaw in a fix, as "fix-of-K#") | 09/10/2026 |
-| `docs/arquivo/pacote-plano-v3/pesquisa/minha-analise-K-M.md` | My extra round-3 holes (M-list), found while red-team agents ran | 09/10/2026 |
+| `docs/arquivo/pacote-plano-v3/pesquisa/minha-analise-k-m.md` | My extra round-3 holes (M-list), found while red-team agents ran | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/pesquisa/revisao-fichas-resumo.md` | What the PC side produced at ~09:28Z (folded into my voice; never present as another session) | 09/10/2026 |
 | `docs/arquivo/planos/plano-arquitetura-v2.md` | Sistema Helena v2 — plano de arquitetura | 08/10/2026 |
 | `docs/arquivo/planos/plano-destravar-agentes-20261006.md` | Plano para destravar a frota da Helena — 06/10/2026 | 06/10/2026 |
@@ -208,11 +208,11 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/arquivo/sessao-20261010/pesquisa-rodada-5/pesquisa-externa.json` | dados (JSON): lista com 4 itens | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/relatorios-de-etapas/01-analise-especialistas.json` | dados (JSON): sintese, critico, consolidado, verificadas | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/relatorios-de-etapas/02-21-agentes-maquina-contratos.json` | dados (JSON): maquina, contratos, agentes, integracao | 10/10/2026 |
-| `docs/arquivo/sessao-20261010/relatorios-de-etapas/03-construcao-etapa-A.json` | dados (JSON): componentes, conferencia | 10/10/2026 |
+| `docs/arquivo/sessao-20261010/relatorios-de-etapas/03-construcao-etapa-a.json` | dados (JSON): componentes, conferencia | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/relatorios-de-etapas/04-continuacao-etapa-1.json` | dados (JSON): codigo, plano | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/relatorios-de-etapas/05-plano-v31-redacao.json` | dados (JSON): arquivo, furosSecoes, rodadas, secas | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/roteiros-de-agentes/21-agentes.workflow.js` | roteiro de agentes (JavaScript) | 10/10/2026 |
-| `docs/arquivo/sessao-20261010/roteiros-de-agentes/construcao-etapa-A.workflow.js` | roteiro de agentes (JavaScript) | 10/10/2026 |
+| `docs/arquivo/sessao-20261010/roteiros-de-agentes/construcao-etapa-a.workflow.js` | roteiro de agentes (JavaScript) | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/roteiros-de-agentes/plano-v31.workflow.js` | roteiro de agentes (JavaScript) | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/v3.1-secoes/01-abertura.md` | Sistema Helena: plano v3.1 | 10/10/2026 |
 | `docs/arquivo/sessao-20261010/v3.1-secoes/02-jornada.md` | A jornada do card | 10/10/2026 |
