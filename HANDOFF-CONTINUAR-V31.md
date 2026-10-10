@@ -6,6 +6,17 @@ Leia antes: `AGENTS.md`, `docs/planos/sistema-helena-pacote/DECISOES-DO-FUNDADOR
 ## Por que este arquivo existe
 A cota semanal acabou no meio do trabalho (a sessão bateu o limite várias vezes). **Os avisos de "workflow concluído" estavam errados**: os agentes falharam por limite e o roteiro seguiu mesmo assim. Exemplo: o plano v3.1 mostrou "2 rodadas sem furo novo" só porque os atacantes não rodaram. **Não conte nada como verificado sem rodar o teste.**
 
+
+## O QUE JÁ ESTÁ CONSTRUÍDO — NÃO PERDER (ordem do fundador, 10/10)
+Tudo abaixo está versionado nesta branch. Antes de qualquer refatoração ou limpeza, rode os testes da peça e confirme que continuam passando.
+- `motor/ferramentas/` — servidor de ferramentas seguro (588 testes).
+- `motor/validador/` — validador de entregas, portão 1 (677 testes).
+- `motor/executor/` — executor/adaptador do agente com servidor falso (suíte demora ~5 min; 3 falhas consertadas na etapa 1).
+- `motor/simulador/` — simulador da esteira (723 testes).
+- `helena-v2/maquina/` — tabela de passagens + prova (0 violações na configuração de prova) + testes.
+- `helena-v2/` — esquemas v3.1, catálogo (`servicos.yaml`, `organograma.yaml`, `models.yaml`), fichas/entregas/casos/jornadas (ver `agents/`), `validar.py` (71 regras, 168 testes).
+- `docs/planos/sistema-helena-pacote/` — plano v3 (base), análise dos especialistas (03), crítica (04), decisões do fundador, seções do plano v3.1 (`v3.1-secoes/`), roteiros de agentes usados (`roteiros-de-agentes/`) e os relatórios completos de cada etapa (`relatorios-de-etapas/*.json`, com suposições não confirmadas e pendências de cada peça).
+
 ## Estado verificado (rodar para confirmar)
 | Peça | Onde | Estado | Como conferir |
 |---|---|---|---|
