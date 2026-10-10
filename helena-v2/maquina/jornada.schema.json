@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "helena-v2/maquina/jornada",
+  "title": "Jornada de ponta a ponta de um card (lida por provar.replay)",
+  "description": "Lista de eventos, cada um com o papel que o dispara, sobre um roteiro. O replay aplica a tabela real (passagens.yaml), confere a mesma especificação da prova e devolve o estado final, as violações e os recusados. Os nomes vêm de vocabulario.yaml; um nome fora dele é recusado pelo replay.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "eventos"],
+  "properties": {
+    "id": {"type": "string", "minLength": 3, "description": "Identificador da jornada, ex.: 'AGT-05-caio-conta-ponta-a-ponta'"},
+    "descricao": {"type": "string"},
+    "agente": {"type": "string", "description": "Agente coberto pela jornada (AGT-01 a AGT-21), quando houver"},
+    "empresa": {"type": "string", "description": "Empresa do card. eLiving™ se escreve exatamente assim."},
+    "automatico": {"type": "boolean", "default": true, "description": "true: o replay dispara sozinho os eventos determinísticos do motor (bloco 'automaticos' da tabela). false: todos os eventos vêm da jornada, como na reprodução do histórico."},
+    "card": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pedido_grande": {"type": "boolean", "default": true, "description": "Pedido grande passa pela leitura de volta ('Entendi assim... Confirma?')."},
+        "plano_valido": {"type": "boolean", "default": true, "description": "false: o motor não valida o plano sozinho; a jornada manda PLANO_INVALIDO."}
+      }
+    },
+    "roteiro": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["etapas"],
+      "description": "Grafo do card, montado pelo código a partir do catálogo (MEL-24). Sem roteiro, vale o roteiro de prova (E1, E2, EJ, ER).",
+      "properties": {
+        "etapas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "autor", "revisores"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,15}$"},
+              "nome": {"type": "string"},
+              "autor": {"type": "string", "pattern": "^[A-Z][A-Z_]+$"},
+              "revisores": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Z_]+$"}, "description": "Ordem da ficha: titular e reservas. O código pula o autor e quem julga a peça depois; você é sempre a última reserva."},
+              "depende_de": {"type": "array", "items": {"type": "string"}, "default": []},
+              "julga": {"type": "array", "items": {"type": "string"}, "default": [], "description": "Etapas que esta julga depois (ex.: jurídico). Precisa depender delas."},
+              "internet": {"type": "boolean", "default": false},
+              "pulavel": {"type": "boolean", "default": false, "description": "Só se o roteiro permitir; nunca jurídico nem relatório."},
+              "usa_decisao": {"type": "boolean", "default": true},
+              "acoes_permitidas": {
+                "type": "array",
+                "items": {"enum": ["ENTREGAR", "PERGUNTAR", "DEVOLVER_A_QUEM_PEDIU", "REGISTRAR_FALHA"]},
+                "description": "Ações do autor liberadas pela ficha. PEDIR_SUBCARD fica desligado na v2.0."
+              }
+            }
+          }
+        }
+      }
+    },
+    "eventos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["papel", "evento"],
+        "properties": {
+          "papel": {"enum": ["AUTOR", "REVISOR", "HELENA", "FUNDADOR", "MOTOR", "RELOGIO", "VIGIA"]},
+          "evento": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]+$"},
+          "alvo": {"type": "string", "default": "card", "description": "'card', o id de uma etapa do roteiro, ou 'acao:A1' para uma ação externa proposta."},
+          "params": {"type": "object", "additionalProperties": {"type": "string"}, "description": "Parâmetros do evento, com valores do domínio fechado do vocabulário."},
+          "ator": {"type": "string", "description": "Agente que responde (AUTOR/REVISOR). Padrão: o autor da etapa ou o revisor designado."},
+          "chave": {"enum": ["atual", "antiga"], "default": "atual", "description": "Chave da execução: 'antiga' simula resposta atrasada de uma execução que já passou."},
+          "nota": {"type": "string"}
+        },
+        "allOf": [
+          {"if": {"properties": {"evento": {"const": "RESPONDER"}}}, "then": {"required": ["params"], "properties": {"params": {"required": ["opcao"]}}}},
+          {"if": {"properties": {"evento": {"const": "RECOMENDAR"}}}, "then": {"required": ["params"], "properties": {"params": {"required": ["opcao"]}}}}
+        ]
+      }
+    },
+    "esperado": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "estado_card": {"enum": ["RASCUNHO", "ESPERANDO_CONFIRMACAO", "VALIDANDO_PLANO", "EM_ANDAMENTO", "ESPERANDO_FUNDADOR", "PRONTO", "CANCELADO", "ENCERRADO_COM_FALHA"]},
+        "etapas": {"type": "object", "additionalProperties": {"enum": ["AGUARDANDO_ANTERIORES", "NA_FILA", "EXECUTANDO", "VALIDACAO", "REVISAO", "ESPERANDO_FUNDADOR", "EM_RESOLUCAO", "APROVADA", "PRONTA", "CANCELADA", "ENCERRADA_COM_FALHA"]}},
+        "acoes": {"type": "object", "additionalProperties": {"enum": ["PROPOSTA", "AUTORIZADA", "EXECUTANDO_ACAO", "INCERTA", "EXECUTADA", "FEITA_PELO_FUNDADOR", "RECUSADA", "EXPIRADA", "FALHOU", "CANCELADA"]}},
+        "violacoes": {"type": "integer", "minimum": 0},
+        "recusados": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
