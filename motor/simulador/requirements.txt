@@ -1,0 +1,12 @@
+# Versões fixas (rodar: /tmp/venv-helena/bin/pip install -r requirements.txt)
+#
+# Para os testes:
+pytest==9.1.1
+# Só o adaptador da máquina real (simulador/adaptador_maquina.py) precisa destes.
+# Eles são as dependências do helena-v2/maquina/provar.py:
+PyYAML==6.0.3
+jsonschema==4.23.0
+attrs==26.1.0
+referencing==0.37.0
+rpds-py==2026.9.1
+jsonschema-specifications==2025.9.1
