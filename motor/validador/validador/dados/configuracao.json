@@ -1,0 +1,109 @@
+{
+  "_comentario": [
+    "NUMEROS QUE REGULAM O VALIDADOR. Mudou um numero aqui, rode os testes: se algum defeito plantado passar, o teste avisa.",
+    "gravidades: so para mudar o padrao de uma checagem (RECUSA volta ao autor; MARCA segue com marca na faixa).",
+    "Chave 'CHK-X' vale para a checagem inteira; chave 'CHK-X:MOTIVO' vale so para aquele motivo."
+  ],
+  "citacao": {
+    "min_palavras": 12,
+    "min_palavras_frase_inteira": 4,
+    "min_palavras_em_comum": 1,
+    "min_palavras_da_afirmacao_para_comparar": 3,
+    "palavras_antes_que_invertem_o_sentido": [
+      "nao",
+      "nunca",
+      "jamais",
+      "nem",
+      "sem",
+      "nenhum",
+      "nenhuma",
+      "ninguem",
+      "not",
+      "never",
+      "without",
+      "cannot",
+      "nor"
+    ],
+    "palavras_depois_que_ressalvam": [
+      "exceto",
+      "salvo",
+      "senao",
+      "porem",
+      "mas",
+      "contudo",
+      "todavia",
+      "entretanto",
+      "unless",
+      "except",
+      "but",
+      "however",
+      "although",
+      "though"
+    ],
+    "frases_depois_que_ressalvam": [
+      [
+        "a",
+        "menos",
+        "que"
+      ],
+      [
+        "desde",
+        "que"
+      ],
+      [
+        "somente",
+        "se"
+      ],
+      [
+        "apenas",
+        "se"
+      ],
+      [
+        "only",
+        "if"
+      ],
+      [
+        "as",
+        "long",
+        "as"
+      ]
+    ],
+    "palavras_olhadas_antes": 3,
+    "palavras_olhadas_depois": 3
+  },
+  "tamanho": {
+    "limite_padrao": 12000,
+    "maximo_analisavel": 300000
+  },
+  "idioma": {
+    "min_palavras_para_julgar": 8,
+    "min_palavras_por_trecho": 10,
+    "parte_minima_do_outro_idioma": 0.1,
+    "parte_minima_do_portugues": 0.02
+  },
+  "oficial": {
+    "aceitar_subdominios": false
+  },
+  "leis": {
+    "min_palavras_do_trecho": 5
+  },
+  "temas": {
+    "min_palavras_na_frase": 6
+  },
+  "calculo": {
+    "constantes_permitidas_em_formulas": [
+      "0",
+      "1",
+      "2",
+      "12",
+      "100",
+      "1000"
+    ],
+    "dias_maximos_da_fonte": 3650
+  },
+  "gravidades": {
+    "CHK-LEI-01": "MARCA",
+    "CHK-LEI-01:LEI_COM_ANO_NO_FUTURO": "RECUSA",
+    "CHK-LEI-01:NUMERO_E_ANO_NAO_BATEM": "RECUSA"
+  }
+}

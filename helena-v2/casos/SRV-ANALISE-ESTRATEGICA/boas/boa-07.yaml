@@ -1,0 +1,205 @@
+# Caso BOM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída do Augusto no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-ESTRATEGIA-01 a 09) e na rubrica.
+id: ESTRAT-BOA-07
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+nota: Duas opções (O1 e O3) e quatro critérios, uma conta; recomenda O3 com uma hipótese.
+deve_passar_em:
+- CHK-ESTRATEGIA-01
+- CHK-ESTRATEGIA-02
+- CHK-ESTRATEGIA-03
+- CHK-ESTRATEGIA-04
+- CHK-ESTRATEGIA-05
+- CHK-ESTRATEGIA-06
+- CHK-ESTRATEGIA-07
+- CHK-ESTRATEGIA-08
+- CHK-ESTRATEGIA-09
+- RUB-ESTRATEGIA-01
+- RUB-ESTRATEGIA-02
+- RUB-ESTRATEGIA-03
+- RUB-ESTRATEGIA-04
+- RUB-ESTRATEGIA-05
+- RUB-ESTRATEGIA-06
+- RUB-ESTRATEGIA-07
+- RUB-ESTRATEGIA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    decisao: 'Para os próximos 6 meses: lançar a eLiving™ só no Brasil ou lançar no Brasil e deixar o inglês condicionado
+      à procura.'
+    premissas:
+    - id: DADO-1
+      tipo: DADO
+      afirmacao: A lista de espera tem 420 e-mails.
+      valor:
+        valor: 420
+        unidade: e-mails
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-2
+      tipo: DADO
+      afirmacao: 380 pessoas da lista são do Brasil.
+      valor:
+        valor: 380
+        unidade: pessoas
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-3
+      tipo: DADO
+      afirmacao: 25 pessoas da lista são dos Estados Unidos.
+      valor:
+        valor: 25
+        unidade: pessoas
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-4
+      tipo: DADO
+      afirmacao: O orçamento do lançamento é de R$ 6.000 por mês.
+      valor:
+        valor: 6000
+        unidade: R$ por mês
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: Tenho R$ 6.000 por mês para o lançamento, somando anúncio, ferramentas e o freelancer.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-5
+      tipo: DADO
+      afirmacao: O desenvolvedor trabalha 20 horas por semana.
+      valor:
+        valor: 20
+        unidade: horas por semana
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: O time é só eu e um desenvolvedor freelancer de 20 horas por semana.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-6
+      tipo: DADO
+      afirmacao: A revisão técnica do conteúdo dos pilares só existe em português.
+      prova:
+        trecho_original: O conteúdo dos 4 pilares é revisado por uma nutricionista e um médico que só trabalham em português.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: EST-1
+      tipo: ESTIMATIVA
+      afirmacao: Traduzir as telas e o conteúdo dos 4 pilares para o inglês, com revisão técnica, custa cerca de R$ 9.000
+        de uma vez.
+      valor:
+        valor: 9000
+        unidade: R$
+        origem: PREMISSA
+    - id: HIP-2
+      tipo: HIPOTESE
+      afirmacao: Sem anúncio, os inscritos dos Estados Unidos na lista chegam a 100 em 60 dias.
+      valor:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+    opcoes:
+    - id: O1
+      nome: Só Brasil
+      o_que_muda: Lança só em português, para o Brasil; o inglês fica fora dos 6 meses.
+    - id: O3
+      nome: Brasil primeiro, inglês com condição
+      o_que_muda: Lança no Brasil e só começa o inglês se a procura dos Estados Unidos passar do limiar do plano de validação
+        e houver revisão técnica em inglês.
+    criterios:
+    - id: CR1
+      criterio: Custo no orçamento
+      por_que_importa: O orçamento mensal tem de cobrir o lançamento inteiro.
+    - id: CR2
+      criterio: Público que já pediu o app
+      por_que_importa: A lista de espera mostra onde está a procura hoje.
+    - id: CR3
+      criterio: Horas do time
+      por_que_importa: O desenvolvimento tem poucas horas por semana.
+    - id: CR4
+      criterio: Qualidade do conteúdo de saúde
+      por_que_importa: Conteúdo dos pilares sem revisão técnica põe em risco a confiança na marca.
+    comparacao:
+    - opcao: O1
+      criterio: CR1
+      avaliacao: Não gasta com tradução; o orçamento vai todo para o lançamento no Brasil.
+      base: DADO-4
+    - opcao: O1
+      criterio: CR2
+      avaliacao: 'Atende quem já pediu: 90,5% da lista é do Brasil.'
+      base: K1
+    - opcao: O1
+      criterio: CR3
+      avaliacao: As 20 horas ficam numa língua só.
+      base: DADO-5
+    - opcao: O1
+      criterio: CR4
+      avaliacao: Todo conteúdo passa pela revisão que já existe em português.
+      base: DADO-6
+    - opcao: O3
+      criterio: CR1
+      avaliacao: Só gasta com tradução se a procura de fora passar do limiar; até lá, custa o mesmo que O1.
+      base: DADO-4, EST-1
+    - opcao: O3
+      criterio: CR2
+      avaliacao: Começa pelos 90,5% do Brasil e mede a procura dos Estados Unidos antes de gastar.
+      base: K1, HIP-2
+    - opcao: O3
+      criterio: CR3
+      avaliacao: Mantém as 20 horas numa língua até o resultado da validação.
+      base: DADO-5
+    - opcao: O3
+      criterio: CR4
+      avaliacao: Mantém a revisão que já existe; o inglês só entra com revisão técnica própria.
+      base: DADO-6
+    contas:
+    - id: K1
+      o_que: Parte da lista que é do Brasil
+      expressao: DADO-2 ÷ DADO-1 × 100
+      resultado:
+        valor: 90.5
+        unidade: '%'
+        origem: CALCULADO
+        ref: K1
+    recomendacao:
+    - opcao: O3
+      por_que: Empata com O1 em custo, horas e revisão e guarda a chance do inglês se a procura dos Estados Unidos crescer.
+      depende_de: HIP-2
+      muda_se: Se HIP-2 não se confirmar (menos de 100 inscritos dos Estados Unidos em 60 dias), O1 passa a ser a recomendada.
+    plano_de_validacao:
+    - premissa: HIP-2
+      indicador: Inscritos dos Estados Unidos na lista de espera
+      como_medir: Contagem por país na lista de espera, que você já tem.
+      caminho: SEM_ACAO_EXTERNA
+      servico: —
+      janela_dias:
+        valor: 60
+        unidade: dias
+        origem: PREMISSA
+      limiar:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+      se_atingir: O3
+      se_nao_atingir: O1
+    riscos:
+    - 'A procura de fora pode crescer devagar sem anúncio em inglês; sinal: a contagem dos Estados Unidos parada por
+      duas semanas.'
+    - 'Tradução sem revisão técnica pode ferir a confiança na marca; sinal: conteúdo de saúde em inglês sem revisor definido.'
+    limites:
+    - O custo da tradução é estimativa; a conta mês a mês é com o SRV-CALCULO.
+    - 'Sem conferência jurídica: regras para dados de usuários de fora do Brasil ficam para o parecer, num roteiro.'
+    - 'Não compara concorrentes: nenhum dado de mercado veio no pacote.'

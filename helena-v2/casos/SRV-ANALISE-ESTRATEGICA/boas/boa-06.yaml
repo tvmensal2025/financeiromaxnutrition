@@ -1,0 +1,13 @@
+# Caso BOM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml (variante CONTA-DETALHADA).
+# A 'resposta' é a saída do Augusto no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: é a ação certa quando falta dado ou o pedido é de outro serviço.
+id: ESTRAT-BOA-06
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+variante: CONTA-DETALHADA
+nota: 'Pedido de conta detalhada: devolve com o serviço certo (SRV-CALCULO).'
+resposta:
+  acao: DEVOLVER_A_QUEM_PEDIU
+  motivo: FORA_DO_SERVICO
+  explicacao: O pedido é uma conta de custo mês a mês, não uma escolha entre caminhos. Quem faz é o serviço SRV-CALCULO
+    (Caio), com os seus números. Se depois quiser comparar caminhos com essa conta, peça a análise.

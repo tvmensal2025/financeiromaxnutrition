@@ -1,0 +1,57 @@
+{
+  "hoje": "2026-10-10",
+  "execucao_id": "EXE-0001",
+  "modelo": {
+    "tipo": "copy",
+    "servico": "SRV-COPY",
+    "limite": 4000,
+    "secoes": [
+      {
+        "id": "texto_do_convite",
+        "titulo": "Texto do convite",
+        "tipo_de_campo": "texto",
+        "obrigatoria": true,
+        "limite_caracteres": 1500
+      },
+      {
+        "id": "chamada_para_acao",
+        "titulo": "Chamada para ação",
+        "tipo_de_campo": "texto",
+        "obrigatoria": true,
+        "limite_caracteres": 300
+      }
+    ],
+    "acoes_permitidas": [
+      "ENTREGAR",
+      "REGISTRAR_FALHA"
+    ],
+    "acao_externa_permitida": [
+      "NENHUMA",
+      "SO_FUNDADOR"
+    ],
+    "acoes_do_fundador": [
+      "AF-COPY-ENVIAR-OU-PUBLICAR"
+    ],
+    "validador": {
+      "proibir_termos_de_ganho": true
+    }
+  },
+  "paginas_lidas": [],
+  "fontes_importadas": [],
+  "links_do_pedido": [
+    "https://www.plataformaexemplo.com.br/termos"
+  ],
+  "decisoes_vigentes": [
+    {
+      "id": "DEC-101",
+      "texto": "Meta da primeira rodada: 10 pessoas.",
+      "valor": "10",
+      "unidade": "pessoas"
+    },
+    {
+      "id": "DEC-102",
+      "texto": "O texto do convite não promete nenhum tipo de retorno."
+    }
+  ],
+  "usou_internet": "NAO"
+}

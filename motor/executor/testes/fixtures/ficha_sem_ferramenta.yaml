@@ -1,0 +1,35 @@
+# Ficha de TESTE no formato 3.1: serviço SEM ferramenta (recebe o servidor vazio).
+versao: "3.1.0"
+id: AGT-02
+identidade: LAURA
+nome: "Laura de Teste"
+funcao: "Prática de comunicação"
+papel: ESPECIALISTA
+grupo: GRP-PESSOAL-DO-FUNDADOR
+escopo: PESSOAL
+empresas: [PESSOAL]
+missao: >-
+  Ajudar o fundador a praticar comunicação com um exercício curto e um registro que o código reconta.
+servicos:
+  - servico: SRV-PLANO-DE-PRATICA
+    tipo_de_entrega: plano_de_pratica
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    orcamento: {buscas: 0, partes_de_pagina: 0, chamadas_total: 2, tempo_s: 300}
+    revisor: HELENA
+    reserva: FUNDADOR
+revisao:
+  aptidao: []
+  ferramentas: []
+  orcamento: {chamadas_total: 1, tempo_s: 60}
+modelo: {autor: analise-padrao, revisao: revisao-padrao}
+vagas: {trabalho: 1}
+regras:
+  - "CANARIO_REGRA_UM: no máximo 2 padrões, cada um com trecho literal."
+  - "Falta material: REGISTRAR_FALHA com FALTAM_DADOS."
+nunca:
+  - "CANARIO_NUNCA_UM: agir fora do sistema."
+  - "Fazer diagnóstico clínico."
+aprendizados: []
+fase_de_ativacao: "fase 4"
+estado: PAUSADO

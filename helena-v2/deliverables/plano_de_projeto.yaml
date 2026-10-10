@@ -1,0 +1,331 @@
+# Tipo de entrega: plano_de_projeto (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: MARINA (AGT-04). Serviço: SRV-PLANO-DE-PROJETO. Revisor titular: AUGUSTO; reserva: FELIPE;
+# você é sempre a última reserva (MAT-03).
+#
+# O que é: o plano de um projeto de UMA empresa, para VOCÊ executar fora do sistema. Marcos com
+# início e prazo em hora de Brasília, dono humano de cada marco (você ou uma pessoa que você nomeou
+# no pedido), dependências, o pronto de cada marco e o primeiro passo (pronto_padrao do catálogo).
+# Não é coordenação de card: fila, prazos do card e avisos são do motor (FORA-COORDENACAO).
+#
+# De onde vem o material: do pedido original do card (suas palavras, gravadas pelo código antes de
+# qualquer IA) e, quando a etapa está num roteiro, das entregas aprovadas de que ela depende. O
+# código guarda o pedido como fonte importada do card (FON-PEDIDO-<card>); é contra ela (ou contra a
+# entrega aprovada) que confere cada trecho. A data em que o card nasceu (criado_em, Brasília) vem
+# do card, nunca da IA.
+#
+# Como as datas se escrevem (o código só aceita assim; A-20 e K-23):
+#   - dia: "AAAA-MM-DD" (ex.: "2026-10-12");
+#   - dia e hora: "AAAA-MM-DDTHH:MM-03:00" (hora de Brasília, sempre -03:00).
+#   - semana: de segunda a domingo, em Brasília.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora" (05),
+# citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): este tipo nunca é julgado pelo parecer
+# (julgado_pelo_parecer: NUNCA) e a faixa do card mostra "sem conferência jurídica".
+
+tipo: plano_de_projeto
+versao: "3.1.0"
+descricao: "Plano de projeto de uma empresa para você executar: escopo tirado do seu pedido, marcos com início, prazo em hora de Brasília, dono humano, dependências e pronto; folga contada pelo código, riscos e o primeiro passo."
+dono: MARINA
+servico: SRV-PLANO-DE-PROJETO
+
+secoes:
+  - id: objetivo
+    titulo: "O que o projeto entrega"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com o resultado do projeto, como está no seu pedido. Não muda o que você pediu."
+  - id: janela
+    titulo: "Janela do projeto"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 1
+    descricao: "Exatamente 1 linha: o primeiro dia do plano, a data final que você deu (com o seu trecho) e as horas por semana que você disse ter."
+    colunas:
+      - {id: inicio, tipo_de_campo: texto, descricao: "Primeiro dia do plano, AAAA-MM-DD; no dia em que o card nasceu ou depois."}
+      - {id: data_final, tipo_de_campo: texto, descricao: "Data final do projeto dita por você, AAAA-MM-DDTHH:MM-03:00 (sem hora no pedido: 18:00). Não é o prazo do card."}
+      - {id: trecho_data_final, tipo_de_campo: citacao, descricao: "Suas palavras sobre a data final: frase inteira ou 12 palavras seguidas do pedido."}
+      - {id: horas_por_semana, tipo_de_campo: numero, descricao: "Horas por semana suas para o projeto (origem DADO_DO_FUNDADOR, com a citação do pedido em que o número aparece)."}
+  - id: escopo
+    titulo: "O que precisa ser feito (do seu pedido)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 12
+    descricao: "Um item por linha, só o que você escreveu (ou o que uma entrega aprovada do card diz), com o trecho e a situação que você deu."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "S1, S2... na ordem do pedido."}
+      - {id: item, tipo_de_campo: texto, descricao: "O item em palavras simples."}
+      - {id: situacao, tipo_de_campo: texto, descricao: "'a fazer' ou 'feito, segundo você' (só quando o seu pedido diz que já está feito)."}
+      - {id: trecho, tipo_de_campo: citacao, descricao: "Frase inteira ou 12 palavras seguidas do pedido (ou da entrega aprovada) que mostram o item."}
+  - id: marcos
+    titulo: "Marcos"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 12
+    descricao: "Um marco por linha, na ordem do prazo. Todo item 'a fazer' do escopo tem pelo menos um marco."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "M1, M2..."}
+      - {id: marco, tipo_de_campo: texto, descricao: "O que fica pronto, em palavras simples."}
+      - {id: escopo, tipo_de_campo: texto, descricao: "Ids dos itens do escopo que o marco atende, separados por vírgula (ex.: 'S2' ou 'S3, S4')."}
+      - {id: dono, tipo_de_campo: texto, descricao: "'Você' ou o nome de uma pessoa como está escrito no seu pedido. Nunca agente, sistema ou personagem."}
+      - {id: inicio, tipo_de_campo: texto, descricao: "Dia em que o marco começa, AAAA-MM-DD."}
+      - {id: prazo, tipo_de_campo: texto, descricao: "Dia e hora em que o marco termina, AAAA-MM-DDTHH:MM-03:00."}
+      - {id: depende_de, tipo_de_campo: texto, descricao: "Ids dos marcos que precisam terminar antes, separados por vírgula, ou 'nenhum'."}
+      - {id: pronto, tipo_de_campo: texto, descricao: "O que se vê quando o marco terminou (um arquivo, uma tela, um painel, um documento, uma resposta)."}
+      - {id: esforco, tipo_de_campo: numero, descricao: "Horas de trabalho do dono no marco (PREMISSA, ou DADO_DO_FUNDADOR com citação)."}
+  - id: folga
+    titulo: "Folga até a data final"
+    tipo_de_campo: numero
+    obrigatoria: true
+    unidade: "dias"
+    descricao: "Dias corridos entre o dia do prazo do último marco e o dia da data final (origem CALCULADO). O código refaz."
+  - id: primeiro_passo
+    titulo: "Primeiro passo"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 1
+    descricao: "Exatamente 1 passo curto que você começa sozinho, num marco que não depende de nenhum outro."
+    colunas:
+      - {id: marco, tipo_de_campo: texto, descricao: "Id do marco do passo (um marco com depende_de 'nenhum')."}
+      - {id: o_que_fazer, tipo_de_campo: texto, descricao: "O passo, numa frase, falando com você."}
+      - {id: quando, tipo_de_campo: texto, descricao: "Dia e hora, AAAA-MM-DDTHH:MM-03:00."}
+      - {id: duracao, tipo_de_campo: numero, descricao: "Minutos, de 5 a 120 (origem PREMISSA)."}
+  - id: riscos
+    titulo: "O que pode atrasar"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "Riscos deste projeto, sobretudo o que depende de terceiro, com o sinal que você percebe cedo e o que fazer."
+    colunas:
+      - {id: risco, tipo_de_campo: texto, descricao: "O que pode acontecer."}
+      - {id: marcos, tipo_de_campo: texto, descricao: "Ids dos marcos afetados, separados por vírgula."}
+      - {id: sinal, tipo_de_campo: texto, descricao: "Como você percebe cedo (com dia, quando houver)."}
+      - {id: o_que_fazer, tipo_de_campo: texto, descricao: "O que você faz se o sinal aparecer."}
+  - id: limites
+    titulo: "O que este plano supõe ou não cobre"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "Premissas (como o esforço estimado) e o que ficou de fora do plano."
+
+limite: 6000
+
+checagens_codigo:
+  - id: CHK-PROJETO-DATAS
+    descricao: "Toda data no formato do tipo: inicio da janela e dos marcos em AAAA-MM-DD; data_final, prazo e quando em AAAA-MM-DDTHH:MM-03:00; dia que existe no calendário, hora de 00:00 a 23:59 e fuso sempre -03:00."
+    fecha_furos: [A-20, K-23]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      dia: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+      dia_e_hora: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}-03:00$"
+      campos_dia: ["janela.inicio", "marcos.inicio"]
+      campos_dia_e_hora: ["janela.data_final", "marcos.prazo", "primeiro_passo.quando"]
+  - id: CHK-PROJETO-JANELA
+    descricao: "Tudo dentro da janela: janela.inicio no dia em que o card nasceu (criado_em, Brasília) ou depois; cada marco começa em janela.inicio ou depois, no dia do próprio prazo ou antes, e termina até janela.data_final; o primeiro passo fica entre criado_em e o prazo do marco dele."
+    fecha_furos: [A-20, K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      data_do_card: "criado_em do card, gravado pelo código"
+      comparacao: "dia com dia e hora com hora, tudo em Brasília (-03:00)"
+  - id: CHK-PROJETO-DEPENDENCIAS
+    descricao: "Dependências coerentes: depende_de só tem 'nenhum' ou ids de marcos que existem, nunca o próprio marco, sem ciclo; e cada marco começa no dia do prazo de cada dependência ou depois, e termina depois do prazo de cada uma."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      sem_dependencia: "nenhum"
+      separador: ","
+  - id: CHK-PROJETO-TRECHOS
+    descricao: "Cada trecho do escopo e o trecho da data final é cópia literal do seu pedido (FON-PEDIDO-<card>) ou de entrega aprovada do card: frase inteira ou 12 palavras seguidas. A citação de horas_por_semana também, e contém o número (em algarismos ou por extenso)."
+    fecha_furos: [C-8, M-15, CONF-18]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      origens_aceitas: ["pedido original do card (FON-PEDIDO-<card>)", "entrega aprovada de etapa de que esta depende"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+  - id: CHK-PROJETO-COBERTURA
+    descricao: "Escopo e marcos se fecham: situação só 'a fazer' ou 'feito, segundo você'; ids do escopo únicos; cada marco aponta para ids do escopo que existem e estão 'a fazer'; todo item 'a fazer' tem pelo menos um marco; item 'feito, segundo você' não tem marco."
+    fecha_furos: [K-13, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      situacoes: ["a fazer", "feito, segundo você"]
+  - id: CHK-PROJETO-DONO
+    descricao: "Dono humano: cada dono é 'Você' ou um nome que aparece no seu pedido original; nunca, sem diferenciar maiúscula e acento, um nome da lista fechada (os 21 agentes, a Helena, o sistema e os personagens da eLiving™)."
+    fecha_furos: [B-17, DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      voce: "Você"
+      outros_donos: "nome que aparece literalmente no pedido original (sem diferenciar maiúscula e acento)"
+      proibidos: ["Helena", "Laura", "Augusto", "Marina", "Caio", "Clara", "Bianca", "Daniel", "Theo", "Nina", "Ravi", "Maya", "Bruno", "Olívia", "Victor", "Camila", "Isabela", "Pedro", "Renata", "Joana", "Felipe", "Sirlene", "Doutor Vital", "Alex", "Rafael", "sistema", "motor", "agente", "IA", "a equipe de agentes"]
+      regra_do_nome_igual: "o dono é recusado quando é IGUAL a um proibido; 'Pedro Alves', escrito assim no pedido, passa"
+  - id: CHK-PROJETO-CAPACIDADE
+    descricao: "Suas horas cabem: o esforço de cada marco seu (dono 'Você') é repartido em partes iguais pelos dias corridos de inicio ao dia do prazo, inclusive; somado por semana (segunda a domingo), nunca passa de janela.horas_por_semana."
+    fecha_furos: [K-8, C-9]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      so_dono: "Você"
+      semana: "segunda a domingo, Brasília"
+      tolerancia_horas: 0.01
+  - id: CHK-PROJETO-FOLGA
+    descricao: "Folga refeita: folga = dias corridos entre o dia do prazo mais tarde dos marcos e o dia de janela.data_final; tem de bater exatamente e ter origem CALCULADO. Folga negativa (marco depois da data final) é recusada pela CHK-PROJETO-JANELA."
+    fecha_furos: [K-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      tolerancia: 0
+      unidade: "dias"
+  - id: CHK-PROJETO-ORIGEM
+    descricao: "Origem dos números: horas_por_semana só DADO_DO_FUNDADOR com citação; esforco só PREMISSA, DADO_DO_FUNDADOR com citação ou ENTREGA_APROVADA com ref, de 0,5 a 200 horas; duracao do primeiro passo só PREMISSA, de 5 a 120 minutos."
+    fecha_furos: [C-9, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      duracao_minutos: {minimo: 5, maximo: 120}
+      esforco_horas: {minimo: 0.5, maximo: 200}
+  - id: CHK-PROJETO-PRIMEIRO-PASSO
+    descricao: "O primeiro passo aponta para um marco que existe e tem depende_de 'nenhum'."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+  # Coordenação de card é do motor (FORA-COORDENACAO); prioridade e prazo do card, só você (M-5).
+  - id: CHK-PROJETO-SEM-COORDENACAO
+    descricao: "Nenhuma promessa de acompanhar, cobrar, lembrar ou mexer em card fora dos trechos citados: nenhum termo da lista fechada (sem diferenciar maiúscula e acento)."
+    fecha_furos: [CONF-20, M-5]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["vou acompanhar", "vou te cobrar", "vou cobrar", "vou te lembrar", "vou lembrar", "te aviso", "eu aviso", "eu acompanho", "acompanharei", "cobrarei", "lembrete automático", "o sistema vai", "o motor vai", "a Helena vai", "a Marina vai", "mover o card", "abrir um card", "criar um card", "mudar a prioridade", "mudei a prioridade", "mudar o prazo do card", "mudei o prazo"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PROJETO-SEM-DINHEIRO
+    descricao: "Nenhum valor em dinheiro fora dos trechos citados: valor, orçamento e custo são do SRV-CALCULO (Caio), onde o código refaz a conta."
+    fecha_furos: [M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      padroes: ["R\\$ ?[0-9]", "US\\$ ?[0-9]", "€ ?[0-9]", "[0-9][0-9.,]* ?(reais|dólares|euros)\\b"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-PROJETO-PACOTE
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (termos_proibidos_em_todo_texto) fora dos trechos citados, sem diferenciar maiúscula e acento."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações"
+
+rubrica:
+  - id: RUB-PROJETO-01
+    pergunta: "Os marcos, juntos, fazem de fato cada item 'a fazer' do escopo, sem faltar trabalho necessário e sem marco que faz coisa que você não pediu?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê que cada item tem um marco ligado, não se o marco basta para o item."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-02
+    pergunta: "O pronto de cada marco é algo que se vê (arquivo, tela, painel, documento, resposta recebida), e não opinião como 'bem encaminhado' ou 'quase pronto'?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê que o pronto existe, não se ele é observável."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-03
+    pergunta: "Falta alguma dependência real (ex.: enviar antes de testar, publicar antes da conta existir), e o que depende de terceiro (loja, banco, fornecedor) aparece nos riscos?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere as dependências escritas; a que falta só aparece entendendo o trabalho."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-04
+    pergunta: "A data final e as horas por semana da janela dizem o mesmo que o trecho do seu pedido citado ao lado (mesmo dia, mesmo número)?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que o trecho é seu, mas não lê data escrita por extenso ('até 18 de dezembro')."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-05
+    pergunta: "Nenhuma frase dá como feito, aprovado ou decidido algo que o seu pedido não diz (ex.: 'as telas já foram aprovadas' quando você só disse que recebeu)?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código só confere a coluna situação; dar algo como feito em outra frase só aparece na leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-06
+    pergunta: "O esforço de cada marco é plausível para o trabalho e para quem o faz (nem horas para o que leva semanas, nem o contrário)?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código soma as horas, mas não sabe quanto um trabalho costuma levar."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-07
+    pergunta: "O primeiro passo é algo que você começa sozinho, no dia e no tempo indicados, sem esperar resposta de ninguém?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Se um passo depende de outra pessoa ou de algo que você não tem só aparece no sentido do texto."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PROJETO-08
+    pergunta: "Nenhum marco, passo ou risco contraria o 'não pode' do card nem o posicionamento do pacote da empresa, mesmo sem usar termo proibido?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada de termos não pega posicionamento errado dito com outras palavras."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica, mais os itens CARD-n de IA do card. Camada 3 (você): NUNCA, porque o
+# serviço não tem ação do fundador nem parecer; você só entra como última reserva da revisão, e
+# nenhum padrão automático aprova.
+criterio_de_pronto:
+  codigo: [CHK-PROJETO-DATAS, CHK-PROJETO-JANELA, CHK-PROJETO-DEPENDENCIAS, CHK-PROJETO-TRECHOS,
+           CHK-PROJETO-COBERTURA, CHK-PROJETO-DONO, CHK-PROJETO-CAPACIDADE, CHK-PROJETO-FOLGA,
+           CHK-PROJETO-ORIGEM, CHK-PROJETO-PRIMEIRO-PASSO, CHK-PROJETO-SEM-COORDENACAO,
+           CHK-PROJETO-SEM-DINHEIRO, CHK-PROJETO-PACOTE]
+  rubrica: [RUB-PROJETO-01, RUB-PROJETO-02, RUB-PROJETO-03, RUB-PROJETO-04, RUB-PROJETO-05,
+            RUB-PROJETO-06, RUB-PROJETO-07, RUB-PROJETO-08]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Se os marcos fazem de fato cada item 'a fazer' do escopo, sem sobrar nem faltar trabalho (RUB-PROJETO-01)."
+  - "Se o pronto de cada marco é algo que se vê, e não opinião (RUB-PROJETO-02)."
+  - "Se falta dependência real e se o que depende de terceiro está nos riscos (RUB-PROJETO-03)."
+  - "Se a data final e as horas por semana batem com o trecho do seu pedido (RUB-PROJETO-04)."
+  - "Se nada é dado como feito, aprovado ou decidido sem você ter dito (RUB-PROJETO-05)."
+  - "Se o esforço de cada marco é plausível (RUB-PROJETO-06)."
+  - "Se o primeiro passo você começa sozinho, sem esperar ninguém (RUB-PROJETO-07)."
+  - "Se nada contraria o 'não pode' do card nem o posicionamento do pacote da empresa (RUB-PROJETO-08)."
+
+revisor_nao_reavalia:
+  - "Formato das datas, janela, dependências escritas, ligação escopo-marco, soma das horas por semana e folga: o código já refez (CHK-PROJETO-DATAS a CHK-PROJETO-FOLGA)."
+  - "Se o trecho existe no seu pedido: o código já conferiu (CHK-PROJETO-TRECHOS)."
+  - "A data final, as horas por semana e as pessoas que você deu: são suas."
+  - "Se o projeto vale a pena ou é a melhor estratégia: não é objeto deste serviço (estratégia é o SRV-ANALISE-ESTRATEGICA)."
+
+entrada_minima:
+  - id: ENT-PROJETO-RESULTADO
+    o_que: "O resultado que o projeto tem de entregar (o que está pronto no fim)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-PROJETO-ESCOPO
+    o_que: "O que precisa ser feito, e o que você já fez, no pedido ou numa entrega aprovada de que a etapa depende."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-PROJETO-DATA-FINAL
+    o_que: "A data final do projeto (dia, ou janela como '30 dias a partir de segunda')."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-PROJETO-HORAS
+    o_que: "Quantas horas por semana você tem para o projeto."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-PROJETO-PACOTE
+    o_que: "Pacote da empresa do card: grafia, voz, proibições e termos proibidos em todo texto."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

@@ -1,0 +1,12 @@
+{
+  "acao": "ENTREGAR",
+  "parecer": "OK",
+  "acao_externa": {
+    "tipo": "SO_FUNDADOR",
+    "acao_do_fundador": "AF-COPY-ENVIAR-OU-PUBLICAR"
+  },
+  "entrega": {
+    "texto_do_convite": "Olá! Estamos formando um grupo pequeno de pessoas curiosas para testar uma plataforma nova de gravação de vídeos.\nA participação é voluntária, sem compromisso, e você pode sair quando quiser. Não prometemos resultado nenhum.",
+    "chamada_para_acao": "Se quiser conhecer, responda esta mensagem com a palavra QUERO e conversamos."
+  }
+}

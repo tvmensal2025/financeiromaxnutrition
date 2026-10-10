@@ -1,0 +1,189 @@
+# Caso de teste do SRV-PARECER (Clara, AGT-06). Caso SINTÉTICO: a legenda, a política de privacidade
+# e a tabela de leis de teste foram escritas para o teste; não são documentos reais da eLiving™.
+#
+# Por que eLiving™ (BIZ-004): o parecer atende Humano Digital e eLiving™ (só pacotes CONFIRMADOS;
+# MAT-23). O caso da Humano Digital, com o roteiro da primeira meta e o passo fixo PF-01 (cadastro na
+# Mimix e no Hub), já aparece no caso do relatório final (casos/SRV-RELATORIO-FINAL/pedido.yaml, E4).
+# Aqui o parecer entra pelo OUTRO caminho do catálogo: o grafo fixo de um serviço SEMPRE julgado
+# (servicos.yaml, montagem_do_plano, SERVICO_SEMPRE_JULGADO): E1 = SRV-COPY (Isabela), E2 = SRV-PARECER
+# (Clara), julga [E1]. O pedido é o exemplo do catálogo "Faz a legenda do post de lançamento da eLiving™".
+#
+# Endereços: as regras da eLiving™ proíbem inventar URL ("Utilizar somente canais oficialmente
+# confirmados"; docs/COMANDO-MASTER-ELIVING.md). Por isso o link da política usa o domínio reservado
+# '.invalid' (RFC 2606: nunca existe na internet). Ele está no lugar do link que você colaria.
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que a Clara recebe junto com o card (grafia, voz, proibições).
+#   2. card: a ordem de serviço (caixa Novo pedido + leitura de volta confirmada) e o plano montado
+#      pelo CÓDIGO, com os revisores efetivos (schemas/card.schema.json).
+#   3. pacote_do_parecer: o que o motor entrega à Clara na E2: a peça julgada em cada versão, a lista
+#      de passos fixos (vazia no avulso), a tabela de leis DE TESTE e as páginas da lista (fitas/).
+#   4. variantes: os pedidos derivados usados pela boa-03 (link sem 'pode ler') e pela boa-04
+#      (público de 13 a 17 anos).
+# Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: CASO-PAR-001
+servico: SRV-PARECER
+agente: AGT-06
+empresa: BIZ-004
+descricao: >-
+  Parecer (E2) sobre a legenda do post de lançamento da eLiving™ no Instagram (E1, SRV-COPY), num card
+  avulso com o grafo fixo do serviço sempre julgado. A legenda promete que os dados ficam só no Brasil,
+  e a política de privacidade (parte 2) diz que podem ficar fora.
+
+pacote_da_empresa:
+  empresa: BIZ-004
+  nome: "eLiving™"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-004
+  grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+  slogan: "Onde sua evolução ganha direção."
+  posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+  pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+  decisoes: [DEC-023]
+  fontes: [docs/COMANDO-MASTER-ELIVING.md, docs/MANUAL-DE-COMPORTAMENTO-AGENTES-ELIVING.md]
+  # LISTA DE TESTE: até você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ).
+  termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "dieta restritiva", "emagrecimento garantido", "promessa de cura"]
+
+card:
+  card_id: "CARD-TESTE-PARECER-01"
+  versao: 6
+  id_mensagem_origem: {canal: APP, numero: "app-20261010-140500-0007"}
+  ordem_de_servico:
+    empresa: BIZ-004
+    prazo: "2026-10-14T18:00:00-03:00"
+    prioridade: 2
+    pedido_original: >-
+      Faz a legenda do post de lançamento da eLiving™ no Instagram. Quero falar dos 4 pilares e passar
+      confiança sobre os dados das pessoas. A política de privacidade (rascunho) está neste link:
+      https://rascunho.eliving-politica.invalid/politica-de-privacidade
+    o_que_quer: "Legenda do post de lançamento da eLiving™ no Instagram, com os 4 pilares e uma frase de confiança sobre os dados."
+    como_e_o_pronto:
+      - {id: CARD-1, texto: "Legenda pronta para publicar, na voz da eLiving™, com os 4 pilares", quem_confere: IA, risco: BAIXO}
+      - {id: CARD-2, texto: "Nada na legenda contradiz a política de privacidade", quem_confere: IA, risco: ALTO}
+      - {id: CARD-3, texto: "Parecer jurídico lido por você antes de publicar", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+    nao_pode:
+      - "Prometer diagnóstico, cura ou resultado"
+      - "Publicar sem o seu ok"
+    fontes_que_pode_ler: ["https://rascunho.eliving-politica.invalid/politica-de-privacidade"]
+  pedido_grande: true          # você marcou "confirmar antes"
+  escolha: {tipo: SERVICO, id: SRV-COPY}
+  plano:
+    origem: SERVICO_SEMPRE_JULGADO
+    versao_do_catalogo: "3.1.0"
+    montado_em: "2026-10-10T14:08:00-03:00"
+    # Revisores EFETIVOS (MAT-21): E1 = [CAIO (APTA em copy), FUNDADOR] (a reserva Camila está SEM_PROVA
+    # e sai); E2 = [HELENA (APTA em parecer), FUNDADOR]. A máquina ainda tira o autor e quem julga a
+    # peça depois (regra 4): a Clara e a Helena nunca revisam a E1.
+    etapas:
+      - {id: E1, servico: SRV-COPY, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR}
+      - {id: E2, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E1], julga: [E1]}
+  estado: EM_ANDAMENTO
+  motivo: NENHUM
+  fim: NENHUM
+  card_anterior: null
+  encaminhamento: null
+  decisoes_versao: "DEC-023 v1"
+  criado_em: "2026-10-10T14:05:00-03:00"
+  atualizado_em: "2026-10-10T14:30:00-03:00"
+
+# O que o motor entrega à Clara na E2 (entrada_minima do parecer).
+etapa_do_parecer: E2
+pacote_do_parecer:
+  pecas_julgadas:
+    E1:
+      servico: SRV-COPY
+      autor: ISABELA
+      revisor: CAIO
+      acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+      # Cada versão é a peça inteira, como o código entrega (seções do tipo copy). A versão 2 é a que
+      # a Isabela entrega depois do AJUSTE do parecer aprovado por você (E82).
+      versoes:
+        1:
+          aprovada_em: "2026-10-10T14:25:00-03:00"
+          versao_final: >-
+            Chegou a eLiving™. Onde sua evolução ganha direção. Agora existe uma inteligência acompanhando
+            sua evolução diária: a Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus
+            exames em linguagem simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância
+            dos seus hábitos. Seus dados de saúde ficam guardados com total segurança, só no Brasil. Baixe e
+            comece hoje.
+          alternativa_curta: "eLiving™: onde sua evolução ganha direção. Seus dados ficam só no Brasil. Baixe hoje."
+          onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+          o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+        2:
+          aprovada_em: "2026-10-10T16:10:00-03:00"
+          versao_final: >-
+            Chegou a eLiving™. Onde sua evolução ganha direção. Agora existe uma inteligência acompanhando
+            sua evolução diária: a Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus
+            exames em linguagem simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância
+            dos seus hábitos. Você escolhe o que registrar; a política de privacidade explica onde seus
+            dados ficam. Baixe e comece hoje. Para maiores de 18 anos.
+          alternativa_curta: "eLiving™: onde sua evolução ganha direção. Para maiores de 18 anos. Baixe hoje."
+          onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+          o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+  passos_fixos: []           # grafo fixo do avulso: nenhum passo fixo (o código diz que a lista é vazia)
+  # Tabela de leis DE TESTE, entregue como fonte importada. AVISO: trechos transcritos só para o teste,
+  # a conferir contra a URL oficial (deliverables/parecer.yaml, CHK-PARECER-LEI-NA-TABELA) antes de
+  # qualquer uso real. Não é a tabela publicada (FON-LEIS-v<n>) e não fundamenta parecer de verdade.
+  tabela_de_leis:
+    fonte_importada_id: FON-LEIS-TESTE-v0
+    linhas:
+      - referencia: "CDC, art. 37, § 1º"
+        lei: CDC
+        texto: "É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou parcialmente falsa, ou, por qualquer outro modo, mesmo por omissão, capaz de induzir em erro o consumidor a respeito da natureza, características, qualidade, quantidade, propriedades, origem, preço e quaisquer outros dados sobre produtos e serviços."
+        nota: nenhuma
+      - referencia: "LGPD, art. 5º, II"
+        lei: LGPD
+        texto: "dado pessoal sensível: dado pessoal sobre origem racial ou étnica, convicção religiosa, opinião política, filiação a sindicato ou a organização de caráter religioso, filosófico ou político, dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa natural;"
+        nota: nenhuma
+      - referencia: "LGPD, art. 11, I"
+        lei: LGPD
+        texto: "quando o titular ou seu responsável legal consentir, de forma específica e destacada, para finalidades específicas;"
+        nota: nenhuma
+      - referencia: "LGPD, art. 14, caput"
+        lei: LGPD
+        texto: "O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor interesse, nos termos deste artigo e da legislação pertinente."
+        nota: nenhuma
+      - referencia: "LGPD, art. 33, caput"
+        lei: LGPD
+        texto: "A transferência internacional de dados pessoais somente é permitida nos seguintes casos:"
+        nota: NOTA-TESTE-01
+    notas:
+      NOTA-TESTE-01: "Nota de TESTE, sem conteúdo jurídico: existe só para provar a CHK-PARECER-NOTA-DE-JURISPRUDENCIA. A tabela publicada traz as notas reais, conferidas."
+    aliases_das_leis: {LGPD: ["LGPD", "Lei Geral de Proteção de Dados"], CDC: ["CDC", "Código de Defesa do Consumidor"]}
+  # Páginas da lista de ler_pagina (só o link que você ligou como 'pode ler'). As respostas da
+  # ferramenta estão gravadas em fitas/ (MEL-31): o teste roda o modelo com a ferramenta simulada.
+  paginas_da_lista:
+    - url: "https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+      leitura_id: LEI-PAR-0001
+      partes_total: 2
+      fitas: [fitas/01-politica-parte-1.yaml, fitas/02-politica-parte-2.yaml]
+  decisoes: ["DEC-023 v1"]
+
+variantes:
+  V-SEM-PODE-LER:
+    o_que_muda: "Você colou o link da política no pedido, mas não ligou 'pode ler': fontes_que_pode_ler fica vazia e o link não entra na lista de ler_pagina."
+    ordem_de_servico: {fontes_que_pode_ler: []}
+    pacote_do_parecer: {paginas_da_lista: []}
+    fita: fitas/03-politica-fora-da-lista.yaml
+    usada_por: [boas/boa-03-fonte-insuficiente.yaml, jornada-falha.yaml]
+  V-ADOLESCENTES:
+    o_que_muda: "Seu pedido pede a legenda para adolescentes de 13 a 17 anos; a peça julgada é a versão abaixo."
+    pedido_original: >-
+      Faz a legenda do post de lançamento da eLiving™ no Instagram para o público de 13 a 17 anos. Quero
+      falar dos 4 pilares. A política de privacidade (rascunho) está neste link:
+      https://rascunho.eliving-politica.invalid/politica-de-privacidade
+    pecas_julgadas:
+      E1:
+        versoes:
+          1:
+            aprovada_em: "2026-10-10T14:25:00-03:00"
+            versao_final: >-
+              Chegou a eLiving™, feita para quem tem de 13 a 17 anos. Onde sua evolução ganha direção. A
+              Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus exames em linguagem
+              simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância dos seus hábitos.
+              Baixe e comece hoje.
+            alternativa_curta: "eLiving™ para quem tem de 13 a 17 anos. Baixe hoje."
+            onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+            o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+    usada_por: [boas/boa-04-nao-pode.yaml]

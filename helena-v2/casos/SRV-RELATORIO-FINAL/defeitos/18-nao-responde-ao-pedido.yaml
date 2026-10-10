@@ -1,0 +1,49 @@
+# Resposta com UM defeito plantado, para o caso pedido.yaml (CASO-REL-001).
+# 'deve_falhar_em' aponta a checagem de código (CHK-) que recusa, ou o critério da rubrica
+# (RUB-) que o revisor marca FALHOU, quando o código deixa passar. Serve ao teste 5 (validador)
+# e ao teste 9 do par revisor x relatorio_final (Clara e Caio).
+
+id: REL-DEF-18
+caso: CASO-REL-001
+defeito_plantado: O resumo conta o processo, mas não diz o que ficou pronto do plano nem o que depende de você.
+deve_falhar_em: RUB-REL-05
+camada: RUBRICA
+veredito_esperado_do_revisor:
+  criterio: RUB-REL-05
+  veredito: FALHOU
+  secao: resumo
+  justificativa: Nenhuma linha diz o que ainda depende de você (horas por semana, parecer, advogado).
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    resumo:
+    - frase: A conta foi feita em três cenários e passou pela revisão.
+      refs: E1
+    - frase: O roteiro de treinamento e o convite passaram pela revisão.
+      refs: E2, E3
+    - frase: O parecer jurídico foi revisado pela revisora e por você.
+      refs: E4, PF-01
+    proximos_passos:
+    - ordem: 1
+      passo: Confirmar se 5 horas por semana por pessoa é o cenário base da conta.
+      depois_de: nada
+      refs: E1
+    - ordem: 2
+      passo: Ler o parecer jurídico inteiro antes de qualquer passo de fora.
+      depois_de: nada
+      refs: E4
+    - ordem: 3
+      passo: Cadastrar a Humano Digital na Mimix e no Hub, como manda o passo fixo do roteiro.
+      depois_de: '2'
+      refs: PF-01, E4
+    - ordem: 4
+      passo: Enviar o convite aprovado às primeiras 10 pessoas, sem mudar o texto.
+      depois_de: '3'
+      refs: AF-COPY-ENVIAR-OU-PUBLICAR, E3
+    - ordem: 5
+      passo: Enviar o roteiro de treinamento aprovado a quem aceitar o convite.
+      depois_de: '4'
+      refs: AF-TREINAMENTO-ENVIAR, E2

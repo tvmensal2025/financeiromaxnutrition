@@ -1,0 +1,142 @@
+# Jornada de ponta a ponta do card do Caio (AGT-05), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O card: o pedido de casos/SRV-CALCULO/pedido.yaml (Humano Digital, BIZ-003, pacote CONFIRMADO).
+# O caminho: seu pedido -> leitura de volta da Helena -> seu CONFIRMO -> plano válido -> etapa na
+# fila -> execução -> portão 1 recusa (conta errada) -> nova execução -> portão 1 ok -> a revisora
+# reprova com critério (premissa vestida de dado de mercado) -> correção -> portão 1 ok -> a
+# revisora aprova -> card pronto.
+#
+# 'automatico: false' de propósito: todo evento do motor aparece escrito aqui, um por linha, para
+# você ver cada passo (como na reprodução do histórico).
+#
+# O plano tem UMA etapa (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO): o serviço é
+# avulso e nunca é julgado pelo parecer (a faixa do card mostra "sem conferência jurídica"). Os
+# revisores são a lista EFETIVA gravada no card: [HELENA, CLARA, FUNDADOR] (as duas já estão APTAS
+# em calculo no catálogo). pulavel: false porque, no avulso, a etapa é o card inteiro. usa_decisao:
+# true porque o card de empresa lê as decisões vigentes dela (DEC-024 e DEC-025 na Humano
+# Digital): se uma mudar, a etapa refaz (DECISAO_MUDOU).
+#
+# As três entregas do Caio são arquivos de casos/SRV-CALCULO:
+#   1ª = defeitos/defeito-01-conta-errada.yaml (K2 declara 160; o código refaz 151,6667);
+#   2ª = defeitos/defeito-22-premissa-como-dado-de-mercado.yaml (passa no código; RUB-CALCULO-04);
+#   3ª = boas/boa-01.yaml.
+#
+# Contas da etapa (TETO_EXECUCOES = 6): entrega 1, entrega 2, reprovação 3, entrega 4, aprovação 5.
+# A recusa do portão 1 não gasta reprovação; reprovações: 1 de 2. Nenhum teto estourado. Nenhuma
+# ação externa nasce: a entrega diz NENHUMA, e o serviço não tem ação do fundador.
+
+id: AGT-05-caio-calculo-ponta-a-ponta
+descricao: "Card da Humano Digital do pedido ao card pronto, com uma recusa do código (CHK-CALCULO-04) e uma reprovação da revisora (RUB-CALCULO-04)."
+agente: AGT-05
+empresa: "Humano Digital (BIZ-003)"
+automatico: false
+card:
+  pedido_grande: true        # você marcou 'confirmar antes' na caixa Novo pedido
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "conta e cenários (Caio, SRV-CALCULO)"
+      autor: CAIO
+      revisores: [HELENA, CLARA, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  # --- O pedido e a confirmação (o card nasce em RASCUNHO pelo código, antes de qualquer IA)
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C01. 'Entendi assim: saber quanto a Humano Digital recebe da plataforma por mês com 10 pessoas gravando 5 horas por semana, em dólar e em reais, em três cenários. Pronto: valor por mês nos três cenários, cada número com a origem, o que pode dar errado. Não pode: tratar previsão como dinheiro certo. Confirma?' Escolha: SRV-CALCULO."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    params: {opcao: CONFIRMO}
+    nota: "C06. Seu toque, com a versão que você viu."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Validador do plano: serviço em ESTAGIO, dono ligado, BIZ-003 nas empresas do serviço e pacote CONFIRMADO (MAT-23); revisores efetivos [HELENA, CLARA, FUNDADOR] (MAT-21). Card EM_ANDAMENTO."
+  # --- A etapa entra na fila e roda
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Sem anteriores: a etapa vai para a fila (motivo NORMAL), numa das 2 vagas do Caio."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1: servidor de ferramentas vazio, 3 chamadas e 600 s (ficha), apelido analise-padrao."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 1ª entrega: defeito-01 (K2 declara 160 horas aprovadas por mês)."
+  - papel: MOTOR
+    evento: PORTAO1_RECUSOU
+    alvo: E1
+    nota: "E43. Portão 1 (código): CHK-CALCULO-04 recusa, 'K2: declarou 160.0, código refez 151.6667'. Volta à fila com o item exato; não gasta reprovação."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2: o Caio recebe o item exato e refaz K2 e as contas que dependem dela."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 2ª entrega: contas certas, mas a premissa V4 diz '70% é a taxa de aprovação que a Mimix e o Hub costumam ter no mercado' (defeito-22)."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: HELENA}
+    nota: "E40. Portão 1 passou (comuns e CHK-CALCULO-01 a 12). Revisora designada: HELENA, a primeira da lista efetiva (não é a autora; ninguém julga esta peça depois)."
+  # --- Revisão: uma reprovação com critério
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+    nota: "E50. Revisão sem ferramenta, apelido revisao-padrao (MAT-10)."
+  - papel: REVISOR
+    evento: REPROVAR
+    alvo: E1
+    ator: HELENA
+    nota: "E57. Veredito RUB-CALCULO-04 FALHOU, seção premissas_a_confirmar, trecho '70% é a taxa de aprovação que a Mimix e o Hub costumam ter no mercado' (o código confere o trecho na entrega): a premissa se passa por dado de mercado sem fonte. Volta ao Caio com o critério; reprovações 1 de 2."
+  # --- Correção
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 3: o Caio recebe o critério reprovado e corrige só a linha da premissa V4."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 3ª entrega: casos/SRV-CALCULO/boas/boa-01.yaml ('Usei 70% no cenário base, 50% no conservador e 90% no otimista: é suposição minha, não é dado da plataforma.')."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: HELENA}
+    nota: "E40. Portão 1 passou de novo. A lista efetiva é congelada: a revisora continua a HELENA."
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+  - papel: REVISOR
+    evento: APROVAR
+    alvo: E1
+    ator: HELENA
+    nota: "E54. Os 8 critérios da rubrica e os itens CARD-3 e CARD-4 PASSOU, cada TRECHO conferido pelo código. Etapa APROVADA."
+  # --- O final
+  - papel: MOTOR
+    evento: TODAS_PRONTAS
+    nota: "C12. Card PRONTO; o sinal CARD_PRONTO leva a E1 a PRONTA (E110). A entrega diz acao_externa NENHUMA: nenhuma ação nasce na sua lista. Embaixo dos números, o card mostra 'contas conferidas pelo código; premissas não' e a premissa V4 para você confirmar."
+  - papel: FUNDADOR
+    evento: APROVAR
+    nota: "Reação (não muda estado): registra a sua aprovação do card pronto. Nada fora do sistema acontece: lançar no financeiro continua sendo ação sua."
+
+esperado:
+  estado_card: PRONTO
+  etapas: {E1: PRONTA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

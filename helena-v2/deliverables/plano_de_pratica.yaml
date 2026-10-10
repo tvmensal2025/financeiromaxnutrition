@@ -1,0 +1,224 @@
+# Tipo de entrega: plano_de_pratica (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: LAURA (AGT-02). Serviço: SRV-PLANO-DE-PRATICA. Revisora titular: HELENA; reserva: FUNDADOR.
+#
+# O que é: o plano de prática de comunicação do fundador, num card PESSOAL. Até 2 padrões tirados
+# do material dele (com trecho literal), 1 exercício curto com critério, e um registro de
+# evolução que o código reconta na próxima tentativa (pronto_padrao do catálogo).
+#
+# De onde vem o material: do pedido original do card (suas palavras, gravadas pelo código antes
+# de qualquer IA). O código guarda esse texto como fonte importada do card (FON-PEDIDO-<card>) e
+# é contra ele que confere os trechos e refaz as contagens. Quando o material tem mais de uma
+# pessoa, as SUAS falas começam com "EU:"; as outras pessoas nunca são citadas nem contadas.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora"
+# (05), citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): este tipo nunca é julgado pelo parecer e
+# a faixa do card mostra "sem conferência jurídica".
+
+tipo: plano_de_pratica
+versao: "3.1.0"
+descricao: "Plano de prática de comunicação do fundador (card PESSOAL): até 2 padrões tirados das falas dele, com trecho literal; 1 exercício curto com critério; e um registro de evolução que o código reconta."
+dono: LAURA
+servico: SRV-PLANO-DE-PRATICA
+
+secoes:
+  - id: objetivo
+    titulo: "O que você quer praticar"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com o objetivo do pedido, nas suas palavras. Não muda o que você pediu."
+  - id: padroes
+    titulo: "O que apareceu na sua fala (até 2)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 2
+    descricao: "Um padrão por linha: o comportamento observável, o trecho literal de uma fala sua e por que atrapalha o objetivo."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "P1 ou P2."}
+      - {id: comportamento, tipo_de_campo: texto, descricao: "O que você disse ou fez, observável no trecho. Nunca traço de personalidade."}
+      - {id: trecho, tipo_de_campo: citacao, descricao: "Frase inteira ou 12 palavras seguidas de uma fala sua, copiadas do material."}
+      - {id: efeito, tipo_de_campo: texto, descricao: "Por que isso atrapalha o objetivo do pedido."}
+  - id: exercicio
+    titulo: "Exercício"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 1
+    descricao: "Exatamente 1 exercício, ligado a um padrão da entrega."
+    colunas:
+      - {id: padrao, tipo_de_campo: texto, descricao: "Id do padrão que o exercício trabalha (P1 ou P2)."}
+      - {id: passos, tipo_de_campo: texto, descricao: "Passos numerados que você faz sozinho."}
+      - {id: duracao, tipo_de_campo: numero, descricao: "Minutos, de 1 a 15."}
+      - {id: criterio, tipo_de_campo: texto, descricao: "Como você sabe, olhando gravação, texto ou relógio, que passou."}
+  - id: registro
+    titulo: "Registro de evolução"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 3
+    descricao: "Contagens nas suas falas que o código refaz hoje e na próxima tentativa, para comparar."
+    colunas:
+      - {id: padrao, tipo_de_campo: texto, descricao: "Id do padrão medido (P1 ou P2)."}
+      - {id: medida, tipo_de_campo: texto, descricao: "O que se conta, em palavras simples."}
+      - {id: marcador, tipo_de_campo: texto, descricao: "A expressão exata contada nas suas falas, ou PALAVRAS para o total de palavras suas."}
+      - {id: hoje, tipo_de_campo: numero, descricao: "Contagem no material deste card (origem CALCULADO)."}
+      - {id: meta, tipo_de_campo: numero, descricao: "Alvo da próxima tentativa (origem PREMISSA), diferente de hoje."}
+  - id: proxima_pratica
+    titulo: "Próxima prática"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 400
+    descricao: "Quando praticar e que material trazer num pedido novo para comparar com hoje."
+  - id: limites
+    titulo: "O que este material não mostra"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 3
+    descricao: "O que não dá para medir com este material (ex.: tom de voz numa transcrição)."
+
+limite: 3000
+
+checagens_codigo:
+  - id: CHK-PRATICA-01
+    descricao: "Cada trecho dos padrões é cópia literal de uma fala sua no material do card (fonte FON-PEDIDO-<card>): frase inteira ou 12 palavras seguidas. Com mais de uma pessoa no material, o trecho está numa linha 'EU:'."
+    fecha_furos: [C-8, M-15, CONF-18]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      origem: "pedido original do card, guardado como fonte importada FON-PEDIDO-<card>"
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      rotulo_do_fundador: "EU:"
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+  - id: CHK-PRATICA-02
+    descricao: "Contagem refeita: para cada linha do registro, o código conta o marcador nas suas falas (palavra inteira, sem diferenciar maiúscula); PALAVRAS = total de palavras suas. 'hoje' tem de bater exatamente e 'meta' tem de ser diferente de 'hoje'."
+    fecha_furos: [K-8, C-9]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      marcador_total: PALAVRAS
+      so_falas_do_fundador: true
+      rotulo_do_fundador: "EU:"
+      tolerancia: 0
+      palavra: "sequência de letras (com acento), dígitos ou hífen interno"
+  - id: CHK-PRATICA-03
+    descricao: "Coerência interna: o exercício aponta para um padrão que existe na entrega, toda linha do registro aponta para um padrão que existe, e o padrão do exercício tem pelo menos uma linha no registro."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PRATICA-04
+    descricao: "Exercício curto: a duração é um número em minutos, de 1 a 15."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      unidade: "minutos"
+      minimo: 1
+      maximo: 15
+  # Sem furo próprio no registro: o mecanismo é o mesmo da C-11 (lista fechada de termos que o
+  # código recusa). Pedido ao catálogo: abrir um furo para "diagnóstico no serviço pessoal".
+  - id: CHK-PRATICA-05
+    descricao: "Sem vocabulário clínico fora dos trechos citados: nenhum termo da lista fechada (sem diferenciar maiúscula, acento ou plural). Dentro do trecho literal, as suas próprias palavras podem aparecer."
+    fecha_furos: [C-11]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["diagnóstico", "transtorno", "ansiedade", "depressão", "depressivo", "TDAH", "autismo", "autista", "fobia", "síndrome", "bipolar", "trauma", "terapia", "terapeuta", "psicólogo", "psiquiatra", "remédio", "medicamento", "patologia", "distúrbio"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  # Sem furo próprio no registro para o escopo PESSOAL (MAT-14): o mais próximo é a C-5 (o
+  # agente recebe só o pacote curto da tarefa). Pedido ao catálogo: furo ou ID para MAT-14.
+  - id: CHK-PRATICA-06
+    descricao: "Sem empresa no card pessoal: nenhum nome ou código de empresa, de plataforma ou de personagem de produto fora dos trechos citados (lista fechada, sem diferenciar maiúscula)."
+    fecha_furos: [C-5]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      nomes: ["iGreen", "Ecossistema de Saúde", "Humano Digital", "eLiving", "E-living", "Eliving", "Iliving", "Mimix", "Sirlene", "Doutor Vital", "BIZ-001", "BIZ-002", "BIZ-003", "BIZ-004"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+
+rubrica:
+  - id: RUB-PRATICA-01
+    pergunta: "Cada padrão descreve o que você disse ou fez no trecho citado, sem rótulo de personalidade nem intenção suposta (ex.: 'você é inseguro', 'você quer agradar')?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Rótulo de personalidade vem em palavras comuns; só a leitura separa comportamento de julgamento da pessoa."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-02
+    pergunta: "Os padrões escolhidos são os que mais atrapalham o objetivo do pedido, e não detalhes menores do material?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Pesar o que mais atrapalha o objetivo é julgamento sobre o material inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-03
+    pergunta: "O exercício tem passos concretos que você consegue fazer sozinho, no tempo indicado, sem depender de outra pessoa nem de algo que você não tenha?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Se um passo é executável por você, sem ajuda, depende do sentido do texto, não de contagem."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-04
+    pergunta: "O critério do exercício é observável: ao terminar, você diz 'passou' ou 'não passou' olhando a gravação, o texto ou o relógio, sem depender de como se sentiu?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê que o critério existe, mas não se ele é observável."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-05
+    pergunta: "A medida do registro mede o padrão do exercício, e repetir a mesma contagem no próximo material dá um número comparável com o de hoje?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código reconta o número, mas não sabe se a contagem mede o padrão certo."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-06
+    pergunta: "O texto fala com você com respeito e de forma direta, sem ironia, sermão, elogio vazio nem promessa de resultado?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Tom e promessa disfarçada dependem da leitura do texto inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-07
+    pergunta: "A entrega fica só em como você se comunica, sem dizer o conteúdo do negócio (o que oferecer, prometer, cobrar ou que estratégia seguir), mesmo sem citar empresa?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código barra nomes da lista fechada; conselho de negócio sem nome só aparece na leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PRATICA-08
+    pergunta: "Nenhuma frase sugere diagnóstico, tratamento ou causa emocional da sua fala, mesmo com palavras comuns (ex.: 'isso vem de um medo antigo')?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada de termos clínicos não pega diagnóstico dito com palavras comuns."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo.
+# Camada 2 (rubrica): toda a rubrica. Camada 3 (você): NUNCA, porque o serviço não tem ação do
+# fundador nem parecer; você só entra como última reserva da revisão, e nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-PRATICA-01, CHK-PRATICA-02, CHK-PRATICA-03, CHK-PRATICA-04, CHK-PRATICA-05, CHK-PRATICA-06]
+  rubrica: [RUB-PRATICA-01, RUB-PRATICA-02, RUB-PRATICA-03, RUB-PRATICA-04, RUB-PRATICA-05, RUB-PRATICA-06, RUB-PRATICA-07, RUB-PRATICA-08]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Se cada padrão fala do que você disse ou fez, e não de quem você é (RUB-PRATICA-01)."
+  - "Se os padrões são os que mais atrapalham o objetivo do pedido (RUB-PRATICA-02)."
+  - "Se o exercício é executável por você, sozinho, no tempo dado (RUB-PRATICA-03)."
+  - "Se o critério do exercício dá 'passou' ou 'não passou' sem depender de sensação (RUB-PRATICA-04)."
+  - "Se a medida do registro mede o padrão do exercício e é comparável na próxima vez (RUB-PRATICA-05)."
+  - "Tom respeitoso e direto, sem promessa de resultado (RUB-PRATICA-06)."
+  - "Nenhum conteúdo de negócio e nenhum diagnóstico, mesmo ditos com palavras comuns (RUB-PRATICA-07 e 08)."
+
+revisor_nao_reavalia:
+  - "Se o trecho existe no seu material e se as contagens batem: o código já conferiu (CHK-PRATICA-01 e 02)."
+  - "O objetivo que você escolheu para a prática: é seu."
+  - "A fala de outra pessoa que aparece no material: ninguém a avalia."
+
+entrada_minima:
+  - id: ENT-PRATICA-OBJETIVO
+    o_que: "O que você quer praticar e para quê (a habilidade ou a situação)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-PRATICA-MATERIAL
+    o_que: "Material seu e literal de uma tentativa recente (transcrição, texto ou mensagem); com outras pessoas, as suas falas marcadas 'EU:'."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA

@@ -1,0 +1,102 @@
+# Jornada de FALHA do card do Augusto (AGT-03), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O pedido (Humano Digital, BIZ-003, pacote CONFIRMADO; pedido pequeno, sem 'confirmar antes'):
+#   "Quais são 3 caminhos para a Humano Digital crescer sem contratar ninguém? Hoje são 10
+#    pessoas gravando na Mimix e no Hub."
+# Tem dado do negócio, mas falta o horizonte (ENT-ESTRATEGIA-HORIZONTE): 3 meses e 12 meses dão
+# caminhos diferentes. O Augusto não adivinha: PERGUNTAR uma vez, com A/B/C.
+#
+# A resposta do Augusto nesta jornada (formato schemas/acao.schema.json, PERGUNTAR):
+#   acao: PERGUNTAR
+#   pergunta: "Para qual horizonte você quer os caminhos de crescimento da Humano Digital sem
+#              contratar ninguém?"
+#   opcoes:
+#     - {letra: A, texto: "Próximos 3 meses", consequencia: "Caminhos com a operação de hoje,
+#        sem produto novo."}
+#     - {letra: B, texto: "Próximos 6 meses", consequencia: "Cabe testar uma plataforma nova
+#        antes de apostar nela."}
+#     - {letra: C, texto: "Próximos 12 meses", consequencia: "Entram caminhos que pedem
+#        automação ou parceria."}
+#   recomendacao: B
+#
+# O caminho: a pergunta vira espera INTERNA, com você de dono -> você não responde -> lembrete
+# em 24 h -> lembrete em 48 h -> o padrão encerra a etapa como CANCELADA (fim PADRAO). O padrão
+# NUNCA aprova nem inventa o horizonte. Com a etapa falhada, o card chama VOCÊ (C13, motivo
+# DEPENDENCIA), com dono e prazo: suas opções são REFAZER (C19: a etapa recomeça e volta à fila,
+# e uma resposta sua que chegar atrasada viaja com ela) ou ENCERRAR (C21: card ENCERRADO_COM_FALHA).
+# PULAR não aparece: no avulso a etapa é o card inteiro (pulavel: false); se chegar, vira
+# comentário no card, sem mudar nada. Se você também não responder ao card: lembrete em
+# 24 h e 48 h e depois o padrão, que fecha o card CANCELADO (C07-C09), nunca aprovado.
+#
+# A Helena não entra aqui: falta de resposta a uma pergunta não passa por EM_RESOLUCAO, então
+# não há recomendação dela (E100); quem decide é você.
+#
+# Contas: execuções 1 de 6 (a pergunta conta, E21); perguntas do card 1 de 2; lembretes da etapa
+# 2 de 2 (TETO_LEMBRETES). Nenhum teto estourado; nenhuma ação externa nasce.
+
+id: AGT-03-augusto-pergunta-sem-resposta
+descricao: "Card da Humano Digital sem horizonte: o Augusto pergunta em vez de adivinhar, você não responde, o padrão cancela a etapa sem aprovar nada e o card chama você."
+agente: AGT-03
+empresa: "Humano Digital (BIZ-003)"
+automatico: false
+card:
+  pedido_grande: false       # pedido pequeno: vale na hora, com o botão de desfazer (Cancelar)
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "análise estratégica (Augusto)"
+      autor: AUGUSTO
+      revisores: [RAVI, CAIO, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C02. Pedido pequeno: escolha SRV-ANALISE-ESTRATEGICA, sem pergunta de confirmação."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. BIZ-003 nas empresas do serviço e pacote CONFIRMADO (MAT-23). Card EM_ANDAMENTO."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Etapa na fila (motivo NORMAL)."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1."
+  - papel: AUTOR
+    evento: PERGUNTAR
+    alvo: E1
+    params: {usou_internet: NAO}
+    nota: "E21. Falta ENT-ESTRATEGIA-HORIZONTE. Pergunta com A/B/C (acima); sem internet, então perguntar é permitido. Etapa ESPERANDO_FUNDADOR, motivo PERGUNTA, espera INTERNA (o código decide; não há prazo de terceiro)."
+  - papel: RELOGIO
+    evento: LEMBRETE_24H
+    alvo: E1
+    nota: "E89. Você não respondeu em 24 h: primeiro lembrete."
+  - papel: RELOGIO
+    evento: LEMBRETE_48H
+    alvo: E1
+    nota: "E90. Segundo lembrete, em 48 h."
+  - papel: RELOGIO
+    evento: PRAZO_ESPERA_VENCIDO
+    alvo: E1
+    nota: "E91. Depois dos 2 lembretes, o padrão: a etapa fecha CANCELADA com fim PADRAO. Nada é aprovado e nenhum horizonte é escolhido por ninguém."
+  - papel: MOTOR
+    evento: PERGUNTAR_AO_FUNDADOR
+    nota: "C13. A etapa falhou e ninguém decidiu: o card espera VOCÊ (motivo DEPENDENCIA), com prazo. Opções: REFAZER ou ENCERRAR."
+
+esperado:
+  estado_card: ESPERANDO_FUNDADOR
+  etapas: {E1: CANCELADA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

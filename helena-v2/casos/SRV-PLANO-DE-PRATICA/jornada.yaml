@@ -1,0 +1,134 @@
+# Jornada de ponta a ponta do card da Laura (AGT-02), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O card: o pedido de casos/SRV-PLANO-DE-PRATICA/pedido.yaml (card PESSOAL, sem pacote de empresa).
+# O caminho: seu pedido -> leitura de volta da Helena -> seu CONFIRMO -> plano válido -> etapa na
+# fila -> execução -> portão 1 recusa (contagem errada) -> nova execução -> portão 1 ok ->
+# revisora reprova com critério -> correção -> portão 1 ok -> revisora aprova -> card pronto.
+#
+# 'automatico: false' de propósito: todo evento do motor aparece escrito aqui, um por linha,
+# para você ver cada passo (como na reprodução do histórico).
+#
+# O plano tem UMA etapa (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO): o serviço da
+# Laura é avulso, nunca é julgado pelo parecer e não entra em roteiro. Os revisores são a lista
+# EFETIVA gravada no card: [HELENA, FUNDADOR]. Ela supõe a Helena já APTA em plano_de_pratica
+# (teste 9 + seu toque), condição para o serviço ir a ESTAGIO (MAT-12); hoje está SEM_PROVA.
+# usa_decisao: false porque o card PESSOAL não recebe decisão de empresa.
+#
+# Contas da etapa (TETO_EXECUCOES = 6): entrega 1, entrega 2, reprovação 3, entrega 4,
+# aprovação 5. Nenhum teto estourado; nenhuma ação externa nasce (a entrega diz NENHUMA).
+
+id: AGT-02-laura-plano-de-pratica-ponta-a-ponta
+descricao: "Card PESSOAL da Laura do pedido ao card pronto, com uma recusa do código (contagem) e uma reprovação da revisora (RUB-PRATICA-01)."
+agente: AGT-02
+empresa: PESSOAL
+automatico: false
+card:
+  pedido_grande: true        # você marcou 'confirmar antes' na caixa Novo pedido
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "plano de prática (Laura)"
+      autor: LAURA
+      revisores: [HELENA, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: false
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  # --- O pedido e a confirmação (o card nasce em RASCUNHO pelo código, antes de qualquer IA)
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C01. 'Entendi assim: treinar a apresentação do seu projeto para caber em 1 minuto, a partir da gravação de ontem. Pronto: até 2 padrões com trecho, contagens comparáveis, 1 exercício de até 15 min. Não pode: falar do negócio. Confirma?' Escolha: SRV-PLANO-DE-PRATICA."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    params: {opcao: CONFIRMO}
+    nota: "C06. Seu toque, com a versão que você viu."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Validador do plano: card PESSOAL só com SRV-PLANO-DE-PRATICA (MAT-14); revisores efetivos [HELENA, FUNDADOR] (MAT-21). Card EM_ANDAMENTO."
+  # --- A etapa entra na fila e roda
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Sem anteriores: a etapa vai para a fila (motivo NORMAL), na vaga da Laura."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1: servidor de ferramentas vazio, 2 chamadas e 300 s (ficha)."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 1ª entrega: igual à boa-01, mas com 7 'né' no registro (contou a fala do OUVINTE): é o defeito-03."
+  - papel: MOTOR
+    evento: PORTAO1_RECUSOU
+    alvo: E1
+    nota: "E43. Portão 1 (código): CHK-PRATICA-02 recusa, \"'né': hoje 7, o código contou 6\". Volta à fila com o item exato."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 2ª entrega: contagens certas, mas o P1 diz 'Você é inseguro e por isso enrola...': é o defeito-12."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: HELENA}
+    nota: "E40. Portão 1 passou (comuns e CHK-PRATICA-01 a 06). Revisora designada: HELENA, a primeira da lista efetiva (não é a autora; ninguém julga esta peça depois)."
+  # --- Revisão: uma reprovação com critério
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+    nota: "E50. Revisão sem ferramenta, apelido revisao-padrao."
+  - papel: REVISOR
+    evento: REPROVAR
+    alvo: E1
+    ator: HELENA
+    nota: "E57. Veredito RUB-PRATICA-01 FALHOU, seção padroes, trecho 'Você é inseguro e por isso enrola antes de dizer o que o projeto é.' (o código confere o trecho na entrega). Volta à Laura com o critério; reprovações 1 de 2."
+  # --- Correção
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 3: a Laura recebe o critério reprovado e corrige só o P1."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 3ª entrega: casos/SRV-PLANO-DE-PRATICA/boas/boa-01.yaml."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: HELENA}
+    nota: "E40. Portão 1 passou de novo. A lista efetiva é congelada: a revisora continua a HELENA."
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+  - papel: REVISOR
+    evento: APROVAR
+    alvo: E1
+    ator: HELENA
+    nota: "E54. Todos os 8 critérios PASSOU, cada TRECHO conferido pelo código. Etapa APROVADA."
+  # --- O final
+  - papel: MOTOR
+    evento: TODAS_PRONTAS
+    nota: "C12. Card PRONTO; o sinal CARD_PRONTO leva a E1 a PRONTA (E110). A entrega diz acao_externa NENHUMA: nenhuma ação nasce na sua lista."
+  - papel: FUNDADOR
+    evento: APROVAR
+    nota: "Reação (não muda estado): registra a sua aprovação do card pronto. Nada fora do sistema acontece."
+
+esperado:
+  estado_card: PRONTO
+  etapas: {E1: PRONTA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

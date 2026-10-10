@@ -1,0 +1,271 @@
+# Caso RUIM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml.
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x analise_estrategica (Ravi e Caio).
+id: ESTRAT-RUIM-19
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01.yaml
+defeito_plantado: O2 virou uma opção feita para perder (6 línguas de uma vez).
+deve_falhar_em: RUB-ESTRATEGIA-05
+portao: 2 (revisor)
+passa_no_codigo: true
+veredito_esperado_do_revisor:
+  criterio: RUB-ESTRATEGIA-05
+  veredito: FALHOU
+  secao: opcoes
+  trecho: Lança no mesmo dia em português, inglês, espanhol, francês, alemão e italiano, para o mundo todo.
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    decisao: Lançar a eLiving™ só no Brasil, em português, ou já com a versão em inglês, pensando nos próximos 6 meses.
+    premissas:
+    - id: DADO-1
+      tipo: DADO
+      afirmacao: A lista de espera tem 420 e-mails.
+      valor:
+        valor: 420
+        unidade: e-mails
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-2
+      tipo: DADO
+      afirmacao: 380 pessoas da lista são do Brasil.
+      valor:
+        valor: 380
+        unidade: pessoas
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-3
+      tipo: DADO
+      afirmacao: 25 pessoas da lista são dos Estados Unidos.
+      valor:
+        valor: 25
+        unidade: pessoas
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: 'A lista de espera tem 420 e-mails: 380 do Brasil e 40 de fora, sendo 15 de Portugal e 25 dos
+          Estados Unidos.'
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-4
+      tipo: DADO
+      afirmacao: O orçamento do lançamento é de R$ 6.000 por mês.
+      valor:
+        valor: 6000
+        unidade: R$ por mês
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: Tenho R$ 6.000 por mês para o lançamento, somando anúncio, ferramentas e o freelancer.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-5
+      tipo: DADO
+      afirmacao: O desenvolvedor trabalha 20 horas por semana.
+      valor:
+        valor: 20
+        unidade: horas por semana
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: O time é só eu e um desenvolvedor freelancer de 20 horas por semana.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-6
+      tipo: DADO
+      afirmacao: A revisão técnica do conteúdo dos pilares só existe em português.
+      prova:
+        trecho_original: O conteúdo dos 4 pilares é revisado por uma nutricionista e um médico que só trabalham em português.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: EST-1
+      tipo: ESTIMATIVA
+      afirmacao: Traduzir as telas e o conteúdo dos 4 pilares para o inglês, com revisão técnica, custa cerca de R$ 9.000
+        de uma vez.
+      valor:
+        valor: 9000
+        unidade: R$
+        origem: PREMISSA
+    - id: EST-2
+      tipo: ESTIMATIVA
+      afirmacao: Manter duas línguas toma cerca de 5 horas por semana do desenvolvedor.
+      valor:
+        valor: 5
+        unidade: horas por semana
+        origem: PREMISSA
+    - id: HIP-1
+      tipo: HIPOTESE
+      afirmacao: Pelo menos 30% da lista do Brasil cria conta nos primeiros 28 dias depois do lançamento.
+      valor:
+        valor: 30
+        unidade: '%'
+        origem: PREMISSA
+    - id: HIP-2
+      tipo: HIPOTESE
+      afirmacao: Sem anúncio, os inscritos dos Estados Unidos na lista chegam a 100 em 60 dias.
+      valor:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+    opcoes:
+    - id: O1
+      nome: Só Brasil
+      o_que_muda: Lança só em português, para o Brasil; o inglês fica fora dos 6 meses.
+    - id: O2
+      nome: Todas as línguas de uma vez
+      o_que_muda: Lança no mesmo dia em português, inglês, espanhol, francês, alemão e italiano, para o mundo todo.
+    - id: O3
+      nome: Brasil primeiro, inglês com condição
+      o_que_muda: Lança no Brasil e só começa o inglês se a procura dos Estados Unidos passar do limiar do plano de validação
+        e houver revisão técnica em inglês.
+    criterios:
+    - id: CR1
+      criterio: Custo no orçamento
+      por_que_importa: O orçamento mensal tem de cobrir o lançamento inteiro.
+    - id: CR2
+      criterio: Público que já pediu o app
+      por_que_importa: A lista de espera mostra onde está a procura hoje.
+    - id: CR3
+      criterio: Horas do time
+      por_que_importa: O desenvolvimento tem poucas horas por semana.
+    - id: CR4
+      criterio: Qualidade do conteúdo de saúde
+      por_que_importa: Conteúdo dos pilares sem revisão técnica põe em risco a confiança na marca.
+    comparacao:
+    - opcao: O1
+      criterio: CR1
+      avaliacao: Não gasta com tradução; o orçamento vai todo para o lançamento no Brasil.
+      base: DADO-4
+    - opcao: O1
+      criterio: CR2
+      avaliacao: 'Atende quem já pediu: 90,5% da lista é do Brasil.'
+      base: K1
+    - opcao: O1
+      criterio: CR3
+      avaliacao: As 20 horas ficam numa língua só.
+      base: DADO-5
+    - opcao: O1
+      criterio: CR4
+      avaliacao: Todo conteúdo passa pela revisão que já existe em português.
+      base: DADO-6
+    - opcao: O2
+      criterio: CR1
+      avaliacao: A tradução estimada consumiria 1,5 mês do orçamento antes do lançamento.
+      base: EST-1, K3
+    - opcao: O2
+      criterio: CR2
+      avaliacao: Atende também quem está fora, mas só 5,95% da lista é dos Estados Unidos.
+      base: K2
+    - opcao: O2
+      criterio: CR3
+      avaliacao: Pela estimativa, duas línguas tomariam 25% das horas do desenvolvedor.
+      base: EST-2, K4
+    - opcao: O2
+      criterio: CR4
+      avaliacao: O conteúdo em inglês não tem quem o revise hoje.
+      base: DADO-6
+    - opcao: O3
+      criterio: CR1
+      avaliacao: Só gasta com tradução se a procura de fora passar do limiar; até lá, custa o mesmo que O1.
+      base: DADO-4, EST-1
+    - opcao: O3
+      criterio: CR2
+      avaliacao: Começa pelos 90,5% do Brasil e mede a procura dos Estados Unidos antes de gastar.
+      base: K1, HIP-2
+    - opcao: O3
+      criterio: CR3
+      avaliacao: Mantém as 20 horas numa língua até o resultado da validação.
+      base: DADO-5
+    - opcao: O3
+      criterio: CR4
+      avaliacao: Mantém a revisão que já existe; o inglês só entra com revisão técnica própria.
+      base: DADO-6
+    contas:
+    - id: K1
+      o_que: Parte da lista que é do Brasil
+      expressao: DADO-2 ÷ DADO-1 × 100
+      resultado:
+        valor: 90.5
+        unidade: '%'
+        origem: CALCULADO
+        ref: K1
+    - id: K2
+      o_que: Parte da lista que é dos Estados Unidos
+      expressao: DADO-3 ÷ DADO-1 × 100
+      resultado:
+        valor: 5.95
+        unidade: '%'
+        origem: CALCULADO
+        ref: K2
+    - id: K3
+      o_que: Meses de orçamento que a tradução estimada consome
+      expressao: EST-1 ÷ DADO-4
+      resultado:
+        valor: 1.5
+        unidade: meses
+        origem: CALCULADO
+        ref: K3
+    - id: K4
+      o_que: Parte das horas do desenvolvedor que duas línguas tomariam, pela estimativa
+      expressao: EST-2 ÷ DADO-5 × 100
+      resultado:
+        valor: 25
+        unidade: '%'
+        origem: CALCULADO
+        ref: K4
+    recomendacao:
+    - opcao: O3
+      por_que: Empata com O1 em custo, horas e revisão e, ao contrário de O1, guarda a chance do inglês se a procura
+        dos Estados Unidos crescer. O2 perde em custo, horas e revisão.
+      depende_de: HIP-1, HIP-2
+      muda_se: Se HIP-2 não se confirmar (menos de 100 inscritos dos Estados Unidos em 60 dias), fica O1 nos 6 meses.
+        Se HIP-1 falhar (menos de 30% da lista do Brasil com conta em 28 dias), fica O1 e o foco é o produto no Brasil.
+    plano_de_validacao:
+    - premissa: HIP-1
+      indicador: Contas criadas por quem está na lista do Brasil, em % dos 380
+      como_medir: Cruzar o cadastro do app com a lista de espera, que você já tem.
+      caminho: SEM_ACAO_EXTERNA
+      servico: —
+      janela_dias:
+        valor: 28
+        unidade: dias
+        origem: PREMISSA
+      limiar:
+        valor: 30
+        unidade: '%'
+        origem: PREMISSA
+      se_atingir: O3
+      se_nao_atingir: O1
+    - premissa: HIP-2
+      indicador: Inscritos dos Estados Unidos na lista de espera
+      como_medir: Contagem por país na lista de espera, que você já tem.
+      caminho: SEM_ACAO_EXTERNA
+      servico: —
+      janela_dias:
+        valor: 60
+        unidade: dias
+        origem: PREMISSA
+      limiar:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+      se_atingir: O3
+      se_nao_atingir: O1
+    riscos:
+    - 'A procura de fora pode crescer devagar sem anúncio em inglês; sinal: a contagem dos Estados Unidos parada por
+      duas semanas.'
+    - 'Se a lista do Brasil não virar conta, o problema é o produto, não a língua; sinal: poucas contas na primeira semana.'
+    - 'Tradução sem revisão técnica pode ferir a confiança na marca; sinal: conteúdo de saúde em inglês sem revisor definido.'
+    limites:
+    - O custo da tradução é estimativa; a conta mês a mês é com o SRV-CALCULO.
+    - 'Sem conferência jurídica: regras para dados de usuários de fora do Brasil ficam para o parecer, num roteiro.'
+    - 'Não compara concorrentes: nenhum dado de mercado veio no pacote.'

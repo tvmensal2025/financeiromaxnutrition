@@ -1,0 +1,15 @@
+# Caso BOM do SRV-CALCULO (Caio, AGT-05) para o pedido ../pedido.yaml (variante SEM-VALOR).
+# A 'resposta' é a saída do Caio no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: falta número que só você sabe (ENT-CALCULO-NUMEROS e ENT-CALCULO-CAMBIO, se_faltar
+# REGISTRAR_FALHA). Diz exatamente o que falta e não inventa valor nem cotação.
+id: CALC-BOA-04
+servico: SRV-CALCULO
+pedido: ../pedido.yaml
+variante: SEM-VALOR
+nota: Registra a falta com o motivo FALTAM_DADOS e os dois números que faltam.
+resposta:
+  acao: REGISTRAR_FALHA
+  motivo_falha: FALTAM_DADOS
+  explicacao: 'Faltam dois números que só você sabe: quanto a plataforma paga à empresa por hora (e se é por hora
+    gravada ou aprovada) e a cotação do dólar com a data, porque o pedido quer o valor em reais. Sem eles, qualquer
+    valor seria inventado.'

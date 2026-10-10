@@ -1,0 +1,91 @@
+# Jornada de FALHA do card da Laura (AGT-02), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O pedido: "Quero praticar pedir as coisas de forma mais direta nas reuniões." (card PESSOAL,
+# pedido pequeno), SEM nenhum material seu: nem transcrição, nem texto, nem mensagem.
+# O caminho: cota esgotada no meio da execução (não gasta tentativa) -> capacidade volta ->
+# a Laura não inventa nada: REGISTRAR_FALHA com motivo FALTAM_DADOS (entrada ENT-PRATICA-MATERIAL)
+# -> em resolução -> a Helena recomenda -> VOCÊ é chamado, com dono e prazo.
+#
+# A resposta da Laura nesta jornada (formato schemas/acao.schema.json, REGISTRAR_FALHA):
+#   acao: REGISTRAR_FALHA
+#   motivo_falha: FALTAM_DADOS
+#   explicacao: "Falta o seu material: cole a transcrição, o texto ou a mensagem de uma tentativa
+#                recente de pedir algo, com as suas falas marcadas 'EU:'. Sem ele, não há trecho
+#                para citar nem o que contar."
+#
+# A Helena NÃO participou desta peça (a falha veio antes de qualquer revisão), então a MAT-26 não
+# se aplica e o motor pede a recomendação dela. Ela recomenda ENCERRAR: sem o material, um
+# Refazer falharia de novo. Se ela não responder em 30 min, o relógio leva o cartão a você do
+# mesmo jeito (E101). Você decide: Encerrar (e abrir um pedido novo com o material) ou Refazer
+# (uma vez). Se você não responder: lembrete em 24 h e 48 h e depois o padrão, que cancela a
+# etapa e nunca aprova nada (E89-E91).
+
+id: AGT-02-laura-falta-material
+descricao: "Card PESSOAL sem material: cota esgotada no caminho, a Laura registra FALTAM_DADOS em vez de inventar e o card chama você."
+agente: AGT-02
+empresa: PESSOAL
+automatico: false
+card:
+  pedido_grande: false       # pedido pequeno: vale na hora, com o botão de desfazer (Cancelar)
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "plano de prática (Laura)"
+      autor: LAURA
+      revisores: [HELENA, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: false
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C02. Pedido pequeno: escolha SRV-PLANO-DE-PRATICA, sem pergunta de confirmação."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Card PESSOAL com o serviço da Laura (MAT-14). Card EM_ANDAMENTO."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Etapa na fila (motivo NORMAL)."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1."
+  - papel: MOTOR
+    evento: FALHA_INFRA
+    alvo: E1
+    params: {classe: COTA}
+    nota: "E32. Cota esgotada no meio: a execução não conta como tentativa; a etapa volta à fila com motivo CAPACIDADE e hora de voltar (aviso em 1 h; em 6 h você escolheria)."
+  - papel: MOTOR
+    evento: CAPACIDADE_VOLTOU
+    alvo: E1
+    nota: "E14. A cota voltou antes do aviso: motivo NORMAL de novo, sem ordem sua."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2 (a 1ª de verdade: a da cota não gastou tentativa)."
+  - papel: AUTOR
+    evento: REGISTRAR_FALHA
+    alvo: E1
+    params: {motivo_falha: FALTAM_DADOS, usou_internet: NAO}
+    nota: "E23. Falta ENT-PRATICA-MATERIAL. A Laura não inventa fala nem contagem. Etapa EM_RESOLUCAO (dona: Helena, prazo 30 min)."
+  - papel: HELENA
+    evento: RECOMENDAR
+    alvo: E1
+    params: {opcao: ENCERRAR}
+    nota: "E100. Recomendação da lista fechada: ENCERRAR (sem o material, Refazer falharia de novo). O cartão vai a você com o motivo e a recomendação."
+
+esperado:
+  estado_card: EM_ANDAMENTO
+  etapas: {E1: ESPERANDO_FUNDADOR}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

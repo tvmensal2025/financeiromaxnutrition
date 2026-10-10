@@ -1,0 +1,109 @@
+# Jornada de ponta a ponta do card da Helena (AGT-01), lida por maquina/provar.py replay().
+# Formato: maquina/jornada.schema.json. Mesmo card de pedido.yaml (CASO-REL-001): roteiro
+# recrutar-10-pessoas, Humano Digital (BIZ-003).
+#
+# A Helena aparece nos três papéis, cada um no seu estado separado:
+#   - coordenação (HELENA): lê de volta o pedido e sugere prazo (vira item na sua lista, nunca muda o prazo);
+#   - revisão (REVISOR): revisa a conta (E1) e o parecer (E4);
+#   - autora (AUTOR): escreve o relatório final (E5), que é recusado pelo portão 1, reprovado pela
+#     revisora com critério, corrigido e aprovado.
+# Os eventos determinísticos do motor (plano válido, etapa na fila, início de execução e de revisão,
+# card pronto) são disparados pelo replay ('automatico: true') e ficam no histórico.
+# Revisores de cada etapa = revisores efetivos do plano do card (pedido.yaml), na mesma ordem.
+# Neutra quanto ao motor: só eventos da tabela maquina/passagens.yaml.
+
+id: AGT-01-helena-relatorio-ponta-a-ponta
+descricao: >-
+  Pedido seu na caixa Novo pedido, leitura de volta, seu CONFIRMO, plano por roteiro, conta, treinamento
+  e convite em paralelo, parecer com o seu segundo Aprovar, relatório final com uma recusa do portão 1
+  (número sem origem), uma reprovação da Clara (RUB-REL-02, risco suavizado), correção e aprovação;
+  card pronto, e as duas ações do fundador nascem na sua lista.
+agente: AGT-01
+empresa: "Humano Digital (BIZ-003)"
+automatico: true
+card:
+  pedido_grande: true     # você marcou "confirmar antes" e a escolha é um roteiro
+  plano_valido: true
+roteiro:
+  etapas:
+    - id: E1
+      nome: "conta da receita (SRV-CALCULO)"
+      autor: CAIO
+      revisores: [HELENA, CLARA, FUNDADOR]
+      depende_de: []
+      internet: false
+      pulavel: false
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    - id: E2
+      nome: "roteiro de treinamento (SRV-ROTEIRO-TREINAMENTO), julgado pela E4"
+      autor: ISABELA
+      revisores: [CAIO, FUNDADOR]
+      depende_de: []
+      internet: false
+      pulavel: false
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    - id: E3
+      nome: "convite (SRV-COPY), julgado pela E4; não recebe a conta (MAT-16)"
+      autor: ISABELA
+      revisores: [CAIO, FUNDADOR]
+      depende_de: []
+      internet: false
+      pulavel: false
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    - id: E4
+      nome: "parecer (SRV-PARECER), julga E2 e E3; você é o segundo revisor"
+      autor: CLARA
+      revisores: [HELENA, FUNDADOR]
+      depende_de: [E2, E3]
+      julga: [E2, E3]
+      internet: true
+      pulavel: false
+      acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+    - id: E5
+      nome: "relatório final (SRV-RELATORIO-FINAL), da Helena"
+      autor: HELENA
+      revisores: [CLARA, CAIO, FUNDADOR]
+      depende_de: [E1, E2, E3, E4]
+      internet: false
+      pulavel: false
+      acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
+
+eventos:
+  # --- Card: rascunho criado pelo código (caixa Novo pedido), antes de qualquer IA.
+  - {papel: HELENA, evento: LER_DE_VOLTA, nota: "C01: 'Entendi assim: plano dos 7 dias para as primeiras 10 pessoas... Confirma?' Escolha: roteiro recrutar-10-pessoas."}
+  - {papel: HELENA, evento: SUGERIR_PRAZO, nota: "Reação: vira item na sua lista; o prazo do card continua o seu (regra 7)."}
+  - {papel: FUNDADOR, evento: RESPONDER, params: {opcao: CONFIRMO}, nota: "C06 -> VALIDANDO_PLANO; o código monta o plano e o valida (C10, automático)."}
+  # --- E1: conta do Caio; a Helena revisa (aptidão APTA em calculo).
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E1, params: {parecer: OK, acao_externa: NENHUMA}, nota: "E20: entrega da conta em 3 cenários."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E1, params: {escolhido: HELENA}, nota: "E40: contas refeitas pelo código; revisora designada: Helena."}
+  - {papel: REVISOR, evento: APROVAR, alvo: E1, ator: HELENA, nota: "E54: todos os critérios PASSOU."}
+  # --- E2 e E3: Isabela; o Caio revisa (a Helena não revisa o que o parecer julga: regra 4).
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E2, params: {parecer: OK, acao_externa: SO_FUNDADOR}, nota: "Propõe AF-TREINAMENTO-ENVIAR (campo da entrega; só vira proposta no card pronto)."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E2, params: {escolhido: CAIO}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E2, ator: CAIO}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E3, params: {parecer: OK, acao_externa: SO_FUNDADOR}, nota: "Propõe AF-COPY-ENVIAR-OU-PUBLICAR; sem termo de ganho."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E3, params: {escolhido: CAIO}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E3, ator: CAIO, nota: "E2 e E3 aprovadas: a E4 entra na fila (E01, automático)."}
+  # --- E4: parecer da Clara; a Helena revisa e você é o segundo revisor.
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E4, params: {parecer: OK, acao_externa: NENHUMA, usou_internet: SIM}, nota: "OK para E2, E3 e o passo fixo PF-01, com condição; leu os termos pela nossa ferramenta."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E4, params: {escolhido: HELENA}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E4, ator: HELENA, nota: "E74: o parecer vai a você, 'leia antes de agir'."}
+  - {papel: FUNDADOR, evento: APROVAR, alvo: E4, nota: "E81: só o seu Aprovar faz o parecer valer; a E5 entra na fila (automático)."}
+  # --- E5: relatório final da Helena.
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E5, params: {parecer: OK, acao_externa: NENHUMA}, nota: "1ª entrega com 'US$ 200 por mês', número que não está na conta."}
+  - {papel: MOTOR, evento: PORTAO1_RECUSOU, alvo: E5, nota: "E43: CHK-REL-NUMEROS recusa com o item exato; volta à Helena (não gasta reprovação)."}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E5, params: {parecer: OK, acao_externa: NENHUMA}, nota: "2ª entrega: números certos, mas trata a autorização de terceiros como detalhe."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E5, params: {escolhido: CLARA}, nota: "Revisora: Clara (a Helena, autora, é excluída)."}
+  - {papel: REVISOR, evento: REPROVAR, alvo: E5, ator: CLARA, nota: "E57: RUB-REL-02 FALHOU, com o trecho; volta à Helena com o critério (reprovações = 1 de 2)."}
+  - {papel: AUTOR, evento: ENTREGAR, alvo: E5, params: {parecer: OK, acao_externa: NENHUMA}, nota: "3ª entrega: a resposta de boas/01-completa.yaml."}
+  - {papel: MOTOR, evento: PORTAO1_OK, alvo: E5, params: {escolhido: CLARA}}
+  - {papel: REVISOR, evento: APROVAR, alvo: E5, ator: CLARA, nota: "E54 -> APROVADA; C12 (automático): card PRONTO; E110 cria as ações das entregas aprovadas que propõem uma."}
+  # --- Card pronto: o seu Aprovar só registra e relê as fontes (reação); as ações ficam na sua lista.
+  - {papel: FUNDADOR, evento: APROVAR, nota: "Reação no card PRONTO: registra a sua aprovação e relê cada fonte."}
+
+esperado:
+  estado_card: PRONTO
+  etapas: {E1: PRONTA, E2: PRONTA, E3: PRONTA, E4: PRONTA, E5: PRONTA}
+  acoes: {A1: PROPOSTA, A2: PROPOSTA}   # A1 = AF-TREINAMENTO-ENVIAR (E2), A2 = AF-COPY-ENVIAR-OU-PUBLICAR (E3); dono: você
+  violacoes: 0
+  recusados: 0

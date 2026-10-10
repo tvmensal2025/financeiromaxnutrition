@@ -1,0 +1,17 @@
+# Fita (MEL-31): resposta GRAVADA da nossa ferramenta ler_pagina na variante V-SEM-PODE-LER do
+# pedido: você colou o link, mas não ligou 'pode ler'. O link não entra na lista montada pelo código,
+# então o acesso NÃO acontece (servicos.yaml, ferramentas_nossas.ler_pagina.acesso_sem_efeito) e a
+# resposta é 'fonte insuficiente'. A chamada conta no orçamento e o motor marca usou_internet = SIM
+# (houve chamada à ferramenta de leitura): a Clara só pode entregar ou registrar falha (MAT-09).
+id: FITA-PAR-03
+ferramenta: ler_pagina
+efeito: LER
+sintetica: true
+chamada:
+  url: "https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+  parte: 1
+resposta:
+  situacao: FONTE_INSUFICIENTE
+  motivo: "Endereço fora da lista desta execução (sem 'pode ler' no pedido)."
+  acesso_feito: false
+  lida_em: "2026-10-10T14:31:05-03:00"

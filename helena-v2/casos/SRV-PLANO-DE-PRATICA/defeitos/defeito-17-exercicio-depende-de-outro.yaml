@@ -1,0 +1,90 @@
+# Caso RUIM do SRV-PLANO-DE-PRATICA (Laura, AGT-02) para o pedido ../pedido.yaml.
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisora, REPROVAR).
+id: PRATICA-RUIM-17
+servico: SRV-PLANO-DE-PRATICA
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01.yaml
+defeito_plantado: O exercício depende de outra pessoa (um amigo que ouve, grava e cronometra).
+deve_falhar_em: RUB-PRATICA-03
+portao: 2 (revisora)
+passa_no_codigo: true
+veredito_esperado_do_revisor:
+  criterio: RUB-PRATICA-03
+  veredito: FALHOU
+  secao: exercicio
+  trecho: Combine com um amigo de ouvir você 3 vezes e peça que ele grave e cronometre cada vez.
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Explicar o seu projeto em 1 minuto, indo direto ao ponto.
+    padroes:
+    - id: P1
+      comportamento: Você começa contando como a ideia surgiu e só diz o que o projeto é na 5ª frase.
+      trecho:
+        trecho_original: Então, assim, antes de tudo deixa eu te contar como surgiu, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: Em 1 minuto, quem ouve passa quase metade do tempo sem saber do que se trata.
+    - id: P2
+      comportamento: Você fecha frases com 'né' e usa 'tipo' como apoio.
+      trecho:
+        trecho_original: Aí eu pensei, tipo, por que não juntar as duas pontas, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: As muletas gastam tempo e tiram a força do fim de cada frase.
+    exercicio:
+    - padrao: P1
+      passos: '1) Escreva só a primeira frase: o que o projeto é e para quem, em até 20 palavras. 2) Combine com
+        um amigo de ouvir você 3 vezes e peça que ele grave e cronometre cada vez. 3) Pare em 60 segundos, mesmo
+        no meio de uma frase.'
+      duracao:
+        valor: 10
+        unidade: minutos
+        origem: PREMISSA
+      criterio: Na 3ª gravação, a primeira frase diz o que o projeto é e para quem, e a fala termina antes de 60
+        segundos no cronômetro.
+    registro:
+    - padrao: P1
+      medida: Total de palavras suas na apresentação
+      marcador: PALAVRAS
+      hoje:
+        valor: 160
+        unidade: palavras
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 120
+        unidade: palavras
+        origem: PREMISSA
+    - padrao: P2
+      medida: Quantas vezes você diz 'né'
+      marcador: né
+      hoje:
+        valor: 6
+        unidade: vezes
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 2
+        unidade: vezes
+        origem: PREMISSA
+    - padrao: P2
+      medida: Quantas vezes você diz 'tipo'
+      marcador: tipo
+      hoje:
+        valor: 3
+        unidade: vezes
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 1
+        unidade: vezes
+        origem: PREMISSA
+    proxima_pratica: Faça o exercício amanhã. Depois, grave a apresentação inteira uma vez, transcreva e traga num
+      pedido novo de prática, com as suas falas marcadas 'EU:'. O código conta de novo palavras, 'né' e 'tipo' para
+      comparar com hoje.
+    limites:
+    - A transcrição não mostra ritmo, pausas nem tom de voz.
+    - 'É uma tentativa só, para um ouvinte só: o padrão pode mudar com outro público.'

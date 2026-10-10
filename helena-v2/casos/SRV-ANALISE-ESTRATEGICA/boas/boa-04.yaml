@@ -1,0 +1,22 @@
+# Caso BOM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml (variante SEM-HORIZONTE).
+# A 'resposta' é a saída do Augusto no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: é a ação certa quando falta dado ou o pedido é de outro serviço.
+id: ESTRAT-BOA-04
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+variante: SEM-HORIZONTE
+nota: 'Falta o horizonte: pergunta uma vez, com A/B/C e a consequência de cada uma.'
+resposta:
+  acao: PERGUNTAR
+  pergunta: Para qual horizonte você quer comparar o lançamento só no Brasil com o lançamento já em inglês?
+  opcoes:
+  - letra: A
+    texto: Próximos 3 meses
+    consequencia: Pesa mais o que cabe no orçamento e nas horas de agora; o inglês tende a ficar fora.
+  - letra: B
+    texto: Próximos 6 meses
+    consequencia: Dá tempo de medir a procura de fora antes de decidir o inglês.
+  - letra: C
+    texto: Próximos 12 meses
+    consequencia: Entra o custo de manter duas línguas por um ano inteiro.
+  recomendacao: B

@@ -1,0 +1,119 @@
+{
+  "_comentario": [
+    "TABELA DE LEIS. Esta tabela NAO contem texto de lei: o campo texto_oficial_a_conferir esta VAZIO de proposito.",
+    "Quem preenche e o fundador (ou alguem que ele indicar), copiando o texto do site oficial (url_oficial).",
+    "Enquanto o texto estiver vazio, status = NAO_CONFERIDA e o validador marca 'lei nao conferida' em todo uso.",
+    "Para conferir uma lei: cole o texto oficial em texto_oficial_a_conferir, troque status para CONFERIDA e preencha data_da_conferencia (AAAA-MM-DD).",
+    "url_conferida = false: os enderecos foram escritos de memoria, sem internet. Conferir antes de confiar.",
+    "artigos_com_nota_obrigatoria: artigos que, se usados, exigem uma nota de jurisprudencia junto (o plano cita o art. 19 do Marco Civil).",
+    "notas_de_jurisprudencia: lista vazia. A nota de cada artigo tambem e preenchida por pessoa, nunca inventada."
+  ],
+  "versao": "1.0.0",
+  "leis": [
+    {
+      "id": "FON-LEI-LGPD",
+      "nome": "Lei Geral de Proteção de Dados Pessoais (LGPD)",
+      "norma": {"tipo": "Lei", "numero": "13709", "ano": 2018},
+      "apelidos": ["LGPD", "Lei Geral de Proteção de Dados", "Lei Geral de Proteção de Dados Pessoais"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-CODIGO-CIVIL",
+      "nome": "Código Civil",
+      "norma": {"tipo": "Lei", "numero": "10406", "ano": 2002},
+      "apelidos": ["Código Civil", "Codigo Civil", "CC/2002"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-9610-98",
+      "nome": "Lei de Direitos Autorais (Lei 9.610/98)",
+      "norma": {"tipo": "Lei", "numero": "9610", "ano": 1998},
+      "apelidos": ["Lei de Direitos Autorais", "Lei dos Direitos Autorais"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/leis/l9610.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-MARCO-CIVIL",
+      "nome": "Marco Civil da Internet",
+      "norma": {"tipo": "Lei", "numero": "12965", "ano": 2014},
+      "apelidos": ["Marco Civil da Internet", "Marco Civil"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": ["19"]
+    },
+    {
+      "id": "FON-LEI-CDC",
+      "nome": "Código de Defesa do Consumidor (CDC)",
+      "norma": {"tipo": "Lei", "numero": "8078", "ano": 1990},
+      "apelidos": ["CDC", "Código de Defesa do Consumidor", "Codigo de Defesa do Consumidor"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-CLT",
+      "nome": "Consolidação das Leis do Trabalho (CLT)",
+      "norma": {"tipo": "Decreto-Lei", "numero": "5452", "ano": 1943},
+      "apelidos": ["CLT", "Consolidação das Leis do Trabalho", "Consolidacao das Leis do Trabalho"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-ECA-DIGITAL",
+      "nome": "ECA Digital (Estatuto Digital da Criança e do Adolescente)",
+      "norma": {"tipo": "Lei", "numero": "15211", "ano": 2025, "numero_a_conferir": true},
+      "apelidos": ["ECA Digital", "Estatuto Digital da Criança e do Adolescente"],
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/l15211.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    },
+    {
+      "id": "FON-LEI-15123-2025",
+      "nome": "Lei 15.123/2025 (pena maior para quem altera com IA a imagem ou a voz de uma mulher)",
+      "norma": {"tipo": "Lei", "numero": "15123", "ano": 2025},
+      "apelidos": [],
+      "descricao_do_plano": "Segundo o plano v3: aumenta a pena de quem altera com IA a imagem ou a voz de uma mulher, nos pontos que o serviço usa. Resumo do plano, NÃO é texto de lei.",
+      "url_oficial": "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/lei/l15123.htm",
+      "url_conferida": false,
+      "texto_oficial_a_conferir": "",
+      "status": "NAO_CONFERIDA",
+      "data_da_conferencia": null,
+      "notas_de_jurisprudencia": [],
+      "artigos_com_nota_obrigatoria": []
+    }
+  ]
+}

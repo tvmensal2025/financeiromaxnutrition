@@ -1,0 +1,15 @@
+# Catálogo de modelos de TESTE (mesmo formato de helena-v2/models.yaml; valores inventados para teste).
+versao: "teste"
+provedor: openai-codex
+apelidos:
+  coordenacao-padrao: {modelo: gpt-6.1-sol, provedor: openai-codex, para_que: "teste"}
+  revisao-padrao: {modelo: gpt-6-sol, provedor: openai-codex, para_que: "teste"}
+  analise-padrao: {modelo: gpt-6-sol, provedor: openai-codex, para_que: "teste"}
+  pesquisa-padrao: {modelo: gpt-6-sol, provedor: openai-codex, para_que: "teste"}
+  conteudo-padrao: {modelo: gpt-6-sol, provedor: openai-codex, para_que: "teste"}
+papel_do_apelido:
+  coordenacao-padrao: COORDENACAO
+  revisao-padrao: REVISAO
+  analise-padrao: AUTOR
+  pesquisa-padrao: AUTOR
+  conteudo-padrao: AUTOR
