@@ -37,7 +37,7 @@ test('Estratégia Híbrida ElevenLabs V4 (Prioritário) + Google Chirp 3 HD (Res
     assert.strictEqual(resolveElevenLabsVoice('vital'), VOICES.vital.voiceId);
     assert.strictEqual(resolveElevenLabsVoice('rafael'), VOICES.rafael.voiceId);
     assert.notStrictEqual(ELEVENLABS_CHARACTER_VOICES.rafael, ELEVENLABS_CHARACTER_VOICES.alex);
-    assert.ok(ELEVENLABS_CHARACTER_VOICES.rafael.startsWith('B4ra'));
+    assert.ok(ELEVENLABS_CHARACTER_VOICES.rafael.startsWith('CeUs'));
 
     // profile_key, nome e voz Google identificam o personagem
     assert.strictEqual(resolveElevenLabsVoice('rafael_intense'), VOICES.rafael.voiceId);

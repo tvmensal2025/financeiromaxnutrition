@@ -59,8 +59,8 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
       "googleFallbackVoice": "pt-BR-Chirp3-HD-Charon"
     },
     "rafael": {
-      "voiceId": "B4raRyOeSoCr40rqvhFE",
-      "nomeNaConta": "Rafael Ferreira Das",
+      "voiceId": "CeUsUI3v8fHdYX8kHpXa",
+      "nomeNaConta": "Rafael dias",
       "voiceSettings": {
         "stability": 0.75,
         "similarity_boost": 0.9,
@@ -152,6 +152,7 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
   "legacyVoiceIds": {
     "EJV7H2baGt5ab95tOoSG": "Uneskee — áudios antigos da Sirlene (saudações com nome e dicas), até serem regravados",
     "onwK4e9ZLuTAKqWW03F9": "Daniel (biblioteca) — voz provisória antiga do Rafael, substituída pelo clone do Rafael",
+    "B4raRyOeSoCr40rqvhFE": "Rafael Ferreira Das — voz do Rafael até 10/10/2026, só na conta antiga; substituída por Rafael dias",
     "pNInz6obpgDQGcFmaJgB": "Adam (biblioteca) — teste antigo de voz do Dr. Vital",
     "21m00Tcm4TlvDq8ikWAM": "Janet (biblioteca; antes chamada \"Rachel\") — teste antigo de voz",
     "EXAVITQu4vr4xnSDxMaL": "Sarah (biblioteca) — teste antigo de voz",
@@ -182,7 +183,7 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
     "eleven_flash_",
     "eleven_turbo_"
   ],
-  "sourceHash": "3fbd1df7ad9b1d1c3586342e5f3f95de4d5ef95f18ccf861c99f9a18f0fe7cfb"
+  "sourceHash": "30fed19bc93d054799e6d2dca6c42370117cf55e518cba3d4e2ea3544ffcb68d"
 });
 
 export default ELIVING_VOICE_CONFIG;
