@@ -51,4 +51,4 @@ O teste `test_02_gerador.py` falha se o SQL guardado no git for diferente do que
 
 ## O que ainda não está aqui
 
-Relógio dos prazos e vigia de 5 minutos (o banco só aplica o evento que chegar), fila e vagas (motor), troca de tabela com cards abertos, plano que muda no meio, efeitos de fora das reações (pausar tudo, exemplo de ouro). Detalhe no relatório do passo 4.
+Relógio dos prazos e vigia de 5 minutos (o banco só aplica o evento que chegar), fila e vagas (motor), troca de tabela com cards abertos, plano que muda no meio, efeitos de fora das reações (pausar tudo, exemplo de ouro).
