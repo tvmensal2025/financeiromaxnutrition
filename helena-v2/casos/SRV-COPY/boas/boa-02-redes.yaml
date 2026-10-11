@@ -1,0 +1,92 @@
+# Caso BOM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante REDES. SINTÉTICO.
+# De onde vem: escrito à mão a partir do pedido; a 'resposta' é a saída da Isabela no formato de
+# schemas/acao.schema.json ($defs/saida_do_autor). Passa em todas as checagens (comuns e CHK-COPY-01 a 10)
+# e na rubrica (RUB-COPY-01 a 08). Como mudar: se mudar o texto, mantenha cada frase de 'afirmacoes' igual
+# a um trecho do texto e cada 'apoio' igual a um trecho do pedido; depois rode o validar.py.
+id: COPY-BOA-02
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: REDES
+nota: 'Convite para redes sociais (variante REDES): publicar é ação do fundador; sem @, link nem perfil inventado.'
+deve_passar_em:
+- CHK-COMUM-01
+- CHK-COMUM-02
+- CHK-COMUM-03
+- CHK-COMUM-04
+- CHK-COMUM-05
+- CHK-COMUM-06
+- CHK-COMUM-07
+- CHK-COMUM-08
+- CHK-COMUM-09
+- CHK-COMUM-10
+- CHK-COPY-01
+- CHK-COPY-02
+- CHK-COPY-03
+- CHK-COPY-04
+- CHK-COPY-05
+- CHK-COPY-06
+- CHK-COPY-07
+- CHK-COPY-08
+- CHK-COPY-09
+- CHK-COPY-10
+- RUB-COPY-01
+- RUB-COPY-02
+- RUB-COPY-03
+- RUB-COPY-04
+- RUB-COPY-05
+- RUB-COPY-06
+- RUB-COPY-07
+- RUB-COPY-08
+- CARD-1
+- CARD-4
+veredito_esperado_do_revisor: APROVAR
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+  entrega:
+    onde_usar: Seguidores da Humano Digital nas redes sociais. Quem ler pode mandar uma mensagem direta se tiver interesse,
+      tirar dúvidas antes de decidir ou apenas não responder.
+    versao_final: 'Convite da Humano Digital. Estamos na primeira rodada de convites, para 10 pessoas. A Humano Digital conecta
+      pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. Como funciona: a pessoa grava
+      atividades do dia a dia no celular e a plataforma avalia as gravações. Ficou com vontade de saber mais? Mande uma mensagem
+      direta para a Humano Digital. Você pode tirar dúvidas antes de decidir, e tudo bem se preferir não responder.'
+    alternativa_curta: 'Convite da Humano Digital: primeira rodada de convites, para 10 pessoas. Quem tiver interesse, mande
+      uma mensagem direta para a Humano Digital e tire suas dúvidas antes de decidir. Tudo bem não responder.'
+    afirmacoes:
+    - id: A1
+      frase: Estamos na primeira rodada de convites, para 10 pessoas.
+      apoio:
+        trecho_original: Esta é a primeira rodada de convites, para 10 pessoas.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A2
+      frase: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no
+        Hub.
+      apoio:
+        trecho_original: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na
+          Mimix e no Hub.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A3
+      frase: a pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações
+      apoio:
+        trecho_original: A pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A4
+      frase: Mande uma mensagem direta para a Humano Digital
+      apoio:
+        trecho_original: Quem tiver interesse manda uma mensagem direta para a Humano Digital.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A5
+      frase: Você pode tirar dúvidas antes de decidir
+      apoio:
+        trecho_original: A pessoa pode tirar dúvidas antes de decidir e pode também não responder.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    o_que_precisa_aprovacao:
+    - 'Qual perfil publica o convite: o pacote não traz perfil oficial confirmado, então o texto não leva nome de usuário
+      nem link e manda responder por mensagem direta.'
+    - 'Data e horário da publicação: o pedido não diz. Publicar é ação sua, depois do parecer aprovado.'
+    limites:
+    - 'Imagem do post e escolha de rede: ficam fora; plano de canais é da Camila.'
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'

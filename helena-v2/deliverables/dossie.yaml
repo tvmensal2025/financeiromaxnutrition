@@ -1,0 +1,286 @@
+# Tipo de entrega: dossie (v3.1). Formato: schemas/entrega.schema.json.
+#
+# O QUE É: o molde do dossiê do Ravi. Fatos sobre UMA entidade (plataforma, empresa ou norma), cada
+# fato preso a uma citação de página lida; o que o Ravi entendeu e o que ficou sem resposta ficam em
+# seções à parte. O que é "pronto" está em servicos.yaml (SRV-DOSSIE, pronto_padrao). Aqui está só
+# COMO o código e o revisor conferem. Dono, serviço, revisor, reserva e ferramentas também estão em
+# servicos.yaml e não se repetem aqui.
+#
+# DE ONDE VEM: do bloco 'dossie' do formato antigo (arquivado em docs/arquivo/helena-v2-v1/entregas.yaml).
+# Ficaram: fatos com fonte, fato/leitura/lacuna separados, lacuna com documento e lugar, nenhuma promessa
+# de renda. Saíram: o resumo executivo e os riscos (misturavam fato com opinião: quem pesa risco é o
+# Augusto ou o parecer da Clara) e as 'perguntas para o cadastro' (eram um passo de cadastro disfarçado).
+#
+# COMO MUDAR:
+#   - tamanho de uma célula, palavras de uma lista fechada ou o mínimo de termos: o parâmetro da
+#     checagem, neste arquivo;
+#   - quantas linhas cabem numa seção: itens_max da seção;
+#   - o que é pronto: primeiro servicos.yaml, depois este arquivo;
+#   - nome de uma checagem ou de um critério: não mude (os casos de casos/SRV-DOSSIE apontam para eles).
+#   Depois de qualquer mudança, rode validar.py na pasta helena-v2. Mudar a rubrica faz as aptidões de
+#   revisão do tipo exigirem o teste 9 de novo (servicos.yaml, aptidao_de_revisao).
+#
+# O QUE FICA COM O CÓDIGO, NÃO COM O RAVI: o link, a data e quantas partes de cada página foram lidas
+# (a faixa do card tira isso do registro da ferramenta). Por isso o Ravi nunca escreve endereço: cita
+# com leitura_id e parte (CHK-COMUM-06 e CHK-COMUM-07). Sem parecer no mesmo card, a faixa mostra
+# 'sem conferência jurídica' (julgado_pelo_parecer: SE_O_ROTEIRO_PEDIR).
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se repetem
+# aqui. Em especial: a citação de cada fonte (trecho contínuo de página lida NESTA execução) é a
+# CHK-COMUM-06; 'eu fiz' (enviei, cadastrei) é a CHK-COMUM-05; ação do fundador é a CHK-COMUM-10.
+#
+# Formato dos ids dentro da entrega (o código lê): fatos F1, F2...; fontes S1, S2...; interpretações
+# I1, I2...; lacunas L1, L2.... Lista de ids numa célula vem separada por vírgula ("S1, S2").
+# Normalização dos textos nas checagens: espaços seguidos viram um, aspas curvas viram retas e, onde
+# estiver escrito, sem diferença de maiúsculas nem de acentos.
+
+tipo: dossie
+versao: "3.1.0"
+descricao: "Dossiê sobre UMA entidade (plataforma, empresa ou norma): fatos presos a citações de página lida, leitura própria e lacunas em seções separadas. Cada lacuna diz o documento que falta e onde procurar."
+dono: RAVI
+servico: SRV-DOSSIE
+
+secoes:
+  - id: entidade
+    titulo: "Sobre quem é este dossiê"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 1
+    descricao: "Uma linha só: a entidade pesquisada e a pergunta do pedido. Não muda o que você pediu."
+    colunas:
+      - {id: nome, tipo_de_campo: texto, descricao: "Nome da plataforma, empresa ou norma, como está no pedido."}
+      - {id: tipo, tipo_de_campo: texto, descricao: "PLATAFORMA, EMPRESA ou LEI."}
+      - {id: pergunta, tipo_de_campo: texto, descricao: "A pergunta do pedido, em uma frase."}
+  - id: fatos
+    titulo: "O que as páginas dizem (fatos)"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 10
+    descricao: "Um fato por linha: só o que a fonte diz, sem opinião. Sem nenhum fato, o dossiê precisa de pelo menos uma lacuna."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "F1, F2... em ordem, sem pular nem repetir."}
+      - {id: afirmacao, tipo_de_campo: texto, descricao: "O que a fonte diz, em palavras simples e sem leitura sua."}
+      - {id: fontes, tipo_de_campo: texto, descricao: "Ids da seção fontes que sustentam o fato (S1, S2...), separados por vírgula."}
+  - id: interpretacoes
+    titulo: "O que eu entendi (leitura minha)"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 3
+    descricao: "Leitura sua dos fatos, dita como leitura. É o único lugar do dossiê para opinião, e ela sempre aponta os fatos em que se apoia."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "I1, I2... em ordem."}
+      - {id: leitura, tipo_de_campo: texto, descricao: "Começa com 'Leitura minha:' e diz o que os fatos permitem concluir, sem fato novo."}
+      - {id: baseada_em, tipo_de_campo: texto, descricao: "Ids dos fatos em que a leitura se apoia (F1, F2...), separados por vírgula."}
+  - id: lacunas
+    titulo: "O que ficou sem resposta (lacunas)"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 4
+    descricao: "O que o pedido quer saber e as páginas lidas não respondem. Lacuna não é prova de que o documento não existe."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "L1, L2... em ordem."}
+      - {id: o_que_falta, tipo_de_campo: texto, descricao: "O que não se sabe e por que (as páginas lidas não tratam disso), sem leitura sua."}
+      - {id: documento_que_falta, tipo_de_campo: texto, descricao: "O documento que responderia (nome dele, como 'Tabela de valores do bônus')."}
+      - {id: onde_procurar, tipo_de_campo: texto, descricao: "O lugar concreto onde você procura: nome da página, da seção ou da tela. Um lugar, não uma ordem."}
+      - {id: termos_procurados, tipo_de_campo: texto, descricao: "Os termos que o Ravi procurou nas páginas lidas e não achou, separados por vírgula."}
+  - id: fontes
+    titulo: "Fontes (trechos citados)"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 8
+    exige_citacao: true
+    descricao: "Cada trecho que sustenta um fato, de página lida nesta execução. Sem fatos, a seção não vem."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "S1, S2... em ordem."}
+      - {id: referencia, tipo_de_campo: texto, descricao: "Documento e item da página, como 'Termos, item 3 (Pagamento)'."}
+      - {id: citacao, tipo_de_campo: citacao, descricao: "Trecho contínuo da página; leitura_id e parte da leitura feita (o endereço é do código)."}
+
+limite: 8000
+
+# ---------------------------------------------------------------------------------------
+# Checagens do portão 1, por código. Cada ID é o nome de uma função em helena-v2/checagens/, com
+# caso bom (casos/SRV-DOSSIE/boas/) e caso ruim (casos/SRV-DOSSIE/defeitos/; MEL-28). "fase 2" = a
+# função depende da cópia guardada das páginas lidas (registro de uso da ferramenta).
+# ---------------------------------------------------------------------------------------
+checagens_codigo:
+  - id: CHK-DOSSIE-FORMA
+    descricao: >-
+      A entrega só tem as seções e as colunas deste tipo (seção a mais, como 'conclusao' ou
+      'recomendacao', recusa) e cada célula cabe no limite dos parâmetros.
+    fecha_furos: [K-13, CONF-21]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      maximo: {pergunta: 300, nome: 80, referencia: 120, trecho_original: 400, afirmacao: 300, leitura: 300,
+               o_que_falta: 200, documento_que_falta: 120, onde_procurar: 200, termos_procurados: 200}
+  - id: CHK-DOSSIE-ENTIDADE
+    descricao: >-
+      Uma só entidade: a seção entidade tem exatamente uma linha, com tipo PLATAFORMA, EMPRESA ou LEI, e o
+      nome dela está no pedido que veio no pacote (sem diferença de maiúsculas nem de acentos).
+    fecha_furos: [C-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      tipos: [PLATAFORMA, EMPRESA, LEI]
+      pedido: "o pedido da etapa que veio no pacote desta execução (num roteiro, junto com a instrução da etapa)"
+  - id: CHK-DOSSIE-FATOS
+    descricao: >-
+      Fatos presos a fontes: ids F1, F2... e S1, S2... em ordem, sem pular nem repetir; todo fato aponta uma
+      ou mais fontes que existem (nunca 'nenhuma'); toda fonte é usada por algum fato; o dossiê tem pelo menos
+      um fato ou uma lacuna. A citação em si é da CHK-COMUM-06.
+    fecha_furos: [M-15, C-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-DOSSIE-SEPARACAO
+    descricao: >-
+      Fato, leitura e lacuna separados: o texto dos fatos e o 'o_que_falta' das lacunas não traz expressão de
+      leitura própria (lista fechada); toda interpretação (ids I1, I2... em ordem) aponta um ou mais fatos
+      que existem.
+    fecha_furos: [C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      sem_diferenca_de_maiusculas_e_acentos: true
+      palavra_inteira: true
+      onde: "coluna afirmacao de fatos e coluna o_que_falta de lacunas"
+      termos: ["provavelmente", "possivelmente", "talvez", "parece", "pelo visto", "ao que parece", "tudo indica",
+               "ou seja", "isso significa", "isso quer dizer", "quer dizer que", "em outras palavras", "na prática",
+               "entendo que", "acho que", "acredito", "imagino", "minha leitura", "leitura minha",
+               "na minha opinião", "o mais provável", "provável que"]
+  - id: CHK-DOSSIE-LACUNAS
+    descricao: >-
+      Lacuna completa: ids L1, L2... em ordem; documento_que_falta e onde_procurar preenchidos (com o mínimo de
+      caracteres e fora da lista de textos vazios), e onde_procurar diferente do documento. Nenhuma lacuna diz
+      que o documento não existe: só que as páginas lidas não o trazem.
+    fecha_furos: [C-13, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      caracteres_min: 8
+      sem_diferenca_de_maiusculas_e_acentos: true
+      textos_vazios: ["nenhum", "nenhuma", "nao sei", "n/a", "a definir", "a confirmar", "a verificar", "-", "?",
+                      "nao consta", "nao ha"]
+      afirma_inexistencia: ["não existe", "não existem", "inexiste", "inexistente", "nunca existiu", "não possui",
+                            "não tem esse documento"]
+  - id: CHK-DOSSIE-AUSENCIA
+    descricao: >-
+      Lacuna verificada: termos_procurados tem termos em número e tamanho dentro do parâmetro, nenhum deles
+      está na cópia guardada de nenhuma página lida nesta execução (o código busca de novo) e toda página lida
+      foi lida inteira ('x de x partes'). Sem isso, a lacuna recusa.
+    fecha_furos: [C-8, C-1]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      sem_diferenca_de_maiusculas_e_acentos: true
+      separador: ","
+      termos_min: 2
+      termos_max: 8
+      caracteres_min_do_termo: 3
+  - id: CHK-DOSSIE-SEM-PROMESSA-DE-RENDA
+    descricao: >-
+      Sem promessa de renda, ganho, vaga ou disponibilidade: nenhuma expressão da lista fechada em todo o texto
+      da entrega, menos nas citações. Também pega ordem plantada numa página e repetida pela IA (C-7).
+    fecha_furos: [C-11, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      sem_diferenca_de_maiusculas_e_acentos: true
+      palavra_inteira: true
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      termos: ["vai ganhar", "vão ganhar", "você ganha", "ganhe", "ganhará", "ganharão", "renda garantida",
+               "renda extra", "renda certa", "ganho garantido", "ganhos garantidos", "ganho certo", "dinheiro fácil",
+               "lucro garantido", "retorno garantido", "vaga garantida", "vagas garantidas",
+               "disponibilidade garantida", "sem risco", "risco zero"]
+  - id: CHK-DOSSIE-SEM-ACAO-EXTERNA
+    descricao: >-
+      Sem convite a agir fora: nenhuma expressão da lista fechada (cadastre-se, envie, pague, clique...) fora das
+      citações. O dossiê só diz o que as páginas dizem e onde procurar. O que o agente diz que fez é da
+      CHK-COMUM-05; a ação do fundador, da CHK-COMUM-10.
+    fecha_furos: [B-17, CONF-20, C-7]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      sem_diferenca_de_maiusculas_e_acentos: true
+      palavra_inteira: true
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      termos: ["cadastre-se", "faça o cadastro", "inscreva-se", "assine", "aceite os termos", "contrate", "compre",
+               "pague", "envie", "mande", "ligue", "clique", "acesse", "preencha", "baixe", "publique",
+               "entre em contato", "fale com", "responda a mensagem", "teste a plataforma"]
+
+# ---------------------------------------------------------------------------------------
+# Rubrica do portão 2 (revisor: ver servicos.yaml). Só julgamento que o código não confere. O revisor
+# trabalha sem internet: o código entrega o parágrafo em volta de cada citação (MAT-10). Nenhum
+# critério depende de lei (MAT-22): se algo é permitido, quem diz é o parecer, num roteiro que o pede.
+# ---------------------------------------------------------------------------------------
+rubrica:
+  - id: RUB-DOSSIE-01
+    pergunta: "Cada fato diz só o que o trecho da fonte dele diz, lido com o parágrafo em volta, sem esticar, inverter, generalizar nem somar o que o trecho não afirma?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que o trecho existe na página lida e que o fato aponta para ele; se o fato é fiel ao sentido do trecho é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-DOSSIE-02
+    pergunta: "Cada interpretação segue dos fatos em que se baseia, está dita como leitura do autor e não como o que a página afirma, e não esconde um fato novo?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que a interpretação aponta fatos que existem; se ela segue deles sem acrescentar fato é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-DOSSIE-03
+    pergunta: "Todo fato e toda lacuna são sobre a entidade do dossiê, sem fato de outra plataforma, empresa ou norma misturado e sem atribuir à entidade o que a página diz de terceiros?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere o nome da entidade; saber de quem é cada frase da página é leitura de sentido."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-DOSSIE-04
+    pergunta: "Cada lacuna aponta um documento que de fato responderia à pergunta e um lugar concreto para você procurar (página, seção ou tela), e não algo genérico como 'no site' ou 'com a plataforma'?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código confere que os campos existem e não estão vazios; se o documento e o lugar servem na prática é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-DOSSIE-05
+    pergunta: "O dossiê só descreve o que as páginas dizem, sem recomendar, decidir por você nem dizer se algo pode ou não ser feito?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Recomendação ou veredito escritos com palavras comuns não cabem numa lista fechada; só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-DOSSIE-06
+    pergunta: "Uma pessoa leiga entende cada fato, interpretação e lacuna sem abrir a página e sem conhecer o jargão da plataforma?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Clareza para quem não conhece a plataforma é julgamento sobre o texto inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica. Camada 3 (você): NUNCA, porque o serviço não tem ação do fundador; você
+# só entra como última reserva da revisão, e nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-DOSSIE-FORMA, CHK-DOSSIE-ENTIDADE, CHK-DOSSIE-FATOS, CHK-DOSSIE-SEPARACAO, CHK-DOSSIE-LACUNAS,
+           CHK-DOSSIE-AUSENCIA, CHK-DOSSIE-SEM-PROMESSA-DE-RENDA, CHK-DOSSIE-SEM-ACAO-EXTERNA]
+  rubrica: [RUB-DOSSIE-01, RUB-DOSSIE-02, RUB-DOSSIE-03, RUB-DOSSIE-04, RUB-DOSSIE-05, RUB-DOSSIE-06]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Fidelidade: cada fato diz o que o trecho diz, com o parágrafo em volta entregue pelo código (RUB-DOSSIE-01)."
+  - "Leitura honesta: a interpretação segue dos fatos, vem dita como leitura e não traz fato novo (RUB-DOSSIE-02)."
+  - "Uma entidade só: nada de outra plataforma, empresa ou norma misturado nos fatos e nas lacunas (RUB-DOSSIE-03)."
+  - "Lacunas úteis: documento e lugar concretos para você procurar (RUB-DOSSIE-04)."
+  - "Só descreve: nenhuma recomendação, decisão ou veredito de pode ou não pode (RUB-DOSSIE-05)."
+  - "Linguagem de leigo, sem jargão da plataforma (RUB-DOSSIE-06)."
+  - "Revisa sem internet e sem ferramenta; recebe a entrega inteira e o parágrafo em volta de cada citação."
+
+revisor_nao_reavalia:
+  - "Ids, ligações entre fato, fonte e leitura, tamanhos, listas de palavras e lacunas verificadas: o código já conferiu (CHK-DOSSIE-*)."
+  - "Se o trecho existe na página e se a página foi lida inteira: o código já conferiu (CHK-COMUM-06 e CHK-DOSSIE-AUSENCIA)."
+  - "Se a entidade escolhida era a certa para o negócio, ou se há outra fonte melhor: o revisor não pesquisa e não escolhe pelo fundador."
+  - "Se algo é permitido ou arriscado: não é deste tipo; é do parecer, num roteiro que o pede."
+
+entrada_minima:
+  - {id: ENT-DOSSIE-ENTIDADE, o_que: "A entidade a pesquisar (uma só plataforma, empresa ou norma, pelo nome) e a pergunta sobre ela, no pedido do card ou na etapa do roteiro.", de_onde: PEDIDO_DO_CARD, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-DOSSIE-PAGINAS, o_que: "Pelo menos uma página da lista de ler_pagina (link que você ligou como 'pode ler', termos da plataforma ou tabela de leis) que trate da entidade.", de_onde: PAGINA_DA_LISTA, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-DOSSIE-PACOTE, o_que: "Pacote CONFIRMADO da empresa do card: grafia, voz e proibições.", de_onde: PACOTE_DA_EMPRESA, se_faltar: REGISTRAR_FALHA}
