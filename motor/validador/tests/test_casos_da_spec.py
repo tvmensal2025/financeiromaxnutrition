@@ -44,12 +44,7 @@ DIVERGENCIAS_EM_CASOS_BONS = {
 # ---------------------------------------------------------------------------------------
 # 3. Defeitos da especificação que uma CHK que JÁ existe deixa passar: id do caso -> (CHK, por quê)
 # ---------------------------------------------------------------------------------------
-FUROS_CONHECIDOS = {
-    "COPY-RUIM-03": ("CHK-COMUM-05",
-                     "'o pedido não diz. Já publiquei o convite': a negação 'não' da frase de antes entra na janela de 3 palavras "
-                     "e 'publiquei' é tratado como negado."),
-    "CALC-RUIM-13": ("CHK-COMUM-05", "'Já lancei o cenário base': 'lancei' não está na lista de verbos de ação externa."),
-}
+FUROS_CONHECIDOS = {}  # nenhum no momento: COPY-RUIM-03 e CALC-RUIM-13 (CHK-COMUM-05) foram consertados em checagens/acao_externa.py
 
 
 def _tipo_do_caso(av):
