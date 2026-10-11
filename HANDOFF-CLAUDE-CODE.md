@@ -7,7 +7,7 @@ Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano
 
 Meta única: um card indo de ponta a ponta com Helena, Caio, Isabela, Clara e Ravi. PR rascunho no GitHub (nº 16, para `organizacao-2026-10-10`); não fazer merge sem o fundador. O fundador ficou sem cota em 11/10; este bloco diz o que está pronto e o que falta. Regras que valem acima de tudo: chaves NÃO se trocam agora (DEC-027); voz da v1 não se mexe; nada no Supabase real, EasyPanel, Hermes real ou `scripts/`; código novo nunca traz chave; só o HANDOFF é atualizado (curto); sem dizer "pronto" sem colar a saída dos testes.
 
-**PRONTO (verificado, CI verde no GitHub até o passo 2; números de referência: helena-v2 292, ferramentas 588, validador 677 antigos + 1476 novos = 2153, executor 493, simulador 723, app 181):**
+**PRONTO (verificado: CI do GitHub verde nos 7 jobs no commit a05cb0e; números de referência: helena-v2 292, ferramentas 588, validador 677 antigos + 1476 novos = 2153, executor 493, simulador 723, app 181):**
 - Passo 1: `.github/workflows/helena-v2.yml` (jobs: especificação, 4 peças do motor, app e banco-v2). Roda em pull request e em envios para `main`/`missao-cumprida-v4`.
 - Passo 2: ficha do Ravi v3.1 + dossiê, casos da Isabela (convite e roteiro), roteiro `playbooks/recrutar-10-pessoas.yaml` na v3.1. `PENDENCIAS.yaml` só tem as 13 fichas dos outros agentes. DEC-030: o revisor do relatório final é o Caio.
 - Passo 3 (parte feita): validador `motor/validador/` cobre 78 de 78 checagens das entregas dos 5 agentes (quadro: `python -m spec_helena`), cada uma com boa + defeito em `helena-v2/casos/`.
