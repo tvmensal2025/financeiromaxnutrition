@@ -79,7 +79,7 @@ def test_ii_a_gravidade_da_especificacao_vale_recusa_no_lugar_de_marca_nao_conta
 def test_iii_lista_velha_e_detectada():
     assert adiadas_velhas({"CHK-TESTE-01"}) == []
     with mentira.registrada("CHK-TESTE-01", mentira.chk_teste_01):
-        assert adiadas_velhas({"CHK-TESTE-01", "CHK-COPY-01"}) == ["CHK-TESTE-01"]
+        assert adiadas_velhas({"CHK-TESTE-01", "CHK-ESTRATEGIA-01"}) == ["CHK-TESTE-01"]
 
 
 def test_furo_conhecido_que_foi_consertado_faz_o_teste_falhar(spec):

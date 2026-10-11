@@ -139,3 +139,26 @@ variantes:
     usada_por: boas/boa-03-conversa-em-casa.yaml
     fonte_importada_id: FON-PEDIDO-TREINO-03
     pedido_original: "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai ler é o participante da Humano Digital: uma pessoa leiga, que lê no celular e faz tudo sozinha. Escolhi a situação C: conversar em casa com um familiar adulto. Quero muito cuidado com quem aparece e fala ao redor. Use só as regras de gravação e as condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro."
+  # Quarta variante: o MESMO pedido da boa-01 (situação A, lanche na cozinha), mas num card da eLiving™ (BIZ-004). Existe só para provar
+  # a CHK-TREINO-10 (que só vale na BIZ-004). Pacote da eLiving™ no mesmo desenho dos outros pedidos (ex.: SRV-ANALISE-ESTRATEGICA);
+  # as regras de gravação e as condições do participante continuam as das fontes importadas acima (SINTÉTICAS).
+  ELIVING:
+    usada_por: boas/boa-04-eliving-lanche.yaml
+    fonte_importada_id: FON-PEDIDO-TREINO-04
+    empresa: BIZ-004
+    pacote_da_empresa:
+      empresa: BIZ-004
+      nome: "eLiving™"
+      estado: CONFIRMADO
+      fonte_importada_id: FON-PACOTE-BIZ-004
+      grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+      slogan: "Onde sua evolução ganha direção."
+      posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+      pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+      decisoes: [DEC-023]
+      canais_confirmados: []
+      # Lista fechada lida pela CHK-TREINO-02. LISTA DE TESTE, a mesma de casos/SRV-ANALISE-ESTRATEGICA/pedido.yaml.
+      termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "contagem de calorias", "dieta restritiva", "perder peso rápido", "emagrecimento garantido", "promessa de cura"]
+    ordem_de_servico:
+      empresa: BIZ-004
+    pedido_original: "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai ler é o participante da eLiving™: uma pessoa leiga, que lê no celular e faz tudo sozinha. Escolhi a situação A: preparar um lanche na cozinha de casa. Use só as regras de gravação e as condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro."

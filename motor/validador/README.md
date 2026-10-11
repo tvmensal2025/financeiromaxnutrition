@@ -132,20 +132,21 @@ A especificação (`helena-v2/deliverables/<tipo>.yaml`, `servicos.yaml`, `casos
 fica **fora** de `validador/` (usa PyYAML; só os testes e o comando de cobertura o importam) e entrega ao validador, a cada pedido:
 
 - `modelo`: tipo, serviço, limite e seções do YAML do tipo; ações permitidas e ação externa do serviço (das ações do fundador vai só o id); `parametros` de cada CHK em `parametros_das_checagens`;
+- `checagens_a_rodar`: cada serviço roda só as checagens comuns (`portao1_comum` de `servicos.yaml`) e as do `criterio_de_pronto` do seu tipo; as `CHK-ACAO-*` rodam sempre. Sem essa lista o validador roda todas, como antes (é o caso dos exemplos e do banco antigo);
 - `contexto`: `hoje`, `execucao_id`, `usou_internet`, `links_do_pedido`, `decisoes_vigentes` (só o id: o valor o motor lê na hora), `paginas_lidas` (das fitas que o caso diz ter lido, partes juntas), `fontes_importadas` (pedido, pacote da empresa e tabela de leis) e, de extra, `pacote_da_empresa` e `pedido`;
 - `resposta`: o campo `resposta` do caso, em texto JSON; a variante do caso (`variante:`) é aplicada ao pedido antes de tudo.
 
-Onde o formato do caso não casa com o do validador, a conversão está em `spec_helena/caso.py` (comentada) e o que sobra de diferença está escrito, com o motivo, em `tests/test_casos_da_spec.py` (`DIVERGENCIAS_EM_CASOS_BONS`, `FUROS_CONHECIDOS`).
+Onde o formato do caso não casa com o do validador, a conversão está em `spec_helena/caso.py` (comentada) e o que sobra de diferença está escrito, com o motivo, em `tests/test_casos_da_spec.py` (`DIVERGENCIAS_EM_CASOS_BONS`, hoje vazio, e `FUROS_CONHECIDOS`). Colunas de tabela têm dois campos opcionais no YAML do tipo: `obrigatoria: false` (a coluna pode faltar) e `apoiada_por_citacao: true` (a linha afirma algo apoiado na citação; só nessas colunas a CHK-COMUM-06 exige uma palavra em comum com o trecho).
 
 ## Como implementar uma CHK da especificação (guia curto)
 
 1. Ache a CHK em `helena-v2/deliverables/<tipo>.yaml`, `checagens_codigo`: id, descrição, gravidade, furos e `parametros`. A especificação manda; o código não copia números nem listas dela.
-2. Crie `validador/checagens/<tipo>.py` (um arquivo por tipo). Todo `.py` dessa pasta é achado sozinho: não há lista para atualizar.
+2. Crie `validador/checagens/spec_<tipo>.py` (um arquivo por tipo; se ficar grande, `spec_<tipo>_*.py`). Todo `.py` dessa pasta é achado sozinho: não há lista para atualizar. Um erro de sintaxe ali derruba a importação do validador inteiro, de propósito.
 3. Registre a função com `@checagem("CHK-COPY-01", nome, o_que_fecha, [furos])`: **mesmo id, mesma gravidade e mesmos furos** da especificação (um teste confere).
 4. Leia os números e listas com `exe.parametros("CHK-COPY-01")`: é o bloco `parametros` do YAML, entregue pelo adaptador. O pacote da empresa está em `exe.contexto["pacote_da_empresa"]`, o pedido em `exe.contexto["pedido"]`, as fontes em `exe.fontes`.
 5. A função devolve `None` (não se aplica), `[]` (passou) ou uma lista de `Falha` com o item exato do problema.
-6. Os casos de `helena-v2/casos/` já provam a CHK: apague o id dela da lista `ADIADAS` em `tests/test_casos_da_spec.py` e rode `python -m pytest tests/test_casos_da_spec.py -q`. Se o defeito dela não for pego, o teste falha.
-7. Mantenha a regra de sempre (acima): um defeito em `tests/casos/`, uma honesta que passe e a linha na tabela de checagens.
+6. Os casos de `helena-v2/casos/` provam a CHK: apague o id dela de `tests/adiadas/tipo_<tipo>.py` e rode `python -m pytest tests/test_casos_da_spec.py -q`. Se o defeito dela não for pego, o teste falha.
+7. Prova de toda CHK de tipo: uma resposta boa em que ela passa e um defeito plantado que ela pega, ambos em `helena-v2/casos/<SRV>/` (o defeito é uma boa copiada com UM defeito; `deve_falhar_em` aponta para o id). `tests/test_prova_na_especificacao.py` falha se faltar um dos dois. As checagens antigas (CHK-ACAO, CHK-GANHO, CHK-LEI...) continuam provadas por `tests/casos/`.
 8. Por fim rode `python -m spec_helena --atualizar-readme` (atualiza o quadro de cobertura abaixo).
 
 ## Arquivos
@@ -162,18 +163,20 @@ exemplos/             respostas e contextos prontos para o comando validar
 
 ## Cobertura das checagens da especificação
 
+Quantas das checagens que as entregas citam o código já cobre, e quais faltam: o quadro abaixo diz, em números sempre em dia.
+
 Gerado por `python -m spec_helena` (não edite a mão: `python -m spec_helena --atualizar-readme`; um teste confere que está em dia).
 
 <!-- COBERTURA -->
-O portão 1 cobre 38 de 78 checagens citadas pelas entregas dos agentes do primeiro card; as demais estão marcadas FUTURA; a rubrica (RUB-...) é do revisor, não do código.
+O portão 1 cobre 78 de 78 checagens citadas pelas entregas dos agentes do primeiro card; as demais estão marcadas FUTURA; a rubrica (RUB-...) é do revisor, não do código.
 
 | Tipo | Cobertas | Estado |
 |---|---|---|
-| comuns (valem para todo tipo) | 8 de 10 | IMPLEMENTADA: CHK-COMUM-01, CHK-COMUM-03 a 07, CHK-COMUM-09, CHK-COMUM-10; FUTURA (no código, mas sem defeito da especificação que a prove): CHK-COMUM-02, CHK-COMUM-08 |
-| copy | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-COPY-01 a 10 |
-| roteiro_treinamento | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-TREINO-01 a 10 |
+| comuns (valem para todo tipo) | 10 de 10 | IMPLEMENTADA: CHK-COMUM-01 a 10 |
+| copy | 10 de 10 | IMPLEMENTADA: CHK-COPY-01 a 10 |
+| roteiro_treinamento | 10 de 10 | IMPLEMENTADA: CHK-TREINO-01 a 10 |
 | calculo | 12 de 12 | IMPLEMENTADA: CHK-CALCULO-01 a 12 |
 | parecer | 18 de 18 | IMPLEMENTADA: CHK-PARECER-SO-SECOES, CHK-PARECER-TAMANHO, CHK-PARECER-PECAS, CHK-PARECER-SEMAFORO, CHK-PARECER-AJUSTE, CHK-PARECER-TRECHO-DA-PECA, CHK-PARECER-PASSOS-FIXOS, CHK-PARECER-TEMAS, CHK-PARECER-FUNDAMENTOS, CHK-PARECER-CONDICOES, CHK-PARECER-ADVOGADO, CHK-PARECER-SEM-GARANTIA, CHK-PARECER-TERMO-DO-PACOTE, CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA, CHK-PARECER-TERMOS-INTEIROS, CHK-PARECER-AUSENCIA |
-| relatorio_final | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-REL-SO-SECOES, CHK-REL-TAMANHO-DAS-LINHAS, CHK-REL-ORDEM, CHK-REL-SEM-CODIGO, CHK-REL-SEM-OTIMISMO, CHK-REL-PACOTE, CHK-REL-REFS, CHK-REL-NUMEROS, CHK-REL-RISCO-ALTO-NO-RESUMO, CHK-REL-SEM-ACAO-NOVA |
-| dossie | 0 de 8 | FUTURA (checagem ainda não implementada): CHK-DOSSIE-FORMA, CHK-DOSSIE-ENTIDADE, CHK-DOSSIE-FATOS, CHK-DOSSIE-SEPARACAO, CHK-DOSSIE-LACUNAS, CHK-DOSSIE-AUSENCIA, CHK-DOSSIE-SEM-PROMESSA-DE-RENDA, CHK-DOSSIE-SEM-ACAO-EXTERNA |
+| relatorio_final | 10 de 10 | IMPLEMENTADA: CHK-REL-SO-SECOES, CHK-REL-TAMANHO-DAS-LINHAS, CHK-REL-ORDEM, CHK-REL-SEM-CODIGO, CHK-REL-SEM-OTIMISMO, CHK-REL-PACOTE, CHK-REL-REFS, CHK-REL-NUMEROS, CHK-REL-RISCO-ALTO-NO-RESUMO, CHK-REL-SEM-ACAO-NOVA |
+| dossie | 8 de 8 | IMPLEMENTADA: CHK-DOSSIE-FORMA, CHK-DOSSIE-ENTIDADE, CHK-DOSSIE-FATOS, CHK-DOSSIE-SEPARACAO, CHK-DOSSIE-LACUNAS, CHK-DOSSIE-AUSENCIA, CHK-DOSSIE-SEM-PROMESSA-DE-RENDA, CHK-DOSSIE-SEM-ACAO-EXTERNA |
 <!-- /COBERTURA -->
