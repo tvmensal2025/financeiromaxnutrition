@@ -61,11 +61,13 @@ def _forma_da_secao(secao: dict, v, caminho: str) -> list:
                     erro("FORMATO_DO_ITEM", "'citacoes' deve ser uma lista de citações, cada uma com 'trecho_original'.", cam)
             else:
                 colunas = {c["id"]: c.get("tipo_de_campo", "texto") for c in secao.get("colunas", [])}
+                # coluna com `obrigatoria: false` no modelo pode faltar na linha; sem o campo, falta é erro
+                facultativas = {c["id"] for c in secao.get("colunas", []) if c.get("obrigatoria", True) is False}
                 if not isinstance(item, dict):
                     erro("FORMATO_DO_ITEM", "Cada linha da tabela deve ser um objeto com as colunas do modelo.", cam)
                     continue
                 for c in colunas:
-                    if c not in item:
+                    if c not in item and c not in facultativas:
                         erro("COLUNA_FALTANDO", f"A linha da tabela não tem a coluna '{c}'.", cam, c)
                 for c in item:
                     if c not in colunas:

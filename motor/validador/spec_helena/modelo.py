@@ -10,7 +10,7 @@ Como mudar: para o validador receber uma opção nova (bloco "validador"), escre
 # ("Falta a seção ... (Versão final)"); a descrição fica de fora de propósito: é texto para o agente, o validador não a lê.
 CAMPOS_DA_SECAO = ("id", "titulo", "tipo_de_campo", "obrigatoria", "exige_citacao", "limite_caracteres",
                    "itens_min", "itens_max", "unidade", "valores_permitidos")
-CAMPOS_DA_COLUNA = ("id", "tipo_de_campo")
+CAMPOS_DA_COLUNA = ("id", "tipo_de_campo", "obrigatoria", "apoiada_por_citacao")
 
 
 def _secao(s: dict) -> dict:

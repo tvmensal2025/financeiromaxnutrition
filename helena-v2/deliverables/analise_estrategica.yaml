@@ -45,9 +45,9 @@ secoes:
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "DADO-n, EST-n ou HIP-n, sem repetir; o prefixo é o tipo."}
       - {id: tipo, tipo_de_campo: texto, descricao: "DADO, ESTIMATIVA ou HIPOTESE, igual ao prefixo do id."}
-      - {id: afirmacao, tipo_de_campo: texto, descricao: "O que se afirma, em uma frase."}
-      - {id: valor, tipo_de_campo: numero, descricao: "Opcional. Número com unidade e origem: DADO_DO_FUNDADOR, FONTE_CITADA ou ENTREGA_APROVADA no DADO; PREMISSA nas outras."}
-      - {id: prova, tipo_de_campo: citacao, descricao: "Só no DADO: trecho literal (frase inteira ou 12 palavras seguidas) do pedido, do pacote ou de entrega aprovada."}
+      - {id: afirmacao, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "O que se afirma, em uma frase."}
+      - {id: valor, tipo_de_campo: numero, obrigatoria: false, descricao: "Opcional. Número com unidade e origem: DADO_DO_FUNDADOR, FONTE_CITADA ou ENTREGA_APROVADA no DADO; PREMISSA nas outras."}
+      - {id: prova, tipo_de_campo: citacao, obrigatoria: false, descricao: "Só no DADO: trecho literal (frase inteira ou 12 palavras seguidas) do pedido, do pacote ou de entrega aprovada."}
   - id: opcoes
     titulo: "Opções"
     tipo_de_campo: tabela

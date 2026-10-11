@@ -55,9 +55,9 @@ secoes:
     descricao: "Um passo por linha, na ordem em que a pessoa faz, cada um com UMA ação. Tela, botão, prazo ou regra da plataforma só com o trecho de apoio."
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "P1, P2, P3... em ordem, sem pular nem repetir."}
-      - {id: o_que_fazer, tipo_de_campo: texto, descricao: "Uma frase de até 200 caracteres com uma só ação que a pessoa faz sozinha."}
+      - {id: o_que_fazer, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "Uma frase de até 200 caracteres com uma só ação que a pessoa faz sozinha."}
       - {id: sinal, tipo_de_campo: texto, descricao: "O que a pessoa vê ou ouve quando deu certo."}
-      - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal da fonte do pacote, quando o passo cita nome de tela, botão, prazo ou regra da plataforma."}
+      - {id: apoio, tipo_de_campo: citacao, obrigatoria: false, descricao: "Trecho literal da fonte do pacote, quando o passo cita nome de tela, botão, prazo ou regra da plataforma."}
   - id: erros_que_reprovam
     titulo: "Erros que reprovam ou atrapalham"
     tipo_de_campo: tabela
@@ -68,7 +68,7 @@ secoes:
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "E1, E2, E3... em ordem, sem pular nem repetir."}
       - {id: erro, tipo_de_campo: texto, descricao: "O que a pessoa faz de errado, observável."}
-      - {id: o_que_acontece, tipo_de_campo: texto, descricao: "O que acontece por causa do erro, dito igual à fonte, sem aumentar nem suavizar."}
+      - {id: o_que_acontece, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "O que acontece por causa do erro, dito igual à fonte, sem aumentar nem suavizar."}
       - {id: como_evitar, tipo_de_campo: texto, descricao: "Uma forma prática de evitar, que a pessoa faz sozinha."}
       - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal (frase inteira ou 12 palavras seguidas) da fonte do pacote que diz a regra."}
   - id: privacidade_e_terceiros

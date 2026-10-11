@@ -9,7 +9,9 @@ Regras (cada uma tem um `motivo` próprio no relatório):
   - tem de ter 12 palavras ou mais, ou ser uma FRASE INTEIRA da página (começa onde a frase começa e termina onde termina);
   - não pode começar nem terminar no meio de uma palavra;
   - citação em outra língua precisa de `traducao` em campo à parte (o original é o que se confere);
-  - a citação tem de combinar com a afirmação: mesmo número de cláusula e ao menos uma palavra em comum;
+  - a citação tem de combinar com a afirmação: mesmo número de cláusula e ao menos uma palavra em comum. Em linha de TABELA a
+    "afirmação" é só o texto das colunas marcadas `apoiada_por_citacao` no modelo; tabela sem coluna marcada é índice ou
+    exemplo (ex.: id/referência/nota de um fundamento, trecho de exemplo de um padrão) e não passa pela conferência de palavras;
   - se a afirmação cita um site, a citação tem de ser desse site;
   - seção que exige citação, ou frase que se apoia em página ("segundo os termos..."), não pode vir sem citação.
 """
@@ -258,6 +260,25 @@ def _conteudo(texto: str) -> set:
     return {t[:5] for t in re.findall(r"[^\W_]+", T.dobrar(texto)) if (len(t) >= 4 and t not in _PARADAS) or t.isdigit()}
 
 
+def _coluna_do_item(caminho_do_item: str, caminho_da_linha: str):
+    """Nome da coluna de um item de linha de tabela ('entrega.premissas[0].afirmacao#linha2' -> 'afirmacao')."""
+    resto = caminho_do_item[len(caminho_da_linha):] if caminho_do_item.startswith(caminho_da_linha) else ""
+    return resto.lstrip(".").split("#", 1)[0] or None
+
+
+def _afirmacao_a_sustentar(exe, g):
+    """O texto que a citação do grupo tem de sustentar com palavras em comum; None = o grupo não traz afirmação (só índice/exemplo).
+
+    Lista, texto solto e item com 'texto': o grupo inteiro. Linha de tabela: só as colunas marcadas `apoiada_por_citacao` no modelo.
+    """
+    secao = next((s for s in exe.modelo.get("secoes", []) if s.get("id") == g.secao), None)
+    if secao is None or secao.get("tipo_de_campo") != "tabela":
+        return g.texto
+    marcadas = {c["id"] for c in secao.get("colunas", []) if c.get("apoiada_por_citacao")}
+    texto = " ".join(i.texto for i in g.itens if i.tipo == "livre" and _coluna_do_item(i.caminho, g.caminho) in marcadas)
+    return texto if texto.strip() else None
+
+
 def _checar_grupo(exe, g, achados: dict) -> list:
     """Confere se as citações do grupo combinam com a afirmação (cláusula, palavras em comum e site)."""
     falhas, texto = [], g.texto
@@ -290,7 +311,8 @@ def _checar_grupo(exe, g, achados: dict) -> list:
                                     f"A frase fala da cláusula {', '.join(rotulos_da_frase)}, mas o trecho citado é da cláusula {conhecidos[0]}.", T.cortar(c.dados.get('trecho_original', ''))))
     # 3) pelo menos uma palavra em comum
     cfg = CONFIG["citacao"]
-    frase = _conteudo(texto)
+    afirmacao = _afirmacao_a_sustentar(exe, g)
+    frase = _conteudo(afirmacao) if afirmacao else set()
     if len(frase) >= cfg["min_palavras_da_afirmacao_para_comparar"] and not any(f.motivo == "OUTRA_CLAUSULA" for f in falhas):
         apoio = set()
         comparavel = False
@@ -307,7 +329,7 @@ def _checar_grupo(exe, g, achados: dict) -> list:
                 comparavel = True
         if comparavel and len(frase & apoio) < cfg["min_palavras_em_comum"]:
             falhas.append(Falha(ID, "OUTRA_CLAUSULA", g.caminho,
-                                "A citação não tem nenhuma palavra em comum com a frase: parece ser de outra cláusula. Cite o trecho que diz o que a frase afirma.", T.cortar(texto)))
+                                "A citação não tem nenhuma palavra em comum com a frase: parece ser de outra cláusula. Cite o trecho que diz o que a frase afirma.", T.cortar(afirmacao)))
     return falhas
 
 

@@ -32,19 +32,13 @@ from .adiadas import ADIADAS  # noqa: E402  (um arquivo por tipo, em tests/adiad
 # ---------------------------------------------------------------------------------------
 # 2. Respostas BOAS da especificação que o código recusa hoje: (id da checagem, motivo) -> por quê
 #    Cada serviço roda só as checagens da sua especificação (modelo.checagens_a_rodar: comuns + criterio_de_pronto do tipo),
-#    então as checagens ANTIGAS (CHK-CALC, CHK-FONTE, CHK-LEI, CHK-TEMA...) não entram aqui. Sobram as comuns, que
-#    ainda não entendem alguns desenhos da especificação; a divergência fica escrita aqui até alguém decidir.
+#    então as checagens ANTIGAS (CHK-CALC, CHK-FONTE, CHK-LEI, CHK-TEMA...) não entram aqui. Sobram as comuns; quando uma
+#    delas ainda não entende um desenho da especificação, a divergência fica escrita aqui até alguém decidir.
 # ---------------------------------------------------------------------------------------
 DIVERGENCIAS_EM_CASOS_BONS = {
-    ("CHK-COMUM-01", "COLUNA_FALTANDO"):
-        "A especificação diz que as colunas 'valor' e 'prova' da tabela 'premissas' (analise_estrategica) são opcionais, mas só escreve "
-        "isso na descrição; o entrega.schema.json não tem 'obrigatoria' em coluna. O adaptador não consegue saber; o validador exige todas.",
-    ("CHK-COMUM-06", "OUTRA_CLAUSULA"):
-        "A checagem exige uma palavra em comum entre a frase da linha e o trecho citado. Em fundamentos (parecer) a linha é só "
-        "id/referência/nota e em padroes (plano_de_pratica) o trecho é um exemplo do padrão, não uma paráfrase: não há palavra em comum.",
-    ("CHK-COMUM-06", "TRADUCAO_AUSENTE"):
-        "O detector de idioma acha que o trecho em português 'A plataforma paga à empresa US$ 0,50 por hora...' está em outra língua "
-        "(poucas palavras de ligação, muitos números) e pede tradução.",
+    # (vazio: as três divergências antigas foram consertadas na raiz — coluna opcional, conferência de palavras só onde há
+    # afirmação e detector de idioma que ignora dinheiro. Se uma resposta BOA voltar a ser recusada por checagem comum, o teste
+    # acusa; só acrescente aqui depois de entender por quê, com o motivo escrito.)
 }
 
 # ---------------------------------------------------------------------------------------

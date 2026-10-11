@@ -194,3 +194,14 @@ def test_todo_arquivo_novo_abre_com_um_comentario_de_o_que_e():
     sem = [str(p.relative_to(aqui)) for pasta in ("spec_helena", "validador/checagens", "tests") for p in sorted((aqui / pasta).glob("*.py"))
            if p.stat().st_size and not ast.get_docstring(ast.parse(p.read_text(encoding="utf-8")))]
     assert not sem, f"estes arquivos não abrem com um comentário (o que é, de onde vem, como mudar): {sem}"
+
+
+# ---- colunas opcionais e colunas de afirmação (vêm do YAML do tipo; nada é inventado) ----------
+def test_as_marcas_de_coluna_do_yaml_chegam_ao_validador():
+    spec = prova.spec_padrao()
+    premissas = next(s for s in montar_modelo(spec, "analise_estrategica")["secoes"] if s["id"] == "premissas")
+    por_id = {c["id"]: c for c in premissas["colunas"]}
+    assert por_id["valor"]["obrigatoria"] is False and por_id["prova"]["obrigatoria"] is False
+    assert por_id["afirmacao"]["apoiada_por_citacao"] is True and "obrigatoria" not in por_id["afirmacao"]
+    passos = next(s for s in montar_modelo(spec, "roteiro_treinamento")["secoes"] if s["id"] == "passo_a_passo")
+    assert {c["id"]: c.get("obrigatoria", True) for c in passos["colunas"]}["apoio"] is False

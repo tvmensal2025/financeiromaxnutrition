@@ -11,12 +11,15 @@ PORTUGUES = [
     "Receita total: R$ 540,00 em 3 cenários com 10 pessoas e 20 horas por semana de dedicação média.",
     "Esta página explica o cadastro de novos participantes e o envio dos vídeos gravados por eles.",
     "A página diz: Users must be at least 18 years old. Portanto o participante precisa ter 18 anos.",  # citação em inglês no meio
+    "A plataforma paga à empresa US$ 0,50 por hora aprovada de cada pessoa indicada.",  # muitos números e dinheiro, poucas palavras de ligação
     "Instagram; WhatsApp; TikTok; YouTube; Telegram; Facebook; LinkedIn; Kwai; Discord; Twitter",  # só nomes próprios
 ]
 OUTRAS = [
     "Users must be at least 18 years old and must agree to the terms of service before they can upload any content.",
     "The platform may suspend your account if you violate the rules, and you will not be paid for any pending work.",
     "Los usuarios deben tener al menos 18 años y aceptar los términos de uso antes de subir cualquier contenido a la plataforma.",
+    "The platform pays the company US$ 0.50 per approved hour for each person who was referred by the company.",  # inglês com dinheiro
+    "Pay US$ 10 to the company within 30 days of the invoice date, and the fee is not refundable after that.",
     "El participante debe enviar una grabación de su voz y no puede usar cuentas de otras personas en el sitio.",
 ]
 
