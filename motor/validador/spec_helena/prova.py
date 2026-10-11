@@ -54,6 +54,26 @@ def registrada(id_da_checagem) -> bool:
     return id_da_checagem in CHECAGENS
 
 
+def ids_dos_tipos_registrados() -> set:
+    """CHK da especificação que são de um TIPO de entrega (não as comuns) e já existem no código."""
+    spec = spec_padrao()
+    return {i for i, c in spec.todas_as_checagens().items() if c["tipo"] and i in CHECAGENS}
+
+
+def ids_provados_pela_spec() -> set:
+    """CHK que têm, nos casos de helena-v2/casos, uma resposta BOA em que passaram e um DEFEITO que elas pegaram."""
+    spec = spec_padrao()
+    passaram, pegaram = set(), set()
+    for av in avaliacoes_da_spec():
+        if not av.rodou:
+            continue
+        if av.caso.bom:
+            passaram |= {c.id for c in av.relatorio.checagens if c.status == "PASSOU"}
+        else:
+            pegaram |= {i for i in av.caso.deve_falhar_em if pegou(spec, av, i)}
+    return passaram & pegaram
+
+
 @lru_cache(maxsize=1)
 def spec_padrao() -> Spec:
     return Spec()

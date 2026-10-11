@@ -165,15 +165,15 @@ exemplos/             respostas e contextos prontos para o comando validar
 Gerado por `python -m spec_helena` (não edite a mão: `python -m spec_helena --atualizar-readme`; um teste confere que está em dia).
 
 <!-- COBERTURA -->
-O portão 1 cobre 8 de 78 checagens citadas pelas entregas dos agentes do primeiro card; as demais estão marcadas FUTURA; a rubrica (RUB-...) é do revisor, não do código.
+O portão 1 cobre 38 de 78 checagens citadas pelas entregas dos agentes do primeiro card; as demais estão marcadas FUTURA; a rubrica (RUB-...) é do revisor, não do código.
 
 | Tipo | Cobertas | Estado |
 |---|---|---|
 | comuns (valem para todo tipo) | 8 de 10 | IMPLEMENTADA: CHK-COMUM-01, CHK-COMUM-03 a 07, CHK-COMUM-09, CHK-COMUM-10; FUTURA (no código, mas sem defeito da especificação que a prove): CHK-COMUM-02, CHK-COMUM-08 |
 | copy | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-COPY-01 a 10 |
 | roteiro_treinamento | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-TREINO-01 a 10 |
-| calculo | 0 de 12 | FUTURA (checagem ainda não implementada): CHK-CALCULO-01 a 12 |
-| parecer | 0 de 18 | FUTURA (checagem ainda não implementada): CHK-PARECER-SO-SECOES, CHK-PARECER-TAMANHO, CHK-PARECER-PECAS, CHK-PARECER-SEMAFORO, CHK-PARECER-AJUSTE, CHK-PARECER-TRECHO-DA-PECA, CHK-PARECER-PASSOS-FIXOS, CHK-PARECER-TEMAS, CHK-PARECER-FUNDAMENTOS, CHK-PARECER-CONDICOES, CHK-PARECER-ADVOGADO, CHK-PARECER-SEM-GARANTIA, CHK-PARECER-TERMO-DO-PACOTE, CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA, CHK-PARECER-TERMOS-INTEIROS, CHK-PARECER-AUSENCIA |
+| calculo | 12 de 12 | IMPLEMENTADA: CHK-CALCULO-01 a 12 |
+| parecer | 18 de 18 | IMPLEMENTADA: CHK-PARECER-SO-SECOES, CHK-PARECER-TAMANHO, CHK-PARECER-PECAS, CHK-PARECER-SEMAFORO, CHK-PARECER-AJUSTE, CHK-PARECER-TRECHO-DA-PECA, CHK-PARECER-PASSOS-FIXOS, CHK-PARECER-TEMAS, CHK-PARECER-FUNDAMENTOS, CHK-PARECER-CONDICOES, CHK-PARECER-ADVOGADO, CHK-PARECER-SEM-GARANTIA, CHK-PARECER-TERMO-DO-PACOTE, CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA, CHK-PARECER-TERMOS-INTEIROS, CHK-PARECER-AUSENCIA |
 | relatorio_final | 0 de 10 | FUTURA (checagem ainda não implementada): CHK-REL-SO-SECOES, CHK-REL-TAMANHO-DAS-LINHAS, CHK-REL-ORDEM, CHK-REL-SEM-CODIGO, CHK-REL-SEM-OTIMISMO, CHK-REL-PACOTE, CHK-REL-REFS, CHK-REL-NUMEROS, CHK-REL-RISCO-ALTO-NO-RESUMO, CHK-REL-SEM-ACAO-NOVA |
 | dossie | 0 de 8 | FUTURA (checagem ainda não implementada): CHK-DOSSIE-FORMA, CHK-DOSSIE-ENTIDADE, CHK-DOSSIE-FATOS, CHK-DOSSIE-SEPARACAO, CHK-DOSSIE-LACUNAS, CHK-DOSSIE-AUSENCIA, CHK-DOSSIE-SEM-PROMESSA-DE-RENDA, CHK-DOSSIE-SEM-ACAO-EXTERNA |
 <!-- /COBERTURA -->
