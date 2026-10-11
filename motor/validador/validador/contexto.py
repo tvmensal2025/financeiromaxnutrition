@@ -91,6 +91,10 @@ def _modelo(m):
                 _texto(t["tema"], f"contexto.modelo.temas_obrigatorios[{i}].tema")
             if "termos" in t:
                 _lista_de_textos(t["termos"], f"contexto.modelo.temas_obrigatorios[{i}].termos")
+    if "parametros_das_checagens" in m:
+        _objeto(m["parametros_das_checagens"], "contexto.modelo.parametros_das_checagens")
+        for chk, par in m["parametros_das_checagens"].items():
+            _objeto(par, f"contexto.modelo.parametros_das_checagens[{chk}]")
     if "validador" in m:
         v = m["validador"]
         _objeto(v, "contexto.modelo.validador")

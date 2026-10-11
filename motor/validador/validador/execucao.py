@@ -422,3 +422,11 @@ class Execucao:
 
     def opcao(self, nome: str, padrao=None):
         return self.opcoes.get(nome, padrao)
+
+    def parametros(self, id_da_checagem: str) -> dict:
+        """Os `parametros` que a especificação (helena-v2/deliverables/<tipo>.yaml) escreve para esta checagem.
+
+        Vêm em `contexto["modelo"]["parametros_das_checagens"][id]`, entregues pelo adaptador (spec_helena). A função da checagem
+        lê os números e as listas DAQUI, em vez de copiá-los para o código. Sem o bloco, devolve {} (o chamador decide o que fazer).
+        """
+        return (self.modelo.get("parametros_das_checagens") or {}).get(id_da_checagem) or {}

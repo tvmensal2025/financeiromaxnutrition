@@ -10,6 +10,8 @@ RAIZ_DO_COMPONENTE = RAIZ.parent
 ARQUIVOS = sorted(RAIZ.rglob("*.py"))
 PROIBIDAS_NAS_CHAMADAS = {"eval", "exec", "compile", "__import__", "open_code"}
 MODULOS_PROIBIDOS = {"subprocess", "os", "socket", "urllib.request", "http", "requests", "pickle", "marshal", "ctypes", "shutil", "importlib"}
+# Única exceção: o achador de checagens importa os arquivos da PRÓPRIA pasta checagens/ (ver checagens/__init__.py).
+EXCECOES_DE_IMPORT = {("checagens/__init__.py", "importlib")}
 
 
 def test_ha_arquivos_para_olhar():
@@ -34,7 +36,10 @@ def test_nenhum_modulo_importa_rede_processo_ou_arquivo_do_sistema():
                 nomes = [a.name for a in no.names]
             elif isinstance(no, ast.ImportFrom) and no.level == 0 and no.module:
                 nomes = [no.module]
-            achados += [f"{arq.name}:{no.lineno} importa {n}" for n in nomes if n in MODULOS_PROIBIDOS or n.split(".")[0] in {"subprocess", "socket", "requests", "pickle", "ctypes"}]
+            relativo = arq.relative_to(RAIZ).as_posix()
+            achados += [f"{arq.name}:{no.lineno} importa {n}" for n in nomes
+                        if (n in MODULOS_PROIBIDOS or n.split(".")[0] in {"subprocess", "socket", "requests", "pickle", "ctypes"})
+                        and (relativo, n) not in EXCECOES_DE_IMPORT]
     assert not achados, achados
 
 
