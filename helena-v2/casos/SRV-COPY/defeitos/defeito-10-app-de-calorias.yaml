@@ -1,0 +1,73 @@
+# Caso RUIM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante ELIVING. SINTÉTICO.
+# Igual a boa-04-eliving.yaml, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU). Como mudar: troque só o trecho do defeito; o resto
+# tem de continuar igual à boa de origem.
+id: COPY-RUIM-10
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: ELIVING
+derivado_de: ../boas/boa-04-eliving.yaml
+defeito_plantado: Acrescenta na versão final 'A eLiving™ também conta as calorias do seu dia.' (a eLiving™ não é app de calorias;
+  DEC-023).
+deve_falhar_em: CHK-COPY-05
+portao: 1 (código)
+motivo_esperado: termo de caloria da lista fechada ('calorias') no card da eLiving™ (BIZ-004).
+passa_nas_demais: 'sim: todas as outras checagens comuns e CHK-COPY-01 a 10'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+  entrega:
+    onde_usar: Adultos que você conhece, por mensagem no WhatsApp. Quem ler pode responder a mensagem se tiver interesse,
+      tirar dúvidas antes de decidir ou não responder.
+    versao_final: 'Oi! Tudo bem? Estou convidando as primeiras 10 pessoas para conhecer a eLiving™. Onde sua evolução ganha
+      direção. A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor Vital (Saúde),
+      Alex (Movimento) e Rafael (Hábitos). Os quatro pilares são personagens do produto. A eLiving™ também conta as calorias
+      do seu dia. Se tiver interesse, é só responder esta mensagem e eu explico os próximos passos. Se quiser, tire suas dúvidas
+      comigo antes de decidir. E, se não fizer sentido para você agora, tudo bem não responder.'
+    alternativa_curta: Oi! Estou convidando as primeiras 10 pessoas para conhecer a eLiving™. Onde sua evolução ganha direção.
+      Se tiver interesse, responda esta mensagem e eu explico os próximos passos. Tudo bem não responder.
+    afirmacoes:
+    - id: A1
+      frase: Estou convidando as primeiras 10 pessoas para conhecer a eLiving™.
+      apoio:
+        trecho_original: Vou chamar as primeiras 10 pessoas pelo WhatsApp, todas adultas e conhecidas minhas.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A2
+      frase: Onde sua evolução ganha direção.
+      apoio:
+        trecho_original: Onde sua evolução ganha direção.
+        fonte_importada_id: FON-PACOTE-BIZ-004
+    - id: A3
+      frase: 'A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor Vital (Saúde),
+        Alex (Movimento) e Rafael (Hábitos).'
+      apoio:
+        trecho_original: 'A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor
+          Vital (Saúde), Alex (Movimento) e Rafael (Hábitos).'
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A4
+      frase: Os quatro pilares são personagens do produto.
+      apoio:
+        trecho_original: Os quatro pilares são personagens do produto.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A5
+      frase: é só responder esta mensagem e eu explico os próximos passos
+      apoio:
+        trecho_original: Quem tiver interesse responde esta mensagem e eu explico os próximos passos.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A6
+      frase: tire suas dúvidas comigo antes de decidir
+      apoio:
+        trecho_original: A pessoa pode tirar dúvidas antes de decidir e pode também não responder.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    o_que_precisa_aprovacao:
+    - 'Quem assina a mensagem: o pedido não diz o seu nome, e o texto fala em primeira pessoa ("eu explico").'
+    - 'Canal de resposta: o pacote não tem número, perfil nem link confirmado, então o texto manda responder a própria mensagem
+      e não leva contato. Se quiser outro caminho, diga qual.'
+    - Enviar é ação sua, depois do parecer aprovado.
+    limites:
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'
+    - 'Plano de canais e de campanha: é da Camila.'
+    - 'Cadastro na Mimix e no Hub e o envio dos convites: são ações suas.'
