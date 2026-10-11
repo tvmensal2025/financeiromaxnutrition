@@ -24,7 +24,7 @@ pip install -r requirements.txt     # nesta pasta
 python -m pytest                    # sobe o próprio PostgreSQL em /tmp/pg-helena-v2-*, porta 54329, só 127.0.0.1
 ```
 
-Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`.
+Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`. Com `HELENA_V2_COBERTURA=1 python -m pytest -s` o fim da saída diz quantas linhas da tabela os testes exercitaram e quais faltaram.
 
 ## Como regenerar quando o YAML mudar
 

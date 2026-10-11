@@ -196,6 +196,23 @@ def servidor():
         cluster.derrubar()
 
 
+def imprimir_cobertura(banco):
+    """Com HELENA_V2_COBERTURA=1: quantas linhas da tabela de passagens os testes todos exercitaram (e quais faltaram)."""
+    with banco.conectar() as c:
+        usadas = {(m, b) for m, b in c.execute(
+            "select distinct p.maquina, p.base_id from helena_v2.historico h join helena_v2.passagem p "
+            "on p.maquina = h.maquina and p.linha_id = h.linha_id")}
+        todas = {(m, b) for m, b in c.execute("select distinct maquina, base_id from helena_v2.passagem")}
+    por = {}
+    for m, b in sorted(todas):
+        a = por.setdefault(m, [0, 0])
+        a[1] += 1
+        a[0] += (m, b) in usadas
+    print(f"\nCOBERTURA de todos os testes no banco principal: {len(usadas)}/{len(todas)} linhas da tabela | " +
+          ", ".join(f"{m} {a}/{t}" for m, (a, t) in por.items()))
+    print("linhas que nenhum teste do banco principal exercitou:", ", ".join(b for _m, b in sorted(todas - usadas)))
+
+
 @pytest.fixture(scope="session")
 def banco(servidor):
     """O banco de teste com os quatro arquivos SQL aplicados do zero."""
@@ -203,6 +220,8 @@ def banco(servidor):
     try:
         yield b
     finally:
+        if os.environ.get("HELENA_V2_COBERTURA"):
+            imprimir_cobertura(b)
         derrubar_banco(b)
 
 

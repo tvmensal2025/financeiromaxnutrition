@@ -196,3 +196,104 @@ def test_validador_que_cai_tres_vezes_chama_voce_sem_gastar_tentativa(con):
     assert {"E47", "E48"} <= linhas_usadas(m)
     e = m.linha_da_etapa("E1")
     assert e["estado"] == "ESPERANDO_FUNDADOR" and e["motivo"] == "INFRA" and e["execucoes"] == 1 and e["semaforo"] == "NENHUM"
+
+
+# ============================================================================== mais caminhos: a ação externa, a revisão que falha, a dependência reaberta
+import pytest  # noqa: E402
+
+REVISOR_DA_UMA = "CLARA"
+ATE_REVISAO = INICIO + executando("E1") + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido=REVISOR_DA_UMA), ev("MOTOR", "INICIAR_REVISAO", "E1")]
+PRONTO_COM_ACAO = (INICIO + executando("E1") + entregar("E1", acao="PELO_MOTOR") + aprovada_por("E1", REVISOR_DA_UMA) + [ev("MOTOR", "TODAS_PRONTAS")])
+A1 = "acao:A1"
+AUTORIZADA = PRONTO_COM_ACAO + [ev("FUNDADOR", "APROVAR", A1)]
+EXECUTANDO_A_ACAO = AUTORIZADA + [ev("MOTOR", "EXECUTAR_ACAO", A1)]
+INCERTA = EXECUTANDO_A_ACAO + [ev("RELOGIO", "TEMPO_ESGOTADO", A1)]
+JA_QUASE_NO_TETO = INICIO + executando("E1")
+
+
+def _cinco_voltas():
+    eventos = []
+    for _ in range(5):
+        eventos += entregar("E1") + [ev("MOTOR", "PORTAO1_RECUSOU", "E1"), ev("MOTOR", "INICIAR_EXECUCAO", "E1")]
+    return eventos
+
+
+def _dependente_ate(estagio):
+    base = INICIO + executando("E1") + entregar("E1") + aprovada_por("E1", "CLARA") + [ev("MOTOR", "DEPENDENCIAS_PRONTAS", "E2")]
+    if estagio == "NA_FILA":
+        return base
+    base += [ev("MOTOR", "INICIAR_EXECUCAO", "E2")]
+    if estagio == "EXECUTANDO":
+        return base
+    base += entregar("E2")
+    if estagio == "VALIDACAO":
+        return base
+    base += [ev("MOTOR", "PORTAO1_OK", "E2", escolhido="CAIO"), ev("MOTOR", "INICIAR_REVISAO", "E2")]
+    if estagio == "REVISAO":
+        return base
+    return base + [ev("REVISOR", "APROVAR", "E2")]
+
+
+def _revisao_depois(*falhas):
+    """Revisão aberta e, a cada falha, uma nova chamada de revisão (INICIAR_REVISAO) se a etapa continuar em REVISAO."""
+    saida = list(ATE_REVISAO)
+    for i, f in enumerate(falhas):
+        saida.append(f)
+        if i < len(falhas) - 1:
+            saida.append(ev("MOTOR", "INICIAR_REVISAO", "E1"))
+    return saida
+
+
+CENARIOS_EXTRAS = [
+    ("acao recusada por voce antes de autorizar", UMA, PRONTO_COM_ACAO + [ev("FUNDADOR", "CANCELAR", A1)], {"X03"}),
+    ("acao expira depois do lembrete", UMA, PRONTO_COM_ACAO + [ev("RELOGIO", "LEMBRETE_24H", A1), ev("RELOGIO", "PRAZO_ESPERA_VENCIDO", A1)], {"X06", "X04"}),
+    ("acao autorizada e depois recusada", UMA, AUTORIZADA + [ev("FUNDADOR", "CANCELAR", A1)], {"X01", "X11"}),
+    ("ok vence sem o motor comecar", UMA, AUTORIZADA + [ev("RELOGIO", "TEMPO_ESGOTADO", A1)], {"X13"}),
+    ("acao executada falha", UMA, EXECUTANDO_A_ACAO + [ev("MOTOR", "ACAO_FALHOU", A1)], {"X10", "X21"}),
+    ("acao incerta e voce confirma que aconteceu", UMA, INCERTA + [ev("FUNDADOR", "RESPONDER", A1, opcao="ACONTECEU")], {"X22", "X30"}),
+    ("acao incerta sem sua confirmacao fica nao confirmada", UMA,
+     INCERTA + [ev("RELOGIO", "LEMBRETE_24H", A1), ev("RELOGIO", "LEMBRETE_48H", A1), ev("RELOGIO", "PRAZO_ESPERA_VENCIDO", A1)], {"X32", "X33", "X34"}),
+    ("acao concluida", UMA, EXECUTANDO_A_ACAO + [ev("MOTOR", "ACAO_CONCLUIDA", A1)], {"X20"}),
+    ("validador do plano cai sempre e na 4a confirmacao o card e substituido", UMA,
+     [ev("HELENA", "LER_DE_VOLTA")] + ([ev("RELOGIO", "TEMPO_ESGOTADO")] * 2 + [ev("FUNDADOR", "RESPONDER", opcao="CONFIRMO")]) * 4, {"C30", "C31", "C32", "C33"}),
+    ("teto de execucoes ja na revisao", UMA,
+     INICIO + executando("E1") + _cinco_voltas() + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido=REVISOR_DA_UMA), ev("MOTOR", "TETO_EXECUCOES", "E1")], {"E51"}),
+    ("terceira reprovacao vai para resolucao", UMA,
+     INICIO + executando("E1") + sum(([ev("AUTOR", "ENTREGAR", "E1", parecer="OK", acao_externa="NENHUMA", usou_internet="NAO"),
+                                       ev("MOTOR", "PORTAO1_OK", "E1", escolhido=REVISOR_DA_UMA), ev("MOTOR", "INICIAR_REVISAO", "E1"),
+                                       ev("REVISOR", "REPROVAR", "E1"), ev("MOTOR", "INICIAR_EXECUCAO", "E1")] for _ in range(2)), [])
+     + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido=REVISOR_DA_UMA), ev("MOTOR", "INICIAR_REVISAO", "E1"), ev("REVISOR", "REPROVAR", "E1")], {"E57", "E58"}),
+    ("revisao: formato errado duas vezes", UMA, _revisao_depois(ev("MOTOR", "FALHA", "E1", classe="FORMATO_ERRADO"), ev("MOTOR", "FALHA", "E1", classe="FORMATO_ERRADO")), {"E60", "E61"}),
+    ("revisao: limite de chamadas duas vezes", UMA, _revisao_depois(ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS"), ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS")), {"E62", "E63"}),
+    ("revisao: entrega grande demais", UMA, _revisao_depois(ev("MOTOR", "FALHA", "E1", classe="GRANDE_DEMAIS")), {"E64"}),
+    ("revisao: tempo esgotado duas vezes", UMA, _revisao_depois(ev("RELOGIO", "TEMPO_ESGOTADO", "E1"), ev("RELOGIO", "TEMPO_ESGOTADO", "E1")), {"E65", "E66"}),
+    ("revisao: infraestrutura tres vezes", UMA,
+     _revisao_depois(ev("MOTOR", "FALHA_INFRA", "E1", classe="PROVEDOR"), ev("MOTOR", "FALHA_INFRA", "E1", classe="QUEDA"), ev("MOTOR", "FALHA_INFRA", "E1", classe="BANCO")), {"E67", "E68"}),
+    ("revisao: o vigia acha a revisao morta tres vezes", UMA,
+     _revisao_depois(ev("VIGIA", "SEM_EXECUCAO_VIVA", "E1"), ev("VIGIA", "SEM_EXECUCAO_VIVA", "E1"), ev("VIGIA", "SEM_EXECUCAO_VIVA", "E1")), {"E69", "E70"}),
+    ("revisao: cancelar o card cancela a etapa em revisao", UMA, ATE_REVISAO + [ev("FUNDADOR", "CANCELAR")], {"E73"}),
+    ("revisao sem capacidade tres vezes", UMA, INICIO + executando("E1") + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido=REVISOR_DA_UMA)]
+     + [ev("MOTOR", "SEM_CAPACIDADE", "E1", classe="COTA")] * 3, {"E52", "E53"}),
+    ("execucao: limite de chamadas duas vezes", UMA,
+     INICIO + executando("E1") + [ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS"), ev("MOTOR", "INICIAR_EXECUCAO", "E1"),
+                                  ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS")], {"E26", "E27"}),
+    ("revisor nao consegue conferir e o card chama voce", UMA, ATE_REVISAO + [ev("REVISOR", "NAO_CONSIGO_CONFERIR", "E1")], {"E59"}),
+    ("decisao nova com a etapa em revisao abre rodada nova", UMA, ATE_REVISAO + [ev("MOTOR", "DECISAO_MUDOU")], {"E72"}),
+    ("decisao nova com a revisao esperando voce abre rodada nova", UMA,
+     INICIO + executando("E1") + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido="FUNDADOR"), ev("MOTOR", "DECISAO_MUDOU")], {"E41", "E93"}),
+    ("dependencia reaberta com a dependente esperando voce", ROTEIRO_DEPENDENTE,
+     INICIO + executando("E1") + entregar("E1") + aprovada_por("E1", "CLARA") + [ev("MOTOR", "DEPENDENCIAS_PRONTAS", "E2"), ev("MOTOR", "INICIAR_EXECUCAO", "E2")]
+     + entregar("E2") + [ev("MOTOR", "PORTAO1_OK", "E2", escolhido="FUNDADOR"), ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E41", "E92"}),
+    ("dependencia reaberta com a dependente na fila", ROTEIRO_DEPENDENTE, _dependente_ate("NA_FILA") + [ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E111", "E17"}),
+    ("dependencia reaberta com a dependente executando", ROTEIRO_DEPENDENTE, _dependente_ate("EXECUTANDO") + [ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E111", "E37"}),
+    ("dependencia reaberta com a dependente em validacao", ROTEIRO_DEPENDENTE, _dependente_ate("VALIDACAO") + [ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E111", "E44"}),
+    ("dependencia reaberta com a dependente em revisao", ROTEIRO_DEPENDENTE, _dependente_ate("REVISAO") + [ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E111", "E71"}),
+    ("dependencia reaberta com a dependente aprovada", ROTEIRO_DEPENDENTE, _dependente_ate("APROVADA") + [ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E111", "E114"}),
+]
+
+
+@pytest.mark.parametrize("nome,roteiro,eventos,queria", CENARIOS_EXTRAS, ids=[c[0] for c in CENARIOS_EXTRAS])
+def test_cenarios_dirigidos_o_banco_faz_o_mesmo_que_o_provar_e_a_linha_queria_dispara(con, nome, roteiro, eventos, queria):
+    m = rodar(con, eventos, roteiro)
+    faltou = queria - linhas_usadas(m)
+    assert not faltou, f"o cenário '{nome}' não exercitou {sorted(faltou)}"
