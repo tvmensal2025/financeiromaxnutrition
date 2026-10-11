@@ -51,6 +51,10 @@ ALVOS_DE_SINAL = {"etapas_abertas", "acoes_abertas", "etapas_aprovadas", "etapas
 PREDICADOS_IMPLEMENTADOS = {"etapa": {"revisor_valido", "anteriores_satisfeitas"},
                             "card": {"todas_prontas", "falha_sem_decisao", "nao_pode_sem_decisao", "falhas_pulaveis"},
                             "acao_externa": set()}
+# A ficha de cada máquina que criar_card e a ação externa preenchem (provar.CONFIG_NOMES precisa dizer o mesmo).
+CONFIG_QUE_O_BANCO_PREENCHE = {
+    "etapa": {"tem_internet", "julgadora", "julgada", "pulavel", "permite_perguntar", "permite_devolver", "usa_decisao", "prazo_de_terceiro"},
+    "card": {"pedido_grande"}, "acao_externa": {"tem_ferramenta"}}
 # Eventos e variáveis com significado fixo na função única (o YAML tem de continuar tendo todos).
 EVENTOS_COM_SIGNIFICADO = [("AUTOR", "ENTREGAR"), ("MOTOR", "INICIAR_EXECUCAO"), ("MOTOR", "INICIAR_REVISAO"),
                            ("MOTOR", "PORTAO1_OK"), ("MOTOR", "PORTAO1_RECUSOU"), ("MOTOR", "FALHA")]
@@ -197,6 +201,8 @@ def conferir_o_que_o_banco_sabe(vocab, tab, maqs):
         extra = (set(P.PREDICADOS_NOMES[nome]) - PREDICADOS_IMPLEMENTADOS[nome]) | (PREDICADOS_IMPLEMENTADOS[nome] - set(P.PREDICADOS_NOMES[nome]))
         if extra:
             erros.append(f"predicados de {nome} que o banco não calcula (ou calcula a mais): {sorted(extra)}")
+        if set(P.CONFIG_NOMES[nome]) != CONFIG_QUE_O_BANCO_PREENCHE[nome]:
+            erros.append(f"ficha de {nome}: o provar lê {sorted(P.CONFIG_NOMES[nome])} e o banco preenche {sorted(CONFIG_QUE_O_BANCO_PREENCHE[nome])}")
         choque = set(P.CONFIG_NOMES[nome]) & set(maqs[nome].idx)
         if choque:
             erros.append(f"{nome}: nome de configuração igual ao de variável: {sorted(choque)}")
@@ -583,18 +589,21 @@ $situacao$;
 """
 
 
-def gerar(vocab=None, tabela=None):
-    """Devolve {nome_do_arquivo: texto}. Aceita dicionários prontos (os testes plantam defeitos neles)."""
+def gerar(vocab=None, tabela=None, estrita=True):
+    """Devolve {nome_do_arquivo: texto}. Aceita dicionários prontos (os testes plantam defeitos neles).
+    estrita=False pula a conferência de estrutura do provar: só os testes de defeito plantado usam, para ver o banco recusar
+    o que a tabela deixaria passar."""
     vocab, tab = P.carregar(vocab, tabela)
     try:
         maqs = P.montar(vocab, tab)
     except P.ErroTabela as e:
         raise ErroDoGerador(f"a tabela não monta: {e}")
-    rel = P.Relatorio()
-    P.conferir_estrutura(vocab, tab, maqs, rel)
-    if not rel.vazio():
-        raise ErroDoGerador("a tabela falha na estrutura (rode provar.py):\n  - " + "\n  - ".join(
-            f"[{i['regra']}] {i['mensagem']}" for i in rel.lista()))
+    if estrita:
+        rel = P.Relatorio()
+        P.conferir_estrutura(vocab, tab, maqs, rel)
+        if not rel.vazio():
+            raise ErroDoGerador("a tabela falha na estrutura (rode provar.py):\n  - " + "\n  - ".join(
+                f"[{i['regra']}] {i['mensagem']}" for i in rel.lista()))
     conferir_o_que_o_banco_sabe(vocab, tab, maqs)
     impressao = P.impressao_digital(vocab, tab)
     partes = [
@@ -606,7 +615,7 @@ def gerar(vocab=None, tabela=None):
 --             `python supabase/migrations-v2/gerar_passagens.py`. O teste test_02_gerador.py falha se este
 --             arquivo guardado for diferente do que o gerador produz hoje.
 -- Impressão digital da tabela (provar.impressao_digital): {impressao}
-select set_config('helena_v2.migrando', 'sim', true);
+select set_config('helena_v2.migrando', 'sim', false);
 """,
         _definicao_das_tabelas_de_regras(),
         "-- Limpa as tabelas de regras e grava de novo (este arquivo pode ser aplicado outra vez).\n" +
@@ -626,7 +635,7 @@ begin
   end if;
 end;
 $selar$;
-select set_config('helena_v2.migrando', 'nao', true);
+select set_config('helena_v2.migrando', 'nao', false);
 """)
     texto_final = "\n".join(p.rstrip("\n") + "\n" for p in partes)
     return {ARQUIVO_SQL.name: texto_final}

@@ -6,7 +6,7 @@
 --             `python supabase/migrations-v2/gerar_passagens.py`. O teste test_02_gerador.py falha se este
 --             arquivo guardado for diferente do que o gerador produz hoje.
 -- Impressão digital da tabela (provar.impressao_digital): cf95deb1ff066e4f
-select set_config('helena_v2.migrando', 'sim', true);
+select set_config('helena_v2.migrando', 'sim', false);
 
 -- Tabelas de regras (preenchidas abaixo, só por este arquivo).
 create table if not exists helena_v2.teto (
@@ -991,4 +991,4 @@ begin
   end if;
 end;
 $selar$;
-select set_config('helena_v2.migrando', 'nao', true);
+select set_config('helena_v2.migrando', 'nao', false);

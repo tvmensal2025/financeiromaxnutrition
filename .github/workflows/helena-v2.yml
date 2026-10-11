@@ -3,9 +3,14 @@ name: Helena v2
 # Confere a v2 inteira a cada envio: a especificação (helena-v2), as 4 peças do motor e o app.
 # Nada aqui toca no Supabase, no EasyPanel ou no Hermes: só arquivos, testes e build.
 
+# Roda em todo pull request e nos envios para as duas linhas principais. Um ramo de trabalho sem pull request
+# não roda sozinho (abra o PR como rascunho, ou use "Run workflow" na aba Actions): assim o mesmo commit não
+# é conferido duas vezes, uma pelo envio e outra pelo pull request.
 on:
-  push:
   pull_request:
+  push:
+    branches: [main, missao-cumprida-v4]
+  workflow_dispatch:
 
 concurrency:
   group: helena-v2-${{ github.ref }}
@@ -86,3 +91,43 @@ jobs:
 
       - name: Build de produção
         run: npm run build
+
+  banco-v2:
+    name: Banco v2 (PostgreSQL de teste)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Um PostgreSQL 16 descartável, só neste job. Sem senha: o container vive e morre aqui, fora da internet.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      HELENA_V2_TESTE_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+    defaults:
+      run:
+        working-directory: supabase/migrations-v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: supabase/migrations-v2/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: O SQL gerado confere com o YAML
+        run: python gerar_passagens.py --conferir
+
+      - name: Testes do banco (esquema, gerador, jornadas, diferencial, 13 regras, escrita direta)
+        run: python -m pytest

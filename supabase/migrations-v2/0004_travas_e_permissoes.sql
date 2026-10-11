@@ -291,6 +291,11 @@ alter table helena_v2.etapa drop constraint if exists ck_etapa_regra03_execucao_
 alter table helena_v2.etapa add constraint ck_etapa_regra03_execucao_viva
   check ((exec_viva = 1) = (execucao_atual is not null));
 
+-- regra 3: etapa executando sem execução viva (e sem número) não existe
+alter table helena_v2.etapa drop constraint if exists ck_etapa_regra03_executando_tem_execucao;
+alter table helena_v2.etapa add constraint ck_etapa_regra03_executando_tem_execucao
+  check (estado <> 'EXECUTANDO' or exec_viva = 1);
+
 alter table helena_v2.etapa drop constraint if exists ck_etapa_regra04_revisor;
 alter table helena_v2.etapa add constraint ck_etapa_regra04_revisor
   check (revisor = 'NENHUM' or (revisor <> autor and revisor = any (revisores_validos) and not (revisor = any (julgadores))));
@@ -313,7 +318,7 @@ alter table helena_v2.historico add constraint ck_historico_regra08_so_o_motor_e
 
 alter table helena_v2.historico drop constraint if exists ck_historico_regra11_toque_tem_destino;
 alter table helena_v2.historico add constraint ck_historico_regra11_toque_tem_destino
-  check (papel <> 'FUNDADOR' or resultado <> 'RECUSADO' or motivo = 'FORA_DO_VOCABULARIO');
+  check (papel <> 'FUNDADOR' or resultado <> 'RECUSADO' or coalesce(motivo, '') = 'FORA_DO_VOCABULARIO');
 
 -- ---------------------------------------------------------------------------- gatilhos nas tabelas
 do $gatilhos$
@@ -409,7 +414,7 @@ begin
     for f in select p.oid::regprocedure as assinatura from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'helena_v2'
                and p.proname in ('aplicar_evento', 'disparar_automaticos', 'abrir_chamada_helena', 'criar_card',
-                                 'tabela_confere', 'conferir_historico', 'conferir_card', 'situacao_efetiva', 'situacao_da_etapa') loop
+                                 'tabela_confere', 'calcular_hash_das_linhas', 'vigia', 'conferir_historico', 'conferir_card', 'situacao_efetiva', 'situacao_da_etapa') loop
       execute format('grant execute on function %s to %I', f.assinatura, r);
     end loop;
   end loop;
@@ -426,6 +431,6 @@ end;
 $permissoes$;
 
 -- Sela a tabela: o banco guarda o hash das linhas que acabou de receber.
-select set_config('helena_v2.migrando', 'sim', true);
+select set_config('helena_v2.migrando', 'sim', false);
 select helena_v2.selar_tabela();
-select set_config('helena_v2.migrando', 'nao', true);
+select set_config('helena_v2.migrando', 'nao', false);

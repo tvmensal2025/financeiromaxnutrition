@@ -22,7 +22,6 @@ import socket
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 import psycopg
@@ -120,8 +119,13 @@ class Banco:
         return con
 
 
-def _host_da_url(url):
-    return conninfo_to_dict(url).get("host", "")
+def exigir_banco_local(url):
+    """Trava de segurança: estes testes criam e apagam bancos e papéis. Só rodam em PostgreSQL da própria máquina ou do CI."""
+    host = conninfo_to_dict(url).get("host", "") or ""
+    if host not in HOSTS_LOCAIS and not host.startswith("/"):
+        raise RuntimeError(f"HELENA_V2_TESTE_DATABASE_URL aponta para {host!r}, que não é local. Estes testes nunca tocam banco de fora "
+                           "(Supabase, EasyPanel, Hostinger...). Use localhost ou deixe a variável vazia.")
+    return url
 
 
 def criar_papeis(con_admin, nomes):
@@ -182,7 +186,7 @@ def servidor():
     url = os.environ.get("HELENA_V2_TESTE_DATABASE_URL")
     cluster = None
     if url:
-        yield url
+        yield exigir_banco_local(url)
         return
     cluster = ClusterLocal()
     try:

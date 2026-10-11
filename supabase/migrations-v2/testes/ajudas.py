@@ -10,12 +10,10 @@ Nenhuma regra mora aqui: quem decide é o banco.
 
 COMO MUDAR: se o formato da jornada mudar (jornada.schema.json), ajuste só `evento`.
 """
-import json
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
@@ -149,6 +147,53 @@ class Mundo:
                          Jsonb(conteudo) if conteudo is not None else None, self.auto,
                          self.nao_disparar if nao_disparar is None else nao_disparar))
         return r
+
+    # ------------------------------------------------------------------ atalhos para montar situações nos testes das regras
+    def passos(self, lista):
+        """Cada item: (papel, evento, alvo) ou (papel, evento, alvo, params) ou (papel, evento, alvo, params, extras)."""
+        saidas = []
+        for t in lista:
+            e = {"papel": t[0], "evento": t[1], "alvo": t[2]}
+            if len(t) > 3 and t[3]:
+                e["params"] = t[3]
+            if len(t) > 4:
+                e.update(t[4])
+            saidas.append(self.evento(e))
+        return saidas
+
+    def um(self, papel, evento, alvo="card", params=None, **extras):
+        return self.passos([(papel, evento, alvo, params, extras)])[0]
+
+    def em_andamento(self):
+        """Pedido pequeno: leitura de volta e plano válido. O card fica EM_ANDAMENTO e as etapas esperando as anteriores."""
+        return self.passos([("HELENA", "LER_DE_VOLTA", "card"), ("MOTOR", "PLANO_VALIDO", "card")])
+
+    def executando(self, e="E1"):
+        return self.passos([("MOTOR", "DEPENDENCIAS_PRONTAS", e), ("MOTOR", "INICIAR_EXECUCAO", e)])
+
+    def entregar(self, e="E1", acao="NENHUMA", parecer="OK"):
+        return self.um("AUTOR", "ENTREGAR", e, {"parecer": parecer, "acao_externa": acao, "usou_internet": "NAO"})
+
+    def revisao(self, e="E1", revisor=None):
+        revisor = revisor or self.perfis[e]["revisores_validos"][0]
+        return self.passos([("MOTOR", "PORTAO1_OK", e, {"escolhido": revisor}), ("MOTOR", "INICIAR_REVISAO", e)])
+
+    def aprovar(self, e="E1"):
+        return self.um("REVISOR", "APROVAR", e)
+
+    def ate_aprovada(self, e="E1", acao="NENHUMA"):
+        self.executando(e)
+        self.entregar(e, acao)
+        self.revisao(e)
+        return self.aprovar(e)
+
+    def estado_da(self, alvo="card"):
+        if alvo == "card":
+            return self.chamar("select estado from helena_v2.card where id = %s", (self.card,))
+        return self.chamar("select estado from helena_v2.etapa where card_id = %s and codigo = %s and atual", (self.card, alvo))
+
+    def linha_da_etapa(self, e="E1"):
+        return self.linhas("select * from helena_v2.etapa where card_id = %s and codigo = %s and atual", (self.card, e))[0]
 
     def rodar(self, jornada=None):
         """Roda todos os eventos da jornada. Devolve a lista de respostas (uma por evento mandado)."""

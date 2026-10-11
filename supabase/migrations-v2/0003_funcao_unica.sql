@@ -926,6 +926,8 @@ declare
   deps text[];
   revs text[];
   v_et uuid;
+  v_criado bigint;
+  ve jsonb;
 begin
   perform helena_v2._entrar();
   perform helena_v2._conferir_conta(array['MOTOR', 'FUNDADOR']);
@@ -942,6 +944,14 @@ begin
           helena_v2._prazo_ate('card', helena_v2._estado_inicial('card'), '{}'::jsonb, p_prazo, null))
   returning id into v_card;
   select to_jsonb(c) into v from card c where c.id = v_card;
+
+  insert into historico (card_id, maquina, alvo_id, alvo_codigo, papel, evento, parametros, conteudo, resultado, origem,
+                         estado_depois, vars_depois, conta)
+  values (v_card, 'card', v_card, 'card', 'MOTOR', 'CARD_CRIADO', jsonb_build_object('pedido_grande', p_pedido_grande),
+          jsonb_build_object('canal', p_canal, 'numero', p_numero, 'titulo', p_titulo, 'prazo', p_prazo, 'empresa', p_empresa,
+                             'prioridade', p_prioridade, 'ordem_de_servico', p_ordem_de_servico, 'roteiro', p_roteiro),
+          'APLICADO', 'EXTERNO', v ->> 'estado', helena_v2._so_variaveis('card', v), helena_v2._conta())
+  returning id into v_criado;
 
   -- as etapas (provar.perfis_do_roteiro): quem julga quem, os revisores válidos pela regra 4, a ficha de cada uma
   select nome into fundador from identidade where tipo = 'fundador';
@@ -1002,13 +1012,12 @@ begin
             perm ? 'PERGUNTAR', perm ? 'DEVOLVER_A_QUEM_PEDIU',
             coalesce((e ->> 'usa_decisao')::boolean, true), coalesce((e ->> 'prazo_de_terceiro')::boolean, false))
     returning id into v_et;
+    select to_jsonb(x) into ve from etapa x where x.id = v_et;
+    insert into historico (card_id, maquina, alvo_id, alvo_codigo, papel, evento, conteudo, resultado, origem, origem_id,
+                           estado_depois, vars_depois, conta)
+    values (v_card, 'etapa', v_et, e ->> 'id', 'MOTOR', 'ETAPA_CRIADA', e, 'APLICADO', 'SINAL', v_criado,
+            ve ->> 'estado', helena_v2._so_variaveis('etapa', ve || helena_v2._compartilhadas(v)), helena_v2._conta());
   end loop;
-  insert into historico (card_id, maquina, alvo_id, alvo_codigo, papel, evento, parametros, conteudo, resultado, origem,
-                         estado_depois, vars_depois, conta)
-  values (v_card, 'card', v_card, 'card', 'MOTOR', 'CARD_CRIADO', jsonb_build_object('pedido_grande', p_pedido_grande),
-          jsonb_build_object('canal', p_canal, 'numero', p_numero, 'titulo', p_titulo, 'prazo', p_prazo, 'empresa', p_empresa,
-                             'prioridade', p_prioridade, 'ordem_de_servico', p_ordem_de_servico, 'roteiro', p_roteiro),
-          'APLICADO', 'EXTERNO', v ->> 'estado', helena_v2._so_variaveis('card', v), helena_v2._conta());
   set constraints all immediate;
   set constraints all deferred;
   perform helena_v2._sair();
@@ -1090,6 +1099,38 @@ begin
       alvo := 'card'; campo := k.nome;
       return next;
     end if;
+  end loop;
+end;
+$f$;
+
+-- ---------------------------------------------------------------------------- o vigia (só a conferência; quem chama a cada 5 minutos é o motor)
+-- Uma linha por problema achado: a regra, o card e o que está errado. Vazio = tudo certo. Não muda nada.
+create or replace function helena_v2.vigia()
+returns table (regra text, card_id uuid, mensagem text)
+language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+declare
+  c record;
+  d record;
+  x record;
+begin
+  if not helena_v2.tabela_confere() then
+    regra := 'TABELA'; card_id := null; mensagem := 'a tabela de passagens do banco não é a que foi selada na migração';
+    return next;
+  end if;
+  for c in select id from card where estado not in (select estado from estado_def where maquina = 'card' and final) loop
+    begin
+      perform helena_v2.conferir_card(c.id);
+    exception when others then
+      regra := coalesce(substring(sqlerrm from 'REGRA ([0-9]+)'), 'ESTRUTURA'); card_id := c.id; mensagem := sqlerrm;
+      return next;
+    end;
+  end loop;
+  for d in select distinct h.card_id as id from historico h loop
+    for x in select * from helena_v2.conferir_historico(d.id) loop
+      regra := '13'; card_id := d.id;
+      mensagem := 'alvo ' || x.alvo || ', campo ' || x.campo || ': tabela=' || coalesce(x.na_tabela, '-') || ' histórico=' || coalesce(x.no_historico, '-');
+      return next;
+    end loop;
   end loop;
 end;
 $f$;
