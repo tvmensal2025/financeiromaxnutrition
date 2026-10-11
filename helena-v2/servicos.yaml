@@ -306,7 +306,7 @@ regras_da_matriz:
 # §6.6; MEL-30). Vale só para o SRV-RELATORIO-FINAL.
 regra_do_relatorio_final: >-
   O relatório final junta entregas de vários autores, e quem o revisa pode ter feito uma delas
-  (a Clara fez o parecer; o Caio, reserva, fez o cálculo). Por isso quem revisa o relatório:
+  (o Caio fez o cálculo; a Clara, reserva, fez o parecer). Por isso quem revisa o relatório:
   (1) confere SÓ a fidelidade às entregas aprovadas — cada frase escrita pela Helena diz o mesmo
   que a entrega aprovada que ela cita, nenhum risco ou pergunta foi escondido ou suavizado, a ordem
   das dependências foi respeitada — e a linguagem — simples, sem códigos internos;
@@ -397,7 +397,7 @@ agentes:
   LAURA:   {id: AGT-02, ficha: agents/laura.yaml,   possui: {plano_de_pratica: deliverables/plano_de_pratica.yaml}, revisa: {}}
   AUGUSTO: {id: AGT-03, ficha: agents/augusto.yaml, possui: {analise_estrategica: deliverables/analise_estrategica.yaml}, revisa: {plano_de_projeto: SEM_PROVA, perfil_de_funcao: SEM_PROVA, dossie: SEM_PROVA, plano_de_campanha: SEM_PROVA, tese_de_parceria: SEM_PROVA}}
   MARINA:  {id: AGT-04, ficha: agents/marina.yaml,  possui: {plano_de_projeto: deliverables/plano_de_projeto.yaml}, revisa: {controle_administrativo: SEM_PROVA, procedimento_operacional: SEM_PROVA}}
-  CAIO:    {id: AGT-05, ficha: agents/caio.yaml,    possui: {calculo: deliverables/calculo.yaml}, revisa: {relatorio_final: APTA, analise_estrategica: SEM_PROVA, analise_de_dados: SEM_PROVA, dossie: SEM_PROVA, copy: APTA, roteiro_treinamento: APTA}}
+  CAIO:    {id: AGT-05, ficha: agents/caio.yaml,    possui: {calculo: deliverables/calculo.yaml}, revisa: {relatorio_final: APTA, analise_estrategica: SEM_PROVA, analise_de_dados: SEM_PROVA, copy: APTA, roteiro_treinamento: APTA}}
   CLARA:   {id: AGT-06, ficha: agents/clara.yaml,   possui: {parecer: deliverables/parecer.yaml}, revisa: {relatorio_final: APTA, calculo: APTA}}
   BIANCA:  {id: AGT-07, ficha: agents/bianca.yaml,  possui: {perfil_de_funcao: deliverables/perfil_de_funcao.yaml}, revisa: {}}
   DANIEL:  {id: AGT-08, ficha: agents/daniel.yaml,  possui: {analise_de_dados: deliverables/analise_de_dados.yaml}, revisa: {plano_de_campanha: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
@@ -409,7 +409,7 @@ agentes:
   OLIVIA:  {id: AGT-14, ficha: agents/olivia.yaml,  possui: {procedimento_operacional: deliverables/procedimento_operacional.yaml}, revisa: {controle_administrativo: SEM_PROVA, perfil_de_funcao: SEM_PROVA, roteiro_treinamento: SEM_PROVA}}
   VICTOR:  {id: AGT-15, ficha: agents/victor.yaml,  possui: {roteiro_comercial: deliverables/roteiro_comercial.yaml}, revisa: {tese_de_parceria: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
   CAMILA:  {id: AGT-16, ficha: agents/camila.yaml,  possui: {plano_de_campanha: deliverables/plano_de_campanha.yaml}, revisa: {copy: SEM_PROVA, roteiro_comercial: SEM_PROVA}}
-  ISABELA: {id: AGT-17, ficha: agents/isabela.yaml, possui: {copy: deliverables/copy.yaml, roteiro_treinamento: deliverables/roteiro_treinamento.yaml}, revisa: {roteiro_comercial: SEM_PROVA, rascunho_de_resposta: SEM_PROVA}}
+  ISABELA: {id: AGT-17, ficha: agents/isabela.yaml, possui: {copy: deliverables/copy.yaml, roteiro_treinamento: deliverables/roteiro_treinamento.yaml}, revisa: {roteiro_comercial: SEM_PROVA, rascunho_de_resposta: SEM_PROVA, dossie: SEM_PROVA}}
   PEDRO:   {id: AGT-18, ficha: agents/pedro.yaml,   possui: {tese_de_parceria: deliverables/tese_de_parceria.yaml}, revisa: {}}
   RENATA:  {id: AGT-19, ficha: agents/renata.yaml,  possui: {plano_de_sucesso: deliverables/plano_de_sucesso.yaml}, revisa: {rascunho_de_resposta: SEM_PROVA}}
   JOANA:   {id: AGT-20, ficha: agents/joana.yaml,   possui: {rascunho_de_resposta: deliverables/rascunho_de_resposta.yaml}, revisa: {}}
@@ -437,8 +437,8 @@ servicos:
     dono: HELENA
     tipo_de_entrega: relatorio_final
     entrega: deliverables/relatorio_final.yaml
-    revisor: CLARA
-    reserva: CAIO
+    revisor: CAIO
+    reserva: CLARA
     regra_do_revisor: regra_do_relatorio_final
     acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
     ferramentas: []
@@ -876,7 +876,7 @@ servicos:
     dono: RAVI
     tipo_de_entrega: dossie
     entrega: deliverables/dossie.yaml
-    revisor: CAIO
+    revisor: ISABELA
     reserva: AUGUSTO
     acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]
     ferramentas:

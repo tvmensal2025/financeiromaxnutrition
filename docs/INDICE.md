@@ -18,6 +18,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/decisoes/DEC-027-troca-das-chaves-no-fim-dos-testes.md` | DEC-027 — Troca das chaves de acesso ao banco: no fim dos testes | 10/10/2026 |
 | `docs/decisoes/DEC-028-desligar-a-central-da-v1.md` | DEC-028 — Desligar a central da v1 (URA de clientes e ligações por IA) | 10/10/2026 |
 | `docs/decisoes/DEC-029-codigos-das-empresas.md` | DEC-029 — Códigos oficiais das empresas | 10/10/2026 |
+| `docs/decisoes/DEC-030-revisor-do-relatorio-final-caio.md` | DEC-030 — Revisor do relatório final: o Caio | 11/10/2026 |
 | `docs/decisoes/README.md` | Decisões | 10/10/2026 |
 
 ## Manual (guias em vigor)
@@ -173,6 +174,8 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/arquivo/duplicados/continuidade-helena-20261001.zip` | pacote zip | 01/10/2026 |
 | `docs/arquivo/duplicados/kokoro-tts-documentacao-oficial.md` | 🎙️ Guia Oficial de Conexão e Vozes: Kokoro Neural TTS (Instância Canônica) | 30/09/2026 |
 | `docs/arquivo/helena-v2-v1/entregas.yaml` | dados (YAML) | 08/10/2026 |
+| `docs/arquivo/helena-v2-v1/ravi-ficha-v2-antiga.yaml` | ficha do Ravi no formato antigo (YAML) | 08/10/2026 |
+| `docs/arquivo/helena-v2-v1/recrutar-10-pessoas-v1.yaml` | roteiro das 10 pessoas no formato antigo (YAML) | 08/10/2026 |
 | `docs/arquivo/pacote-plano-v3/leia-primeiro.md` | Sistema Helena: pacote para continuar o trabalho | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/diagramas/arquitetura.jsx` | código do diagrama | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/diagramas/card-v3.jsx` | código do diagrama | 09/10/2026 |

@@ -9,6 +9,7 @@ Uma decisão por arquivo: `DEC-NNN-assunto.md`, com data, o que foi decidido e p
    - `DEC-027-troca-das-chaves-no-fim-dos-testes.md`
    - `DEC-028-desligar-a-central-da-v1.md`
    - `DEC-029-codigos-das-empresas.md`
+   - `DEC-030-revisor-do-relatorio-final-caio.md`
 
    Antes de gravar no Supabase, conferir (só leitura) que os números estão livres. Os documentos citam números fora de ordem, como DEC-101 e DEC-102.
 2. **A lista das decisões que os documentos citam**, cujo texto oficial está só no Supabase. Elas não foram copiadas para cá para não inventar texto.

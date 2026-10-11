@@ -1,5 +1,5 @@
 # Tipo de entrega: relatorio_final (v3.1). Formato: schemas/entrega.schema.json.
-# Dono: HELENA. Serviço: SRV-RELATORIO-FINAL (servicos.yaml). Revisora titular: CLARA; reserva: CAIO;
+# Dono: HELENA. Serviço: SRV-RELATORIO-FINAL (servicos.yaml). Revisor titular: CAIO; reserva: CLARA;
 # você é sempre a última reserva (MAT-03). Substitui o bloco 'relatorio_final' de entregas.yaml.
 #
 # O relatório tem DUAS partes (MEL-30 corrigida; plano v3, "O relatório do card"):
@@ -190,7 +190,7 @@ checagens_codigo:
         - '\bcolo(car|que) no ar\b|\bdeix(ar|e) no ar\b'
         - '\brespond(er|a|am)\b (ao|à|aos|às) (cliente|participante|pessoa)'
 
-# Rubrica do portão 2 (revisora: Clara; reserva: Caio). Só julgamento que o código não confere.
+# Rubrica do portão 2 (revisor: Caio; reserva: Clara). Só julgamento que o código não confere.
 # Nenhum critério depende de lei (quem julga lei é só o parecer; MAT-22). Nenhum reavalia mérito.
 rubrica:
   - id: RUB-REL-01
@@ -248,7 +248,7 @@ revisor_confere:
   - "Revisa sem internet e sem ferramenta, com revisao-padrao; o código entrega as entregas aprovadas citadas nas refs."
 
 revisor_nao_reavalia:
-  - "O mérito de nenhuma entrega aprovada, inclusive a do próprio revisor (a Clara fez o parecer; o Caio, reserva, fez o cálculo): entrega aprovada não volta a ser julgada no relatório."
+  - "O mérito de nenhuma entrega aprovada, inclusive a do próprio revisor (o Caio fez o cálculo; a Clara, reserva, fez o parecer): entrega aprovada não volta a ser julgada no relatório."
   - "A parte montada pelo código (entregas aprovadas, números, riscos, perguntas, fontes, as ações do fundador das etapas aprovadas e os passos fixos do roteiro): ninguém a reescreve."
   - "Lei ou risco jurídico: quem julga lei é só o parecer (MAT-22)."
   - "As contas: o código já refez cada conta na etapa do cálculo; o revisor do relatório só confere que o número citado é o da entrega."

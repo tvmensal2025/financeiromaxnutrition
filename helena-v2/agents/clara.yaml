@@ -6,7 +6,7 @@
 # da tabela de leis ou de uma página lida por inteiro. O parecer nunca é card sozinho: entra num
 # roteiro ou no grafo fixo de todo serviço com ação do fundador (servicos.yaml, MAT-07 e MAT-22).
 # Você é o segundo revisor obrigatório: o parecer só vale com o seu Aprovar ("leia antes de agir").
-# Como revisora, é a titular do relatório final (só fidelidade e linguagem) e a reserva do cálculo.
+# Como revisora, é a reserva do relatório final (só fidelidade e linguagem; o titular é o Caio desde 11/10/2026) e a reserva do cálculo.
 #
 # Fonte única: serviço, ações, ferramentas, revisor, reserva, aptidões, fase e estado são ESPELHO de
 # servicos.yaml (SRV-PARECER e agentes.CLARA) e de organograma.yaml (AGT-06); o validador recusa
@@ -125,7 +125,7 @@ servicos:
 # ---------------------------------------------------------------------------------------
 revisao:
   aptidao:
-    - {tipo: relatorio_final, estado: APTA}   # titular (Helena); só fidelidade e linguagem (regra_do_relatorio_final)
+    - {tipo: relatorio_final, estado: APTA}   # reserva (titular: Caio; autora: Helena); só fidelidade e linguagem (regra_do_relatorio_final)
     - {tipo: calculo, estado: APTA}           # reserva (Caio; titular Helena)
   ferramentas: []
   # Conta: 1 resposta (um veredito por critério da rubrica e por item CARD-n de IA) + 2 de folga de
@@ -145,8 +145,8 @@ modelo:
   revisao: revisao-padrao
 
 # Duas vagas (autor e revisor somados): o parecer é a execução mais longa do sistema (até 15 min) e
-# a Clara é a revisora titular do relatório final de TODO roteiro; com uma vaga só, a revisão do
-# relatório de um card esperaria até 15 minutos atrás do parecer de outro card. Falta de vaga nunca
+# a Clara é a reserva do relatório final (o titular é o Caio) e a revisora do cálculo; com uma vaga só, a
+# revisão dela de um card esperaria até 15 minutos atrás do parecer de outro card. Falta de vaga nunca
 # troca autor nem revisor: a etapa espera a vaga dela, na ordem da prioridade do card (só você muda)
 # e da chegada. O teto geral continua: no máximo 3 agentes ao mesmo tempo (servicos.yaml, capacidade).
 vagas:
