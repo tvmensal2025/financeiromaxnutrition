@@ -52,10 +52,10 @@ def _estado(spec, avaliacoes, id_) -> Linha:
     return Linha(id_, IMPLEMENTADA)
 
 
-def montar_quadro(spec, avaliacoes) -> list:
+def montar_quadro(spec, avaliacoes, tipos=TIPOS_DO_PRIMEIRO_CARD) -> list:
     """[(nome do grupo, [Linha, ...])]: primeiro as comuns, depois cada tipo do primeiro card que já tem arquivo na especificação."""
     grupos = [(NOME_DO_GRUPO_COMUM, [c["id"] for c in spec.checagens_comuns])]
-    for tipo in TIPOS_DO_PRIMEIRO_CARD:
+    for tipo in tipos:
         if spec.tipo(tipo) is not None:
             grupos.append((tipo, [c["id"] for c in spec.checagens_do_tipo(tipo)]))
     return [(nome, [_estado(spec, avaliacoes, i) for i in ids]) for nome, ids in grupos]

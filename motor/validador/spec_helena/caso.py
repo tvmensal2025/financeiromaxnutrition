@@ -5,11 +5,7 @@ De onde vem: helena-v2/casos/<SRV-...>/pedido.yaml, boas/*.yaml, defeitos/*.yaml
 Como mudar: cada diferença entre os dois formatos é tratada em UMA função abaixo, com a explicação no começo dela.
 Se um pedido novo trouxer um desenho diferente, ajuste só a função que o lê (_ordem, _plano, _texto_do_pacote...).
 
-Resumo das conversões (o README do validador repete em uma linha cada):
-  resposta   -> o campo `resposta` do caso, escrito como JSON (o validador lê texto JSON; assim números decimais ficam exatos).
-  contexto   -> hoje, execucao_id, usou_internet, links_do_pedido, decisoes_vigentes, paginas_lidas (das fitas que o caso
-                diz ter lido), fontes_importadas (pedido, pacote da empresa e tabela de leis do pedido) e o modelo do tipo.
-  variantes  -> um caso pode dizer `variante: NOME`; as mudanças da variante entram no pedido antes de tudo (ver aplicar_variante).
+O resumo do que é convertido (resposta, contexto, variantes) está no README, seção "Ponte com a especificação v2".
 """
 import copy
 import json
@@ -187,7 +183,8 @@ def carregar_pedido(caso: Caso) -> Pedido:
 
     Fontes importadas que o código guardaria antes de qualquer IA (copy.yaml, "De onde vêm os fatos"):
       FON-PEDIDO-<card> = o pedido original; FON-PACOTE-<empresa> = o pacote da empresa;
-      a tabela de leis do parecer tem o id que o próprio pedido dá. Os ids que o pedido declara também valem.
+      a tabela de leis do parecer tem o id que o próprio pedido dá; as fontes declaradas em `fontes_importadas` do pedido
+      valem com o texto que trazem (`texto`) ou, se forem FON-PEDIDO-*/FON-PACOTE-*, com o do pedido original/pacote.
     """
     arq = caso.pasta_do_servico / "pedido.yaml"
     if not arq.exists():
@@ -206,6 +203,9 @@ def carregar_pedido(caso: Caso) -> Pedido:
     empresa = pedido.get("empresa") or _ordem(pedido).get("empresa")
 
     fontes = {}
+    for f in pedido.get("fontes_importadas") or []:      # fonte que traz o próprio texto (regras, condições...): vale como está
+        if isinstance(f.get("texto"), str) and f.get("id"):
+            fontes[f["id"]] = f["texto"]
     if original is not None:
         if card_id:
             fontes[f"FON-PEDIDO-{card_id}"] = original

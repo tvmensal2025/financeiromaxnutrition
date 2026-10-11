@@ -6,8 +6,8 @@ validador conhece (CAMPOS_DA_SECAO). Um campo novo na especificação passa a va
 Como mudar: para o validador receber uma opção nova (bloco "validador"), escreva `validador:` no YAML do tipo; ela passa direto.
 """
 
-# Campos de uma seção que o validador usa (nomes do schemas/entrega.schema.json). Título e descrição ficam de fora de propósito:
-# só o título é útil, para as mensagens ("Falta a seção ... (Versão final)"), por isso ele vai junto.
+# Campos de uma seção que o validador usa (nomes do schemas/entrega.schema.json). O título vai junto porque aparece nas mensagens
+# ("Falta a seção ... (Versão final)"); a descrição fica de fora de propósito: é texto para o agente, o validador não a lê.
 CAMPOS_DA_SECAO = ("id", "titulo", "tipo_de_campo", "obrigatoria", "exige_citacao", "limite_caracteres",
                    "itens_min", "itens_max", "unidade", "valores_permitidos")
 CAMPOS_DA_COLUNA = ("id", "tipo_de_campo")
@@ -45,6 +45,10 @@ def montar_modelo(spec, tipo_nome: str, acao_do_fundador_do_plano=None) -> dict:
         modelo["acao_do_fundador_do_plano"] = acao_do_fundador_do_plano
     if tipo.get("validador"):
         modelo["validador"] = dict(tipo["validador"])
+    # As checagens deste serviço: as comuns do portão 1 e as do critério de pronto do tipo (a especificação decide).
+    comuns = [c["id"] for c in spec.checagens_comuns]
+    do_tipo = (tipo.get("criterio_de_pronto") or {}).get("codigo") or []
+    modelo["checagens_a_rodar"] = comuns + [i for i in do_tipo if i not in comuns]
     parametros = {c["id"]: c["parametros"] for c in tipo["checagens_codigo"] if c.get("parametros")}
     if parametros:
         modelo["parametros_das_checagens"] = parametros
