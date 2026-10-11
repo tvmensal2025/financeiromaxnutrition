@@ -942,8 +942,9 @@ def test_ROTEIRO_ANTIGO_sem_versao():
     recusa(D, 'ROTEIRO-ANTIGO', 'playbooks/meta-nova.yaml: [ROTEIRO-ANTIGO] roteiro no formato antigo')
 
 
-def test_ROTEIRO_ANTIGO_o_roteiro_real_ainda_e_da_v1():
-    assert any('recrutar-10-pessoas.yaml' in e for e in erros_da_base('ROTEIRO-ANTIGO'))
+def test_ROTEIRO_o_roteiro_real_das_10_pessoas_ja_e_da_v31():
+    assert 'recrutar-10-pessoas.yaml' in v.roteiros_v31(BASE)
+    assert not erros_da_base('ROTEIRO-ANTIGO')
 
 
 def test_ROTEIRO_SERVICO_inexistente():

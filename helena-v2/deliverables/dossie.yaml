@@ -72,7 +72,7 @@ secoes:
     descricao: "Leitura sua dos fatos, dita como leitura. É o único lugar do dossiê para opinião, e ela sempre aponta os fatos em que se apoia."
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "I1, I2... em ordem."}
-      - {id: leitura, tipo_de_campo: texto, descricao: "Começa com 'Leitura minha:' e diz o que os fatos permitem concluir, sem fato novo."}
+      - {id: leitura, tipo_de_campo: texto, descricao: "Começa com o prefixo da CHK-DOSSIE-SEPARACAO e diz o que os fatos permitem concluir, sem fato novo."}
       - {id: baseada_em, tipo_de_campo: texto, descricao: "Ids dos fatos em que a leitura se apoia (F1, F2...), separados por vírgula."}
   - id: lacunas
     titulo: "O que ficou sem resposta (lacunas)"
@@ -139,14 +139,15 @@ checagens_codigo:
   - id: CHK-DOSSIE-SEPARACAO
     descricao: >-
       Fato, leitura e lacuna separados: o texto dos fatos e o 'o_que_falta' das lacunas não traz expressão de
-      leitura própria (lista fechada); toda interpretação (ids I1, I2... em ordem) aponta um ou mais fatos
-      que existem.
+      leitura própria (lista fechada); toda interpretação (ids I1, I2... em ordem) começa com o prefixo do
+      parâmetro e aponta um ou mais fatos que existem.
     fecha_furos: [C-13]
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
       sem_diferenca_de_maiusculas_e_acentos: true
       palavra_inteira: true
+      prefixo_da_interpretacao: "Leitura minha:"
       onde: "coluna afirmacao de fatos e coluna o_que_falta de lacunas"
       termos: ["provavelmente", "possivelmente", "talvez", "parece", "pelo visto", "ao que parece", "tudo indica",
                "ou seja", "isso significa", "isso quer dizer", "quer dizer que", "em outras palavras", "na prática",

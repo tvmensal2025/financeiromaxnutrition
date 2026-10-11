@@ -3,6 +3,14 @@
 Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
+## 0-A. Ramo `v2-primeiro-card` (11/10/2026): primeiro card real com 5 agentes
+
+Meta única: um card indo de ponta a ponta com Helena, Caio, Isabela, Clara e Ravi (PR rascunho no GitHub, para `organizacao-2026-10-10`). Fila: 1 CI, 2 os 5 agentes, 3 validador, 4 banco local, 5 motor DBOS, 6 tela do card, 7 parar e pedir a frase do dia de prova. Esta fila vale acima da fila do item 0 (as 13 fichas dos outros agentes ficam para depois).
+- **Passo 1 pronto:** `.github/workflows/helena-v2.yml` (6 jobs, Python 3.13 e Node 20). Números de referência: helena-v2 292, ferramentas 588, validador 677, executor 493, simulador 723, app 181.
+- **Passo 2 pronto:** ficha do Ravi v3.1 + dossiê (`deliverables/dossie.yaml`), casos da Isabela (convite e roteiro de treinamento) e `playbooks/recrutar-10-pessoas.yaml` na v3.1. `PENDENCIAS.yaml` só tem as 13 fichas dos outros agentes (eram 14: a do Ravi entrou).
+- **DEC-030:** o revisor do relatório final (E5) é o Caio; por isso o dossiê passou a ser revisado pela Isabela (teto de 3 titularidades, MAT-08).
+- Chaves: não trocar agora (DEC-027). Voz da v1: não mexer. Código novo nunca traz chave; só nomes de variável em `.env.example`.
+
 ## 0. Estado em 10/10/2026 — leia primeiro
 
 **Organização.** O repositório foi organizado no ramo `organizacao-2026-10-10` (a partir de `missao-cumprida-v4`). Onde está cada coisa: `README.md` e `docs/INDICE.md`. A auditoria do que foi feito em 09 e 10/10 está em `docs/auditoria/AUDITORIA-2026-10-10.md`. Nada foi apagado: o antigo está em `docs/arquivo/` (o `LEIA.md` diz o porquê de cada item).

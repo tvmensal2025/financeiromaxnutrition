@@ -12,12 +12,3 @@ pendencias:
     alvo: agents
     maximo: 13
     motivo: faltam as fichas v3.1 de 13 agentes, fora do primeiro card (fila no HANDOFF-CLAUDE-CODE.md); se faltar mais de 13, é erro
-  - regra: ROTEIRO-ANTIGO
-    alvo: playbooks/recrutar-10-pessoas.yaml
-    motivo: o roteiro das 10 pessoas ainda está no formato da v1; reescrever na v3.1
-  - regra: CASOS-BOAS
-    alvo: casos/SRV-ROTEIRO-TREINAMENTO
-    motivo: a ficha da Isabela está pronta, mas faltam os casos bons do roteiro de treinamento
-  - regra: CASOS-DEFEITOS
-    alvo: casos/SRV-ROTEIRO-TREINAMENTO
-    motivo: a ficha da Isabela está pronta, mas faltam os defeitos plantados do roteiro de treinamento
