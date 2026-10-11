@@ -3,14 +3,25 @@
 Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
-## 0-A. Ramo `v2-primeiro-card` (11/10/2026): primeiro card real com 5 agentes
+## 0-A. Ramo `v2-primeiro-card` (11/10/2026): primeiro card real com 5 agentes — LEIA ESTE BLOCO PRIMEIRO
 
-Meta única: um card indo de ponta a ponta com Helena, Caio, Isabela, Clara e Ravi (PR rascunho no GitHub, para `organizacao-2026-10-10`). Fila: 1 CI, 2 os 5 agentes, 3 validador, 4 banco local, 5 motor DBOS, 6 tela do card, 7 parar e pedir a frase do dia de prova. Esta fila vale acima da fila do item 0 (as 13 fichas dos outros agentes ficam para depois).
-- **Passo 1 pronto:** `.github/workflows/helena-v2.yml` (6 jobs, Python 3.13 e Node 20). Números de referência: helena-v2 292, ferramentas 588, validador 677, executor 493, simulador 723, app 181.
-- **Passo 2 pronto:** ficha do Ravi v3.1 + dossiê (`deliverables/dossie.yaml`), casos da Isabela (convite e roteiro de treinamento) e `playbooks/recrutar-10-pessoas.yaml` na v3.1. `PENDENCIAS.yaml` só tem as 13 fichas dos outros agentes (eram 14: a do Ravi entrou).
-- **Passo 3 pronto:** o validador de entregas (`motor/validador/`) cobre 78 de 78 checagens citadas pelas entregas dos 5 agentes (convite, roteiro de treinamento, cálculo, parecer, relatório final, dossiê e as comuns). Cada checagem tem uma boa que passa e um defeito plantado que a pega, em `helena-v2/casos/`; o quadro está no README do validador (`python -m spec_helena`). O que o motor real ainda precisa entregar: valor das decisões vigentes, cópia guardada das páginas lidas com `partes_total` e o formato da parte do relatório montada pelo código.
-- **DEC-030:** o revisor do relatório final (E5) é o Caio; por isso o dossiê passou a ser revisado pela Isabela (teto de 3 titularidades, MAT-08).
-- Chaves: não trocar agora (DEC-027). Voz da v1: não mexer. Código novo nunca traz chave; só nomes de variável em `.env.example`.
+Meta única: um card indo de ponta a ponta com Helena, Caio, Isabela, Clara e Ravi. PR rascunho no GitHub (nº 16, para `organizacao-2026-10-10`); não fazer merge sem o fundador. O fundador ficou sem cota em 11/10; este bloco diz o que está pronto e o que falta. Regras que valem acima de tudo: chaves NÃO se trocam agora (DEC-027); voz da v1 não se mexe; nada no Supabase real, EasyPanel, Hermes real ou `scripts/`; código novo nunca traz chave; só o HANDOFF é atualizado (curto); sem dizer "pronto" sem colar a saída dos testes.
+
+**PRONTO (verificado, CI verde no GitHub até o passo 2; números de referência: helena-v2 292, ferramentas 588, validador 677 antigos + 1476 novos = 2153, executor 493, simulador 723, app 181):**
+- Passo 1: `.github/workflows/helena-v2.yml` (jobs: especificação, 4 peças do motor, app e banco-v2). Roda em pull request e em envios para `main`/`missao-cumprida-v4`.
+- Passo 2: ficha do Ravi v3.1 + dossiê, casos da Isabela (convite e roteiro), roteiro `playbooks/recrutar-10-pessoas.yaml` na v3.1. `PENDENCIAS.yaml` só tem as 13 fichas dos outros agentes. DEC-030: o revisor do relatório final é o Caio.
+- Passo 3 (parte feita): validador `motor/validador/` cobre 78 de 78 checagens das entregas dos 5 agentes (quadro: `python -m spec_helena`), cada uma com boa + defeito em `helena-v2/casos/`.
+- Passo 4 (parte feita): `supabase/migrations-v2/` com esquema, passagens GERADAS de `passagens.yaml`, função única `helena_v2.aplicar_evento`, travas das 13 regras e testes (README da pasta). Só local; nada aplicado no Supabase real.
+- `docs/manual/como-mudar.md` (uma página) e `motor/executor/README.md`.
+
+**FALTA, em ordem (o agente seguinte começa por 1):**
+1. **Consertar o que os ataques independentes acharam** — tudo em `docs/auditoria/ATAQUES-2026-10-11.md` (cada achado com como reproduzir; reproduza antes de consertar). Banco: 2 ALTA (tabela temporária pode sombrear as tabelas de regras: falta `pg_temp` no `search_path` das funções SECURITY DEFINER; `abrir_chamada_helena` dá "permission denied" para `service_role`/`authenticated`, e o motor precisa dela), 4 MÉDIA, 2 BAIXA. Validador: 14 achados ALTA que ESCAPAM (convite/treinamento e cálculo/relatório) e vários MÉDIA. Os atacantes do parecer/dossiê e da fidelidade banco x `provar.py` foram interrompidos sem relato: refazer.
+2. Passo 5 — motor DBOS em `motor/orquestrador/` (novo): workflow DBOS (3.2.0, ver `motor/executor/requirements-hermes-real.txt` para o aviso de venv) que, para um card, chama o executor com o Hermes FALSO e o validador, e grava só por `aplicar_evento`. Teste: o card do roteiro das 10 pessoas vai de RASCUNHO a PRONTO sem ninguém destravar (os toques do fundador no teste são só os que o plano prevê: confirmar a leitura e aprovar). Respostas do agente nos testes = as respostas das boas de `helena-v2/casos/` (o adaptador `motor/validador/spec_helena` monta modelo e contexto).
+3. Passo 6 — tela simples do card em `src/` lendo o schema `helena_v2` (somente leitura) e o botão "publicar" (só o fundador, no máximo 1 por dia, garantido no BANCO; registra o pedido, não publica nada).
+4. Passo 7 — PARAR e pedir a frase do fundador para o "dia de prova" (Hermes real + ChatGPT dele). Deixar escrita só a lista de comandos (`docs/manual/dia-de-prova.md`, curta); não executar. Lembrar: a pasta `verificacao_real/` citada pelo executor não existe.
+5. No fim: regenerar o quadro do validador (`python -m spec_helena --atualizar-readme`), atualizar este bloco e tirar o PR de rascunho só com o fundador.
+
+**Lições deste dia:** (a) o isolamento `worktree` automático dos workflows partiu da `main`, não do ramo — criar os worktrees à mão (`git worktree add -b <ramo> <pasta> v2-primeiro-card`) e juntar com `git cherry-pick`; (b) o Workflow roda no máximo 2 agentes ao mesmo tempo nesta máquina; (c) commits de trabalho em andamento levam `[skip ci]`; (d) um `git commit` leva TUDO o que está no índice: confira com `git status` antes; (e) ao registrar uma CHK de tipo, a prova mora em `helena-v2/casos/` (teste `test_prova_na_especificacao.py`).
 
 ## 0. Estado em 10/10/2026 — leia primeiro
 

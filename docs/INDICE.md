@@ -56,6 +56,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 
 | Arquivo | O que é | Data |
 |---|---|---|
+| `docs/auditoria/ATAQUES-2026-10-11.md` | Ataques independentes de 11/10/2026 (resultado parcial) | 11/10/2026 |
 | `docs/auditoria/AUDITORIA-2026-09-26.md` | Helena-HUB — validação inicial do Sistema Helena | 26/09/2026 |
 | `docs/auditoria/AUDITORIA-2026-10-10.md` | Auditoria — 10/10/2026 | 10/10/2026 |
 
