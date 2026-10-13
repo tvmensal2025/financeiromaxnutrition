@@ -396,7 +396,7 @@ checagens_codigo:
     fase: "fase 2"
     parametros:
       sem_diferenca_de_maiusculas: true
-      frase_de_ausencia: '\b(a política|a politica|os termos|o termo|a página|a pagina|o documento|o site|o contrato)\b[^.;]{0,80}\b(não|nao)\s+(diz|fala|menciona|trata|prevê|preve|informa|cita|traz|explica)\b'
+      frase_de_ausencia: '\b(a política|a politica|os termos|o termo|a página|a pagina|o documento|o site|o contrato)\b[^.;]{0,80}\b((não|nao)\s+(diz|fala|menciona|trata|prevê|preve|informa|cita|traz|explica|aborda)|omite)\b'
       termos_min: 2
       termos_max: 8
 

@@ -194,7 +194,7 @@ checagens_codigo:
       palavra_inteira: true
       onde: "todo texto da entrega, menos trecho_original das citações"
       termos: ["vai ganhar", "vão ganhar", "você ganha", "ganhe", "ganhará", "ganharão", "renda garantida",
-               "renda extra", "renda certa", "ganho garantido", "ganhos garantidos", "ganho certo", "dinheiro fácil",
+               "renda extra", "renda certa", "ganho garantido", "ganhos garantidos", "ganho certo", "ganhos certos", "dinheiro fácil",
                "lucro garantido", "retorno garantido", "vaga garantida", "vagas garantidas",
                "disponibilidade garantida", "sem risco", "risco zero"]
   - id: CHK-DOSSIE-SEM-ACAO-EXTERNA
@@ -210,7 +210,7 @@ checagens_codigo:
       palavra_inteira: true
       onde: "todo texto da entrega, menos trecho_original das citações"
       termos: ["cadastre-se", "faça o cadastro", "inscreva-se", "assine", "aceite os termos", "contrate", "compre",
-               "pague", "envie", "mande", "ligue", "clique", "acesse", "preencha", "baixe", "publique",
+               "pague", "envie", "mande", "ligue", "clique", "acesse", "visite", "preencha", "baixe", "publique",
                "entre em contato", "fale com", "responda a mensagem", "teste a plataforma"]
 
 # ---------------------------------------------------------------------------------------

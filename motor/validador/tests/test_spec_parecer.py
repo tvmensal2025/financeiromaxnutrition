@@ -145,3 +145,15 @@ def test_roteiro_com_passo_fixo_passa_e_o_tema_dos_passos_confere_com_o_plano():
     def passo_a_menos(r):
         r["entrega"]["passos_fixos"] = []
     assert "PASSO_SEM_LINHA" in _motivos(_rodar(passo_a_menos, caso="PARECER-BOA-05"), P + "PASSOS-FIXOS")
+
+
+def test_politica_omite_assunto_sem_linha_de_ausencia_recusa():
+    def retirar_prova(r):
+        r["entrega"]["ausencias"] = []
+        r["entrega"]["temas"][3]["resposta"] = "A política omite o país dos servidores, por isso não sei onde ficam os dados."
+
+    assert "FRASE_DE_AUSENCIA_SEM_LINHA" in _motivos(_rodar(retirar_prova), P + "AUSENCIA")
+
+
+def test_ausencia_com_linha_e_busca_real_continua_aceita():
+    assert _status(_rodar(), P + "AUSENCIA") == "PASSOU"
