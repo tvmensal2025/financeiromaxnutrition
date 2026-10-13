@@ -26,11 +26,12 @@ def banco_real(servidor):
     try:
         with banco.conectar() as con:
             con.execute("""create table public.checkpoint_mestre (
-                checkpoint_id text primary key, versao bigint, status text, resumo_executivo text,
+                checkpoint_id text primary key, versao integer, status text, resumo_executivo text,
                 validado_em timestamptz, atualizado_em timestamptz, checkpoint_anterior_id text)""")
-            con.execute("""create table public.checkpoint_mestre_atual (
-                checkpoint_id text primary key, versao bigint, status text, resumo_executivo text,
-                validado_em timestamptz, atualizado_em timestamptz, checkpoint_anterior_id text)""")
+            con.execute("""create view public.checkpoint_mestre_atual as
+                select checkpoint_id,versao,status,resumo_executivo,validado_em,
+                       atualizado_em,checkpoint_anterior_id from public.checkpoint_mestre
+                where status='ATIVO' order by versao desc limit 1""")
             con.execute("""create table public.portfolio (
                 business_id text primary key, negocio text, estagio text, ativo text, publico text,
                 row_version bigint, brand_identity jsonb)""")
@@ -47,10 +48,10 @@ def banco_real(servidor):
                 evidence_refs jsonb, updated_at timestamptz)""")
             con.execute("""insert into public.checkpoint_mestre values
                 ('CKP-TESTE',1,'ATIVO','Teste',now(),now(),null)""")
-            con.execute("""insert into public.checkpoint_mestre_atual
-                select * from public.checkpoint_mestre""")
             con.execute("""insert into public.portfolio values
-                (%s,'Empresa de Teste','TESTE','SIM','TESTE',4,'{}')""", (EMPRESA,))
+                (%s,'Empresa de Teste','TESTE','SIM','TESTE',4,%s)""",
+                (EMPRESA, Jsonb({"status": "APPROVED", "business_id": EMPRESA,
+                                 "schema_version": 1, "name": "Marca de Teste"})))
             con.execute("""insert into public.tarefas values
                 (%s,%s,'Calcule o valor de teste.','NÃO INICIADA','NORMAL',null,
                  'Conta verificada',7,now(),now())""", (TAREFA, EMPRESA))
@@ -102,7 +103,7 @@ def parametros(banco, config_id):
     fontes = {"FON-PEDIDO-" + TAREFA: tarefa["tarefa"],
               "FON-PACOTE-" + EMPRESA: canonico(empresa),
               fonte_job: canonico({"delivery": job["result_payload"]["delivery"],
-                                  "quality_review": job["result_payload"]["quality_review"],
+                                  "quality_review": job["result_payload"].get("quality_review"),
                                   "review_reason": None, "evidence_refs": job["evidence_refs"]})}
     pacote = {"empresa": EMPRESA, "nome": empresa["negocio"], "estado": "CONFIRMADO",
               "fonte_importada_id": "FON-PACOTE-" + EMPRESA, "dados_do_portfolio": empresa,
@@ -267,3 +268,83 @@ def test_tarefa_de_origem_do_job_mudou_de_empresa_antes_do_consumo(banco_real):
         with pytest.raises(psycopg.errors.SerializationFailure, match="JOB_ORIGEM_MUDOU"):
             con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
                         (pedido["id"], Jsonb(S.ROTEIRO_UMA_ETAPA)))
+
+
+@pytest.mark.parametrize("campo", ["review_pending", "reviewer_agent_id", "quality_review",
+                                   "inspected_evidence_refs", "refs_numericas", "reviewed_by_numero"])
+def test_job_sem_prova_documental_obrigatoria_e_recusado(banco_real, campo):
+    banco, config_id = banco_real
+    with banco.conectar() as con:
+        payload, refs = con.execute("select result_payload,evidence_refs from public.agent_jobs where job_id=%s",
+                                    (JOB,)).fetchone()
+        if campo == "refs_numericas":
+            refs = [123]
+            payload["quality_review"]["inspected_evidence_refs"] = [123]
+        elif campo == "reviewed_by_numero":
+            payload["reviewed_by"] = 123
+        elif campo == "inspected_evidence_refs":
+            payload["quality_review"].pop(campo)
+        else:
+            payload.pop(campo)
+        con.execute("update public.agent_jobs set result_payload=%s,evidence_refs=%s where job_id=%s",
+                    (Jsonb(payload), Jsonb(refs), JOB))
+    args = parametros(banco, config_id)
+    with banco.conectar(papel="authenticated") as con:
+        with pytest.raises(psycopg.errors.InvalidParameterValue, match="JOB_SEM_REVISAO_DOCUMENTAL"):
+            solicitar(con, args)
+
+
+@pytest.mark.parametrize("brand", [
+    None,
+    {"status": "PENDING", "business_id": EMPRESA, "schema_version": 1, "name": "Marca de Teste"},
+    {"status": "APPROVED", "business_id": "BIZ-OUTRA", "schema_version": 1, "name": "Marca de Teste"},
+    {"status": "APPROVED", "business_id": EMPRESA, "schema_version": 0, "name": "Marca de Teste"},
+    {"status": "APPROVED", "business_id": EMPRESA, "schema_version": 1, "name": ""},
+])
+def test_pacote_confirmado_exige_marca_aprovada_da_empresa(banco_real, brand):
+    banco, config_id = banco_real
+    with banco.conectar() as con:
+        con.execute("update public.portfolio set brand_identity=%s where business_id=%s",
+                    (Jsonb(brand), EMPRESA))
+    args = parametros(banco, config_id)
+    with banco.conectar(papel="authenticated") as con:
+        with pytest.raises(psycopg.errors.InvalidParameterValue, match="MARCA_SEM_APROVACAO"):
+            solicitar(con, args)
+
+
+def test_hash_de_proveniencia_ausente_falha_fechado(banco_real):
+    banco, config_id = banco_real
+    args = list(parametros(banco, config_id))
+    dados = copy.deepcopy(args[3].obj)
+    dados["captura"]["proveniencia"].pop("hash_sha256")
+    dados["proveniencia"]["hash_sha256"] = None
+    args[3] = Jsonb(dados)
+    with banco.conectar(papel="authenticated") as con:
+        with pytest.raises(psycopg.errors.InvalidParameterValue, match="PROVENIENCIA_REAL_DIVERGENTE"):
+            solicitar(con, args)
+
+
+@pytest.mark.parametrize("etapa", ["solicitar", "consumir"])
+def test_checkpoint_nao_muda_entre_conferencia_e_commit(banco_real, etapa):
+    banco, config_id = banco_real
+    args = parametros(banco, config_id)
+    pedido = None
+    if etapa == "consumir":
+        with banco.conectar(papel="authenticated") as con:
+            pedido = solicitar(con, args)
+    papel = "authenticated" if etapa == "solicitar" else "service_role"
+    with banco.conectar(papel=papel, autocommit=False) as con:
+        if etapa == "solicitar":
+            solicitar(con, args)
+        else:
+            con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
+                        (pedido["id"], Jsonb(S.ROTEIRO_UMA_ETAPA)))
+        with banco.conectar() as escritor:
+            escritor.execute("set lock_timeout = '150ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                escritor.execute("""insert into public.checkpoint_mestre values
+                    ('CKP-CONCORRENTE',2,'ATIVO','Outro',now(),now(),null)""")
+        con.commit()
+    with banco.conectar() as escritor:
+        escritor.execute("""insert into public.checkpoint_mestre values
+            ('CKP-CONCORRENTE',2,'ATIVO','Outro',now(),now(),null)""")

@@ -55,35 +55,39 @@ declare
   c jsonb := p_dados -> 'captura';
   t jsonb; b jsonb; ck jsonb; d jsonb; j jsonb;
   did text; rotulo text; jid text; fonte_id text; refs jsonb; vistos jsonb; q jsonb; payload jsonb;
-  esperado jsonb; pacote jsonb; ordem jsonb; esperado_proveniencia jsonb;
+  esperado jsonb; pacote jsonb; ordem jsonb; esperado_proveniencia jsonb; marca jsonb;
   esperado_decisoes jsonb;
   ativos bigint; maior_versao bigint; atuais bigint;
 begin
-  if jsonb_typeof(p_plano) <> 'object' or jsonb_typeof(p_plano -> 'etapas') <> 'array'
+  if jsonb_typeof(p_plano) is distinct from 'object'
+     or jsonb_typeof(p_plano -> 'etapas') is distinct from 'array'
      or jsonb_array_length(p_plano -> 'etapas') = 0
-     or jsonb_typeof(p_plano -> 'decisoes') <> 'array'
-     or jsonb_typeof(p_plano -> 'entradas_externas') <> 'object'
-     or jsonb_typeof(p_plano -> 'empresas') <> 'array'
-     or jsonb_typeof(p_dados) <> 'object' or jsonb_typeof(c) <> 'object'
-     or jsonb_typeof(p_dados -> 'pedido') <> 'object'
-     or jsonb_typeof(p_dados -> 'fontes_importadas') <> 'object'
-     or jsonb_typeof(p_dados -> 'decisoes') <> 'array'
-     or jsonb_typeof(p_dados -> 'entradas_externas') <> 'object'
-     or jsonb_typeof(p_dados -> 'proveniencia') <> 'object'
+     or jsonb_typeof(p_plano -> 'decisoes') is distinct from 'array'
+     or jsonb_typeof(p_plano -> 'entradas_externas') is distinct from 'object'
+     or jsonb_typeof(p_plano -> 'empresas') is distinct from 'array'
+     or jsonb_typeof(p_dados) is distinct from 'object' or jsonb_typeof(c) is distinct from 'object'
+     or jsonb_typeof(p_dados -> 'pedido') is distinct from 'object'
+     or jsonb_typeof(p_dados -> 'fontes_importadas') is distinct from 'object'
+     or jsonb_typeof(p_dados -> 'decisoes') is distinct from 'array'
+     or jsonb_typeof(p_dados -> 'entradas_externas') is distinct from 'object'
+     or jsonb_typeof(p_dados -> 'proveniencia') is distinct from 'object'
      or (select count(*) from jsonb_object_keys(p_dados)) <> 6
-     or c ->> 'fonte' <> 'management_read_only'
-     or c #>> '{projeto,ref}' <> 'wxkgrykduqtsgmjkzlou'
+     or c ->> 'fonte' is distinct from 'management_read_only'
+     or c #>> '{projeto,ref}' is distinct from 'wxkgrykduqtsgmjkzlou'
      or c ->> 'observado_em' is null
      or (select count(*) from jsonb_object_keys(c)) <> 10
-     or jsonb_typeof(c -> 'proveniencia') <> 'object'
-     or jsonb_typeof(c -> 'decisoes') <> 'array'
-     or jsonb_typeof(c -> 'entradas_externas') <> 'object' then
+     or jsonb_typeof(c -> 'proveniencia') is distinct from 'object'
+     or jsonb_typeof(c -> 'decisoes') is distinct from 'array'
+     or jsonb_typeof(c -> 'entradas_externas') is distinct from 'object' then
     raise exception 'CAPTURA_REAL_INVALIDA' using errcode = '22023';
   end if;
   if jsonb_array_length(p_plano -> 'decisoes') > 20
      or (select count(*) from jsonb_object_keys(p_plano -> 'entradas_externas')) > 20 then
     raise exception 'CAPTURA_REAL_EXCEDE_LIMITE' using errcode = '22023';
   end if;
+  -- SHARE conflita com INSERT/UPDATE (ROW EXCLUSIVE): a conferência e o card
+  -- usam o mesmo checkpoint até o commit da solicitação/consumo.
+  lock table public.checkpoint_mestre in share mode;
   select count(*) filter (where status='ATIVO'),max(versao) into ativos,maior_versao
     from public.checkpoint_mestre;
   if ativos <> 1 then
@@ -110,7 +114,7 @@ begin
     where task_id=p_tarefa_id for share
   ) x;
   if t is null or t is distinct from c -> 'tarefa'
-     or t ->> 'status' not in ('NÃO INICIADA','EM EXECUÇÃO','ABERTO')
+     or coalesce(t ->> 'status','') not in ('NÃO INICIADA','EM EXECUÇÃO','ABERTO')
      or t ->> 'business_id' is null or t ->> 'tarefa' is null
      or c ->> 'business_id' is distinct from t ->> 'business_id'
      or c #>> '{proveniencia,tarefa,pk}' is distinct from p_tarefa_id
@@ -121,10 +125,20 @@ begin
     'estagio',p.estagio,'ativo',p.ativo,'publico',p.publico,
     'portfolio_row_version',p.row_version,'brand_identity',p.brand_identity)
     into b from public.portfolio p where p.business_id=t ->> 'business_id' for share;
-  if b is null or b is distinct from c -> 'empresa' or b ->> 'ativo' <> 'SIM'
+  if b is null or b is distinct from c -> 'empresa' or b ->> 'ativo' is distinct from 'SIM'
      or c #>> '{proveniencia,empresa,pk}' is distinct from b ->> 'business_id'
      or c #>> '{proveniencia,empresa,row_version}' is distinct from b ->> 'portfolio_row_version' then
     raise exception 'EMPRESA_REAL_MUDOU' using errcode = '40001';
+  end if;
+  marca := b -> 'brand_identity';
+  if jsonb_typeof(marca) is distinct from 'object'
+     or marca ->> 'status' is distinct from 'APPROVED'
+     or marca ->> 'business_id' is distinct from b ->> 'business_id'
+     or jsonb_typeof(marca -> 'schema_version') is distinct from 'number'
+     or coalesce(marca ->> 'schema_version','') !~ '^[1-9][0-9]*$'
+     or jsonb_typeof(marca -> 'name') is distinct from 'string'
+     or nullif(btrim(coalesce(marca ->> 'name','')),'') is null then
+    raise exception 'MARCA_SEM_APROVACAO' using errcode = '22023';
   end if;
   if not (p_plano -> 'empresas') ? (b ->> 'business_id') then
     raise exception 'PLANO_FORA_DA_EMPRESA' using errcode = '22023';
@@ -138,10 +152,10 @@ begin
     'observado_em',c -> 'observado_em','tarefa_id',t -> 'task_id',
     'tarefa_row_version',t -> 'row_version','business_id',b -> 'business_id',
     'hash_sha256',c #> '{proveniencia,hash_sha256}');
-  if c #>> '{proveniencia,hash_sha256}' !~ '^[0-9a-f]{64}$'
+  if coalesce(c #>> '{proveniencia,hash_sha256}','') !~ '^[0-9a-f]{64}$'
      or p_dados -> 'proveniencia' is distinct from esperado_proveniencia
-     or jsonb_typeof(p_dados #> '{pedido,ordem_de_servico,como_e_o_pronto}') <> 'array'
-     or jsonb_typeof(p_dados #> '{pedido,ordem_de_servico,nao_pode}') <> 'array' then
+     or jsonb_typeof(p_dados #> '{pedido,ordem_de_servico,como_e_o_pronto}') is distinct from 'array'
+     or jsonb_typeof(p_dados #> '{pedido,ordem_de_servico,nao_pode}') is distinct from 'array' then
     raise exception 'PROVENIENCIA_REAL_DIVERGENTE' using errcode = '22023';
   end if;
   pacote := jsonb_build_object('empresa',b -> 'business_id','nome',b -> 'negocio',
@@ -178,7 +192,7 @@ begin
       select decision_id,decisao,row_version,status,business_id
       from public.decisoes where decision_id=did for share
     ) x;
-    if d is null or d ->> 'status' not in ('ATIVO','ATIVA','VIGENTE')
+    if d is null or coalesce(d ->> 'status','') not in ('ATIVO','ATIVA','VIGENTE')
        or (d ->> 'business_id' is not null and d ->> 'business_id' <> b ->> 'business_id')
        or not (c -> 'decisoes') @> jsonb_build_array(d) then
       raise exception 'DECISAO_REAL_MUDOU' using errcode = '40001';
@@ -209,8 +223,9 @@ begin
              result_payload,result_summary,evidence_refs,updated_at
       from public.agent_jobs where job_id=jid for share
     ) x;
-    if j is null or j ->> 'business_id' <> b ->> 'business_id'
-       or j ->> 'status' <> 'COMPLETED' or j ->> 'approval_status' <> 'APPROVED'
+    if j is null or j ->> 'business_id' is distinct from b ->> 'business_id'
+       or j ->> 'status' is distinct from 'COMPLETED'
+       or j ->> 'approval_status' is distinct from 'APPROVED'
        or c #> array['entradas_externas',rotulo] is distinct from j then
       raise exception 'JOB_REAL_MUDOU' using errcode = '40001';
     end if;
@@ -219,21 +234,30 @@ begin
     if not found then raise exception 'JOB_ORIGEM_MUDOU' using errcode = '40001'; end if;
     payload := j -> 'result_payload'; q := payload -> 'quality_review';
     refs := j -> 'evidence_refs'; vistos := q -> 'inspected_evidence_refs';
-    if jsonb_typeof(payload) <> 'object' or payload -> 'review_pending' <> 'false'::jsonb
-       or q -> 'requirements_met' <> 'true'::jsonb
-       or payload ->> 'reviewer_agent_id' !~ '^AGT-[0-9]{2}$'
-       or payload ->> 'reviewer_agent_id' = j ->> 'agent_id'
+    if jsonb_typeof(payload) is distinct from 'object'
+       or payload -> 'review_pending' is distinct from 'false'::jsonb
+       or jsonb_typeof(q) is distinct from 'object'
+       or q -> 'requirements_met' is distinct from 'true'::jsonb
+       or coalesce(payload ->> 'reviewer_agent_id','') !~ '^AGT-[0-9]{2}$'
+       or payload ->> 'reviewer_agent_id' is not distinct from j ->> 'agent_id'
+       or nullif(btrim(coalesce(j ->> 'agent_id','')),'') is null
+       or jsonb_typeof(payload -> 'reviewed_by') is distinct from 'string'
        or nullif(btrim(payload ->> 'reviewed_by'),'') is null
-       or jsonb_typeof(refs) <> 'array' or jsonb_array_length(refs) = 0
-       or jsonb_typeof(vistos) <> 'array' or jsonb_array_length(refs) <> jsonb_array_length(vistos)
+       or jsonb_typeof(refs) is distinct from 'array' or jsonb_array_length(refs) = 0
+       or jsonb_typeof(vistos) is distinct from 'array'
+       or jsonb_array_length(refs) is distinct from jsonb_array_length(vistos)
+       or exists (select 1 from jsonb_array_elements(refs) as r(v)
+                  where jsonb_typeof(r.v) is distinct from 'string')
+       or exists (select 1 from jsonb_array_elements(vistos) as r(v)
+                  where jsonb_typeof(r.v) is distinct from 'string')
        or exists (select 1 from jsonb_array_elements_text(refs) r
                   where not vistos ? r or r = '')
        or exists (select 1 from jsonb_array_elements_text(vistos) r where not refs ? r)
        or (select count(distinct r) from jsonb_array_elements_text(refs) r) <> jsonb_array_length(refs) then
       raise exception 'JOB_SEM_REVISAO_DOCUMENTAL' using errcode = '22023';
     end if;
-    if jsonb_typeof(payload -> 'delivery') <> 'object'
-       or jsonb_typeof(payload #> '{delivery,content}') <> 'string' then
+    if jsonb_typeof(payload -> 'delivery') is distinct from 'object'
+       or jsonb_typeof(payload #> '{delivery,content}') is distinct from 'string' then
       raise exception 'JOB_SEM_CONTEUDO_DOCUMENTAL' using errcode = '22023';
     end if;
     fonte_id := 'FON-JOB-' || jid;
@@ -326,7 +350,8 @@ begin
   if helena_v2._conta() <> 'service_role' then
     raise exception 'SOMENTE_MOTOR' using errcode = '42501';
   end if;
-  if jsonb_typeof(p_roteiro) <> 'object' or jsonb_typeof(p_roteiro -> 'etapas') <> 'array'
+  if jsonb_typeof(p_roteiro) is distinct from 'object'
+     or jsonb_typeof(p_roteiro -> 'etapas') is distinct from 'array'
      or octet_length(p_roteiro::text) > 200000 then
     raise exception 'ROTEIRO_REAL_INVALIDO' using errcode = '22023';
   end if;
