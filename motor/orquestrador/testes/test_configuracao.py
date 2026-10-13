@@ -1,15 +1,26 @@
 """Snapshots de configuração são dados imutáveis validados antes de uso."""
 import copy
+import re
 
 import pytest
 
 from orquestrador.configuracao import (capturar_bundle, carregar_revisao, hash_bundle, impressao_maquina,
-                                       materializar_bundle, validar_bundle, verificar_revisao)
+                                       materializar_bundle, validar_bundle, verificar_revisao, RAIZ_REPO)
 
 
 @pytest.fixture(scope="module")
 def bundle_base():
     return capturar_bundle()
+
+
+def test_bundle_operacional_exclui_casos_e_obedece_allowlist_sql(bundle_base):
+    assert len(bundle_base) == 31
+    assert not any("/casos/" in caminho for caminho in bundle_base)
+    sql = RAIZ_REPO / "supabase/migrations-v2/0006_configuracoes.sql"
+    if sql.exists():
+        padrao = re.search(r"where caminho !~ '([^']+)'", sql.read_text(encoding="utf-8")).group(1)
+        assert all(re.fullmatch(padrao, caminho) for caminho in bundle_base)
+        assert re.fullmatch(padrao, "helena-v2/casos/SRV-COPY/boas/boa-01.yaml") is None
 
 
 def test_captura_materializa_e_mantem_origem_independente(bundle_base, tmp_path):
@@ -49,6 +60,7 @@ def test_hash_deterministico_e_revisao_diferente_nao_sobrescreve(bundle_base, tm
     "helena-v2/./servicos.yaml",
     "helena-v2/agents/novo.py",
     "helena-v2/schemas/https://exemplo.invalid.schema.json",
+    "helena-v2/casos/SRV-COPY/boas/boa-01.yaml",
 ])
 def test_recusa_caminho_fora_da_lista(bundle_base, caminho):
     bundle = dict(bundle_base)

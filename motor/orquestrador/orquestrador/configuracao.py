@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
 
@@ -52,9 +53,14 @@ def _caminho_permitido(nome: str) -> bool:
     if relativo in {"maquina/passagens.yaml", "maquina/vocabulario.yaml", "maquina/jornada.schema.json"}:
         return True
     pasta = partes[1]
-    return ((pasta in {"agents", "deliverables", "playbooks", "schemas"} and len(partes) == 3
-             and nome.endswith(".json" if pasta == "schemas" else ".yaml"))
-            or (pasta == "casos" and len(partes) in (4, 5) and nome.endswith(".yaml")))
+    if len(partes) != 3:
+        return False
+    arquivo = partes[2]
+    if pasta in {"agents", "deliverables", "playbooks"}:
+        return re.fullmatch(r"[a-z0-9_-]+\.yaml", arquivo) is not None
+    if pasta == "schemas":
+        return re.fullmatch(r"[a-z0-9_-]+\.schema\.json", arquivo) is not None
+    return False
 
 
 def _json_canonico(valor) -> bytes:
@@ -133,7 +139,6 @@ def capturar_bundle(raiz: Path = RAIZ_BASE) -> dict[str, object]:
     caminhos = [raiz / p.removeprefix(PREFIXO) for p in OBRIGATORIOS]
     for pasta in ("agents", "deliverables", "playbooks", "schemas"):
         caminhos.extend((raiz / pasta).glob("*.yaml" if pasta != "schemas" else "*.json"))
-    caminhos.extend((raiz / "casos").glob("**/*.yaml"))
     bundle = {}
     for arquivo in sorted(set(caminhos)):
         _sem_links_no_caminho(arquivo)
@@ -254,6 +259,13 @@ def validar_bundle(bundle: dict, *, raiz_maquina: Path = RAIZ_BASE) -> None:
             raise ValueError("máquina ou schema técnico diferente da versão compilada; exige migração")
     with tempfile.TemporaryDirectory(prefix="helena-validar-bundle-") as pasta:
         raiz = materializar_bundle(bundle, Path(pasta) / "revisao", somente_leitura=False)
+        # Fixtures e jornadas são material técnico do checkout confiável. Elas
+        # participam da prova, mas nunca do JSONB publicado para os cards.
+        for origem in sorted((raiz_maquina / "casos").glob("**/*.yaml")):
+            _sem_links_no_caminho(origem)
+            alvo = raiz / origem.relative_to(raiz_maquina)
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(origem, alvo)
         caminho_validador = raiz_maquina / "validar.py"
         spec = importlib.util.spec_from_file_location("helena_validar_bundle", caminho_validador)
         modulo = importlib.util.module_from_spec(spec)
