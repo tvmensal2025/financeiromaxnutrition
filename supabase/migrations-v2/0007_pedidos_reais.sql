@@ -1,4 +1,4 @@
--- Solicitações autenticadas de cards reais. A captura é conferida contra public.*
+-- O QUE É: Solicitações autenticadas de cards reais. A captura é conferida contra public.*
 -- antes de gravar e novamente, sob locks, antes de consumir. Nenhuma fonte é criada aqui.
 create table helena_v2.solicitacao_card_real (
   id uuid primary key default gen_random_uuid(),

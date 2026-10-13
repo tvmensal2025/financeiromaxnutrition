@@ -1,4 +1,6 @@
-"""Reações do fundador: versão e parâmetros conferidos antes de criar card ligado."""
+"""O QUE É: Reações do fundador: versão e parâmetros conferidos antes de criar card ligado.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 from pathlib import Path
 
 import psycopg

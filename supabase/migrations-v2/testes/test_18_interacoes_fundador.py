@@ -1,4 +1,6 @@
-"""Projeções de toque próprio e pergunta corrente, sem histórico bruto."""
+"""O QUE É: Projeções de toque próprio e pergunta corrente, sem histórico bruto.
+COMO MUDAR: mantenha os testes de vínculo JWT, toque idempotente e pergunta atual ao ajustar a migração 0013.
+"""
 import json
 from pathlib import Path
 

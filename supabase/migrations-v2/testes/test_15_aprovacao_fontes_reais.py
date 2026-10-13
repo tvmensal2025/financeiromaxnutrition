@@ -1,4 +1,6 @@
-"""Aprovações de card real revalidam fatos na própria transação do evento."""
+"""O QUE É: Aprovações de card real revalidam fatos na própria transação do evento.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 from pathlib import Path
 
 import psycopg

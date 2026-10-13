@@ -1,4 +1,6 @@
-"""Confirmação founder no banco descartável, sem rede nem fonte de produção."""
+"""O QUE É: Confirmação founder no banco descartável, sem rede nem fonte de produção.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 import copy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

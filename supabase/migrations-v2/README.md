@@ -2,7 +2,7 @@
 
 **O banco manda, o motor executa, o agente só escreve conteúdo.** Aqui mora o banco do Sistema Helena v2: uma única função muda o estado do card, e as 13 regras de ferro valem mesmo que um programa erre.
 
-> **NADA disto é aplicado no Supabase real sem a frase exata do fundador.** Os testes usam só um PostgreSQL local (ou o de teste do CI). O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
+> Nesta revisão, as migrations foram aplicadas apenas em PostgreSQL local. A implantação exige conferir os pré-requisitos técnicos abaixo. O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
 
 ## O que tem
 
@@ -14,6 +14,15 @@
 | `0004_travas_e_permissoes.sql` | As travas das 13 regras e as permissões | à mão |
 | `0005_publicacao.sql` | Pedido diário de publicação, leitura do fundador e resposta durável do executor | à mão |
 | `0006_configuracoes.sql` | Revisões editáveis de configuração, validação pelo serviço e revisão fixada no card | à mão |
+| `0007_pedidos_reais.sql` | Solicitações autenticadas, captura canônica, consumo idempotente e bloqueio de fontes alteradas | à mão |
+| `0008_resposta_coordenacao.sql` | Resposta durável da Helena, aplicação e recuperação por histórico | à mão |
+| `0009_confirmacao_real.sql` | Prazo, critérios, restrições e URLs confirmados; fontes originais preservadas | à mão |
+| `0010_aprovacoes_fontes_reais.sql` | Reconfere fontes nas aprovações efetivas, inclusive reação do card pronto | à mão |
+| `0011_lista_acoes_fundador.sql` | RPC de leitura mínima de ações para o fundador, sem SELECT direto no cliente | à mão |
+| `0012_reacoes_fundador.sql` | Versão e parâmetros das reações, com replay antes de nova aplicação | à mão |
+| `0013_interacoes_fundador.sql` | Consulta do toque do próprio fundador e pergunta atual da etapa | à mão |
+| `0014_leitura_card_fundador.sql` | Leitura de volta realmente persistida pela Helena | à mão |
+| `0015_card_real_ligado.sql` | Confere a origem autenticada e as fontes de cards ligados | à mão |
 | `gerar_passagens.py` | Lê `helena-v2/maquina/*.yaml` e escreve o 0002 | à mão |
 | `testes/` | Os testes (pytest + psycopg) | à mão |
 
@@ -67,3 +76,13 @@ Aplicar `0007_pedidos_reais.sql` depois de 0001–0006. O fundador autenticado r
 Antes da implantação, conferir privilégios do dono das funções SECURITY DEFINER sobre as fontes públicas (leitura e locks), RLS, papéis dedicados, exposição da API e backup/retorno. Testes locais não comprovam esses privilégios em produção. Nenhuma migration desta revisão foi aplicada remotamente.
 
 `service_role` é uma identidade privilegiada de backend; sua credencial pertence apenas ao worker, nunca ao cliente. Ela não representa a autorização do fundador: a solicitação exige sua sessão autenticada. O modelo não protege de um worker comprometido que consiga alterar as próprias fontes; verificar grants efetivos na instalação.
+
+## Sequência atual e confirmação
+
+Aplicar 0001–0015 em ordem. A 0009 resolve a revisão ativa quando o fundador não fornece ID, confere prazo futuro na criação e preserva o replay de solicitações já gravadas. Toda restrição corresponde a um critério de risco ALTO. Cards reais antigos sem confirmação completa não avançam; histórico permanece e um novo pedido autenticado deve substituir a entrada incompleta. O instante do prazo é preservado com fuso explícito; a interface o apresenta em Brasília.
+
+A interface importa a captura privada gerada pelo CLI, mostra metadados e envia as escolhas pela sessão do fundador. Ela consulta solicitações próprias por RLS para reconciliar falhas. A mesma carga usa chave determinística entre abas; confirmações diferentes não têm unicidade global por tarefa. URLs confirmadas continuam sendo dados não confiáveis, e a ferramenta revalida resolução, IP e redirecionamento a cada leitura.
+
+A autorização de ação externa na 0010 não habilita o efeito externo. Antes de implementar X10/EXECUTAR_ACAO, conferir fontes novamente no despacho e imediatamente antes do efeito, com idempotência e prova de cancelamento.
+
+Cards ligados são conferidos até a solicitação autenticada de origem, com limite de 16 ancestrais e recusa de ciclos. Ao atingir esse limite, é necessário tratar explicitamente a continuidade ou criar novo pedido autenticado; não remover a guarda.

@@ -1,4 +1,4 @@
--- Resposta da coordenadora persistida antes de LER_DE_VOLTA. Nenhuma execução
+-- O QUE É: Resposta da coordenadora persistida antes de LER_DE_VOLTA. Nenhuma execução
 -- externa é iniciada pelo banco; a transição continua em aplicar_evento.
 create table helena_v2.resposta_coordenacao (
   numero bigint primary key references helena_v2.execucao(numero),

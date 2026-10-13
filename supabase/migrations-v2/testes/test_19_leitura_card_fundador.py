@@ -1,4 +1,6 @@
-"""Leitura de volta real e aplicada ao card, projetada para o fundador."""
+"""O QUE É: Leitura de volta real e aplicada ao card, projetada para o fundador.
+COMO MUDAR: atualize o contrato da migração 0014 preservando prova da leitura de volta, versão e identidade do fundador.
+"""
 import json
 from pathlib import Path
 

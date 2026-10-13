@@ -1,4 +1,4 @@
--- Escolhas autenticadas do fundador para o pedido real. A observação da
+-- O QUE É: Escolhas autenticadas do fundador para o pedido real. A observação da
 -- Management API permanece intacta; o banco revalida seus fatos sob locks.
 -- Nenhuma URL é acessada por esta migração.
 create or replace function helena_v2._real_confirmacao_valida(p_dados jsonb, p_prazo timestamptz)

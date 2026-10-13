@@ -1,4 +1,6 @@
-"""Solicitações reais: autorização, captura conferida e consumo único em banco local."""
+"""O QUE É: Solicitações reais: autorização, captura conferida e consumo único em banco local.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 import copy
 import hashlib
 import json

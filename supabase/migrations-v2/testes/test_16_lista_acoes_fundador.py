@@ -1,4 +1,6 @@
-"""Leitura mínima de ações externas por fundador autenticado no banco local."""
+"""O QUE É: Leitura mínima de ações externas por fundador autenticado no banco local.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 from pathlib import Path
 
 import psycopg

@@ -1,4 +1,6 @@
-"""Resposta durável da coordenadora: replay sem nova chamada nem evento duplicado."""
+"""O QUE É: Resposta durável da coordenadora: replay sem nova chamada nem evento duplicado.
+COMO MUDAR: atualize a migração correspondente e estas regressões juntas, preservando autorização, idempotência e fontes reais.
+"""
 import copy
 from pathlib import Path
 

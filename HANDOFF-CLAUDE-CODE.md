@@ -3,6 +3,17 @@
 Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
+## 0-B. Estado prioritário em 13/10/2026 — checkout `44c2b33`
+
+- Este bloco prevalece sobre os relatos antigos de motor somente sintético abaixo. Migrations locais `0001`–`0015`, captura Management somente leitura, pedido autenticado, pin/frescor de fontes, leitura de volta comprovada, decisões do fundador, coordenação durável e cancelamento têm implementação e testes locais. Não houve aplicação da v2 em produção.
+- Consulta real da tarefa TSK-HR-54d05d6e9fe145997abf038235d326d2: BIZ-003, CP-20261007-V036, três fontes documentais e duas decisões. Captura privada fora do Git; zero agentes e zero escritas remotas. Prazo, remuneração efetiva e pagador não confirmados; não preencher por suposição.
+- Provas deste checkout: interface **283 testes/48 arquivos**, Motor **220 testes**, TypeScript e build passaram. SQL completo: **412 testes passados e um erro de cabeçalho**, corrigido depois; conjunto combinado final **126 testes passados em 48,86 s**, incluindo metadata 01 e testes 13–20. São rodadas de escopo diferente, não números de produção.
+- Financeiro e jurídico continuam bloqueados no caminho real até contratos de insumos tipados e fontes/dados efetivos: horas, taxa, remuneração/pagador, FON-LEIS, termos integrais e peças aprovadas. D1/D3/B2 e exemplos não autorizam cálculo, parecer final ou preenchimento fictício.
+- A UI registra pedido real, exibe leitura de volta durável antes de CONFIRMO quando exigida e oferece decisões autenticadas; não executa publicação. A cadeia de cards ligados tem limite de **16 ancestrais**, com falha fechada. X10, execução de efeito externo, ainda não existe. Toque incerto não tem recuperação universal após apagar a sessão.
+- A arquitetura tem adaptador Hermes. EVE/OpenClaw seriam adaptadores futuros sem implementação ou verificação. Coordenação durável e cancelamento foram exercitados localmente; cancelar Hermes real em ≤15 s, login, navegador autenticado/Auth/RLS e deploy seguem sem prova. Runtime exige conexões dedicadas, CA/TLS, caminhos privados e papéis mínimos; `service_role` não é identidade do fundador.
+- Bootstrap de configuração no projeto canônico ainda precisa de procedimento revisado: `validar-configuracoes` e `registrar-base-tecnica` aceitam só bancos locais, mas o Motor exige revisão ativa VALIDADA antes do worker. Nenhuma CLI atual automatiza esse início em produção.
+- **Produção não está pronta.** Sem merge/deploy, migration remota, Hermes real ou browser autenticado; PR16 segue rascunho, v1/voz preservadas. Checklist completo em `docs/manual/proximos-passos-do-primeiro-card.md`: 24 frentes, 11 aceites e todos os IDs históricos abertos; revalidar no banco antes de encerrar qualquer um.
+
 ## 0-A. Atualização de 13/10/2026 — prevalece sobre os estados históricos abaixo
 
 - Registro completo para continuar: `docs/manual/proximos-passos-do-primeiro-card.md` (24 frentes técnicas, 11 testes de aceite, todos os 46 IDs de tarefas não finais e 58 handoffs abertos; revalidar na fonte).
