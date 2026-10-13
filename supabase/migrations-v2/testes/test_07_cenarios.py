@@ -71,7 +71,7 @@ def test_seu_ajuste_acima_do_teto_de_ordens_substitui_o_card(con):
     # 3 decisões novas gastam as 3 ordens; o seu ajuste na 4ª vira card novo ligado (E96 e C28)
     eventos = INICIO + executando("E1")
     for _ in range(3):
-        eventos += [ev("MOTOR", "DECISAO_MUDOU"), ev("MOTOR", "INICIAR_EXECUCAO", "E1")]
+        eventos += [ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM"), ev("MOTOR", "INICIAR_EXECUCAO", "E1")]
     eventos += entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido="FUNDADOR"), ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")]
     m = rodar(con, eventos, UMA)
     assert {"E96", "C28", "C16"} <= linhas_usadas(m)
@@ -82,7 +82,7 @@ def test_seu_ajuste_acima_do_teto_de_ordens_substitui_o_card(con):
 
 
 def test_a_quarta_decisao_nova_tambem_substitui_o_card(con):
-    eventos = INICIO + executando("E1") + [ev("MOTOR", "DECISAO_MUDOU")] * 4
+    eventos = INICIO + executando("E1") + [ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM")] * 4
     m = rodar(con, eventos, UMA)
     assert {"C17", "C16"} <= linhas_usadas(m)
     assert m.estado_da("card") == "CANCELADO" and len(cards_ligados(m)) == 1
@@ -112,7 +112,7 @@ def test_falha_de_quem_depende_voce_encerra_o_card(con):
 
 
 def test_refazer_acima_do_teto_de_ordens_substitui_o_card(con):
-    eventos = E1_FALHOU + [ev("MOTOR", "DECISAO_MUDOU")] * 3 + [ev("FUNDADOR", "RESPONDER", opcao="REFAZER")]
+    eventos = E1_FALHOU + [ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM")] * 3 + [ev("FUNDADOR", "RESPONDER", opcao="REFAZER")]
     m = rodar(con, eventos, ROTEIRO_DEPENDENTE)
     assert {"C29", "C16"} <= linhas_usadas(m)
     assert m.estado_da("card") == "CANCELADO" and len(cards_ligados(m)) == 1
@@ -131,7 +131,7 @@ def test_parecer_nao_pode_o_card_pergunta_e_voce_manda_refazer(con):
 
 
 def test_a_pergunta_perde_o_objeto_e_o_card_volta_a_andar_sozinho(con):
-    m = rodar(con, NAO_PODE + [ev("MOTOR", "DECISAO_MUDOU"), ev("MOTOR", "MOTIVO_RESOLVIDO")], DUAS)
+    m = rodar(con, NAO_PODE + [ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM"), ev("MOTOR", "MOTIVO_RESOLVIDO")], DUAS)
     assert {"C14", "C27"} <= linhas_usadas(m)
     assert m.estado_da("card") == "EM_ANDAMENTO"
 
@@ -278,9 +278,9 @@ CENARIOS_EXTRAS = [
      INICIO + executando("E1") + [ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS"), ev("MOTOR", "INICIAR_EXECUCAO", "E1"),
                                   ev("MOTOR", "FALHA", "E1", classe="LIMITE_CHAMADAS")], {"E26", "E27"}),
     ("revisor nao consegue conferir e o card chama voce", UMA, ATE_REVISAO + [ev("REVISOR", "NAO_CONSIGO_CONFERIR", "E1")], {"E59"}),
-    ("decisao nova com a etapa em revisao abre rodada nova", UMA, ATE_REVISAO + [ev("MOTOR", "DECISAO_MUDOU")], {"E72"}),
+    ("decisao nova com a etapa em revisao abre rodada nova", UMA, ATE_REVISAO + [ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM")], {"E72"}),
     ("decisao nova com a revisao esperando voce abre rodada nova", UMA,
-     INICIO + executando("E1") + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido="FUNDADOR"), ev("MOTOR", "DECISAO_MUDOU")], {"E41", "E93"}),
+     INICIO + executando("E1") + entregar("E1") + [ev("MOTOR", "PORTAO1_OK", "E1", escolhido="FUNDADOR"), ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM")], {"E41", "E93"}),
     ("dependencia reaberta com a dependente esperando voce", ROTEIRO_DEPENDENTE,
      INICIO + executando("E1") + entregar("E1") + aprovada_por("E1", "CLARA") + [ev("MOTOR", "DEPENDENCIAS_PRONTAS", "E2"), ev("MOTOR", "INICIAR_EXECUCAO", "E2")]
      + entregar("E2") + [ev("MOTOR", "PORTAO1_OK", "E2", escolhido="FUNDADOR"), ev("FUNDADOR", "PEDIR_AJUSTE", "E1", motivo_ajuste="TOM")], {"E41", "E92"}),

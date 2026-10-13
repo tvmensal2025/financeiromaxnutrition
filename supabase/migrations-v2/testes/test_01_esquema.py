@@ -134,7 +134,28 @@ def test_todo_arquivo_da_pasta_abre_com_um_comentario_que_diz_o_que_e():
 
 def test_os_testes_se_recusam_a_rodar_em_banco_que_nao_e_local():
     for url in ("postgresql://postgres@db.exemplo.supabase.co:5432/postgres", "postgresql://u@10.0.0.5/postgres", "postgresql://u@meu-servidor.com/x"):
-        with pytest.raises(RuntimeError, match="não é local"):
+        with pytest.raises(RuntimeError, match="não é permitido"):
             C.exigir_banco_local(url)
     for url in ("postgresql://postgres@127.0.0.1:54329/postgres", "postgresql://postgres@localhost:5432/postgres"):
         assert C.exigir_banco_local(url) == url
+
+
+@pytest.mark.parametrize("url", [
+    "postgresql://postgres@localhost/postgres?hostaddr=198.51.100.7",
+    "host=127.0.0.1 hostaddr=198.51.100.7 dbname=postgres",
+    "service=remoto host=localhost",
+])
+def test_hostaddr_ou_servico_remoto_na_url_sao_recusados(url):
+    with pytest.raises(RuntimeError, match="não é permitido"):
+        C.exigir_banco_local(url)
+
+
+@pytest.mark.parametrize("nome,valor", [
+    ("PGHOST", "db.exemplo.invalid"),
+    ("PGHOSTADDR", "198.51.100.7"),
+    ("PGSERVICE", "remoto"),
+])
+def test_defaults_libpq_remotos_sao_recusados_sem_conectar(monkeypatch, nome, valor):
+    monkeypatch.setenv(nome, valor)
+    with pytest.raises(RuntimeError, match="não é permitido"):
+        C.exigir_banco_local("postgresql://postgres@localhost/postgres")

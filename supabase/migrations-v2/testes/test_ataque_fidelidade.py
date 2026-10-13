@@ -1,9 +1,7 @@
 """O que é: regressão coletada do ataque de fidelidade parcial, preservado ao lado.
 Como mudar: acrescente provas de equivalência entre o banco e provar.py.
 """
-# ATENÇÃO: cópia do arquivo parcial. O original permanece para auditoria.
-# Não é coletado pelo pytest do CI (o nome não começa com test_). Para rodar à mão: python -m pytest testes/ataque_fidelidade_nao_verificado.py
-# O que passar vira teste de regressão (renomeie para test_ataque_fidelidade.py); o que falhar é um achado a reproduzir e consertar.
+# Cópia convertida em regressão e coletada pelo pytest; o ataque parcial original permanece para auditoria.
 # -*- coding: utf-8 -*-
 """ATAQUE 1 (fidelidade): tenta quebrar a igualdade entre a função do banco e a máquina de referência (provar.py).
 
@@ -581,7 +579,7 @@ def ate_executando_com_a_chave_guardada(nome="k"):
 MORTES_DA_EXECUCAO = [
     pytest.param([ev("VIGIA", "SEM_EXECUCAO_VIVA", "E1")], {"E34"}, id="o_vigia_acha_que_ela_morreu"),
     pytest.param([ev("RELOGIO", "TEMPO_ESGOTADO", "E1")], {"E29"}, id="o_relogio_estoura_o_tempo"),
-    pytest.param([ev("MOTOR", "DECISAO_MUDOU")], {"E38"}, id="uma_decisao_nova_chega"),
+    pytest.param([ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM")], {"E38"}, id="uma_decisao_nova_chega"),
     pytest.param([falha_infra()], {"E31"}, id="a_infraestrutura_cai"),
     pytest.param([ev("MOTOR", "FALHA", "E1", classe="FORMATO_ERRADO")], {"E121"}, id="o_motor_registra_falha_de_formato"),
     pytest.param([ev("FUNDADOR", "CANCELAR")], {"C22", "E39"}, id="voce_cancela_o_card"),
@@ -819,7 +817,7 @@ def test_cascata_dentro_de_cascata_a_decisao_nova_chega_a_dependente_que_ja_foi_
                + revisao("C", "HELENA"))
     d = duelar(con, eventos, LOSANGO, nome="cascata-decisao")
     ordens = d.card()["ordens"]
-    d.passo(ev("MOTOR", "DECISAO_MUDOU"))
+    d.passo(ev("FUNDADOR", "PEDIR_AJUSTE", motivo_ajuste="TOM"))
     assert d.card()["ordens"] == ordens + 1
     d.exigir_linhas({"C16", "E115", "E37", "E71", "E03"})
     assert [d.estado(c) for c in "ABC"] == ["NA_FILA", "AGUARDANDO_ANTERIORES", "AGUARDANDO_ANTERIORES"]

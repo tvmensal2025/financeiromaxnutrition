@@ -205,7 +205,7 @@ def test_r03_o_numero_da_execucao_so_sobe_nunca_zera_nem_com_rodada_nova(con):
     m.executando()
     n1 = m.linha_da_etapa()["execucao_atual"]
     # decisão nova: NOVA_RODADA zera os contadores de tentativa, mas não o número da execução
-    assert m.um("MOTOR", "DECISAO_MUDOU", "card")["resultado"] == "APLICADO"
+    assert m.um("FUNDADOR", "PEDIR_AJUSTE", "card", {"motivo_ajuste": "TOM"})["resultado"] == "APLICADO"
     e = m.linha_da_etapa()
     assert e["estado"] == "NA_FILA" and e["execucoes"] == 0 and e["execucao_atual"] is None
     assert m.chamar("select estado from helena_v2.execucao where numero = %s", (n1,)) == "MORTA"
@@ -683,7 +683,7 @@ def test_r10_decisao_nova_faz_refazer_o_que_estava_aprovado(con):
     m.em_andamento()
     m.ate_aprovada("E1")
     assert m.linha_da_etapa()["entrega_fresca"] is True
-    assert m.um("MOTOR", "DECISAO_MUDOU", "card")["resultado"] == "APLICADO"
+    assert m.um("FUNDADOR", "PEDIR_AJUSTE", "card", {"motivo_ajuste": "TOM"})["resultado"] == "APLICADO"
     e = m.linha_da_etapa()
     assert e["estado"] == "NA_FILA" and e["entrega_fresca"] is False and e["portao1_ok"] is False and e["semaforo"] == "NENHUM"
     # só uma execução nova torna a entrega fresca de novo, e só o portão 1 de novo a deixa passar
@@ -714,7 +714,7 @@ def test_r10_defeito_plantado_dependencia_que_mudou_e_a_etapa_continua_aprovada_
         m.em_andamento()
         m.ate_aprovada("E1")
         with pytest.raises(E.CheckViolation, match="regra09|regra10"):
-            m.um("MOTOR", "DECISAO_MUDOU", "card")
+            m.um("FUNDADOR", "PEDIR_AJUSTE", "card", {"motivo_ajuste": "TOM"})
         assert m.estado_da("E1") == "APROVADA"
 
 

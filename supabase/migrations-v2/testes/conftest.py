@@ -125,10 +125,15 @@ class Banco:
 
 def exigir_banco_local(url):
     """Trava de segurança: estes testes criam e apagam bancos e papéis. Só rodam em PostgreSQL da própria máquina ou do CI."""
-    host = conninfo_to_dict(url).get("host", "") or ""
-    if host not in HOSTS_LOCAIS and not host.startswith("/"):
-        raise RuntimeError(f"HELENA_V2_TESTE_DATABASE_URL aponta para {host!r}, que não é local. Estes testes nunca tocam banco de fora "
-                           "(Supabase, EasyPanel, Hostinger...). Use localhost ou deixe a variável vazia.")
+    info = conninfo_to_dict(url)
+    if info.get("service") or os.environ.get("PGSERVICE"):
+        raise RuntimeError("Serviço libpq não é permitido nos testes do banco v2.")
+    for host in (info.get("host"), os.environ.get("PGHOST")):
+        if host and host not in HOSTS_LOCAIS and not host.startswith("/"):
+            raise RuntimeError("Host remoto não é permitido nos testes do banco v2.")
+    for addr in (info.get("hostaddr"), os.environ.get("PGHOSTADDR")):
+        if addr and addr not in {"127.0.0.1", "::1"}:
+            raise RuntimeError("hostaddr remoto não é permitido nos testes do banco v2.")
     return url
 
 
@@ -157,6 +162,7 @@ def ler_sql(nome, substituicoes=None):
 
 def montar_banco(url_admin, substituicoes=None, papeis_de_teste=()):
     """Cria um banco novo no servidor e aplica os quatro SQL (com `substituicoes` = {arquivo: texto} para plantar defeitos)."""
+    url_admin = exigir_banco_local(url_admin)
     nome = "helena_v2_t_" + secrets.token_hex(5)
     with psycopg.connect(url_admin, autocommit=True) as adm:
         criados = criar_papeis(adm, PAPEIS_DO_SUPABASE + list(papeis_de_teste))

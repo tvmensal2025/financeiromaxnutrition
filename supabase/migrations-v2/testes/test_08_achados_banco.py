@@ -37,6 +37,69 @@ def test_vigia_e_leituras_funcionam_com_service_role(banco, con):
                              (m.card,)).fetchone()[0]
 
 
+def test_decisao_mudou_direta_do_motor_e_recusada(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    with banco.conectar('service_role') as motor:
+        for _ in range(4):
+            r = motor.execute("select helena_v2.aplicar_evento(%s,%s,%s,%s)",
+                              ('card', m.card, 'MOTOR', 'DECISAO_MUDOU')).fetchone()[0]
+            assert r['resultado'] == 'RECUSADO'
+    assert m.estado_da('card') == 'EM_ANDAMENTO'
+    assert con.execute('select ordens from helena_v2.card where id = %s', (m.card,)).fetchone()[0] == 0
+
+
+def test_ajuste_do_fundador_e_origem_da_decisao_e_respeita_toque(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    versao = m.versao_do_alvo('card', m.card)
+    with banco.conectar('authenticated') as fundador:
+        r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                             ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, 'ajuste-1')).fetchone()[0]
+        assert r['resultado'] == 'APLICADO'
+        repetido = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                                    ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, 'ajuste-1')).fetchone()[0]
+        assert repetido['resultado'] == 'REPETIDO'
+    linhas = con.execute("select h.id, h.base_id, h.origem_id from (select h.id,h.origem_id,p.base_id from helena_v2.historico h "
+                        "left join helena_v2.passagem p on p.linha_id=h.linha_id and p.maquina=h.maquina "
+                        "where h.card_id=%s) h where base_id in ('C34','C16') order by id", (m.card,)).fetchall()
+    assert len(linhas) == 2
+    assert linhas[0][1] == 'C34' and linhas[1][1] == 'C16' and linhas[1][2] == linhas[0][0]
+    assert con.execute('select ordens from helena_v2.card where id=%s', (m.card,)).fetchone()[0] == 1
+
+
+def test_ajuste_sem_motivo_ou_com_versao_velha_nao_gasta_ordem(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    versao = m.versao_do_alvo('card', m.card)
+    with banco.conectar('authenticated') as fundador:
+        for params, vista in [(Jsonb({}), versao), (Jsonb({'motivo_ajuste': 'TOM'}), versao - 1)]:
+            r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s)",
+                                 ('card', m.card, params, vista)).fetchone()[0]
+            assert r['resultado'] != 'APLICADO'
+    assert con.execute('select ordens from helena_v2.card where id=%s', (m.card,)).fetchone()[0] == 0
+    assert con.execute("select count(*) from helena_v2.historico where card_id=%s and evento='DECISAO_MUDOU'",
+                       (m.card,)).fetchone()[0] == 0
+
+
+def test_quarto_ajuste_global_substitui_card_com_origem_do_fundador(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    with banco.conectar('authenticated') as fundador:
+        for i in range(4):
+            versao = m.versao_do_alvo('card', m.card)
+            r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                                 ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, f'ajuste-{i}')).fetchone()[0]
+            assert r['resultado'] == 'APLICADO'
+    assert m.estado_da('card') == 'CANCELADO'
+    assert con.execute('select count(*) from helena_v2.card where card_pai_id=%s', (m.card,)).fetchone()[0] == 1
+    linhas = con.execute("select p.base_id,h.origem_id from helena_v2.historico h join helena_v2.passagem p "
+                        "on p.maquina=h.maquina and p.linha_id=h.linha_id "
+                        "where h.card_id=%s and p.base_id in ('C16','C17') order by h.id", (m.card,)).fetchall()
+    assert [r[0] for r in linhas] == ['C16', 'C16', 'C16', 'C17']
+    assert all(r[1] is not None for r in linhas)
+
+
 @pytest.mark.parametrize('valor', ['infinity', '-infinity', '0001-01-01', 'banana', None, {}])
 def test_prazo_invalido_nao_apaga_toque_do_fundador(banco, con, valor):
     m = R.novo(con)
