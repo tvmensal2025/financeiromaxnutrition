@@ -35,6 +35,7 @@ import { ExecutiveCommandMenu } from "@/components/executive/ExecutiveCommandMen
 import { useBusiness } from "@/contexts/BusinessContext";
 import { useAuth } from "@/auth";
 import { MODULOS } from "@/lib/modulos";
+import { areaDoCaminho } from "@/lib/workspace-area";
 
 type NavItemConfig = {
   to: string;
@@ -133,12 +134,7 @@ export function Layout() {
   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
 
   const fecharMobile = () => setMobileAberto(false);
-  const area = pathname.startsWith('/modulo/') ? 'registros'
-    : ['/financeiro', '/crm', '/calendario', '/indicadores', '/portfolio'].includes(pathname) ? 'negocios'
-    : ['/execucao', '/entregas', '/cards-v2'].includes(pathname) ? 'operacao'
-    : ['/equipe', '/conversa', '/identidade'].includes(pathname) ? 'inteligencia'
-    : ['/sistema', '/integracoes', '/configuracoes-v2'].includes(pathname) ? 'governanca'
-    : 'comando';
+  const area = areaDoCaminho(pathname);
 
   // Calcula o breadcrumb simples e executivo
   const getBreadcrumb = () => {
@@ -235,7 +231,7 @@ export function Layout() {
       >
         <button
           type="button"
-          className="absolute right-3 top-4 text-[#8A9690] hover:text-white"
+          className="absolute right-3 top-4 grid h-11 w-11 place-items-center rounded-lg text-foreground hover:bg-muted"
           onClick={fecharMobile}
           aria-label="Fechar"
         >
@@ -251,7 +247,7 @@ export function Layout() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-foreground md:hidden"
+              className="grid h-11 w-11 place-items-center rounded-lg border border-border bg-card text-foreground md:hidden"
               onClick={() => setMobileAberto(true)}
               aria-label="Abrir menu"
             >

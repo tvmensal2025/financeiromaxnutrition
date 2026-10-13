@@ -283,3 +283,44 @@ html.dark .he-page-heading > div:first-child > div > span:first-child {backgroun
   .he-oauth-shell :where(button, a) { transition: none; }
   .he-oauth-shell :where(button:not(:disabled)):active { transform: none; }
 }
+
+/* O arquivo Studio vem antes desta camada: fixar toda a paleta da navegação clara. */
+.he-studio .pe-sidebar {
+  background: #fcfcf8;
+  color: #22382b;
+  border-color: #dedfd5;
+}
+.he-studio .pe-nav-item { color: #445749 !important; }
+.he-studio .pe-sidebar .pe-nav-item { min-height: 44px; }
+.he-studio .pe-sidebar-section { color: #586a5a !important; }
+.he-studio .he-nav-group-toggle { color: #526354; min-height: 44px; }
+.he-studio .he-nav-group-toggle:hover { color: #213a2c; background: #eef0e7; }
+.he-studio .he-brand-copy > div > span { color: #22382b; }
+.he-studio .he-brand-copy > span,
+.he-studio .he-sidebar-signature,
+.he-studio .he-sidebar-signature span { color: #526354; }
+.he-studio .he-sidebar-signature p { color: #344a39; }
+html.dark .he-studio .pe-sidebar { background: #222d24; color: #edf1e5; border-color: #3b493c; }
+html.dark .he-studio .he-brand-copy > span { color: #c2d0bd; }
+html.dark .he-studio .pe-sidebar-section { color: #b6c9af !important; }
+html.dark .he-studio .he-nav-group-toggle,
+html.dark .he-studio .he-sidebar-signature,
+html.dark .he-studio .he-sidebar-signature span { color: #c2d0bd; }
+html.dark .he-studio .he-nav-group-toggle:hover { color: #f0f5e9; background: #303d2e; }
+html.dark .he-studio .he-sidebar-signature p { color: #d6e3d0; }
+
+/* Controles pequenos tinham ícones legíveis, mas área de toque insuficiente. */
+.he-studio .pe-topbar button { min-width: 44px; min-height: 44px; }
+.he-studio .he-notification-trigger { width: 44px; height: 44px; }
+.he-modal-close { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+.he-notification-footer,
+.he-notification-item { min-height: 44px; }
+@media (max-width: 420px) {
+  .he-studio .he-business-switcher {
+    max-width: clamp(74px, calc(100vw - 254px), 148px);
+    min-width: 0;
+    padding-inline: 6px;
+  }
+  .he-studio .he-business-switcher .font-semibold { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .he-studio .he-business-switcher > svg:last-child { display: none; }
+}
