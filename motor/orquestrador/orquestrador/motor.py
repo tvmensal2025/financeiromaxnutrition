@@ -803,6 +803,24 @@ class Motor:
         tipo_acao = acao_externa.get('tipo') if isinstance(acao_externa, dict) else None
         parecer = resposta.get('parecer')
         def aplicar(con=None):
+            acao = resposta.get('acao')
+            if acao in ('PERGUNTAR', 'REGISTRAR_FALHA', 'DEVOLVER_A_QUEM_PEDIU'):
+                if not relatorio.aprovada:
+                    self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
+                                 {'classe': 'FORMATO_ERRADO'},
+                                 conteudo={'validacao': relatorio.para_dict()}, con=con)
+                else:
+                    params = {'usou_internet': contexto['usou_internet']}
+                    if acao == 'REGISTRAR_FALHA':
+                        params['motivo_falha'] = resposta['motivo_falha']
+                    self._evento('etapa', etapa_id, 'AUTOR', acao, params,
+                                 ator=etapa['autor'], chave=numero,
+                                 conteudo={'resposta': resposta}, con=con)
+                if con:
+                    return con.execute('SELECT estado FROM helena_v2.etapa WHERE id=%s',
+                                       (etapa_id,)).fetchone()['estado']
+                return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s',
+                                   (etapa_id,))['estado']
             self._evento('etapa', etapa_id, 'AUTOR', 'ENTREGAR',
                          {'parecer': parecer if parecer in ('OK', 'AJUSTE', 'NAO_PODE') else 'OK',
                           'acao_externa': tipo_acao if tipo_acao in ('NENHUMA', 'SO_FUNDADOR', 'PELO_MOTOR') else 'NENHUMA',

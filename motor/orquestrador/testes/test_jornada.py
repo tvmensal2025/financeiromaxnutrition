@@ -1,5 +1,6 @@
 import sys
 import copy
+import json
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,13 @@ PLANO_DOSSIE = {
     'orcamento_meta': {'execucoes': 4, 'chamadas_total': 100},
     'etapas': [{'id': 'E1', 'servico': 'SRV-DOSSIE',
                'objetivo': 'Conferir os termos da Mimix sobre indicação e pagamento',
+               'entradas': [], 'depende_de': []}],
+}
+PLANO_COPY_AVULSO = {
+    'id': 'copy-avulso-teste', 'nome': 'Convite avulso de teste',
+    'orcamento_meta': {'execucoes': 4, 'chamadas_total': 100},
+    'etapas': [{'id': 'E1', 'servico': 'SRV-COPY',
+               'objetivo': 'Escrever convite claro com aprovação do fundador',
                'entradas': [], 'depende_de': []}],
 }
 FUNDADOR_TESTE = '00000000-0000-4000-8000-000000000001'
@@ -374,6 +382,49 @@ def test_cancelamento_interrompe_executor_bloqueado_em_ate_15s(banco, url_dbos, 
         assert coordenacao == (0 if papel == 'COORDENACAO' else 1)
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
+        motor.fechar()
+
+
+@pytest.mark.parametrize('acao,estado', [
+    ('PERGUNTAR', 'ESPERANDO_FUNDADOR'), ('REGISTRAR_FALHA', 'EM_RESOLUCAO')])
+def test_acao_honesta_do_autor_nao_vira_entrega(banco, url_dbos, acao, estado):
+    from executor_helena.executor_falso import ExecutorFalso, Roteiro
+    if acao == 'PERGUNTAR':
+        resposta = {'acao': 'PERGUNTAR', 'pergunta': 'Qual convite você quer enviar primeiro?',
+                    'opcoes': [
+                        {'letra': 'A', 'texto': 'Mensagem curta', 'consequencia': 'Cabe no aplicativo.'},
+                        {'letra': 'B', 'texto': 'Mensagem longa', 'consequencia': 'Explica mais detalhes.'}]}
+    else:
+        resposta = {'acao': 'REGISTRAR_FALHA', 'motivo_falha': 'FALTAM_DADOS',
+                    'explicacao': 'Falta o texto aprovado do convite para concluir a entrega.'}
+    referencia = {}
+    executor = ExecutorFalso(lambda execucao: Roteiro(
+        texto=json.dumps(resposta, ensure_ascii=False) if execucao.ficha.papel == 'AUTOR'
+        else referencia['motor']._texto_roteirizado(execucao)))
+    motor = Motor(banco.url, url_dbos, executor=executor)
+    referencia['motor'] = motor
+    try:
+        card = motor.criar_card(PLANO_COPY_AVULSO, f'acao-honesta-{acao.lower()}')
+        etapa = _ate_execucao(motor, card)
+        assert motor.executar_etapa(etapa['id']) == estado
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == estado
+        with banco.conectar() as con:
+            entrega = con.execute('SELECT count(*) FROM helena_v2.entrega WHERE etapa_id=%s',
+                                  (etapa['id'],)).fetchone()[0]
+            historico = con.execute(
+                "SELECT conteudo FROM helena_v2.historico WHERE alvo_id=%s AND papel='AUTOR' "
+                'AND evento=%s ORDER BY id DESC LIMIT 1', (etapa['id'], acao)).fetchone()
+        assert entrega == 0
+        assert historico and historico[0]['resposta'] == resposta
+        if acao == 'PERGUNTAR':
+            motor._evento('etapa', etapa['id'], 'FUNDADOR', 'RESPONDER',
+                          {'opcao': 'RESPOSTA_A'}, toque='responder-acao-honesta')
+            depois = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s',
+                                  (etapa['id'],))
+            # A máquina pode iniciar automaticamente a nova execução após a resposta.
+            assert depois['estado'] in ('NA_FILA', 'EXECUTANDO')
+            assert depois['execucao_atual'] != etapa['execucao_atual']
+    finally:
         motor.fechar()
 
 
