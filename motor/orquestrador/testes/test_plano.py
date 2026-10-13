@@ -43,3 +43,13 @@ def test_entrada_de_etapa_exige_dependencia():
                         {'id': 'E2', 'servico': 'SRV-COPY', 'depende_de': [], 'entradas': ['E1']}],
              'orcamento_meta': {'execucoes': 10, 'chamadas_total': 100}}
     assert 'dependência' in validar_plano(plano, Spec()).lower()
+
+
+def test_novo_plano_recusa_servico_aposentado():
+    from spec_helena import Spec
+    spec = Spec()
+    dados = spec._ler('servicos.yaml')
+    next(s for s in dados['servicos'] if s['id'] == 'SRV-DOSSIE')['estado'] = 'APOSENTADO'
+    plano = {'etapas': [{'id': 'E1', 'servico': 'SRV-DOSSIE', 'depende_de': []}],
+             'orcamento_meta': {'execucoes': 4, 'chamadas_total': 100}}
+    assert 'aposentado' in validar_plano(plano, spec).lower()

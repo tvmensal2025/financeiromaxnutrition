@@ -5,7 +5,8 @@ from executor_helena.ficha import ler_ficha
 RAIZ = Path(__file__).resolve().parents[3]
 
 
-def validar_plano(plano: dict, spec) -> str | None:
+def validar_plano(plano: dict, spec, raiz: Path | None = None, *, permitir_rascunho=False) -> str | None:
+    raiz = Path(raiz) if raiz else spec.raiz
     etapas = plano.get('etapas') or []
     codigos = [e.get('id') for e in etapas]
     if not codigos or len(codigos) != len(set(codigos)) or any(not c for c in codigos):
@@ -14,6 +15,9 @@ def validar_plano(plano: dict, spec) -> str | None:
     for etapa in etapas:
         if etapa.get('servico') not in servicos:
             return f"serviço desconhecido: {etapa.get('servico')}"
+        estado_servico = servicos[etapa['servico']].get('estado')
+        if estado_servico not in ('ESTAGIO', 'ATIVO') and not (permitir_rascunho and estado_servico == 'RASCUNHO'):
+            return f"serviço indisponível ({str(estado_servico).lower()}): {etapa['servico']}"
         if any(d not in codigos for d in etapa.get('depende_de', [])):
             return f"dependência desconhecida em {etapa['id']}"
         origens = set(codigos) | set(plano.get('entradas_externas') or {})
@@ -43,8 +47,8 @@ def validar_plano(plano: dict, spec) -> str | None:
     for etapa in etapas:
         servico = etapa['servico']
         dono = servicos[servico]['dono'].lower()
-        ficha = ler_ficha(RAIZ / 'helena-v2' / 'agents' / f'{dono}.yaml',
-                          caminho_dos_modelos=RAIZ / 'helena-v2' / 'models.yaml',
+        ficha = ler_ficha(raiz / 'agents' / f'{dono}.yaml',
+                          caminho_dos_modelos=raiz / 'models.yaml',
                           fase_em_curso='fase 3', servico=servico)
         chamadas += ficha.orcamento.chamadas_total
     orcamento = plano.get('orcamento_meta') or {}
