@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
@@ -221,6 +222,72 @@ class Motor:
     def _linha(self, sql, args=(), papel='service_role'):
         with self._con(papel) as con:
             return con.execute(sql, args).fetchone()
+
+    def _execucao_ainda_atual(self, maquina, alvo, chave):
+        """Leitura curta e independente da conexão usada pelo despacho DBOS."""
+        dsn = self.url_banco.replace('postgresql+psycopg://', 'postgresql://', 1)
+        parametros = {'connect_timeout': 2,
+                      'options': '-c lock_timeout=2s -c statement_timeout=5s'}
+        if self.modo_producao:
+            from .bancos import parametros_conexao_real
+            parametros['sslrootcert'] = parametros_conexao_real()['sslrootcert']
+        with psycopg.connect(dsn, autocommit=True, row_factory=dict_row, **parametros) as con:
+            con.execute('SET ROLE service_role')
+            if maquina == 'card':
+                linha = con.execute(
+                    """SELECT c.estado AS estado_card, c.chamada_helena, x.estado AS estado_execucao,
+                              x.tipo AS tipo_execucao
+                       FROM helena_v2.card c LEFT JOIN helena_v2.execucao x ON x.numero=%s
+                       WHERE c.id=%s""", (chave, alvo)).fetchone()
+                return bool(linha and linha['estado_card'] == 'RASCUNHO'
+                            and linha['chamada_helena'] == chave
+                            and linha['estado_execucao'] == 'VIVA'
+                            and linha['tipo_execucao'] == 'HELENA')
+            if maquina == 'etapa':
+                linha = con.execute(
+                    """SELECT c.estado AS estado_card, e.estado AS estado_etapa,
+                              e.execucao_atual, x.estado AS estado_execucao, x.tipo AS tipo_execucao
+                       FROM helena_v2.etapa e JOIN helena_v2.card c ON c.id=e.card_id
+                       LEFT JOIN helena_v2.execucao x ON x.numero=%s WHERE e.id=%s""",
+                    (chave, alvo)).fetchone()
+                return bool(linha and linha['estado_card'] == 'EM_ANDAMENTO'
+                            and linha['execucao_atual'] == chave
+                            and linha['estado_execucao'] == 'VIVA'
+                            and ((linha['estado_etapa'] == 'EXECUTANDO' and linha['tipo_execucao'] == 'AUTOR')
+                                 or (linha['estado_etapa'] == 'REVISAO' and linha['tipo_execucao'] == 'REVISOR')))
+        raise ValueError('máquina de execução desconhecida')
+
+    def _rodar_vigiado(self, execucao, maquina, alvo, chave):
+        """Cancela cooperativamente se o banco retirar a posse da execução."""
+        parar = threading.Event()
+        invalida = threading.Event()
+
+        def vigiar():
+            while not parar.is_set():
+                if not invalida.is_set():
+                    try:
+                        if not self._execucao_ainda_atual(maquina, alvo, chave):
+                            invalida.set()
+                    except Exception:
+                        # Indisponibilidade do banco também retira autorização para continuar.
+                        invalida.set()
+                if invalida.is_set():
+                    try:
+                        self.executor.cancelar(execucao.id)
+                    except Exception:
+                        pass  # Pode ainda não haver PID; tentar outra vez enquanto rodar bloquear.
+                parar.wait(0.2 if invalida.is_set() else 1.0)
+
+        thread = threading.Thread(target=vigiar, name='vigia-card-helena', daemon=True)
+        thread.start()
+        try:
+            resultado = self.executor.rodar(execucao)
+        finally:
+            parar.set()
+            thread.join(timeout=7)
+        if invalida.is_set() or not self._execucao_ainda_atual(maquina, alvo, chave):
+            raise RuntimeError('execução cancelada, antiga ou banco indisponível')
+        return resultado
 
     def _carregar_revisao(self, revisao_id):
         chave = str(revisao_id)
@@ -679,10 +746,10 @@ class Motor:
                           'decisoes_vigentes': contexto['decisoes_vigentes'],
                           'pacote_da_empresa': contexto.get('pacote_da_empresa')})
         pacote = json.dumps(carga, ensure_ascii=False)
-        resultado = self.executor.rodar(Execucao(
+        resultado = self._rodar_vigiado(Execucao(
             id=f'{etapa["codigo"]}-{numero}', ficha=ficha, pacote=pacote,
             fontes_permitidas=tuple(pedido['ordem_de_servico'].get('fontes_que_pode_ler') or ())
-            if modo == 'real' else None))
+            if modo == 'real' else None), 'etapa', etapa_id, numero)
         if not resultado.ok or not resultado.texto:
             self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
                          {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
@@ -809,12 +876,12 @@ class Motor:
         pedido = (self._pedido_coordenacao_real(card) if modo == 'real'
                   else card['ordem_de_servico'])
         execucao_id = f'C-{chave}'
-        resultado = self.executor.rodar(Execucao(
+        resultado = self._rodar_vigiado(Execucao(
             id=execucao_id, ficha=ficha,
             pacote=json.dumps({'card_id': str(card_id),
                                 'config_revision_id': str(revisao['id']),
                                 'pedido': pedido}, ensure_ascii=False),
-            fontes_permitidas=() if modo == 'real' else None))
+            fontes_permitidas=() if modo == 'real' else None), 'card', card_id, chave)
         if not resultado.ok or not resultado.texto:
             self._evento('card', card_id, 'MOTOR', 'FALHA', {'classe': 'DESCONHECIDA'})
             raise RuntimeError('coordenadora falhou')
@@ -940,11 +1007,11 @@ class Motor:
                            'contexto': resposta_autor['contexto'],
                            'entrega': entrega['conteudo']['resposta'],
                            'rubrica': spec.tipo(spec.tipo_do_servico(servico))['criterio_de_pronto']['rubrica']})
-        resultado = self.executor.rodar(Execucao(
+        resultado = self._rodar_vigiado(Execucao(
             id=f'{etapa["codigo"]}-{numero}', ficha=ficha,
             pacote=json.dumps(pacote, ensure_ascii=False),
             fontes_permitidas=tuple(pacote['pedido']['ordem_de_servico'].get('fontes_que_pode_ler') or ())
-            if modo == 'real' else None))
+            if modo == 'real' else None), 'etapa', etapa_id, numero)
         if not resultado.ok:
             self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
                          {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})

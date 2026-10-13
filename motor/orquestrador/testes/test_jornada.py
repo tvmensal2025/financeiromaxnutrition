@@ -1,5 +1,8 @@
 import sys
 import copy
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -262,7 +265,8 @@ def test_falha_por_insumo_usa_vocabulario_e_replay_sem_executor(banco, url_dbos)
 def test_falha_de_prova_do_revisor_usa_vocabulario_no_banco(banco, url_dbos):
     motor = Motor(banco.url, url_dbos)
     try:
-        card = motor.criar_card(PLANO_DOSSIE, 'revisor-falha-evidencia')
+        # Outro teste aposenta SRV-DOSSIE na revisão ativa deste banco de sessão.
+        card = motor.criar_card(PLANO, 'revisor-falha-evidencia')
         etapa = _ate_execucao(motor, card)
         motor.executar_etapa(etapa['id'])
         em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
@@ -308,6 +312,68 @@ def test_cancelamento_bloqueia_resposta_tardia(banco, url_dbos):
                               (etapa['id'],)).fetchone()['n']
         assert qtd == 0
     finally:
+        motor.fechar()
+
+
+@pytest.mark.parametrize('papel', ['COORDENACAO', 'AUTOR', 'REVISOR'])
+def test_cancelamento_interrompe_executor_bloqueado_em_ate_15s(banco, url_dbos, papel):
+    from executor_helena.executor_falso import ExecutorFalso, Roteiro
+
+    class ExecutorBloqueante(ExecutorFalso):
+        def __init__(self):
+            super().__init__(lambda execucao: Roteiro(
+                texto=self.motor._texto_roteirizado(execucao),
+                atraso_s=30 if execucao.ficha.papel == papel else 0))
+            self.iniciado = threading.Event()
+            self.cancelamentos = []
+
+        def rodar(self, execucao):
+            if execucao.ficha.papel == papel:
+                self.iniciado.set()
+                # Simula o intervalo entre iniciar o adaptador e registrar o PID.
+                time.sleep(1.2)
+            return super().rodar(execucao)
+
+        def cancelar(self, id_da_execucao):
+            self.cancelamentos.append(id_da_execucao)
+            return super().cancelar(id_da_execucao)
+
+    executor = ExecutorBloqueante()
+    motor = Motor(banco.url, url_dbos, executor=executor)
+    executor.motor = motor
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        card = motor.criar_card(PLANO, f'vigia-{papel.lower()}')
+        if papel == 'COORDENACAO':
+            tarefa = lambda: motor.avancar(card)
+        else:
+            etapa = _ate_execucao(motor, card)
+            if papel == 'AUTOR':
+                tarefa = lambda: motor.executar_etapa(etapa['id'])
+            else:
+                motor.executar_etapa(etapa['id'])
+                em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+                tarefa = lambda: motor._revisar(em_revisao)
+        futuro = pool.submit(tarefa)
+        assert executor.iniciado.wait(10), 'executor não iniciou a chamada bloqueante'
+        inicio = time.monotonic()
+        motor._evento('card', card, 'FUNDADOR', 'CANCELAR', toque=f'cancelar-vigia-{papel}')
+        with pytest.raises(RuntimeError, match='cancelada|antiga'):
+            futuro.result(timeout=15)
+        assert time.monotonic() - inicio < 15
+        assert executor.cancelamentos
+        assert motor._card(card)['estado'] == 'CANCELADO'
+        with banco.conectar() as con:
+            resposta = con.execute('SELECT count(*) AS n FROM helena_v2.resposta_execucao r '
+                                   'JOIN helena_v2.execucao x ON x.numero=r.numero WHERE x.card_id=%s',
+                                   (card,)).fetchone()[0]
+            coordenacao = con.execute('SELECT count(*) AS n FROM helena_v2.resposta_coordenacao r '
+                                      'JOIN helena_v2.execucao x ON x.numero=r.numero WHERE x.card_id=%s',
+                                      (card,)).fetchone()[0]
+        assert resposta == (1 if papel == 'REVISOR' else 0)
+        assert coordenacao == (0 if papel == 'COORDENACAO' else 1)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
         motor.fechar()
 
 
