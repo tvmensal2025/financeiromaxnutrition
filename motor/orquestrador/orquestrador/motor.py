@@ -1,10 +1,10 @@
 """Um despacho DBOS por execução; somente funções do banco decidem estado."""
 import json
+import os
 
 import psycopg
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
-from sqlalchemy.engine import make_url
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from dbos import DBOS, DBOSConfig, SetWorkflowID
@@ -71,8 +71,11 @@ class Motor:
         if not url_banco or not url_dbos or url_banco == url_dbos:
             raise ValueError('motor exige banco do card e banco DBOS separados')
         for url in (url_banco, url_dbos):
-            host = make_url(url).host if '://' in url else conninfo_to_dict(url).get('host', '')
-            if host not in ('localhost', '127.0.0.1', '::1'):
+            dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
+            parametros = conninfo_to_dict(dsn)
+            host = parametros.get('host', '')
+            hostaddr = parametros.get('hostaddr') or os.environ.get('PGHOSTADDR')
+            if host not in ('localhost', '127.0.0.1', '::1') or (hostaddr and hostaddr not in ('127.0.0.1', '::1')):
                 raise ValueError('este motor de teste exige PostgreSQL local')
         self.url_banco = url_banco
         self.url_dbos = url_dbos
@@ -185,6 +188,8 @@ class Motor:
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
         if etapa['estado'] != 'EXECUTANDO' or etapa['execucao_atual'] != numero:
             raise RuntimeError('execução antiga ou etapa não executando')
+        if self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta'] is not None:
+            return numero
         servico = self._servico(etapa)
         ficha = self._ficha(etapa['autor'], 'AUTOR', servico)
         caso = self._caso(servico)
@@ -211,12 +216,17 @@ class Motor:
             raise RuntimeError('resposta não persistida')
         contexto = salva['contexto']
         relatorio = validar(salva['texto'], contexto)
-        resposta = json.loads(salva['texto'])
+        try:
+            resposta = json.loads(salva['texto'])
+        except (ValueError, TypeError):
+            resposta = None
+        if not isinstance(resposta, dict):
+            resposta = {}
         self._evento('etapa', etapa_id, 'AUTOR', 'ENTREGAR',
                      {'parecer': resposta.get('parecer', 'OK'),
                       'acao_externa': (resposta.get('acao_externa') or {}).get('tipo', 'NENHUMA'),
                       'usou_internet': contexto['usou_internet']}, ator=etapa['autor'], chave=numero,
-                     conteudo={'resposta': resposta})
+                     conteudo={'resposta': salva['texto']})
         if relatorio.aprovada:
             atual = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
             self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_OK', {'escolhido': atual['revisores_validos'][0]},
@@ -285,6 +295,8 @@ class Motor:
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
         if etapa['estado'] != 'REVISAO' or etapa['execucao_atual'] != numero:
             raise RuntimeError('revisão antiga ou cancelada')
+        if self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta'] is not None:
+            return numero
         servico = self._servico(etapa)
         revisor = etapa['revisor']
         ficha = self._ficha(revisor, 'REVISOR', servico)

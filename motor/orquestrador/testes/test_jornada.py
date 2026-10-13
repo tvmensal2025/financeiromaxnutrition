@@ -57,7 +57,7 @@ def test_repetir_workflow_nao_refaz_executor_nem_entrega(banco, url_dbos):
         etapa = _ate_execucao(motor, card)
         motor.executar_etapa(etapa['id'])
         motor.executar_etapa(etapa['id'])
-        assert len(motor.executor.execucoes) == 1
+        assert sum(e.ficha.papel == 'AUTOR' for e in motor.executor.execucoes) == 1
         with motor._con() as con:
             qtd = con.execute('SELECT count(*) AS n FROM helena_v2.entrega WHERE numero_execucao=%s',
                               (etapa['execucao_atual'],)).fetchone()['n']
@@ -134,7 +134,7 @@ def test_revisao_repetida_nao_refaz_revisor(banco, url_dbos):
         em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
         motor._revisar(em_revisao)
         motor._revisar(em_revisao)
-        assert len(motor.executor.execucoes) == 2
+        assert sum(e.ficha.papel == 'REVISOR' for e in motor.executor.execucoes) == 1
         with motor._con() as con:
             qtd = con.execute("SELECT count(*) AS n FROM helena_v2.historico WHERE alvo_id=%s AND evento='APROVAR' AND resultado='APLICADO'",
                               (etapa['id'],)).fetchone()['n']
@@ -162,10 +162,40 @@ def test_queda_apos_salvar_retomada_sem_refazer_agente(banco, url_dbos, monkeypa
         monkeypatch.setattr(motor, 'conferir_e_aplicar', cair_uma_vez)
         with pytest.raises(RuntimeError, match='queda simulada'):
             motor.executar_etapa(etapa['id'])
-        assert len(motor.executor.execucoes) == 1
+        assert sum(e.ficha.papel == 'AUTOR' for e in motor.executor.execucoes) == 1
         assert motor._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
         motor.dbos.resume_workflow(f"{etapa['id']}-{numero}").get_result()
-        assert len(motor.executor.execucoes) == 1
+        assert sum(e.ficha.papel == 'AUTOR' for e in motor.executor.execucoes) == 1
         assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'REVISAO'
+    finally:
+        motor.fechar()
+
+
+def test_json_invalido_recebe_recusa_do_portao1(banco, url_dbos):
+    from executor_helena.executor_falso import ExecutorFalso, Roteiro
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'json-invalido')
+        etapa = _ate_execucao(motor, card)
+        motor.executor = ExecutorFalso(lambda _exec: Roteiro(texto='{'))
+        motor.executar_etapa(etapa['id'])
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'NA_FILA'
+        with motor._con() as con:
+            entrega = con.execute('SELECT portao1 FROM helena_v2.entrega WHERE etapa_id=%s ORDER BY id DESC LIMIT 1',
+                                  (etapa['id'],)).fetchone()
+        assert entrega['portao1'] == 'RECUSOU'
+    finally:
+        motor.fechar()
+
+
+def test_resposta_salva_antes_do_checkpoint_nao_repete_agente(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'queda-apos-sql')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_e_salvar(etapa['id'], etapa['execucao_atual'])
+        assert len(motor.executor.execucoes) == 2  # Helena e autor
+        motor.executar_etapa(etapa['id'])
+        assert len(motor.executor.execucoes) == 2
     finally:
         motor.fechar()
