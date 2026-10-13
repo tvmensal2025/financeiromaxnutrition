@@ -15,6 +15,7 @@ from orquestrador.motor import Motor
 import orquestrador.motor as motor_mod
 from orquestrador.contexto_real import montar_contexto_real
 from orquestrador.preparacao import preparar_tarefa_real
+from orquestrador.evidencias import EvidenciaInvalida
 from executor_helena.executor_falso import ExecutorFalso
 from executor_helena.executor import ExecutorHermes
 
@@ -367,6 +368,150 @@ def test_evento_automatico_real_confere_fontes_e_aplica_na_mesma_transacao(monke
 
 
 @pytest.mark.parametrize('falha_sql', [False, True])
+def test_coordenacao_salva_antes_de_limpar_e_replay_nao_repete_hermes(monkeypatch, falha_sql):
+    motor = object.__new__(Motor)
+    card_id = uuid4()
+    revisao_id = uuid4()
+    card = {'id': card_id, 'titulo': 'Convite', 'ordem_de_servico': _ordem_real(),
+            'estado': 'RASCUNHO', 'chamada_helena': 55,
+            'prazo': datetime(2026, 10, 30, 12, tzinfo=timezone.utc),
+            'criado_em': datetime(2026, 10, 13, 10, tzinfo=timezone.utc)}
+    eventos = []
+    salvo = None
+
+    class Executor:
+        def rodar(self, execucao):
+            assert execucao.id == 'C-55'
+            assert execucao.fontes_permitidas == ()
+            eventos.append('rodar')
+            return SimpleNamespace(ok=True, texto='{"acao":"LER_DE_VOLTA"}')
+
+        def limpar(self, _resultado):
+            eventos.append('limpar')
+
+    def linha(sql, args):
+        nonlocal salvo
+        if 'ler_resposta_coordenacao' in sql:
+            return {'resposta': salvo}
+        if 'registrar_resposta_coordenacao' in sql:
+            eventos.append('registrar')
+            if falha_sql:
+                raise RuntimeError('queda antes do commit SQL')
+            salvo = args[1].obj
+            return {'resposta': salvo}
+        raise AssertionError(sql)
+
+    motor.executor = Executor()
+    monkeypatch.setattr(motor, '_linha', linha)
+    monkeypatch.setattr(motor, '_card', lambda _id: card)
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': revisao_id}, None, None))
+    monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
+    monkeypatch.setattr(motor_mod, 'coletar_evidencias',
+                        lambda _resultado, _id: {'paginas_lidas': [], 'usou_internet': False,
+                                                 'conversa': [], 'uso': {}})
+    if falha_sql:
+        with pytest.raises(RuntimeError, match='queda antes do commit'):
+            motor.executar_e_salvar_coordenacao(card_id, 55)
+        assert eventos == ['rodar', 'registrar']
+        return
+    assert motor.executar_e_salvar_coordenacao(card_id, 55) == 55
+    assert eventos == ['rodar', 'registrar', 'limpar']
+    assert salvo['texto'] == '{"acao":"LER_DE_VOLTA"}'
+    assert salvo['config_revision_id'] == str(revisao_id)
+    assert motor.executar_e_salvar_coordenacao(card_id, 55) == 55
+    assert eventos == ['rodar', 'registrar', 'limpar']
+
+
+def test_coordenacao_aplica_resposta_salva_sob_guarda_fontes_na_mesma_transacao(monkeypatch):
+    motor = object.__new__(Motor)
+    card_id = uuid4()
+    revisao_id = uuid4()
+    eventos = []
+    monkeypatch.setattr(motor, '_linha', lambda _sql, _args: {
+        'resposta': {'texto': '{}', 'card_id': str(card_id),
+                     'config_revision_id': str(revisao_id)}})
+    monkeypatch.setattr(motor, '_card', lambda _id: {
+        'estado': 'RASCUNHO', 'ordem_de_servico': {'modo_contexto': 'real'}})
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': revisao_id}, None, None))
+
+    class Conexao:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @contextmanager
+        def transaction(self):
+            eventos.append('inicia')
+            yield
+            eventos.append('commit')
+
+        def execute(self, sql, args):
+            assert 'aplicar_resposta_coordenacao' in sql and args == (55,)
+            eventos.append('aplica')
+            return self
+
+        def fetchone(self):
+            return {'resultado': {'resultado': 'APLICADO', 'estado': 'ESPERANDO_CONFIRMACAO'}}
+
+    con = Conexao()
+    monkeypatch.setattr(motor, '_con', lambda: con)
+    monkeypatch.setattr(motor, '_conferir_fontes_real',
+                        lambda alvo, *, con: eventos.append(('confere', alvo, con)))
+    assert motor.conferir_e_aplicar_coordenacao(card_id, 55) == 'ESPERANDO_CONFIRMACAO'
+    assert eventos == ['inicia', ('confere', card_id, con), 'aplica', 'commit']
+
+
+def test_falha_da_coordenadora_e_registrada_mesmo_se_fonte_mudar_durante_execucao(monkeypatch):
+    motor = object.__new__(Motor)
+    card_id = uuid4()
+    eventos = []
+    motor.executor = SimpleNamespace(rodar=lambda _execucao: SimpleNamespace(ok=False, texto=None))
+    monkeypatch.setattr(motor, '_linha', lambda _sql, _args: {'resposta': None})
+    monkeypatch.setattr(motor, '_card', lambda _id: {
+        'id': card_id, 'estado': 'RASCUNHO', 'chamada_helena': 55,
+        'ordem_de_servico': {'modo_contexto': 'real'}})
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': uuid4()}, None, None))
+    monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
+    monkeypatch.setattr(motor, '_pedido_coordenacao_real', lambda _card: {})
+    monkeypatch.setattr(motor, '_evento',
+                        lambda *_args, **kwargs: eventos.append(kwargs))
+    with pytest.raises(RuntimeError, match='coordenadora falhou'):
+        motor.executar_e_salvar_coordenacao(card_id, 55)
+    assert eventos == [{}]
+
+
+@pytest.mark.parametrize('uso', ['invalid', None])
+def test_coordenacao_registra_falha_de_evidencia_antes_de_repetir(monkeypatch, uso):
+    motor = object.__new__(Motor)
+    card_id = uuid4()
+    eventos = []
+    motor.executor = SimpleNamespace(rodar=lambda _execucao: SimpleNamespace(ok=True, texto='{}'))
+    monkeypatch.setattr(motor, '_linha', lambda _sql, _args: {'resposta': None})
+    monkeypatch.setattr(motor, '_card', lambda _id: {
+        'id': card_id, 'estado': 'RASCUNHO', 'chamada_helena': 55,
+        'ordem_de_servico': {'modo_contexto': 'real'}})
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': uuid4()}, None, None))
+    monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
+    monkeypatch.setattr(motor, '_pedido_coordenacao_real', lambda _card: {})
+    monkeypatch.setattr(motor, '_evento',
+                        lambda *_args, **kwargs: eventos.append(kwargs))
+    def provas(_resultado, _execucao_id):
+        if uso == 'invalid':
+            raise EvidenciaInvalida('sem cópia')
+        return {'usou_internet': None}
+    monkeypatch.setattr(motor_mod, 'coletar_evidencias', provas)
+    with pytest.raises(RuntimeError, match='evidência|ausência comprovada'):
+        motor.executar_e_salvar_coordenacao(card_id, 55)
+    assert eventos == [{'conteudo': {'motivo': 'EVIDENCIA_INVALIDA'
+                                      if uso == 'invalid' else 'INTERNET_NAO_COMPROVADA'}}]
+
+
+@pytest.mark.parametrize('falha_sql', [False, True])
 def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(monkeypatch, falha_sql):
     motor = object.__new__(Motor)
     chamadas = []
@@ -627,6 +772,8 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
                 pedido_original=tarefa['tarefa'], business_id='BIZ-003', prazo=prazo,
                 dados_reais=dados, solicitacao_id=pendente['id'])
         with banco.conectar('service_role') as con:
-            assert con.execute('select count(*) from helena_v2.card').fetchone()[0] == 1
+            assert con.execute(
+                "select count(*) from helena_v2.card where ordem_de_servico->>'chave_origem'=%s",
+                ('TASK-REAL-01',)).fetchone()[0] == 1
     finally:
         motor.fechar()

@@ -26,7 +26,7 @@ from validador import validar
 from .configuracao import (capturar_bundle, carregar_revisao, hash_bundle, impressao_maquina,
                           validar_bundle, verificar_revisao)
 from .contexto_real import montar_contexto_real
-from .evidencias import coletar_evidencias
+from .evidencias import EvidenciaInvalida, coletar_evidencias
 from .plano import RAIZ, validar_plano
 
 _MOTOR = None
@@ -73,6 +73,22 @@ def conferir_e_aplicar_revisao(etapa_id: str, numero: int) -> str:
 def fluxo_revisao(etapa_id: str, numero: int) -> str:
     executar_e_salvar_revisao(etapa_id, numero)
     return conferir_e_aplicar_revisao(etapa_id, numero)
+
+
+@DBOS.step(name='executar_e_salvar_coordenacao')
+def executar_e_salvar_coordenacao(card_id: str, chave: int) -> int:
+    return _ativo().executar_e_salvar_coordenacao(card_id, chave)
+
+
+@DBOS.step(name='conferir_e_aplicar_coordenacao')
+def conferir_e_aplicar_coordenacao(card_id: str, chave: int) -> str:
+    return _ativo().conferir_e_aplicar_coordenacao(card_id, chave)
+
+
+@DBOS.workflow(name='ler_de_volta_v1')
+def fluxo_coordenacao(card_id: str, chave: int) -> str:
+    executar_e_salvar_coordenacao(card_id, chave)
+    return conferir_e_aplicar_coordenacao(card_id, chave)
 
 
 def conferir_rubrica(spec, servico, criterios) -> bool:
@@ -642,8 +658,7 @@ class Motor:
             if modo == 'real' else None))
         if not resultado.ok or not resultado.texto:
             self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
-                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'},
-                         card_id_real=etapa['card_id'] if modo == 'real' else None)
+                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
             raise RuntimeError('executor falhou')
         provas = None
         if modo == 'real':
@@ -738,26 +753,78 @@ class Motor:
                                     'pedido_original': ordem['pedido_original'],
                                     'prazo': card['prazo'].isoformat()}}
 
+    def executar_e_salvar_coordenacao(self, card_id, chave):
+        salva = self._linha('SELECT helena_v2.ler_resposta_coordenacao(%s) AS resposta',
+                            (chave,))['resposta']
+        if salva is not None:
+            if salva.get('card_id') != str(card_id):
+                raise RuntimeError('resposta da coordenação pertence a outro card')
+            return chave
+        card = self._card(card_id)
+        modo = self._modo_card(card_id)
+        if card['estado'] != 'RASCUNHO' or card['chamada_helena'] != chave:
+            raise RuntimeError('chamada da coordenação antiga ou cancelada')
+        revisao, _spec, raiz = self._ambiente_card(card_id)
+        ficha = self._ficha('HELENA', 'COORDENACAO', 'LER_DE_VOLTA', raiz)
+        pedido = (self._pedido_coordenacao_real(card) if modo == 'real'
+                  else card['ordem_de_servico'])
+        execucao_id = f'C-{chave}'
+        resultado = self.executor.rodar(Execucao(
+            id=execucao_id, ficha=ficha,
+            pacote=json.dumps({'card_id': str(card_id),
+                                'config_revision_id': str(revisao['id']),
+                                'pedido': pedido}, ensure_ascii=False),
+            fontes_permitidas=() if modo == 'real' else None))
+        if not resultado.ok or not resultado.texto:
+            self._evento('card', card_id, 'MOTOR', 'FALHA', {'classe': 'DESCONHECIDA'})
+            raise RuntimeError('coordenadora falhou')
+        try:
+            provas = coletar_evidencias(resultado, execucao_id) if modo == 'real' else None
+        except EvidenciaInvalida as exc:
+            self._evento('card', card_id, 'MOTOR', 'FALHA', {'classe': 'DESCONHECIDA'},
+                         conteudo={'motivo': 'EVIDENCIA_INVALIDA'})
+            raise RuntimeError('evidência da coordenação inválida') from exc
+        if provas is not None and provas['usou_internet'] is not False:
+            self._evento('card', card_id, 'MOTOR', 'FALHA', {'classe': 'DESCONHECIDA'},
+                         conteudo={'motivo': 'INTERNET_NAO_COMPROVADA'})
+            raise RuntimeError('coordenação sem ferramentas exige ausência comprovada de internet')
+        resposta = {'texto': resultado.texto, 'evidencias': provas or {},
+                    'config_revision_id': str(revisao['id']), 'card_id': str(card_id)}
+        self._linha('SELECT helena_v2.registrar_resposta_coordenacao(%s,%s) AS resposta',
+                    (chave, Jsonb(resposta)))
+        if modo == 'real' and callable(getattr(self.executor, 'limpar', None)):
+            self.executor.limpar(resultado)
+        return chave
+
+    def conferir_e_aplicar_coordenacao(self, card_id, chave):
+        salva = self._linha('SELECT helena_v2.ler_resposta_coordenacao(%s) AS resposta',
+                            (chave,))['resposta']
+        if not salva or salva.get('card_id') != str(card_id):
+            raise RuntimeError('resposta da coordenação ausente ou de outro card')
+        card = self._card(card_id)
+        if salva.get('config_revision_id') != str(self._ambiente_card(card_id)[0]['id']):
+            raise RuntimeError('resposta da coordenação pertence a outra configuração')
+        with self._con() as con:
+            with con.transaction():
+                if (card['ordem_de_servico'].get('modo_contexto') == 'real'
+                        and card['estado'] == 'RASCUNHO'):
+                    self._conferir_fontes_real(card_id, con=con)
+                resultado = con.execute(
+                    'SELECT helena_v2.aplicar_resposta_coordenacao(%s) AS resultado',
+                    (chave,)).fetchone()['resultado']
+                if resultado['resultado'] not in ('APLICADO', 'CONVERTIDO'):
+                    raise RuntimeError(f'leitura de volta recusada: {resultado}')
+                return resultado['estado']
+
     def avancar(self, card_id):
         modo = self._modo_card(card_id)
         card = self._card(card_id)
         if card['estado'] == 'RASCUNHO':
-            revisao, _spec, raiz = self._ambiente_card(card_id)
-            chave = self._linha('SELECT helena_v2.abrir_chamada_helena(%s,%s) AS chave', ('card', card_id))['chave']
-            ficha = self._ficha('HELENA', 'COORDENACAO', 'LER_DE_VOLTA', raiz)
-            pedido = (self._pedido_coordenacao_real(card) if modo == 'real'
-                      else card['ordem_de_servico'])
-            resultado = self.executor.rodar(Execucao(id=f'C-{chave}', ficha=ficha,
-                                                   pacote=json.dumps({'card_id': str(card_id),
-                                                                      'config_revision_id': str(revisao['id']),
-                                                                      'pedido': pedido}, ensure_ascii=False)))
-            if not resultado.ok:
-                self._evento('card', card_id, 'MOTOR', 'FALHA',
-                             card_id_real=card_id if modo == 'real' else None)
-                return True
-            self._evento('card', card_id, 'HELENA', 'LER_DE_VOLTA', chave=chave,
-                         conteudo={'resposta': json.loads(resultado.texto)}, nao_disparar=['PLANO_VALIDO'],
-                         card_id_real=card_id if modo == 'real' else None)
+            revisao_id = self._ambiente_card(card_id)[0]['id']
+            chave = self._linha('SELECT helena_v2.obter_chamada_coordenacao(%s::uuid) AS chave',
+                                 (card_id,))['chave']
+            with SetWorkflowID(f'{self.versao_codigo}-{revisao_id}-coordenacao-{card_id}-{chave}'):
+                self.dbos.start_workflow(fluxo_coordenacao, str(card_id), chave).get_result()
             return True
         if card['estado'] == 'VALIDANDO_PLANO':
             _revisao, spec, raiz = self._ambiente_card(card_id)
@@ -840,8 +907,7 @@ class Motor:
             if modo == 'real' else None))
         if not resultado.ok:
             self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
-                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'},
-                         card_id_real=etapa['card_id'] if modo == 'real' else None)
+                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
             raise RuntimeError('revisor falhou')
         provas = None
         if modo == 'real':

@@ -93,6 +93,50 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
         motor.fechar()
 
 
+def test_coordenacao_retoma_apos_resposta_sql_sem_repetir_executor(banco, url_dbos):
+    primeiro = Motor(banco.url, url_dbos, iniciar_dbos=False)
+    try:
+        card = primeiro.criar_card(PLANO, 'coordenacao-replay-sql')
+        chave = primeiro._linha(
+            'SELECT helena_v2.obter_chamada_coordenacao(%s::uuid) AS chave', (card,))['chave']
+        assert primeiro.executar_e_salvar_coordenacao(card, chave) == chave
+        assert len(primeiro.executor.execucoes) == 1
+    finally:
+        primeiro.fechar()
+    retomado = Motor(banco.url, url_dbos, iniciar_dbos=False)
+    try:
+        assert retomado.executar_e_salvar_coordenacao(card, chave) == chave
+        assert retomado.executor.execucoes == []
+        assert retomado.conferir_e_aplicar_coordenacao(card, chave) == 'ESPERANDO_CONFIRMACAO'
+        assert retomado.conferir_e_aplicar_coordenacao(card, chave) == 'ESPERANDO_CONFIRMACAO'
+        with retomado._con() as con:
+            total = con.execute(
+                """SELECT count(*) FROM helena_v2.historico WHERE card_id=%s
+                   AND papel='HELENA' AND evento='LER_DE_VOLTA' AND chave=%s""",
+                (card, chave)).fetchone()['count']
+        assert total == 1
+    finally:
+        retomado.fechar()
+
+
+def test_falha_da_coordenacao_aceita_motivo_de_evidencia_no_banco(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos, iniciar_dbos=False)
+    try:
+        card = motor.criar_card(PLANO, 'coordenacao-falha-evidencia')
+        motor._linha('SELECT helena_v2.obter_chamada_coordenacao(%s::uuid) AS chave', (card,))
+        resultado = motor._evento('card', card, 'MOTOR', 'FALHA', {'classe': 'DESCONHECIDA'},
+                                  conteudo={'motivo': 'EVIDENCIA_INVALIDA'})
+        assert resultado['resultado'] == 'APLICADO'
+        assert motor._card(card)['falhas_helena'] == 1
+        with motor._con() as con:
+            falhas = con.execute(
+                "SELECT count(*) AS n FROM helena_v2.historico WHERE card_id=%s AND evento='FALHA'",
+                (card,)).fetchone()['n']
+        assert falhas == 1
+    finally:
+        motor.fechar()
+
+
 def test_dossie_avulso_executa_ravi_e_revisao_sem_alterar_roteiro_canonico(banco, url_dbos):
     from executor_helena.executor_falso import ExecutorFalso, Roteiro
     referencia = {}

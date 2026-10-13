@@ -17,7 +17,18 @@ spec = importlib.util.spec_from_file_location('suporte_banco_v2', ARQUIVO)
 suporte = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(suporte)
 servidor = suporte.servidor
-banco = suporte.banco
+
+
+@pytest.fixture(scope='session')
+def banco(servidor):
+    """Banco descartável do Motor com resposta durável da coordenadora."""
+    b = suporte.montar_banco(servidor, papeis_de_teste=suporte.PAPEIS_DE_TESTE)
+    try:
+        with b.conectar() as con:
+            con.execute((RAIZ / 'supabase/migrations-v2/0008_resposta_coordenacao.sql').read_text())
+        yield b
+    finally:
+        suporte.derrubar_banco(b)
 
 
 @pytest.fixture(scope='session')
