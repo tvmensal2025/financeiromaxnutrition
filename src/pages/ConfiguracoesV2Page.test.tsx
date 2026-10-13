@@ -143,3 +143,15 @@ it.each([
   expect((screen.getByRole('button', { name: 'Inativar' }) as HTMLButtonElement).disabled).toBe(true);
   expect(repo.aposentar).not.toHaveBeenCalled();
 });
+
+it('aceita novo documento apenas com nome minúsculo permitido pelo backend', async () => {
+  auth.isFounder = true;
+  mostrar(repositorio());
+  fireEvent.click(await screen.findByRole('button', { name: /Configuração existente/ }));
+  const nome = await screen.findByLabelText('Novo documento');
+  const adicionar = screen.getByRole('button', { name: 'Adicionar documento' }) as HTMLButtonElement;
+  fireEvent.change(nome, { target: { value: 'helena-v2/agents/Agente_Novo.yaml' } });
+  expect(adicionar.disabled).toBe(true);
+  fireEvent.change(nome, { target: { value: 'helena-v2/agents/agente_novo.yaml' } });
+  expect(adicionar.disabled).toBe(false);
+});
