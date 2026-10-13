@@ -1,11 +1,12 @@
 import urllib.request
 import json
 import time
+from require_env import require_env
 
 def check():
     req = urllib.request.Request(
         'http://72.60.159.48:3000/api/trpc/auth.login',
-        data=json.dumps({'json': {'email': 'rafael.ids@icloud.com', 'password': '201097De.'}}).encode('utf-8'),
+        data=json.dumps({'json': {'email': require_env('EASYPANEL_EMAIL'), 'password': require_env('EASYPANEL_PASSWORD')}}).encode('utf-8'),
         headers={'Content-Type': 'application/json'}
     )
     with urllib.request.urlopen(req) as res:

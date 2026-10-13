@@ -1,12 +1,13 @@
 import urllib.request
 import json
 import time
+from require_env import require_env
 
 BASE_URL = 'http://72.60.159.48:3000'
 
 def login():
     url = f'{BASE_URL}/api/trpc/auth.login'
-    payload = {'json': {'email': 'rafael.ids@icloud.com', 'password': '201097De.'}}
+    payload = {'json': {'email': require_env('EASYPANEL_EMAIL'), 'password': require_env('EASYPANEL_PASSWORD')}}
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode('utf-8'),

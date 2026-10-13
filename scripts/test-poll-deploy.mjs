@@ -1,12 +1,15 @@
 import { requireEnv } from './require-env.mjs';
 // scripts/test-poll-deploy.mjs
+// Lido aqui no topo (fora do try do laço): sem a variável, o script falha na hora e não tenta 20 vezes.
+const MCP_BEARER_TOKEN = requireEnv('MCP_BEARER_TOKEN');
+
 async function poll() {
   console.log('Aguardando build dos containers no EasyPanel...');
   for (let i = 1; i <= 20; i++) {
     await new Promise((r) => setTimeout(r, 6000));
     try {
       const res = await fetch('https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/meowcaller/status', {
-        headers: { Authorization: `Bearer ${requireEnv('MCP_BEARER_TOKEN')}` }
+        headers: { Authorization: `Bearer ${MCP_BEARER_TOKEN}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -17,7 +20,7 @@ async function poll() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${requireEnv('MCP_BEARER_TOKEN')}`
+            Authorization: `Bearer ${MCP_BEARER_TOKEN}`
           },
           body: JSON.stringify({ phone: '11971254913' })
         });

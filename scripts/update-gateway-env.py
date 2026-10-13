@@ -1,11 +1,12 @@
 import urllib.request
 import json
+from require_env import require_env
 
 BASE_URL = 'http://72.60.159.48:3000'
 
 def login():
     url = f'{BASE_URL}/api/trpc/auth.login'
-    payload = {'json': {'email': 'rafael.ids@icloud.com', 'password': '201097De.'}}
+    payload = {'json': {'email': require_env('EASYPANEL_EMAIL'), 'password': require_env('EASYPANEL_PASSWORD')}}
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode('utf-8'),
@@ -37,7 +38,7 @@ for line in lines:
         env_dict[k.strip()] = v.strip()
 
 # Adiciona a chave Google Gemini e Kokoro
-env_dict['GOOGLE_AI_API_KEY'] = 'AQ.Ab8RN6KL6RtZGf3r27Tfv1xAgnD-JpC0goy2gUSBmCxzemPjaw'
+env_dict['GOOGLE_AI_API_KEY'] = require_env('GOOGLE_AI_API_KEY')
 env_dict['KOKORO_BASE_URL'] = 'https://helena-automation-kokoro.d9v63q.easypanel.host'
 env_dict['MEOWCALLER_BASE_URL'] = 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host'
 

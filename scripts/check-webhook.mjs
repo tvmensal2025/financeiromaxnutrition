@@ -1,7 +1,8 @@
 // scripts/check-webhook.mjs
+import { requireEnv } from './require-env.mjs';
 const EVOLUTION_URL = 'https://helena-automation-evolution-api.d9v63q.easypanel.host';
 const INSTANCE = 'helena_mensagens';
-const API_KEY = 'helena_evo_master_secret_2026_98a7f';
+const API_KEY = requireEnv('EVOLUTION_API_KEY');
 const GATEWAY_WEBHOOK = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host/webhooks/evolution';
 
 async function checkAndSetWebhook() {
