@@ -12,9 +12,11 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from orquestrador.motor import Motor
+import orquestrador.motor as motor_mod
 from orquestrador.contexto_real import montar_contexto_real
 from orquestrador.preparacao import preparar_tarefa_real
 from executor_helena.executor_falso import ExecutorFalso
+from executor_helena.executor import ExecutorHermes
 
 RAIZ = Path(__file__).resolve().parents[3]
 
@@ -48,7 +50,7 @@ def _ordem_real():
                        'ordem_de_servico': {'pedido_original': 'Pedido do fundador',
                                            'como_e_o_pronto': 'Entregas verificáveis',
                                            'nao_pode': 'Prometer ganho',
-                                           'prazo': '2026-10-30T12:00:00Z',
+                                           'prazo': None,
                                            'fontes_que_pode_ler': []}},
             'fontes_importadas': fontes,
             'decisoes': [{'id': 'DEC-024', 'texto': 'Decisão vigente'},
@@ -67,14 +69,17 @@ def _ordem_real():
 
 def test_etapa_e3_recebe_somente_condicoes_sem_conta_ou_entrega_e1(monkeypatch):
     motor = object.__new__(Motor)
-    card = {'titulo': 'Convite', 'ordem_de_servico': _ordem_real()}
+    card = {'titulo': 'Convite', 'ordem_de_servico': _ordem_real(),
+            'prazo': datetime(2026, 10, 30, 12, tzinfo=timezone.utc),
+            'criado_em': datetime(2026, 10, 13, 10, tzinfo=timezone.utc)}
     monkeypatch.setattr(motor, '_card', lambda _id: card)
     monkeypatch.setattr(motor, '_con', lambda: pytest.fail('E3 não deve ler entrega de E1'))
     pedido, fontes, decisoes = motor._entradas_da_etapa({'card_id': uuid4(), 'codigo': 'E3'}, 'SRV-COPY')
     assert pedido['entradas'] == {'condicoes': card['ordem_de_servico']['dados_reais']['entradas_externas']['condicoes']}
     assert 'FON-JOB-CONTA' not in fontes
     assert pedido['ordem_de_servico']['nao_pode'] == 'Prometer ganho'
-    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T12:00:00Z'
+    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T12:00:00+00:00'
+    assert pedido['card_id'] and pedido['criado_em'] == '2026-10-13T10:00:00+00:00'
     assert pedido['plano']['etapas'][0]['acao_do_fundador'] == 'Aprovar convite'
     assert pedido['plano']['acoes_do_fundador'] == ['Aprovar convite']
     assert [d['id'] for d in decisoes] == ['DEC-024']
@@ -83,7 +88,9 @@ def test_etapa_e3_recebe_somente_condicoes_sem_conta_ou_entrega_e1(monkeypatch):
 
 def test_parecer_recebe_somente_dependencias_aprovadas(monkeypatch):
     motor = object.__new__(Motor)
-    card = {'titulo': 'Parecer', 'ordem_de_servico': _ordem_real()}
+    card = {'titulo': 'Parecer', 'ordem_de_servico': _ordem_real(),
+            'prazo': datetime(2026, 10, 30, 12, tzinfo=timezone.utc),
+            'criado_em': datetime(2026, 10, 13, 10, tzinfo=timezone.utc)}
     monkeypatch.setattr(motor, '_card', lambda _id: card)
     consultas = []
 
@@ -110,7 +117,11 @@ def test_parecer_recebe_somente_dependencias_aprovadas(monkeypatch):
 def test_dependencia_sem_entrega_aprovada_bloqueia_contexto(monkeypatch):
     motor = object.__new__(Motor)
     monkeypatch.setattr(motor, '_card', lambda _id: {'titulo': 'Parecer',
-                                                    'ordem_de_servico': _ordem_real()})
+                                                    'ordem_de_servico': _ordem_real(),
+                                                    'prazo': datetime(2026, 10, 30, 12,
+                                                                       tzinfo=timezone.utc),
+                                                    'criado_em': datetime(2026, 10, 13, 10,
+                                                                           tzinfo=timezone.utc)})
 
     class Consulta:
         def execute(self, _sql, _parametros):
@@ -153,6 +164,160 @@ def test_card_real_recusa_fonte_ausente_e_executor_falso():
         motor.criar_card_real({}, origem='supabase', chave_origem='TSK-1', titulo='Pedido',
                               pedido_original='Pedido', business_id='BIZ-003', prazo=None,
                               dados_reais={}, solicitacao_id=str(uuid4()))
+
+
+def test_modo_producao_recusa_optins_e_executor_nao_aprovado_antes_de_conectar(monkeypatch):
+    monkeypatch.setattr(motor_mod, '_preflight_bancos_reais',
+                        lambda *_args: pytest.fail('não pode tentar conexão'))
+    urls = ('postgresql://app@db.exemplo/postgres',
+            'postgresql://dbos@db.exemplo/postgres')
+    with pytest.raises(ValueError, match='proíbe opções'):
+        Motor(*urls, executor=object.__new__(ExecutorHermes),
+              fonte_contexto=montar_contexto_real, permitir_executor_falso=True,
+              modo_producao=True, iniciar_dbos=False)
+    with pytest.raises(ValueError, match='executor real aprovado'):
+        Motor(*urls, executor=object(), fonte_contexto=montar_contexto_real,
+              modo_producao=True, iniciar_dbos=False)
+
+
+def test_modo_producao_exige_preflight_antes_de_dbos_e_pina_config(monkeypatch):
+    eventos = []
+    config_destinos = {'system_database_url': 'postgresql://dbos@exemplo/postgres',
+                       'dbos_system_schema': 'dbos_helena_v2', 'run_migrations': False}
+
+    def preflight(*_args):
+        eventos.append('preflight')
+        return config_destinos
+
+    class DBOSDeTeste:
+        def __init__(self, config):
+            assert eventos == ['preflight']
+            assert config['dbos_system_schema'] == 'dbos_helena_v2'
+            assert config['run_migrations'] is False
+            assert config['enable_otlp'] is False
+            assert config['application_version'] == motor_mod.VERSAO_CODIGO_REAL
+            eventos.append('construtor_dbos')
+
+        def launch(self):
+            eventos.append('launch')
+
+        def destroy(self):
+            eventos.append('destroy')
+
+    marcador = object()
+    monkeypatch.setattr(motor_mod, '_MOTOR', marcador)
+    monkeypatch.setattr(motor_mod, '_preflight_bancos_reais', preflight)
+    monkeypatch.setattr(motor_mod, 'DBOS', DBOSDeTeste)
+    motor = Motor('postgresql://app@exemplo/postgres', config_destinos['system_database_url'],
+                  executor=object.__new__(ExecutorHermes),
+                  fonte_contexto=montar_contexto_real, modo_producao=True)
+    try:
+        assert eventos == ['preflight', 'construtor_dbos', 'launch']
+        assert motor_mod._MOTOR is motor
+    finally:
+        motor.fechar()
+    assert eventos[-1] == 'destroy'
+    assert motor_mod._MOTOR is None
+
+
+def test_preflight_falha_sem_trocar_motor_global_nem_lancar_dbos(monkeypatch):
+    marcador = object()
+    monkeypatch.setattr(motor_mod, '_MOTOR', marcador)
+    monkeypatch.setattr(motor_mod, '_preflight_bancos_reais',
+                        lambda *_args: (_ for _ in ()).throw(ValueError('papel excessivo')))
+    monkeypatch.setattr(motor_mod, 'DBOS', lambda **_kw: pytest.fail('DBOS não deve iniciar'))
+    with pytest.raises(ValueError, match='papel excessivo'):
+        Motor('postgresql://app@exemplo/postgres', 'postgresql://dbos@exemplo/postgres',
+              executor=object.__new__(ExecutorHermes), fonte_contexto=montar_contexto_real,
+              modo_producao=True)
+    assert motor_mod._MOTOR is marcador
+
+
+def test_preflight_real_confere_papeis_e_maquina_antes_de_iniciar_dbos(monkeypatch):
+    eventos = []
+    urls = ('postgresql://app@db.exemplo/postgres',
+            'postgresql://sistema@db.exemplo/postgres')
+    monkeypatch.setattr('orquestrador.bancos.validar_destinos_reais',
+                        lambda app, sys: {'system_database_url': sys,
+                                          'dbos_system_schema': 'dbos_helena_v2',
+                                          'run_migrations': False})
+    monkeypatch.setattr('orquestrador.bancos.preflight_papel_runtime',
+                        lambda con, *, sistema=False: eventos.append(('papel', con.nome, sistema)))
+    monkeypatch.setattr(motor_mod, 'capturar_bundle', lambda _raiz: {'bundle': True})
+    monkeypatch.setattr(motor_mod, 'impressao_maquina', lambda _bundle: 'IMPRESSAO-REAL')
+
+    class Conexao:
+        def __init__(self, nome):
+            self.nome = nome
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, comando):
+            if self.nome == 'app' and 'SET ROLE' in str(comando):
+                eventos.append(('set_role', self.nome))
+            else:
+                eventos.append(('maquina', self.nome))
+            return self
+
+        def fetchone(self):
+            return {'confere': True, 'impressao': 'IMPRESSAO-REAL',
+                    'ativa': {'estado': 'VALIDADA'}}
+
+    def conectar(dsn, **_kw):
+        return Conexao('app' if dsn == urls[0] else 'sistema')
+
+    monkeypatch.setattr(motor_mod.psycopg, 'connect', conectar)
+    assert motor_mod._preflight_bancos_reais(*urls)['run_migrations'] is False
+    assert eventos == [('papel', 'app', False), ('set_role', 'app'), ('maquina', 'app'),
+                       ('papel', 'sistema', True)]
+
+
+def test_evento_automatico_real_confere_fontes_e_aplica_na_mesma_transacao(monkeypatch):
+    motor = object.__new__(Motor)
+    eventos = []
+    card_id = uuid4()
+
+    class Conexao:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        @contextmanager
+        def transaction(self):
+            eventos.append('inicia')
+            yield
+            eventos.append('commit')
+
+        def execute(self, sql, _args):
+            assert 'aplicar_evento' in sql
+            eventos.append('aplica')
+            return self
+
+        def fetchone(self):
+            return {'aplicar_evento': {'resultado': 'APLICADO'}}
+
+    con = Conexao()
+    monkeypatch.setattr(motor, '_con', lambda _papel: con)
+    monkeypatch.setattr(motor, '_conferir_fontes_real',
+                        lambda alvo, *, con: eventos.append(('confere', alvo, con)))
+    motor._evento('card', card_id, 'MOTOR', 'PLANO_VALIDO', card_id_real=card_id)
+    assert eventos == ['inicia', ('confere', card_id, con), 'aplica', 'commit']
+
+    def fonte_velha(_alvo, *, con):
+        eventos.append('fonte_velha')
+        raise RuntimeError('fonte alterada')
+
+    eventos.clear()
+    monkeypatch.setattr(motor, '_conferir_fontes_real', fonte_velha)
+    with pytest.raises(RuntimeError, match='fonte alterada'):
+        motor._evento('card', card_id, 'MOTOR', 'PLANO_VALIDO', card_id_real=card_id)
+    assert eventos == ['inicia', 'fonte_velha']
 
 
 @pytest.mark.parametrize('falha_sql', [False, True])
@@ -386,6 +551,7 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
             plano, origem='supabase', chave_origem='TASK-REAL-01', titulo=tarefa['tarefa'],
             pedido_original=tarefa['tarefa'], business_id='BIZ-003', prazo=prazo,
             dados_reais=dados, solicitacao_id=solicitacao['id'])
+        assert motor._modo_card(card_id) == 'real'
         assert motor._card(card_id)['ordem_de_servico']['config_revision_id'] == str(revisao['id'])
         etapa = motor._etapas(card_id)[0]
         pedido, fontes_etapa, decisoes_etapa = motor._entradas_da_etapa(etapa, 'SRV-COPY')
@@ -407,6 +573,8 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
             plano, origem='supabase', chave_origem='TASK-REAL-01', titulo=tarefa['tarefa'],
             pedido_original=tarefa['tarefa'], business_id='BIZ-003', prazo=prazo,
             dados_reais=dados, solicitacao_id=solicitacao['id']) == card_id
+        with pytest.raises(psycopg.errors.SerializationFailure):
+            motor._modo_card(card_id)
         with pytest.raises(psycopg.errors.SerializationFailure):
             motor.criar_card_real(
                 plano, origem='supabase', chave_origem='TASK-REAL-01', titulo=tarefa['tarefa'],

@@ -8,6 +8,7 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg import sql
@@ -17,17 +18,23 @@ from psycopg.types.json import Jsonb
 from dbos import DBOS, DBOSConfig, SetWorkflowID
 
 from executor_helena.executor_falso import ExecutorFalso, Roteiro
+from executor_helena.executor import Executor, ExecutorHermes
 from executor_helena.ficha import ler_ficha
 from executor_helena.tipos import Execucao
 from spec_helena import Spec, listar_casos, montar_contexto, montar_resposta
 from validador import validar
-from .configuracao import capturar_bundle, carregar_revisao, hash_bundle, validar_bundle, verificar_revisao
+from .configuracao import (capturar_bundle, carregar_revisao, hash_bundle, impressao_maquina,
+                          validar_bundle, verificar_revisao)
+from .contexto_real import montar_contexto_real
 from .evidencias import coletar_evidencias
 from .plano import RAIZ, validar_plano
 
 _MOTOR = None
 VERSAO_CODIGO = 'primeiro-card-2-config'
+VERSAO_CODIGO_REAL = 'primeiro-card-3-real'
 _BUNDLES_VALIDADOS: set[str] = set()
+# Registro de adaptadores aprovados em código. Configuração editável não escolhe classes.
+ADAPTADORES_REAIS_APROVADOS: tuple[type[Executor], ...] = (ExecutorHermes,)
 
 
 def _ativo():
@@ -77,30 +84,67 @@ def conferir_rubrica(spec, servico, criterios) -> bool:
                     and c['prova'].strip() for c in criterios if isinstance(c, dict)))
 
 
+def _preflight_bancos_reais(url_banco: str, url_dbos: str):
+    """Confere logins e contrato da máquina antes de registrar workflows globais."""
+    from .bancos import preflight_papel_runtime, validar_destinos_reais
+
+    dbos_config = validar_destinos_reais(url_banco, url_dbos)
+    app_dsn = url_banco.replace('postgresql+psycopg://', 'postgresql://', 1)
+    sys_dsn = url_dbos.replace('postgresql+psycopg://', 'postgresql://', 1)
+    with psycopg.connect(app_dsn, autocommit=True, row_factory=dict_row) as con:
+        preflight_papel_runtime(con)
+        con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier('service_role')))
+        estado = con.execute("""SELECT helena_v2.tabela_confere() AS confere,
+               (SELECT impressao_digital FROM helena_v2.meta_tabela LIMIT 1) AS impressao,
+               helena_v2.configuracao_ativa() AS ativa""").fetchone()
+        esperado = impressao_maquina(capturar_bundle(RAIZ / 'helena-v2'))
+        if (not estado or estado['confere'] is not True or
+                estado['impressao'] != esperado or
+                not isinstance(estado['ativa'], dict) or
+                estado['ativa'].get('estado') != 'VALIDADA'):
+            raise RuntimeError('banco do card sem máquina compatível e configuração ativa validada')
+    with psycopg.connect(sys_dsn, autocommit=True, row_factory=dict_row) as con:
+        preflight_papel_runtime(con, sistema=True)
+    return dbos_config
+
+
 class Motor:
     def __init__(self, url_banco: str, url_dbos: str, casos: dict[str, str] | None = None, executor=None,
                  *, permitir_configuracao_tecnica=False, permitir_servico_rascunho=False,
                  permitir_executor_falso=False, permitir_casos_sinteticos=False, iniciar_dbos=True,
-                 fonte_contexto=None):
+                 fonte_contexto=None, modo_producao=False):
         if not url_banco or not url_dbos:
             raise ValueError('motor exige banco do card e banco DBOS separados')
-        bancos = []
-        for url in (url_banco, url_dbos):
-            dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
-            parametros = conninfo_to_dict(dsn)
-            host = parametros.get('host', '')
-            hostaddr = parametros.get('hostaddr') or os.environ.get('PGHOSTADDR')
-            if host not in ('localhost', '127.0.0.1', '::1') or (hostaddr and hostaddr not in ('127.0.0.1', '::1')):
-                raise ValueError('este motor de teste exige PostgreSQL local')
-            bancos.append(parametros.get('dbname'))
-        if bancos[0] == bancos[1]:
-            raise ValueError('motor exige banco do card e banco DBOS separados')
+        if modo_producao:
+            if (permitir_configuracao_tecnica or permitir_servico_rascunho or
+                    permitir_executor_falso or permitir_casos_sinteticos or casos):
+                raise ValueError('modo de produção proíbe opções e casos sintéticos')
+            if (not isinstance(executor, Executor) or isinstance(executor, ExecutorFalso) or
+                    type(executor) not in ADAPTADORES_REAIS_APROVADOS or
+                    not callable(getattr(executor, 'limpar', None)) or
+                    fonte_contexto is not montar_contexto_real):
+                raise ValueError('modo de produção exige executor real aprovado e montar_contexto_real')
+            dbos_config = _preflight_bancos_reais(url_banco, url_dbos)
+        else:
+            bancos = []
+            for url in (url_banco, url_dbos):
+                dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
+                parametros = conninfo_to_dict(dsn)
+                host = parametros.get('host', '')
+                hostaddr = parametros.get('hostaddr') or os.environ.get('PGHOSTADDR')
+                if host not in ('localhost', '127.0.0.1', '::1') or (hostaddr and hostaddr not in ('127.0.0.1', '::1')):
+                    raise ValueError('este motor de teste exige PostgreSQL local')
+                bancos.append(parametros.get('dbname'))
+            if bancos[0] == bancos[1]:
+                raise ValueError('motor exige banco do card e banco DBOS separados')
         self.url_banco = url_banco
         self.url_dbos = url_dbos
         self.casos = casos or {}
         self.permitir_configuracao_tecnica = permitir_configuracao_tecnica
         self.permitir_servico_rascunho = permitir_servico_rascunho
         self.permitir_casos_sinteticos = permitir_casos_sinteticos
+        self.modo_producao = modo_producao
+        self.versao_codigo = VERSAO_CODIGO_REAL if modo_producao else VERSAO_CODIGO
         self.fonte_contexto = fonte_contexto
         if executor is None and not permitir_executor_falso:
             raise ValueError('executor deve ser injetado; ExecutorFalso exige opt-in local explícito')
@@ -117,10 +161,19 @@ class Motor:
         self.dbos = None
         if iniciar_dbos:
             global _MOTOR
+            config = {'name': 'helena-v2-primeiro-card', 'application_version': self.versao_codigo,
+                      **(dict(dbos_config, enable_otlp=False) if modo_producao else
+                         {'system_database_url': url_dbos})}
+            self.dbos = DBOS(config=DBOSConfig(**config))
+            anterior = _MOTOR
             _MOTOR = self
-            self.dbos = DBOS(config=DBOSConfig(name='helena-v2-primeiro-card', system_database_url=url_dbos,
-                                               application_version=VERSAO_CODIGO))
-            self.dbos.launch()
+            try:
+                self.dbos.launch()
+            except BaseException:
+                _MOTOR = anterior
+                self.dbos.destroy()
+                self._pasta_snapshots.cleanup()
+                raise
 
     def fechar(self):
         if self.dbos is not None:
@@ -133,7 +186,8 @@ class Motor:
     def _con(self, papel='service_role'):
         if papel == 'authenticated':
             raise RuntimeError('contexto de identidade do fundador deve ser injetado')
-        con = psycopg.connect(self.url_banco, autocommit=True, row_factory=dict_row)
+        dsn = self.url_banco.replace('postgresql+psycopg://', 'postgresql://', 1)
+        con = psycopg.connect(dsn, autocommit=True, row_factory=dict_row)
         if papel:
             con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))
         return con
@@ -244,17 +298,31 @@ class Motor:
         return resultados
 
     def _evento(self, maquina, alvo, papel, evento, params=None, ator=None, chave=None, conteudo=None,
-                *, automaticos=True, nao_disparar=None, toque=None):
+                *, automaticos=True, nao_disparar=None, toque=None, con=None, card_id_real=None):
         if maquina not in ('card', 'etapa', 'acao_externa'):
             raise ValueError('máquina desconhecida')
         versao = None
         if papel == 'FUNDADOR':
             versao = self._linha(f'SELECT versao FROM helena_v2.{maquina} WHERE id=%s', (alvo,))['versao']
-        with self._con('authenticated' if papel == 'FUNDADOR' else 'service_role') as con:
-            resposta = con.execute('SELECT helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
-                                   (maquina, alvo, papel, evento, Jsonb(params or {}), ator, chave, versao,
-                                    Jsonb(conteudo) if conteudo is not None else None, toque,
-                                    automaticos, nao_disparar or [])).fetchone()['aplicar_evento']
+        def aplicar(c):
+            return c.execute('SELECT helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                             (maquina, alvo, papel, evento, Jsonb(params or {}), ator, chave, versao,
+                              Jsonb(conteudo) if conteudo is not None else None, toque,
+                              automaticos, nao_disparar or [])).fetchone()['aplicar_evento']
+        if con is None:
+            with self._con('authenticated' if papel == 'FUNDADOR' else 'service_role') as propria:
+                if card_id_real is not None:
+                    if papel == 'FUNDADOR':
+                        raise RuntimeError('guarda real de evento do fundador exige sessão autenticada própria')
+                    with propria.transaction():
+                        self._conferir_fontes_real(card_id_real, con=propria)
+                        resposta = aplicar(propria)
+                else:
+                    resposta = aplicar(propria)
+        else:
+            if papel == 'FUNDADOR':
+                raise RuntimeError('evento do fundador exige sessão autenticada própria')
+            resposta = aplicar(con)
         if resposta['resultado'] not in ('APLICADO', 'CONVERTIDO'):
             raise RuntimeError(f'{maquina} {evento}: {resposta}')
         return resposta
@@ -393,10 +461,20 @@ class Motor:
         if ordem.get('modo_contexto') == 'real':
             if not callable(self.fonte_contexto) or isinstance(self.executor, ExecutorFalso):
                 raise RuntimeError('despacho real exige fonte de contexto e executor injetados')
+            self._conferir_fontes_real(card_id)
             return 'real'
         if not self.permitir_casos_sinteticos:
             raise RuntimeError('despacho exige adaptador de contexto real')
         return 'sintetico'
+
+    def _conferir_fontes_real(self, card_id, con=None):
+        sql_verificar = 'SELECT helena_v2.conferir_fontes_card_real(%s::uuid) AS confere'
+        if con is None:
+            confere = self._linha(sql_verificar, (card_id,))['confere']
+        else:
+            confere = con.execute(sql_verificar, (card_id,)).fetchone()['confere']
+        if confere is not True:
+            raise RuntimeError('fontes reais do card não conferem com a captura')
 
     def _entradas_da_etapa(self, etapa, servico):
         """Retorna só as fontes e dependências declaradas para esta etapa."""
@@ -444,17 +522,18 @@ class Motor:
         ordem_filtrada = {campo: origem_pedido[campo] for campo in permitidos if campo in origem_pedido}
         ordem_filtrada.update({'pedido_original': ordem['pedido_original'],
                               'empresa': ordem['business_id'], 'etapa_codigo': etapa['codigo'],
-                              'objetivo': plano_etapa.get('objetivo'), 'titulo': card['titulo']})
+                              'objetivo': plano_etapa.get('objetivo'), 'titulo': card['titulo'],
+                              'prazo': card['prazo'].isoformat()})
         plano_origem = dados['pedido'].get('plano') or {}
         plano_filtrado = {campo: plano_origem[campo] for campo in
                           ('id', 'versao', 'orcamento_meta', 'acoes_do_fundador',
                            'passos_fixos_do_fundador') if campo in plano_origem}
         plano_filtrado['etapas'] = [plano_etapa]
-        pedido = {'empresa': ordem['business_id'], 'ordem_de_servico': ordem_filtrada,
+        pedido = {'card_id': str(etapa['card_id']), 'empresa': ordem['business_id'],
+                  'criado_em': card['criado_em'].isoformat(), 'ordem_de_servico': ordem_filtrada,
                   'plano': plano_filtrado, 'entradas': entradas}
-        for campo in ('pacote_da_empresa', 'card_id', 'criado_em'):
-            if campo in dados['pedido']:
-                pedido[campo] = dados['pedido'][campo]
+        if 'pacote_da_empresa' in dados['pedido']:
+            pedido['pacote_da_empresa'] = dados['pedido']['pacote_da_empresa']
         decisoes_necessarias = set(ordem.get('decisoes') or [])
         decisoes = [d for d in dados['decisoes'] if isinstance(d, dict) and d.get('id') in decisoes_necessarias]
         if {d['id'] for d in decisoes} != decisoes_necessarias:
@@ -531,9 +610,10 @@ class Motor:
         if modo == 'real':
             pedido, fontes, decisoes = self._entradas_da_etapa(etapa, servico)
             execucao_id = f'{etapa["codigo"]}-{numero}'
+            hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date().isoformat()
             contexto = self.fonte_contexto(spec, servico, pedido=pedido, fontes_importadas=fontes,
                                            decisoes=decisoes, execucao_id=execucao_id,
-                                           paginas_lidas=[], usou_internet=False)
+                                           paginas_lidas=[], usou_internet=False, hoje=hoje)
         else:
             caso = self._caso(servico, spec)
             contexto = montar_contexto(spec, caso)
@@ -552,7 +632,9 @@ class Motor:
             fontes_permitidas=tuple(pedido['ordem_de_servico'].get('fontes_que_pode_ler') or ())
             if modo == 'real' else None))
         if not resultado.ok or not resultado.texto:
-            self._evento('etapa', etapa_id, 'MOTOR', 'FALHA', {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
+            self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
+                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'},
+                         card_id_real=etapa['card_id'] if modo == 'real' else None)
             raise RuntimeError('executor falhou')
         provas = None
         if modo == 'real':
@@ -562,7 +644,7 @@ class Motor:
             contexto = self.fonte_contexto(spec, servico, pedido=pedido, fontes_importadas=fontes,
                                            decisoes=decisoes, execucao_id=execucao_id,
                                            paginas_lidas=provas['paginas_lidas'],
-                                           usou_internet=provas['usou_internet'])
+                                           usou_internet=provas['usou_internet'], hoje=hoje)
         self._linha('SELECT helena_v2.registrar_resposta_execucao(%s,%s) AS resposta',
                     (numero, Jsonb({'texto': resultado.texto, 'servico': servico, 'contexto': contexto,
                                     'config_revision_id': str(revisao['id']),
@@ -573,6 +655,7 @@ class Motor:
 
     def conferir_e_aplicar(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
+        modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'EXECUTANDO' or etapa['execucao_atual'] != numero:
             raise RuntimeError('execução antiga ou cancelada')
         salva = self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
@@ -592,18 +675,31 @@ class Motor:
         acao_externa = resposta.get('acao_externa')
         tipo_acao = acao_externa.get('tipo') if isinstance(acao_externa, dict) else None
         parecer = resposta.get('parecer')
-        self._evento('etapa', etapa_id, 'AUTOR', 'ENTREGAR',
-                     {'parecer': parecer if parecer in ('OK', 'AJUSTE', 'NAO_PODE') else 'OK',
-                      'acao_externa': tipo_acao if tipo_acao in ('NENHUMA', 'SO_FUNDADOR', 'PELO_MOTOR') else 'NENHUMA',
-                      'usou_internet': contexto['usou_internet']}, ator=etapa['autor'], chave=numero,
-                     conteudo={'resposta': conteudo_resposta})
-        if relatorio.aprovada:
-            atual = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
-            self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_OK', {'escolhido': atual['revisores_validos'][0]},
-                         conteudo=relatorio.para_dict())
-        else:
-            self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_RECUSOU', conteudo=relatorio.para_dict())
-        return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']
+        def aplicar(con=None):
+            self._evento('etapa', etapa_id, 'AUTOR', 'ENTREGAR',
+                         {'parecer': parecer if parecer in ('OK', 'AJUSTE', 'NAO_PODE') else 'OK',
+                          'acao_externa': tipo_acao if tipo_acao in ('NENHUMA', 'SO_FUNDADOR', 'PELO_MOTOR') else 'NENHUMA',
+                          'usou_internet': contexto['usou_internet']}, ator=etapa['autor'], chave=numero,
+                         conteudo={'resposta': conteudo_resposta}, con=con)
+            if relatorio.aprovada:
+                atual = (con.execute('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,)).fetchone()
+                         if con else self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,)))
+                self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_OK',
+                             {'escolhido': atual['revisores_validos'][0]},
+                             conteudo=relatorio.para_dict(), con=con)
+            else:
+                self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_RECUSOU',
+                             conteudo=relatorio.para_dict(), con=con)
+            if con:
+                return con.execute('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,)).fetchone()['estado']
+            return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']
+
+        if modo == 'real':
+            with self._con() as con:
+                with con.transaction():
+                    self._conferir_fontes_real(etapa['card_id'], con=con)
+                    return aplicar(con)
+        return aplicar()
 
     def executar_etapa(self, etapa_id):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
@@ -616,7 +712,7 @@ class Motor:
         if numero is None:
             raise RuntimeError('etapa sem execução atual')
         revisao_id = self._ambiente_card(etapa['card_id'])[0]['id']
-        with SetWorkflowID(f'{VERSAO_CODIGO}-{revisao_id}-{etapa_id}-{numero}'):
+        with SetWorkflowID(f'{self.versao_codigo}-{revisao_id}-{etapa_id}-{numero}'):
             return self.dbos.start_workflow(fluxo_etapa, str(etapa_id), numero).get_result()
 
     def avancar(self, card_id):
@@ -628,23 +724,28 @@ class Motor:
             ficha = self._ficha('HELENA', 'COORDENACAO', 'LER_DE_VOLTA', raiz)
             ordem = card['ordem_de_servico']
             pedido = ({'pedido_original': ordem['pedido_original'], 'business_id': ordem['business_id'],
-                       'titulo': card['titulo']} if modo == 'real' else ordem)
+                       'titulo': card['titulo'], 'card_id': str(card_id),
+                       'prazo': card['prazo'].isoformat(),
+                       'criado_em': card['criado_em'].isoformat()} if modo == 'real' else ordem)
             resultado = self.executor.rodar(Execucao(id=f'C-{chave}', ficha=ficha,
                                                    pacote=json.dumps({'card_id': str(card_id),
                                                                       'config_revision_id': str(revisao['id']),
                                                                       'pedido': pedido}, ensure_ascii=False)))
             if not resultado.ok:
-                self._evento('card', card_id, 'MOTOR', 'FALHA')
+                self._evento('card', card_id, 'MOTOR', 'FALHA',
+                             card_id_real=card_id if modo == 'real' else None)
                 return True
             self._evento('card', card_id, 'HELENA', 'LER_DE_VOLTA', chave=chave,
-                         conteudo={'resposta': json.loads(resultado.texto)}, nao_disparar=['PLANO_VALIDO'])
+                         conteudo={'resposta': json.loads(resultado.texto)}, nao_disparar=['PLANO_VALIDO'],
+                         card_id_real=card_id if modo == 'real' else None)
             return True
         if card['estado'] == 'VALIDANDO_PLANO':
             _revisao, spec, raiz = self._ambiente_card(card_id)
             erro = validar_plano(card['ordem_de_servico'], spec, raiz,
                                  permitir_rascunho=self.permitir_servico_rascunho)
             self._evento('card', card_id, 'MOTOR', 'PLANO_INVALIDO' if erro else 'PLANO_VALIDO',
-                         conteudo={'motivo': erro} if erro else None)
+                         conteudo={'motivo': erro} if erro else None,
+                         card_id_real=card_id if modo == 'real' else None)
             return True
         if card['estado'] != 'EM_ANDAMENTO':
             return False
@@ -655,10 +756,12 @@ class Motor:
                     deps = con.execute('SELECT bool_and(estado IN (%s,%s)) AS pronto FROM helena_v2.etapa WHERE card_id=%s AND atual AND codigo=ANY(%s)',
                                        ('APROVADA', 'PRONTA', card_id, etapa['depende_de'])).fetchone()['pronto']
                 if not etapa['depende_de'] or deps:
-                    self._evento('etapa', etapa['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS')
+                    self._evento('etapa', etapa['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS',
+                                 card_id_real=card_id if modo == 'real' else None)
                     return True
             elif estado == 'NA_FILA':
-                self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_EXECUCAO')
+                self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_EXECUCAO',
+                             card_id_real=card_id if modo == 'real' else None)
                 return True
             elif estado == 'EXECUTANDO':
                 self.executar_etapa(etapa['id'])
@@ -670,14 +773,15 @@ class Motor:
 
     def _revisar(self, etapa):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
-        self._modo_card(etapa['card_id'])
+        modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'REVISAO':
             return etapa['estado']
         if etapa['execucao_atual'] is None:
-            self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO')
+            self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO',
+                         card_id_real=etapa['card_id'] if modo == 'real' else None)
             etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
         revisao_id = self._ambiente_card(etapa['card_id'])[0]['id']
-        with SetWorkflowID(f'{VERSAO_CODIGO}-{revisao_id}-{etapa["id"]}-{etapa["execucao_atual"]}'):
+        with SetWorkflowID(f'{self.versao_codigo}-{revisao_id}-{etapa["id"]}-{etapa["execucao_atual"]}'):
             return self.dbos.start_workflow(fluxo_revisao, str(etapa['id']), etapa['execucao_atual']).get_result()
 
     def executar_e_salvar_revisao(self, etapa_id, numero):
@@ -715,7 +819,9 @@ class Motor:
             fontes_permitidas=tuple(pacote['pedido']['ordem_de_servico'].get('fontes_que_pode_ler') or ())
             if modo == 'real' else None))
         if not resultado.ok:
-            self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA', {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
+            self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
+                         {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'},
+                         card_id_real=etapa['card_id'] if modo == 'real' else None)
             raise RuntimeError('revisor falhou')
         provas = None
         if modo == 'real':
@@ -732,6 +838,7 @@ class Motor:
 
     def conferir_e_aplicar_revisao(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
+        modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'REVISAO' or etapa['execucao_atual'] != numero:
             raise RuntimeError('revisão antiga ou cancelada')
         salva = self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
@@ -743,6 +850,15 @@ class Motor:
         spec = self._ambiente_card(etapa['card_id'])[1]
         if not conferir_rubrica(spec, salva['servico'], rubrica):
             raise RuntimeError('revisor não aprovou todos os critérios com prova')
+        if modo == 'real':
+            with self._con() as con:
+                with con.transaction():
+                    self._conferir_fontes_real(etapa['card_id'], con=con)
+                    self._evento('etapa', etapa['id'], 'REVISOR', 'APROVAR',
+                                 ator=etapa['revisor'], chave=numero,
+                                 conteudo={'criterios': rubrica}, con=con)
+                    return con.execute('SELECT estado FROM helena_v2.etapa WHERE id=%s',
+                                       (etapa_id,)).fetchone()['estado']
         self._evento('etapa', etapa['id'], 'REVISOR', 'APROVAR', ator=etapa['revisor'], chave=numero,
                      conteudo={'criterios': rubrica})
         return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']
