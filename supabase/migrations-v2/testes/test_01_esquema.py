@@ -22,6 +22,10 @@ FUNCOES_COM_PODER_DO_DONO = [
     "tabela_confere",
     "sou_fundador", "situacao_publicacao", "pedir_publicacao",
     "registrar_resposta_execucao", "ler_resposta_execucao",
+    "_config_json", "listar_configuracoes", "ler_configuracao", "configuracao_ativa",
+    "salvar_rascunho", "solicitar_validacao_config", "listar_validacoes_pendentes",
+    "registrar_resultado_validacao", "registrar_configuracao_tecnica",
+    "registrar_validacao_config", "ativar_configuracao", "aposentar_configuracao",
 ]
 FUNCOES_DE_LEITURA = ["tabela_confere", "conferir_historico", "conferir_card", "situacao_efetiva"]
 

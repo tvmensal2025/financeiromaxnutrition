@@ -13,6 +13,7 @@
 | `0003_funcao_unica.sql` | `helena_v2.aplicar_evento` e as poucas funções que a cercam | à mão (mecânica, sem regra) |
 | `0004_travas_e_permissoes.sql` | As travas das 13 regras e as permissões | à mão |
 | `0005_publicacao.sql` | Pedido diário de publicação, leitura do fundador e resposta durável do executor | à mão |
+| `0006_configuracoes.sql` | Revisões editáveis de configuração, validação pelo serviço e revisão fixada no card | à mão |
 | `gerar_passagens.py` | Lê `helena-v2/maquina/*.yaml` e escreve o 0002 | à mão |
 | `testes/` | Os testes (pytest + psycopg) | à mão |
 
@@ -25,7 +26,7 @@ pip install -r requirements.txt     # nesta pasta
 python -m pytest                    # sobe o próprio PostgreSQL em /tmp/pg-helena-v2-*, porta 54329, só 127.0.0.1
 ```
 
-Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`. Com `HELENA_V2_COBERTURA=1 python -m pytest -s` o fim da saída diz quantas linhas da tabela os testes exercitaram e quais faltaram.
+Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. Papéis globais de teste permanecem no servidor compartilhado para evitar corrida entre suítes; o cluster temporário cai inteiro ao fim. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`. Com `HELENA_V2_COBERTURA=1 python -m pytest -s` o fim da saída diz quantas linhas da tabela os testes exercitaram e quais faltaram.
 
 ## Como regenerar quando o YAML mudar
 
@@ -39,7 +40,7 @@ O teste `test_02_gerador.py` falha se o SQL guardado no git for diferente do que
 
 ## Aplicar à mão num banco local de teste
 
-`psql -v ON_ERROR_STOP=1 -1 -f 0001_esquema.sql` (e depois 0002, 0003, 0004 e 0005, nessa ordem; o `-1` é obrigatório). Antes, os papéis `anon`, `authenticated` e `service_role` e a tabela `public.app_access` precisam existir (no app já existem).
+`psql -v ON_ERROR_STOP=1 -1 -f 0001_esquema.sql` (e depois 0002, 0003, 0004, 0005 e 0006, nessa ordem; o `-1` é obrigatório). Antes, os papéis `anon`, `authenticated` e `service_role` e a tabela `public.app_access` precisam existir (no app já existem).
 
 ## Como as regras ficam presas
 
@@ -49,6 +50,7 @@ O teste `test_02_gerador.py` falha se o SQL guardado no git for diferente do que
 - **Regras 2 e 12 não cabem numa trava** (dependem do tempo e da origem da falha): têm prova e teste. De 2, só "final não volta a andar" tem gatilho.
 - **Para o motor:** `aplicar_evento` dispara os automáticos da tabela na mesma transação. O motor que valida o plano por código chama com `p_nao_disparar => '{PLANO_VALIDO}'` e decide ele mesmo. `abrir_chamada_helena` dá a chave de cada chamada da Helena; `select * from helena_v2.vigia()` lista o que está errado (vazio = certo).
 - **Publicação:** `sou_fundador()` e `situacao_publicacao()` respondem à pessoa autenticada; `pedir_publicacao()` grava no máximo um pedido por dia de Brasília, sem publicar. O motor usa `registrar_resposta_execucao(numero,jsonb)` e `ler_resposta_execucao(numero)` para guardar a resposta antes da validação. A exposição da API `helena_v2` no app depende da configuração de implantação.
+- **Configurações:** o fundador salva rascunhos com versão otimista, pede validação e ativa uma revisão validada por comparação atômica. O serviço interno atesta o bundle real e a máquina instalada; a LLM não valida. Revisões validadas e o vínculo `ordem_de_servico.config_revision_id` são imutáveis, inclusive após aposentadoria. O bootstrap técnico é explícito, feito por `service_role`, e não ativa uma revisão. A configuração não troca a máquina global: isso exige migração e prova.
 - **A tabela do banco é a que passou na prova:** `select helena_v2.tabela_confere()` recalcula o hash das linhas e compara com o selado; editar uma linha à mão faz dar falso.
 
 ## O que ainda não está aqui

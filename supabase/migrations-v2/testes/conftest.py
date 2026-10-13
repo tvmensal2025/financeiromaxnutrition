@@ -34,7 +34,7 @@ MIGRACOES = AQUI.parent
 sys.path.insert(0, str(MIGRACOES))
 sys.path.insert(0, str(AQUI))
 
-ARQUIVOS_SQL = ["0001_esquema.sql", "0002_passagens_geradas.sql", "0003_funcao_unica.sql", "0004_travas_e_permissoes.sql", "0005_publicacao.sql"]
+ARQUIVOS_SQL = ["0001_esquema.sql", "0002_passagens_geradas.sql", "0003_funcao_unica.sql", "0004_travas_e_permissoes.sql", "0005_publicacao.sql", "0006_configuracoes.sql"]
 PAPEIS_DO_SUPABASE = ["anon", "authenticated", "service_role"]
 HOSTS_LOCAIS = {"127.0.0.1", "localhost", "::1", ""}
 FUNDADOR_TESTE = "00000000-0000-4000-8000-000000000001"
@@ -165,8 +165,14 @@ def montar_banco(url_admin, substituicoes=None, papeis_de_teste=()):
     url_admin = exigir_banco_local(url_admin)
     nome = "helena_v2_t_" + secrets.token_hex(5)
     with psycopg.connect(url_admin, autocommit=True) as adm:
-        criados = criar_papeis(adm, PAPEIS_DO_SUPABASE + list(papeis_de_teste))
-        adm.execute(sql.SQL("create database {}").format(sql.Identifier(nome)))
+        # Papéis são globais ao servidor. Serializa a criação para duas suítes locais
+        # não disputarem o mesmo papel; o banco descartável continua independente.
+        adm.execute("select pg_advisory_lock(84219075)")
+        try:
+            criados = criar_papeis(adm, PAPEIS_DO_SUPABASE + list(papeis_de_teste))
+            adm.execute(sql.SQL("create database {}").format(sql.Identifier(nome)))
+        finally:
+            adm.execute("select pg_advisory_unlock(84219075)")
     banco = Banco(url_admin, nome, criados)
     try:
         with banco.conectar() as con:
@@ -187,11 +193,8 @@ def montar_banco(url_admin, substituicoes=None, papeis_de_teste=()):
 def derrubar_banco(banco):
     with psycopg.connect(banco.url_admin, autocommit=True) as adm:
         adm.execute(sql.SQL("drop database if exists {} with (force)").format(sql.Identifier(banco.nome)))
-        for r in banco.papeis_criados:
-            try:
-                adm.execute(sql.SQL("drop role if exists {}").format(sql.Identifier(r)))
-            except Exception:
-                pass
+        # Nunca apaga papéis globais no servidor compartilhado: outra suíte pode
+        # estar montando um banco que depende deles. Um cluster próprio cai inteiro.
 
 
 PAPEIS_DE_TESTE = ["h2t_curioso", "h2t_fundador", "h2t_motor"]
