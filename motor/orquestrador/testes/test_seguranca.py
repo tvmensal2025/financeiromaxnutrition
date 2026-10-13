@@ -11,3 +11,9 @@ def test_hostaddr_remoto_nao_escapa_por_host_local():
     with pytest.raises(ValueError, match='local'):
         Motor('postgresql://usuario@localhost/card?hostaddr=198.51.100.23',
               'postgresql://usuario@localhost/dbos')
+
+
+def test_urls_distintas_para_mesmo_banco_sao_recusadas_antes_de_conectar():
+    with pytest.raises(ValueError, match='separados'):
+        Motor('postgresql://usuario@localhost/card',
+              'postgresql+psycopg://outro@127.0.0.1/card?application_name=dbos')

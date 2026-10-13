@@ -68,8 +68,9 @@ def conferir_rubrica(spec, servico, criterios) -> bool:
 
 class Motor:
     def __init__(self, url_banco: str, url_dbos: str, casos: dict[str, str] | None = None):
-        if not url_banco or not url_dbos or url_banco == url_dbos:
+        if not url_banco or not url_dbos:
             raise ValueError('motor exige banco do card e banco DBOS separados')
+        bancos = []
         for url in (url_banco, url_dbos):
             dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
             parametros = conninfo_to_dict(dsn)
@@ -77,6 +78,9 @@ class Motor:
             hostaddr = parametros.get('hostaddr') or os.environ.get('PGHOSTADDR')
             if host not in ('localhost', '127.0.0.1', '::1') or (hostaddr and hostaddr not in ('127.0.0.1', '::1')):
                 raise ValueError('este motor de teste exige PostgreSQL local')
+            bancos.append(parametros.get('dbname'))
+        if bancos[0] == bancos[1]:
+            raise ValueError('motor exige banco do card e banco DBOS separados')
         self.url_banco = url_banco
         self.url_dbos = url_dbos
         self.spec = Spec()
@@ -220,13 +224,17 @@ class Motor:
             resposta = json.loads(salva['texto'])
         except (ValueError, TypeError):
             resposta = None
+        conteudo_resposta = resposta if isinstance(resposta, dict) else salva['texto']
         if not isinstance(resposta, dict):
             resposta = {}
+        acao_externa = resposta.get('acao_externa')
+        tipo_acao = acao_externa.get('tipo') if isinstance(acao_externa, dict) else None
+        parecer = resposta.get('parecer')
         self._evento('etapa', etapa_id, 'AUTOR', 'ENTREGAR',
-                     {'parecer': resposta.get('parecer', 'OK'),
-                      'acao_externa': (resposta.get('acao_externa') or {}).get('tipo', 'NENHUMA'),
+                     {'parecer': parecer if parecer in ('OK', 'AJUSTE', 'NAO_PODE') else 'OK',
+                      'acao_externa': tipo_acao if tipo_acao in ('NENHUMA', 'SO_FUNDADOR', 'PELO_MOTOR') else 'NENHUMA',
                       'usou_internet': contexto['usou_internet']}, ator=etapa['autor'], chave=numero,
-                     conteudo={'resposta': salva['texto']})
+                     conteudo={'resposta': conteudo_resposta})
         if relatorio.aprovada:
             atual = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
             self._evento('etapa', etapa_id, 'MOTOR', 'PORTAO1_OK', {'escolhido': atual['revisores_validos'][0]},

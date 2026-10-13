@@ -171,13 +171,18 @@ def test_queda_apos_salvar_retomada_sem_refazer_agente(banco, url_dbos, monkeypa
         motor.fechar()
 
 
-def test_json_invalido_recebe_recusa_do_portao1(banco, url_dbos):
+@pytest.mark.parametrize('texto', [
+    '{',
+    '{"acao":"ENTREGAR","acao_externa":"NENHUMA"}',
+    '{"acao":"ENTREGAR","parecer":"DESCONHECIDO","acao_externa":{"tipo":"DESCONHECIDO"}}',
+])
+def test_resposta_invalida_recebe_recusa_do_portao1(banco, url_dbos, texto):
     from executor_helena.executor_falso import ExecutorFalso, Roteiro
     motor = Motor(banco.url, url_dbos)
     try:
         card = motor.criar_card(PLANO, 'json-invalido')
         etapa = _ate_execucao(motor, card)
-        motor.executor = ExecutorFalso(lambda _exec: Roteiro(texto='{'))
+        motor.executor = ExecutorFalso(lambda _exec: Roteiro(texto=texto))
         motor.executar_etapa(etapa['id'])
         assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'NA_FILA'
         with motor._con() as con:
