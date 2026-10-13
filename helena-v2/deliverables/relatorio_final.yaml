@@ -152,10 +152,13 @@ checagens_codigo:
   - id: CHK-REL-RISCO-ALTO-NO-RESUMO
     descricao: >-
       Para cada etapa que a parte montada pelo código traz com risco ALTO, pergunta aberta ou item
-      sem conferir, pelo menos uma linha do resumo tem essa etapa nas refs.
+      sem conferir, pelo menos uma linha com conteúdo do resumo tem essa etapa nas refs.
     fecha_furos: [C-13]
     gravidade: RECUSA
     fase: "fase 2"
+    parametros:
+      min_palavras_com_conteudo: 2
+      min_letras_palavra: 4
   - id: CHK-REL-SEM-ACAO-NOVA
     descricao: >-
       Linha com verbo de ação de fora (lista fechada) precisa ter nas refs um AF- de etapa aprovada

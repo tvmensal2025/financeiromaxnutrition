@@ -17,6 +17,7 @@ import re
 from decimal import Decimal
 
 from .. import texto as T
+from ..contexto import ErroDeContexto
 from ..numeros import para_decimal
 from ..registro import checagem
 from ..resultado import Falha
@@ -95,7 +96,7 @@ def _numero_tipado(texto, fonte=False):
         bruto = achado.group()
         formas = _leituras_da_fonte(bruto) if fonte else {ler_brasileiro(bruto)}
         antes = _MOEDA_ANTES.search(texto[max(0, achado.start() - 5):achado.start()])
-        depois = re.match(r"\s*(milhões|milhão|milhoes|milhao|mil|mi|k)?\b\s*(?:de\s+)?(dólares?|reais?|euros?|horas?|pessoas?|minutos?|%)?", texto[achado.end():], re.IGNORECASE)
+        depois = re.match(r"\s*(?:(milhões|milhão|milhoes|milhao|mil|mi|k)\b)?\s*(?:de\s+)?(dólares?|reais?|euros?|horas?|pessoas?|minutos?|%)?", texto[achado.end():], re.IGNORECASE)
         escala = T.dobrar(depois.group(1) or "") if depois else ""
         unidade = T.dobrar(depois.group(2) or "") if depois else ""
         tipo = antes.group().strip().upper() if antes else _UNIDADES.get(unidade, "%" if unidade == "%" else None)
@@ -108,17 +109,27 @@ def _numero_tipado(texto, fonte=False):
                 forma = format((Decimal(forma) * _ESCALA[escala]).normalize(), "f")
             saida.append((bruto, forma, tipo))
     if not fonte:
-        palavras = re.findall(r"[a-z]+", T.dobrar(texto))
+        dobrado = T.dobrar(texto)
+        tokens = list(re.finditer(r"[a-z]+", dobrado))
+        palavras = [m.group() for m in tokens]
         for i, palavra in enumerate(palavras):
-            if palavra not in _UNIDADES or _UNIDADES[palavra] not in {"US$", "R$", "€"}:
+            if palavra not in _UNIDADES and not (palavra == "cento" and i and palavras[i - 1] == "por"):
                 continue
-            fim = i - 1 if i and palavras[i - 1] == "de" else i
+            tipo = "%" if palavra == "cento" else _UNIDADES[palavra]
+            fim = i - 1 if tipo == "%" else i - 1 if i and palavras[i - 1] == "de" else i
             inicio = fim
             while inicio and palavras[inicio - 1] in C.PALAVRAS_DE_NUMERO | {"e"}:
                 inicio -= 1
+            if inicio < fim and palavras[inicio] == "e":
+                inicio += 1
+            # Em "10 mil reais", o mil já pertence ao numeral de algarismos.
+            if inicio < fim and re.search(r"\d\s*$", dobrado[:tokens[inicio].start()]):
+                continue
+            if tipo == "pessoa" and palavras[inicio:fim] in (["um"], ["uma"]):
+                continue  # artigo indefinido em "uma pessoa leiga"
             valor = C.numero_por_extenso(palavras[inicio:fim]) if inicio < fim else None
             if valor is not None:
-                saida.append((" ".join(palavras[inicio:i + 1]), str(valor), _UNIDADES[palavra]))
+                saida.append((" ".join(palavras[inicio:i + 1]), str(valor), tipo))
     return saida
 
 
@@ -165,8 +176,10 @@ def numeros_nas_fontes(exe):
             continue
         refs = linha.refs()
         fontes = _numeros_das_fontes(pacote, refs)
+        fontes.update(forma for texto_fonte in _textos_das_fontes(pacote, refs)
+                      for _, forma, _ in _numero_tipado(texto_fonte) if forma is not None)
         tipados = {(forma, tipo) for fonte in _textos_das_fontes(pacote, refs)
-                   for _, forma, tipo in _numero_tipado(fonte, fonte=True) if tipo is not None}
+                   for modo in (True, False) for _, forma, tipo in _numero_tipado(fonte, fonte=modo) if tipo is not None}
         for ref in refs:
             if ref in pacote.etapas_aprovadas:
                 tipados.update(_numeros_estruturados(pacote.etapas_aprovadas[ref].get("trechos")))
@@ -194,6 +207,11 @@ def numeros_nas_fontes(exe):
 def risco_alto_no_resumo(exe):
     if not aplicavel(exe):
         return None
+    parametros = exe.parametros(ID_RISCO)
+    minimo = parametros.get("min_palavras_com_conteudo")
+    letras = parametros.get("min_letras_palavra")
+    if any(type(n) is not int or n < 1 for n in (minimo, letras)):
+        raise ErroDeContexto(f"{ID_RISCO}: min_palavras_com_conteudo e min_letras_palavra devem ser inteiros positivos.")
     try:
         pacote = carregar_pacote(exe)
     except PacoteIncompleto as erro:
@@ -207,10 +225,13 @@ def risco_alto_no_resumo(exe):
     for item in pacote.sem_conferir:
         exigem.setdefault(item["etapa"], []).append("item sem conferir")
     resumo = linhas(exe, SECAO_DO_RESUMO)
+    def com_conteudo(linha):
+        palavras = T.tokens_alfa(linha.celula("frase") or "")
+        return len(palavras) >= minimo and any(len(p) >= letras for p in palavras)
     falhas = [Falha(ID_RISCO, "RESUMO_SEM_CONTEUDO", linha.caminho + ".frase",
-                    "A frase do resumo precisa explicar a etapa citada em pelo menos cinco palavras.", T.cortar(linha.celula("frase") or ""))
-              for linha in resumo if len(T.tokens_alfa(linha.celula("frase") or "")) < 5]
-    citadas = {r for linha in resumo if len(T.tokens_alfa(linha.celula("frase") or "")) >= 5 for r in linha.refs()}
+                    "A frase do resumo precisa trazer conteúdo além de uma palavra solta.", T.cortar(linha.celula("frase") or ""))
+              for linha in resumo if not com_conteudo(linha)]
+    citadas = {r for linha in resumo if com_conteudo(linha) for r in linha.refs()}
     falhas += [Falha(ID_RISCO, "ETAPA_FORA_DO_RESUMO", f"entrega.{SECAO_DO_RESUMO}",
                   f"A etapa {etapa} tem {' e '.join(dict.fromkeys(motivos))} na parte montada pelo código, mas nenhuma linha do resumo a cita nas refs. "
                   f"Acrescente uma linha do resumo que fale dela, com {etapa} nas refs.", etapa)
@@ -239,8 +260,24 @@ def sem_acao_nova(exe):
         limpo = T.dobrar(T.normalizar(texto))
         refs_de_acao = refs_validas_de_acao(pacote, linha.refs())
         textos_autorizados = [T.dobrar(T.normalizar(t)) for ref in refs_de_acao for t in pacote.textos_fixos.get(ref, [])]
-        achado = next((m.group(0) for rx in verbos if (m := rx.search(limpo))
-                       and not any(rx.search(t) for t in textos_autorizados)), None)
+        def autorizada(rx, encontro):
+            # O verbo sozinho não autoriza outro objeto: "publicar o texto" não
+            # autoriza "publicar dados pessoais". Isto é uma guarda lexical;
+            # a equivalência de sentido continua na rubrica do revisor.
+            trecho = limpo[encontro.end():].split(".", 1)[0]
+            alvos = [p for p in T.tokens_alfa(trecho)[:10]
+                     if p not in {"o", "a", "os", "as", "de", "do", "da", "na", "no", "e", "ou", "para", "com", "aprovado", "aprovada", "ao"}]
+            aliases = {"convite": "texto"}
+            alvo = aliases.get(alvos[0], alvos[0]) if alvos else None
+            def mesmo_alvo(fixo):
+                palavras_fixas = T.tokens_alfa(fixo)
+                if alvo == "empresa":
+                    return "empresa" in palavras_fixas or ("humano" in palavras_fixas and
+                            len(set(alvos[1:]) & set(palavras_fixas)) >= 2)
+                return alvo in palavras_fixas
+            return any(rx.search(fixo) and alvo and mesmo_alvo(fixo) for fixo in textos_autorizados)
+        achado = next((m.group(0) for rx in verbos for m in rx.finditer(limpo)
+                       if not autorizada(rx, m)), None)
         if achado:
             falhas.append(Falha(ID_ACAO, "ACAO_NOVA", f"{linha.caminho}.{coluna}",
                                 f"A linha pede uma ação de fora ('{achado}') que não aparece no texto fixo das ações AF-/PF- citadas. "

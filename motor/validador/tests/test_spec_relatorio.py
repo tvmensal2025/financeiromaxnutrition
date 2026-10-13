@@ -48,6 +48,62 @@ def test_ref_de_acao_nao_autoriza_passo_diferente(texto, refs):
     assert "ACAO_NOVA" in motivos(roda(r, c), "CHK-REL-SEM-ACAO-NOVA")
 
 
+@pytest.mark.parametrize("texto", [
+    "Publique os dados pessoais dos participantes na plataforma do concorrente.",
+    "Envie os dados pessoais dos participantes aos anunciantes.",
+])
+def test_mesmo_verbo_com_objeto_novo_nao_e_autorizado(texto):
+    r, c = base()
+    passo(r, 3)["passo"] = texto
+    assert "ACAO_NOVA" in motivos(roda(r, c), "CHK-REL-SEM-ACAO-NOVA")
+
+
+@pytest.mark.parametrize("texto,esperado", [
+    ("10 mil reais", [("10", "10000", "R$")]),
+    ("10%", [("10", "10", "%")]),
+    ("10 %", [("10", "10", "%")]),
+    ("vinte pessoas e cem horas", [("vinte pessoas", "20", "pessoa"), ("cem horas", "100", "hora")]),
+])
+def test_numero_tipado_preserva_escala_e_grandeza(texto, esperado):
+    from validador.checagens.spec_relatorio_pacote import _numero_tipado
+    assert _numero_tipado(texto) == esperado
+
+
+@pytest.mark.parametrize("texto", [
+    "São vinte pessoas gravando cem horas por dia.",
+    "A taxa de aprovação foi de 10% por semana, conforme a conta.",
+])
+def test_grandeza_inventada_nao_usa_numero_de_outra_unidade(texto):
+    r, c = base()
+    frase(r, 0).update(frase=texto, refs="E1, E2")
+    assert motivos(roda(r, c), "CHK-REL-NUMEROS")
+
+
+@pytest.mark.parametrize("fonte,frase_honesta", [
+    ("A previsão é de 10 mil reais.", "A previsão é de 10 mil reais."),
+    ("A aprovação chegou a 10%.", "A aprovação chegou a 10 %."),
+    ("Há vinte pessoas por cem horas.", "Há vinte pessoas por cem horas."),
+])
+def test_grandeza_igual_a_fonte_passa(fonte, frase_honesta):
+    r, c = base()
+    pacote(c)["entregas_aprovadas"]["E1"]["trechos"]["medida"] = fonte
+    frase(r, 0).update(frase=frase_honesta, refs="E1")
+    assert not motivos(roda(r, c), "CHK-REL-NUMEROS")
+
+
+def test_frase_curta_legitima_conta_no_resumo():
+    r, c = base()
+    frase(r, 4)["frase"] = "Risco jurídico exige advogado."
+    assert "RESUMO_SEM_CONTEUDO" not in motivos(roda(r, c), "CHK-REL-RISCO-ALTO-NO-RESUMO")
+
+
+def test_limiar_do_conteudo_vem_da_especificacao():
+    r, c = base()
+    parametros = c["modelo"]["parametros_das_checagens"]["CHK-REL-RISCO-ALTO-NO-RESUMO"]
+    parametros["min_palavras_com_conteudo"] = 20
+    assert "RESUMO_SEM_CONTEUDO" in motivos(roda(r, c), "CHK-REL-RISCO-ALTO-NO-RESUMO")
+
+
 @pytest.mark.parametrize("texto", ["Fazer o envio do convite ao grupo.", "Realize a publicação do convite.",
                                      "Efetue o pagamento da indicação.", "Fazer um Pix para a plataforma.",
                                      "Manda o convite para a lista.", "Confirmar o valor transferido.",
