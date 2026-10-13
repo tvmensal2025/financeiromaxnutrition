@@ -17,6 +17,7 @@ const EquipePage = lazy(() => import("@/pages/EquipePage"));
 const SistemaPage = lazy(() => import("@/pages/SistemaPage"));
 const ExecucaoPage = lazy(() => import("@/pages/ExecucaoPage"));
 const EntregasPage = lazy(() => import("@/pages/EntregasPage"));
+const CardV2Page = lazy(() => import("@/pages/CardV2Page"));
 const IntegracoesPage = lazy(() => import("@/pages/IntegracoesPage"));
 const ComandoPage = lazy(() => import("@/pages/ComandoPage"));
 const Conversa = lazy(() => import("@/pages/Conversa"));
@@ -118,6 +119,7 @@ function Rotas() {
         <Route path="/consumo" element={<ComandoPage inicial="Consumo" />} />
         <Route path="/execucao" element={<ExecucaoPage />} />
         <Route path="/entregas" element={<EntregasPage />} />
+        {import.meta.env.VITE_HELENA_V2_HABILITADA === 'true' && <Route path="/cards-v2" element={<CardV2Page />} />}
         <Route path="/crm" element={<CrmPage />} />
         <Route path="/financeiro" element={<FinanceiroPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />

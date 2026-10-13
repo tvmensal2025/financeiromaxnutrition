@@ -52,6 +52,9 @@ const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
   { to: "/execucao", label: "Central de Execução", icon: Activity },
   { to: "/entregas", label: "Entregas da equipe", icon: FileText },
+  ...(import.meta.env.VITE_HELENA_V2_HABILITADA === 'true'
+    ? [{ to: "/cards-v2", label: "Cards v2", icon: Layers }]
+    : []),
   { to: "/identidade", label: "Identidade da empresa", icon: Package },
   { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
 ];
@@ -141,6 +144,7 @@ export function Layout() {
     if (pathname === "/comando") return `${empresaNome} / Sala de comando`;
     if (pathname === "/execucao") return `${empresaNome} / Central de Execução`;
     if (pathname === "/entregas") return `${empresaNome} / Entregas da equipe`;
+    if (pathname === "/cards-v2") return `Sistema Helena / Cards v2`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
     if (pathname === "/identidade") return `${empresaNome} / Identidade da empresa`;
