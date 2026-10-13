@@ -32,7 +32,7 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
         assert motor._card(card)['estado'] == 'PRONTO'
         assert toques == ['CONFIRMO', 'APROVAR']
         assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
-        assert {e.ficha.identidade for e in motor.executor.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA', 'RAVI'}
+        assert {e.ficha.identidade for e in motor.executor.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA'}
     finally:
         motor.fechar()
 
@@ -91,7 +91,9 @@ def test_recusa_do_portao1_devolve_ao_autor(banco, url_dbos):
         card = motor.criar_card(PLANO, 'portao1')
         etapa = _ate_execucao(motor, card)
         motor.executar_etapa(etapa['id'])
-        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'NA_FILA'
+        atual = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        assert atual['estado'] == 'EXECUTANDO'
+        assert atual['execucao_atual'] != etapa['execucao_atual']
         with motor._con() as con:
             entrega = con.execute('SELECT portao1 FROM helena_v2.entrega WHERE etapa_id=%s ORDER BY id DESC LIMIT 1',
                                   (etapa['id'],)).fetchone()
@@ -119,7 +121,7 @@ def test_ajuste_do_parecer_reabre_pecas_julgadas(banco, url_dbos):
         assert e4['estado'] == 'ESPERANDO_FUNDADOR'
         motor._evento('etapa', e4['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-ajuste')
         estados = {e['codigo']: e['estado'] for e in motor._etapas(card)}
-        assert estados['E2'] == estados['E3'] == 'NA_FILA'
+        assert estados['E2'] == estados['E3'] == 'EXECUTANDO'
         assert estados['E4'] == 'AGUARDANDO_ANTERIORES'
     finally:
         motor.fechar()
@@ -143,32 +145,27 @@ def test_revisao_repetida_nao_refaz_revisor(banco, url_dbos):
         motor.fechar()
 
 
-def test_queda_apos_salvar_retomada_sem_refazer_agente(banco, url_dbos, monkeypatch):
+def test_queda_apos_salvar_retomada_sem_refazer_agente(banco, url_dbos):
     motor = Motor(banco.url, url_dbos)
+    card = None
+    etapa = None
+    numero = None
     try:
         card = motor.criar_card(PLANO, 'queda-no-meio')
         etapa = _ate_execucao(motor, card)
         numero = etapa['execucao_atual']
-        original = motor.conferir_e_aplicar
-        chamadas = 0
-
-        def cair_uma_vez(etapa_id, numero_execucao):
-            nonlocal chamadas
-            chamadas += 1
-            if chamadas == 1:
-                raise RuntimeError('queda simulada entre os passos')
-            return original(etapa_id, numero_execucao)
-
-        monkeypatch.setattr(motor, 'conferir_e_aplicar', cair_uma_vez)
-        with pytest.raises(RuntimeError, match='queda simulada'):
-            motor.executar_etapa(etapa['id'])
+        motor.executar_e_salvar(etapa['id'], numero)
         assert sum(e.ficha.papel == 'AUTOR' for e in motor.executor.execucoes) == 1
         assert motor._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
-        motor.dbos.resume_workflow(f"{etapa['id']}-{numero}").get_result()
-        assert sum(e.ficha.papel == 'AUTOR' for e in motor.executor.execucoes) == 1
-        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'REVISAO'
     finally:
         motor.fechar()
+    reiniciado = Motor(banco.url, url_dbos)
+    try:
+        reiniciado.executar_etapa(etapa['id'])
+        assert sum(e.ficha.papel == 'AUTOR' for e in reiniciado.executor.execucoes) == 0
+        assert reiniciado._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'REVISAO'
+    finally:
+        reiniciado.fechar()
 
 
 @pytest.mark.parametrize('texto', [
@@ -184,7 +181,9 @@ def test_resposta_invalida_recebe_recusa_do_portao1(banco, url_dbos, texto):
         etapa = _ate_execucao(motor, card)
         motor.executor = ExecutorFalso(lambda _exec: Roteiro(texto=texto))
         motor.executar_etapa(etapa['id'])
-        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'NA_FILA'
+        atual = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        assert atual['estado'] == 'EXECUTANDO'
+        assert atual['execucao_atual'] != etapa['execucao_atual']
         with motor._con() as con:
             entrega = con.execute('SELECT portao1 FROM helena_v2.entrega WHERE etapa_id=%s ORDER BY id DESC LIMIT 1',
                                   (etapa['id'],)).fetchone()

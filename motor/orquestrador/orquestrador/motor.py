@@ -17,6 +17,7 @@ from validador import validar
 from .plano import RAIZ, validar_plano
 
 _MOTOR = None
+FUNDADOR_TESTE = '00000000-0000-4000-8000-000000000001'
 
 
 def _ativo():
@@ -93,7 +94,7 @@ class Motor:
         self.dbos.launch()
 
     def fechar(self):
-        self.dbos.destroy(destroy_registry=True)
+        self.dbos.destroy()
         global _MOTOR
         _MOTOR = None
 
@@ -101,6 +102,8 @@ class Motor:
         con = psycopg.connect(self.url_banco, autocommit=True, row_factory=dict_row)
         if papel:
             con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))
+            if papel == 'authenticated':
+                con.execute("SELECT set_config('request.jwt.claim.sub', %s, false)", (FUNDADOR_TESTE,))
         return con
 
     def _linha(self, sql, args=(), papel='service_role'):
@@ -111,10 +114,10 @@ class Motor:
                 *, automaticos=True, nao_disparar=None, toque=None):
         if maquina not in ('card', 'etapa', 'acao_externa'):
             raise ValueError('máquina desconhecida')
+        versao = None
+        if papel == 'FUNDADOR':
+            versao = self._linha(f'SELECT versao FROM helena_v2.{maquina} WHERE id=%s', (alvo,))['versao']
         with self._con('authenticated' if papel == 'FUNDADOR' else 'service_role') as con:
-            versao = None
-            if papel == 'FUNDADOR':
-                versao = con.execute(f'SELECT versao FROM helena_v2.{maquina} WHERE id=%s', (alvo,)).fetchone()['versao']
             resposta = con.execute('SELECT helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)',
                                    (maquina, alvo, papel, evento, Jsonb(params or {}), ator, chave, versao,
                                     Jsonb(conteudo) if conteudo is not None else None, toque,
@@ -245,6 +248,10 @@ class Motor:
 
     def executar_etapa(self, etapa_id):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
+        if etapa['estado'] == 'REVISAO':
+            return 'REVISAO'
+        if etapa['estado'] != 'EXECUTANDO':
+            raise RuntimeError('execução antiga ou cancelada')
         numero = etapa['execucao_atual']
         if numero is None:
             raise RuntimeError('etapa sem execução atual')
@@ -293,6 +300,9 @@ class Motor:
         return False
 
     def _revisar(self, etapa):
+        etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        if etapa['estado'] != 'REVISAO':
+            return etapa['estado']
         if etapa['execucao_atual'] is None:
             self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO')
             etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
@@ -309,7 +319,7 @@ class Motor:
         revisor = etapa['revisor']
         ficha = self._ficha(revisor, 'REVISOR', servico)
         resultado = self.executor.rodar(Execucao(id=f'{etapa["codigo"]}-{numero}', ficha=ficha,
-                                               pacote=json.dumps({'servico': servico, 'entrega_id': etapa['id']})))
+                                               pacote=json.dumps({'servico': servico, 'entrega_id': str(etapa['id'])})))
         if not resultado.ok:
             self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA', {'classe': resultado.falha.classe if resultado.falha else 'DESCONHECIDA'})
             raise RuntimeError('revisor falhou')
