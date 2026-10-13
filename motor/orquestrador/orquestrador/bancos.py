@@ -122,8 +122,42 @@ SELECT json_build_object(
     SELECT 1 FROM pg_namespace n WHERE n.nspname = 'helena_v2' AND n.nspowner = atual.oid),
   'dono_app_sessao', EXISTS (
     SELECT 1 FROM pg_namespace n WHERE n.nspname = 'helena_v2' AND n.nspowner = sessao.oid),
+  'dono_app_indireto', EXISTS (
+    SELECT 1 FROM pg_namespace n JOIN pg_roles dono ON dono.oid = n.nspowner
+    WHERE n.nspname = 'helena_v2'
+      AND (pg_has_role(atual.oid, dono.oid, 'SET')
+        OR pg_has_role(atual.oid, dono.oid, 'USAGE')
+        OR pg_has_role(sessao.oid, dono.oid, 'SET')
+        OR pg_has_role(sessao.oid, dono.oid, 'USAGE'))),
+  'dono_funcoes_indireto', EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    JOIN pg_roles dono ON dono.oid = p.proowner
+    WHERE p.prosecdef AND n.nspname IN ('helena_v2', 'public')
+      AND (pg_has_role(atual.oid, dono.oid, 'SET')
+        OR pg_has_role(atual.oid, dono.oid, 'USAGE')
+        OR pg_has_role(sessao.oid, dono.oid, 'SET')
+        OR pg_has_role(sessao.oid, dono.oid, 'USAGE'))),
+  'alcanca_admin_indireto', EXISTS (
+    SELECT 1 FROM pg_roles r
+    WHERE r.oid <> atual.oid AND r.rolname <> 'service_role'
+      AND (r.rolsuper OR r.rolbypassrls OR r.rolcreaterole OR r.rolcreatedb
+        OR r.rolreplication OR left(r.rolname, 3) = 'pg_'
+        OR r.rolname IN ('postgres','supabase_admin','authenticator',
+          'supabase_auth_admin','supabase_storage_admin'))
+      AND (pg_has_role(atual.oid, r.oid, 'SET')
+        OR pg_has_role(atual.oid, r.oid, 'USAGE')
+        OR pg_has_role(sessao.oid, r.oid, 'SET')
+        OR pg_has_role(sessao.oid, r.oid, 'USAGE'))),
   'dono_dbos', EXISTS (
-    SELECT 1 FROM pg_namespace n WHERE n.nspname = 'dbos_helena_v2' AND n.nspowner = atual.oid)
+    SELECT 1 FROM pg_namespace n WHERE n.nspname = 'dbos_helena_v2' AND n.nspowner = atual.oid),
+  'dono_dbos_indireto', EXISTS (
+    SELECT 1 FROM pg_namespace n JOIN pg_roles dono ON dono.oid = n.nspowner
+    WHERE n.nspname = 'dbos_helena_v2' AND dono.oid <> atual.oid
+      AND (pg_has_role(atual.oid, dono.oid, 'SET')
+        OR pg_has_role(atual.oid, dono.oid, 'USAGE')
+        OR pg_has_role(sessao.oid, dono.oid, 'SET')
+        OR pg_has_role(sessao.oid, dono.oid, 'USAGE')))
 ) AS dados
 FROM pg_roles atual JOIN pg_roles sessao ON sessao.rolname = session_user
 WHERE atual.rolname = current_user
@@ -151,13 +185,18 @@ def preflight_papel_runtime(con, *, sistema: bool = False) -> dict:
               'replication_atual', 'super_sessao', 'bypass_sessao', 'create_role_sessao',
               'create_db_sessao', 'replication_sessao', 'dono_app', 'dono_app_sessao', 'dono_dbos',
               'membro_service_role', 'sessao_membro_service_role', 'pode_set_service_role',
-              'herda_service_role')
+              'herda_service_role', 'dono_app_indireto', 'dono_funcoes_indireto',
+              'alcanca_admin_indireto', 'dono_dbos_indireto')
     if any(type(dados.get(k)) is not bool for k in chaves):
         raise PapelRuntimeInvalido('flags de papel runtime incompletas')
     if any(dados[k] for k in chaves if k.startswith(('super_', 'bypass_', 'create_', 'replication_'))):
         raise PapelRuntimeInvalido('privilégio administrativo proibido no runtime')
     if dados['dono_app'] or dados['dono_app_sessao']:
         raise PapelRuntimeInvalido('runtime não pode ser dono do schema do aplicativo')
+    if dados['dono_app_indireto'] or dados['dono_funcoes_indireto'] or dados['alcanca_admin_indireto']:
+        raise PapelRuntimeInvalido('runtime alcança papel dono ou administrativo por outro caminho')
+    if dados['dono_dbos_indireto']:
+        raise PapelRuntimeInvalido('runtime alcança dono DBOS por outro caminho')
     if not sistema and (not dados['membro_service_role'] or dados['dono_dbos']):
         raise PapelRuntimeInvalido('papel do aplicativo sem membership ou com posse DBOS')
     if not sistema and (dados['vinculo_set'] is not True

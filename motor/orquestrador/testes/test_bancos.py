@@ -101,7 +101,9 @@ def _dados(**altera):
              'pode_set_service_role': True, 'herda_service_role': False,
              'vinculo_set': True, 'vinculo_inherit': False, 'vinculo_admin': False,
              'dono_app': False,
-             'dono_app_sessao': False, 'dono_dbos': False}
+             'dono_app_sessao': False, 'dono_dbos': False,
+             'dono_app_indireto': False, 'dono_funcoes_indireto': False,
+             'alcanca_admin_indireto': False, 'dono_dbos_indireto': False}
     for prefixo in ('super', 'bypass', 'create_role', 'create_db', 'replication'):
         dados[prefixo + '_atual'] = False
         dados[prefixo + '_sessao'] = False
@@ -112,6 +114,11 @@ def test_preflight_app_e_dbos_so_leem_papeis():
     app = ConexaoFalsa(_dados())
     assert preflight_papel_runtime(app)['membro_service_role'] is True
     assert len(app.queries) == 1
+    assert "pg_has_role(atual.oid, dono.oid, 'SET')" in app.queries[0]
+    assert "pg_has_role(sessao.oid, dono.oid, 'USAGE')" in app.queries[0]
+    assert "pg_has_role(atual.oid, r.oid, 'SET')" in app.queries[0]
+    assert "r.rolname <> 'service_role'" in app.queries[0]
+    assert "dono.rolname <> 'service_role'" not in app.queries[0]
     sistema = ConexaoFalsa(_dados(papel_atual='helena_dbos', papel_sessao='helena_dbos',
                                  membro_service_role=False, sessao_membro_service_role=False,
                                  pode_set_service_role=False, herda_service_role=False,
@@ -129,6 +136,10 @@ def test_preflight_app_e_dbos_so_leem_papeis():
     ({'create_role_atual': True}, False),
     ({'dono_app': True}, False),
     ({'dono_app_sessao': True}, False),
+    ({'dono_app_indireto': True}, False),
+    ({'dono_funcoes_indireto': True}, False),
+    ({'alcanca_admin_indireto': True}, False),
+    ({'dono_dbos_indireto': True}, False),
     ({'dono_dbos': True}, False),
     ({'membro_service_role': False}, False),
     ({'pode_set_service_role': False}, False),
@@ -148,3 +159,10 @@ def test_preflight_recusa_admin_owner_ou_membership_errada(altera, sistema):
 def test_preflight_falha_fechada_em_dados_incompletos():
     with pytest.raises(PapelRuntimeInvalido):
         preflight_papel_runtime(ConexaoFalsa({'papel_atual': 'helena_runtime'}))
+
+
+def test_service_role_excecao_apenas_do_set_previsto_nao_de_ownership():
+    preflight_papel_runtime(ConexaoFalsa(_dados()))
+    for flag in ('dono_app_indireto', 'dono_funcoes_indireto', 'dono_dbos_indireto'):
+        with pytest.raises(PapelRuntimeInvalido):
+            preflight_papel_runtime(ConexaoFalsa(_dados(**{flag: True})))
