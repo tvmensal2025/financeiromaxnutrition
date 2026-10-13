@@ -22,6 +22,29 @@ from executor_helena.executor import ExecutorHermes
 RAIZ = Path(__file__).resolve().parents[3]
 
 
+def _execucao_atual_no_duble(monkeypatch, motor):
+    """Só os testes sem PostgreSQL simulam a posse da chave durante rodar()."""
+    monkeypatch.setattr(motor, '_execucao_ainda_atual',
+                        lambda _maquina, _alvo, _chave: True)
+
+
+@pytest.mark.parametrize('falha_banco', [False, True])
+def test_vigia_unitaria_recusa_chave_antiga_ou_banco_indisponivel(monkeypatch, falha_banco):
+    motor = object.__new__(Motor)
+    motor.executor = SimpleNamespace(rodar=lambda _execucao: SimpleNamespace(ok=True, texto='{}'),
+                                     cancelar=lambda _id: True)
+
+    def consultar(_maquina, _alvo, _chave):
+        if falha_banco:
+            raise psycopg.OperationalError('banco indisponível')
+        return False
+
+    monkeypatch.setattr(motor, '_execucao_ainda_atual', consultar)
+    with pytest.raises((RuntimeError, psycopg.OperationalError),
+                       match='cancelada|indisponível'):
+        motor._rodar_vigiado(SimpleNamespace(id='E3-42'), 'etapa', uuid4(), 42)
+
+
 def _ordem_real():
     tarefa = 'TSK-REAL-01'
     empresa = 'BIZ-003'
@@ -370,6 +393,7 @@ def test_evento_automatico_real_confere_fontes_e_aplica_na_mesma_transacao(monke
 @pytest.mark.parametrize('falha_sql', [False, True])
 def test_coordenacao_salva_antes_de_limpar_e_replay_nao_repete_hermes(monkeypatch, falha_sql):
     motor = object.__new__(Motor)
+    _execucao_atual_no_duble(monkeypatch, motor)
     card_id = uuid4()
     revisao_id = uuid4()
     card = {'id': card_id, 'titulo': 'Convite', 'ordem_de_servico': _ordem_real(),
@@ -466,6 +490,7 @@ def test_coordenacao_aplica_resposta_salva_sob_guarda_fontes_na_mesma_transacao(
 
 def test_falha_da_coordenadora_e_registrada_mesmo_se_fonte_mudar_durante_execucao(monkeypatch):
     motor = object.__new__(Motor)
+    _execucao_atual_no_duble(monkeypatch, motor)
     card_id = uuid4()
     eventos = []
     motor.executor = SimpleNamespace(rodar=lambda _execucao: SimpleNamespace(ok=False, texto=None))
@@ -514,6 +539,7 @@ def test_autor_real_sem_insumo_registra_falha_antes_de_chamar_hermes(monkeypatch
 @pytest.mark.parametrize('uso', ['invalid', None])
 def test_coordenacao_registra_falha_de_evidencia_antes_de_repetir(monkeypatch, uso):
     motor = object.__new__(Motor)
+    _execucao_atual_no_duble(monkeypatch, motor)
     card_id = uuid4()
     eventos = []
     motor.executor = SimpleNamespace(rodar=lambda _execucao: SimpleNamespace(ok=True, texto='{}'))
@@ -543,6 +569,7 @@ def test_coordenacao_registra_falha_de_evidencia_antes_de_repetir(monkeypatch, u
 def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(
         monkeypatch, falha_sql, falha_prova):
     motor = object.__new__(Motor)
+    _execucao_atual_no_duble(monkeypatch, motor)
     chamadas = []
     contexto_ids = []
     etapa = {'id': uuid4(), 'card_id': uuid4(), 'codigo': 'E3',
@@ -626,6 +653,7 @@ def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(
 @pytest.mark.parametrize('falha_prova', [False, True])
 def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monkeypatch, falha_prova):
     motor = object.__new__(Motor)
+    _execucao_atual_no_duble(monkeypatch, motor)
     etapa = {'id': uuid4(), 'card_id': uuid4(), 'codigo': 'E3', 'estado': 'REVISAO',
              'execucao_atual': 43, 'revisor': 'ISABELA'}
     revisao_id = str(uuid4())
