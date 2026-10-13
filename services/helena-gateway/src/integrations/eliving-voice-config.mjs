@@ -44,7 +44,7 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
         "use_speaker_boost": true,
         "speed": 1
       },
-      "googleFallbackVoice": "pt-BR-Chirp3-HD-Alkaid"
+      "googleFallbackVoice": "pt-BR-Chirp3-HD-Puck"
     },
     "vital": {
       "voiceId": "IKpiSijWzlhOL6uX83EH",
@@ -183,7 +183,7 @@ export const ELIVING_VOICE_CONFIG = deepFreeze({
     "eleven_flash_",
     "eleven_turbo_"
   ],
-  "sourceHash": "30fed19bc93d054799e6d2dca6c42370117cf55e518cba3d4e2ea3544ffcb68d"
+  "sourceHash": "cbd3287f2a796ec4807e2904b182c40620d7c25b468839e955c555508b331222"
 });
 
 export default ELIVING_VOICE_CONFIG;
