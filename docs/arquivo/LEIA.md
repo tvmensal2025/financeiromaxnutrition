@@ -122,3 +122,4 @@ Classificação da auditoria `docs/auditoria/AUDITORIA-2026-10-10.md`.
 | `docs/arquivo/helena-v2-v1/entregas.yaml` | `helena-v2/deliverables/entregas.yaml` | DESCARTAR: índice antigo da v1, substituído por um arquivo por tipo em helena-v2/deliverables/ |
 | `docs/arquivo/helena-v2-v1/ravi-ficha-v2-antiga.yaml` | `helena-v2/agents/ravi.yaml` | DESCARTAR: ficha do Ravi no formato antigo (v2), substituída pela ficha v3.1 no mesmo caminho (11/10/2026) |
 | `docs/arquivo/helena-v2-v1/recrutar-10-pessoas-v1.yaml` | `helena-v2/playbooks/recrutar-10-pessoas.yaml` | DESCARTAR: roteiro das 10 pessoas no formato antigo (v1), reescrito na v3.1 no mesmo caminho (11/10/2026) |
+| `docs/arquivo/ataques-validador-20261011.tar.gz` | scripts de apoio dos 3 atacantes do validador (`/tmp` da sessão de 11/10/2026) | GUARDAR: mutações e reproduções para refazer os ataques; os achados estão em `docs/auditoria/ATAQUES-2026-10-11.md`. Descompacte fora do repositório |

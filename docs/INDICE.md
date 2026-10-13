@@ -173,6 +173,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.md` | Sistema Helena — Checkpoint Mestre de continuidade de 01/10/2026 | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.snapshot.json` | dados (JSON): schema_version, prepared_at, observed_at, project | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261007.md` | Checkpoint Mestre V036 — 07/10/2026 | 07/10/2026 |
+| `docs/arquivo/ataques-validador-20261011.tar.gz` | pacote compactado (scripts de ataque ao validador) | 11/10/2026 |
 | `docs/arquivo/duplicados/continuidade-helena-20261001.zip` | pacote zip | 01/10/2026 |
 | `docs/arquivo/duplicados/kokoro-tts-documentacao-oficial.md` | 🎙️ Guia Oficial de Conexão e Vozes: Kokoro Neural TTS (Instância Canônica) | 30/09/2026 |
 | `docs/arquivo/helena-v2-v1/entregas.yaml` | dados (YAML) | 08/10/2026 |
