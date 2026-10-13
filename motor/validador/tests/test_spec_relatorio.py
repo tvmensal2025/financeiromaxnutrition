@@ -51,6 +51,9 @@ def test_ref_de_acao_nao_autoriza_passo_diferente(texto, refs):
 @pytest.mark.parametrize("texto", [
     "Publique os dados pessoais dos participantes na plataforma do concorrente.",
     "Envie os dados pessoais dos participantes aos anunciantes.",
+    "Publique o convite e os dados pessoais dos participantes na plataforma do concorrente.",
+    "Envie o convite e os dados pessoais dos participantes aos anunciantes.",
+    "Publique o convite e a tabela cadastral de clientes.",
 ])
 def test_mesmo_verbo_com_objeto_novo_nao_e_autorizado(texto):
     r, c = base()
@@ -62,6 +65,7 @@ def test_mesmo_verbo_com_objeto_novo_nao_e_autorizado(texto):
     ("10 mil reais", [("10", "10000", "R$")]),
     ("10%", [("10", "10", "%")]),
     ("10 %", [("10", "10", "%")]),
+    ("10 por cento", [("10", "10", "%")]),
     ("vinte pessoas e cem horas", [("vinte pessoas", "20", "pessoa"), ("cem horas", "100", "hora")]),
 ])
 def test_numero_tipado_preserva_escala_e_grandeza(texto, esperado):
@@ -72,6 +76,7 @@ def test_numero_tipado_preserva_escala_e_grandeza(texto, esperado):
 @pytest.mark.parametrize("texto", [
     "São vinte pessoas gravando cem horas por dia.",
     "A taxa de aprovação foi de 10% por semana, conforme a conta.",
+    "A taxa de aprovação foi de 10 por cento por semana, conforme a conta.",
 ])
 def test_grandeza_inventada_nao_usa_numero_de_outra_unidade(texto):
     r, c = base()

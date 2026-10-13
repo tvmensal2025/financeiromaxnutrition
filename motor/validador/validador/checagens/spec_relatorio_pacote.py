@@ -100,6 +100,8 @@ def _numero_tipado(texto, fonte=False):
         escala = T.dobrar(depois.group(1) or "") if depois else ""
         unidade = T.dobrar(depois.group(2) or "") if depois else ""
         tipo = antes.group().strip().upper() if antes else _UNIDADES.get(unidade, "%" if unidade == "%" else None)
+        if tipo is None and re.match(r"\s+por\s+cento\b", texto[achado.end():], re.IGNORECASE):
+            tipo = "%"
         if fonte and tipo is None and re.search(r"pessoas? no grupo:\s*$", T.dobrar(texto[max(0, achado.start() - 30):achado.start()])):
             tipo = "pessoa"
         if not fonte and re.fullmatch(r"\d{1,3},\d{3}", bruto) and tipo in {"US$", "R$", "€"}:
@@ -261,21 +263,30 @@ def sem_acao_nova(exe):
         refs_de_acao = refs_validas_de_acao(pacote, linha.refs())
         textos_autorizados = [T.dobrar(T.normalizar(t)) for ref in refs_de_acao for t in pacote.textos_fixos.get(ref, [])]
         def autorizada(rx, encontro):
-            # O verbo sozinho não autoriza outro objeto: "publicar o texto" não
-            # autoriza "publicar dados pessoais". Isto é uma guarda lexical;
-            # a equivalência de sentido continua na rubrica do revisor.
+            # Cada objeto e complemento substantivo da ação precisa caber no
+            # texto fixo; o primeiro objeto sozinho não autoriza um segundo.
             trecho = limpo[encontro.end():].split(".", 1)[0]
-            alvos = [p for p in T.tokens_alfa(trecho)[:10]
-                     if p not in {"o", "a", "os", "as", "de", "do", "da", "na", "no", "e", "ou", "para", "com", "aprovado", "aprovada", "ao"}]
-            aliases = {"convite": "texto"}
-            alvo = aliases.get(alvos[0], alvos[0]) if alvos else None
-            def mesmo_alvo(fixo):
-                palavras_fixas = T.tokens_alfa(fixo)
-                if alvo == "empresa":
-                    return "empresa" in palavras_fixas or ("humano" in palavras_fixas and
-                            len(set(alvos[1:]) & set(palavras_fixas)) >= 2)
-                return alvo in palavras_fixas
-            return any(rx.search(fixo) and alvo and mesmo_alvo(fixo) for fixo in textos_autorizados)
+            gramaticais = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "na", "no", "nas", "nos",
+                           "e", "ou", "para", "com", "ao", "aos", "a", "quem", "que", "sem", "como", "aqui",
+                           "primeiras", "primeiros", "aceitar", "mudar", "manda", "passo", "fixo"}
+            alvos = [p for p in T.tokens_alfa(trecho) if p not in gramaticais]
+            if not alvos:
+                return False
+            for fixo in textos_autorizados:
+                if not rx.search(fixo):
+                    continue
+                permitidos = set(T.tokens_alfa(fixo))
+                if "texto" in permitidos:
+                    permitidos.add("convite")
+                if "humano" in permitidos and "digital" in permitidos:
+                    permitidos.update({"empresa", "roteiro"})
+                if "roteiro" in permitidos:
+                    permitidos.update({"treinamento", "convite"})
+                if "pessoas" in permitidos or "texto" in permitidos:
+                    permitidos.add("pessoas")
+                if all(alvo in permitidos for alvo in alvos):
+                    return True
+            return False
         achado = next((m.group(0) for rx in verbos for m in rx.finditer(limpo)
                        if not autorizada(rx, m)), None)
         if achado:
