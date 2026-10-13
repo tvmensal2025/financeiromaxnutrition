@@ -171,6 +171,8 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | Arquivo | O que é | Data |
 |---|---|---|
 | `docs/arquivo/LEIA.md` | Arquivo | 10/10/2026 |
+| `docs/arquivo/handoff-ate-20261013-387d1d4.md` | Handoff integral anterior ao bloco 0 | 13/10/2026 |
+| `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` | Receita de reversão visual seletiva, preparada e ensaiada em cópia | 13/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.md` | Sistema Helena — Checkpoint Mestre de continuidade de 01/10/2026 | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.snapshot.json` | dados (JSON): schema_version, prepared_at, observed_at, project | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261007.md` | Checkpoint Mestre V036 — 07/10/2026 | 07/10/2026 |

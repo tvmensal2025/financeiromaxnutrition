@@ -3,6 +3,13 @@
 Tudo aqui é **só para consulta**. Nada foi apagado: o que saiu de uso veio para cá com o motivo ao lado.
 Para saber onde está o que vale hoje, veja `docs/INDICE.md`.
 
+## Passagem e reversão visual de 13/10/2026
+
+| Agora em | Antes em | Por quê |
+|---|---|---|
+| `docs/arquivo/handoff-ate-20261013-387d1d4.md` | `HANDOFF-CLAUDE-CODE.md` | preserva integralmente os blocos históricos; o handoff ativo ficou curto e atualizado |
+| `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` | proposta preparada, nunca aplicada ao ramo | receita testada em cópia para retirar só o acabamento visual da v1, preservando as correções de sessão, as rotas v2 e o CSS original |
+
 ## Atenção
 
 - `artifacts/checkpoint-20261001/*.py` e `scripts/checkpoint-mestre-20261001.sql` citam os caminhos antigos destes documentos. Eles são o registro da publicação do checkpoint de 01/10/2026 (rodavam no PC do fundador) e **não devem ser rodados de novo**.
