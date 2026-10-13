@@ -28,6 +28,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/manual/agentes-v1.md` | Agentes do Sistema Helena — contrato operacional | 06/10/2026 |
 | `docs/manual/comando-mestre.txt` | COMANDO MESTRE — CARREGAR, VALIDAR E AUDITAR O SISTEMA HELENA | 30/09/2026 |
 | `docs/manual/como-mudar.md` | Como mudar o Sistema Helena sem quebrar | 11/10/2026 |
+| `docs/manual/proximos-passos-do-primeiro-card.md` | Próximos passos do primeiro card — em detalhe | 13/10/2026 |
 | `docs/manual/design-premium.md` | 🎨 Guia de Design Premium | 30/09/2026 |
 | `docs/manual/diretriz-missao-cumprida.md` | Sistema Helena — Diretriz Operacional Suprema | 06/10/2026 |
 | `docs/manual/padrao-criativo-multiempresa.md` | Padrão criativo multiempresa — versão 2 | 30/09/2026 |
