@@ -2,7 +2,8 @@
 import copy
 import hashlib
 import json
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 
 from .fonte_supabase import PROJECT_REF
 
@@ -126,4 +127,80 @@ def preparar_tarefa_real(captura: dict, plano: dict) -> dict:
     ])
     return {'estado': 'AGUARDANDO_CONFIRMACAO', 'tarefa_id': task_id,
             'business_id': business, 'dados_reais': dados, 'pendencias': pendencias,
+            'agentes_chamados': 0, 'escritas_remotas': 0}
+
+
+def confirmar_preparacao(preparacao: dict, prazo: str, criterios: list,
+                         restricoes: list, fontes: list) -> dict:
+    """Confirma escolhas do fundador sem alterar um só fato da captura observada.
+
+    A saída ainda não autoriza ninguém: somente a RPC com JWT do fundador grava
+    a solicitação, após conferir novamente cada linha da fonte no banco.
+    """
+    from ferramentas_helena.enderecos import analisar_url
+    from ferramentas_helena.erros import ErroFerramenta
+
+    if not isinstance(preparacao, dict) or preparacao.get('estado') != 'AGUARDANDO_CONFIRMACAO':
+        raise ValueError('preparação real pendente obrigatória')
+    dados = preparacao.get('dados_reais')
+    if not isinstance(dados, dict) or not isinstance(dados.get('pedido'), dict):
+        raise ValueError('preparação sem dados reais')
+    plano = dados['pedido'].get('plano')
+    original = preparar_tarefa_real(dados.get('captura'), plano)
+    if (dados != original['dados_reais'] or preparacao.get('tarefa_id') != original['tarefa_id']
+            or preparacao.get('business_id') != original['business_id']):
+        raise ValueError('preparação alterada fora dos campos confirmáveis')
+    if dados['pedido']['pacote_da_empresa']['estado'] != 'CONFIRMADO':
+        raise ValueError('identidade da empresa sem confirmação na fonte')
+    if not isinstance(prazo, str):
+        raise ValueError('prazo deve incluir data, hora e fuso')
+    try:
+        instante = datetime.fromisoformat(prazo.replace('Z', '+00:00'))
+    except ValueError as erro:
+        raise ValueError('prazo deve incluir data, hora e fuso') from erro
+    agora = datetime.now(timezone.utc)
+    try:
+        maximo = agora.replace(year=agora.year + 10)
+    except ValueError:  # 29 de fevereiro + dez anos não bissextos
+        maximo = agora.replace(year=agora.year + 10, day=28)
+    if (instante.tzinfo is None or instante.utcoffset() is None
+            or not agora < instante.astimezone(timezone.utc) <= maximo):
+        raise ValueError('prazo deve ser futuro e estar dentro de dez anos')
+    if (not isinstance(criterios, list) or not 1 <= len(criterios) <= 5
+            or any(not isinstance(c, dict) or set(c) != {'id', 'texto', 'quem_confere', 'risco'}
+                   or c['id'] != f'CARD-{i}' or c['quem_confere'] != 'IA'
+                   or c['risco'] not in ('ALTO', 'BAIXO')
+                   or not isinstance(c['texto'], str) or not 3 <= len(c['texto'].strip()) <= 200
+                   or c['texto'] != c['texto'].strip()
+                   for i, c in enumerate(criterios, 1))):
+        raise ValueError('critérios confirmados inválidos')
+    if (not isinstance(restricoes, list) or len(restricoes) > 5
+            or any(not isinstance(t, str) or not 3 <= len(t.strip()) <= 200 or t != t.strip()
+                   for t in restricoes)):
+        raise ValueError('restrições confirmadas inválidas')
+    if not isinstance(fontes, list) or len(fontes) > 20:
+        raise ValueError('lista de fontes inválida')
+    for url in fontes:
+        if (not isinstance(url, str) or len(url) > 500 or not url.startswith('https://')
+                or '%' in url):
+            raise ValueError('fonte deve ser endereço HTTPS público')
+        try:
+            endereco = analisar_url(url)
+        except ErroFerramenta as erro:
+            raise ValueError('fonte deve ser endereço HTTPS público') from erro
+        if (endereco.url != url or endereco.ip_literal is not None or endereco.porta != 443
+                or ':' in url.split('/', 3)[2]
+                or '?' in url or '#' in url
+                or re.fullmatch(r'[a-z]{2,63}', endereco.host.rsplit('.', 1)[-1]) is None):
+            raise ValueError('fonte deve ser URL pública canônica sem IP ou consulta')
+    if len(set(fontes)) != len(fontes):
+        raise ValueError('fontes repetidas')
+    confirmado = json.loads(_json(dados))
+    ordem = confirmado['pedido']['ordem_de_servico']
+    ordem.update({'prazo': prazo, 'como_e_o_pronto': json.loads(_json(criterios)),
+                  'nao_pode': list(restricoes), 'fontes_que_pode_ler': list(fontes)})
+    if len(_json(confirmado).encode('utf-8')) > 1_000_000:
+        raise ValueError('dados reais excedem um megabyte')
+    return {'estado': 'PRONTO_PARA_SOLICITAR', 'tarefa_id': original['tarefa_id'],
+            'prazo': prazo, 'plano': json.loads(_json(plano)), 'dados_reais': confirmado,
             'agentes_chamados': 0, 'escritas_remotas': 0}

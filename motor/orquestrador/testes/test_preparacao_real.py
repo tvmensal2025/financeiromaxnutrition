@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from orquestrador.preparacao import preparar_tarefa_real
+from orquestrador.preparacao import preparar_tarefa_real, confirmar_preparacao
 from orquestrador.__main__ import _salvar_preparacao, main
 
 
@@ -89,6 +89,63 @@ def test_nao_completa_fonte_ou_decisao_faltante_com_exemplo():
     _assinar(captura)
     with pytest.raises(ValueError, match='decisões'):
         preparar_tarefa_real(captura, plano)
+
+
+def _preparacao_confirmavel():
+    captura, plano = _captura()
+    captura['empresa']['brand_identity'] = {
+        'status': 'APPROVED', 'business_id': 'BIZ-003',
+        'schema_version': 1, 'name': 'Marca de teste'}
+    _assinar(captura)
+    return preparar_tarefa_real(captura, plano)
+
+
+def test_confirmacao_preserva_fatos_e_congela_escolhas_do_fundador():
+    bruto = _preparacao_confirmavel()
+    original = copy.deepcopy(bruto)
+    pronto = confirmar_preparacao(bruto, '2027-10-20T12:00:00+00:00',
+        [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+          'quem_confere': 'IA', 'risco': 'ALTO'}],
+        ['Não publicar sem autorização.'], ['https://example.org/regras'])
+    assert bruto == original
+    assert pronto['estado'] == 'PRONTO_PARA_SOLICITAR'
+    assert pronto['dados_reais']['captura'] == original['dados_reais']['captura']
+    assert pronto['dados_reais']['fontes_importadas'] == original['dados_reais']['fontes_importadas']
+    ordem = pronto['dados_reais']['pedido']['ordem_de_servico']
+    assert ordem['prazo'] == pronto['prazo']
+    assert ordem['fontes_que_pode_ler'] == ['https://example.org/regras']
+    assert pronto['dados_reais']['captura']['tarefa']['prazo'] is None
+
+
+@pytest.mark.parametrize('fontes', [
+    ['https://localhost/regras'], ['https://127.0.0.1/regras'],
+    ['https://example.org/login'], ['https://user:pass@example.org/regras'],
+    ['https://example.org/%6cogin'],
+    ['https://kubernetes.default/'], ['https://example.org/convite'],
+    ['https://example.org/verify'], ['https://example.org/register'],
+    ['https://example.org/ref'], ['https://example.x/'],
+    ['https://example.org/a|b'], ['https://example.org/<prova>'],
+    ['https://example.org:80/regras'],
+    ['https://example.org/regras?token=x'], ['https://example.org/regras'] * 2,
+])
+def test_confirmacao_recusa_fontes_nao_autorizaveis(fontes):
+    with pytest.raises(ValueError):
+        confirmar_preparacao(_preparacao_confirmavel(), '2027-10-20T12:00:00+00:00',
+            [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+              'quem_confere': 'IA', 'risco': 'ALTO'}], [], fontes)
+
+
+def test_confirmacao_recusa_criterio_sem_escolha_e_captura_adulterada():
+    bruto = _preparacao_confirmavel()
+    with pytest.raises(ValueError, match='critérios'):
+        confirmar_preparacao(bruto, '2027-10-20T12:00:00+00:00',
+                            [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+                              'quem_confere': 'CODIGO', 'risco': 'ALTO'}], [], [])
+    bruto['dados_reais']['captura']['tarefa']['tarefa'] = 'Alterado'
+    with pytest.raises(ValueError):
+        confirmar_preparacao(bruto, '2027-10-20T12:00:00+00:00',
+                            [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+                              'quem_confere': 'IA', 'risco': 'ALTO'}], [], [])
 
 
 def test_captura_privada_nao_sobrescreve_historico(tmp_path):
