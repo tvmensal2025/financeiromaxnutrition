@@ -30,13 +30,99 @@ function withEnv(t, values) {
 
 const contextFor = status => async () => ({ status });
 
-test('política padrão é restrita (só alunos) e valor inválido volta ao padrão seguro', () => {
-  assert.equal(DEFAULT_INBOUND_CALL_POLICY, 'students');
-  assert.equal(inboundCallPolicy({}), 'students');
-  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: 'ALL' }), 'all');
+// Decisão do dono (13/10/2026): ligação no WhatsApp não é bloqueada; a Sirlene atende e converte quem não é aluno.
+test('política padrão atende todos (decisão do dono); students e none continuam como opção', () => {
+  assert.equal(DEFAULT_INBOUND_CALL_POLICY, 'all');
+  assert.equal(inboundCallPolicy({}), 'all');
+  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: 'qualquer' }), 'all');
+  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: '' }), 'all');
+  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: 'STUDENTS' }), 'students');
   assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: ' none ' }), 'none');
-  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: 'qualquer' }), 'students');
-  assert.equal(inboundCallPolicy({ VOICE_INBOUND_CALL_POLICY: '' }), 'students');
+});
+
+test('sem configurar nada, número desconhecido é atendido pela Sirlene e não é desligado', async (t) => {
+  withEnv(t, { VOICE_INBOUND_CALL_POLICY: undefined, MAX_VOICE_CONTEXT_URL: undefined, MAX_VOICE_CONTEXT_TOKEN: undefined });
+  const callId = `gate-default-${Date.now()}`;
+  const spoken = [];
+  try {
+    const result = await handleCallConnectedWebhook({ call_id: callId, direction: 'INBOUND', remote_number: '5511900003333' }, {
+      generateOpening: async profile => `Olá, aqui é a ${profile.character_name}.`,
+      speak: async args => { spoken.push(args.text); return { ok: true }; },
+      hangup: async () => assert.fail('não pode desligar')
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.character, 'Sirlene');
+    assert.equal(spoken.length, 1);
+    assert.equal((await awaitCallGate(callId)).allowed, true);
+  } finally {
+    endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
+});
+
+test('quem não é aluno: a Sirlene responde com o roteiro de conversão salvo no Admin e, se o GPT falhar, com a fala segura', async (t) => {
+  const ROTEIRO_DO_ADMIN = 'Apresente o eLiving com calma, explique como funciona e convide para baixar o app.';
+  withEnv(t, { VOICE_INBOUND_CALL_POLICY: undefined, OPENAI_API_KEY: 'chave-openai-simulada', ELEVENLABS_API_KEY: undefined,
+    MAX_VOICE_CONTEXT_URL: 'https://ficha.test/voice-caller-context', MAX_VOICE_CONTEXT_TOKEN: 'token-de-teste-com-tamanho-suficiente',
+    MEOWCALLER_TOKEN: 'token-meowcaller-de-teste' });
+  const { getProfile, updateProfile } = await import('../src/integrations/call-engine.mjs');
+  const original = getProfile('sirlene', 'normal').prospect_script || '';
+  updateProfile('sirlene', 'normal', { prospect_script: ROTEIRO_DO_ADMIN }, 'teste');
+  t.after(() => updateProfile('sirlene', 'normal', { prospect_script: original }, 'teste'));
+  const { Readable, Transform } = await import('node:stream');
+  const { setGoogleTTSClientForTesting } = await import('../src/integrations/google-chirp3-hd.mjs');
+  setGoogleTTSClientForTesting({ streamingSynthesize: () => new Transform({ objectMode: true, transform(msg, _e, cb) {
+    if (msg.input?.text) this.push({ audioContent: Buffer.alloc(640, 1) });
+    cb();
+  } }) });
+  t.after(() => setGoogleTTSClientForTesting(null));
+  const sse = data => Buffer.from(`data: ${JSON.stringify(data)}\r\n\r\n`);
+  const systemPrompts = [];
+  let llmFails = false;
+  t.mock.method(globalThis, 'fetch', async (url, opts = {}) => {
+    const target = String(url);
+    if (target === 'https://ficha.test/voice-caller-context') {
+      const body = JSON.parse(opts.body);
+      return body.action ? Response.json({ status: 'saved', matched: false }) : Response.json({ status: 'unidentified' });
+    }
+    if (target === 'https://api.openai.com/v1/chat/completions') {
+      const request = JSON.parse(opts.body);
+      // A classificação de fatos da fala (voice-facts.mjs) também usa a OpenAI, sem streaming: não é a resposta.
+      if (!request.stream) return Response.json({ choices: [{ message: { content: '[]' }, finish_reason: 'stop' }] });
+      systemPrompts.push(request.messages[0].content);
+      if (llmFails) return new Response('indisponível', { status: 500 });
+      return { ok: true, body: Readable.from([sse({ choices: [{ delta: { content: 'Que bom que ligou! ' } }] }),
+        sse({ choices: [{ delta: {}, finish_reason: 'stop' }] })]) };
+    }
+    if (target.endsWith('/play/stream')) {
+      try { for await (const chunk of opts.body) void chunk; } catch { /* cancelado */ }
+      return Response.json({ ok: true });
+    }
+    if (target.endsWith('/play')) return Response.json({ ok: true });
+    return new Response('não simulado', { status: 404 });
+  });
+  const callId = `gate-prospect-${Date.now()}`;
+  const spoken = [];
+  try {
+    await handleCallConnectedWebhook({ call_id: callId, direction: 'INBOUND', remote_number: '5511900004444' }, {
+      generateOpening: async () => 'Olá, aqui é a Sirlene.', speak: async () => ({ ok: true })
+    });
+    const answer = await processUserSpeech({ callId, userText: 'O que é o eLiving?', speechEpoch: 1 });
+    assert.equal(answer.ok, true);
+    assert.equal(systemPrompts.length, 1);
+    assert.match(systemPrompts[0], /ROTEIRO SALVO PARA QUEM AINDA NÃO É CLIENTE/);
+    assert.ok(systemPrompts[0].includes(ROTEIRO_DO_ADMIN), 'usa o roteiro de conversão do Admin');
+    assert.doesNotMatch(systemPrompts[0], /REGISTROS DO MAX/, 'nunca a ficha de um aluno');
+
+    llmFails = true;
+    const failed = await processUserSpeech({ callId, userText: 'E quanto custa?', speechEpoch: 2 },
+      { speak: async ({ text }) => { spoken.push(text); return { ok: true }; } });
+    assert.equal(failed.fallback, true);
+    assert.equal(spoken.length, 1);
+    assert.match(spoken[0], /probleminha/);
+    assert.doesNotMatch(spoken[0], /Pedro|Max Nutrition|creatina|whey|suplement|frete|Pix/i);
+  } finally {
+    endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
 });
 
 test('decisão por ficha: só aluno identificado é atendido; desconhecido, ambíguo e ficha fora do ar não', async () => {
@@ -77,8 +163,8 @@ test('a consulta usa a mesma busca de ficha por telefone do gateway (voice-calle
     { allowed: false, reason: 'context_unavailable' });
 });
 
-test('número desconhecido: não abre a conversa, não fala, desliga uma vez e registra o motivo', async (t) => {
-  withEnv(t, { VOICE_INBOUND_CALL_POLICY: undefined });
+test('opção students: número desconhecido não abre a conversa, não fala, desliga uma vez e registra o motivo', async (t) => {
+  withEnv(t, { VOICE_INBOUND_CALL_POLICY: 'students' });
   const callId = `gate-unknown-${Date.now()}`;
   const hangups = [];
   const deps = {

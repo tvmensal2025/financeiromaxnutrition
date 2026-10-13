@@ -1,21 +1,22 @@
 /**
  * inbound-call-gate.mjs — Quem a IA atende numa ligação RECEBIDA pelo WhatsApp.
  *
- * O meowcaller atende a chamada VoIP na hora (o protocolo do WhatsApp exige o aceite imediato, engine.go), então o
- * filtro fica aqui, antes de qualquer gasto: com a política padrão ("students") só o aluno conhecido do eLiving
- * (ficha encontrada pelo telefone na Edge voice-caller-context, a mesma busca da conversa) é atendido pela IA.
- * Número desconhecido, ambíguo, sem telefone (LID) ou ficha fora do ar: a ligação é encerrada sem abertura, sem
- * STT, sem GPT e sem voz, e o motivo é registrado (sem telefone nem conteúdo no log).
+ * Decisão do dono (13/10/2026): "ligação no WhatsApp não é bloqueada; a Sirlene atende com o prompt que tem no
+ * Admin, convertendo e explicando". Por isso o padrão é "all": todo número é atendido pela Sirlene; o aluno conhecido
+ * conversa com a ficha dele e quem não é aluno ouve o roteiro de conversão salvo no Admin (prospect_script da
+ * Sirlene Normal, caller-context.mjs).
  *
- * Interruptor: VOICE_INBOUND_CALL_POLICY = students (padrão, restrito) | all (atende qualquer número, como antes)
- * | none (não atende nenhuma ligação recebida). Valor ausente ou inválido = students.
+ * Interruptor VOICE_INBOUND_CALL_POLICY: all (padrão; também quando ausente ou inválido) | students (só aluno
+ * conhecido: ficha encontrada pelo telefone na Edge voice-caller-context; os demais são desligados sem abertura,
+ * STT, GPT nem voz) | none (nenhuma ligação recebida é atendida pela IA). O meowcaller aceita o VoIP na hora (o
+ * WhatsApp exige), então este filtro fica no gateway, antes de qualquer gasto.
  * Ligação de SAÍDA (aberta pelo app em call-phone) não passa por este filtro.
  */
 import { loadCallerContext } from './caller-context.mjs';
 import { getCallSession, normalizeCallId } from './call-engine.mjs';
 
 export const INBOUND_CALL_POLICIES = Object.freeze(['students', 'all', 'none']);
-export const DEFAULT_INBOUND_CALL_POLICY = 'students';
+export const DEFAULT_INBOUND_CALL_POLICY = 'all';
 /** Quanto uma fala que chegou antes do webhook de atendimento espera pela decisão. */
 export const INBOUND_GATE_WAIT_MS = 8000;
 
@@ -75,11 +76,11 @@ export function forgetCallGate(callId) {
   gates.delete(normalizeCallId(callId));
 }
 
-/** Decisão já conhecida agora, sem esperar (silêncio, cutucada): sem decisão = não atende. */
+/** Decisão já conhecida agora, sem esperar (silêncio, cutucada). A decisão da ligação vale antes da política. */
 export function isCallAllowedNow(callId, { policy = inboundCallPolicy() } = {}) {
-  if (policy === 'all') return true;
   const decided = callGateDecision(callId);
   if (decided) return decided.allowed;
+  if (policy === 'all') return true;
   return getCallSession(callId)?.direction === 'OUTBOUND';
 }
 
@@ -88,9 +89,9 @@ export function isCallAllowedNow(callId, { policy = inboundCallPolicy() } = {}) 
  * atendimento aguarda até `timeoutMs`; sem decisão nesse prazo, não é processada.
  */
 export async function awaitCallGate(callId, { policy = inboundCallPolicy(), timeoutMs = INBOUND_GATE_WAIT_MS } = {}) {
-  if (policy === 'all') return { allowed: true, reason: 'policy_all' };
   const decided = callGateDecision(callId);
   if (decided) return decided;
+  if (policy === 'all') return { allowed: true, reason: 'policy_all' };
   if (getCallSession(callId)?.direction === 'OUTBOUND') return { allowed: true, reason: 'outbound' };
   const entry = gateEntry(callId);
   let timer;

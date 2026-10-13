@@ -101,9 +101,9 @@ CALL_MAX_DURATION_SECONDS=300
 ### Quem a IA atende numa ligação recebida
 
 O serviço aceita toda chamada VoIP recebida na hora (o WhatsApp exige o aceite imediato; ver `internal/voice/engine.go`,
-`OnIncomingCall`). Quem decide se a conversa acontece é o **helena-gateway**: com `VOICE_INBOUND_CALL_POLICY=students`
-(padrão) só aluno conhecido do eLiving é atendido; os demais são desligados pelo gateway (`POST /v1/calls/{id}/hangup`)
-sem STT, GPT nem voz. A variável `ENABLE_AUTO_ANSWER_CONTROLLED_NUMBERS` deste serviço é lida mas **não tem efeito**.
+`OnIncomingCall`). Quem decide se a conversa acontece é o **helena-gateway** (`VOICE_INBOUND_CALL_POLICY`): no
+padrão `all` a Sirlene atende todo número (decisão do dono, 13/10/2026); com `students`, só aluno conhecido, e os
+demais são desligados pelo gateway (`POST /v1/calls/{id}/hangup`) sem STT, GPT nem voz. A variável `ENABLE_AUTO_ANSWER_CONTROLLED_NUMBERS` deste serviço é lida mas **não tem efeito**.
 
 ### Privacidade nos logs (pendente no Go)
 

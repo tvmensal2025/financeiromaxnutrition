@@ -292,9 +292,9 @@ WHATSAPP_BRAND_NAME=CONFIGURAR_SOMENTE_NO_EASYPANEL
 # Não repetir a mesma auto-resposta ao mesmo número nesta janela (ms). Padrão 60000.
 WHATSAPP_AUTOREPLY_DEBOUNCE_MS=60000
 
-# Ligação RECEBIDA pelo WhatsApp: quem a IA atende (ver 5.3). Padrão seguro: students.
-# students = só aluno conhecido do eLiving | all = qualquer número (comportamento antigo) | none = ninguém
-VOICE_INBOUND_CALL_POLICY=students
+# Ligação RECEBIDA pelo WhatsApp: quem a IA atende (ver 5.3). Padrão (decisão do dono, 13/10/2026): all.
+# all = qualquer número (a Sirlene converte quem não é aluno) | students = só aluno conhecido | none = ninguém
+VOICE_INBOUND_CALL_POLICY=all
 ```
 
 ### 5.1 Webhook Evolution — fail-closed e ordem segura de publicação
@@ -341,32 +341,38 @@ O menu URA (opções 1–4) e o `agent_id` do job vêm da **mesma tabela** em `s
 
 A auto-resposta **não promete prazo** ("em instantes"). Criar o `agent_job` com status `READY` **não aciona** o especialista: no Protocolo V9 os bots só agem após despacho da Marina (`record_dispatch`, AGT-04) e `claim_job`. Não há caminho sanctioned no webhook para disparar o agente sem gravar em `agent_job_events` (proibido neste fluxo).
 
-### 5.3 Ligação recebida pelo WhatsApp: só aluno conhecido (VOICE_INBOUND_CALL_POLICY)
+### 5.3 Ligação recebida pelo WhatsApp: quem a IA atende (VOICE_INBOUND_CALL_POLICY)
 
-O meowcaller-service atende a chamada VoIP na hora (o WhatsApp exige o aceite imediato), então o filtro fica no
-gateway, antes de qualquer gasto (`src/integrations/inbound-call-gate.mjs`):
+Decisão do dono (13/10/2026): a ligação no WhatsApp **não é bloqueada**; a Sirlene atende todo número. O aluno
+conhecido (ficha encontrada pelo telefone na Edge `voice-caller-context`) conversa com a ficha dele; quem não é aluno
+ouve o **roteiro de conversão salvo no Admin** (campo "roteiro para novos contatos" da Sirlene Normal, `prospect_script`,
+gravado em `configuracao` e usado em `src/integrations/caller-context.mjs`). O filtro fica no gateway, antes de
+qualquer gasto (`src/integrations/inbound-call-gate.mjs`), porque o meowcaller aceita o VoIP na hora.
 
 | Valor | Comportamento |
 |---|---|
-| `students` (**padrão**; ausente ou inválido também vale `students`) | A IA só conversa com quem tem ficha encontrada pelo telefone na Edge `voice-caller-context` (mesma busca da conversa, `MAX_VOICE_CONTEXT_URL`/`MAX_VOICE_CONTEXT_TOKEN`). Número desconhecido, ambíguo, sem telefone (LID) ou ficha fora do ar: a ligação é encerrada sem abertura, sem STT, sem GPT e sem voz, e o motivo vai para o log (`[VOICE_GATE] ... (caller_unidentified \| caller_ambiguous \| context_unavailable)`), sem telefone. |
-| `all` | Atende qualquer número (comportamento anterior a 13/10/2026). |
-| `none` | Não conversa com nenhuma ligação recebida. |
+| `all` (**padrão**; ausente ou inválido também vale `all`) | Atende qualquer número, como descrito acima. |
+| `students` (opção) | Só aluno conhecido. Número desconhecido, ambíguo, sem telefone (LID) ou ficha fora do ar é desligado sem abertura, sem STT, sem GPT e sem voz; o motivo vai para o log (`[VOICE_GATE] ... (caller_unidentified \| caller_ambiguous \| context_unavailable)`), sem telefone. |
+| `none` (opção) | Não conversa com nenhuma ligação recebida. |
 
-- A fala que chega antes do aviso de atendimento espera a decisão por até 8 s; sem decisão, não é transcrita.
+- Com `students`/`none`, a fala que chega antes do aviso de atendimento espera a decisão por até 8 s; sem decisão,
+  não é transcrita.
 - Ligação de **saída** (botão "Me ligar no celular", `call-engine/call-phone`) não passa por este filtro.
-- Com `students`, quem ainda não é cliente deixa de ouvir o roteiro de boas-vindas da Sirlene por ligação.
 - A variável `ENABLE_AUTO_ANSWER_CONTROLLED_NUMBERS` do meowcaller-service **não tem efeito**: o filtro é este.
 
 ### 5.4 Ligação: modo, resposta de reserva e telemetria
 
 - `call-phone` respeita o modo pedido pelo app (`normal`, `firm`, `intense`; aceita `firme`, `intenso`); ausente ou
   inválido abre em Normal. A abertura sai sempre no modo Normal do personagem; as respostas seguem o modo pedido.
-- GPT sem resposta numa ligação do eLiving (Sirlene, Alex, Vital, Rafael): o personagem fala uma frase fixa pedindo
+- GPT sem resposta numa ligação do eLiving (Sirlene, Alex, Vital, Rafael), com aluno ou com quem ainda não é
+  aluno: o personagem fala uma frase fixa pedindo
   para repetir (no máximo 2 vezes seguidas) e, na falha seguinte, despede-se ("Vou encerrar por aqui. Tente de novo
   em alguns minutos pelo app.") e a ligação é encerrada. O motor local do agente de voz (catálogo configurado no
   painel) só responde fora de ligação do eLiving (`src/integrations/call-fallback.mjs`).
 - Telemetria (`/call-engine/history`): `tts.provider` de cada fala e da ligação é o provedor que realmente falou
   (`ELEVENLABS`, `GOOGLE_CHIRP3_HD` ou os dois), com a contagem por provedor em `tts.providers`.
+- Privacidade: logs só com ids, tamanhos, tempos e telefone mascarado (4 últimos dígitos, `src/log-privacy.mjs`);
+  as respostas aos webhooks do meowcaller não levam fala, transcrição nem resumo da conversa.
 
 ---
 
