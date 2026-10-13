@@ -86,3 +86,44 @@ it('permite repetir consulta de publicação e não anuncia sucesso sem confirma
   expect(await screen.findByText(/Não foi possível confirmar o pedido/)).toBeTruthy();
   expect(screen.queryByText(/Pedido de hoje registrado/)).toBeNull();
 });
+
+it('recarrega o detalhe quando o card selecionado é clicado novamente', async () => {
+  const detalhar = vi.fn()
+    .mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Primeira versão', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }], entregas: [] })
+    .mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Versão atualizada', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 2, portao1_ok: true, entrega_fresca: true }], entregas: [] });
+  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar })} />);
+  const botao = await screen.findByRole('button', { name: /Card A/ });
+  fireEvent.click(botao);
+  expect(await screen.findByText(/Primeira versão/)).toBeTruthy();
+  fireEvent.click(botao);
+  expect(await screen.findByText(/Versão atualizada/)).toBeTruthy();
+  expect(detalhar).toHaveBeenCalledTimes(2);
+});
+
+it('permite ver todas as linhas e níveis profundos de uma entrega aprovada como texto', async () => {
+  const campos = Object.fromEntries(Array.from({ length: 121 }, (_, i) => [`campo_${i}`, `valor ${i}`]));
+  const profundo = { a: { b: { c: { d: { e: { f: { g: { h: '<script>alert(1)</script> texto profundo' } } } } } } } };
+  const detalhe = { etapas: [{ id: 'e1', codigo: 'E1', nome: 'Pesquisa', estado: 'PRONTA', autor: 'Ravi', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }],
+    entregas: [{ id: 1, etapa_id: 'e1', versao: 1, portao1: 'PASSOU', conteudo: { ...campos, profundo }, criada_em: '2026-10-13T12:00:00Z' }] };
+  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar: vi.fn().mockResolvedValue(detalhe) })} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Card A/ }));
+  expect(await screen.findByText('valor 0')).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Mostrar todas/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: /Mostrar todas/ }));
+  expect(screen.getByText('valor 120')).toBeTruthy();
+  expect(screen.getByText(/texto profundo/)).toBeTruthy();
+  expect(document.querySelector('script')).toBeNull();
+});
+
+it('atualiza lista e detalhe do card selecionado sem recarregar a página', async () => {
+  const listar = vi.fn().mockResolvedValueOnce([card('a', 'Card A')]).mockResolvedValueOnce([card('a', 'Card atualizado')]);
+  const detalhar = vi.fn().mockResolvedValueOnce({ etapas: [], entregas: [] }).mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Etapa atual', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }], entregas: [] });
+  render(<CardV2Page repositorio={repositorio({ listar, detalhar })} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Card A/ }));
+  expect(await screen.findByText('Este card ainda não tem etapas.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Atualizar cards' }));
+  expect(await screen.findByText(/Etapa atual/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Card atualizado/ })).toBeTruthy();
+  expect(listar).toHaveBeenCalledTimes(2);
+  expect(detalhar).toHaveBeenCalledTimes(2);
+});

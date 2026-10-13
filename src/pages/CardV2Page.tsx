@@ -20,27 +20,39 @@ function dataBrasilia(valor: string | null): string {
   });
 }
 
-function linhasDaEntrega(valor: unknown, caminho = '', nivel = 0): { rotulo: string; valor: string }[] {
-  if (nivel > 7) return [];
-  if (valor === null || valor === undefined) return [];
-  if (typeof valor === 'string' || typeof valor === 'number' || typeof valor === 'boolean') {
-    return [{ rotulo: caminho.replaceAll('_', ' ') || 'Texto', valor: String(valor) }];
+function linhasDaEntrega(conteudo: unknown): { rotulo: string; valor: string }[] {
+  const pendentes = [{ valor: conteudo, caminho: '' }];
+  const linhas: { rotulo: string; valor: string }[] = [];
+  while (pendentes.length) {
+    const { valor, caminho } = pendentes.pop()!;
+    if (Array.isArray(valor) && valor.length) {
+      for (let i = valor.length - 1; i >= 0; i--) pendentes.push({ valor: valor[i], caminho: `${caminho} ${i + 1}`.trim() });
+    } else if (valor && typeof valor === 'object' && Object.keys(valor).length) {
+      const campos = Object.entries(valor);
+      for (let i = campos.length - 1; i >= 0; i--) {
+        const [chave, item] = campos[i];
+        pendentes.push({ valor: item, caminho: `${caminho} ${chave.replaceAll('_', ' ')}`.trim() });
+      }
+    } else {
+      linhas.push({ rotulo: caminho || 'Texto', valor: valor === null ? 'nulo' : Array.isArray(valor) || typeof valor === 'object' ? 'vazio' : String(valor) });
+    }
   }
-  if (Array.isArray(valor)) return valor.flatMap((item, i) => linhasDaEntrega(item, `${caminho} ${i + 1}`.trim(), nivel + 1)).slice(0, 120);
-  if (typeof valor === 'object') return Object.entries(valor).flatMap(([chave, item]) =>
-    linhasDaEntrega(item, `${caminho} ${chave.replaceAll('_', ' ')}`.trim(), nivel + 1)).slice(0, 120);
-  return [];
+  return linhas;
 }
 
 function Entrega({ conteudo }: { conteudo: unknown }) {
+  const [expandida, setExpandida] = useState(false);
   const linhas = linhasDaEntrega(conteudo);
+  const limiteInicial = 120;
   if (!linhas.length) return <p className="text-sm text-muted-foreground">A entrega aprovada não contém texto para exibir.</p>;
-  return <dl className="divide-y divide-border/60">
-    {linhas.map((linha, i) => <div key={i} className="grid gap-1 py-2 text-sm sm:grid-cols-[11rem_1fr] sm:gap-4">
+  return <><dl className="divide-y divide-border/60">
+    {(expandida ? linhas : linhas.slice(0, limiteInicial)).map((linha, i) => <div key={i} className="grid gap-1 py-2 text-sm sm:grid-cols-[11rem_1fr] sm:gap-4">
       <dt className="font-medium capitalize text-muted-foreground">{linha.rotulo}</dt>
       <dd className="min-w-0 whitespace-pre-wrap break-words text-foreground">{linha.valor}</dd>
     </div>)}
-  </dl>;
+  </dl>{linhas.length > limiteInicial && <button type="button" aria-expanded={expandida} onClick={() => setExpandida(v => !v)} className="mt-3 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">
+    {expandida ? 'Mostrar menos' : `Mostrar todas as ${linhas.length} partes da entrega`}
+  </button>}</>;
 }
 
 export default function CardV2Page({ repositorio }: PageProps) {
@@ -113,6 +125,20 @@ export default function CardV2Page({ repositorio }: PageProps) {
 
   const selecionado = lista.dado?.find(c => c.id === cardId);
   const detalheVisivel = idDoDetalhe === cardId ? detalhe.dado : null;
+  function atualizarCards() {
+    setTentativaLista(n => n + 1);
+    if (cardId) {
+      setIdDoDetalhe(null);
+      setDetalhe(inicio());
+      setTentativaDetalhe(n => n + 1);
+    }
+  }
+  function escolherCard(id: string) {
+    setIdDoDetalhe(null);
+    setDetalhe(inicio());
+    if (id === cardId) setTentativaDetalhe(n => n + 1);
+    else setCardId(id);
+  }
   return <main className="mx-auto max-w-7xl space-y-8 px-4 py-7 sm:px-8">
     <header className="border-b border-border pb-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Sistema Helena / operação v2</p>
@@ -136,7 +162,8 @@ export default function CardV2Page({ repositorio }: PageProps) {
 
     <div className="grid gap-8 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.6fr)]">
       <section aria-label="Lista de cards" className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cards</h2>
+        <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cards</h2>
+          <button type="button" onClick={atualizarCards} className="text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">Atualizar cards</button></div>
         {(erroInicial || lista.erro) && <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">
           <AlertCircle className="mb-2 h-4 w-4" />{erroInicial || lista.erro}
           {erroInicial && <button type="button" onClick={() => setTentativaConexao(n => n + 1)} className="mt-3 block font-semibold underline">Tentar novamente</button>}
@@ -145,7 +172,7 @@ export default function CardV2Page({ repositorio }: PageProps) {
         {lista.carregando && !erroInicial && <p className="animate-pulse border-b border-border py-5 text-sm text-muted-foreground">Carregando cards…</p>}
         {!lista.carregando && lista.dado?.length === 0 && <p className="border-t border-border py-6 text-sm text-muted-foreground">Nenhum card disponível.</p>}
         <div className="divide-y divide-border border-y border-border">
-          {lista.dado?.map(card => <button key={card.id} type="button" onClick={() => { setIdDoDetalhe(null); setDetalhe(inicio()); setCardId(card.id); }} aria-current={cardId === card.id ? 'true' : undefined}
+          {lista.dado?.map(card => <button key={card.id} type="button" onClick={() => escolherCard(card.id)} aria-current={cardId === card.id ? 'true' : undefined}
             className="group flex w-full items-center justify-between gap-3 px-2 py-4 text-left transition hover:bg-muted/50 active:scale-[0.99]">
             <span className="min-w-0"><strong className="block truncate text-sm">{card.titulo}</strong><span className="mt-1 block text-xs text-muted-foreground">{card.estado.replaceAll('_', ' ')} · {card.dono || 'Dono não informado'}</span></span>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
