@@ -59,3 +59,11 @@ Depois da 0006, reaplicar a 0004 isoladamente revoga as permissões dos RPCs nov
 ## O que ainda não está aqui
 
 Relógio dos prazos e vigia de 5 minutos (o banco só aplica o evento que chegar), fila e vagas (motor), troca de tabela com cards abertos, plano que muda no meio, efeitos de fora das reações (pausar tudo, exemplo de ouro).
+
+## Pedidos reais — migration 0007
+
+Aplicar `0007_pedidos_reais.sql` depois de 0001–0006. O fundador autenticado registra a solicitação; o worker lê e consome de forma idempotente. A criação antiga de card deixa de ser RPC pública do worker. Fontes canônicas são comparadas na solicitação, consumo e promoção; alterações recusam aprovação ou PRONTO, preservando cancelamento. Não reaplicar migrations anteriores isoladamente para restaurar grants.
+
+Antes da implantação, conferir privilégios do dono das funções SECURITY DEFINER sobre as fontes públicas (leitura e locks), RLS, papéis dedicados, exposição da API e backup/retorno. Testes locais não comprovam esses privilégios em produção. Nenhuma migration desta revisão foi aplicada remotamente.
+
+`service_role` é uma identidade privilegiada de backend; sua credencial pertence apenas ao worker, nunca ao cliente. Ela não representa a autorização do fundador: a solicitação exige sua sessão autenticada. O modelo não protege de um worker comprometido que consiga alterar as próprias fontes; verificar grants efetivos na instalação.

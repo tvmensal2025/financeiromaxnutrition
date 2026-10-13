@@ -4,13 +4,71 @@ import json
 import os
 import re
 import subprocess
+from datetime import datetime
 from pathlib import Path
+from uuid import UUID
 
 from .motor import Motor
 from .fonte_supabase import FonteSupabase, ErroFonteSupabase
 from .preparacao import preparar_tarefa_real
 from .plano import RAIZ
 from spec_helena.leitura import ler_yaml
+
+
+def _abrir_runtime_real(*, iniciar_dbos):
+    """Somente adaptador aprovado no código; configurações não carregam plugins."""
+    from .contexto_real import montar_contexto_real
+    from executor_helena.executor import ExecutorHermes
+    from executor_helena.perfil import ConfigDoExecutor
+    nomes = ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL',
+             'HELENA_V2_HERMES_BIN', 'HELENA_V2_HERMES_HOME', 'HELENA_V2_EXECUCOES_DIR')
+    valores = {n: os.environ.get(n) for n in nomes}
+    if any(not v for v in valores.values()):
+        raise ValueError('runtime real requer conexões e caminhos próprios; o token Management não os substitui')
+    binario = Path(valores['HELENA_V2_HERMES_BIN'])
+    if not binario.is_absolute() or not binario.is_file() or not os.access(binario, os.X_OK):
+        raise ValueError('executável Hermes não está preparado')
+    executor = ExecutorHermes(ConfigDoExecutor(
+        comando_hermes=(str(binario),), raiz_hermes=Path(valores['HELENA_V2_HERMES_HOME']),
+        pasta_das_execucoes=Path(valores['HELENA_V2_EXECUCOES_DIR'])))
+    return Motor(valores['HELENA_V2_DATABASE_URL'], valores['HELENA_V2_DBOS_SYSTEM_DATABASE_URL'],
+                 executor=executor, fonte_contexto=montar_contexto_real,
+                 modo_producao=True, iniciar_dbos=iniciar_dbos)
+
+
+def _executar_comando_real(args):
+    """Consome uma solicitação existente ou avança um card; nunca confirma pelo fundador."""
+    avancar = args.comando == 'avancar-card-real'
+    valor = args.card if avancar else args.solicitacao
+    identificador = str(UUID(valor))
+    motor = _abrir_runtime_real(iniciar_dbos=False)
+    try:
+        if avancar:
+            card = motor._card(identificador)
+            if not card or card['ordem_de_servico'].get('modo_contexto') != 'real':
+                raise ValueError('card real não encontrado')
+            # Conferir fontes e autorização antes de iniciar retomadas DBOS.
+            motor._modo_card(identificador)
+            motor.fechar()
+            motor = _abrir_runtime_real(iniciar_dbos=True)
+            houve_avanco = motor.avancar(identificador)
+            return {'card_id': identificador, 'estado': motor._card(identificador)['estado'],
+                    'houve_avanco': houve_avanco}
+        pedido = motor._linha('SELECT helena_v2.ler_solicitacao_card_real(%s::uuid) AS pedido',
+                               (identificador,))['pedido']
+        if not pedido:
+            raise ValueError('solicitação autenticada não encontrada')
+        card_id = motor.criar_card_real(
+            pedido['plano'], origem=pedido['origem'], chave_origem=pedido['chave_origem'],
+            titulo=pedido['titulo'], pedido_original=pedido['pedido_original'],
+            business_id=pedido['business_id'],
+            prazo=datetime.fromisoformat(pedido['prazo'].replace('Z', '+00:00')),
+            dados_reais=pedido['dados_reais'], solicitacao_id=identificador,
+            revisao_id=pedido['config_revision_id'])
+        return {'card_id': str(card_id), 'estado': motor._card(card_id)['estado'],
+                'solicitacao_id': identificador, 'agentes_chamados': 0}
+    finally:
+        motor.fechar()
 
 
 def _salvar_preparacao(caminho, preparacao):
@@ -42,11 +100,28 @@ def _salvar_preparacao(caminho, preparacao):
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
-                                          'preparar-tarefa-real'])
+                                          'preparar-tarefa-real', 'consumir-pedido-real',
+                                          'avancar-card-real'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
     parser.add_argument('--saida', help='Arquivo privado novo fora do checkout')
+    parser.add_argument('--solicitacao', help='UUID do pedido já autenticado no banco')
+    parser.add_argument('--card', help='UUID de um card real existente')
     args = parser.parse_args(argv)
+    if args.comando in ('consumir-pedido-real', 'avancar-card-real'):
+        valor = args.card if args.comando == 'avancar-card-real' else args.solicitacao
+        if not valor:
+            parser.error('informe --card ou --solicitacao conforme o comando')
+        try:
+            resultado = _executar_comando_real(args)
+        except Exception:
+            # DSNs e detalhes de erros do provedor não pertencem à saída pública.
+            print(json.dumps({'estado': 'FALHA_DE_RUNTIME',
+                              'motivo': 'Confira o runtime e a vigência das fontes. Consulte o pedido ou card antes de repetir: uma operação pode ter sido gravada antes da falha. Nenhuma aprovação foi presumida.'},
+                             ensure_ascii=False))
+            return 1
+        print(json.dumps(resultado, ensure_ascii=False))
+        return 0
     if args.comando == 'preparar-tarefa-real':
         if not args.tarefa or not args.roteiro:
             parser.error('preparar-tarefa-real exige --tarefa e --roteiro')
