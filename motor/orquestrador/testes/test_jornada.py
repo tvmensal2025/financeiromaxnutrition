@@ -69,6 +69,7 @@ def test_dossie_avulso_executa_ravi_e_revisao_sem_alterar_roteiro_canonico(banco
         em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
         assert em_revisao['estado'] == 'REVISAO'
         motor._revisar(em_revisao)
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'PRONTA'
         assert [(e.ficha.identidade, e.ficha.papel) for e in motor.executor.execucoes] == [
             ('HELENA', 'COORDENACAO'), ('RAVI', 'AUTOR'), ('ISABELA', 'REVISOR')]
     finally:
