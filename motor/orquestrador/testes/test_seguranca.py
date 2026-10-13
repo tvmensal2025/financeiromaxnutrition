@@ -24,3 +24,23 @@ def test_fundador_exige_identidade_injetada():
     motor = object.__new__(Motor)
     with pytest.raises(RuntimeError, match='identidade do fundador'):
         motor._con('authenticated')
+
+
+def test_worker_nao_inicia_dbos_nem_troca_motor_global(monkeypatch):
+    import orquestrador.motor as modulo
+
+    class DBOSProibido:
+        def __init__(self, **_kwargs):
+            raise AssertionError('worker iniciou DBOS')
+
+    sentinela = object()
+    monkeypatch.setattr(modulo, 'DBOS', DBOSProibido)
+    monkeypatch.setattr(modulo, '_MOTOR', sentinela)
+    worker = Motor('postgresql://postgres@localhost/card',
+                   'postgresql://postgres@localhost/dbos', executor=object(), iniciar_dbos=False)
+    try:
+        assert worker.dbos is None
+        assert modulo._MOTOR is sentinela
+    finally:
+        worker.fechar()
+    assert modulo._MOTOR is sentinela

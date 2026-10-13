@@ -76,7 +76,7 @@ def conferir_rubrica(spec, servico, criterios) -> bool:
 class Motor:
     def __init__(self, url_banco: str, url_dbos: str, casos: dict[str, str] | None = None, executor=None,
                  *, permitir_configuracao_tecnica=False, permitir_servico_rascunho=False,
-                 permitir_executor_falso=False, permitir_casos_sinteticos=False):
+                 permitir_executor_falso=False, permitir_casos_sinteticos=False, iniciar_dbos=True):
         if not url_banco or not url_dbos:
             raise ValueError('motor exige banco do card e banco DBOS separados')
         bancos = []
@@ -108,17 +108,21 @@ class Motor:
             self._fixture_spec = Spec(raiz_fixtures)
         self._revisoes = {}
         self._revisao_tecnica = None
-        global _MOTOR
-        _MOTOR = self
-        self.dbos = DBOS(config=DBOSConfig(name='helena-v2-primeiro-card', system_database_url=url_dbos,
-                                           application_version=VERSAO_CODIGO))
-        self.dbos.launch()
+        self.dbos = None
+        if iniciar_dbos:
+            global _MOTOR
+            _MOTOR = self
+            self.dbos = DBOS(config=DBOSConfig(name='helena-v2-primeiro-card', system_database_url=url_dbos,
+                                               application_version=VERSAO_CODIGO))
+            self.dbos.launch()
 
     def fechar(self):
-        self.dbos.destroy()
+        if self.dbos is not None:
+            self.dbos.destroy()
         self._pasta_snapshots.cleanup()
         global _MOTOR
-        _MOTOR = None
+        if self.dbos is not None and _MOTOR is self:
+            _MOTOR = None
 
     def _con(self, papel='service_role'):
         if papel == 'authenticated':

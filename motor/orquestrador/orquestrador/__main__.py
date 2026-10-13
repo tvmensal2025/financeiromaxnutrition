@@ -15,7 +15,7 @@ def main(argv=None):
         url_dbos = os.environ.get('HELENA_V2_DBOS_SYSTEM_DATABASE_URL')
         if not url_banco or not url_dbos:
             parser.error('defina HELENA_V2_CONFIG_DATABASE_URL e HELENA_V2_DBOS_SYSTEM_DATABASE_URL para bancos locais separados')
-        motor = Motor(url_banco, url_dbos, permitir_executor_falso=True,
+        motor = Motor(url_banco, url_dbos, permitir_executor_falso=True, iniciar_dbos=False,
                       permitir_configuracao_tecnica=args.comando == 'registrar-base-tecnica')
         try:
             if args.comando == 'registrar-base-tecnica':
