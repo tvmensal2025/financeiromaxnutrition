@@ -43,6 +43,10 @@ export type HistoricoToqueFundadorV2 = { historico_id: number; resultado: string
   maquina: EventoFundadorV2['maquina']; alvo_id: string; evento: EventoFundadorV2['evento'] };
 export type PerguntaEtapaFundadorV2 = { card_id: string; etapa_id: string; versao: number; chave: number;
   historico_id: number; pergunta: string; opcoes: { letra: 'A' | 'B' | 'C'; texto: string; consequencia: string }[] };
+export type LeituraCardFundadorV2 = { card_id: string; versao: number; motivo_atual: string;
+  chave: number; historico_id: number; momento: string;
+  escolha: { tipo: 'SERVICO' | 'ROTEIRO'; id: string } | null;
+  leitura_de_volta: string | { o_que_quer: string; como_e_o_pronto: string[]; nao_pode: string[] } };
 export type PedidoPublicacao = { id?: string | number; pedido_id?: string | number; pedido_em: string; dia_brasilia: string };
 export type SituacaoPublicacao = { fundador: boolean; dia_brasilia: string; pedido: PedidoPublicacao | null };
 export type SolicitacaoCardReal = {
@@ -67,6 +71,7 @@ export interface RepositorioCardsV2 {
   aplicarEventoFundador(evento: EventoFundadorV2): Promise<{ resultado: string }>;
   consultarToqueFundador(cardId: string, toque: string): Promise<HistoricoToqueFundadorV2 | null>;
   lerPerguntaEtapaFundador(etapaId: string): Promise<PerguntaEtapaFundadorV2 | null>;
+  lerLeituraCardFundador(cardId: string): Promise<LeituraCardFundadorV2 | null>;
 }
 async function ler<T>(consulta: PromiseLike<RespostaBancoV2>): Promise<T> {
   const resultado = await consulta;
@@ -160,6 +165,11 @@ export function criarRepositorioCardsV2(cliente: ClienteCardsV2): RepositorioCar
       const { data, error } = await banco.rpc('ler_pergunta_etapa_fundador', { p_etapa_id: etapaId });
       if (error) throw new ErroBancoCardsV2(error.message || 'Não foi possível ler a pergunta.', error.code);
       return data as PerguntaEtapaFundadorV2 | null;
+    },
+    async lerLeituraCardFundador(cardId) {
+      const { data, error } = await banco.rpc('ler_leitura_card_fundador', { p_card_id: cardId });
+      if (error) throw new ErroBancoCardsV2(error.message || 'Não foi possível ler a interpretação da Helena.', error.code);
+      return data as LeituraCardFundadorV2 | null;
     },
   };
 }

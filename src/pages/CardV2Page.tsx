@@ -6,7 +6,8 @@ import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
 import { SolicitarCardReal } from './SolicitarCardReal';
 import { AcoesFundadorV2 } from './AcoesFundadorV2';
 import { PerguntaFundadorV2 } from './PerguntaFundadorV2';
-import { alvoAcao, alvoCard, alvoEtapa } from '@/integrations/cards-v2/acoes-fundador';
+import { LeituraCardFundadorV2 } from './LeituraCardFundadorV2';
+import { alvoAcao, alvoEtapa } from '@/integrations/cards-v2/acoes-fundador';
 import { limparToquesDaIdentidade } from '@/integrations/cards-v2/toque-pendente';
 
 type PageProps = { repositorio?: RepositorioCardsV2 };
@@ -234,7 +235,7 @@ function ConteudoCardV2({ repositorio }: PageProps) {
             {ordemVisivel.restricoes.length > 0 && <div className="mt-3"><h4 className="font-medium">Restrições</h4><ul className="list-disc pl-5">{ordemVisivel.restricoes.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
             {ordemVisivel.fontes.length > 0 && <div className="mt-3"><h4 className="font-medium">Fontes autorizadas</h4><ul className="list-disc break-words pl-5">{ordemVisivel.fontes.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
           </section>}
-          {isFounder && user?.id && repo && selecionado && detalheVisivel && <AcoesFundadorV2 key={`card-${selecionado.id}-${selecionado.versao}`} alvo={alvoCard(selecionado)} identidade={user.id} cardId={selecionado.id} repositorio={repo} onAtualizar={() => relerDepoisEvento(selecionado.id)} />}
+          {isFounder && user?.id && repo && selecionado && detalheVisivel && <LeituraCardFundadorV2 key={`card-${selecionado.id}-${selecionado.versao}-${selecionado.estado}-${selecionado.motivo}-${ordemVisivel.pedido ? 'pedido' : 'sem-pedido'}`} card={selecionado} identidade={user.id} pedidoOriginalDisponivel={!!ordemVisivel.pedido?.trim()} repositorio={repo} onAtualizar={() => relerDepoisEvento(selecionado.id)} />}
           {detalhe.carregando && <p className="animate-pulse py-4 text-sm text-muted-foreground">Carregando etapas…</p>}
           {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="ml-3 font-semibold underline">Tentar novamente</button></div>}
           {!detalhe.carregando && detalheVisivel?.etapas.length === 0 && <p className="text-sm text-muted-foreground">Este card ainda não tem etapas.</p>}

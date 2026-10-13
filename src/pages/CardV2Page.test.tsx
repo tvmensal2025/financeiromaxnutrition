@@ -20,6 +20,7 @@ function repositorio(parcial: Partial<RepositorioCardsV2> = {}): RepositorioCard
     aplicarEventoFundador: vi.fn().mockResolvedValue({ resultado: 'APLICADO' }),
     consultarToqueFundador: vi.fn().mockResolvedValue(null),
     lerPerguntaEtapaFundador: vi.fn().mockResolvedValue(null),
+    lerLeituraCardFundador: vi.fn().mockResolvedValue(null),
     ...parcial,
   };
 }

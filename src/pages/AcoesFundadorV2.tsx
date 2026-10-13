@@ -5,10 +5,11 @@ import { impressaoDoToque, opcoesFundador, type AlvoFundadorV2 } from '@/integra
 import { lerToquePendente, limparToquePendente, salvarToquePendente, type ToquePendente } from '@/integrations/cards-v2/toque-pendente';
 
 type Props = { alvo: AlvoFundadorV2; identidade: string; cardId: string; repositorio: RepositorioCardsV2;
-  onAtualizar: () => Promise<void>; opcoesPermitidas?: string[] };
+  onAtualizar: () => Promise<void>; opcoesPermitidas?: string[]; bloquearConfirmo?: boolean };
 
-export function AcoesFundadorV2({ alvo, identidade, cardId, repositorio, onAtualizar, opcoesPermitidas }: Props) {
-  const opcoes = opcoesFundador(alvo).filter(opcao => !opcoesPermitidas || opcoesPermitidas.includes(opcao.parametros.opcao));
+export function AcoesFundadorV2({ alvo, identidade, cardId, repositorio, onAtualizar, opcoesPermitidas, bloquearConfirmo = false }: Props) {
+  const opcoes = opcoesFundador(alvo).filter(opcao => (!opcoesPermitidas || opcoesPermitidas.includes(opcao.parametros.opcao))
+    && !(bloquearConfirmo && opcao.parametros.opcao === 'CONFIRMO'));
   const [indice, setIndice] = useState('');
   const [confirmando, setConfirmando] = useState(false);
   const [pendente, setPendente] = useState<EventoFundadorV2 | null>(null);

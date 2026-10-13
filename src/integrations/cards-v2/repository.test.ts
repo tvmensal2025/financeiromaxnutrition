@@ -30,7 +30,7 @@ function cliente(tabelas: Record<string, unknown[]>, erro = false) {
           parametros.push(argumentos);
           return { data: nome === 'solicitar_card_real' ? { id: 'solicitacao-real', card_id: null }
             : nome === 'listar_acoes_card' ? [] : nome === 'aplicar_evento' ? { resultado: 'APLICADO' }
-              : nome === 'consultar_toque_fundador' || nome === 'ler_pergunta_etapa_fundador' ? null
+              : nome === 'consultar_toque_fundador' || nome === 'ler_pergunta_etapa_fundador' || nome === 'ler_leitura_card_fundador' ? null
               : { fundador: true, dia_brasilia: '2026-10-13', pedido: null }, error: erro ? { message: 'indisponível' } : null };
         },
       };
@@ -136,5 +136,11 @@ describe('leitura de cards v2', () => {
     expect(await repositorio.lerPerguntaEtapaFundador('etapa-id')).toBeNull();
     expect(banco.chamadas).toEqual(['helena_v2', 'consultar_toque_fundador', 'ler_pergunta_etapa_fundador']);
     expect(banco.parametros).toEqual([{ p_card_id: 'card-id', p_toque: 'toque-id' }, { p_etapa_id: 'etapa-id' }]);
+  });
+  it('consulta leitura de volta somente pela RPC autenticada e sem capturas brutas', async () => {
+    const banco = cliente({});
+    expect(await criarRepositorioCardsV2(banco).lerLeituraCardFundador('card-real')).toBeNull();
+    expect(banco.chamadas).toEqual(['helena_v2', 'ler_leitura_card_fundador']);
+    expect(banco.parametros).toEqual([{ p_card_id: 'card-real' }]);
   });
 });
