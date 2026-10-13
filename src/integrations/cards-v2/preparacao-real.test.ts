@@ -1,5 +1,8 @@
-import { expect, it } from 'vitest';
-import { fonteHttpsPublica, lerPreparacaoCardReal, montarSolicitacaoCardReal, validarRevisaoPedidoReal } from './preparacao-real';
+import { webcrypto } from 'node:crypto';
+import { afterEach, expect, it, vi } from 'vitest';
+import { chaveDaSolicitacaoReal, fonteHttpsPublica, lerPreparacaoCardReal, montarSolicitacaoCardReal, validarRevisaoPedidoReal } from './preparacao-real';
+
+afterEach(() => vi.unstubAllGlobals());
 
 // Dados sintéticos exclusivos destes testes; nenhum valor é exibido no produto.
 function arquivoDeTeste() {
@@ -24,6 +27,9 @@ it('recusa arquivo inválido ou de outra empresa e conserva o pedido original', 
   expect(lerPreparacaoCardReal(JSON.stringify(arquivo)).pedidoOriginal).toBe('Pedido de teste obtido da tarefa.');
   arquivo.dados_reais.captura.tarefa.business_id = 'BIZ-OUTRA';
   expect(() => lerPreparacaoCardReal(JSON.stringify(arquivo))).toThrow('não conferem');
+  const versaoInsegura = arquivoDeTeste();
+  Object.assign(versaoInsegura.dados_reais.proveniencia, { tarefa_row_version: Number.MAX_SAFE_INTEGER + 1 });
+  expect(() => lerPreparacaoCardReal(JSON.stringify(versaoInsegura))).toThrow('não conferem');
 });
 
 it('exige confirmação explícita de prazo, critério, risco, restrições e fontes', () => {
@@ -57,4 +63,16 @@ it('aceita somente URL HTTPS pública sem credenciais, consulta ou fragmento', (
     'https://site.com/invite', 'https://site.com/ref', 'https://site.com/verificar-email', 'https://kubernetes.default/']) {
     expect(fonteHttpsPublica(fonte)).toBe(false);
   }
+});
+
+it('deriva a mesma chave para o mesmo pedido em abas distintas e outra chave para critérios diferentes', async () => {
+  vi.stubGlobal('crypto', webcrypto);
+  const base = { tarefaId: 'TSK-TESTE', prazo: '2030-10-20T15:00:00-03:00', plano: { b: 2, a: 1 },
+    dadosReais: { pedido: { ordem_de_servico: { b: 2, a: 1 } } }, configRevisionId: null, chaveIdempotencia: '' };
+  const primeira = await chaveDaSolicitacaoReal(base);
+  expect(primeira).toMatch(/^HELENA-REAL-[a-f0-9]{64}$/);
+  expect(await chaveDaSolicitacaoReal({ ...base, plano: { a: 1, b: 2 }, chaveIdempotencia: 'qualquer' })).toBe(primeira);
+  expect(await chaveDaSolicitacaoReal({ ...base, dadosReais: { pedido: { ordem_de_servico: { b: 3, a: 1 } } } })).not.toBe(primeira);
+  vi.stubGlobal('crypto', {});
+  await expect(chaveDaSolicitacaoReal(base)).rejects.toThrow('conexão HTTPS');
 });

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { webcrypto } from 'node:crypto';
 import { afterEach, expect, it, vi } from 'vitest';
 import { SolicitarCardReal } from './SolicitarCardReal';
 import type { RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
@@ -71,7 +72,7 @@ it('recusa arquivo não JSON, inválido ou grande sem enviar nada ao banco', asy
 it('exige conferência explícita e envia somente quatro campos editados com revisão resolvida no servidor', async () => {
   const solicitar = vi.fn().mockResolvedValue({ id: 'solicitacao-teste', card_id: null });
   const repositorio = repo(solicitar);
-  vi.stubGlobal('crypto', { randomUUID: () => 'uuid-teste' });
+  vi.stubGlobal('crypto', webcrypto);
   await importar(arquivo(), repositorio);
   expect(screen.getByLabelText('Prazo confirmado com data, hora e fuso')).toHaveProperty('value', '');
   expect(screen.getByText('Confirmar prazo no teste local.')).toBeTruthy();
@@ -85,7 +86,8 @@ it('exige conferência explícita e envia somente quatro campos editados com rev
   await waitFor(() => expect(solicitar).toHaveBeenCalledTimes(1));
   const pedido = solicitar.mock.calls[0][0];
   expect(pedido).toMatchObject({ tarefaId: 'TSK-TESTE', prazo: '2030-10-20T15:00:00-03:00',
-    configRevisionId: null, chaveIdempotencia: 'uuid-teste' });
+    configRevisionId: null });
+  expect(pedido.chaveIdempotencia).toMatch(/^HELENA-REAL-[a-f0-9]{64}$/);
   expect(pedido.dadosReais.captura.tarefa.tarefa).toBe('Pedido literal do teste.');
   expect(pedido.dadosReais.pedido.ordem_de_servico).toMatchObject({
     como_e_o_pronto: [{ id: 'CARD-1', texto: 'Entrega verificável no teste', quem_confere: 'IA', risco: 'ALTO' }],
@@ -98,7 +100,7 @@ it('após falha ambígua consulta o registro RLS e conserva a chave no retry', a
   const solicitar = vi.fn().mockRejectedValueOnce(new Error('Conexão perdida')).mockResolvedValueOnce({ id: 'pedido-teste', card_id: null });
   const consultar = vi.fn().mockResolvedValue(null);
   const repositorio = repo(solicitar, consultar);
-  vi.stubGlobal('crypto', { randomUUID: () => 'uuid-estavel' });
+  vi.stubGlobal('crypto', webcrypto);
   await importar(arquivo(), repositorio);
   preencher();
   fireEvent.click(screen.getByRole('button', { name: 'Confirmar e solicitar card real' }));
@@ -106,15 +108,15 @@ it('após falha ambígua consulta o registro RLS e conserva a chave no retry', a
   expect(screen.getByLabelText('Arquivo de preparação privada')).toHaveProperty('disabled', true);
   expect(screen.getByLabelText('Prazo confirmado com data, hora e fuso')).toHaveProperty('disabled', true);
   fireEvent.click(screen.getByRole('button', { name: 'Tentar confirmar a mesma solicitação' }));
-  expect(consultar).toHaveBeenCalledWith('uuid-estavel');
+  expect(consultar).toHaveBeenCalledWith(solicitar.mock.calls[0][0].chaveIdempotencia);
   await waitFor(() => expect(solicitar).toHaveBeenCalledTimes(2));
-  expect(solicitar.mock.calls[1][0].chaveIdempotencia).toBe('uuid-estavel');
+  expect(solicitar.mock.calls[1][0].chaveIdempotencia).toBe(solicitar.mock.calls[0][0].chaveIdempotencia);
 });
 
 it('mantém edição e importação bloqueadas após falha dupla até retry da mesma solicitação', async () => {
   const solicitar = vi.fn().mockRejectedValueOnce(new Error('Conexão perdida')).mockResolvedValueOnce({ id: 'pedido-teste', card_id: null });
   const consultar = vi.fn().mockRejectedValueOnce(new Error('Consulta indisponível'));
-  vi.stubGlobal('crypto', { randomUUID: () => 'uuid-estavel' });
+  vi.stubGlobal('crypto', webcrypto);
   const repositorio = repo(solicitar, consultar);
   await importar(arquivo(), repositorio);
   preencher();

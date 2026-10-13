@@ -42,7 +42,8 @@ export function lerPreparacaoCardReal(json: string): PreparacaoCardReal {
   }
   const ordem = pedido.ordem_de_servico;
   const proveniencia = dados.proveniencia;
-  const decisoes = dados.decisoes.map(decisao => objeto(decisao) && texto(decisao.id) && Number.isInteger(decisao.versao)
+  const decisoes = dados.decisoes.map(decisao => objeto(decisao) && texto(decisao.id) && Number.isSafeInteger(decisao.versao)
+    && decisao.row_version === decisao.versao
     ? { id: decisao.id, versao: decisao.versao as number } : null);
   const entradas = Object.entries(dados.entradas_externas).map(([rotulo, entrada]) => objeto(entrada) && texto(entrada.job_id)
     ? { rotulo, jobId: entrada.job_id } : null);
@@ -62,6 +63,7 @@ export function lerPreparacaoCardReal(json: string): PreparacaoCardReal {
       || !texto(proveniencia.hash_sha256)
       || !/^[a-f0-9]{64}$/.test(proveniencia.hash_sha256)
       || captura.proveniencia.hash_sha256 !== proveniencia.hash_sha256
+      || (proveniencia.tarefa_row_version !== undefined && proveniencia.tarefa_row_version !== null && !Number.isSafeInteger(proveniencia.tarefa_row_version))
       || !texto(ordem.pedido_original) || decisoes.includes(null) || entradas.includes(null) || !pendencias || pendencias.includes(null)) {
     throw new Error('A tarefa, empresa ou proveniência do arquivo não conferem. Gere uma nova preparação.');
   }
@@ -72,7 +74,7 @@ export function lerPreparacaoCardReal(json: string): PreparacaoCardReal {
     definicaoDePronto: texto(ordem.definicao_de_pronto_na_fonte) ? ordem.definicao_de_pronto_na_fonte : null,
     prazoOriginal: texto(ordem.prazo) ? ordem.prazo : null,
     pacoteConfirmado: pedido.pacote_da_empresa.estado === 'CONFIRMADO',
-    versaoTarefa: Number.isInteger(proveniencia.tarefa_row_version) ? proveniencia.tarefa_row_version as number : null,
+    versaoTarefa: Number.isSafeInteger(proveniencia.tarefa_row_version) ? proveniencia.tarefa_row_version as number : null,
     decisoes: decisoes as { id: string; versao: number }[],
     entradas: entradas as { rotulo: string; jobId: string }[],
     pendencias: pendencias as { campo: string; motivo: string }[],
@@ -168,4 +170,20 @@ export function montarSolicitacaoCardReal(preparacao: PreparacaoCardReal, revisa
     configRevisionId: null,
     chaveIdempotencia,
   };
+}
+
+function canonico(valor: unknown): unknown {
+  if (Array.isArray(valor)) return valor.map(canonico);
+  if (objeto(valor)) return Object.fromEntries(Object.keys(valor).sort().map(chave => [chave, canonico(valor[chave])]));
+  return valor;
+}
+
+/** Mesma confirmação, inclusive em duas abas, gera a mesma chave sem armazenar o JSON privado. */
+export async function chaveDaSolicitacaoReal(pedido: SolicitacaoCardReal): Promise<string> {
+  if (!globalThis.crypto?.subtle) throw new Error('Este navegador não oferece criptografia segura para confirmar o pedido. Use uma conexão HTTPS.');
+  const { chaveIdempotencia: _ignorada, ...conteudo } = pedido;
+  void _ignorada;
+  const bytes = new TextEncoder().encode(JSON.stringify(canonico(conteudo)));
+  const hash = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return `HELENA-REAL-${Array.from(new Uint8Array(hash), parte => parte.toString(16).padStart(2, '0')).join('')}`;
 }

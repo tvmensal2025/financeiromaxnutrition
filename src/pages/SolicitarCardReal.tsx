@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, FileJson2, Plus, Trash2 } from 'lucide-react';
 import { ErroBancoCardsV2, type RepositorioCardsV2, type ResultadoSolicitacaoCardReal, type ResumoSolicitacaoCardReal } from '@/integrations/cards-v2/repository';
-import { lerPreparacaoCardReal, montarSolicitacaoCardReal, validarRevisaoPedidoReal,
+import { chaveDaSolicitacaoReal, lerPreparacaoCardReal, montarSolicitacaoCardReal, validarRevisaoPedidoReal,
   type PreparacaoCardReal, type RevisaoPedidoReal } from '@/integrations/cards-v2/preparacao-real';
 
 type Props = { repositorio: RepositorioCardsV2 | null; identidade: string | null; onCardCriado: () => void };
@@ -111,11 +111,22 @@ export function SolicitarCardReal({ repositorio, identidade, onCardCriado }: Pro
     const falhas = validarRevisaoPedidoReal(preparacao, revisao);
     setErros(falhas);
     if (falhas.length) return;
-    const chaveAtual = chave ?? globalThis.crypto.randomUUID();
-    setChave(chaveAtual);
     envioEmCurso.current = true;
     setEnviando(true);
     const atual = geracao.current;
+    let chaveAtual: string;
+    try {
+      chaveAtual = chave ?? await chaveDaSolicitacaoReal(montarSolicitacaoCardReal(preparacao, revisao, ''));
+    } catch (erro) {
+      if (geracao.current === atual) {
+        setErros([erro instanceof Error ? erro.message : 'Não foi possível gerar a chave segura do pedido.']);
+        envioEmCurso.current = false;
+        setEnviando(false);
+      }
+      return;
+    }
+    if (geracao.current !== atual) return;
+    setChave(chaveAtual);
     try {
       if (!incerto) {
         const existente = await repositorio.consultarSolicitacaoPorTarefa(preparacao.tarefaId);
