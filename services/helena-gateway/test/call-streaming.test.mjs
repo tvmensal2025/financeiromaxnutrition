@@ -211,3 +211,27 @@ it('SSE framing accepts coalesced small events but rejects one oversized event',
  assert.equal(count,2500);
  await assert.rejects(async()=>{for await(const _ of readSSE(Readable.from([Buffer.from('data: '+ 'x'.repeat(131073))]))){}},/Oversized/);
 });
+
+it('devolve na resposta e nas métricas o provedor de voz que realmente falou o turno', async () => {
+  const tts = fakeTTS();
+  tts.ttsProvider = 'GOOGLE_CHIRP3_HD';
+  const result = await streamReplyToCall({ ...base, openTTS: () => tts,
+    fetchImpl: async (url, opts) => {
+      if (url.includes('api.openai.com')) return { ok: true, body: Readable.from([event(delta('Tudo certo. ')), event(stop)]) };
+      for await (const chunk of opts.body) void chunk;
+      return Response.json({ ok: true });
+    } });
+  assert.equal(result.ttsProvider, 'GOOGLE_CHIRP3_HD');
+  assert.equal(result.metrics.tts_provider, 'GOOGLE_CHIRP3_HD');
+});
+
+it('em falha do turno, as métricas do erro também trazem o provedor que chegou a falar', async () => {
+  const tts = fakeTTS();
+  tts.ttsProvider = 'ELEVENLABS';
+  await assert.rejects(streamReplyToCall({ ...base, openTTS: () => tts,
+    fetchImpl: async (url, opts) => {
+      if (url.includes('api.openai.com')) return { ok: true, body: Readable.from([event(delta('Oi. ')), event(stop)]) };
+      for await (const chunk of opts.body) void chunk;
+      return new Response('falhou', { status: 500 });
+    } }), err => err.streamMetrics?.tts_provider === 'ELEVENLABS');
+});

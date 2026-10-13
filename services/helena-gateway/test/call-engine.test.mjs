@@ -249,6 +249,31 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.equal(summary.turns[0].metrics.stream.interruption_reason, 'new_user_speech');
   });
 
+  it('telemetria registra o provedor real de cada fala (ElevenLabs ou Google), nunca Google fixo', () => {
+    const callId = `tts-provider-${Date.now()}`;
+    registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+    const eleven = recordTurnTelemetry({ callId, userText: 'Oi', replyText: 'Olá.', ttsProvider: 'ELEVENLABS' });
+    const google = recordTurnTelemetry({ callId, userText: 'E aí', replyText: 'Tudo bem.', ttsProvider: 'google_chirp3_hd' });
+    const both = recordTurnTelemetry({ callId, userText: 'Conta', replyText: 'Claro. Vamos lá.', ttsProvider: 'GOOGLE_CHIRP3_HD+ELEVENLABS' });
+    const silent = recordTurnTelemetry({ callId, userText: 'Pode repetir?', replyText: '', error: 'stream_interrupted' });
+    assert.equal(eleven.tts.provider, 'ELEVENLABS');
+    assert.equal(google.tts.provider, 'GOOGLE_CHIRP3_HD');
+    assert.equal(both.tts.provider, 'ELEVENLABS+GOOGLE_CHIRP3_HD');
+    assert.equal(silent.tts.provider, null, 'sem fala sintetizada não há provedor');
+    const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    assert.equal(summary.tts.provider, 'ELEVENLABS+GOOGLE_CHIRP3_HD');
+    assert.deepEqual(summary.tts.providers, { ELEVENLABS: 2, GOOGLE_CHIRP3_HD: 2 });
+  });
+
+  it('ligação em que só a ElevenLabs falou fecha com o provedor ElevenLabs', () => {
+    const callId = `tts-provider-eleven-${Date.now()}`;
+    registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'alex_normal' });
+    recordTurnTelemetry({ callId, userText: 'Bora', replyText: 'Bora treinar!', ttsProvider: 'ELEVENLABS' });
+    const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    assert.equal(summary.tts.provider, 'ELEVENLABS');
+    assert.deepEqual(summary.tts.providers, { ELEVENLABS: 1 });
+  });
+
   it('7. sem ElevenLabs configurada, routeCallAudio usa a reserva Google Chirp 3 HD com a voz do personagem', async () => {
     let googleCalled = false;
     let receivedVoice = '';

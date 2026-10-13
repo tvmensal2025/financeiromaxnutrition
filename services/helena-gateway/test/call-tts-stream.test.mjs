@@ -190,6 +190,38 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     stream.destroy();
   });
 
+  it('informa o provedor que realmente falou: ElevenLabs, Google na reserva, ou os dois no mesmo turno', async () => {
+    const pcm = () => ({ ok: true, status: 200, body: Readable.from([Buffer.alloc(320, 1)]) });
+    const onlyEleven = new HybridCallTTSStream({ characterId: 'sirlene', fetchImpl: async () => pcm() });
+    assert.equal(onlyEleven.ttsProvider, null, 'antes de falar não há provedor');
+    onlyEleven.resume();
+    onlyEleven.write({ input: { text: 'Oi.' } });
+    onlyEleven.end();
+    await new Promise((resolve) => onlyEleven.once('finish', resolve));
+    assert.equal(onlyEleven.ttsProvider, 'ELEVENLABS');
+
+    const chirp = fakeChirp();
+    setGoogleTTSClientForTesting({ streamingSynthesize: () => chirp.stream });
+    let call = 0;
+    const mixed = new HybridCallTTSStream({ characterId: 'alex', fetchImpl: async () => (++call === 1 ? pcm()
+      : { ok: false, status: 429, text: async () => 'quota_exceeded' }) });
+    mixed.resume();
+    mixed.write({ input: { text: 'Primeira frase.' } });
+    mixed.write({ input: { text: 'Segunda frase.' } });
+    mixed.end();
+    await new Promise((resolve) => mixed.once('finish', resolve));
+    assert.equal(mixed.ttsProvider, 'ELEVENLABS+GOOGLE_CHIRP3_HD');
+  });
+
+  it('o stream direto do Google informa o Google como provedor', async () => {
+    markElevenLabsQuotaExceeded();
+    const chirp = fakeChirp();
+    setGoogleTTSClientForTesting({ streamingSynthesize: () => chirp.stream });
+    const stream = openCallTTSStream({ characterId: 'vital', context: 'CALL' });
+    assert.equal(stream.ttsProvider, 'GOOGLE_CHIRP3_HD');
+    stream.destroy();
+  });
+
   it('usa diretamente o Google Chirp 3 HD se ELEVENLABS_API_KEY não estiver configurada', async () => {
     delete process.env.ELEVENLABS_API_KEY;
     delete process.env.ELEVEN_LABS_API_KEY;

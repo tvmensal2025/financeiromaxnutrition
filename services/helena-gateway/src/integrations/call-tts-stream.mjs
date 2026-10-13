@@ -33,6 +33,7 @@ import {
   countAudioTags,
   MAX_AUDIO_TAGS_PER_FALA
 } from './conversation-naturalness.mjs';
+import { TTS_PROVIDERS, normalizeTtsProvider } from './call-engine.mjs';
 
 /**
  * Cria ou abre o stream Duplex de TTS telefônico (híbrido ElevenLabs + Google Chirp 3 HD).
@@ -51,7 +52,9 @@ export function openCallTTSStream({
   const canUseElevenLabs = elevenLabsEnabled && isElevenLabsConfigured() && !isElevenLabsQuotaCurrentlyExceeded();
 
   if (!canUseElevenLabs) {
-    return openChirp3CallStream({ voice: googleVoiceForCall({ characterId: character, voice }), context, signal });
+    const chirp = openChirp3CallStream({ voice: googleVoiceForCall({ characterId: character, voice }), context, signal });
+    chirp.ttsProvider = TTS_PROVIDERS.GOOGLE; // telemetria: esta fala inteira sai pela reserva Google
+    return chirp;
   }
 
   return new HybridCallTTSStream({ voice, characterId: character, context, signal, fetchImpl });
@@ -69,6 +72,7 @@ export class HybridCallTTSStream extends Transform {
     this.fetchImpl = fetchImpl;
     this.spokenText = '';
     this.tagsUsed = 0;
+    this.ttsProvidersUsed = new Set(); // quem realmente entregou áudio neste turno (telemetria)
 
     this.supportsAudioTags = true;
     this.elevenLabsFailed = false;
@@ -90,6 +94,11 @@ export class HybridCallTTSStream extends Transform {
         this.once('close', () => signal.removeEventListener('abort', onAbort));
       }
     }
+  }
+
+  /** Provedor que realmente falou: 'ELEVENLABS', 'GOOGLE_CHIRP3_HD', os dois ('+') ou null antes do primeiro áudio. */
+  get ttsProvider() {
+    return normalizeTtsProvider([...this.ttsProvidersUsed].join('+'));
   }
 
   _transform(chunk, encoding, callback) {
@@ -208,6 +217,7 @@ export class HybridCallTTSStream extends Transform {
           if (this.signal?.aborted || this.destroyed) break;
           const bytes = Buffer.from(chunk);
           if (bytes.length > 0) {
+            this.ttsProvidersUsed.add(TTS_PROVIDERS.ELEVENLABS);
             this.push({ audioContent: bytes });
           }
         }
@@ -250,6 +260,7 @@ export class HybridCallTTSStream extends Transform {
 
       this.chirpStream.on('data', (chunk) => {
         if (!this.destroyed) {
+          this.ttsProvidersUsed.add(TTS_PROVIDERS.GOOGLE);
           this.push(chunk);
         }
       });

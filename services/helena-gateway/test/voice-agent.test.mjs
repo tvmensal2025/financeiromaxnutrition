@@ -304,3 +304,26 @@ it('removes every alias of an ended session', async () => {
  endCallSession({callId:'ALIAS-SECOND'});
  assert.ok(!getActiveCallsList().some(c=>c.call_id.startsWith('ALIAS-')));
 });
+
+// Ambiente de ligação sem nenhum provedor real: sem chave da OpenAI, sem ficha remota.
+function withoutRealProviders(t) {
+ const names = ['OPENAI_API_KEY', 'MAX_VOICE_CONTEXT_URL', 'MAX_VOICE_CONTEXT_TOKEN', 'ELEVENLABS_API_KEY'];
+ const saved = Object.fromEntries(names.map(name => [name, process.env[name]]));
+ for (const name of names) delete process.env[name];
+ t.after(() => { for (const name of names) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; } });
+}
+
+it('telemetria do turno sem streaming registra o provedor que realmente falou', async (t) => {
+ withoutRealProviders(t);
+ const { registerCallSession, endCallSession } = await import('../src/integrations/call-engine.mjs');
+ const { processUserSpeech } = await import('../src/integrations/voice-agent.mjs');
+ const callId = `provider-telemetry-${Date.now()}`;
+ registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'alex_normal' });
+ const result = await processUserSpeech({ callId, userText: 'Oi, tudo bem?' }, {
+  speak: async ({ text }) => ({ ok: true, text, provider: 'ELEVENLABS' })
+ });
+ assert.equal(result.ok, true);
+ const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
+ assert.equal(summary.turns.at(-1).tts.provider, 'ELEVENLABS');
+ assert.equal(summary.tts.provider, 'ELEVENLABS');
+});

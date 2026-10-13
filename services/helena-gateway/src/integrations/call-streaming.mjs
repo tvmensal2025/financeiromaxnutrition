@@ -176,9 +176,12 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     }
     return await res.json();
   })();
+  // Telemetria: quem realmente falou o turno (ElevenLabs, reserva Google ou os dois).
+  const spokenBy = () => tts?.ttsProvider ?? null;
   try {
     const [, playback] = await Promise.all([llmTask, playbackTask]);
-    return { text: spokenText, usage, metrics, playback, audioBytes };
+    metrics.tts_provider = spokenBy();
+    return { text: spokenText, usage, metrics, playback, audioBytes, ttsProvider: metrics.tts_provider };
   } catch (err) {
     controller.abort(err);
     audio.destroy();
@@ -186,7 +189,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     await Promise.allSettled([llmTask, playbackTask]);
     err.interrupted = Boolean(err.interrupted || signal?.aborted);
     err.interruptionReason ||= signal?.reason?.interruptionReason || null;
-    err.streamMetrics = { ...metrics,
+    err.streamMetrics = { ...metrics, tts_provider: spokenBy(),
       interruption_reason: err.interrupted ? err.interruptionReason : null,
       failure_reason: err.interrupted ? null : err.name === 'TimeoutError' ? 'stream_timeout' : 'stream_error',
       playback_http_status: err.playbackHttpStatus ?? null };

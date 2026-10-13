@@ -695,7 +695,7 @@ function resolveVoiceInterruptionReason(error, signal) {
   return 'stream_error';
 }
 
-export async function processUserSpeech(params) {
+export async function processUserSpeech(params, deps = {}) {
   const { callId, speechEpoch } = params;
   if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (!callId) throw new Error('callId é obrigatório');
@@ -709,7 +709,7 @@ export async function processUserSpeech(params) {
   controller.startedAt = Date.now();
   activeVoiceTurns.set(callId, controller);
   try {
-    controller.done = processUserSpeechTurn({ ...params, signal: controller.signal });
+    controller.done = processUserSpeechTurn({ ...params, signal: controller.signal }, deps);
     return await controller.done;
   } catch (err) {
     if (controller.signal.aborted) {
@@ -732,7 +732,8 @@ export async function processUserSpeech(params) {
   }
 }
 
-async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal }) {
+async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal },
+  { speak = speakInCall } = {}) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
@@ -831,7 +832,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   // 3. Sintetiza a resposta falada e reproduz na chamada
   const ttsStart = Date.now();
   try {
-    const playResult = await speakInCall({
+    const playResult = await speak({
       callId,
       text: replyText,
       voice: activeProfile.voice_id
@@ -862,6 +863,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       personality: usedPersonality,
       usage: llmUsage,
       charactersSynthesized: replyDisplay.length,
+      ttsProvider: playResult?.provider ?? null,
       error: null
     });
 
@@ -967,7 +969,7 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
     recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
       llmFirstTokenMs: metrics.llm_first_token_ms, llmTotalMs: metrics.llm_total_ms,
       ttsMs: metrics.tts_first_audio_ms || 0, turnLatencyMs: Date.now() - turnStart,
-      streamMetrics: metrics, charactersSynthesized: result.text.length });
+      streamMetrics: metrics, charactersSynthesized: result.text.length, ttsProvider: result.ttsProvider });
     return { ok: true, streaming: true, call_id: callId, user_text: userText, reply_text: result.text, metrics, play_result: result.playback };
   } catch (err) {
     // Never replay a batch response after a partially spoken or interrupted stream.
@@ -978,7 +980,7 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
       if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
     }
     recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
-      turnLatencyMs: Date.now() - turnStart,
+      turnLatencyMs: Date.now() - turnStart, ttsProvider: err.streamMetrics?.tts_provider ?? null,
       streamMetrics: { ...err.streamMetrics, streaming: true, interrupted,
         interruption_reason: interrupted ? interruptionReason : null,
         failure_reason: interrupted ? null : interruptionReason,

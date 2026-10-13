@@ -273,6 +273,39 @@ export const DEFAULT_PRICING = Object.freeze({
 });
 
 // ======================================================================
+// 4.1 PROVEDOR DE VOZ (TTS) NA TELEMETRIA
+// ======================================================================
+
+/** Nome único do provedor de voz na telemetria: quem realmente falou (ElevenLabs ou a reserva Google). */
+export const TTS_PROVIDERS = Object.freeze({ ELEVENLABS: 'ELEVENLABS', GOOGLE: 'GOOGLE_CHIRP3_HD' });
+const TTS_PROVIDER_ORDER = [TTS_PROVIDERS.ELEVENLABS, TTS_PROVIDERS.GOOGLE];
+const TTS_PROVIDER_ALIASES = Object.freeze({
+  elevenlabs: TTS_PROVIDERS.ELEVENLABS,
+  eleven_labs: TTS_PROVIDERS.ELEVENLABS,
+  google_chirp3_hd: TTS_PROVIDERS.GOOGLE,
+  google: TTS_PROVIDERS.GOOGLE
+});
+
+/** Lista sem repetição dos provedores de um rótulo ('ELEVENLABS+GOOGLE_CHIRP3_HD', 'google_chirp3_hd'...). */
+export function ttsProviderList(value) {
+  const rank = provider => {
+    const index = TTS_PROVIDER_ORDER.indexOf(provider);
+    return index === -1 ? TTS_PROVIDER_ORDER.length : index;
+  };
+  const providers = String(value ?? '').split('+').map(part => part.trim()).filter(Boolean).map(part => {
+    const key = part.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    return TTS_PROVIDER_ALIASES[key] || key.toUpperCase().slice(0, 40);
+  });
+  return [...new Set(providers)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
+/** Rótulo canônico do provedor (null quando nenhuma fala foi sintetizada). */
+export function normalizeTtsProvider(value) {
+  const providers = ttsProviderList(value);
+  return providers.length ? providers.join('+') : null;
+}
+
+// ======================================================================
 // 5. ESTADO GLOBAL EM MEMÓRIA (CACHE QUENTE PARA LATÊNCIA ZERO)
 // ======================================================================
 
@@ -644,6 +677,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'IN
       tokens_reasoning: 0,
       tts_chars: 0,
       tts_requests: 0,
+      tts_providers: {},
       turn_count: 0
     },
     latencies: {
@@ -839,6 +873,7 @@ export function recordTurnTelemetry({
   modeName = '',
   profileKey = '',
   charactersSynthesized = null,
+  ttsProvider = null,
   error = null
 }) {
   let call = getCallSession(callId);
@@ -860,6 +895,8 @@ export function recordTurnTelemetry({
   const resolvedMode = modeName || mode || call.activeModeName || 'Normal';
   const resolvedVoice = voice || ttsVoice || call.activeVoice;
   const resolvedProfileKey = profileKey || call.activeProfileKey || `${call.activeCharacterId}_${call.activeMode}`;
+  // Quem realmente falou nesta fala (ElevenLabs, reserva Google ou os dois); null se nada foi sintetizado.
+  const resolvedTtsProvider = normalizeTtsProvider(ttsProvider);
 
   const turnRecord = {
     turn_index: turnIndex,
@@ -890,11 +927,15 @@ export function recordTurnTelemetry({
     tts: {
       chars,
       voice: resolvedVoice,
-      provider: 'GOOGLE_CHIRP3_HD'
+      provider: resolvedTtsProvider
     }
   };
 
   call.turns.push(turnRecord);
+  call.totals.tts_providers ||= {};
+  for (const provider of ttsProviderList(resolvedTtsProvider)) {
+    call.totals.tts_providers[provider] = (call.totals.tts_providers[provider] || 0) + 1;
+  }
 
   // Atualiza totais consolidados
   call.totals.tokens_input += inputTokens;
@@ -993,7 +1034,9 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     tts: {
       total_chars: call.totals.tts_chars,
       requests_count: call.totals.tts_requests,
-      provider: 'GOOGLE_CHIRP3_HD'
+      // Provedores que realmente falaram na ligação e em quantas falas cada um entrou.
+      provider: normalizeTtsProvider(Object.keys(call.totals.tts_providers || {}).join('+')),
+      providers: { ...(call.totals.tts_providers || {}) }
     },
     latency: {
       average_ms: avgLat,
