@@ -1,6 +1,5 @@
 """Um despacho DBOS por execução; somente funções do banco decidem estado."""
 import json
-from pathlib import Path
 
 import psycopg
 from psycopg import sql
@@ -56,6 +55,15 @@ def conferir_e_aplicar_revisao(etapa_id: str, numero: int) -> str:
 def fluxo_revisao(etapa_id: str, numero: int) -> str:
     executar_e_salvar_revisao(etapa_id, numero)
     return conferir_e_aplicar_revisao(etapa_id, numero)
+
+
+def conferir_rubrica(spec, servico, criterios) -> bool:
+    esperados = set(spec.tipo(spec.tipo_do_servico(servico))['criterio_de_pronto']['rubrica'])
+    if not isinstance(criterios, list) or len(criterios) != len(esperados):
+        return False
+    return ({c.get('id') for c in criterios if isinstance(c, dict)} == esperados
+            and all(c.get('resultado') == 'PASSOU' and isinstance(c.get('prova'), str)
+                    and c['prova'].strip() for c in criterios if isinstance(c, dict)))
 
 
 class Motor:
@@ -142,6 +150,8 @@ class Motor:
         return {'etapas': etapas}
 
     def _texto_roteirizado(self, execucao):
+        if execucao.ficha.papel == 'COORDENACAO':
+            return json.dumps({'leitura_de_volta': 'Entendi o pedido e o prazo.'})
         if execucao.ficha.papel == 'REVISOR':
             servico = json.loads(execucao.pacote)['servico']
             return json.dumps({'criterios': [{'id': c, 'resultado': 'PASSOU', 'prova': 'entrega conferida'}
@@ -164,7 +174,8 @@ class Motor:
     def _ficha(self, identidade, papel, servico):
         return ler_ficha(RAIZ / 'helena-v2' / 'agents' / f'{identidade.lower()}.yaml',
                          caminho_dos_modelos=RAIZ / 'helena-v2' / 'models.yaml', fase_em_curso='fase 3',
-                         papel=papel, servico=servico if papel == 'AUTOR' else None)
+                         papel=papel, servico=servico if papel == 'AUTOR' else None,
+                         evento=servico if papel == 'COORDENACAO' else None)
 
     def _servico(self, etapa):
         plano = self._card(etapa['card_id'])['ordem_de_servico']
@@ -226,8 +237,15 @@ class Motor:
         card = self._card(card_id)
         if card['estado'] == 'RASCUNHO':
             chave = self._linha('SELECT helena_v2.abrir_chamada_helena(%s,%s) AS chave', ('card', card_id))['chave']
+            ficha = self._ficha('HELENA', 'COORDENACAO', 'LER_DE_VOLTA')
+            resultado = self.executor.rodar(Execucao(id=f'C-{chave}', ficha=ficha,
+                                                   pacote=json.dumps({'card_id': str(card_id),
+                                                                      'pedido': card['ordem_de_servico']}, ensure_ascii=False)))
+            if not resultado.ok:
+                self._evento('card', card_id, 'MOTOR', 'FALHA')
+                return True
             self._evento('card', card_id, 'HELENA', 'LER_DE_VOLTA', chave=chave,
-                         conteudo={'resposta': 'Entendi o pedido e o prazo.'}, nao_disparar=['PLANO_VALIDO'])
+                         conteudo={'resposta': json.loads(resultado.texto)}, nao_disparar=['PLANO_VALIDO'])
             return True
         if card['estado'] == 'VALIDANDO_PLANO':
             erro = validar_plano(card['ordem_de_servico'], self.spec)
@@ -287,8 +305,8 @@ class Motor:
         if not salva:
             raise RuntimeError('revisão não persistida')
         rubrica = json.loads(salva['texto'])['criterios']
-        if any(c['resultado'] != 'PASSOU' for c in rubrica):
-            raise RuntimeError('revisor roteirizado não aprovou todos os critérios')
+        if not conferir_rubrica(self.spec, salva['servico'], rubrica):
+            raise RuntimeError('revisor não aprovou todos os critérios com prova')
         self._evento('etapa', etapa['id'], 'REVISOR', 'APROVAR', ator=etapa['revisor'], chave=numero,
                      conteudo={'criterios': rubrica})
         return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']

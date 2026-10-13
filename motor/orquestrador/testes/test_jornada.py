@@ -32,6 +32,7 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
         assert motor._card(card)['estado'] == 'PRONTO'
         assert toques == ['CONFIRMO', 'APROVAR']
         assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
+        assert {e.ficha.identidade for e in motor.executor.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA', 'RAVI'}
     finally:
         motor.fechar()
 

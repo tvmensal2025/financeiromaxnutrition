@@ -1,4 +1,3 @@
-import pytest
 from orquestrador.motor import Motor
 from spec_helena import Spec, listar_casos
 
