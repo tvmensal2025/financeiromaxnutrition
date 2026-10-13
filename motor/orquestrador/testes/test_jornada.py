@@ -1,0 +1,170 @@
+import sys
+from pathlib import Path
+
+import pytest
+
+RAIZ = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(RAIZ / 'motor' / 'orquestrador'))
+from orquestrador.motor import Motor
+from spec_helena.leitura import ler_yaml
+
+PLANO = ler_yaml(RAIZ / 'helena-v2' / 'playbooks' / 'recrutar-10-pessoas.yaml')
+
+
+def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'jornada-principal')
+        toques = []
+        for _ in range(100):
+            atual = motor._card(card)
+            if atual['estado'] == 'PRONTO':
+                break
+            if atual['estado'] == 'ESPERANDO_CONFIRMACAO':
+                motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
+                              toque='confirmar', nao_disparar=['PLANO_VALIDO'])
+                toques.append('CONFIRMO')
+            elif (juridico := next((e for e in motor._etapas(card) if e['codigo'] == 'E4'), None)) and juridico['estado'] == 'ESPERANDO_FUNDADOR':
+                motor._evento('etapa', juridico['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-parecer')
+                toques.append('APROVAR')
+            else:
+                assert motor.avancar(card), [(e['codigo'], e['estado']) for e in motor._etapas(card)]
+        assert motor._card(card)['estado'] == 'PRONTO'
+        assert toques == ['CONFIRMO', 'APROVAR']
+        assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
+    finally:
+        motor.fechar()
+
+
+def _ate_execucao(motor, card, codigo='E1'):
+    for _ in range(20):
+        etapa = next(e for e in motor._etapas(card) if e['codigo'] == codigo)
+        if etapa['estado'] == 'EXECUTANDO':
+            return etapa
+        if motor._card(card)['estado'] == 'ESPERANDO_CONFIRMACAO':
+            motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
+                          toque=f'confirmar-{card}', nao_disparar=['PLANO_VALIDO'])
+        else:
+            assert motor.avancar(card)
+    raise AssertionError('etapa não iniciou')
+
+
+def test_repetir_workflow_nao_refaz_executor_nem_entrega(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'replay')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        motor.executar_etapa(etapa['id'])
+        assert len(motor.executor.execucoes) == 1
+        with motor._con() as con:
+            qtd = con.execute('SELECT count(*) AS n FROM helena_v2.entrega WHERE numero_execucao=%s',
+                              (etapa['execucao_atual'],)).fetchone()['n']
+        assert qtd == 1
+    finally:
+        motor.fechar()
+
+
+def test_cancelamento_bloqueia_resposta_tardia(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'cancelamento')
+        etapa = _ate_execucao(motor, card)
+        motor._evento('card', card, 'FUNDADOR', 'CANCELAR', toque='cancelar')
+        with pytest.raises(RuntimeError, match='antiga|sem execução'):
+            motor.executar_etapa(etapa['id'])
+        with motor._con() as con:
+            qtd = con.execute('SELECT count(*) AS n FROM helena_v2.entrega WHERE etapa_id=%s',
+                              (etapa['id'],)).fetchone()['n']
+        assert qtd == 0
+    finally:
+        motor.fechar()
+
+
+def test_recusa_do_portao1_devolve_ao_autor(banco, url_dbos):
+    from spec_helena import Spec, listar_casos
+    ruim = next(c for c in listar_casos(Spec()) if c.servico == 'SRV-CALCULO' and not c.bom
+                and any(i.startswith('CHK-') for i in c.deve_falhar_em))
+    motor = Motor(banco.url, url_dbos, casos={'SRV-CALCULO': ruim.id})
+    try:
+        card = motor.criar_card(PLANO, 'portao1')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'NA_FILA'
+        with motor._con() as con:
+            entrega = con.execute('SELECT portao1 FROM helena_v2.entrega WHERE etapa_id=%s ORDER BY id DESC LIMIT 1',
+                                  (etapa['id'],)).fetchone()
+        assert entrega['portao1'] == 'RECUSOU'
+    finally:
+        motor.fechar()
+
+
+def test_ajuste_do_parecer_reabre_pecas_julgadas(banco, url_dbos):
+    from spec_helena import Spec, listar_casos
+    parecer = next(c for c in listar_casos(Spec()) if c.servico == 'SRV-PARECER' and c.bom
+                   and c.dados['resposta'].get('parecer') == 'AJUSTE')
+    motor = Motor(banco.url, url_dbos, casos={'SRV-PARECER': parecer.id})
+    try:
+        card = motor.criar_card(PLANO, 'ajuste')
+        for _ in range(90):
+            e4 = next(e for e in motor._etapas(card) if e['codigo'] == 'E4')
+            if e4['estado'] == 'ESPERANDO_FUNDADOR':
+                break
+            if motor._card(card)['estado'] == 'ESPERANDO_CONFIRMACAO':
+                motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
+                              toque='confirmar-ajuste', nao_disparar=['PLANO_VALIDO'])
+            else:
+                assert motor.avancar(card)
+        assert e4['estado'] == 'ESPERANDO_FUNDADOR'
+        motor._evento('etapa', e4['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-ajuste')
+        estados = {e['codigo']: e['estado'] for e in motor._etapas(card)}
+        assert estados['E2'] == estados['E3'] == 'NA_FILA'
+        assert estados['E4'] == 'AGUARDANDO_ANTERIORES'
+    finally:
+        motor.fechar()
+
+
+def test_revisao_repetida_nao_refaz_revisor(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'replay-revisao')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        motor._revisar(em_revisao)
+        motor._revisar(em_revisao)
+        assert len(motor.executor.execucoes) == 2
+        with motor._con() as con:
+            qtd = con.execute("SELECT count(*) AS n FROM helena_v2.historico WHERE alvo_id=%s AND evento='APROVAR' AND resultado='APLICADO'",
+                              (etapa['id'],)).fetchone()['n']
+        assert qtd == 1
+    finally:
+        motor.fechar()
+
+
+def test_queda_apos_salvar_retomada_sem_refazer_agente(banco, url_dbos, monkeypatch):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'queda-no-meio')
+        etapa = _ate_execucao(motor, card)
+        numero = etapa['execucao_atual']
+        original = motor.conferir_e_aplicar
+        chamadas = 0
+
+        def cair_uma_vez(etapa_id, numero_execucao):
+            nonlocal chamadas
+            chamadas += 1
+            if chamadas == 1:
+                raise RuntimeError('queda simulada entre os passos')
+            return original(etapa_id, numero_execucao)
+
+        monkeypatch.setattr(motor, 'conferir_e_aplicar', cair_uma_vez)
+        with pytest.raises(RuntimeError, match='queda simulada'):
+            motor.executar_etapa(etapa['id'])
+        assert len(motor.executor.execucoes) == 1
+        assert motor._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
+        motor.dbos.resume_workflow(f"{etapa['id']}-{numero}").get_result()
+        assert len(motor.executor.execucoes) == 1
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'REVISAO'
+    finally:
+        motor.fechar()
