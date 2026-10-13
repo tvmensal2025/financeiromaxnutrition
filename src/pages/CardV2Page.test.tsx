@@ -3,8 +3,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import CardV2Page from './CardV2Page';
 import type { RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
 
-const auth = vi.hoisted(() => ({ isFounder: false }));
-vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder }) }));
+const auth = vi.hoisted(() => ({ isFounder: false, userId: 'usuario-a' }));
+vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
 
 const card = (id: string, titulo: string) => ({ id, titulo, empresa: null, estado: 'EM_ANDAMENTO', dono: 'Helena', prazo: '2026-10-13', criado_em: '2026-10-12T12:00:00Z' });
 function repositorio(parcial: Partial<RepositorioCardsV2> = {}): RepositorioCardsV2 {
@@ -13,11 +13,42 @@ function repositorio(parcial: Partial<RepositorioCardsV2> = {}): RepositorioCard
     detalhar: vi.fn().mockResolvedValue({ etapas: [], entregas: [] }),
     situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: false, dia_brasilia: '2026-10-13', pedido: null }),
     pedirPublicacao: vi.fn().mockResolvedValue(undefined),
+    solicitarCardReal: vi.fn().mockResolvedValue({ id: 'solicitacao-local', card_id: null }),
+    consultarSolicitacaoPorChave: vi.fn().mockResolvedValue(null),
+    listarSolicitacoesReais: vi.fn().mockResolvedValue([]),
+    consultarSolicitacaoPorTarefa: vi.fn().mockResolvedValue(null),
     ...parcial,
   };
 }
 
-beforeEach(() => { auth.isFounder = false; });
+beforeEach(() => { auth.isFounder = false; auth.userId = 'usuario-a'; });
+
+it('remove cards da conta anterior imediatamente ao trocar a identidade', async () => {
+  let resolverAntigo!: (value: Awaited<ReturnType<RepositorioCardsV2['listar']>>) => void;
+  const antigo = new Promise<Awaited<ReturnType<RepositorioCardsV2['listar']>>>(resolve => { resolverAntigo = resolve; });
+  const listar = vi.fn().mockImplementationOnce(() => antigo).mockResolvedValueOnce([]);
+  const repo = repositorio({ listar });
+  const tela = render(<CardV2Page repositorio={repo} />);
+  auth.userId = 'usuario-b';
+  tela.rerender(<CardV2Page repositorio={repo} />);
+  await act(async () => resolverAntigo([card('a', 'Card privado A')]));
+  expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
+  expect(screen.queryByText('Card privado A')).toBeNull();
+});
+
+it('descarta estado de fundador ao perder a permissão na mesma conta', async () => {
+  auth.isFounder = true;
+  const listar = vi.fn().mockResolvedValueOnce([card('privado', 'Card antes do downgrade')]).mockResolvedValueOnce([]);
+  const repo = repositorio({ listar });
+  const tela = render(<CardV2Page repositorio={repo} />);
+  expect(await screen.findByText('Card antes do downgrade')).toBeTruthy();
+  expect(screen.getByLabelText('Solicitar card real')).toBeTruthy();
+  auth.isFounder = false;
+  tela.rerender(<CardV2Page repositorio={repo} />);
+  expect(screen.queryByText('Card antes do downgrade')).toBeNull();
+  expect(screen.queryByLabelText('Solicitar card real')).toBeNull();
+  expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
+});
 
 it('mostra vazio, erro e permite tentar novamente', async () => {
   const listar = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([]);
@@ -65,6 +96,7 @@ it('não oferece publicação a membro ou se o banco falhar', async () => {
   const view = render(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido: null }) })} />);
   await waitFor(() => expect(screen.queryByText('Carregando situação de publicação…')).toBeNull());
   expect(screen.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
+  expect(screen.queryByLabelText('Arquivo de preparação privada')).toBeNull();
   view.unmount();
   auth.isFounder = true;
   render(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockRejectedValue(new Error('offline')) })} />);

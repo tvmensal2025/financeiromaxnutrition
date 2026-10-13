@@ -3,6 +3,7 @@ import { AlertCircle, ArrowRight, CheckCircle2, Clock3, FileText } from 'lucide-
 import { useAuth } from '@/auth';
 import type { CardV2, DetalheCardV2, RepositorioCardsV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
+import { SolicitarCardReal } from './SolicitarCardReal';
 
 type PageProps = { repositorio?: RepositorioCardsV2 };
 type Estado<T> = { carregando: boolean; dado: T | null; erro: string | null };
@@ -56,7 +57,12 @@ function Entrega({ conteudo }: { conteudo: unknown }) {
 }
 
 export default function CardV2Page({ repositorio }: PageProps) {
-  const { isFounder } = useAuth();
+  const { user, isFounder } = useAuth();
+  return <ConteudoCardV2 key={`${user?.id ?? 'anon'}:${isFounder ? 'fundador' : 'membro'}`} repositorio={repositorio} />;
+}
+
+function ConteudoCardV2({ repositorio }: PageProps) {
+  const { isFounder, user } = useAuth();
   const [repo, setRepo] = useState<RepositorioCardsV2 | null>(repositorio ?? null);
   const [erroInicial, setErroInicial] = useState<string | null>(null);
   const [tentativaConexao, setTentativaConexao] = useState(0);
@@ -159,6 +165,8 @@ export default function CardV2Page({ repositorio }: PageProps) {
         {enviando ? 'Registrando pedido…' : 'Pedir publicação'}
       </button>}
     </section>}
+
+    {isFounder && <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />}
 
     <div className="grid gap-8 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.6fr)]">
       <section aria-label="Lista de cards" className="space-y-3">
