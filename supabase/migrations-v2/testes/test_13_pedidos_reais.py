@@ -9,6 +9,7 @@ import pytest
 from psycopg.types.json import Jsonb
 
 import conftest as C
+import ajudas as A
 import sorteio as S
 
 
@@ -131,6 +132,21 @@ def parametros(banco, config_id):
 
 def solicitar(con, args):
     return con.execute("select helena_v2.solicitar_card_real(%s,%s,%s,%s,%s,%s)", args).fetchone()[0]
+
+
+def mundo_do_card_real(con, card_id, roteiro):
+    """Usa o driver de eventos do teste sem criar outro card ou corpus de casos."""
+    m = object.__new__(A.Mundo)
+    m.con = con
+    m.vocab, m.tabela = A.carregar_yaml()
+    m.roteiro = roteiro
+    m.perfis = {p["id"]: p for p in A.P.perfis_do_roteiro(roteiro, m.tabela, m.vocab)}
+    m.me = A.P.montar(m.vocab, m.tabela)["etapa"]
+    m.auto = False
+    m.nao_disparar = []
+    m.card = card_id
+    m.contador_prazo = 0
+    return m
 
 
 def test_fundador_solicita_idempotencia_e_motor_consome_uma_vez(banco_real):
@@ -363,12 +379,16 @@ def test_card_real_confere_fontes_antes_de_nova_execucao(banco_real):
     with banco.conectar(papel="authenticated") as con:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            con.execute("select helena_v2._real_conferir_card_vinculado(%s)", (card["card_id"],))
     with banco.conectar(papel="anon") as con:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
     with banco.conectar() as con:
         con.execute("update public.decisoes set row_version=row_version+1 where decision_id=%s", (DECISAO,))
     with banco.conectar(papel="service_role") as con:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            con.execute("select helena_v2._real_conferir_card_vinculado(%s)", (card["card_id"],))
         with pytest.raises(psycopg.errors.SerializationFailure, match="DECISAO_REAL_MUDOU"):
             con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
 
@@ -392,3 +412,69 @@ def test_card_pinado_pode_conferir_fontes_apos_nova_ativacao(banco_real):
     with banco.conectar(papel="service_role") as con:
         assert con.execute("select helena_v2.conferir_fontes_card_real(%s)",
                            (card["card_id"],)).fetchone()[0] is True
+
+
+@pytest.mark.parametrize("aprovador", ["REVISOR", "FUNDADOR"])
+def test_aprovar_por_rpc_antiga_recusa_fonte_real_desatualizada(banco_real, aprovador):
+    banco, config_id = banco_real
+    args = parametros(banco, config_id)
+    roteiro = copy.deepcopy(S.ROTEIRO_UMA_ETAPA)
+    if aprovador == "FUNDADOR":
+        roteiro["etapas"][0]["revisores"] = ["FUNDADOR"]
+    with banco.conectar(papel="authenticated") as con:
+        pedido = solicitar(con, args)
+    with banco.conectar(papel="service_role") as con:
+        card = con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
+                           (pedido["id"], Jsonb(roteiro))).fetchone()[0]
+        m = mundo_do_card_real(con, card["card_id"], roteiro)
+        assert m.um("HELENA", "LER_DE_VOLTA")["resultado"] == "APLICADO"
+        with banco.conectar(papel="authenticated") as fundador:
+            m.con = fundador
+            assert m.um("FUNDADOR", "RESPONDER", params={"opcao": "CONFIRMO"})["resultado"] == "APLICADO"
+        m.con = con
+        assert m.um("MOTOR", "PLANO_VALIDO")["resultado"] == "APLICADO"
+        assert m.executando()[-1]["resultado"] == "APLICADO"
+        assert m.entregar()["resultado"] == "APLICADO"
+        if aprovador == "FUNDADOR":
+            assert m.um("MOTOR", "PORTAO1_OK", "E1", {"escolhido": "FUNDADOR"})["resultado"] == "APLICADO"
+        else:
+            assert m.revisao(revisor="CLARA")[-1]["resultado"] == "APLICADO"
+    with banco.conectar() as con:
+        con.execute("update public.decisoes set row_version=row_version+1 where decision_id=%s", (DECISAO,))
+    papel = "authenticated" if aprovador == "FUNDADOR" else "service_role"
+    with banco.conectar(papel=papel) as con:
+        m.con = con
+        with pytest.raises(psycopg.errors.SerializationFailure, match="DECISAO_REAL_MUDOU"):
+            m.um(aprovador, "APROVAR", "E1")
+        assert con.execute("select estado from helena_v2.etapa where card_id=%s and codigo='E1'",
+                           (card["card_id"],)).fetchone()[0] != "APROVADA"
+    with banco.conectar(papel="authenticated") as con:
+        m.con = con
+        assert m.um("FUNDADOR", "CANCELAR")["resultado"] == "APLICADO"
+
+
+def test_card_pronto_por_rpc_antiga_recusa_fonte_real_desatualizada(banco_real):
+    banco, config_id = banco_real
+    args = parametros(banco, config_id)
+    with banco.conectar(papel="authenticated") as con:
+        pedido = solicitar(con, args)
+    with banco.conectar(papel="service_role") as con:
+        card = con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
+                           (pedido["id"], Jsonb(S.ROTEIRO_UMA_ETAPA))).fetchone()[0]
+        m = mundo_do_card_real(con, card["card_id"], S.ROTEIRO_UMA_ETAPA)
+        assert m.um("HELENA", "LER_DE_VOLTA")["resultado"] == "APLICADO"
+        with banco.conectar(papel="authenticated") as fundador:
+            m.con = fundador
+            assert m.um("FUNDADOR", "RESPONDER", params={"opcao": "CONFIRMO"})["resultado"] == "APLICADO"
+        m.con = con
+        assert m.um("MOTOR", "PLANO_VALIDO")["resultado"] == "APLICADO"
+        assert m.executando()[-1]["resultado"] == "APLICADO"
+        assert m.entregar()["resultado"] == "APLICADO"
+        assert m.revisao(revisor="CLARA")[-1]["resultado"] == "APLICADO"
+        assert m.um("REVISOR", "APROVAR", "E1")["resultado"] == "APLICADO"
+        assert m.estado_da("E1") == "APROVADA"
+        with banco.conectar() as admin:
+            admin.execute("update public.decisoes set row_version=row_version+1 where decision_id=%s", (DECISAO,))
+        with pytest.raises(psycopg.errors.SerializationFailure, match="DECISAO_REAL_MUDOU"):
+            m.um("MOTOR", "TODAS_PRONTAS")
+        assert m.estado_da() == "EM_ANDAMENTO"

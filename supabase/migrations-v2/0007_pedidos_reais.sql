@@ -396,16 +396,13 @@ begin
 end;
 $f$;
 
--- Portão R10 para cada uso posterior do card. O Motor deve manter a mesma
--- transação desta conferência até aplicar o evento que consome a resposta.
-create function helena_v2.conferir_fontes_card_real(p_card_id uuid) returns boolean
+-- Conferência privada compartilhada pelo portão do Motor e pelas transições
+-- positivas do banco. Permanece na transação até a atualização do estado.
+create function helena_v2._real_conferir_card_vinculado(p_card_id uuid) returns boolean
 language plpgsql volatile security definer set search_path = pg_catalog, pg_temp
 set lock_timeout = '5s' as $f$
 declare p helena_v2.solicitacao_card_real; c helena_v2.card; ordem jsonb; v_estado text;
 begin
-  if helena_v2._conta() <> 'service_role' then
-    raise exception 'SOMENTE_MOTOR' using errcode = '42501';
-  end if;
   select * into p from helena_v2.solicitacao_card_real
     where card_id=p_card_id and consumida_em is not null for share;
   if not found then
@@ -430,6 +427,56 @@ begin
 end;
 $f$;
 
+-- O Motor faz a leitura e a aplicação na mesma transação. A função pública
+-- continua exclusiva do service_role; o gatilho chama só a função privada.
+create function helena_v2.conferir_fontes_card_real(p_card_id uuid) returns boolean
+language plpgsql volatile security definer set search_path = pg_catalog, pg_temp
+set lock_timeout = '5s' as $f$
+begin
+  if helena_v2._conta() <> 'service_role' then
+    raise exception 'SOMENTE_MOTOR' using errcode = '42501';
+  end if;
+  return helena_v2._real_conferir_card_vinculado(p_card_id);
+end;
+$f$;
+
+-- Toda promoção real a APROVADA/PRONTA é conferida, inclusive eventos
+-- chamados diretamente por fundador ou service_role fora do Motor. Caminhos
+-- de cancelamento, ajuste e falha continuam disponíveis com fonte antiga.
+create function helena_v2._real_proteger_promocao() returns trigger
+language plpgsql volatile security definer set search_path = pg_catalog, pg_temp
+set lock_timeout = '5s' as $f$
+declare v_card_id uuid; v_ordem jsonb;
+begin
+  if tg_table_name = 'etapa' then
+    if new.estado is not distinct from old.estado
+       or new.estado not in ('APROVADA','PRONTA') then return new; end if;
+    v_card_id := new.card_id;
+    select ordem_de_servico into v_ordem from helena_v2.card where id=v_card_id;
+  elsif tg_table_name = 'card' then
+    if new.estado is distinct from 'PRONTO' or old.estado = 'PRONTO' then return new; end if;
+    v_card_id := new.id;
+    v_ordem := old.ordem_de_servico;
+  else
+    raise exception 'GATILHO_REAL_INVALIDO' using errcode = 'XX000';
+  end if;
+  if v_ordem ->> 'modo_contexto' = 'real' or exists (
+      select 1 from helena_v2.solicitacao_card_real where card_id=v_card_id) then
+    if tg_table_name = 'card' then
+      if new.ordem_de_servico is distinct from old.ordem_de_servico then
+        raise exception 'CARD_REAL_ORDEM_MUDOU' using errcode = '42501';
+      end if;
+    end if;
+    perform helena_v2._real_conferir_card_vinculado(v_card_id);
+  end if;
+  return new;
+end;
+$f$;
+create trigger b_real_proteger_promocao before update on helena_v2.etapa
+  for each row execute function helena_v2._real_proteger_promocao();
+create trigger b_real_proteger_promocao before update on helena_v2.card
+  for each row execute function helena_v2._real_proteger_promocao();
+
 -- A porta antiga deduplica só pelo número da mensagem, sem comparar carga.
 -- Após esta migração, apenas a função definer acima pode chamá-la.
 revoke execute on function helena_v2.criar_card(text,text,text,text,timestamptz,jsonb,text,jsonb,integer,boolean)
@@ -437,6 +484,8 @@ revoke execute on function helena_v2.criar_card(text,text,text,text,timestamptz,
 revoke all on helena_v2.solicitacao_card_real from public,anon,authenticated,service_role;
 revoke execute on function helena_v2._real_proteger_solicitacao(),
   helena_v2._real_conferir_captura(text,jsonb,jsonb),
+  helena_v2._real_conferir_card_vinculado(uuid),
+  helena_v2._real_proteger_promocao(),
   helena_v2._real_json_solicitacao(helena_v2.solicitacao_card_real),
   helena_v2.solicitar_card_real(text,timestamptz,jsonb,jsonb,uuid,text),
   helena_v2.ler_solicitacao_card_real(uuid),
