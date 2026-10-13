@@ -30,7 +30,7 @@ import { ShieldAlert, LogOut } from "lucide-react";
 export const EXIGIR_AUTENTICACAO = true;
 
 function Protegida({ children }: { children: React.ReactNode }) {
-  const { user, appAccess, loading, sair } = useAuth();
+  const { user, isMember, loading, accessCheckFailed, sair } = useAuth();
   const location = useLocation();
 
   // Caso autenticação esteja ativada
@@ -47,6 +47,21 @@ function Protegida({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (accessCheckFailed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+        <section role="alert" className="max-w-md space-y-4 rounded-xl border border-border bg-card p-6">
+          <h1 className="text-xl font-semibold">Não foi possível confirmar sua sessão</h1>
+          <p className="text-sm text-muted-foreground">O serviço não confirmou a validação de acesso ou a saída. Confira a conexão e tente novamente.</p>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground">Tentar novamente</button>
+            <button type="button" onClick={() => void sair()} className="rounded-lg border border-border px-4 py-2">Sair</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   // Visitante não autenticado -> redireciona para /login preservando rota de destino
   if (!user) {
     const returnTarget = encodeURIComponent(location.pathname + location.search);
@@ -54,7 +69,7 @@ function Protegida({ children }: { children: React.ReactNode }) {
   }
 
   // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
-  if (!appAccess || !appAccess.active) {
+  if (!isMember) {
     return (
       <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">

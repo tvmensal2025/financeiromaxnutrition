@@ -31,7 +31,7 @@ function linhasDaEntrega(conteudo: unknown): { rotulo: string; valor: string }[]
       const campos = Object.entries(valor);
       for (let i = campos.length - 1; i >= 0; i--) {
         const [chave, item] = campos[i];
-        pendentes.push({ valor: item, caminho: `${caminho} ${chave.replaceAll('_', ' ')}`.trim() });
+        pendentes.push({ valor: item, caminho: `${caminho} ${chave.replace(/_/g, ' ')}`.trim() });
       }
     } else {
       linhas.push({ rotulo: caminho || 'Texto', valor: valor === null ? 'nulo' : Array.isArray(valor) || typeof valor === 'object' ? 'vazio' : String(valor) });
@@ -174,7 +174,7 @@ export default function CardV2Page({ repositorio }: PageProps) {
         <div className="divide-y divide-border border-y border-border">
           {lista.dado?.map(card => <button key={card.id} type="button" onClick={() => escolherCard(card.id)} aria-current={cardId === card.id ? 'true' : undefined}
             className="group flex w-full items-center justify-between gap-3 px-2 py-4 text-left transition hover:bg-muted/50 active:scale-[0.99]">
-            <span className="min-w-0"><strong className="block truncate text-sm">{card.titulo}</strong><span className="mt-1 block text-xs text-muted-foreground">{card.estado.replaceAll('_', ' ')} · {card.dono || 'Dono não informado'}</span></span>
+            <span className="min-w-0"><strong className="block truncate text-sm">{card.titulo}</strong><span className="mt-1 block text-xs text-muted-foreground">{card.estado.replace(/_/g, ' ')} · {card.dono || 'Dono não informado'}</span></span>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
           </button>)}
         </div>
@@ -191,7 +191,7 @@ export default function CardV2Page({ repositorio }: PageProps) {
           {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="ml-3 font-semibold underline">Tentar novamente</button></div>}
           {!detalhe.carregando && detalheVisivel?.etapas.length === 0 && <p className="text-sm text-muted-foreground">Este card ainda não tem etapas.</p>}
           {detalheVisivel?.etapas.map(etapa => <article key={etapa.id} className="border-b border-border pb-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{etapa.codigo} · {etapa.nome}</h3><span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{etapa.estado.replaceAll('_', ' ')}</span></div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{etapa.codigo} · {etapa.nome}</h3><span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{etapa.estado.replace(/_/g, ' ')}</span></div>
             <div className="mt-3 grid gap-1 text-sm text-muted-foreground sm:grid-cols-2"><p>Autor: {etapa.autor}</p><p>Revisor: {etapa.revisores.join(', ') || 'Não informado'}</p><p>Dono: {etapa.dono || 'Não informado'}</p><p className="flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />Prazo: {dataBrasilia(etapa.prazo_ate)}</p></div>
             {detalheVisivel.entregas.filter(entrega => entrega.etapa_id === etapa.id).map(entrega => <div key={entrega.id} className="mt-5 rounded-xl border border-border bg-card p-4">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4" />Entrega aprovada · versão {entrega.versao}</h4><Entrega conteudo={entrega.conteudo} />
