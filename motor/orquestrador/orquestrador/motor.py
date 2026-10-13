@@ -86,12 +86,14 @@ def conferir_rubrica(spec, servico, criterios) -> bool:
 
 def _preflight_bancos_reais(url_banco: str, url_dbos: str):
     """Confere logins e contrato da máquina antes de registrar workflows globais."""
-    from .bancos import preflight_papel_runtime, validar_destinos_reais
+    from .bancos import (parametros_conexao_real, preflight_papel_runtime,
+                         validar_destinos_reais)
 
     dbos_config = validar_destinos_reais(url_banco, url_dbos)
     app_dsn = url_banco.replace('postgresql+psycopg://', 'postgresql://', 1)
     sys_dsn = url_dbos.replace('postgresql+psycopg://', 'postgresql://', 1)
-    with psycopg.connect(app_dsn, autocommit=True, row_factory=dict_row) as con:
+    parametros = parametros_conexao_real()
+    with psycopg.connect(app_dsn, autocommit=True, row_factory=dict_row, **parametros) as con:
         preflight_papel_runtime(con)
         con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier('service_role')))
         estado = con.execute("""SELECT helena_v2.tabela_confere() AS confere,
@@ -103,7 +105,9 @@ def _preflight_bancos_reais(url_banco: str, url_dbos: str):
                 not isinstance(estado['ativa'], dict) or
                 estado['ativa'].get('estado') != 'VALIDADA'):
             raise RuntimeError('banco do card sem máquina compatível e configuração ativa validada')
-    with psycopg.connect(sys_dsn, autocommit=True, row_factory=dict_row) as con:
+    parametros_sistema = {k: v for k, v in parametros.items() if k != 'options'}
+    with psycopg.connect(sys_dsn, autocommit=True, row_factory=dict_row,
+                         **parametros_sistema) as con:
         preflight_papel_runtime(con, sistema=True)
     return dbos_config
 
@@ -187,7 +191,12 @@ class Motor:
         if papel == 'authenticated':
             raise RuntimeError('contexto de identidade do fundador deve ser injetado')
         dsn = self.url_banco.replace('postgresql+psycopg://', 'postgresql://', 1)
-        con = psycopg.connect(dsn, autocommit=True, row_factory=dict_row)
+        if self.modo_producao:
+            from .bancos import parametros_conexao_real
+            parametros = parametros_conexao_real()
+        else:
+            parametros = {}
+        con = psycopg.connect(dsn, autocommit=True, row_factory=dict_row, **parametros)
         if papel:
             con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))
         return con
@@ -715,6 +724,20 @@ class Motor:
         with SetWorkflowID(f'{self.versao_codigo}-{revisao_id}-{etapa_id}-{numero}'):
             return self.dbos.start_workflow(fluxo_etapa, str(etapa_id), numero).get_result()
 
+    @staticmethod
+    def _pedido_coordenacao_real(card):
+        ordem = card['ordem_de_servico']
+        origem = ordem['dados_reais']['pedido']['ordem_de_servico']
+        campos = ('prioridade_na_fonte', 'o_que_quer', 'como_e_o_pronto', 'nao_pode',
+                  'fontes_que_pode_ler')
+        return {'pedido_original': ordem['pedido_original'],
+                'business_id': ordem['business_id'], 'titulo': card['titulo'],
+                'card_id': str(card['id']), 'prazo': card['prazo'].isoformat(),
+                'criado_em': card['criado_em'].isoformat(),
+                'ordem_de_servico': {**{campo: origem[campo] for campo in campos if campo in origem},
+                                    'pedido_original': ordem['pedido_original'],
+                                    'prazo': card['prazo'].isoformat()}}
+
     def avancar(self, card_id):
         modo = self._modo_card(card_id)
         card = self._card(card_id)
@@ -722,11 +745,8 @@ class Motor:
             revisao, _spec, raiz = self._ambiente_card(card_id)
             chave = self._linha('SELECT helena_v2.abrir_chamada_helena(%s,%s) AS chave', ('card', card_id))['chave']
             ficha = self._ficha('HELENA', 'COORDENACAO', 'LER_DE_VOLTA', raiz)
-            ordem = card['ordem_de_servico']
-            pedido = ({'pedido_original': ordem['pedido_original'], 'business_id': ordem['business_id'],
-                       'titulo': card['titulo'], 'card_id': str(card_id),
-                       'prazo': card['prazo'].isoformat(),
-                       'criado_em': card['criado_em'].isoformat()} if modo == 'real' else ordem)
+            pedido = (self._pedido_coordenacao_real(card) if modo == 'real'
+                      else card['ordem_de_servico'])
             resultado = self.executor.rodar(Execucao(id=f'C-{chave}', ficha=ficha,
                                                    pacote=json.dumps({'card_id': str(card_id),
                                                                       'config_revision_id': str(revisao['id']),

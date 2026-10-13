@@ -86,6 +86,22 @@ def test_etapa_e3_recebe_somente_condicoes_sem_conta_ou_entrega_e1(monkeypatch):
     assert 'captura' not in json.dumps(pedido)
 
 
+def test_coordenacao_real_recebe_ordem_confirmada_sem_captura_ou_jobs():
+    ordem = _ordem_real()
+    ordem['dados_reais']['pedido']['ordem_de_servico']['prioridade_na_fonte'] = 'NORMAL'
+    card = {'id': uuid4(), 'titulo': 'Convite real', 'ordem_de_servico': ordem,
+            'prazo': datetime(2026, 10, 30, 12, tzinfo=timezone.utc),
+            'criado_em': datetime(2026, 10, 13, 10, tzinfo=timezone.utc)}
+    pedido = Motor._pedido_coordenacao_real(card)
+    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T12:00:00+00:00'
+    assert pedido['ordem_de_servico']['como_e_o_pronto'] == 'Entregas verificáveis'
+    assert pedido['ordem_de_servico']['nao_pode'] == 'Prometer ganho'
+    assert pedido['ordem_de_servico']['prioridade_na_fonte'] == 'NORMAL'
+    assert pedido['pedido_original'] == 'Pedido do fundador'
+    assert 'captura' not in json.dumps(pedido)
+    assert 'FON-JOB-CONTA' not in json.dumps(pedido)
+
+
 def test_parecer_recebe_somente_dependencias_aprovadas(monkeypatch):
     motor = object.__new__(Motor)
     card = {'titulo': 'Parecer', 'ordem_de_servico': _ordem_real(),
@@ -241,6 +257,9 @@ def test_preflight_real_confere_papeis_e_maquina_antes_de_iniciar_dbos(monkeypat
                         lambda app, sys: {'system_database_url': sys,
                                           'dbos_system_schema': 'dbos_helena_v2',
                                           'run_migrations': False})
+    parametros = {'sslrootcert': '/ca/verificada.pem', 'connect_timeout': 10,
+                  'options': '-c lock_timeout=5s -c statement_timeout=30s'}
+    monkeypatch.setattr('orquestrador.bancos.parametros_conexao_real', lambda: parametros)
     monkeypatch.setattr('orquestrador.bancos.preflight_papel_runtime',
                         lambda con, *, sistema=False: eventos.append(('papel', con.nome, sistema)))
     monkeypatch.setattr(motor_mod, 'capturar_bundle', lambda _raiz: {'bundle': True})
@@ -267,13 +286,40 @@ def test_preflight_real_confere_papeis_e_maquina_antes_de_iniciar_dbos(monkeypat
             return {'confere': True, 'impressao': 'IMPRESSAO-REAL',
                     'ativa': {'estado': 'VALIDADA'}}
 
-    def conectar(dsn, **_kw):
+    def conectar(dsn, **kwargs):
+        assert kwargs['sslrootcert'] == parametros['sslrootcert']
+        assert kwargs['connect_timeout'] == parametros['connect_timeout']
+        assert kwargs.get('options') == (parametros['options'] if dsn == urls[0] else None)
         return Conexao('app' if dsn == urls[0] else 'sistema')
 
     monkeypatch.setattr(motor_mod.psycopg, 'connect', conectar)
     assert motor_mod._preflight_bancos_reais(*urls)['run_migrations'] is False
     assert eventos == [('papel', 'app', False), ('set_role', 'app'), ('maquina', 'app'),
                        ('papel', 'sistema', True)]
+
+
+def test_conexao_producao_aplica_ca_e_timeouts_em_cada_uso(monkeypatch):
+    parametros = {'sslrootcert': '/ca/verificada.pem', 'connect_timeout': 10,
+                  'options': '-c lock_timeout=5s -c statement_timeout=30s'}
+    monkeypatch.setattr('orquestrador.bancos.parametros_conexao_real', lambda: parametros)
+    chamadas = []
+
+    class Conexao:
+        def execute(self, comando):
+            chamadas.append(str(comando))
+
+    def conectar(dsn, **kwargs):
+        chamadas.append((dsn, kwargs))
+        return Conexao()
+
+    monkeypatch.setattr(motor_mod.psycopg, 'connect', conectar)
+    motor = object.__new__(Motor)
+    motor.url_banco = 'postgresql+psycopg://app@db.exemplo/postgres'
+    motor.modo_producao = True
+    motor._con()
+    assert chamadas[0][0] == 'postgresql://app@db.exemplo/postgres'
+    assert all(chamadas[0][1][k] == v for k, v in parametros.items())
+    assert 'SET ROLE' in chamadas[1]
 
 
 def test_evento_automatico_real_confere_fontes_e_aplica_na_mesma_transacao(monkeypatch):
