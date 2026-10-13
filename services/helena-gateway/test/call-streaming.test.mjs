@@ -223,6 +223,9 @@ it('devolve na resposta e nas métricas o provedor de voz que realmente falou o 
     } });
   assert.equal(result.ttsProvider, 'GOOGLE_CHIRP3_HD');
   assert.equal(result.metrics.tts_provider, 'GOOGLE_CHIRP3_HD');
+  // Stream só do Google não conta caracteres: o streaming soma o que mandou falar.
+  assert.deepEqual(result.ttsCharsByProvider, { GOOGLE_CHIRP3_HD: 'Tudo certo.'.length });
+  assert.deepEqual(result.metrics.tts_chars_by_provider, { GOOGLE_CHIRP3_HD: 'Tudo certo.'.length });
 });
 
 it('em falha do turno, as métricas do erro também trazem o provedor que chegou a falar', async () => {

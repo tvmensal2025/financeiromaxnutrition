@@ -75,6 +75,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   let firstTextAt = null;
   let firstTokenAt = null;
   let audioBytes = 0;
+  let writtenChars = 0; // caracteres mandados à voz (custo, quando o stream não mede por provedor)
   // A voz (ElevenLabs e reserva Google) vem do PERSONAGEM do perfil ativo da ligação.
   const tts = openTTS({ voice, characterId: profile?.character_id || null, context: 'CALL', signal: combined, fetchImpl });
   tts.on('error', () => {}); // Cancellation may arrive before the HTTP consumer attaches.
@@ -91,6 +92,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     }
     const cleanSpoken = cleanVoiceText(sentence, { preserveAudioTags: false });
     spokenText += `${spokenText ? ' ' : ''}${cleanSpoken}`;
+    writtenChars += clean.length;
     if (!tts.write({ input: { text: `${clean} ` } })) await once(tts, 'drain', { signal: combined });
   };
   const llmTask = (async () => {
@@ -178,10 +180,18 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
   })();
   // Telemetria: quem realmente falou o turno (ElevenLabs, reserva Google ou os dois).
   const spokenBy = () => tts?.ttsProvider ?? null;
+  // Caracteres por provedor: o stream híbrido mede; o stream só do Google recebe tudo o que foi mandado falar.
+  const charsBy = () => {
+    if (tts?.ttsCharsByProvider) return { ...tts.ttsCharsByProvider };
+    const provider = spokenBy();
+    return provider && writtenChars ? { [provider]: writtenChars } : null;
+  };
   try {
     const [, playback] = await Promise.all([llmTask, playbackTask]);
     metrics.tts_provider = spokenBy();
-    return { text: spokenText, usage, metrics, playback, audioBytes, ttsProvider: metrics.tts_provider };
+    metrics.tts_chars_by_provider = charsBy();
+    return { text: spokenText, usage, metrics, playback, audioBytes, ttsProvider: metrics.tts_provider,
+      ttsCharsByProvider: metrics.tts_chars_by_provider };
   } catch (err) {
     controller.abort(err);
     audio.destroy();
@@ -189,7 +199,7 @@ export async function streamReplyToCall({ callId, speechEpoch, apiKey, model, sy
     await Promise.allSettled([llmTask, playbackTask]);
     err.interrupted = Boolean(err.interrupted || signal?.aborted);
     err.interruptionReason ||= signal?.reason?.interruptionReason || null;
-    err.streamMetrics = { ...metrics, tts_provider: spokenBy(),
+    err.streamMetrics = { ...metrics, tts_provider: spokenBy(), tts_chars_by_provider: charsBy(),
       interruption_reason: err.interrupted ? err.interruptionReason : null,
       failure_reason: err.interrupted ? null : err.name === 'TimeoutError' ? 'stream_timeout' : 'stream_error',
       playback_http_status: err.playbackHttpStatus ?? null };

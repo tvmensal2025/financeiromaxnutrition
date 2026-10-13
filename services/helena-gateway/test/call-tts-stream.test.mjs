@@ -211,6 +211,9 @@ describe('call-tts-stream — Híbrido Telefônico (ElevenLabs V4 Turbo + reserv
     mixed.end();
     await new Promise((resolve) => mixed.once('finish', resolve));
     assert.equal(mixed.ttsProvider, 'ELEVENLABS+GOOGLE_CHIRP3_HD');
+    // Caracteres por provedor (custo): a 1ª frase saiu na ElevenLabs e a 2ª no Google.
+    assert.deepEqual(mixed.ttsCharsByProvider, { ELEVENLABS: 'Primeira frase.'.length, GOOGLE_CHIRP3_HD: 'Segunda frase.'.length });
+    assert.deepEqual(onlyEleven.ttsCharsByProvider, { ELEVENLABS: 'Oi.'.length });
   });
 
   it('o stream direto do Google informa o Google como provedor', async () => {

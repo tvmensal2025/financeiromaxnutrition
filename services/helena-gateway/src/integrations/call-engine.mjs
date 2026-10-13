@@ -270,8 +270,16 @@ export const DEFAULT_PRICING = Object.freeze({
   gpt_cached_input_per_million: 0.01,
   gpt_output_per_million: 0.50,
   google_chirp_per_million_chars: 16.00,
+  // ElevenLabs cobra em créditos do plano, sem preço por caractere confirmado: só entra no custo se
+  // ELEVENLABS_USD_PER_MILLION_CHARS for configurado (os caracteres aparecem sempre em tts_chars_elevenlabs).
+  elevenlabs_per_million_chars: positivePriceOrNull(process.env.ELEVENLABS_USD_PER_MILLION_CHARS),
   usd_to_brl: 5.80
 });
+
+function positivePriceOrNull(value) {
+  const price = Number(value);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
 
 // ======================================================================
 // 4.1 PROVEDOR DE VOZ (TTS) NA TELEMETRIA
@@ -304,6 +312,26 @@ export function ttsProviderList(value) {
 export function normalizeTtsProvider(value) {
   const providers = ttsProviderList(value);
   return providers.length ? providers.join('+') : null;
+}
+
+/**
+ * Caracteres de voz por provedor numa fala. Usa a divisão medida pelo stream quando vier; senão, um provedor só
+ * leva tudo; turno misto sem divisão conta como Google (estimativa conservadora); sem provedor, nada foi cobrado.
+ */
+function ttsCharsPerProvider(provider, chars, measured) {
+  if (measured && typeof measured === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(measured)) {
+      const name = normalizeTtsProvider(key);
+      const count = Number(value) || 0;
+      if (name && count > 0) result[name] = (result[name] || 0) + count;
+    }
+    return result;
+  }
+  const providers = ttsProviderList(provider);
+  if (!providers.length || !chars) return {};
+  if (providers.length === 1) return { [providers[0]]: chars };
+  return { [TTS_PROVIDERS.GOOGLE]: chars };
 }
 
 // ======================================================================
@@ -681,6 +709,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'IN
       tts_chars: 0,
       tts_requests: 0,
       tts_providers: {},
+      tts_chars_by_provider: {},
       turn_count: 0
     },
     latencies: {
@@ -877,6 +906,7 @@ export function recordTurnTelemetry({
   profileKey = '',
   charactersSynthesized = null,
   ttsProvider = null,
+  ttsCharsByProvider = null,
   error = null
 }) {
   let call = getCallSession(callId);
@@ -900,6 +930,7 @@ export function recordTurnTelemetry({
   const resolvedProfileKey = profileKey || call.activeProfileKey || `${call.activeCharacterId}_${call.activeMode}`;
   // Quem realmente falou nesta fala (ElevenLabs, reserva Google ou os dois); null se nada foi sintetizado.
   const resolvedTtsProvider = normalizeTtsProvider(ttsProvider);
+  const charsByProvider = ttsCharsPerProvider(resolvedTtsProvider, chars, ttsCharsByProvider);
 
   const turnRecord = {
     turn_index: turnIndex,
@@ -930,7 +961,8 @@ export function recordTurnTelemetry({
     tts: {
       chars,
       voice: resolvedVoice,
-      provider: resolvedTtsProvider
+      provider: resolvedTtsProvider,
+      chars_by_provider: charsByProvider
     }
   };
 
@@ -947,6 +979,10 @@ export function recordTurnTelemetry({
   call.totals.tokens_cached += cachedTokens;
   call.totals.tokens_reasoning += reasoningTokens;
   call.totals.tts_chars += chars;
+  call.totals.tts_chars_by_provider ||= {};
+  for (const [provider, count] of Object.entries(charsByProvider)) {
+    call.totals.tts_chars_by_provider[provider] = (call.totals.tts_chars_by_provider[provider] || 0) + count;
+  }
   call.totals.tts_requests += 1;
   call.totals.turn_count = turnIndex;
 
@@ -963,20 +999,33 @@ export function recordTurnTelemetry({
 /**
  * Calcula estimativa de custo de tokens e TTS
  */
-export function calculateEstimatedCost({ inputTokens = 0, cachedTokens = 0, outputTokens = 0, ttsChars = 0 }) {
+export function calculateEstimatedCost({ inputTokens = 0, cachedTokens = 0, outputTokens = 0, ttsChars = 0, ttsCharsByProvider = null },
+  pricing = pricingConfig) {
   const regularInput = Math.max(0, inputTokens - cachedTokens);
-  const costRegularInput = (regularInput / 1_000_000) * pricingConfig.gpt_input_per_million;
-  const costCachedInput = (cachedTokens / 1_000_000) * pricingConfig.gpt_cached_input_per_million;
-  const costOutput = (outputTokens / 1_000_000) * pricingConfig.gpt_output_per_million;
+  const costRegularInput = (regularInput / 1_000_000) * pricing.gpt_input_per_million;
+  const costCachedInput = (cachedTokens / 1_000_000) * pricing.gpt_cached_input_per_million;
+  const costOutput = (outputTokens / 1_000_000) * pricing.gpt_output_per_million;
   const costLlmUsd = costRegularInput + costCachedInput + costOutput;
 
-  const costTtsUsd = (ttsChars / 1_000_000) * pricingConfig.google_chirp_per_million_chars;
+  // Com a divisão por provedor real: o Google cobra por caractere; a ElevenLabs só entra se tiver preço configurado.
+  // Sem a divisão (uso antigo), todo caractere é estimado como Google.
+  const byProvider = ttsCharsByProvider && typeof ttsCharsByProvider === 'object' ? ttsCharsByProvider : null;
+  const googleChars = byProvider ? Number(byProvider[TTS_PROVIDERS.GOOGLE]) || 0 : ttsChars;
+  const elevenChars = byProvider ? Number(byProvider[TTS_PROVIDERS.ELEVENLABS]) || 0 : 0;
+  const costGoogleUsd = (googleChars / 1_000_000) * pricing.google_chirp_per_million_chars;
+  const elevenPrice = positivePriceOrNull(pricing.elevenlabs_per_million_chars);
+  const costElevenUsd = elevenPrice === null ? null : (elevenChars / 1_000_000) * elevenPrice;
+  const costTtsUsd = costGoogleUsd + (costElevenUsd || 0);
   const costTotalUsd = costLlmUsd + costTtsUsd;
-  const costTotalBrl = costTotalUsd * pricingConfig.usd_to_brl;
+  const costTotalBrl = costTotalUsd * pricing.usd_to_brl;
 
   return {
     cost_llm_usd: Number(costLlmUsd.toFixed(6)),
     cost_tts_usd: Number(costTtsUsd.toFixed(6)),
+    cost_tts_google_usd: Number(costGoogleUsd.toFixed(6)),
+    cost_tts_elevenlabs_usd: costElevenUsd === null ? null : Number(costElevenUsd.toFixed(6)),
+    tts_chars_google: googleChars,
+    tts_chars_elevenlabs: elevenChars,
     cost_total_usd: Number(costTotalUsd.toFixed(6)),
     cost_total_brl: Number(costTotalBrl.toFixed(4)),
     currency: 'BRL',
@@ -1008,7 +1057,8 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
     inputTokens: call.totals.tokens_input,
     cachedTokens: call.totals.tokens_cached,
     outputTokens: call.totals.tokens_output,
-    ttsChars: call.totals.tts_chars
+    ttsChars: call.totals.tts_chars,
+    ttsCharsByProvider: call.totals.tts_chars_by_provider || {}
   });
 
   const record = {
@@ -1039,7 +1089,8 @@ export function endCallSession({ callId, reason = 'NORMAL_CLEARING' }) {
       requests_count: call.totals.tts_requests,
       // Provedores que realmente falaram na ligação e em quantas falas cada um entrou.
       provider: normalizeTtsProvider(Object.keys(call.totals.tts_providers || {}).join('+')),
-      providers: { ...(call.totals.tts_providers || {}) }
+      providers: { ...(call.totals.tts_providers || {}) },
+      chars_by_provider: { ...(call.totals.tts_chars_by_provider || {}) }
     },
     latency: {
       average_ms: avgLat,

@@ -265,6 +265,38 @@ describe('Motor de Ligações (Call Engine) — Testes Completos', () => {
     assert.deepEqual(summary.tts.providers, { ELEVENLABS: 2, GOOGLE_CHIRP3_HD: 2 });
   });
 
+  it('custo de voz por provedor real: Google cobra por caractere; ElevenLabs (créditos do plano) só com preço configurado', () => {
+    const unpriced = calculateEstimatedCost({ ttsChars: 3_000_000,
+      ttsCharsByProvider: { GOOGLE_CHIRP3_HD: 1_000_000, ELEVENLABS: 2_000_000 } });
+    assert.equal(unpriced.cost_tts_google_usd, 16);
+    assert.equal(unpriced.cost_tts_elevenlabs_usd, null, 'sem preço configurado a ElevenLabs não entra como Google');
+    assert.equal(unpriced.cost_tts_usd, 16);
+    assert.equal(unpriced.tts_chars_google, 1_000_000);
+    assert.equal(unpriced.tts_chars_elevenlabs, 2_000_000);
+    const priced = calculateEstimatedCost({ ttsCharsByProvider: { ELEVENLABS: 2_000_000 } },
+      { ...getCallEngineConfig().pricing, elevenlabs_per_million_chars: 30 });
+    assert.equal(priced.cost_tts_elevenlabs_usd, 60);
+    assert.equal(priced.cost_tts_usd, 60);
+    // Sem divisão por provedor (uso antigo), mantém o cálculo de antes.
+    assert.equal(calculateEstimatedCost({ ttsChars: 1_000_000 }).cost_tts_usd, 16);
+  });
+
+  it('a ligação soma os caracteres por provedor e só cobra como Google o que o Google falou', () => {
+    const callId = `tts-chars-${Date.now()}`;
+    registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+    recordTurnTelemetry({ callId, userText: 'a', replyText: 'x'.repeat(100), ttsProvider: 'ELEVENLABS' });
+    recordTurnTelemetry({ callId, userText: 'b', replyText: 'y'.repeat(50), ttsProvider: 'GOOGLE_CHIRP3_HD' });
+    const mixed = recordTurnTelemetry({ callId, userText: 'c', replyText: 'z'.repeat(50), ttsProvider: 'ELEVENLABS+GOOGLE_CHIRP3_HD',
+      ttsCharsByProvider: { ELEVENLABS: 30, google_chirp3_hd: 20 } });
+    recordTurnTelemetry({ callId, userText: 'd', replyText: '', error: 'stream_interrupted' });
+    assert.deepEqual(mixed.tts.chars_by_provider, { ELEVENLABS: 30, GOOGLE_CHIRP3_HD: 20 });
+    const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
+    assert.deepEqual(summary.tts.chars_by_provider, { ELEVENLABS: 130, GOOGLE_CHIRP3_HD: 70 });
+    assert.equal(summary.costs.tts_chars_google, 70);
+    assert.equal(summary.costs.cost_tts_google_usd, Number((70 / 1_000_000 * 16).toFixed(6)));
+    assert.equal(summary.costs.cost_tts_usd, summary.costs.cost_tts_google_usd);
+  });
+
   it('ligação em que só a ElevenLabs falou fecha com o provedor ElevenLabs', () => {
     const callId = `tts-provider-eleven-${Date.now()}`;
     registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'alex_normal' });

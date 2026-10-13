@@ -73,6 +73,7 @@ export class HybridCallTTSStream extends Transform {
     this.spokenText = '';
     this.tagsUsed = 0;
     this.ttsProvidersUsed = new Set(); // quem realmente entregou áudio neste turno (telemetria)
+    this.ttsCharsByProvider = {}; // caracteres enviados a cada provedor neste turno (custo)
 
     this.supportsAudioTags = true;
     this.elevenLabsFailed = false;
@@ -112,10 +113,7 @@ export class HybridCallTTSStream extends Transform {
     }
 
     if (this.elevenLabsFailed && this.chirpStream) {
-      const cleanChirp = stripAudioTags(text);
-      if (cleanChirp) {
-        this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-      }
+      this._writeGoogle(text);
       return callback();
     }
 
@@ -149,12 +147,7 @@ export class HybridCallTTSStream extends Transform {
     if (this.signal?.aborted || this.destroyed) return;
 
     if (this.elevenLabsFailed) {
-      if (this.chirpStream) {
-        const cleanChirp = stripAudioTags(text);
-        if (cleanChirp) {
-          this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-        }
-      }
+      this._writeGoogle(text);
       return;
     }
 
@@ -205,13 +198,12 @@ export class HybridCallTTSStream extends Transform {
         );
 
         this._activateChirpFallback();
-        const cleanChirp = stripAudioTags(text);
-        if (cleanChirp && this.chirpStream) {
-          this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-        }
+        this._writeGoogle(text);
         return;
       }
 
+      // Caracteres cobrados pela ElevenLabs (o texto enviado, com as tags).
+      this.ttsCharsByProvider[TTS_PROVIDERS.ELEVENLABS] = (this.ttsCharsByProvider[TTS_PROVIDERS.ELEVENLABS] || 0) + speechText.length;
       if (res.body) {
         for await (const chunk of res.body) {
           if (this.signal?.aborted || this.destroyed) break;
@@ -231,10 +223,7 @@ export class HybridCallTTSStream extends Transform {
         `[CALL_TTS_STREAM] ⚠️ Erro de conexão com ElevenLabs: ${err.message}. Acionando fallback automático para Google Cloud Chirp 3 HD!`
       );
       this._activateChirpFallback();
-      const cleanChirp = stripAudioTags(text);
-      if (cleanChirp && this.chirpStream) {
-        this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
-      }
+      this._writeGoogle(text);
     } finally {
       if (this.signal) {
         this.signal.removeEventListener('abort', onParentAbort);
@@ -243,6 +232,14 @@ export class HybridCallTTSStream extends Transform {
         this.currentAbortController = null;
       }
     }
+  }
+
+  /** Manda o trecho à reserva Google (sempre sem tags) e soma os caracteres cobrados do Google. */
+  _writeGoogle(text) {
+    const cleanChirp = stripAudioTags(text);
+    if (!cleanChirp || !this.chirpStream) return;
+    this.ttsCharsByProvider[TTS_PROVIDERS.GOOGLE] = (this.ttsCharsByProvider[TTS_PROVIDERS.GOOGLE] || 0) + cleanChirp.length;
+    this.chirpStream.write({ input: { text: `${cleanChirp} ` } });
   }
 
   _activateChirpFallback() {

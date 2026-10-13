@@ -1115,7 +1115,8 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
     recordTurnTelemetry({ ...baseTelemetry, replyText: result.text, usage: result.usage,
       llmFirstTokenMs: metrics.llm_first_token_ms, llmTotalMs: metrics.llm_total_ms,
       ttsMs: metrics.tts_first_audio_ms || 0, turnLatencyMs: Date.now() - turnStart,
-      streamMetrics: metrics, charactersSynthesized: result.text.length, ttsProvider: result.ttsProvider });
+      streamMetrics: metrics, charactersSynthesized: result.text.length, ttsProvider: result.ttsProvider,
+      ttsCharsByProvider: result.ttsCharsByProvider });
     return { ok: true, streaming: true, call_id: callId, user_text: userText, reply_text: result.text, metrics, play_result: result.playback };
   } catch (err) {
     // Never replay a batch response after a partially spoken or interrupted stream.
@@ -1127,6 +1128,7 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
     }
     recordTurnTelemetry({ ...baseTelemetry, replyText: err.partialText || '',
       turnLatencyMs: Date.now() - turnStart, ttsProvider: err.streamMetrics?.tts_provider ?? null,
+      ttsCharsByProvider: err.streamMetrics?.tts_chars_by_provider ?? null,
       streamMetrics: { ...err.streamMetrics, streaming: true, interrupted,
         interruption_reason: interrupted ? interruptionReason : null,
         failure_reason: interrupted ? null : interruptionReason,

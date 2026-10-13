@@ -295,6 +295,10 @@ WHATSAPP_AUTOREPLY_DEBOUNCE_MS=60000
 # Ligação RECEBIDA pelo WhatsApp: quem a IA atende (ver 5.3). Padrão (decisão do dono, 13/10/2026): all.
 # all = qualquer número (a Sirlene converte quem não é aluno) | students = só aluno conhecido | none = ninguém
 VOICE_INBOUND_CALL_POLICY=all
+
+# Opcional: preço da ElevenLabs em USD por milhão de caracteres, só para a estimativa de custo do painel.
+# Sem valor, os caracteres da ElevenLabs aparecem (tts_chars_elevenlabs) mas não entram no custo.
+ELEVENLABS_USD_PER_MILLION_CHARS=
 ```
 
 ### 5.1 Webhook Evolution — fail-closed e ordem segura de publicação
@@ -370,7 +374,9 @@ qualquer gasto (`src/integrations/inbound-call-gate.mjs`), porque o meowcaller a
   em alguns minutos pelo app.") e a ligação é encerrada. O motor local do agente de voz (catálogo configurado no
   painel) só responde fora de ligação do eLiving (`src/integrations/call-fallback.mjs`).
 - Telemetria (`/call-engine/history`): `tts.provider` de cada fala e da ligação é o provedor que realmente falou
-  (`ELEVENLABS`, `GOOGLE_CHIRP3_HD` ou os dois), com a contagem por provedor em `tts.providers`.
+  (`ELEVENLABS`, `GOOGLE_CHIRP3_HD` ou os dois), com a contagem por provedor em `tts.providers` e os caracteres por
+  provedor em `tts.chars_by_provider`. O custo estimado (`costs`) cobra como Google só o que o Google falou
+  (`cost_tts_google_usd`); a ElevenLabs entra em `cost_tts_elevenlabs_usd` só com `ELEVENLABS_USD_PER_MILLION_CHARS`.
 - Privacidade: logs só com ids, tamanhos, tempos e telefone mascarado (4 últimos dígitos, `src/log-privacy.mjs`);
   as respostas aos webhooks do meowcaller não levam fala, transcrição nem resumo da conversa.
 
