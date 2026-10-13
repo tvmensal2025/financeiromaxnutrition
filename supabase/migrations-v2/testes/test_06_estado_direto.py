@@ -88,7 +88,11 @@ def test_anon_nao_ve_nada_e_authenticated_e_service_role_so_leem(banco, con):
     for papel in ("authenticated", "service_role"):
         with banco.conectar(papel) as c:
             assert c.execute("select estado from helena_v2.card where id = %s", (m.card,)).fetchone()[0] == "EM_ANDAMENTO"
-            assert c.execute("select count(*) from helena_v2.historico where card_id = %s", (m.card,)).fetchone()[0] > 0
+            if papel == "service_role":
+                assert c.execute("select count(*) from helena_v2.historico where card_id = %s", (m.card,)).fetchone()[0] > 0
+            else:
+                with pytest.raises(E.InsufficientPrivilege):
+                    c.execute("select count(*) from helena_v2.historico where card_id = %s", (m.card,))
             with pytest.raises(E.InsufficientPrivilege):
                 c.execute("select * from helena_v2.conta_papel")      # quem pode dizer qual papel não é público
             assert c.execute("select helena_v2.tabela_confere()").fetchone()[0] is True

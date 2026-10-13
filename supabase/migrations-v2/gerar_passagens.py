@@ -551,7 +551,7 @@ def _funcao_guarda(vocab, tab, maqs):
         corpo.append(f"    -- {original}\n    when {texto(rid)} then return coalesce({sql}, false);")
     return f"""create or replace function {ESQUEMA}.guarda(p_id text, v jsonb, q jsonb)
 returns boolean language plpgsql immutable
-set search_path = {ESQUEMA}, pg_catalog
+set search_path = {ESQUEMA}, pg_catalog, pg_temp
 as $guarda$
 begin
   -- Gerada de passagens.yaml (guardas Python restritas traduzidas com ast). v = variáveis, q = ficha, predicados e parâmetros.
@@ -579,7 +579,7 @@ def _funcao_situacao(tab, maqs):
         ramos.append(f"    when {' and '.join(conds)} then {texto(r['situacao'])}")
     return f"""create or replace function {ESQUEMA}.situacao_da_etapa(p_estado text, v jsonb)
 returns text language sql immutable
-set search_path = {ESQUEMA}, pg_catalog
+set search_path = {ESQUEMA}, pg_catalog, pg_temp
 as $situacao$
   -- Gerada de passagens.yaml (situacao_da_etapa): como o card enxerga cada etapa. A primeira regra que casa vale.
   select case

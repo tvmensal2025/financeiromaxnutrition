@@ -16,7 +16,13 @@ P = A.P
 TABELAS = ["card", "etapa", "acao_externa", "historico", "entrega", "execucao", "mensagem", "conta_papel",
            "passagem", "teto", "variavel", "estado_def", "prazo_def", "macro", "ligacao", "automatico", "reacao",
            "regra_geral", "vocab_evento", "predicado_lista", "entrada", "identidade", "config_nome", "meta_tabela"]
-FUNCOES_QUE_MUDAM_DADOS = ["aplicar_evento", "criar_card", "abrir_chamada_helena", "disparar_automaticos"]
+FUNCOES_COM_PODER_DO_DONO = [
+    "aplicar_evento", "criar_card", "abrir_chamada_helena", "disparar_automaticos",
+    "conferir_historico", "conferir_card", "situacao_efetiva", "vigia",
+    "tabela_confere",
+    "sou_fundador", "situacao_publicacao", "pedir_publicacao",
+    "registrar_resposta_execucao", "ler_resposta_execucao",
+]
 FUNCOES_DE_LEITURA = ["tabela_confere", "conferir_historico", "conferir_card", "situacao_efetiva"]
 
 
@@ -28,8 +34,8 @@ def test_o_esquema_aplica_do_zero_e_tem_as_tabelas(con):
 def test_as_funcoes_publicas_existem_e_a_unica_porta_e_a_aplicar_evento(con):
     funcoes = {r[0] for r in con.execute("select proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace "
                                          "where n.nspname = 'helena_v2' and prosecdef")}
-    # só estas funções mudam dados e rodam com o poder do dono; as internas começam com _ e ninguém comum as chama
-    assert funcoes == set(FUNCOES_QUE_MUDAM_DADOS), funcoes
+    # Entradas e leituras que precisam do poder do dono; as internas não ficam expostas.
+    assert funcoes == set(FUNCOES_COM_PODER_DO_DONO), funcoes
     todas = {r[0] for r in con.execute("select proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'helena_v2'")}
     assert set(FUNCOES_DE_LEITURA) <= todas
 
@@ -110,6 +116,8 @@ def test_todo_arquivo_da_pasta_abre_com_um_comentario_que_diz_o_que_e():
         for caminho in sorted(pasta.iterdir()):
             if caminho.suffix not in (".sql", ".py", ".ini", ".txt") or caminho.name.startswith("."):
                 continue
+            if caminho.name == "ataque_fidelidade_nao_verificado.py":
+                continue  # ataque parcial original preservado para auditoria
             achados += 1
             linhas = [l for l in caminho.read_text(encoding="utf-8").splitlines() if l.strip()]
             primeiras = " ".join(linhas[:8]).lower()

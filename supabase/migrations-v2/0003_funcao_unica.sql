@@ -11,7 +11,7 @@
 -- O gatilho de cada tabela só deixa gravar enquanto helena_v2.funcao_unica = 'sim'. Só as funções abaixo ligam isso,
 -- e desligam ao sair (a profundidade conta as chamadas dentro de chamadas).
 create or replace function helena_v2._entrar() returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare d integer := coalesce(nullif(current_setting('helena_v2.profundidade', true), '')::integer, 0);
 begin
   perform set_config('helena_v2.profundidade', (d + 1)::text, true);
@@ -20,7 +20,7 @@ end;
 $f$;
 
 create or replace function helena_v2._sair() returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare d integer := coalesce(nullif(current_setting('helena_v2.profundidade', true), '')::integer, 1) - 1;
 begin
   perform set_config('helena_v2.profundidade', greatest(d, 0)::text, true);
@@ -32,17 +32,49 @@ $f$;
 
 -- Quem está chamando: o papel do SET ROLE (é assim que o Supabase entra) ou, sem ele, quem fez o login.
 create or replace function helena_v2._conta() returns text
-language sql stable set search_path = pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select case when coalesce(nullif(current_setting('role', true), ''), 'none') = 'none'
               then session_user::text else current_setting('role') end;
+$f$;
+
+create or replace function helena_v2._prazo_valido(p_prazo timestamptz) returns boolean
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
+  select p_prazo is not null and isfinite(p_prazo)
+     and p_prazo >= now() - interval '30 days'
+     and p_prazo <= now() + interval '10 years';
+$f$;
+
+create or replace function helena_v2._conteudo_fundador_valido(p_evento text, p_conteudo jsonb) returns boolean
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
+declare v_texto text;
+begin
+  if p_evento = 'MUDAR_PRAZO' then
+    if jsonb_typeof(p_conteudo -> 'prazo') is distinct from 'string' then return false; end if;
+    v_texto := p_conteudo ->> 'prazo';
+    return helena_v2._prazo_valido(v_texto::timestamptz);
+  elsif p_evento = 'MUDAR_PRIORIDADE' then
+    if jsonb_typeof(p_conteudo -> 'prioridade') is null
+       or jsonb_typeof(p_conteudo -> 'prioridade') not in ('string', 'number') then return false; end if;
+    v_texto := p_conteudo ->> 'prioridade';
+    if v_texto !~ '^-?[0-9]{1,10}$' then return false; end if;
+    perform v_texto::integer;
+  end if;
+  return true;
+exception when invalid_text_representation or invalid_datetime_format or numeric_value_out_of_range or datetime_field_overflow then
+  return false;
+end;
 $f$;
 
 -- A conta pode dizer que é este papel? Conta com linhas em conta_papel só diz o que está lá;
 -- conta sem linhas só passa se for superusuária ou a dona do schema (é quem aplica as migrações).
 create or replace function helena_v2._conferir_conta(p_papeis text[]) returns void
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare v_conta text := helena_v2._conta();
 begin
+  if v_conta = 'authenticated' and 'FUNDADOR' = any (p_papeis)
+     and not helena_v2.sou_fundador() then
+    raise exception 'FUNDADOR_NAO_AUTORIZADO' using errcode = '42501';
+  end if;
   if exists (select 1 from conta_papel where conta = v_conta) then
     if not exists (select 1 from conta_papel where conta = v_conta and papel = any (p_papeis)) then
       raise exception 'PAPEL_NAO_PERMITIDO: a conta % não pode agir como %', v_conta, p_papeis using errcode = '42501';
@@ -56,19 +88,19 @@ $f$;
 
 -- ---------------------------------------------------------------------------- leituras que as guardas usam
 create or replace function helena_v2._lista_predicado(p_nome text) returns text[]
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select coalesce(array_agg(situacao order by situacao), '{}'::text[]) from predicado_lista where nome = p_nome;
 $f$;
 
 -- Como o card enxerga a etapa: a situação do YAML, mais a marca "pulada" que só o fundador põe.
 create or replace function helena_v2.situacao_efetiva(e helena_v2.etapa) returns text
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select case when s = any (helena_v2._lista_predicado('falha_que_pergunta')) and e.pulada then 'PULADA' else s end
   from (select helena_v2.situacao_da_etapa(e.estado, to_jsonb(e)) as s) x;
 $f$;
 
 create or replace function helena_v2._predicados_card(p_card uuid) returns jsonb
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   with et as (
     select e.pulavel, helena_v2.situacao_efetiva(e) as sit from etapa e where e.card_id = p_card and e.atual
   )
@@ -82,14 +114,14 @@ language sql stable set search_path = helena_v2, pg_catalog as $f$
 $f$;
 
 create or replace function helena_v2._anteriores_satisfeitas(p_card uuid, p_depende text[]) returns boolean
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select coalesce(bool_and(helena_v2.situacao_efetiva(d) = any (helena_v2._lista_predicado('satisfaz_dependencia'))), true)
   from etapa d where d.card_id = p_card and d.atual and d.codigo = any (p_depende);
 $f$;
 
 -- O que as guardas leem além das variáveis: a ficha da etapa, os predicados calculados e os parâmetros do evento.
 create or replace function helena_v2._montar_q(p_maquina text, v jsonb, p_card uuid, p_params jsonb) returns jsonb
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare q jsonb;
 begin
   select coalesce(jsonb_object_agg(nome, v -> nome), '{}'::jsonb) into q from config_nome where maquina = p_maquina;
@@ -109,13 +141,13 @@ $f$;
 
 -- Os contadores compartilhados (ordens, perguntas, voltas) moram no card; a etapa os enxerga por aqui.
 create or replace function helena_v2._compartilhadas(vc jsonb) returns jsonb
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select coalesce(jsonb_object_agg(nome, vc -> nome), '{}'::jsonb) from variavel where maquina = 'etapa' and compartilhada;
 $f$;
 
 -- Carrega o alvo: o card, o estado dele e as variáveis da máquina (a etapa enxerga os contadores compartilhados do card).
 create or replace function helena_v2._carregar(p_maquina text, p_alvo uuid, out o_card uuid, out o_v jsonb, out o_vc jsonb)
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if p_maquina = 'card' then
     o_card := p_alvo;
@@ -148,7 +180,7 @@ create or replace function helena_v2._achar_linha(
   p_maquina text, p_papel text, p_evento text, v jsonb, q jsonb, p_params jsonb,
   p_ator text, p_chave bigint, p_versao_vista integer, p_estado_card text
 ) returns text
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   c record;
   rg jsonb;
@@ -224,7 +256,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- efeitos, dono e prazo
 create or replace function helena_v2._efeitos(v jsonb, p_ops jsonb, p_params jsonb) returns jsonb
-language plpgsql immutable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql immutable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare op jsonb;
 begin
   for op in select * from jsonb_array_elements(p_ops) loop
@@ -240,7 +272,7 @@ end;
 $f$;
 
 create or replace function helena_v2._dono(p_maquina text, p_estado text, v jsonb) returns text
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select case d.dono when 'AUTOR' then v ->> 'autor'
                      when 'REVISOR' then nullif(v ->> 'revisor', 'NENHUM')
                      else d.dono end
@@ -251,7 +283,7 @@ $f$;
 -- 'ficha' = o da ficha do agente (no roteiro da etapa); 'espera' = o que quem chama disser. Faltando, vale o prazo do card.
 create or replace function helena_v2._prazo_ate(p_maquina text, p_estado text, v jsonb, p_card_prazo timestamptz, p_prazo_espera timestamptz)
 returns timestamptz
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select case pz.origem
     when 'card' then p_card_prazo
     when 'duracao' then now() + make_interval(secs => pz.segundos)
@@ -263,13 +295,13 @@ $f$;
 
 -- O estado em que cada máquina nasce (marcado como inicial no YAML).
 create or replace function helena_v2._estado_inicial(p_maquina text) returns text
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select estado from estado_def where maquina = p_maquina and inicial;
 $f$;
 
 -- Grava a linha inteira de volta (as colunas vêm do catálogo; v é o jsonb novo da linha).
 create or replace function helena_v2._gravar(p_tabela text, p_id uuid, v jsonb) returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare v_set text;
 begin
   select string_agg(format('%I = r.%I', a.attname, a.attname), ', ' order by a.attnum) into v_set
@@ -283,7 +315,7 @@ $f$;
 
 -- As variáveis e o estado de um alvo (o que vai para o histórico). A etapa leva também os contadores do card.
 create or replace function helena_v2._so_variaveis(p_maquina text, v jsonb) returns jsonb
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select jsonb_build_object('estado', v -> 'estado', 'versao', v -> 'versao')
          || coalesce((select jsonb_object_agg(nome, v -> nome) from variavel where maquina = p_maquina), '{}'::jsonb)
          || case when p_maquina = 'etapa'
@@ -293,7 +325,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- alvos dos sinais (provar: entregar)
 create or replace function helena_v2._alvos_do_sinal(p_card uuid, p_alvo text, p_origem uuid) returns uuid[]
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   o helena_v2.etapa;
   r uuid[];
@@ -338,7 +370,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- card novo ligado
 create or replace function helena_v2._criar_card_ligado(p_origem uuid, p_motivo text, p_hist bigint) returns uuid
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   o helena_v2.card;
   v_novo uuid;
@@ -363,7 +395,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- campos que só o fundador muda (regra 7)
 create or replace function helena_v2._mudar_campo_do_fundador(p_card uuid, p_campo text, p_conteudo jsonb) returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare novo text := p_conteudo ->> p_campo;
 begin
   if novo is null then
@@ -388,7 +420,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- ações dos sinais "no card"
 create or replace function helena_v2._acao_no_card(p_nome text, p_sinal text, p_card uuid, p_maquina text, p_alvo uuid, p_hist bigint) returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   e helena_v2.etapa;
   n helena_v2.etapa;
@@ -469,7 +501,7 @@ create or replace function helena_v2._aplicar(
   p_ator text, p_chave bigint, p_versao_vista integer, p_conteudo jsonb,
   p_origem text, p_origem_id bigint, p_toque text, p_prazo_espera timestamptz
 ) returns jsonb
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   v_params jsonb := coalesce(p_params, '{}'::jsonb);
   v_params_ef jsonb;
@@ -527,7 +559,10 @@ begin
   end if;
 
   select exists (select 1 from vocab_evento where papel = p_papel and evento = p_evento) into v_tem_vocab;
-  if not v_tem_vocab then
+  if p_papel = 'FUNDADOR' and p_evento in ('MUDAR_PRAZO', 'MUDAR_PRIORIDADE')
+     and not helena_v2._conteudo_fundador_valido(p_evento, p_conteudo) then
+    v_motivo := 'CONTEUDO_INVALIDO';
+  elsif not v_tem_vocab then
     v_motivo := 'FORA_DO_VOCABULARIO';
   elsif p_origem <> 'SINAL' and exists (select 1 from regra_geral where chave = 'entradas_so_por_sinal' and valor = 'true'::jsonb)
         and exists (select 1 from entrada where maquina = p_maquina and evento = p_evento) then
@@ -679,7 +714,7 @@ begin
   v_resultado := 'RECUSADO';
   v_reacao := null;
   -- reação: toque que não muda estado (comentário, campo do fundador, card novo ligado)
-  if p_maquina in ('card', 'etapa') and v_tem_vocab then
+  if p_maquina in ('card', 'etapa') and v_tem_vocab and v_motivo <> 'CONTEUDO_INVALIDO' then
     select r.* into v_reacao from reacao r
     where r.papel = p_papel and r.evento = p_evento and r.maquina = p_maquina
       and (r.estados_tipo = 'TODOS'
@@ -688,7 +723,9 @@ begin
       and (r.guarda_id is null or helena_v2.guarda(r.guarda_id, v, '{}'::jsonb))
     order by r.ordem limit 1;
   end if;
-  if v_reacao.ordem is not null then
+  if v_motivo = 'CONTEUDO_INVALIDO' then
+    v_resultado := 'RECUSADO';
+  elsif v_reacao.ordem is not null then
     v_resultado := 'REACAO';
     v_motivo := v_reacao.efeito_fora;
   elsif p_papel = 'FUNDADOR' and v_tem_vocab then
@@ -748,7 +785,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- automáticos (provar: replay.automaticos)
 create or replace function helena_v2._cabe(p_maquina text, p_alvo uuid, p_papel text, p_evento text) returns boolean
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare c uuid; v jsonb; vc jsonb; q jsonb;
 begin
   select o_card, o_v, o_vc into c, v, vc from helena_v2._carregar(p_maquina, p_alvo);
@@ -758,7 +795,7 @@ end;
 $f$;
 
 create or replace function helena_v2._automaticos(p_card uuid, p_nao_disparar text[], p_origem_id bigint) returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   n integer := 0;
   feito boolean;
@@ -828,13 +865,16 @@ create or replace function helena_v2.aplicar_evento(
   p_nao_disparar text[] default '{}'::text[], -- automáticos que o motor quer decidir sozinho (ex.: PLANO_VALIDO)
   p_prazo_espera timestamptz default null -- prazo de quem espera o fundador, quando o motor sabe
 ) returns jsonb
-language plpgsql security definer set search_path = helena_v2, pg_catalog as $f$
+language plpgsql security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   r jsonb;
   v_card uuid;
 begin
   perform helena_v2._entrar();
   perform helena_v2._conferir_conta(array[p_papel]);
+  if p_prazo_espera is not null and not helena_v2._prazo_valido(p_prazo_espera) then
+    raise exception 'PRAZO_ESPERA_INVALIDO' using errcode = '23514';
+  end if;
   r := helena_v2._aplicar(p_maquina, p_alvo, p_papel, p_evento, p_parametros, p_ator, p_chave, p_versao_vista, p_conteudo,
                           'EXTERNO', null, p_toque, p_prazo_espera);
   if p_automaticos and r ->> 'resultado' in ('APLICADO', 'CONVERTIDO') then
@@ -850,7 +890,7 @@ $f$;
 
 -- ---------------------------------------------------------------------------- PORTA PÚBLICA 2: disparar_automaticos
 create or replace function helena_v2.disparar_automaticos(p_card uuid, p_nao_disparar text[] default '{}'::text[]) returns void
-language plpgsql security definer set search_path = helena_v2, pg_catalog as $f$
+language plpgsql security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   perform helena_v2._entrar();
   perform helena_v2._conferir_conta(array['MOTOR']);
@@ -866,7 +906,7 @@ $f$;
 -- Cada chamada da Helena (leitura de volta, recomendação) ganha um número. Só a resposta com o número da
 -- chamada atual grava (regra 3); abrir uma chamada nova mata a anterior.
 create or replace function helena_v2.abrir_chamada_helena(p_maquina text, p_alvo uuid) returns bigint
-language plpgsql security definer set search_path = helena_v2, pg_catalog as $f$
+language plpgsql security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   v_card uuid;
   v_etapa uuid := case when p_maquina = 'etapa' then p_alvo end;
@@ -887,6 +927,8 @@ begin
   else
     update etapa set chamada_helena = v_num, atualizado_em = now() where id = p_alvo;
   end if;
+  set constraints all immediate;
+  set constraints all deferred;
   perform helena_v2._sair();
   return v_num;
 end;
@@ -904,7 +946,7 @@ create or replace function helena_v2.criar_card(
   p_prioridade integer default 0,
   p_pedido_grande boolean default true
 ) returns jsonb
-language plpgsql security definer set search_path = helena_v2, pg_catalog as $f$
+language plpgsql security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   v_msg bigint;
   v_card uuid;
@@ -931,6 +973,9 @@ declare
 begin
   perform helena_v2._entrar();
   perform helena_v2._conferir_conta(array['MOTOR', 'FUNDADOR']);
+  if not helena_v2._prazo_valido(p_prazo) then
+    raise exception 'PRAZO_INVALIDO' using errcode = '23514';
+  end if;
   insert into mensagem (canal, numero, conteudo) values (p_canal, p_numero, coalesce(p_conteudo, ''))
   on conflict (canal, numero) do nothing returning id into v_msg;
   if v_msg is null then
@@ -1029,7 +1074,7 @@ $f$;
 -- O banco calcula o hash das linhas gravadas (e das duas funções geradas). Se alguém editar uma linha à mão,
 -- o hash muda e tabela_confere() devolve falso: o motor não liga e o vigia avisa (plano: "A tabela testada é a que roda").
 create or replace function helena_v2.calcular_hash_das_linhas() returns text
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   t text;
   parte text;
@@ -1047,7 +1092,7 @@ end;
 $f$;
 
 create or replace function helena_v2.selar_tabela() returns void
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if coalesce(current_setting('helena_v2.migrando', true), 'nao') <> 'sim' then
     raise exception 'só uma migração sela a tabela';
@@ -1057,7 +1102,7 @@ end;
 $f$;
 
 create or replace function helena_v2.tabela_confere() returns boolean
-language sql stable set search_path = helena_v2, pg_catalog as $f$
+language sql stable security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
   select coalesce((select hash_das_linhas = helena_v2.calcular_hash_das_linhas() from meta_tabela), false);
 $f$;
 
@@ -1065,7 +1110,7 @@ $f$;
 -- Devolve uma linha por divergência: o estado ou o contador da tabela que não bate com a última linha do histórico.
 create or replace function helena_v2.conferir_historico(p_card uuid)
 returns table (alvo text, campo text, na_tabela text, no_historico text)
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   a record;
   h jsonb;
@@ -1107,7 +1152,7 @@ $f$;
 -- Uma linha por problema achado: a regra, o card e o que está errado. Vazio = tudo certo. Não muda nada.
 create or replace function helena_v2.vigia()
 returns table (regra text, card_id uuid, mensagem text)
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   c record;
   d record;

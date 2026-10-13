@@ -34,9 +34,11 @@ MIGRACOES = AQUI.parent
 sys.path.insert(0, str(MIGRACOES))
 sys.path.insert(0, str(AQUI))
 
-ARQUIVOS_SQL = ["0001_esquema.sql", "0002_passagens_geradas.sql", "0003_funcao_unica.sql", "0004_travas_e_permissoes.sql"]
+ARQUIVOS_SQL = ["0001_esquema.sql", "0002_passagens_geradas.sql", "0003_funcao_unica.sql", "0004_travas_e_permissoes.sql", "0005_publicacao.sql"]
 PAPEIS_DO_SUPABASE = ["anon", "authenticated", "service_role"]
 HOSTS_LOCAIS = {"127.0.0.1", "localhost", "::1", ""}
+FUNDADOR_TESTE = "00000000-0000-4000-8000-000000000001"
+OUTRA_PESSOA_TESTE = "00000000-0000-4000-8000-000000000002"
 
 
 def _achar_bin():
@@ -116,6 +118,8 @@ class Banco:
         con = psycopg.connect(self.url, autocommit=autocommit)
         if papel:
             con.execute(sql.SQL("set role {}").format(sql.Identifier(papel)))
+            if papel == "authenticated":
+                con.execute("select set_config('request.jwt.claim.sub', %s, false)", (FUNDADOR_TESTE,))
         return con
 
 
@@ -160,6 +164,13 @@ def montar_banco(url_admin, substituicoes=None, papeis_de_teste=()):
     banco = Banco(url_admin, nome, criados)
     try:
         with banco.conectar() as con:
+            con.execute("create schema auth")
+            con.execute("""create function auth.uid() returns uuid language sql stable as $$
+                select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$""")
+            con.execute("""create table public.app_access (
+                user_id uuid primary key, role text not null, active boolean not null)""")
+            con.execute("insert into public.app_access values (%s, 'founder', true), (%s, 'member', true)",
+                        (FUNDADOR_TESTE, OUTRA_PESSOA_TESTE))
             aplicar_sql(con, [ler_sql(a, substituicoes) for a in ARQUIVOS_SQL])
     except Exception:
         derrubar_banco(banco)

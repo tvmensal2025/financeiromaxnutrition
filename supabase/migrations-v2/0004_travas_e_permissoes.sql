@@ -19,7 +19,7 @@
 
 -- ---------------------------------------------------------------------------- gatilhos genéricos
 create or replace function helena_v2.trg_so_pela_funcao() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if coalesce(current_setting('helena_v2.funcao_unica', true), 'nao') <> 'sim' then
     raise exception 'REGRA 13: % em % só pela função helena_v2.aplicar_evento (ou criar_card); UPDATE, INSERT e DELETE diretos são recusados',
@@ -30,21 +30,21 @@ end;
 $f$;
 
 create or replace function helena_v2.trg_nunca_apagar() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   raise exception 'REGRA 13: nada se apaga em % (o histórico só cresce)', tg_table_name using errcode = '42501';
 end;
 $f$;
 
 create or replace function helena_v2.trg_nunca_truncar() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   raise exception 'REGRA 13: TRUNCATE em % é recusado', tg_table_name using errcode = '42501';
 end;
 $f$;
 
 create or replace function helena_v2.trg_so_acrescenta() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   raise exception 'REGRA 13: % só de acréscimo; % é recusado', tg_table_name, tg_op using errcode = '42501';
 end;
@@ -52,7 +52,7 @@ $f$;
 
 -- Tabelas de regras: só mudam dentro de uma migração (o arquivo 0002 liga helena_v2.migrando).
 create or replace function helena_v2.trg_tabela_de_regras() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if coalesce(current_setting('helena_v2.migrando', true), 'nao') <> 'sim' then
     raise exception 'a tabela de regras % só muda por migração gerada (gerar_passagens.py); % recusado', tg_table_name, tg_op using errcode = '42501';
@@ -65,7 +65,7 @@ $f$;
 
 -- Regra 2 (a metade que cabe numa trava): um final nunca volta a andar.
 create or replace function helena_v2.trg_final_nao_anda() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if new.estado is distinct from old.estado
      and exists (select 1 from estado_def d where d.maquina = tg_table_name and d.estado = old.estado and d.final) then
@@ -78,7 +78,7 @@ $f$;
 
 -- Regra 7: prioridade e prazo são seus. Só passa dentro de _mudar_campo_do_fundador (toque do FUNDADOR).
 create or replace function helena_v2.trg_card_campos_do_fundador() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if (new.prioridade is distinct from old.prioridade or new.prazo is distinct from old.prazo)
      and coalesce(current_setting('helena_v2.campo_do_fundador', true), 'nao') <> 'sim' then
@@ -90,7 +90,7 @@ $f$;
 
 -- A ficha da etapa e da ação não muda no meio do caminho (regras 4 e 6 dependem dela).
 create or replace function helena_v2.trg_ficha_imutavel() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare a jsonb := to_jsonb(old); b jsonb := to_jsonb(new); k text;
 begin
   foreach k in array tg_argv loop
@@ -105,7 +105,7 @@ $f$;
 -- Regras 5 e 9 na etapa: aprovar só por revisor ou por você (no jurídico, só você); pronta só vem de aprovada;
 -- ajuste volta ao autor. Lê quem e qual evento mudou o estado (a função única grava isso antes de gravar a linha).
 create or replace function helena_v2.trg_etapa_regras() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   p text := coalesce(current_setting('helena_v2.papel_evento', true), '');
   e text := coalesce(current_setting('helena_v2.evento_atual', true), '');
@@ -138,7 +138,7 @@ $f$;
 
 -- Regra 8 na ação externa: o seu ok só vem de um toque seu; a execução só vem do motor; no máximo uma vez.
 create or replace function helena_v2.trg_acao_regras() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare p text := coalesce(current_setting('helena_v2.papel_evento', true), '');
 begin
   if new.ok_registrado = 1 and old.ok_registrado = 0 and p <> 'FUNDADOR' then
@@ -153,7 +153,7 @@ $f$;
 
 -- Regra 3 na entrega: só a execução atual da etapa grava, e uma vez só.
 create or replace function helena_v2.trg_entrega_regra03() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare atual bigint;
 begin
   select execucao_atual into atual from etapa where id = new.etapa_id;
@@ -165,7 +165,7 @@ end;
 $f$;
 
 create or replace function helena_v2.trg_entrega_so_o_relatorio() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare a jsonb := to_jsonb(old) - 'portao1' - 'relatorio_validacao'; b jsonb := to_jsonb(new) - 'portao1' - 'relatorio_validacao';
 begin
   if a is distinct from b or old.portao1 is not null then
@@ -177,7 +177,7 @@ $f$;
 
 -- Regra 3: o número da execução só sobe (nem a sequência, se alguém a reiniciar, pode repetir um número velho).
 create or replace function helena_v2.trg_execucao_so_sobe() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   if new.numero <= coalesce((select max(numero) from execucao), 0) then
     raise exception 'REGRA 3: o número de execução % não passa do maior já usado (nunca zera, nunca repete)', new.numero using errcode = '23514';
@@ -187,7 +187,7 @@ end;
 $f$;
 
 create or replace function helena_v2.trg_execucao_so_encerra() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare a jsonb := to_jsonb(old) - 'estado' - 'encerrada_em'; b jsonb := to_jsonb(new) - 'estado' - 'encerrada_em';
 begin
   if a is distinct from b or (old.estado <> 'VIVA' and new.estado is distinct from old.estado) then
@@ -199,7 +199,7 @@ $f$;
 
 -- Regras 6, 9 e 10 olhando o card inteiro (adiado: vale no fim da função única, depois dos sinais).
 create or replace function helena_v2._conferir_plano(p_card uuid) returns void
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   codigos text[] := array(select codigo from etapa where card_id = p_card and atual);
   resto text[];
@@ -226,7 +226,7 @@ end;
 $f$;
 
 create or replace function helena_v2.conferir_card(p_card uuid) returns void
-language plpgsql stable set search_path = helena_v2, pg_catalog as $f$
+language plpgsql stable security definer set search_path = helena_v2, pg_catalog, pg_temp as $f$
 declare
   c helena_v2.card;
   e record;
@@ -271,7 +271,7 @@ end;
 $f$;
 
 create or replace function helena_v2.trg_conferir_card_da_etapa() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   perform helena_v2.conferir_card(new.card_id);
   return null;
@@ -279,7 +279,7 @@ end;
 $f$;
 
 create or replace function helena_v2.trg_conferir_card_do_card() returns trigger
-language plpgsql set search_path = helena_v2, pg_catalog as $f$
+language plpgsql set search_path = helena_v2, pg_catalog, pg_temp as $f$
 begin
   perform helena_v2.conferir_card(new.id);
   return null;
@@ -287,6 +287,16 @@ end;
 $f$;
 
 -- ---------------------------------------------------------------------------- CHECKs que citam colunas geradas
+alter table helena_v2.card drop constraint if exists ck_card_prazo_finito;
+alter table helena_v2.card add constraint ck_card_prazo_finito
+  check (isfinite(prazo) and (prazo_ate is null or isfinite(prazo_ate)));
+alter table helena_v2.etapa drop constraint if exists ck_etapa_prazo_finito;
+alter table helena_v2.etapa add constraint ck_etapa_prazo_finito
+  check (prazo_ate is null or isfinite(prazo_ate));
+alter table helena_v2.acao_externa drop constraint if exists ck_acao_prazo_finito;
+alter table helena_v2.acao_externa add constraint ck_acao_prazo_finito
+  check (prazo_ate is null or isfinite(prazo_ate));
+
 alter table helena_v2.etapa drop constraint if exists ck_etapa_regra03_execucao_viva;
 alter table helena_v2.etapa add constraint ck_etapa_regra03_execucao_viva
   check ((exec_viva = 1) = (execucao_atual is not null));
@@ -318,7 +328,7 @@ alter table helena_v2.historico add constraint ck_historico_regra08_so_o_motor_e
 
 alter table helena_v2.historico drop constraint if exists ck_historico_regra11_toque_tem_destino;
 alter table helena_v2.historico add constraint ck_historico_regra11_toque_tem_destino
-  check (papel <> 'FUNDADOR' or resultado <> 'RECUSADO' or coalesce(motivo, '') = 'FORA_DO_VOCABULARIO');
+  check (papel <> 'FUNDADOR' or resultado <> 'RECUSADO' or coalesce(motivo, '') in ('FORA_DO_VOCABULARIO', 'CONTEUDO_INVALIDO'));
 
 -- ---------------------------------------------------------------------------- gatilhos nas tabelas
 do $gatilhos$
@@ -409,7 +419,9 @@ begin
     execute format('revoke all on all functions in schema helena_v2 from %I', r);
     continue when r = 'anon';      -- quem não entrou não vê nada
     execute format('grant usage on schema helena_v2 to %I', r);
-    execute format('grant select on all tables in schema helena_v2 to %I', r);
+    if r = 'service_role' then
+      execute format('grant select on all tables in schema helena_v2 to %I', r);
+    end if;
     execute format('revoke all on helena_v2.conta_papel from %I', r);
     for f in select p.oid::regprocedure as assinatura from pg_proc p join pg_namespace n on n.oid = p.pronamespace
              where n.nspname = 'helena_v2'

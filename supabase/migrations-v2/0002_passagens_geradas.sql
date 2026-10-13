@@ -734,7 +734,7 @@ alter table helena_v2.acao_externa add constraint ck_acao_externa_fim check (fim
 
 create or replace function helena_v2.guarda(p_id text, v jsonb, q jsonb)
 returns boolean language plpgsql immutable
-set search_path = helena_v2, pg_catalog
+set search_path = helena_v2, pg_catalog, pg_temp
 as $guarda$
 begin
   -- Gerada de passagens.yaml (guardas Python restritas traduzidas com ast). v = variáveis, q = ficha, predicados e parâmetros.
@@ -966,7 +966,7 @@ $guarda$;
 
 create or replace function helena_v2.situacao_da_etapa(p_estado text, v jsonb)
 returns text language sql immutable
-set search_path = helena_v2, pg_catalog
+set search_path = helena_v2, pg_catalog, pg_temp
 as $situacao$
   -- Gerada de passagens.yaml (situacao_da_etapa): como o card enxerga cada etapa. A primeira regra que casa vale.
   select case
