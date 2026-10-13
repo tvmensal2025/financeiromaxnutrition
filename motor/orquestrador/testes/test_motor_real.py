@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 from orquestrador.motor import Motor
 import orquestrador.motor as motor_mod
 from orquestrador.contexto_real import montar_contexto_real
-from orquestrador.preparacao import preparar_tarefa_real
+from orquestrador.preparacao import confirmar_preparacao, preparar_tarefa_real
 from orquestrador.evidencias import EvidenciaInvalida
 from executor_helena.executor_falso import ExecutorFalso
 from executor_helena.executor import ExecutorHermes
@@ -79,8 +79,8 @@ def test_etapa_e3_recebe_somente_condicoes_sem_conta_ou_entrega_e1(monkeypatch):
     assert pedido['entradas'] == {'condicoes': card['ordem_de_servico']['dados_reais']['entradas_externas']['condicoes']}
     assert 'FON-JOB-CONTA' not in fontes
     assert pedido['ordem_de_servico']['nao_pode'] == 'Prometer ganho'
-    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T12:00:00+00:00'
-    assert pedido['card_id'] and pedido['criado_em'] == '2026-10-13T10:00:00+00:00'
+    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T09:00:00-03:00'
+    assert pedido['card_id'] and pedido['criado_em'] == '2026-10-13T07:00:00-03:00'
     assert pedido['plano']['etapas'][0]['acao_do_fundador'] == 'Aprovar convite'
     assert pedido['plano']['acoes_do_fundador'] == ['Aprovar convite']
     assert [d['id'] for d in decisoes] == ['DEC-024']
@@ -94,7 +94,7 @@ def test_coordenacao_real_recebe_ordem_confirmada_sem_captura_ou_jobs():
             'prazo': datetime(2026, 10, 30, 12, tzinfo=timezone.utc),
             'criado_em': datetime(2026, 10, 13, 10, tzinfo=timezone.utc)}
     pedido = Motor._pedido_coordenacao_real(card)
-    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T12:00:00+00:00'
+    assert pedido['ordem_de_servico']['prazo'] == '2026-10-30T09:00:00-03:00'
     assert pedido['ordem_de_servico']['como_e_o_pronto'] == 'Entregas verificáveis'
     assert pedido['ordem_de_servico']['nao_pode'] == 'Prometer ganho'
     assert pedido['ordem_de_servico']['prioridade_na_fonte'] == 'NORMAL'
@@ -484,6 +484,33 @@ def test_falha_da_coordenadora_e_registrada_mesmo_se_fonte_mudar_durante_execuca
     assert eventos == [{}]
 
 
+@pytest.mark.parametrize('servico', ['SRV-CALCULO', 'SRV-PARECER'])
+def test_autor_real_sem_insumo_registra_falha_antes_de_chamar_hermes(monkeypatch, servico):
+    motor = object.__new__(Motor)
+    etapa = {'id': uuid4(), 'card_id': uuid4(), 'codigo': 'E1',
+             'estado': 'EXECUTANDO', 'execucao_atual': 44, 'autor': 'CLARA'}
+    eventos = []
+    motor.executor = SimpleNamespace(rodar=lambda _execucao: pytest.fail('Hermes não pode ser chamado'))
+
+    def linha(sql, _args):
+        if 'FROM helena_v2.etapa' in sql:
+            return etapa
+        if 'ler_resposta_execucao' in sql:
+            return {'resposta': None}
+        raise AssertionError(sql)
+
+    monkeypatch.setattr(motor, '_linha', linha)
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': uuid4()}, None, None))
+    monkeypatch.setattr(motor, '_servico', lambda _etapa: servico)
+    monkeypatch.setattr(motor, '_evento',
+                        lambda *args, **kwargs: eventos.append((args, kwargs)))
+    assert motor.executar_e_salvar(etapa['id'], 44) is None
+    assert eventos[0][0][:4] == ('etapa', etapa['id'], 'AUTOR', 'REGISTRAR_FALHA')
+    assert eventos[0][0][4] == {'motivo_falha': 'FALTAM_DADOS', 'usou_internet': 'NAO'}
+    assert eventos[0][1]['conteudo']['motivo'] == 'INSUMOS_INSUFICIENTES'
+
+
 @pytest.mark.parametrize('uso', ['invalid', None])
 def test_coordenacao_registra_falha_de_evidencia_antes_de_repetir(monkeypatch, uso):
     motor = object.__new__(Motor)
@@ -511,8 +538,10 @@ def test_coordenacao_registra_falha_de_evidencia_antes_de_repetir(monkeypatch, u
                                       if uso == 'invalid' else 'INTERNET_NAO_COMPROVADA'}}]
 
 
-@pytest.mark.parametrize('falha_sql', [False, True])
-def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(monkeypatch, falha_sql):
+@pytest.mark.parametrize('falha_sql,falha_prova', [(False, False), (True, False),
+                                                   (False, True)])
+def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(
+        monkeypatch, falha_sql, falha_prova):
     motor = object.__new__(Motor)
     chamadas = []
     contexto_ids = []
@@ -562,11 +591,23 @@ def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(
     monkeypatch.setattr(motor, '_servico', lambda _etapa: 'SRV-COPY')
     monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
     monkeypatch.setattr(motor, '_entradas_da_etapa', lambda *_args: (pedido, fonte, []))
+    eventos = []
+    monkeypatch.setattr(motor, '_evento', lambda *args, **kwargs: eventos.append((args, kwargs)))
+    def coletar(_resultado, _id):
+        if falha_prova:
+            raise EvidenciaInvalida('registro inválido')
+        return {'paginas_lidas': [{'leitura_id': 'LEI-001'}],
+                'usou_internet': True, 'conversa': [{'papel': 'agente'}],
+                'uso': {'usou_internet': True}}
     monkeypatch.setattr('orquestrador.motor.coletar_evidencias',
-                        lambda _resultado, _id: {'paginas_lidas': [{'leitura_id': 'LEI-001'}],
-                                                  'usou_internet': True,
-                                                  'conversa': [{'papel': 'agente'}],
-                                                  'uso': {'usou_internet': True}})
+                        coletar)
+    if falha_prova:
+        with pytest.raises(RuntimeError, match='evidência do autor'):
+            motor.executar_e_salvar(etapa['id'], 42)
+        assert [nome for nome, _ in chamadas] == ['rodar']
+        assert eventos[0][0][:4] == ('etapa', etapa['id'], 'MOTOR', 'FALHA')
+        assert eventos[0][0][4] == {'classe': 'DESCONHECIDA'}
+        return
     if falha_sql:
         with pytest.raises(RuntimeError, match='queda antes do commit'):
             motor.executar_e_salvar(etapa['id'], 42)
@@ -582,7 +623,8 @@ def test_resposta_real_guarda_provas_antes_de_limpar_e_replay_nao_roda_executor(
         assert [nome for nome, _ in chamadas] == ['rodar', 'registrar', 'limpar']
 
 
-def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monkeypatch):
+@pytest.mark.parametrize('falha_prova', [False, True])
+def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monkeypatch, falha_prova):
     motor = object.__new__(Motor)
     etapa = {'id': uuid4(), 'card_id': uuid4(), 'codigo': 'E3', 'estado': 'REVISAO',
              'execucao_atual': 43, 'revisor': 'ISABELA'}
@@ -640,10 +682,22 @@ def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monk
     monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': revisao_id}, Spec(), None))
     monkeypatch.setattr(motor, '_servico', lambda _etapa: 'SRV-COPY')
     monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
+    eventos = []
+    monkeypatch.setattr(motor, '_evento', lambda *args, **kwargs: eventos.append((args, kwargs)))
+    def coletar(_resultado, execucao_id):
+        if falha_prova:
+            raise EvidenciaInvalida('registro inválido')
+        return {'paginas_lidas': [], 'usou_internet': False,
+                'conversa': [{'execucao': execucao_id}], 'uso': {'usou_internet': False}}
     monkeypatch.setattr('orquestrador.motor.coletar_evidencias',
-                        lambda _resultado, execucao_id: {
-                            'paginas_lidas': [], 'usou_internet': False,
-                            'conversa': [{'execucao': execucao_id}], 'uso': {'usou_internet': False}})
+                        coletar)
+    if falha_prova:
+        with pytest.raises(RuntimeError, match='evidência do revisor'):
+            motor.executar_e_salvar_revisao(etapa['id'], 43)
+        assert gravado == []
+        assert eventos[0][0][:4] == ('etapa', etapa['id'], 'MOTOR', 'FALHA')
+        assert eventos[0][0][4] == {'classe': 'DESCONHECIDA'}
+        return
     assert motor.executar_e_salvar_revisao(etapa['id'], 43) == 43
     assert gravado[0]['evidencias']['conversa'] == [{'execucao': 'E3-43'}]
     assert gravado[1] == 'limpo'
@@ -693,6 +747,7 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
                  'quality_review': {'requirements_met': True,
                                     'inspected_evidence_refs': ['REF-REAL']}}),))
         con.execute((RAIZ / 'supabase/migrations-v2/0007_pedidos_reais.sql').read_text())
+        con.execute((RAIZ / 'supabase/migrations-v2/0009_confirmacao_real.sql').read_text())
     motor = Motor(banco.url, url_dbos, executor=object(), fonte_contexto=montar_contexto_real,
                   permitir_configuracao_tecnica=True, iniciar_dbos=False)
     try:
@@ -726,9 +781,14 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
             'tarefa': {'pk': 'TASK-REAL-01', 'row_version': 7},
             'empresa': {'pk': 'BIZ-003', 'row_version': 4},
             'hash_sha256': hashlib.sha256(canonico(captura).encode()).hexdigest()}
-        dados = preparar_tarefa_real(captura, plano)['dados_reais']
+        preparacao = preparar_tarefa_real(captura, plano)
         fonte_job = 'FON-JOB-JOB-REAL-01'
         prazo = datetime.now(timezone.utc) + timedelta(days=7)
+        dados = confirmar_preparacao(
+            preparacao, prazo.isoformat(),
+            [{'id': 'CARD-1', 'texto': 'Não prometer remuneração sem acordo confirmado',
+              'quem_confere': 'IA', 'risco': 'ALTO'}],
+            ['Não prometer remuneração sem acordo confirmado'], [])['dados_reais']
         with banco.conectar('authenticated') as con:
             solicitacao = con.execute(
                 'select helena_v2.solicitar_card_real(%s,%s,%s,%s,%s,%s)',
@@ -749,6 +809,11 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
         assert set(fontes_etapa) == {'FON-PEDIDO-TASK-REAL-01', 'FON-PACOTE-BIZ-003', fonte_job}
         assert decisoes_etapa[0]['texto'] == 'Sem promessa de remuneração.'
         assert set(pedido['entradas']) == {'condicoes'}
+        assert pedido['ordem_de_servico']['como_e_o_pronto'][0]['id'] == 'CARD-1'
+        assert pedido['ordem_de_servico']['nao_pode'] == [
+            'Não prometer remuneração sem acordo confirmado']
+        assert datetime.fromisoformat(pedido['ordem_de_servico']['prazo']) == prazo
+        assert pedido['ordem_de_servico']['prazo'].endswith('-03:00')
         assert 'captura' not in canonico(pedido)
         contexto = montar_contexto_real(motor._ambiente_card(card_id)[1], 'SRV-COPY',
                                        pedido=pedido, fontes_importadas=fontes_etapa,

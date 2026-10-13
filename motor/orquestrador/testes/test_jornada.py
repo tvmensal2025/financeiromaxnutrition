@@ -238,6 +238,47 @@ def _ate_execucao(motor, card, codigo='E1'):
     raise AssertionError('etapa não iniciou')
 
 
+def test_falha_por_insumo_usa_vocabulario_e_replay_sem_executor(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'insumos-insuficientes-replay')
+        etapa = _ate_execucao(motor, card)
+        numero = etapa['execucao_atual']
+        antes = len(motor.executor.execucoes)
+        resposta = motor._evento(
+            'etapa', etapa['id'], 'AUTOR', 'REGISTRAR_FALHA',
+            {'motivo_falha': 'FALTAM_DADOS', 'usou_internet': 'NAO'},
+            ator=etapa['autor'], chave=numero,
+            conteudo={'motivo': 'INSUMOS_INSUFICIENTES', 'faltam': ['taxa efetiva']})
+        assert resposta['resultado'] == 'APLICADO'
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s',
+                            (etapa['id'],))['estado'] == 'EM_RESOLUCAO'
+        assert motor.executar_e_salvar(etapa['id'], numero) is None
+        assert len(motor.executor.execucoes) == antes
+    finally:
+        motor.fechar()
+
+
+def test_falha_de_prova_do_revisor_usa_vocabulario_no_banco(banco, url_dbos):
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO_DOSSIE, 'revisor-falha-evidencia')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        assert em_revisao['estado'] == 'REVISAO'
+        if em_revisao['execucao_atual'] is None:
+            motor._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO')
+        resultado = motor._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
+                                  {'classe': 'DESCONHECIDA'},
+                                  conteudo={'motivo': 'EVIDENCIA_INVALIDA'})
+        assert resultado['resultado'] == 'APLICADO'
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s',
+                            (etapa['id'],))['estado'] == 'EM_RESOLUCAO'
+    finally:
+        motor.fechar()
+
+
 def test_repetir_workflow_nao_refaz_executor_nem_entrega(banco, url_dbos):
     motor = Motor(banco.url, url_dbos)
     try:

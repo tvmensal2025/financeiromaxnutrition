@@ -55,7 +55,8 @@ def conferir_e_aplicar(etapa_id: str, numero: int) -> str:
 
 @DBOS.workflow(name='executar_etapa_v1')
 def fluxo_etapa(etapa_id: str, numero: int) -> str:
-    executar_e_salvar(etapa_id, numero)
+    if executar_e_salvar(etapa_id, numero) is None:
+        return 'EM_RESOLUCAO'
     return conferir_e_aplicar(etapa_id, numero)
 
 
@@ -548,14 +549,15 @@ class Motor:
         ordem_filtrada.update({'pedido_original': ordem['pedido_original'],
                               'empresa': ordem['business_id'], 'etapa_codigo': etapa['codigo'],
                               'objetivo': plano_etapa.get('objetivo'), 'titulo': card['titulo'],
-                              'prazo': card['prazo'].isoformat()})
+                              'prazo': self._instante_brasilia(card['prazo'])})
         plano_origem = dados['pedido'].get('plano') or {}
         plano_filtrado = {campo: plano_origem[campo] for campo in
                           ('id', 'versao', 'orcamento_meta', 'acoes_do_fundador',
                            'passos_fixos_do_fundador') if campo in plano_origem}
         plano_filtrado['etapas'] = [plano_etapa]
         pedido = {'card_id': str(etapa['card_id']), 'empresa': ordem['business_id'],
-                  'criado_em': card['criado_em'].isoformat(), 'ordem_de_servico': ordem_filtrada,
+                  'criado_em': self._instante_brasilia(card['criado_em']),
+                  'ordem_de_servico': ordem_filtrada,
                   'plano': plano_filtrado, 'entradas': entradas}
         if 'pacote_da_empresa' in dados['pedido']:
             pedido['pacote_da_empresa'] = dados['pedido']['pacote_da_empresa']
@@ -622,8 +624,27 @@ class Motor:
         plano = self._card(etapa['card_id'])['ordem_de_servico']
         return next(e['servico'] for e in plano['etapas'] if e['id'] == etapa['codigo'])
 
+    @staticmethod
+    def _faltas_do_autor_real(servico):
+        # O contrato confirmado atual não traz números tipados para cálculo nem
+        # tabela de leis publicada para parecer. Texto de job não preenche lacunas.
+        if servico == 'SRV-CALCULO':
+            return ['taxa efetiva, horas, pagador, beneficiário, período e moeda com fonte aprovada']
+        if servico == 'SRV-PARECER':
+            return ['tabela de leis publicada com versão e data',
+                    'peças julgadas integrais e versionadas, passos fixos e termos autorizados']
+        return []
+
     def executar_e_salvar(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
+        if etapa['estado'] == 'EM_RESOLUCAO':
+            registro = self._linha(
+                """SELECT 1 AS registrado FROM helena_v2.historico
+                   WHERE alvo_id=%s AND papel='AUTOR' AND evento='REGISTRAR_FALHA'
+                     AND chave=%s AND conteudo->>'motivo'='INSUMOS_INSUFICIENTES'
+                   ORDER BY id DESC LIMIT 1""", (etapa_id, numero))
+            if registro:
+                return None
         modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'EXECUTANDO' or etapa['execucao_atual'] != numero:
             raise RuntimeError('execução antiga ou etapa não executando')
@@ -631,6 +652,12 @@ class Motor:
             return numero
         revisao, spec, raiz = self._ambiente_card(etapa['card_id'])
         servico = self._servico(etapa)
+        if modo == 'real' and (faltas := self._faltas_do_autor_real(servico)):
+            self._evento('etapa', etapa_id, 'AUTOR', 'REGISTRAR_FALHA',
+                         {'motivo_falha': 'FALTAM_DADOS', 'usou_internet': 'NAO'},
+                         ator=etapa['autor'], chave=numero,
+                         conteudo={'motivo': 'INSUMOS_INSUFICIENTES', 'faltam': faltas})
+            return None
         ficha = self._ficha(etapa['autor'], 'AUTOR', servico, raiz)
         if modo == 'real':
             pedido, fontes, decisoes = self._entradas_da_etapa(etapa, servico)
@@ -662,8 +689,17 @@ class Motor:
             raise RuntimeError('executor falhou')
         provas = None
         if modo == 'real':
-            provas = coletar_evidencias(resultado, execucao_id)
+            try:
+                provas = coletar_evidencias(resultado, execucao_id)
+            except EvidenciaInvalida as exc:
+                self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
+                             {'classe': 'DESCONHECIDA'},
+                             conteudo={'motivo': 'EVIDENCIA_INVALIDA'})
+                raise RuntimeError('evidência do autor inválida') from exc
             if provas['usou_internet'] is None:
+                self._evento('etapa', etapa_id, 'MOTOR', 'FALHA',
+                             {'classe': 'DESCONHECIDA'},
+                             conteudo={'motivo': 'INTERNET_NAO_COMPROVADA'})
                 raise RuntimeError('executor não informou se usou internet')
             contexto = self.fonte_contexto(spec, servico, pedido=pedido, fontes_importadas=fontes,
                                            decisoes=decisoes, execucao_id=execucao_id,
@@ -740,6 +776,10 @@ class Motor:
             return self.dbos.start_workflow(fluxo_etapa, str(etapa_id), numero).get_result()
 
     @staticmethod
+    def _instante_brasilia(valor):
+        return valor.astimezone(ZoneInfo('America/Sao_Paulo')).isoformat()
+
+    @staticmethod
     def _pedido_coordenacao_real(card):
         ordem = card['ordem_de_servico']
         origem = ordem['dados_reais']['pedido']['ordem_de_servico']
@@ -747,11 +787,11 @@ class Motor:
                   'fontes_que_pode_ler')
         return {'pedido_original': ordem['pedido_original'],
                 'business_id': ordem['business_id'], 'titulo': card['titulo'],
-                'card_id': str(card['id']), 'prazo': card['prazo'].isoformat(),
-                'criado_em': card['criado_em'].isoformat(),
+                'card_id': str(card['id']), 'prazo': Motor._instante_brasilia(card['prazo']),
+                'criado_em': Motor._instante_brasilia(card['criado_em']),
                 'ordem_de_servico': {**{campo: origem[campo] for campo in campos if campo in origem},
                                     'pedido_original': ordem['pedido_original'],
-                                    'prazo': card['prazo'].isoformat()}}
+                                    'prazo': Motor._instante_brasilia(card['prazo'])}}
 
     def executar_e_salvar_coordenacao(self, card_id, chave):
         salva = self._linha('SELECT helena_v2.ler_resposta_coordenacao(%s) AS resposta',
@@ -911,8 +951,17 @@ class Motor:
             raise RuntimeError('revisor falhou')
         provas = None
         if modo == 'real':
-            provas = coletar_evidencias(resultado, f'{etapa["codigo"]}-{numero}')
+            try:
+                provas = coletar_evidencias(resultado, f'{etapa["codigo"]}-{numero}')
+            except EvidenciaInvalida as exc:
+                self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
+                             {'classe': 'DESCONHECIDA'},
+                             conteudo={'motivo': 'EVIDENCIA_INVALIDA'})
+                raise RuntimeError('evidência do revisor inválida') from exc
             if provas['usou_internet'] is None:
+                self._evento('etapa', etapa['id'], 'MOTOR', 'FALHA',
+                             {'classe': 'DESCONHECIDA'},
+                             conteudo={'motivo': 'INTERNET_NAO_COMPROVADA'})
                 raise RuntimeError('revisor não informou se usou internet')
         self._linha('SELECT helena_v2.registrar_resposta_execucao(%s,%s) AS resposta',
                     (numero, Jsonb({'texto': resultado.texto, 'servico': servico,
