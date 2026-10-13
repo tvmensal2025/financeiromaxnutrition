@@ -3,6 +3,16 @@
 Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
+## 0-A. Atualização local de 13/10/2026 — prevalece sobre os estados históricos abaixo
+
+- Continuação em `/workspace/helena-v2`, ramo `codex/helena-v2-integracao`, base `db41cf1`; PR 16 continua rascunho, sem merge. V1/voz e `scripts/` preservados.
+- Python 3.13.5, Node 20.20.2 e PostgreSQL 16.15 local preparados; 11 skills com origem/hash no lock e limites em `docs/SKILLS-INSTALADAS.md`. Hook local mostrado, não é skill nativa. Setup cloud salvo como rascunho; publicação e restauração em outra tarefa não comprovadas.
+- Testes locais: SPEC 296; ferramentas 588; validador 2352 + 31 pulados; executor 493; simulador 727; app 214; banco 314 (+78 após guarda final); helper 16. TypeScript e build v2 passaram; logs em `/tmp/helena-*.log`.
+- Motor DBOS: 44 testes no worktree de implementação e 5 cenários principais na integração passaram (configuração antiga, nova ativação, reinício, fila e guardas). CLI de manutenção não inicia DBOS nem recupera cards: mais 9 testes focados passaram.
+- Auth, tela do card, pedido diário de publicação e painel de revisões implementados localmente. Configuração usa 31 documentos reais, sem corpus dos testes; estados/identidades/schemas exigem migração técnica.
+- Roteiro canônico: 5 etapas, 4 identidades; Ravi tem prova local separada e seu serviço continua RASCUNHO. Respostas simuladas só com opt-in no harness local; nenhum agente real foi chamado.
+- Supabase sem conexão autenticada: checkpoint atual não carregado, nenhuma migration/deploy real. Faltam as 13 fichas de PENDENCIAS.yaml e a prova com Hermes real; proprietário/superusuário do banco continua fora da proteção contra escrita direta.
+
 ## 0-A. Ramo `v2-primeiro-card` (11/10/2026): primeiro card real com 5 agentes — LEIA ESTE BLOCO PRIMEIRO
 
 Meta única: um card indo de ponta a ponta com Helena, Caio, Isabela, Clara e Ravi. PR rascunho no GitHub (nº 16, para `organizacao-2026-10-10`); não fazer merge sem o fundador. O fundador ficou sem cota em 11/10; este bloco diz o que está pronto e o que falta. Regras que valem acima de tudo: chaves NÃO se trocam agora (DEC-027); voz da v1 não se mexe; nada no Supabase real, EasyPanel, Hermes real ou `scripts/`; código novo nunca traz chave; só o HANDOFF é atualizado (curto); sem dizer "pronto" sem colar a saída dos testes.
