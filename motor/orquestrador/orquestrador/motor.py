@@ -98,6 +98,8 @@ class Motor:
         _MOTOR = None
 
     def _con(self, papel='service_role'):
+        if papel == 'authenticated':
+            raise RuntimeError('contexto de identidade do fundador deve ser injetado')
         con = psycopg.connect(self.url_banco, autocommit=True, row_factory=dict_row)
         if papel:
             con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))

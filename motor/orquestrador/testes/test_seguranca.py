@@ -17,3 +17,9 @@ def test_urls_distintas_para_mesmo_banco_sao_recusadas_antes_de_conectar():
     with pytest.raises(ValueError, match='separados'):
         Motor('postgresql://usuario@localhost/card',
               'postgresql+psycopg://outro@127.0.0.1/card?application_name=dbos')
+
+
+def test_fundador_exige_identidade_injetada():
+    motor = object.__new__(Motor)
+    with pytest.raises(RuntimeError, match='identidade do fundador'):
+        motor._con('authenticated')

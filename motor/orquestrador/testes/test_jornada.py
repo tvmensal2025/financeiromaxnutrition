@@ -16,10 +16,12 @@ class Motor(MotorBase):
     """A fixture do banco cria esta identidade; só os testes a injetam."""
 
     def _con(self, papel='service_role'):
-        con = super()._con(papel)
         if papel == 'authenticated':
+            con = super()._con(None)
+            con.execute('SET ROLE authenticated')
             con.execute("SELECT set_config('request.jwt.claim.sub', %s, false)", (FUNDADOR_TESTE,))
-        return con
+            return con
+        return super()._con(papel)
 
 
 def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
