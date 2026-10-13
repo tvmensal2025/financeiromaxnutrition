@@ -89,6 +89,9 @@ jobs:
       - name: Testes do app
         run: npm test
 
+      - name: Conferir tipos do app
+        run: npx tsc --noEmit -p tsconfig.app.json
+
       - name: Build de produção
         run: npm run build
 
