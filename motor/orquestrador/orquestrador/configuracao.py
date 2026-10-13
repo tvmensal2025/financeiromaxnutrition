@@ -45,7 +45,7 @@ def _caminho_permitido(nome: str) -> bool:
         return False
     partes = nome.split("/")
     if (len(partes) < 2 or partes[0] != "helena-v2" or
-            any(p in ("", ".", "..") for p in partes) or "\\" in nome):
+            any(p in ("", ".", "..") or len(p) > 255 for p in partes) or "\\" in nome):
         return False
     relativo = "/".join(partes[1:])
     if relativo in {"servicos.yaml", "organograma.yaml", "models.yaml"}:

@@ -61,6 +61,8 @@ def test_hash_deterministico_e_revisao_diferente_nao_sobrescreve(bundle_base, tm
     "helena-v2/agents/novo.py",
     "helena-v2/schemas/https://exemplo.invalid.schema.json",
     "helena-v2/casos/SRV-COPY/boas/boa-01.yaml",
+    "helena-v2/agents/" + "a" * 300 + ".yaml",
+    "helena-v2/agents/caio\x00.yaml",
 ])
 def test_recusa_caminho_fora_da_lista(bundle_base, caminho):
     bundle = dict(bundle_base)
