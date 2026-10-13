@@ -3,7 +3,9 @@
 Como mudar: use o bundle real de helena-v2 e teste cada nova porta e trava no banco local.
 """
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 import psycopg
 import pytest
@@ -55,6 +57,22 @@ def validar(banco, rev, digital):
         return con.execute("select helena_v2.registrar_validacao_config(%s,%s,%s,%s)",
                            (pedido["id"], pedido["versao"], pedido["hash_sha256"],
                             digital)).fetchone()[0]
+
+
+def duas_sessoes_ao_mesmo_tempo(banco, operacao):
+    barreira = Barrier(2)
+
+    def chamar(numero):
+        with banco.conectar(papel="authenticated") as con:
+            barreira.wait(timeout=10)
+            try:
+                return ("ok", operacao(con, numero))
+            except psycopg.errors.SerializationFailure:
+                return ("conflito", None)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futuros = [executor.submit(chamar, numero) for numero in (0, 1)]
+        return [f.result(timeout=30) for f in futuros]
 
 
 def test_bootstrap_tecnico_real_idempotente_e_sem_ativacao(fabrica):
@@ -117,6 +135,23 @@ def test_rascunho_cas_fila_erro_cancelamento_e_validacao(fabrica):
             salvar(con, bundle, id=rev["id"], versao_esperada=2)
 
 
+def test_duas_sessoes_editam_mesma_versao_so_uma_grava(fabrica):
+    banco = fabrica({})
+    bundle = bundle_real()
+    with banco.conectar(papel="authenticated") as con:
+        rev = salvar(con, bundle)
+
+    resultados = duas_sessoes_ao_mesmo_tempo(
+        banco, lambda con, n: salvar(con, bundle, nome=f"Edição {n}",
+                                    id=rev["id"], versao_esperada=1))
+    assert sorted(tipo for tipo, _ in resultados) == ["conflito", "ok"]
+    vencedora = next(valor for tipo, valor in resultados if tipo == "ok")
+    with banco.conectar(papel="authenticated") as con:
+        final = con.execute("select helena_v2.ler_configuracao(%s)", (rev["id"],)).fetchone()[0]
+    assert final["versao"] == vencedora["versao"] == 2
+    assert final["nome"] == vencedora["nome"]
+
+
 def test_apenas_fundador_ativa_cas_e_maquina_fixa(fabrica):
     banco = fabrica({})
     bundle, digital, base = bootstrap(banco)
@@ -146,6 +181,31 @@ def test_apenas_fundador_ativa_cas_e_maquina_fixa(fabrica):
         with pytest.raises(psycopg.errors.CheckViolation, match="CONFIG_MAQUINA_EXIGE_MIGRACAO"):
             con.execute("select helena_v2.registrar_validacao_config(%s,%s,%s,%s)",
                         (draft["id"], 1, pend["hash_sha256"], digital))
+
+
+def test_duas_ativacoes_concorrentes_so_uma_vence(fabrica):
+    banco = fabrica({})
+    bundle, digital, base = bootstrap(banco)
+    candidatas = []
+    for numero in (0, 1):
+        with banco.conectar(papel="authenticated") as con:
+            rascunho = salvar(con, bundle, nome=f"Candidata {numero}", base_id=base["id"])
+        candidatas.append(validar(banco, rascunho, digital))
+    assert all(rev["estado"] == "VALIDADA" for rev in candidatas)
+
+    resultados = duas_sessoes_ao_mesmo_tempo(
+        banco, lambda con, n: con.execute(
+            "select helena_v2.ativar_configuracao(%s,null)", (candidatas[n]["id"],)
+        ).fetchone()[0])
+    assert sorted(tipo for tipo, _ in resultados) == ["conflito", "ok"]
+    vencedora = next(valor for tipo, valor in resultados if tipo == "ok")
+    with banco.conectar(papel="authenticated") as con:
+        lista = con.execute("select helena_v2.listar_configuracoes()").fetchone()[0]
+    assert [rev["id"] for rev in lista if rev["ativa"]] == [vencedora["id"]]
+    with banco.conectar() as con:
+        ponteiros = con.execute("select count(*) from helena_v2.configuracao_ponteiro "
+                                "where ativa_id = %s", (vencedora["id"],)).fetchone()[0]
+    assert ponteiros == 1
 
 
 def test_card_fixa_revisao_e_revisao_antiga_permanece_legivel(fabrica):

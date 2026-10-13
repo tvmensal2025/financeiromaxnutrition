@@ -38,6 +38,8 @@ python -m pytest                              # em supabase/migrations-v2
 
 O teste `test_02_gerador.py` falha se o SQL guardado no git for diferente do que o gerador produz hoje. Se o YAML pedir algo que o banco ainda não sabe fazer, o gerador **para** e diz o quê.
 
+Depois da 0006, reaplicar a 0004 isoladamente revoga as permissões dos RPCs novos. Nesse caso, publique uma nova migração de `GRANT` que restaure essas permissões; a 0006 usa `CREATE TABLE` e não deve ser reaplicada no banco existente.
+
 ## Aplicar à mão num banco local de teste
 
 `psql -v ON_ERROR_STOP=1 -1 -f 0001_esquema.sql` (e depois 0002, 0003, 0004, 0005 e 0006, nessa ordem; o `-1` é obrigatório). Antes, os papéis `anon`, `authenticated` e `service_role` e a tabela `public.app_access` precisam existir (no app já existem).
