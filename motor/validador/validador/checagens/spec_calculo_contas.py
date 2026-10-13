@@ -29,7 +29,7 @@ def _rotulo(c) -> str:
 # CHK-CALCULO-04
 # ---------------------------------------------------------------------------------------
 def _contas_refeitas(exe) -> list:
-    par = B.parametros(exe, ID4, ids="regex", constantes_aceitas="lista_de_numeros")
+    par = B.parametros(exe, ID4, ids="regex", constantes_aceitas="lista_de_numeros", erro_relativo_maximo_pct="inteiro")
     padrao = re.compile(par["ids"])
     m = B.carregar(exe)
     exatos, erros = B.contas_refeitas(exe, m)
@@ -54,7 +54,7 @@ def _contas_refeitas(exe) -> list:
         if c.resultado is None:
             falhas.append(Falha(ID4, "SEM_RESULTADO", cam + ".resultado", f"A conta {rotulo} precisa de um resultado com valor numérico puro.", T.cortar(str(resultado))))
         else:
-            if rotulo in exatos and not B.bate(exatos[rotulo], c.resultado):
+            if rotulo in exatos and not B.bate(exatos[rotulo], c.resultado, par["erro_relativo_maximo_pct"]):
                 falhas.append(Falha(ID4, "RESULTADO_NAO_BATE", cam + ".resultado",
                                     f"A conta {rotulo} ({T.cortar(str(c.expressao))}) refeita pelo código dá {_mostrar(exatos[rotulo], c.resultado)}, mas a entrega diz {c.resultado}.",
                                     f"{c.resultado} != {_mostrar(exatos[rotulo], c.resultado)}"))
@@ -238,7 +238,8 @@ def _cenarios_refeitos(exe) -> list:
     nomes, sentidos = list(par["cenarios"]), list(par["sentidos"])
     conservador, base, otimista = nomes[0], nomes[1], nomes[2]  # a ordem da lista na especificação: CONSERVADOR, BASE, OTIMISTA
     m = B.carregar(exe)
-    constantes = B.parametros(exe, "CHK-CALCULO-04", constantes_aceitas="lista_de_numeros")["constantes_aceitas"]
+    regra_das_contas = B.parametros(exe, "CHK-CALCULO-04", constantes_aceitas="lista_de_numeros", erro_relativo_maximo_pct="inteiro")
+    constantes = regra_das_contas["constantes_aceitas"]
     falhas = []
 
     # ---- resultado principal
@@ -294,9 +295,13 @@ def _cenarios_refeitos(exe) -> list:
                     falhas.append(Falha(ID6, "AJUSTES_DIFERENTES_ENTRE_CONTAS", cam + ".ajustes",
                                         f"Os ajustes do cenário {cenario} da conta {conta} diferem dos de outra conta ({previa[0]}): num cenário todas as contas mudam as mesmas premissas.", T.cortar(str(linha.get("ajustes")))))
                 valores = {**valores_base, **ajustes}
-                exatos, _ = B.refazer(m, constantes, valores) if ajustes else (exatos_base, None)
+                exatos, erros_da_conta = B.refazer(m, constantes, valores) if ajustes else (exatos_base, {})
                 if conta in exatos:
                     refeitos[(conta, cenario)] = exatos[conta]
+                else:
+                    detalhe = erros_da_conta.get(conta, ("DEPENDE_DE_CONTA_COM_ERRO", "A conta não pôde ser refeita.", ""))
+                    falhas.append(Falha(ID6, "CONTA_DO_CENARIO_INVALIDA", cam + ".resultado",
+                                        f"O código não conseguiu refazer {conta} no cenário {cenario}: {detalhe[1] or detalhe[0]}", conta))
             r = linha.get("resultado")
             declarado = B.para_decimal(r.get("valor")) if isinstance(r, dict) else None
             if declarado is None:
@@ -304,7 +309,7 @@ def _cenarios_refeitos(exe) -> list:
                 continue
             if r.get("origem") != "CALCULADO" or r.get("ref") != f"{conta}/{cenario}":
                 falhas.append(Falha(ID6, "REF_DO_CENARIO", cam + ".resultado", f"O resultado deve ter origem CALCULADO e ref '{conta}/{cenario}'.", T.cortar(str(r.get("ref")))))
-            if (conta, cenario) in refeitos and not B.bate(refeitos[(conta, cenario)], declarado):
+            if (conta, cenario) in refeitos and not B.bate(refeitos[(conta, cenario)], declarado, regra_das_contas["erro_relativo_maximo_pct"]):
                 falhas.append(Falha(ID6, "RESULTADO_DO_CENARIO_NAO_BATE", cam + ".resultado",
                                     f"O código refez {conta} no cenário {cenario} e deu {_mostrar(refeitos[(conta, cenario)], declarado)}, mas a entrega diz {declarado}.",
                                     f"{declarado} != {_mostrar(refeitos[(conta, cenario)], declarado)}"))

@@ -89,7 +89,10 @@ def _trecho_na_fonte(exe, trecho, fonte, par) -> tuple:
     if not core:
         return "TRECHO_VAZIO", "O trecho citado só tem pontuação."
     chave, b = fonte.parte_chave(1), fonte.parte_b(1)
-    achados = [(s, e) for s, e in _ocorrencias(chave, core) if _limite_de_palavra(chave, s, e, core)]
+    achados = [(s, e) for s, e in _ocorrencias(chave, core)
+               if _limite_de_palavra(chave, s, e, core)
+               and not (s >= 2 and chave[s - 1] in ",." and chave[s - 2].isdigit() and chave[s].isdigit())
+               and not (e + 1 < len(chave) and chave[e] in ",." and chave[e + 1].isdigit() and chave[e - 1].isdigit())]
     if not achados:
         return "TRECHO_NAO_ESTA_NA_FONTE", "O trecho não existe, igual, na fonte importada. Copie-o exatamente como está (só espaços e aspas podem diferir)."
     if T.contar_palavras(core) >= par["minimo_palavras"]:
@@ -148,6 +151,11 @@ def _origem_provada(exe) -> list:
             falha(erro[0], f"Entrada {rotulo}: {erro[1]}", T.cortar(trecho), cam + ".citacao.trecho_original")
         elif e.valor is not None and e.valor not in _numeros_do_trecho(trecho):
             falha("VALOR_NAO_ESTA_NO_TRECHO", f"O valor {e.valor} da entrada {rotulo} não aparece entre os números do trecho citado: o trecho não prova o valor.", T.cortar(trecho), cam + ".citacao.trecho_original")
+        elif e.valor is not None and e.unidade.strip() == "%" and not any(
+            B.numero_do_texto(match.group()) == e.valor and re.match(r"\s*(?:%|por cento)(?!\w)", trecho[match.end():], re.I)
+            for match in re.finditer(r"\d+(?:[.,]\d+)*", trecho)
+        ):
+            falha("VALOR_SEM_UNIDADE_NO_TRECHO", f"A entrada {rotulo} diz {e.valor}%, mas o trecho citado não traz esse valor como percentual.", T.cortar(trecho), cam + ".citacao.trecho_original")
         if e.origem == "FONTE_CITADA":
             _conferir_data(exe, e, falha)
     return falhas
@@ -183,16 +191,26 @@ def _conferir_data(exe, e, falha):
 def tipo_da_unidade(unidade: str, moedas: dict):
     """O que a unidade diz sobre moeda: None (sem moeda), ("M", código) (uma moeda) ou ("C", B, A) (câmbio 'B por A').
     Devolve "ERRO" se a unidade tem moedas que não dá para entender (ex.: duas moedas fora do padrão 'B por A')."""
-    simbolos = sorted(moedas, key=len, reverse=True)
-    achados = re.findall(r"(?<![A-Za-z])(" + "|".join(re.escape(s) for s in simbolos) + ")", unidade or "")
+    nomes = {"BRL": ("real", "reais", "brl"), "USD": ("dólar", "dólares", "dolar", "dolares", "usd"),
+             "EUR": ("euro", "euros", "eur")}
+    sinonimos = {simbolo: codigo for simbolo, codigo in moedas.items()}
+    for codigo, formas in nomes.items():
+        if codigo in moedas.values():
+            sinonimos.update({forma: codigo for forma in formas})
+    simbolos = sorted(sinonimos, key=len, reverse=True)
+    padrao_moeda = r"(?<!\w)(?:" + "|".join(re.escape(s) for s in simbolos) + r")(?!\w)"
+    achados = list(re.finditer(padrao_moeda, unidade or "", re.IGNORECASE))
     if not achados:
         return None
+    def codigo(achado):
+        nome = achado.group(0)
+        return sinonimos.get(nome.lower(), sinonimos.get(nome))
     if len(achados) == 1:
-        return ("M", moedas[achados[0]])
-    if len(achados) == 2 and achados[0] != achados[1]:
-        padrao = r"^\s*" + re.escape(achados[0]) + r"\s*(?:por|/)\s*" + re.escape(achados[1]) + r"(?![A-Za-z])"
-        if re.search(padrao, unidade or ""):
-            return ("C", moedas[achados[0]], moedas[achados[1]])
+        return ("M", codigo(achados[0]))
+    if len(achados) == 2 and codigo(achados[0]) != codigo(achados[1]):
+        entre = unidade[achados[0].end():achados[1].start()]
+        if re.fullmatch(r"\s*(?:por|/)\s*", entre, re.IGNORECASE):
+            return ("C", codigo(achados[0]), codigo(achados[1]))
     return "ERRO"
 
 

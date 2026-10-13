@@ -38,6 +38,70 @@ def base():
     return json.loads(resposta), copy.deepcopy(contexto)
 
 
+@pytest.mark.parametrize("texto,refs", [
+    ("Pague a indicação a cada participante.", "PF-01"),
+    ("Publique o convite e contrate um anunciante.", "AF-COPY-ENVIAR-OU-PUBLICAR, E3"),
+])
+def test_ref_de_acao_nao_autoriza_passo_diferente(texto, refs):
+    r, c = base()
+    r["entrega"]["proximos_passos"].append({"ordem": 6, "passo": texto, "depois_de": "nada", "refs": refs})
+    assert "ACAO_NOVA" in motivos(roda(r, c), "CHK-REL-SEM-ACAO-NOVA")
+
+
+@pytest.mark.parametrize("texto", ["Fazer o envio do convite ao grupo.", "Realize a publicação do convite.",
+                                     "Efetue o pagamento da indicação.", "Fazer um Pix para a plataforma.",
+                                     "Manda o convite para a lista.", "Confirmar o valor transferido.",
+                                     "Programar o disparo do convite.", "Chame os interessados do grupo.",
+                                     "Ligue pra cada candidato.", "Telefone para os candidatos.",
+                                     "Compartilhe o convite com amigos.", "Send the invite to the group.",
+                                     "Envіe o convite às pessoas."])
+def test_acao_externa_em_outra_forma_verbal(texto):
+    r, c = base()
+    r["entrega"]["proximos_passos"].append({"ordem": 6, "passo": texto, "depois_de": "nada", "refs": "E4"})
+    assert "ACAO_NOVA" in motivos(roda(r, c), "CHK-REL-SEM-ACAO-NOVA")
+
+
+@pytest.mark.parametrize("texto", ["sem risco", "zero furos", "nenhum risco", "sem pendência", "tudo ok", "cem por cento seguro", "completamente seguro", "nada para conferir"])
+def test_promessa_disfarcada_no_resumo(texto):
+    r, c = base()
+    r["entrega"]["resumo"][3]["frase"] += " O plano está " + texto + "."
+    assert "FRASE_DE_GARANTIA" in motivos(roda(r, c), "CHK-REL-SEM-OTIMISMO")
+
+
+@pytest.mark.parametrize("texto", ["Rendas garantidas", "Ganho assegurado"])
+def test_flexao_de_termo_proibido_do_pacote(texto):
+    r, c = base()
+    r["entrega"]["resumo"][3]["frase"] += f" {texto} para todos."
+    assert "TERMO_PROIBIDO_PELO_PACOTE" in motivos(roda(r, c), "CHK-REL-PACOTE")
+
+
+def test_resumo_com_frases_de_um_caractere_nao_oculta_risco_alto():
+    r, c = base()
+    for linha in r["entrega"]["resumo"]:
+        linha.update(frase="x", refs="E1, E2, E3, E4, PF-01")
+    assert "RESUMO_SEM_CONTEUDO" in motivos(roda(r, c), "CHK-REL-RISCO-ALTO-NO-RESUMO")
+
+
+@pytest.mark.parametrize("texto", [
+    "O cenário base seria de vinte e cinco mil dólares por semana.",
+    "O cenário base seria de US$ 25k por semana.",
+    "O cenário base seria de US$ 10,000 por semana.",
+    "O cenário base seria de R$ 25 por semana.",
+    "O cenário base seria de US$ 15 por semana.",
+    "O cenário base seria de 50 horas por semana.",
+])
+def test_numero_inventado_ou_em_outra_grandeza_no_relatorio(texto):
+    r, c = base()
+    r["entrega"]["resumo"][0].update(frase=texto, refs="E1, E2")
+    assert motivos(roda(r, c), "CHK-REL-NUMEROS")
+
+
+def test_numeros_do_prazo_nao_provam_quantidades_do_relatorio():
+    r, c = base()
+    r["entrega"]["resumo"][1].update(frase="O convite foi aprovado com 3 perguntas e 18 linhas.", refs="E3, PEDIDO")
+    assert "NUMERO_FORA_DAS_FONTES" in motivos(roda(r, c), "CHK-REL-NUMEROS")
+
+
 def roda(resposta, contexto):
     return validar(json.dumps(resposta, ensure_ascii=False), contexto)
 

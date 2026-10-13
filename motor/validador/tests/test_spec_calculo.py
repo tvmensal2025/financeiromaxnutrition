@@ -22,6 +22,128 @@ from .casos import spec_calculo as C  # registra as bases calculo_spec
 MOEDAS = {"R$": "BRL", "US$": "USD", "€": "EUR"}
 
 
+def test_cambio_por_extenso_e_reconhecido():
+    assert tipo_da_unidade("reais por dólar", MOEDAS) == ("C", "BRL", "USD")
+    assert tipo_da_unidade("dólares por mês", MOEDAS) == ("M", "USD")
+    assert tipo_da_unidade("BRL por USD", MOEDAS) == ("C", "BRL", "USD")
+
+
+def test_cambio_sem_fonte_com_unidade_por_extenso_e_recusado():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    cambio = resposta["entrega"]["entradas"][4]["valor"]
+    cambio.update(unidade="reais por dólar", origem="PREMISSA")
+    cambio.pop("ref")
+    cambio.pop("citacao")
+    resposta["entrega"]["premissas_a_confirmar"].append({"entrada": "V5", "por_que_este_valor": "Suposição minha.", "como_confirmar": "Ver no banco."})
+    assert "CAMBIO_SEM_ORIGEM_VALIDA" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-03")
+
+
+def test_percentual_nao_vem_de_numero_de_pessoas():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    original = resposta["entrega"]["entradas"][0]["valor"]
+    resposta["entrega"]["entradas"].append({"id": "V6", "o_que": "Cancelamento posterior", "valor": {
+        "valor": 10, "unidade": "%", "origem": "DADO_DO_FUNDADOR", "ref": original["ref"], "citacao": original["citacao"]}})
+    resposta["entrega"]["contas"].append({"id": "K5", "o_que": "Horas canceladas", "expressao": "K1 × V6 ÷ 100",
+                                         "resultado": {"valor": 21.67, "unidade": "horas por mês", "origem": "CALCULADO", "ref": "K5"},
+                                         "natureza": "REALIZADO"})
+    assert "VALOR_SEM_UNIDADE_NO_TRECHO" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-02")
+
+
+def test_citacao_nao_pode_cortar_decimal():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    for fonte in c["fontes_importadas"]:
+        if fonte["fonte_importada_id"] == "FON-PEDIDO-CALCULO-01":
+            fonte["texto"] = fonte["texto"].replace("gravando 5 horas", "gravando 5,5 horas")
+    resposta["entrega"]["entradas"][0]["valor"]["citacao"]["trecho_original"] = resposta["entrega"]["entradas"][0]["valor"]["citacao"]["trecho_original"].replace("gravando 5 horas", "gravando 5,5 horas")
+    resposta["entrega"]["entradas"][1]["valor"]["citacao"]["trecho_original"] = "Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5"
+    assert any(f.motivo == "TRECHO_NAO_ESTA_NA_FONTE" and "entradas[1]" in f.item
+               for f in validar(json.dumps(resposta), c).falhas_de("CHK-CALCULO-02"))
+
+
+def test_citacao_nao_pode_comecar_dentro_do_milhar():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    for fonte in c["fontes_importadas"]:
+        if fonte["fonte_importada_id"] == "FON-PEDIDO-CALCULO-01":
+            fonte["texto"] = fonte["texto"].replace("US$ 0,50 por hora", "US$ 1.250 por hora")
+    valor = resposta["entrega"]["entradas"][2]["valor"]
+    valor["valor"] = 250
+    valor["citacao"]["trecho_original"] = "250 por hora aprovada de cada pessoa indicada. Nem toda hora gravada é aprovada, e eu ainda não sei quanto é aprovado."
+    assert any(f.motivo == "TRECHO_NAO_ESTA_NA_FONTE" and "entradas[2]" in f.item
+               for f in validar(json.dumps(resposta), c).falhas_de("CHK-CALCULO-02"))
+
+
+def test_termo_do_pacote_quebrado_por_linha_e_recusado():
+    rel = rodar([(C.E + "riscos[0]", "Não é dinheiro\nfácil: depende das horas.")])
+    assert "TERMO_PROIBIDO_PELO_PACOTE" in motivos(rel, "CHK-CALCULO-11")
+
+
+@pytest.mark.parametrize("trecho", ["10 milhões", "10k", "US$ 100", "US$ 75,830", "dois milhões de dólares", "R$ duzentos", "mil pessoas"])
+def test_numero_solto_com_escala_ou_por_extenso(trecho):
+    rel = rodar([(C.LEITURA, f"A estimativa aponta {trecho}, sem confirmação.")])
+    assert motivos(rel, "CHK-CALCULO-09"), trecho
+
+
+def test_numero_solto_no_nome_da_unidade_e_recusado():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    resposta["entrega"]["contas"][0]["resultado"]["unidade"] = "horas por mês (média de 3.000 horas no setor)"
+    assert "NUMERO_SOLTO" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-09")
+
+
+def test_imposto_no_nome_da_unidade_e_recusado():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    resposta["entrega"]["contas"][3]["resultado"]["unidade"] = "R$ por mês depois do imposto"
+    assert "ASSUNTO_FISCAL" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-12")
+
+
+def test_expoente_extremo_na_entrada_e_recusado_sem_conversao_em_fracao():
+    r, c = montar("calculo_spec", [])
+    r = r.replace('"valor": 10,', '"valor": 1e999999999,', 1)
+    rel = validar(r, c)
+    assert "VALOR_INVALIDO" in motivos(rel, "CHK-CALCULO-01")
+
+
+def test_arredondamento_nao_pode_trocar_metade_por_um():
+    r, c = montar("calculo_spec", [])
+    entrega = json.loads(r)["entrega"]
+    entrega["contas"].append({"id": "K5", "o_que": "Valor por hora", "expressao": "V3 × 100 ÷ 100",
+                              "resultado": {"valor": 1, "unidade": "US$ por hora", "origem": "CALCULADO", "ref": "K5"},
+                              "natureza": "PREVISTO"})
+    resposta = json.loads(r)
+    resposta["entrega"] = entrega
+    assert "RESULTADO_NAO_BATE" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-04")
+
+
+def test_cenario_com_divisao_por_zero_e_recusado():
+    r, c = montar("calculo_spec", [])
+    resposta = json.loads(r)
+    e = resposta["entrega"]
+    e["contas"].append({"id": "K5", "o_que": "Inverso da aprovação", "expressao": "100 ÷ V4",
+                         "resultado": {"valor": 1.43, "unidade": "vezes", "origem": "CALCULADO", "ref": "K5"}, "natureza": "PREVISTO"})
+    e["resultado_principal"] = [{"conta": "K5", "sentido": "MENOR_E_MELHOR"}]
+    e["cenarios"] = [{"cenario": "CONSERVADOR", "conta": "K5", "ajustes": "V4 = 0", "resultado": {"valor": 9999, "unidade": "vezes", "origem": "CALCULADO", "ref": "K5/CONSERVADOR"}},
+                     {"cenario": "BASE", "conta": "K5", "ajustes": "—", "resultado": {"valor": 1.43, "unidade": "vezes", "origem": "CALCULADO", "ref": "K5/BASE"}},
+                     {"cenario": "OTIMISTA", "conta": "K5", "ajustes": "V4 = 90", "resultado": {"valor": 1.11, "unidade": "vezes", "origem": "CALCULADO", "ref": "K5/OTIMISTA"}}]
+    assert "CONTA_DO_CENARIO_INVALIDA" in motivos(validar(json.dumps(resposta), c), "CHK-CALCULO-06")
+
+
+@pytest.mark.parametrize("termo", ["com\ncerteza", "garante", "garantia", "sem a menor dúvida"])
+def test_certeza_disfarcada_no_texto(termo):
+    rel = rodar([(C.LEITURA, f"Esta conta {termo} o valor previsto.")])
+    assert "CERTEZA_SOBRE_PREVISAO" in motivos(rel, "CHK-CALCULO-10")
+
+
+@pytest.mark.parametrize("termo", ["DARF", "IRPF", "NFS-e", "ISSQN", "carga tributária", "lucro presumido", "DАS"])
+def test_conta_fiscal_com_variantes(termo):
+    rel = rodar([(C.E + "contas[2].o_que", f"Valor por mês após {termo}.")])
+    assert "ASSUNTO_FISCAL" in motivos(rel, "CHK-CALCULO-12")
+
+
 def rodar(remendos=(), base="calculo_spec", **mudancas_no_parametro):
     """Valida a resposta da base com remendos; `mudancas_no_parametro`: {"CHK-CALCULO-04": {"constantes_aceitas": [...]}}."""
     r, c = montar(base, list(remendos))
@@ -185,7 +307,7 @@ def test_tolerancia_e_meia_unidade_da_ultima_casa():
 
 @pytest.mark.parametrize("unidade,tipo", [("pessoas", None), ("%", None), ("US$ por hora aprovada", ("M", "USD")), ("R$ por mês", ("M", "BRL")),
                                           ("€ por mês", ("M", "EUR")), ("R$ por US$", ("C", "BRL", "USD")), ("US$/R$", ("C", "USD", "BRL")),
-                                          ("US$ e R$ por hora", "ERRO"), ("R$ por R$", "ERRO"), ("reais por mês", None)])
+                                          ("US$ e R$ por hora", "ERRO"), ("R$ por R$", "ERRO"), ("reais por mês", ("M", "BRL"))])
 def test_tipo_da_unidade(unidade, tipo):
     assert tipo_da_unidade(unidade, MOEDAS) == tipo
 

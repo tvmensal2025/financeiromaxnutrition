@@ -20,11 +20,22 @@ from fractions import Fraction
 
 from .. import texto as T
 from ..expressao import MAX_ELEMENTOS, MAX_PROFUNDIDADE, MAX_TAMANHO, ErroDeExpressao
-from ..numeros import casas_decimais, para_decimal
+from ..numeros import casas_decimais, para_decimal as _para_decimal
 from ..resultado import Falha
 
 TIPO = "calculo"
 SEM_AJUSTE = {"—", "–", "-", "−", ""}  # como se escreve "nenhum ajuste" na coluna ajustes
+
+
+def para_decimal(valor):
+    """Rejeita expoentes que fariam Fraction materializar bilhões de dígitos."""
+    numero = _para_decimal(valor)
+    if numero is None:
+        return None
+    expoente = numero.as_tuple().exponent
+    if abs(expoente) > 1000 or abs(numero.adjusted()) > 1000:
+        return None
+    return numero
 
 
 # ---------------------------------------------------------------------------------------
@@ -188,7 +199,8 @@ def achar_termo(texto_dobrado: str, termo: str) -> bool:
 
 def achar_sigla(texto: str, sigla: str) -> bool:
     """A sigla aparece em MAIÚSCULAS e como palavra inteira ('DAS' conta; 'das' não)?"""
-    return re.search(r"(?<![\w])" + re.escape(sigla) + r"(?![\w])", texto) is not None
+    letras = "".join(T.dobrar(c).upper() if c.isupper() else c for c in T.normalizar(texto))
+    return re.search(r"(?<![\w])" + re.escape(sigla) + r"(?![\w])", letras) is not None
 
 
 # ---------------------------------------------------------------------------------------
@@ -343,9 +355,10 @@ def casa_da_tolerancia(texto_do_numero) -> Fraction:
     return Fraction(1, 2) / (Fraction(10) ** casas_decimais(texto_do_numero))
 
 
-def bate(exato, declarado: Decimal) -> bool:
-    """O declarado é o exato arredondado na última casa que ele mesmo escreve (dentro de meia unidade)?"""
-    return abs(exato - Fraction(declarado)) <= casa_da_tolerancia(declarado)
+def bate(exato, declarado: Decimal, maximo_relativo_pct=5) -> bool:
+    """Arredondamento limitado pela última casa escrita e pelo erro relativo da especificação."""
+    diferenca = abs(exato - Fraction(declarado))
+    return diferenca <= casa_da_tolerancia(declarado) and (exato == 0 and diferenca == 0 or exato != 0 and diferenca <= abs(exato) * maximo_relativo_pct / 100)
 
 
 class _Contador:

@@ -117,9 +117,9 @@ checagens_codigo:
     fase: "fase 1"
     parametros:
       colunas: [frase, passo]
-      termos: ["tudo certo", "tudo resolvido", "tudo pronto para agir", "sem riscos", "sem nenhum risco",
-               "risco zero", "zero furo", "100% seguro", "totalmente seguro",
-               "pode agir sem ler", "sem pendências", "nada a conferir"]
+      termos: ["tudo certo", "tudo resolvido", "tudo pronto para agir", "tudo ok", "sem riscos", "sem risco", "sem nenhum risco", "nenhum risco",
+               "risco zero", "zero furo", "zero furos", "100% seguro", "cem por cento seguro", "totalmente seguro", "completamente seguro",
+               "pode agir sem ler", "sem pendências", "sem pendência", "nada a conferir", "nada para conferir"]
       sem_diferenca_de_maiusculas: true
   - id: CHK-REL-PACOTE
     descricao: >-
@@ -182,13 +182,15 @@ checagens_codigo:
         - '\bcontrat(ar|e|em|ando|ad[oa]s?)\b'
         - '\bassin(ar|e|em|ando|ad[oa]s?)\b'
         - '\brenov(ar|e|em|ad[oa]s?)\b'
-        - '\blig(ar|ue|uem) para\b'
+        - '\blig(ar|ue|uem) (?:para|pra)\b|\btelefon(ar|e|em|ando)\b'
         - '\bcontat(ar|e|em|ando|ad[oa]s?)\b'
         - '\bconvid(ar|e|em|ad[oa]s?)\b'
         - '\babord(ar|e|em|ad[oa]s?)\b'
         - '\bnegoci(ar|e|em)\b'
         - '\bcolo(car|que) no ar\b|\bdeix(ar|e) no ar\b'
         - '\brespond(er|a|am)\b (ao|à|aos|às) (cliente|participante|pessoa)'
+        - '\b(envio|publicacao|pagamento|disparo|contratacao|transferencia)\b'
+        - '\b(pix|mandado|mandada|transferido|transferida|chame|chamar|compartilhe|compartilhar|send|post)\b|^\s*manda\b'
 
 # Rubrica do portão 2 (revisor: Caio; reserva: Clara). Só julgamento que o código não confere.
 # Nenhum critério depende de lei (quem julga lei é só o parecer; MAT-22). Nenhum reavalia mérito.

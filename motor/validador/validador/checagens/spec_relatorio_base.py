@@ -36,8 +36,8 @@ REF_DO_PEDIDO = "PEDIDO"             # ref que aponta para a ordem de serviço d
 PREFIXO_DA_ACAO_DO_FUNDADOR = "AF-"
 PREFIXO_DO_PASSO_FIXO = "PF-"
 # Campos da ordem de serviço que valem como fonte da ref PEDIDO (card.schema.json, $defs/ordem_de_servico).
-# Só os campos que o YAML nomeia: pedido original, o que quer, como é o pronto, o que não pode e prazo.
-CAMPOS_DA_ORDEM_DE_SERVICO = ("pedido_original", "o_que_quer", "como_e_o_pronto", "nao_pode", "prazo")
+# Os campos de texto do pedido original; o prazo é data, não fonte de quantidades para o resumo.
+CAMPOS_DA_ORDEM_DE_SERVICO = ("pedido_original", "o_que_quer", "como_e_o_pronto", "nao_pode")
 
 
 # ---------------------------------------------------------------------------------------
@@ -152,6 +152,12 @@ def termo_achado(texto: str, termos: list, ignorar_caixa_e_acento: bool):
         t = forma_de_comparacao(termo, ignorar_caixa_e_acento)
         if t and f" {t} " in palavras:
             return termo
+        if t in {"renda garantida", "rendas garantidas", "ganho garantido", "ganhos garantidos"}:
+            substantivo = t.split()[0].rstrip("s")
+            formas = ("garantid", "assegurad")
+            for forma in formas:
+                if re.search(rf"(?<!\w){substantivo}s? {forma}[oa]s?(?!\w)", palavras):
+                    return termo
     return None
 
 
@@ -235,6 +241,18 @@ def numeros_da_fonte(valor) -> set:
                 saida.add(_canonico(n))
             pilha.extend(v.values())
     return saida
+
+
+def textos_da_fonte(valor):
+    """Textos da parte citada, para conferir moeda e grandeza junto do número."""
+    if isinstance(valor, str):
+        yield valor
+    elif isinstance(valor, list):
+        for item in valor:
+            yield from textos_da_fonte(item)
+    elif isinstance(valor, dict):
+        for item in valor.values():
+            yield from textos_da_fonte(item)
 
 
 # ---------------------------------------------------------------------------------------
