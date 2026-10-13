@@ -76,3 +76,16 @@ Escrever `docs/manual/dia-de-prova.md` (uma página): a lista **exata** de coman
 - `git commit` leva TUDO o que está no índice: confira `git status` antes. Commits de trabalho em andamento levam `[skip ci]`.
 - Não esconda erro de comando; não diga "pronto" sem colar a saída dos testes; confira o CI no GitHub depois de enviar (um teste do executor só falhou lá, não nos testes locais que eu tinha rodado).
 - A cota do fundador é curta: modelo barato (Sonnet/Haiku) para o que é repetitivo, poucos agentes por vez, mensagens curtas.
+
+## 8. Depois do primeiro card local: ligar de verdade (cada item só com a frase exata do fundador)
+
+O fundador quer a configuração completa, de ponta a ponta. Isso é o resto do plano (`docs/plano/PLANO-HELENA-V3.md`: "Fases com portão", "Os testes que decidem", "O que preciso de você"). O agente **prepara tudo no repositório** (scripts, passo a passo em português simples, testes) e **para em cada portão pedindo a frase**; nunca executa sozinho. Para cada ação, proponha a frase exata (ex.: "AUTORIZO APLICAR AS MIGRATIONS DA V2 NO SUPABASE REAL"); ela vale para aquela ação, uma vez.
+
+| Fase | O que o fundador faz | O que o agente prepara |
+|---|---|---|
+| 0 Segurança, primeiro de tudo | remover as portas 9119 e 8642; rodar a checagem de invasão no console do EasyPanel; ligar a verificação em duas etapas; criar a conta do vigia (healthchecks.io) e o robô do Telegram | passo a passo numa mensagem só; migration separada que fecha as funções abertas do banco da v1; roteiro de troca das chaves (`docs/manual/troca-de-chaves.md`), que fica para o FIM dos testes (DEC-027) |
+| 2 Base | digitar a frase de cada mudança no servidor e no banco; fazer o login único da v2 do ChatGPT | dia de prova (Hermes real, testes 1, 2 e 3); aplicar `supabase/migrations-v2/` no Supabase real; motor DBOS como serviço novo no EasyPanel; relógio dos prazos e vigia de 5 minutos no Supabase; avisos pelo Telegram; backup noturno no GitHub e restauração semanal (teste 8); testes 4 a 11 do plano; revisão independente no fim da fase |
+| 3 Provar | aprovar | teste 9 do revisor (30 entregas com 7 tipos de erro); só depois, trocar o canal do WhatsApp da v1 para a v2 (um registro muda o canal; o que está em andamento termina na v1) |
+| 4 Ampliar | aprovar cada agente | ligar os outros agentes um por vez (fichas v3.1 dos 13 que faltam, casos e checagens); o Codex só depois dos testes 3 e 5 |
+
+Ninguém promete "zero furo": cada fase só avança com os testes dela passando e uma revisão independente que tenta quebrar o que foi feito. A tela do card (passo 6) tem o botão "publicar": só o fundador aperta, no máximo uma vez por dia.
