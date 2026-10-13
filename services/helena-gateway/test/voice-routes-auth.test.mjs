@@ -223,6 +223,30 @@ for (const [mode, expectedKey, expectedName] of [
   });
 }
 
+// ---------------------------------------------------------------- (e) ligação recebida recusada
+// Falha se: a fala de um número recusado voltar a ser transcrita (STT) ou respondida.
+test('(e) fala de ligação recebida recusada: 200 ignorado, sem transcrever e sem fallback em lote', async () => {
+  const { settleCallGate } = await import('../src/integrations/inbound-call-gate.mjs');
+  const { registerCallSession, endCallSession } = await import('../src/integrations/call-engine.mjs');
+  const callId = `ROTA-RECUSADA-${Date.now()}`;
+  registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+  settleCallGate(callId, { allowed: false, reason: 'caller_unidentified' });
+  try {
+    const res = await fetch(`${baseUrl}/api/integrations/voice-agent/user-speech-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/pcm', 'X-API-Key': 'test-voice-gateway-key', 'X-Call-ID': callId, 'X-Speech-Epoch': '1' },
+      body: Buffer.alloc(3200, 1)
+    });
+    assert.equal(res.status, 200, 'resposta 200 evita o reenvio do mesmo áudio em lote pelo meowcaller');
+    const data = await res.json();
+    assert.equal(data.result.ignored, true);
+    assert.equal(data.result.reason, 'call_not_allowed');
+    noProviderTouched();
+  } finally {
+    endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
+});
+
 for (const path of ['/api/integrations/call-engine/preview', '/api/integrations/google-chirp3-hd/preview']) {
   test(`(c) conta válida e serviço continuam gerando voz em ${path}`, async () => {
     for (const token of [USER_A.token, SERVICE_TOKEN]) {

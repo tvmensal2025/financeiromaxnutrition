@@ -36,6 +36,13 @@ import {
   nextElivingFallback,
   resetElivingFallback
 } from './call-fallback.mjs';
+import {
+  awaitCallGate,
+  decideInboundCall,
+  forgetCallGate,
+  isCallAllowedNow,
+  settleCallGate
+} from './inbound-call-gate.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -614,7 +621,12 @@ export async function generateNaturalOpening(profile, callId, webCall = null) {
     ? result.text.trim() : `Olá, aqui é ${profile.character_name}. Como você está hoje?`;
 }
 
-export async function handleCallConnectedWebhook(payload = {}, { speak = speakInCall, generateOpening = generateNaturalOpening } = {}) {
+export async function handleCallConnectedWebhook(payload = {}, {
+  speak = speakInCall,
+  generateOpening = generateNaturalOpening,
+  decideInbound = decideInboundCall,
+  hangup = hangupInCall
+} = {}) {
   const endedKey = String(payload.call_id || "").toUpperCase();
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: "already_ended" };
   const { call_id, remote_number } = payload;
@@ -634,6 +646,28 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   }
 
   if (remote_number) call.remoteNumber = remote_number;
+  if (isInbound) {
+    // Ligação RECEBIDA: a IA só atende aluno conhecido do eLiving (VOICE_INBOUND_CALL_POLICY, padrão restrito).
+    // Webhooks repetidos reaproveitam a mesma consulta.
+    call.inboundGate ||= Promise.resolve().then(() => decideInbound(call))
+      .catch(() => ({ allowed: false, reason: 'context_unavailable' }));
+    const decision = settleCallGate(call_id, await call.inboundGate);
+    if (!decision.allowed) {
+      if (!call.inboundRefused) {
+        call.inboundRefused = decision.reason;
+        console.warn(`[VOICE_GATE] Ligação recebida ${call_id} não atendida pela IA (${decision.reason}); encerrando sem gastar STT, GPT ou voz.`);
+        try {
+          await hangup(call_id);
+        } catch (err) {
+          console.error(`[VOICE_GATE] Não foi possível encerrar a ligação recusada ${call_id}:`, err.message);
+        }
+      }
+      return { ok: true, handled: false, refused: true, reason: decision.reason, call_id };
+    }
+    if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
+  } else {
+    settleCallGate(call_id, { allowed: true, reason: 'outbound' });
+  }
   if (call.greetingPlayed) return { ok: true, handled: true, call_id, greeting_already_played: true };
   if (!call.callerConnected) {
     call.direction = direction;
@@ -694,6 +728,7 @@ export async function handleCallEndedWebhook(payload = {}) {
   console.log(`[VOICE_AGENT] 📴 Chamada finalizada recebida via webhook: call_id=${call_id}, reason=${reason}`);
   abortActiveVoiceTurn(call_id, 'call_ended', 'Call ended');
   activeVoiceTurns.delete(call_id);
+  forgetCallGate(call_id);
   latestSpeechEpochs.delete(call_id);
   const summary = endCallSession({ callId: call_id, reason: reason || 'normal_hangup' });
   return { ok: true, call_id, summary };
@@ -704,6 +739,9 @@ export async function handleCallEndedWebhook(payload = {}) {
  */
 export async function handleUserSilence({ callId }) {
   if (!callId) throw new Error('callId é obrigatório');
+  // Ligação recusada, ainda sem decisão ou já se despedindo: nenhuma cutucada (nada de voz).
+  if (!isCallAllowedNow(callId)) return { ok: true, ignored: true, reason: 'call_not_allowed' };
+  if (getCallSession(callId)?.closingAfterFailures) return { ok: true, ignored: true, reason: 'call_closing' };
   const session = getCallSession(callId) || registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
   const profile = session?.activeProfileKey ? getProfileByKey(session.activeProfileKey) : getProfileByKey('sirlene_normal');
   if (profile.opening_enabled !== true && !getCallHistory(callId).some(turn => turn.role === 'user')) return { ok: true, ignored: true, reason: 'waiting_for_customer' };
@@ -772,6 +810,10 @@ export async function processUserSpeech(params, deps = {}) {
   if (!callId) throw new Error('callId é obrigatório');
   // Depois da despedida por falhas seguidas do GPT, nada mais é processado nem falado.
   if (getCallSession(callId)?.closingAfterFailures) return { ok: true, ignored: true, reason: 'call_closing', call_id: callId };
+  // Ligação recebida de quem não é aluno conhecido: nada de STT, GPT ou voz (inclui o áudio em lote).
+  const gate = await awaitCallGate(callId);
+  if (!gate.allowed) return { ok: true, ignored: true, reason: 'call_not_allowed', call_id: callId };
+  if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (Number.isSafeInteger(speechEpoch)) {
     if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
     latestSpeechEpochs.set(callId, speechEpoch);

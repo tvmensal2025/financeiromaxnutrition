@@ -73,7 +73,9 @@ test('inbound greets naturally in Normal once even with fixed opening disabled',
   updateProfile('sirlene','normal',{opening_enabled:false});
   const spoken = [];
   const payload = {call_id:'caller-context-inbound',direction:'INBOUND',remote_number:'5511999991234'};
-  const dependencies = { speak: async args => { spoken.push(args.text); return {ok:true}; } };
+  // Aluno conhecido (ficha encontrada): a ligação recebida é atendida.
+  const dependencies = { speak: async args => { spoken.push(args.text); return {ok:true}; },
+    decideInbound: async () => ({ allowed: true, reason: 'known_student' }) };
   await handleCallConnectedWebhook(payload, dependencies);
   await handleCallConnectedWebhook(payload, dependencies);
   assert.equal(spoken.length, 1);

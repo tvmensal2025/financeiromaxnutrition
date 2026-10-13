@@ -239,6 +239,7 @@ it('answers inbound WhatsApp calls as Sirlene even when the global or preloaded 
   setActiveGlobalProfile('vital', 'normal', 'Teste de ligação WhatsApp');
   registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'vital_normal' });
   const result = await handleCallConnectedWebhook({ call_id: callId, direction: 'INBOUND' }, {
+   decideInbound: async () => ({ allowed: true, reason: 'known_student' }),
    generateOpening: async profile => {
     assert.equal(profile.profile_key, 'sirlene_normal');
     return 'Olá, aqui é a Sirlene.';
@@ -271,6 +272,7 @@ it('keeps selected outbound characters and hot-swapped profiles on duplicate con
   try {
    registerCallSession({ callId, direction, profileKey: initialProfile });
    const handlers = {
+    decideInbound: async () => ({ allowed: true, reason: 'known_student' }),
     generateOpening: async profile => {
      openings++;
      assert.equal(profile.profile_key, openingProfile);
@@ -389,8 +391,10 @@ it('ligação por WhatsApp sem streaming: pede para repetir no máximo 2 vezes e
  withoutRealProviders(t);
  const { registerCallSession, endCallSession, getCallSession } = await import('../src/integrations/call-engine.mjs');
  const { processUserSpeech } = await import('../src/integrations/voice-agent.mjs');
+ const { settleCallGate } = await import('../src/integrations/inbound-call-gate.mjs');
  const callId = `fallback-limit-${Date.now()}`;
  registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+ settleCallGate(callId, { allowed: true, reason: 'known_student' }); // atendida: aluno conhecido
  const spoken = [];
  const hangups = [];
  const waits = [];
