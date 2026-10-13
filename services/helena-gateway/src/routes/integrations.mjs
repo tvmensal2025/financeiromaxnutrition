@@ -107,6 +107,7 @@ import {
   getActiveGlobalProfileKey,
   setActiveGlobalProfile,
   getProfileByKey,
+  normalizeCallMode,
   DEFAULT_PERSONALITIES
 } from '../integrations/call-engine.mjs';
 
@@ -1858,10 +1859,11 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         }
       }
       const char = (character_id || 'rafael').toLowerCase();
-      const m = 'normal';
+      // Modo escolhido no app (Normal, Firme ou Intenso); ausente ou inválido abre em Normal.
+      const m = normalizeCallMode(mode);
       const profile = getProfile(char, m) || getProfileByKey('rafael_normal');
 
-      // Inicia chamada no Meowcaller com a voz do Google Chirp 3 HD
+      // Inicia chamada no Meowcaller (a voz é sempre a do personagem; o provedor é escolhido na fala)
       let callResult;
       try {
         callResult = await originateCall({
@@ -1891,7 +1893,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         mode: profile.mode_name,
         voice: profile.voice_id,
         phone: cleanPhone,
-        message: `Chamada originada para ${cleanPhone} com sucesso via Google Chirp 3 HD!`
+        message: `Chamada originada para ${cleanPhone} com sucesso.`
       });
     } catch (err) {
       console.error('[CALL_ENGINE] Erro ao originar ligação telefônica:', err);

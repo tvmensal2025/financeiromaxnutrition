@@ -20,6 +20,8 @@ import {
   getActiveGlobalProfile,
   getActiveGlobalProfileKey,
   getProfileByKey,
+  getProfile,
+  normalizeCallMode,
   switchCallRuntime,
   getActivePersonality
 } from './call-engine.mjs';
@@ -571,15 +573,19 @@ export async function handleCallConnectedWebhook(payload = {}, { speak = speakIn
   if (!call.callerConnected) {
     call.direction = direction;
     const characterId = isInbound ? 'sirlene' : getProfileByKey(call.activeProfileKey).character_id;
-    switchCallRuntime({ callId: call_id, characterId, mode: 'normal' });
+    // Entrada: sempre Sirlene Normal. Saída: mantém o modo pedido no app (call-phone).
+    const mode = isInbound ? 'normal' : normalizeCallMode(call.activeMode);
+    switchCallRuntime({ callId: call_id, characterId, mode });
   }
   call.callerConnected = true;
   const profile = getProfileByKey(call.activeProfileKey);
   void loadCallerContext(call, profile.character_id);
   // Reserve before awaiting generation to deduplicate connected events.
   call.greetingPlayed = true;
-  // A fala vai COM as [tags] para a voz; tela, histórico e banco recebem o texto sem tags.
-  const greeting = await generateOpening(profile, call_id);
+  // A abertura é sempre no modo Normal do personagem (NATURAL_OPENING_PROMPT), como na reserva do app;
+  // o modo pedido vale a partir da primeira resposta. A fala vai COM as [tags] para a voz; tela,
+  // histórico e banco recebem o texto sem tags.
+  const greeting = await generateOpening(getProfile(profile.character_id, 'normal'), call_id);
   const greetingText = stripAudioTags(greeting);
   if (endedVoiceCalls.has(endedKey)) return { ok: true, ignored: true, reason: 'already_ended' };
 

@@ -260,9 +260,10 @@ it('keeps selected outbound characters and hot-swapped profiles on duplicate con
  } = await import('../src/integrations/call-engine.mjs');
  const { handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
  // Uma voz por personagem: a voz do Dr. Vital pedida no painel vale para o Vital e é ignorada para o Rafael.
- for (const { direction, initialProfile, openingProfile, replacementProfile, expectedVoice } of [
-  { direction: 'INBOUND', initialProfile: 'vital_intense', openingProfile: 'sirlene_normal', replacementProfile: 'vital_firm', expectedVoice: 'pt-BR-Chirp3-HD-Charon' },
-  { direction: 'OUTBOUND', initialProfile: 'alex_intense', openingProfile: 'alex_normal', replacementProfile: 'rafael_intense', expectedVoice: 'pt-BR-Chirp3-HD-Achird' }
+ // Entrada abre como Sirlene Normal; saída mantém o modo pedido (Intenso) e só a abertura sai em Normal.
+ for (const { direction, initialProfile, openingProfile, sessionProfile, replacementProfile, expectedVoice } of [
+  { direction: 'INBOUND', initialProfile: 'vital_intense', openingProfile: 'sirlene_normal', sessionProfile: 'sirlene_normal', replacementProfile: 'vital_firm', expectedVoice: 'pt-BR-Chirp3-HD-Charon' },
+  { direction: 'OUTBOUND', initialProfile: 'alex_intense', openingProfile: 'alex_normal', sessionProfile: 'alex_intense', replacementProfile: 'rafael_intense', expectedVoice: 'pt-BR-Chirp3-HD-Achird' }
  ]) {
   const callId = `duplicate-connected-${direction}-${Date.now()}`;
   let openings = 0;
@@ -278,7 +279,7 @@ it('keeps selected outbound characters and hot-swapped profiles on duplicate con
     speak: async () => { spoken++; return { ok: true }; }
    };
    await handleCallConnectedWebhook({ call_id: callId, direction }, handlers);
-   assert.equal(getCallSession(callId).activeProfileKey, openingProfile);
+   assert.equal(getCallSession(callId).activeProfileKey, sessionProfile);
    assert.equal(getCallSession(callId).direction, direction);
 
    switchCallRuntime({ callId, profileKey: replacementProfile, voice: 'pt-BR-Chirp3-HD-Charon' });
@@ -326,4 +327,23 @@ it('telemetria do turno sem streaming registra o provedor que realmente falou', 
  const summary = endCallSession({ callId, reason: 'TEST_CLEANUP' });
  assert.equal(summary.turns.at(-1).tts.provider, 'ELEVENLABS');
  assert.equal(summary.tts.provider, 'ELEVENLABS');
+});
+
+it('ligação de saída atendida mantém o modo pedido no app; a abertura sai no modo Normal do mesmo personagem', async () => {
+ const { endCallSession, getCallSession, registerCallSession } = await import('../src/integrations/call-engine.mjs');
+ const { handleCallConnectedWebhook } = await import('../src/integrations/voice-agent.mjs');
+ const callId = `outbound-mode-${Date.now()}`;
+ const openings = [];
+ try {
+  registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'vital_firm' });
+  const result = await handleCallConnectedWebhook({ call_id: callId, direction: 'OUTBOUND' }, {
+   generateOpening: async profile => { openings.push(profile.profile_key); return 'Olá, aqui é o Vital.'; },
+   speak: async () => ({ ok: true })
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(openings, ['vital_normal']);
+  assert.equal(getCallSession(callId).activeProfileKey, 'vital_firm', 'o modo Firme pedido continua valendo nas respostas');
+ } finally {
+  endCallSession({ callId, reason: 'TEST_CLEANUP' });
+ }
 });

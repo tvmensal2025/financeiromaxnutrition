@@ -353,11 +353,21 @@ export function getProfileByKey(profileKey) {
   return profiles12State[profileKey] || profiles12State.rafael_normal;
 }
 
+// Nomes aceitos para os 3 modos (app: normal/firm/intense; painel e legado: firme, intenso, equilibrio, hard).
+const CALL_MODE_ALIASES = Object.freeze({
+  normal: 'normal', equilibrio: 'normal',
+  firm: 'firm', firme: 'firm', hard: 'firm',
+  intense: 'intense', intenso: 'intense'
+});
+
+/** Modo canônico ('normal' | 'firm' | 'intense'); ausente ou desconhecido vira `fallback` (padrão: Normal). */
+export function normalizeCallMode(mode, fallback = 'normal') {
+  return CALL_MODE_ALIASES[String(mode ?? '').trim().toLowerCase()] || fallback;
+}
+
 export function getProfile(characterId, mode) {
   const cId = String(characterId || '').toLowerCase().trim();
-  let mId = String(mode || '').toLowerCase().trim();
-  if (mId === 'firme') mId = 'firm';
-  if (mId === 'intenso') mId = 'intense';
+  const mId = normalizeCallMode(mode, String(mode || '').toLowerCase().trim());
   const key = `${cId}_${mId}`;
   return profiles12State[key] || getProfileByKey(activeGlobalProfileKey);
 }

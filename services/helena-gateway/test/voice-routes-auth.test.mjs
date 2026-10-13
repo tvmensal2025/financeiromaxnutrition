@@ -195,6 +195,34 @@ test('(c) credencial de serviço sem número: 400 e não liga', async () => {
   noProviderTouched();
 });
 
+// ---------------------------------------------------------------- (d) modo pedido pelo app
+// Falha se: call-phone voltar a ignorar o modo e abrir sempre em Normal.
+for (const [mode, expectedKey, expectedName] of [
+  ['intense', 'alex_intense', 'Intenso'],
+  ['firm', 'alex_firm', 'Firme'],
+  ['firme', 'alex_firm', 'Firme'],
+  ['normal', 'alex_normal', 'Normal'],
+  [undefined, 'alex_normal', 'Normal'],
+  ['qualquer-coisa', 'alex_normal', 'Normal']
+]) {
+  test(`(d) call-phone respeita o modo pedido (${mode ?? 'sem modo'} → ${expectedKey})`, async () => {
+    const { getCallSession, endCallSession } = await import('../src/integrations/call-engine.mjs');
+    const res = await post('/api/integrations/call-engine/call-phone', {
+      token: SERVICE_TOKEN, body: { phone: '11977776666', character_id: 'alex', ...(mode === undefined ? {} : { mode }) }
+    });
+    try {
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.mode, expectedName);
+      assert.doesNotMatch(data.message, /Google/, 'a resposta não promete um provedor de voz fixo');
+      assert.equal(getCallSession('CALL-TESTE-1').activeProfileKey, expectedKey);
+      assert.equal(getCallSession('CALL-TESTE-1').activeCharacterId, 'alex');
+    } finally {
+      endCallSession({ callId: 'CALL-TESTE-1', reason: 'TEST_CLEANUP' });
+    }
+  });
+}
+
 for (const path of ['/api/integrations/call-engine/preview', '/api/integrations/google-chirp3-hd/preview']) {
   test(`(c) conta válida e serviço continuam gerando voz em ${path}`, async () => {
     for (const token of [USER_A.token, SERVICE_TOKEN]) {

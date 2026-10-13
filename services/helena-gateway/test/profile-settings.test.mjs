@@ -12,11 +12,16 @@ test('all profiles greet in Normal and wait for customer before silence nudge', 
     const callId=`silent-${p.profile_key}`;
     registerCallSession({callId,profileKey:p.profile_key,direction:'OUTBOUND'});
     const spoken=[];
-    const result=await handleCallConnectedWebhook({call_id:callId},{speak:async args => {spoken.push(args.text);return {ok:true};}});
+    const openings=[];
+    const result=await handleCallConnectedWebhook({call_id:callId,direction:'OUTBOUND'},{
+      speak:async args => {spoken.push(args.text);return {ok:true};},
+      generateOpening:async profile => {openings.push(profile.profile_key);return `Olá, aqui é ${profile.character_name}.`;}});
     assert.equal(result.ok,true);
     assert.equal(spoken.length,1);
     assert.equal(getCallHistory(callId).length,1);
-    assert.equal(getCallSession(callId).activeProfileKey,`${p.character_id}_normal`);
+    // A abertura sai no modo Normal; a ligação de saída segue no modo do perfil pedido.
+    assert.deepEqual(openings,[`${p.character_id}_normal`]);
+    assert.equal(getCallSession(callId).activeProfileKey,p.profile_key);
     assert.equal((await handleUserSilence({callId})).reason,'waiting_for_customer');
   }
 });

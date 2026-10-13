@@ -82,10 +82,14 @@ test('inbound greets naturally in Normal once even with fixed opening disabled',
   assert.equal(getCallSession('caller-context-inbound').remoteNumber,'5511999991234');
 });
 
-test('outbound resets a previously selected Intense profile to Normal', async () => {
+// Abertura sempre no modo Normal (decisão de 27/09); a ligação de saída segue no modo pedido no app (13/10).
+test('outbound greets in Normal and keeps the Intense mode chosen in the app for the conversation', async () => {
   registerCallSession({callId:'outbound-normal',profileKey:'vital_intense',direction:'OUTBOUND'});
-  await handleCallConnectedWebhook({call_id:'outbound-normal',direction:'OUTBOUND'}, {speak:async () => ({ok:true})});
-  assert.equal(getCallSession('outbound-normal').activeProfileKey,'vital_normal');
+  const openings = [];
+  await handleCallConnectedWebhook({call_id:'outbound-normal',direction:'OUTBOUND'}, {speak:async () => ({ok:true}),
+    generateOpening:async profile => { openings.push(profile.profile_key); return 'Olá, aqui é o Vital.'; }});
+  assert.deepEqual(openings,['vital_normal']);
+  assert.equal(getCallSession('outbound-normal').activeProfileKey,'vital_intense');
 });
 
 test('web context forwards authenticated session without trusting a supplied user id', async () => {
