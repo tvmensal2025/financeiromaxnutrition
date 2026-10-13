@@ -3,15 +3,16 @@
 Data: 09/10/2026, atualizado em 10/10/2026 (organização do repositório). Autor: Claude Code (sessão do Fundador). Responda sempre em português do Brasil.
 Leia este arquivo primeiro. Depois: `AGENTS.md` (regras do projeto), `docs/plano/PLANO-HELENA-V3.md` (plano atual, motor DBOS) e `helena-v2/` (especificações).
 
-## 0-A. Atualização local de 13/10/2026 — prevalece sobre os estados históricos abaixo
+## 0-A. Atualização de 13/10/2026 — prevalece sobre os estados históricos abaixo
 
-- Continuação em `/workspace/helena-v2`, ramo `codex/helena-v2-integracao`, base `db41cf1`; PR 16 continua rascunho, sem merge. V1/voz e `scripts/` preservados.
-- Python 3.13.5, Node 20.20.2 e PostgreSQL 16.15 local preparados; 11 skills com origem/hash no lock e limites em `docs/SKILLS-INSTALADAS.md`. Hook local mostrado, não é skill nativa. Setup cloud salvo como rascunho; publicação e restauração em outra tarefa não comprovadas.
-- Testes locais: SPEC 296; ferramentas 588; validador 2352 + 31 pulados; executor 493; simulador 727; app 214; banco 314 (+78 após guarda final); helper 16. TypeScript e build v2 passaram; logs em `/tmp/helena-*.log`.
-- Motor DBOS: 44 testes no worktree de implementação e 5 cenários principais na integração passaram (configuração antiga, nova ativação, reinício, fila e guardas). CLI de manutenção não inicia DBOS nem recupera cards: mais 9 testes focados passaram.
-- Auth, tela do card, pedido diário de publicação e painel de revisões implementados localmente. Configuração usa 31 documentos reais, sem corpus dos testes; estados/identidades/schemas exigem migração técnica.
-- Roteiro canônico: 5 etapas, 4 identidades; Ravi tem prova local separada e seu serviço continua RASCUNHO. Respostas simuladas só com opt-in no harness local; nenhum agente real foi chamado.
-- Supabase sem conexão autenticada: checkpoint atual não carregado, nenhuma migration/deploy real. Faltam as 13 fichas de PENDENCIAS.yaml e a prova com Hermes real; proprietário/superusuário do banco continua fora da proteção contra escrita direta.
+- Registro completo para continuar: `docs/manual/proximos-passos-do-primeiro-card.md` (24 frentes técnicas, 11 testes de aceite, todos os 46 IDs de tarefas não finais e 58 handoffs abertos; revalidar na fonte).
+- Supabase conectado pela API oficial: ecosistemadossonhos / wxkgrykduqtsgmjkzlou, somente leitura. CP-20261007-V036 único ATIVO, cadeia preservada; **CARREGADO COM DIVERGÊNCIAS / CHECKPOINT REQUER SINCRONIZAÇÃO**. Nenhuma escrita remota.
+- Produção não contém o schema `helena_v2`; 125 jobs, 148 tarefas, 241 handoffs, 218 memórias. Snapshot/retomada antigos não representam a fila; três jobs pendentes identificados no manual, sem reset ou despacho.
+- FOC-004 em execução, Caixa planejado; riscos abertos, contas financeiras vazias, 20 conexões NOT_CONNECTED. Porta/backup do VPS, Hermes, Auth/RLS no navegador e integrações reais ainda exigem prova.
+- Ambiente restaurado: Python 3.13.5, Node 20.20.2, PG 16.15; npm ci, sete pip check e Vite HTTP 200. Hook local fora do repo; 11 skills auditadas e lock. Integração em `/workspace/helena-v2`, PR16 rascunho, sem merge/deploy.
+- Auth, card, pedido diário e revisões configuráveis implementados localmente. Motor DBOS ainda é harness local com contexto sintético autorizado; cinco etapas/quatro identidades, Ravi separado; 13 fichas v3.1 pendentes, sem inventar dados.
+- Evidência anterior aa644a6: SPEC296/ferramentas588/validador2352+31skip/executor493/simulador727/app214/banco314+78focados/helper16; DBOS44 no worktree, 5 na integração, 9 CLI. Detalhes e limites no manual; não são testes de produção.
+- Correções desta continuação: editor recusa maiúsculas e nomes de YAML acima de 255 caracteres; 12 testes da tela, 216 testes do app, TypeScript e build passaram; revisão independente. Consultar manual/commits para limites e próximos passos; V1/voz e scripts/ preservados.
 
 ## 0-A. Ramo `v2-primeiro-card` (11/10/2026): primeiro card real com 5 agentes — LEIA ESTE BLOCO PRIMEIRO
 
