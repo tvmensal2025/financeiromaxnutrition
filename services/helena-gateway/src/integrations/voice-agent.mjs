@@ -27,6 +27,15 @@ import {
 } from './call-engine.mjs';
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
 import { publicVoiceConfig } from './voice-agent-store.mjs';
+import { hangupCall } from './meowcaller.mjs';
+import {
+  ELIVING_FALLBACK_MODEL,
+  closingDelayMs,
+  elivingFallbackSpeech,
+  isElivingCharacter,
+  nextElivingFallback,
+  resetElivingFallback
+} from './call-fallback.mjs';
 
 // ======================================================================
 // BASE DE CONHECIMENTO & CATÁLOGO PADRÃO DA MAX NUTRITION ("COMANDO GIGANTE")
@@ -242,16 +251,37 @@ export async function generateAgentSpeechTextDetailed({ prompt = '', history = [
         };
       }
     } catch (err) {
-      console.warn('[VOICE_AGENT] Falha na chamada do GPT, acionando motor inteligente local:', err.message);
+      console.warn('[VOICE_AGENT] Falha na chamada do GPT, acionando a resposta de reserva:', err.message);
     }
   }
 
-  // 2. Motor Inteligente Heurístico Local (baseado no Catálogo Max Nutrition)
+  // 2. Ligação de um personagem do eLiving: fala fixa e segura do próprio personagem (pede para repetir).
+  //    Nunca o motor local de outra empresa ("Pedro", catálogo de suplementos) para um aluno do eLiving.
+  const boundToCall = Boolean(call || callContext.callId || callContext.webCall || profileKeyOverride);
+  if (boundToCall && isElivingCharacter(profile.character_id)) {
+    console.warn(`[VOICE_FALLBACK] GPT sem resposta; fala de reserva do personagem ${profile.character_id}.`);
+    return {
+      text: sanitizeSpeechText(elivingFallbackSpeech(profile.character_id, 1).text),
+      usage: null,
+      latencyMs: 0,
+      model: ELIVING_FALLBACK_MODEL,
+      fallback: true,
+      profile_key: profile.profile_key,
+      character_id: profile.character_id,
+      character_name: characterName,
+      mode: profile.mode,
+      mode_name: modeName,
+      personality: `${characterName} / ${modeName}`
+    };
+  }
+
+  // 3. Fora de ligação do eLiving (teste do painel / outra empresa): motor local do agente de voz configurado.
   return {
     text: sanitizeSpeechText(generateLocalResponse(cleanPrompt, cfg)),
     usage: null,
     latencyMs: 0,
     model: 'heuristic-local',
+    fallback: true,
     profile_key: profile.profile_key,
     character_id: profile.character_id,
     character_name: characterName,
@@ -537,6 +567,40 @@ export async function speakInCall({ callId, text, voice = null }) {
   };
 }
 
+/** Encerra a ligação pelo meowcaller com a mesma conexão usada para tocar o áudio. */
+function hangupInCall(callId) {
+  return hangupCall(callId, { baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN });
+}
+
+function waitMs(ms) {
+  return new Promise(resolve => { const timer = setTimeout(resolve, ms); timer.unref?.(); });
+}
+
+/** Desliga depois que a despedida tocar: o /play do meowcaller responde antes de o áudio terminar. */
+async function closeCallAfterFarewell(callId, text, { hangup = hangupInCall, wait = waitMs } = {}) {
+  try {
+    await wait(closingDelayMs(text));
+    await hangup(callId);
+    console.warn(`[VOICE_FALLBACK] Ligação ${callId} encerrada: o GPT seguiu sem responder depois dos pedidos de repetição.`);
+  } catch (err) {
+    console.error(`[VOICE_FALLBACK] Não foi possível encerrar a ligação ${callId}:`, err.message);
+  }
+}
+
+/** Fala de reserva do personagem (pede para repetir; na 3ª falha seguida despede-se e desliga). */
+async function speakElivingFallback({ callId, call, profile, callHistory, deps = {} }) {
+  const { speak = speakInCall } = deps;
+  const fallback = nextElivingFallback(call, profile.character_id);
+  callHistory?.push({ role: 'assistant', text: stripAudioTags(fallback.text), timestamp: new Date().toISOString() });
+  try {
+    await speak({ callId, text: fallback.text, voice: call?.activeVoice || profile.voice_id });
+  } catch (err) {
+    console.error(`[VOICE_FALLBACK] Não foi possível tocar a fala de reserva na ligação ${callId}:`, err.message);
+  }
+  if (fallback.hangup) void closeCallAfterFarewell(callId, fallback.text, deps);
+  return fallback;
+}
+
 /**
  * Trata o webhook disparado pelo Meowcaller quando a chamada é atendida
  */
@@ -545,7 +609,8 @@ const endedVoiceCalls = new Map();
 export async function generateNaturalOpening(profile, callId, webCall = null) {
   const result = await generateAgentSpeechTextDetailed({ prompt: NATURAL_OPENING_PROMPT,
     history: [], profileKeyOverride: profile.profile_key, callContext: { callId, webCall } });
-  return result.model !== 'heuristic-local' && result.text?.trim()
+  // Qualquer resposta de reserva (pedido de repetição ou motor local) não serve de abertura.
+  return !result.fallback && result.text?.trim()
     ? result.text.trim() : `Olá, aqui é ${profile.character_name}. Como você está hoje?`;
 }
 
@@ -705,6 +770,8 @@ export async function processUserSpeech(params, deps = {}) {
   const { callId, speechEpoch } = params;
   if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (!callId) throw new Error('callId é obrigatório');
+  // Depois da despedida por falhas seguidas do GPT, nada mais é processado nem falado.
+  if (getCallSession(callId)?.closingAfterFailures) return { ok: true, ignored: true, reason: 'call_closing', call_id: callId };
   if (Number.isSafeInteger(speechEpoch)) {
     if (speechEpoch <= (latestSpeechEpochs.get(callId) ?? -1)) return { ok: true, ignored: true, reason: 'stale_speech' };
     latestSpeechEpochs.set(callId, speechEpoch);
@@ -739,7 +806,8 @@ export async function processUserSpeech(params, deps = {}) {
 }
 
 async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, sttMetrics, format = 'wav', sampleRate = 16000, speechEpoch, signal },
-  { speak = speakInCall } = {}) {
+  deps = {}) {
+  const { speak = speakInCall } = deps;
   if (!callId) throw new Error('callId é obrigatório');
   if (!audioBase64 && typeof liveText !== 'string') throw new Error('Áudio ou transcrição é obrigatório');
 
@@ -769,6 +837,8 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   if (!userText) return { ok: true, ignored: true, reason: 'no_spoken_words', call_id: callId };
 
   let replyText = '';
+  let replyFailed = false; // GPT sem resposta: fala de reserva do personagem
+  let closeAfterReply = false; // despedida após falhas seguidas: desligar depois de falar
   let llmUsage = null;
   let llmMs = 0;
   let llmModel = cfg.ai_model || 'gpt-6-luna';
@@ -794,7 +864,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       const apiKey = await resolveAiApiKey(cfg);
       signal.throwIfAborted();
       if (apiKey && !apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
-        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal });
+        return await processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal, deps });
       }
     }
 
@@ -810,6 +880,15 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
     llmUsage = llmResult.usage;
     llmModel = llmResult.model || llmModel;
     usedPersonality = llmResult.personality || usedPersonality;
+    if (llmResult.fallback && isElivingCharacter(llmResult.character_id)) {
+      // Pede para repetir (no máximo 2 vezes seguidas) e, na falha seguinte, despede-se e desliga.
+      const fallback = nextElivingFallback(call, llmResult.character_id);
+      replyText = fallback.text;
+      replyFailed = true;
+      closeAfterReply = fallback.hangup;
+    } else if (!llmResult.fallback) {
+      resetElivingFallback(call);
+    }
   } else {
     // Caso o áudio seja muito curto ou não haja palavras identificáveis
     const curProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
@@ -843,7 +922,8 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       text: replyText,
       voice: activeProfile.voice_id
     });
-    void persistVoiceTurn(call, activeProfile, '', replyDisplay);
+    // A fala de reserva é operacional: não entra na memória do aluno.
+    if (!replyFailed) void persistVoiceTurn(call, activeProfile, '', replyDisplay);
     const ttsMs = Date.now() - ttsStart;
     const turnLatencyMs = Date.now() - turnStart;
 
@@ -870,8 +950,9 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       usage: llmUsage,
       charactersSynthesized: replyDisplay.length,
       ttsProvider: playResult?.provider ?? null,
-      error: null
+      error: replyFailed ? 'llm_unavailable' : null
     });
+    if (closeAfterReply) void closeCallAfterFarewell(callId, replyText, deps);
 
     return {
       ok: true,
@@ -919,6 +1000,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
       charactersSynthesized: replyDisplay.length,
       error: err.message
     });
+    if (closeAfterReply) void closeCallAfterFarewell(callId, replyText, deps);
 
     return {
       ok: false,
@@ -956,7 +1038,7 @@ export async function restartActiveReplyForProfile(callId) {
   return true;
 }
 
-async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal }) {
+async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, call, callHistory, userText, sttMs, sttMetrics, turnStart, signal, deps = {} }) {
   const profile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
   const voice = call?.activeVoice || profile.voice_id;
   const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
@@ -966,6 +1048,7 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
       systemInstruction: buildCallInstruction(call, profile), profile,
       userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
     signal.throwIfAborted();
+    resetElivingFallback(call);
     void persistVoiceTurn(call, profile, '', result.text);
     callHistory.push({ role: 'assistant', text: result.text, timestamp: new Date().toISOString() });
     if (callHistory.length > 20) callHistory.splice(0, callHistory.length - 20);
@@ -992,6 +1075,12 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
         failure_reason: interrupted ? null : interruptionReason,
         playback_http_status: err.playbackHttpStatus ?? err.streamMetrics?.playback_http_status ?? null },
       error: interrupted ? 'stream_interrupted' : err.message });
+    // Falhou sem falar nada (nem foi interrompido): a pessoa ouve a fala de reserva do personagem, não o silêncio.
+    if (!interrupted && !err.partialText?.trim() && !signal.aborted && isElivingCharacter(profile.character_id)) {
+      const fallback = await speakElivingFallback({ callId, call, profile, callHistory, deps });
+      return { ok: false, streaming: true, interrupted: false, fallback: true, closing: fallback.hangup,
+        call_id: callId, error: err.message };
+    }
     return { ok: interrupted, streaming: true, interrupted,
       ...(interrupted ? { interruption_reason: interruptionReason } : {}),
       call_id: callId, error: interrupted ? null : err.message };

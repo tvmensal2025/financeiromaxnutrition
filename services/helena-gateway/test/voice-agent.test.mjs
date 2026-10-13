@@ -347,3 +347,131 @@ it('ligação de saída atendida mantém o modo pedido no app; a abertura sai no
   endCallSession({ callId, reason: 'TEST_CLEANUP' });
  }
 });
+
+// ---------------------------------------------------------------- reserva segura do eLiving
+// Falha se: uma ligação do eLiving voltar a cair no motor local de outra empresa ("Pedro", suplementos).
+const OUTRA_EMPRESA = /Pedro|Max Nutrition|creatina|whey|suplement|frete|Pix|cento e noventa/i;
+
+for (const character of ['sirlene', 'alex', 'vital', 'rafael']) {
+ it(`GPT indisponível numa ligação do eLiving (${character}): fala fixa e segura do personagem, nunca o Pedro`, async (t) => {
+  withoutRealProviders(t);
+  const { generateAgentSpeechTextDetailed } = await import('../src/integrations/voice-agent.mjs');
+  for (const callContext of [{ callId: `eliving-${character}-${Date.now()}` }, { callId: 'WEB-1', webCall: { callId: 'WEB-1', accessToken: 'x' } }]) {
+   const result = await generateAgentSpeechTextDetailed({ prompt: 'Quanto custa a creatina com frete?', history: [],
+    profileKeyOverride: `${character}_normal`, callContext });
+   assert.equal(result.model, 'fallback-eliving');
+   assert.equal(result.fallback, true);
+   assert.equal(result.character_id, character);
+   assert.match(result.text, /probleminha/);
+   assert.doesNotMatch(result.text, OUTRA_EMPRESA);
+  }
+ });
+}
+
+it('fora de uma ligação do eLiving (teste do painel, outra empresa) o motor local configurado continua respondendo', async (t) => {
+ withoutRealProviders(t);
+ const { generateAgentSpeechTextDetailed } = await import('../src/integrations/voice-agent.mjs');
+ const result = await generateAgentSpeechTextDetailed({ prompt: 'Vocês têm frete grátis?' });
+ assert.equal(result.model, 'heuristic-local');
+ assert.equal(result.fallback, true);
+ assert.match(result.text, /frete/i);
+});
+
+it('a abertura de uma ligação do eLiving nunca usa a fala de erro: cai na saudação simples do personagem', async (t) => {
+ withoutRealProviders(t);
+ const { getProfileByKey } = await import('../src/integrations/call-engine.mjs');
+ const { generateNaturalOpening } = await import('../src/integrations/voice-agent.mjs');
+ const opening = await generateNaturalOpening(getProfileByKey('alex_normal'), `opening-${Date.now()}`);
+ assert.equal(opening, 'Olá, aqui é Alex. Como você está hoje?');
+});
+
+it('ligação por WhatsApp sem streaming: pede para repetir no máximo 2 vezes e depois encerra com educação', async (t) => {
+ withoutRealProviders(t);
+ const { registerCallSession, endCallSession, getCallSession } = await import('../src/integrations/call-engine.mjs');
+ const { processUserSpeech } = await import('../src/integrations/voice-agent.mjs');
+ const callId = `fallback-limit-${Date.now()}`;
+ registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+ const spoken = [];
+ const hangups = [];
+ const waits = [];
+ const deps = {
+  speak: async ({ text }) => { spoken.push(text); return { ok: true, provider: 'ELEVENLABS' }; },
+  hangup: async id => { hangups.push(id); },
+  wait: async ms => { waits.push(ms); }
+ };
+ try {
+  for (const fala of ['Oi?', 'Alô?', 'Tá me ouvindo?']) {
+   const result = await processUserSpeech({ callId, userText: fala }, deps);
+   assert.equal(result.ok, true);
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(spoken.length, 3);
+  assert.match(spoken[0], /probleminha.*repetir/);
+  assert.match(spoken[1], /repetir|de novo/);
+  assert.notEqual(spoken[0], spoken[1], 'as duas tentativas não repetem a mesma frase');
+  assert.match(spoken[2], /Vou encerrar por aqui.*Tente de novo em alguns minutos pelo app/);
+  for (const text of spoken) assert.doesNotMatch(text, OUTRA_EMPRESA);
+  assert.deepEqual(hangups, [callId], 'a ligação é encerrada uma vez, depois da despedida');
+  assert.ok(waits[0] >= 3000, 'espera a despedida tocar antes de desligar');
+  const late = await processUserSpeech({ callId, userText: 'Espera!' }, deps);
+  assert.equal(late.reason, 'call_closing');
+  assert.equal(spoken.length, 3, 'nada mais é falado depois da despedida');
+  assert.equal(getCallSession(callId).turns.at(-1).error, 'llm_unavailable');
+ } finally {
+  endCallSession({ callId, reason: 'TEST_CLEANUP' });
+ }
+});
+
+it('ligação com streaming: falha do GPT sem nada falado vira fala de reserva; resposta boa zera a contagem', async (t) => {
+ withoutRealProviders(t);
+ process.env.OPENAI_API_KEY = 'test-openai-only';
+ const { Readable, Transform } = await import('node:stream');
+ const { setGoogleTTSClientForTesting } = await import('../src/integrations/google-chirp3-hd.mjs');
+ const { registerCallSession, endCallSession, getCallSession } = await import('../src/integrations/call-engine.mjs');
+ const { processUserSpeech } = await import('../src/integrations/voice-agent.mjs');
+ setGoogleTTSClientForTesting({ streamingSynthesize: () => new Transform({ objectMode: true, transform(msg, _e, cb) {
+  if (msg.input?.text) this.push({ audioContent: Buffer.alloc(640, 1) });
+  cb();
+ } }) });
+ t.after(() => setGoogleTTSClientForTesting(null));
+ const sse = data => Buffer.from(`data: ${JSON.stringify(data)}\r\n\r\n`);
+ const llmAnswers = ['fail', 'ok', 'fail'];
+ const external = [];
+ t.mock.method(globalThis, 'fetch', async (url, opts = {}) => {
+  const target = String(url);
+  external.push(target);
+  if (target === 'https://api.openai.com/v1/chat/completions') {
+   if (llmAnswers.shift() === 'fail') return new Response('indisponível', { status: 500 });
+   return { ok: true, body: Readable.from([sse({ choices: [{ delta: { content: 'Tudo certo por aqui. ' } }] }),
+    sse({ choices: [{ delta: {}, finish_reason: 'stop' }] })]) };
+  }
+  if (target.endsWith('/play/stream')) {
+   try { for await (const chunk of opts.body) void chunk; } catch { /* stream cancelado */ }
+   return Response.json({ ok: true });
+  }
+  return new Response('não simulado', { status: 404 });
+ });
+ const callId = `fallback-stream-${Date.now()}`;
+ registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'rafael_normal' });
+ const spoken = [];
+ const deps = { speak: async ({ text }) => { spoken.push(text); return { ok: true, provider: 'ELEVENLABS' }; },
+  hangup: async () => assert.fail('não pode desligar'), wait: async () => {} };
+ try {
+  const first = await processUserSpeech({ callId, userText: 'Oi', speechEpoch: 1 }, deps);
+  assert.equal(first.fallback, true);
+  assert.equal(getCallSession(callId).replyFailures, 1);
+  const second = await processUserSpeech({ callId, userText: 'Oi de novo', speechEpoch: 2 }, deps);
+  assert.equal(second.ok, true);
+  assert.equal(second.reply_text, 'Tudo certo por aqui.');
+  assert.equal(getCallSession(callId).replyFailures, 0, 'resposta boa zera a contagem');
+  const third = await processUserSpeech({ callId, userText: 'E agora?', speechEpoch: 3 }, deps);
+  assert.equal(third.fallback, true);
+  assert.equal(spoken.length, 2);
+  assert.equal(spoken[0], spoken[1], 'depois de uma resposta boa, recomeça pelo primeiro pedido');
+  assert.match(spoken[0], /probleminha/);
+  assert.ok(external.every(url => url.startsWith('https://api.openai.com/') || url.endsWith('/play/stream')),
+   'nenhum outro provedor real foi chamado');
+ } finally {
+  endCallSession({ callId, reason: 'TEST_CLEANUP' });
+ }
+});

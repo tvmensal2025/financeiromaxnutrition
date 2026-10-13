@@ -237,23 +237,26 @@ export async function originateCall({ phone, business_id = 'BIZ-001', voice_prof
 }
 
 /**
- * Encerra uma chamada ativa
+ * Encerra uma chamada ativa.
+ * `baseUrl`/`token` opcionais: o motor de voz usa a mesma conexão com que toca o áudio na ligação.
  */
-export async function hangupCall(callId) {
-  if (!MEOWCALLER_TOKEN) {
+export async function hangupCall(callId, { baseUrl = MEOWCALLER_BASE_URL, token = MEOWCALLER_TOKEN, fetchImpl = fetch } = {}) {
+  if (!token) {
     throw new Error('MEOWCALLER_TOKEN não configurado no backend');
   }
+  const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-API-Key': token };
+  const root = String(baseUrl).replace(/\/$/, '');
 
-  const res = await fetch(`${MEOWCALLER_BASE_URL}/v1/calls/${encodeURIComponent(callId)}/hangup`, {
+  const res = await fetchImpl(`${root}/v1/calls/${encodeURIComponent(callId)}/hangup`, {
     method: 'POST',
-    headers: getHeaders()
+    headers
   });
 
   if (!res.ok) {
     // Tenta fallback com DELETE
-    const delRes = await fetch(`${MEOWCALLER_BASE_URL}/v1/calls/${encodeURIComponent(callId)}`, {
+    const delRes = await fetchImpl(`${root}/v1/calls/${encodeURIComponent(callId)}`, {
       method: 'DELETE',
-      headers: getHeaders()
+      headers
     });
     if (!delRes.ok) {
       throw new Error(`Falha ao encerrar chamada [${res.status}]`);
