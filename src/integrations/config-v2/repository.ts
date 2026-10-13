@@ -45,13 +45,14 @@ async function chamar<T>(cliente: ClienteConfigV2, nome: string, args?: Record<s
 export function criarRepositorioConfigV2(cliente: ClienteConfigV2): RepositorioConfigV2 {
   return {
     listar: () => chamar<ConfigRevision[]>(cliente, 'listar_configuracoes'),
-    ler: id => chamar<ConfigDetail>(cliente, 'ler_configuracao', { id }),
+    ler: id => chamar<ConfigDetail>(cliente, 'ler_configuracao', { p_id: id }),
     salvar: ({ nome, conteudo, id, versao_esperada, base_id }) =>
       chamar<ConfigDetail>(cliente, 'salvar_rascunho', {
-        nome, conteudo, id: id ?? null, versao_esperada: versao_esperada ?? null, base_id: base_id ?? null,
+        p_nome: nome, p_conteudo: conteudo, p_id: id ?? null,
+        p_versao_esperada: versao_esperada ?? null, p_base_id: base_id ?? null,
       }),
-    solicitarValidacao: (id, versao) => chamar<ConfigRevision>(cliente, 'solicitar_validacao_config', { id, versao }),
-    ativar: (id, ativa_esperada) => chamar<ConfigRevision>(cliente, 'ativar_configuracao', { id, ativa_esperada }),
-    aposentar: id => chamar<ConfigRevision>(cliente, 'aposentar_configuracao', { id }),
+    solicitarValidacao: (id, versao) => chamar<ConfigRevision>(cliente, 'solicitar_validacao_config', { p_id: id, p_versao: versao }),
+    ativar: (id, ativa_esperada) => chamar<ConfigRevision>(cliente, 'ativar_configuracao', { p_id: id, p_ativa_esperada: ativa_esperada }),
+    aposentar: id => chamar<ConfigRevision>(cliente, 'aposentar_configuracao', { p_id: id }),
   };
 }
