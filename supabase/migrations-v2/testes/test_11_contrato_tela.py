@@ -1,4 +1,6 @@
-"""Contrato SQL consumido pela tela, somente em bancos locais descartáveis."""
+"""O que é: contrato SQL da tela, em bancos locais descartáveis.
+Como mudar: acrescente consultas e cenários de acesso, mantendo um banco por teste.
+"""
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
