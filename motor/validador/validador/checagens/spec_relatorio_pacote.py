@@ -3,13 +3,13 @@ e CHK-REL-SEM-ACAO-NOVA.
 
 O que é: quatro conferências de código puro (sem IA) que ligam cada linha escrita pela Helena ao que o código montou.
   CHK-REL-REFS                   toda linha tem refs, e cada ref é uma etapa aprovada, um AF-, um PF- ou PEDIDO;
-  CHK-REL-NUMEROS                todo número escrito aparece numa fonte citada nas refs da mesma linha;
-  CHK-REL-RISCO-ALTO-NO-RESUMO   toda etapa com risco ALTO, pergunta aberta ou item sem conferir está nas refs do resumo;
-  CHK-REL-SEM-ACAO-NOVA          verbo de ação de fora só com AF- de etapa aprovada ou PF- nas refs da linha.
+  CHK-REL-NUMEROS                valor e grandeza escritos aparecem numa fonte citada nas refs da mesma linha;
+  CHK-REL-RISCO-ALTO-NO-RESUMO   etapa com risco ALTO, pergunta aberta ou item sem conferir está nas refs de uma frase com conteúdo;
+  CHK-REL-SEM-ACAO-NOVA          ação de fora usa AF-/PF- válido e termos compatíveis com seu texto fixo.
 De onde vem: helena-v2/deliverables/relatorio_final.yaml (as colunas e os verbos vêm do `parametros` de cada checagem) e o pacote
 da tarefa, lido por spec_relatorio_base.carregar_pacote (formato do caso SRV-RELATORIO-FINAL/pedido.yaml; o motor ainda não tem
 schema para ele).
-Como mudar: verbos e colunas = `parametros` no YAML do tipo. Se o pacote mudar de formato, mude só o leitor em spec_relatorio_base.py.
+Como mudar: verbos, colunas e limiar lexical do resumo = `parametros` no YAML do tipo. Se o pacote mudar de formato, mude só o leitor em spec_relatorio_base.py.
 Limites que valem saber: o código confere que a ref EXISTE e que o NÚMERO está na fonte; que a frase diga o mesmo que a entrega é
 do revisor (RUB-REL-01). A lista de verbos é fechada e não pega paráfrase (RUB-REL-04).
 """
@@ -267,7 +267,7 @@ def sem_acao_nova(exe):
             # texto fixo; o primeiro objeto sozinho não autoriza um segundo.
             trecho = limpo[encontro.end():].split(".", 1)[0]
             gramaticais = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "na", "no", "nas", "nos",
-                           "e", "ou", "para", "com", "ao", "aos", "a", "quem", "que", "sem", "como", "aqui",
+                           "e", "ou", "para", "com", "ao", "aos", "quem", "que", "sem", "como", "aqui",
                            "primeiras", "primeiros", "aceitar", "mudar", "manda", "passo", "fixo"}
             alvos = [p for p in T.tokens_alfa(trecho) if p not in gramaticais]
             if not alvos:
@@ -291,6 +291,6 @@ def sem_acao_nova(exe):
                        if not autorizada(rx, m)), None)
         if achado:
             falhas.append(Falha(ID_ACAO, "ACAO_NOVA", f"{linha.caminho}.{coluna}",
-                                f"A linha pede uma ação de fora ('{achado}') que não aparece no texto fixo das ações AF-/PF- citadas. "
+                                f"A ação de fora ('{achado}') ou seu conteúdo não corresponde ao texto fixo das ações AF-/PF- citadas. "
                                 "Repita apenas a ação prevista na lista do que só você faz.", T.cortar(texto)))
     return falhas
