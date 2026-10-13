@@ -33,6 +33,7 @@ import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
 import { ExecutiveBusinessSwitcher } from "@/components/executive/ExecutiveBusinessSwitcher";
 import { ExecutiveCommandMenu } from "@/components/executive/ExecutiveCommandMenu";
 import { useBusiness } from "@/contexts/BusinessContext";
+import { useAuth } from "@/auth";
 import { MODULOS } from "@/lib/modulos";
 
 type NavItemConfig = {
@@ -129,6 +130,7 @@ export function Layout() {
   const [commandOpen, setCommandOpen] = useState(false);
   const { pathname } = useLocation();
   const { currentBusiness, isConsolidated, error: businessError } = useBusiness();
+  const { isFounder } = useAuth();
   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
 
   const fecharMobile = () => setMobileAberto(false);
@@ -145,6 +147,7 @@ export function Layout() {
     if (pathname === "/execucao") return `${empresaNome} / Central de Execução`;
     if (pathname === "/entregas") return `${empresaNome} / Entregas da equipe`;
     if (pathname === "/cards-v2") return `Sistema Helena / Cards v2`;
+    if (pathname === "/configuracoes-v2") return `Sistema Helena / Configuração v2`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
     if (pathname === "/identidade") return `${empresaNome} / Identidade da empresa`;
@@ -187,7 +190,7 @@ export function Layout() {
           { titulo: 'Operação', itens: BLOCO_OPERACAO },
           { titulo: 'Inteligência', itens: BLOCO_INTELIGENCIA },
           { titulo: 'Governança', itens: BLOCO_GOVERNANCA },
-          { titulo: 'Administração', itens: BLOCO_ADMINISTRACAO },
+          { titulo: 'Administração', itens: [...BLOCO_ADMINISTRACAO, ...(isFounder && import.meta.env.VITE_HELENA_V2_HABILITADA === 'true' ? [{ to: '/configuracoes-v2', label: 'Configuração da Helena v2', icon: Settings }] : [])] },
         ].map(grupo => {
           const ativa = grupo.itens.some(i => pathname === i.to);
           const aberta = gruposAbertos[grupo.titulo] ?? ativa;
