@@ -43,6 +43,6 @@ python -m pytest -q        # 493 testes, cerca de 2 minutos; sem Hermes real, se
 
 ## O que NÃO está provado
 
-- O Hermes de mentira foi copiado de execuções reais do hermes-agent 0.19.0, mas os testes citam uma pasta `verificacao_real/` que **não está neste repositório**. Ou seja, que o falso se comporta como o Hermes de verdade ainda é **NÃO CONFIRMADO** aqui.
+- O Hermes de mentira foi copiado de execuções reais do hermes-agent 0.19.0. A pasta `verificacao_real/` agora reúne 19 casos para rodar depois da autorização do fundador; eles ainda **não foram executados com o Hermes real**. Portanto, a equivalência com o Hermes de verdade continua **NÃO CONFIRMADA**.
 - As suposições sobre o Hermes real (opções da linha de comando, nomes das chaves de configuração, formato do registro de uso) só se confirmam no "dia de prova" (fase 2, na VPS), com a frase exata do fundador. `requirements-hermes-real.txt` serve só para esse dia e deve ir para um ambiente à parte, nunca o dos testes.
 - Nada aqui toca em Supabase, EasyPanel nem Evolution API.
