@@ -256,7 +256,8 @@ try {
   });
 
   await test('callbacks de voz rejeitam ausência e chave incorreta sem consumir serviço', async () => {
-    for (const suffix of ['webhook', 'user-speech']) {
+    // user-silence e ended também: o meowcaller já envia X-API-Key nessas duas chamadas (engine.go).
+    for (const suffix of ['webhook', 'user-speech', 'user-silence', 'ended']) {
       const path = `${baseUrl}/api/integrations/voice-agent/${suffix}`;
       const body = JSON.stringify({ call_id: 'chamada-teste', audio_base64: 'dGVzdGU=' });
       const absent = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
@@ -266,6 +267,20 @@ try {
     }
     assert.equal(fetchCalls.length, 0);
     assert.equal(supabaseCalls.length, 0);
+  });
+
+  await test('silêncio e fim de ligação com a chave interna continuam funcionando', async () => {
+    const headers = { 'Content-Type': 'application/json', 'X-API-Key': 'test-voice-gateway-key' };
+    const ended = await fetch(`${baseUrl}/api/integrations/voice-agent/ended`, {
+      method: 'POST', headers, body: JSON.stringify({ call_id: 'chamada-fim-autenticada', reason: 'remote_hangup' })
+    });
+    assert.equal(ended.status, 200);
+    const silence = await fetch(`${baseUrl}/api/integrations/voice-agent/user-silence`, {
+      method: 'POST', headers, body: JSON.stringify({ call_id: 'chamada-silencio-autenticada' })
+    });
+    assert.equal(silence.status, 200);
+    assert.equal((await silence.json()).result.ignored, true);
+    assert.equal(fetchCalls.length, 0);
   });
 
   await test('callback de voz aceita somente a chave interna configurada', () => {

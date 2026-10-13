@@ -1166,7 +1166,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
     }
   });
 
-  router.post('/api/integrations/voice-agent/user-silence', async (req, res) => {
+  // Chamado só pelo meowcaller (envia X-API-Key = INTERNAL_API_KEY dele): sem a chave, 401.
+  router.post('/api/integrations/voice-agent/user-silence', authenticateVoiceGateway, async (req, res) => {
     try {
       const { call_id } = req.body || {};
       if (!call_id) {
@@ -1323,7 +1324,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
    * Webhook Meowcaller quando a chamada é finalizada/desconectada
    * POST /api/integrations/voice-agent/ended
    */
-  router.post('/api/integrations/voice-agent/ended', async (req, res) => {
+  // Chamado só pelo meowcaller (envia X-API-Key = INTERNAL_API_KEY dele): sem a chave, 401.
+  router.post('/api/integrations/voice-agent/ended', authenticateVoiceGateway, async (req, res) => {
     try {
       const result = await handleCallEndedWebhook(req.body || {});
       return res.json({ ok: true, result });

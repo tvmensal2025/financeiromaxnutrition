@@ -264,7 +264,10 @@ MEOWCALLER_TOKEN=CONFIGURAR_SOMENTE_NO_EASYPANEL
 MCP_BEARER_TOKEN=CONFIGURAR_SOMENTE_NO_EASYPANEL
 
 # MEOWCALLER_TOKEN deve ser igual a INTERNAL_API_KEY no meowcaller-service.
-# Os callbacks de voz enviam X-API-Key e são rejeitados sem essas duas variáveis.
+# Os callbacks de voz (voice-agent/webhook, user-speech, user-speech-stream, user-silence e ended) enviam
+# X-API-Key e são rejeitados (401) sem a chave certa. A chave esperada é VOICE_GATEWAY_INTERNAL_KEY,
+# igual a INTERNAL_API_KEY no meowcaller-service.
+VOICE_GATEWAY_INTERNAL_KEY=CONFIGURAR_SOMENTE_NO_EASYPANEL
 
 # Intervalos Operacionais
 DISPATCH_COOLDOWN_SECONDS=180
