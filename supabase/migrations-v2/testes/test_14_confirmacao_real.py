@@ -30,6 +30,8 @@ def _args_confirmados(banco, config_id, *, fonte='https://example.org/regras'):
     ordem = dados['pedido']['ordem_de_servico']
     ordem.update({'prazo': prazo,
                   'como_e_o_pronto': [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+                                       'quem_confere': 'IA', 'risco': 'BAIXO'},
+                                      {'id': 'CARD-2', 'texto': 'Não publicar sem autorização.',
                                        'quem_confere': 'IA', 'risco': 'ALTO'}],
                   'nao_pode': ['Não publicar sem autorização.'],
                   'fontes_que_pode_ler': [fonte]})
@@ -98,6 +100,28 @@ def test_confirmacao_recusa_prazo_divergente_ou_fonte_mudada(banco_real):
     with banco.conectar(papel='authenticated') as con:
         with pytest.raises(psycopg.Error):
             solicitar(con, (*args[:-1], 'CHAVE-STALE'))
+
+
+@pytest.mark.parametrize('mutacao', ['ausente', 'baixo', 'criterio_duplicado', 'restricao_duplicada'])
+def test_confirmacao_recusa_restricao_sem_item_alto(banco_real, mutacao):
+    banco, config_id = banco_real
+    with banco.conectar() as con:
+        _aplicar_confirmacao(con)
+    args = list(_args_confirmados(banco, config_id))
+    dados = copy.deepcopy(args[3].obj)
+    criterios = dados['pedido']['ordem_de_servico']['como_e_o_pronto']
+    if mutacao == 'ausente':
+        criterios.pop()
+    elif mutacao == 'baixo':
+        criterios[1]['risco'] = 'BAIXO'
+    elif mutacao == 'criterio_duplicado':
+        criterios.append({**criterios[1], 'id': 'CARD-3'})
+    else:
+        dados['pedido']['ordem_de_servico']['nao_pode'].append('Não publicar sem autorização.')
+    args[3] = Jsonb(dados)
+    with banco.conectar(papel='authenticated') as con:
+        with pytest.raises(psycopg.Error):
+            solicitar(con, tuple(args))
 
 
 def test_confirmacao_mantem_gate_fundador(banco_real):

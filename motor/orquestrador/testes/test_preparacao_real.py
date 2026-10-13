@@ -105,6 +105,8 @@ def test_confirmacao_preserva_fatos_e_congela_escolhas_do_fundador():
     original = copy.deepcopy(bruto)
     pronto = confirmar_preparacao(bruto, '2027-10-20T12:00:00+00:00',
         [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+          'quem_confere': 'IA', 'risco': 'BAIXO'},
+         {'id': 'CARD-2', 'texto': 'Não publicar sem autorização.',
           'quem_confere': 'IA', 'risco': 'ALTO'}],
         ['Não publicar sem autorização.'], ['https://example.org/regras'])
     assert bruto == original
@@ -146,6 +148,32 @@ def test_confirmacao_recusa_criterio_sem_escolha_e_captura_adulterada():
         confirmar_preparacao(bruto, '2027-10-20T12:00:00+00:00',
                             [{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
                               'quem_confere': 'IA', 'risco': 'ALTO'}], [], [])
+
+
+@pytest.mark.parametrize('criterios,restricoes', [
+    ([{'id': 'CARD-1', 'texto': 'Conferir com evidência.',
+       'quem_confere': 'IA', 'risco': 'ALTO'}], ['Não publicar sem autorização.']),
+    ([{'id': 'CARD-1', 'texto': 'Não publicar sem autorização.',
+       'quem_confere': 'IA', 'risco': 'BAIXO'}], ['Não publicar sem autorização.']),
+])
+def test_confirmacao_exige_restricao_como_item_alto(criterios, restricoes):
+    with pytest.raises(ValueError, match='restrições'):
+        confirmar_preparacao(_preparacao_confirmavel(), '2027-10-20T12:00:00+00:00',
+                            criterios, restricoes, [])
+
+
+@pytest.mark.parametrize('duplicata', ['criterio', 'restricao'])
+def test_confirmacao_recusa_texto_duplicado(duplicata):
+    criterios = [{'id': 'CARD-1', 'texto': 'Não publicar sem autorização.',
+                  'quem_confere': 'IA', 'risco': 'ALTO'}]
+    restricoes = ['Não publicar sem autorização.']
+    if duplicata == 'criterio':
+        criterios.append({**criterios[0], 'id': 'CARD-2'})
+    else:
+        restricoes.append(restricoes[0])
+    with pytest.raises(ValueError, match='repetid'):
+        confirmar_preparacao(_preparacao_confirmavel(), '2027-10-20T12:00:00+00:00',
+                            criterios, restricoes, [])
 
 
 def test_captura_privada_nao_sobrescreve_historico(tmp_path):

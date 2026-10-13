@@ -29,11 +29,18 @@ begin
        or length(btrim(item ->> 'texto')) not between 3 and 200
        or item ->> 'texto' is distinct from btrim(item ->> 'texto') then return false; end if;
   end loop;
+  if (select count(distinct v ->> 'texto') from jsonb_array_elements(cs) as c(v))
+     <> jsonb_array_length(cs) then return false; end if;
   for item in select value from jsonb_array_elements(rs) loop
     if jsonb_typeof(item) is distinct from 'string'
        or length(btrim(item #>> '{}')) not between 3 and 200
        or item #>> '{}' is distinct from btrim(item #>> '{}') then return false; end if;
+    if (select count(*) from jsonb_array_elements(cs) as c(v)
+        where c.v ->> 'texto' = item #>> '{}' and c.v ->> 'risco' = 'ALTO') <> 1
+       then return false; end if;
   end loop;
+  if (select count(distinct value) from jsonb_array_elements(rs)) <> jsonb_array_length(rs)
+     then return false; end if;
   if (select count(distinct value) from jsonb_array_elements(fs)) <> jsonb_array_length(fs)
      then return false; end if;
   for item in select value from jsonb_array_elements(fs) loop

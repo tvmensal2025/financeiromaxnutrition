@@ -174,10 +174,17 @@ def confirmar_preparacao(preparacao: dict, prazo: str, criterios: list,
                    or c['texto'] != c['texto'].strip()
                    for i, c in enumerate(criterios, 1))):
         raise ValueError('critérios confirmados inválidos')
+    if len({c['texto'] for c in criterios}) != len(criterios):
+        raise ValueError('critérios repetidos')
     if (not isinstance(restricoes, list) or len(restricoes) > 5
             or any(not isinstance(t, str) or not 3 <= len(t.strip()) <= 200 or t != t.strip()
                    for t in restricoes)):
         raise ValueError('restrições confirmadas inválidas')
+    if len(set(restricoes)) != len(restricoes):
+        raise ValueError('restrições repetidas')
+    if any(not any(c['texto'] == t and c['risco'] == 'ALTO' for c in criterios)
+           for t in restricoes):
+        raise ValueError('restrições exigem item correspondente de risco ALTO')
     if not isinstance(fontes, list) or len(fontes) > 20:
         raise ValueError('lista de fontes inválida')
     for url in fontes:
