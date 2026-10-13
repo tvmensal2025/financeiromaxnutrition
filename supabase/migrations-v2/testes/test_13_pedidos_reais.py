@@ -348,3 +348,47 @@ def test_checkpoint_nao_muda_entre_conferencia_e_commit(banco_real, etapa):
     with banco.conectar() as escritor:
         escritor.execute("""insert into public.checkpoint_mestre values
             ('CKP-CONCORRENTE',2,'ATIVO','Outro',now(),now(),null)""")
+
+
+def test_card_real_confere_fontes_antes_de_nova_execucao(banco_real):
+    banco, config_id = banco_real
+    args = parametros(banco, config_id)
+    with banco.conectar(papel="authenticated") as con:
+        pedido = solicitar(con, args)
+    with banco.conectar(papel="service_role") as con:
+        card = con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
+                           (pedido["id"], Jsonb(S.ROTEIRO_UMA_ETAPA))).fetchone()[0]
+        assert con.execute("select helena_v2.conferir_fontes_card_real(%s)",
+                           (card["card_id"],)).fetchone()[0] is True
+    with banco.conectar(papel="authenticated") as con:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
+    with banco.conectar(papel="anon") as con:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
+    with banco.conectar() as con:
+        con.execute("update public.decisoes set row_version=row_version+1 where decision_id=%s", (DECISAO,))
+    with banco.conectar(papel="service_role") as con:
+        with pytest.raises(psycopg.errors.SerializationFailure, match="DECISAO_REAL_MUDOU"):
+            con.execute("select helena_v2.conferir_fontes_card_real(%s)", (card["card_id"],))
+
+
+def test_card_pinado_pode_conferir_fontes_apos_nova_ativacao(banco_real):
+    banco, config_id = banco_real
+    args = parametros(banco, config_id)
+    with banco.conectar(papel="authenticated") as con:
+        pedido = solicitar(con, args)
+    with banco.conectar(papel="service_role") as con:
+        card = con.execute("select helena_v2.consumir_solicitacao_card_real(%s,%s)",
+                           (pedido["id"], Jsonb(S.ROTEIRO_UMA_ETAPA))).fetchone()[0]
+    with banco.conectar() as con:
+        nova = con.execute("""insert into helena_v2.configuracao
+            (nome,conteudo,estado,hash_sha256,validada_em)
+            values ('Segunda configuração de teste','{}','VALIDADA',repeat('b',64),now())
+            returning id""").fetchone()[0]
+        con.execute("update helena_v2.configuracao_ponteiro set ativa_id=%s where unico", (nova,))
+        con.execute("update helena_v2.configuracao set estado='APOSENTADA',aposentada_em=now() where id=%s",
+                    (config_id,))
+    with banco.conectar(papel="service_role") as con:
+        assert con.execute("select helena_v2.conferir_fontes_card_real(%s)",
+                           (card["card_id"],)).fetchone()[0] is True

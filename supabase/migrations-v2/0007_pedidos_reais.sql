@@ -50,7 +50,8 @@ create trigger solicitacao_card_real_sem_truncate before truncate on helena_v2.s
 -- Compara as colunas lidas pela FonteSupabase, sem confiar em hash informado pelo chamador.
 -- O bloqueio de linhas faz a comparação e a criação usarem o mesmo estado da tarefa.
 create function helena_v2._real_conferir_captura(p_tarefa_id text, p_plano jsonb, p_dados jsonb) returns jsonb
-language plpgsql volatile security definer set search_path = pg_catalog, pg_temp as $f$
+language plpgsql volatile security definer set search_path = pg_catalog, pg_temp
+set lock_timeout = '5s' as $f$
 declare
   c jsonb := p_dados -> 'captura';
   t jsonb; b jsonb; ck jsonb; d jsonb; j jsonb;
@@ -395,6 +396,40 @@ begin
 end;
 $f$;
 
+-- Portão R10 para cada uso posterior do card. O Motor deve manter a mesma
+-- transação desta conferência até aplicar o evento que consome a resposta.
+create function helena_v2.conferir_fontes_card_real(p_card_id uuid) returns boolean
+language plpgsql volatile security definer set search_path = pg_catalog, pg_temp
+set lock_timeout = '5s' as $f$
+declare p helena_v2.solicitacao_card_real; c helena_v2.card; ordem jsonb; v_estado text;
+begin
+  if helena_v2._conta() <> 'service_role' then
+    raise exception 'SOMENTE_MOTOR' using errcode = '42501';
+  end if;
+  select * into p from helena_v2.solicitacao_card_real
+    where card_id=p_card_id and consumida_em is not null for share;
+  if not found then
+    raise exception 'CARD_REAL_SEM_SOLICITACAO_CONSUMIDA' using errcode = '22023';
+  end if;
+  select * into c from helena_v2.card where id=p_card_id for share;
+  ordem := p.plano || jsonb_build_object(
+    'config_revision_id',p.config_revision_id,'modo_contexto','real',
+    'origem',p.origem,'chave_origem',p.chave_origem,'pedido_original',p.pedido_original,
+    'business_id',p.business_id,'dados_reais',p.dados_reais);
+  if c.id is null or c.empresa is distinct from p.business_id
+     or c.ordem_de_servico is distinct from ordem
+     or c.ordem_de_servico ->> 'config_revision_id' is distinct from p.config_revision_id::text then
+    raise exception 'CARD_REAL_VINCULO_DIVERGENTE' using errcode = '42501';
+  end if;
+  select estado into v_estado from helena_v2.configuracao where id=p.config_revision_id for share;
+  if v_estado is null or v_estado not in ('VALIDADA','APOSENTADA') then
+    raise exception 'CONFIG_PIN_REAL_INVALIDO' using errcode = '42501';
+  end if;
+  perform helena_v2._real_conferir_captura(p.chave_origem,p.plano,p.dados_reais);
+  return true;
+end;
+$f$;
+
 -- A porta antiga deduplica só pelo número da mensagem, sem comparar carga.
 -- Após esta migração, apenas a função definer acima pode chamá-la.
 revoke execute on function helena_v2.criar_card(text,text,text,text,timestamptz,jsonb,text,jsonb,integer,boolean)
@@ -405,10 +440,12 @@ revoke execute on function helena_v2._real_proteger_solicitacao(),
   helena_v2._real_json_solicitacao(helena_v2.solicitacao_card_real),
   helena_v2.solicitar_card_real(text,timestamptz,jsonb,jsonb,uuid,text),
   helena_v2.ler_solicitacao_card_real(uuid),
-  helena_v2.consumir_solicitacao_card_real(uuid,jsonb)
+  helena_v2.consumir_solicitacao_card_real(uuid,jsonb),
+  helena_v2.conferir_fontes_card_real(uuid)
   from public,anon,authenticated,service_role;
 grant select on helena_v2.solicitacao_card_real to authenticated;
 grant execute on function helena_v2.solicitar_card_real(text,timestamptz,jsonb,jsonb,uuid,text)
   to authenticated;
 grant execute on function helena_v2.ler_solicitacao_card_real(uuid),
-  helena_v2.consumir_solicitacao_card_real(uuid,jsonb) to service_role;
+  helena_v2.consumir_solicitacao_card_real(uuid,jsonb),
+  helena_v2.conferir_fontes_card_real(uuid) to service_role;
