@@ -139,7 +139,7 @@ export default function CardV2Page({ repositorio }: PageProps) {
     if (id === cardId) setTentativaDetalhe(n => n + 1);
     else setCardId(id);
   }
-  return <main className="mx-auto max-w-7xl space-y-8 px-4 py-7 sm:px-8">
+  return <div className="he-v2-card-page mx-auto max-w-7xl space-y-8 px-4 py-7 sm:px-8">
     <header className="border-b border-border pb-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Sistema Helena / operação v2</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Cards em andamento</h1>
@@ -200,5 +200,5 @@ export default function CardV2Page({ repositorio }: PageProps) {
         </>}
       </section>
     </div>
-  </main>;
+  </div>;
 }

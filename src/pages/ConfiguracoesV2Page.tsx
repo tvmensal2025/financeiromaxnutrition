@@ -215,7 +215,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
 
   if (!isFounder) return <div role="alert" className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6"><h1 className="text-xl font-semibold">Acesso restrito</h1><p className="mt-2 text-sm text-muted-foreground">Somente o fundador pode gerenciar a configuração da Helena v2.</p><Link className="mt-4 inline-block text-sm text-primary underline" to="/sistema">Voltar ao sistema</Link></div>;
 
-  return <div className="mx-auto max-w-7xl space-y-6 px-1 py-2 sm:px-4">
+  return <div className="he-v2-config-page mx-auto max-w-7xl space-y-6 px-1 py-2 sm:px-4">
     <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
       <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Sistema Helena / v2</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configuração e revisões</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Edite uma revisão em rascunho, peça a validação técnica e ative quando estiver aprovada. O histórico e os cards em andamento permanecem vinculados às versões anteriores.</p></div>
       <button type="button" className={botao} onClick={atualizarLista} disabled={!repo || carregando || ocupado}><RefreshCw size={16}/>Atualizar estado</button>
