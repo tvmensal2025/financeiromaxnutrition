@@ -177,7 +177,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
   }
 
   async function aposentar() {
-    if (!repo || !detalhe || detalhe.estado === 'APOSENTADA' || ocupado || carregando || jsonPendente || alterado) return;
+    if (!repo || !detalhe || detalhe.estado === 'APOSENTADA' || detalhe.ativa || detalhe.tecnica || ocupado || carregando || jsonPendente || alterado) return;
     if (!window.confirm('Inativar esta revisão para novos cards? O histórico será preservado.')) return;
     if (!iniciarOperacao()) return;
     const atual = requisicao.current;
@@ -236,7 +236,9 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
             {editavel && <button type="button" className={botao} onClick={() => void salvar()} disabled={ocupado || carregando || jsonPendente || !alterado || !nome.trim()}><Save size={16}/>Salvar rascunho</button>}
             {editavel && <button type="button" className={botao} onClick={() => void solicitarValidacao()} disabled={ocupado || carregando || jsonPendente || alterado}><ShieldCheck size={16}/>Solicitar validação</button>}
             {detalhe.estado === 'VALIDADA' && !detalhe.ativa && <button type="button" className={primario} onClick={() => void ativar()} disabled={ocupado || carregando || jsonPendente || alterado}><CheckCircle2 size={16}/>Ativar revisão</button>}
-            {detalhe.estado !== 'APOSENTADA' && <button type="button" className={botao} onClick={() => void aposentar()} disabled={ocupado || carregando || jsonPendente || alterado}><Archive size={16}/>Inativar</button>}</div>
+            {detalhe.estado !== 'APOSENTADA' && <button type="button" className={botao} onClick={() => void aposentar()} disabled={ocupado || carregando || jsonPendente || alterado || detalhe.ativa || detalhe.tecnica}><Archive size={16}/>Inativar</button>}</div>
+          {detalhe.tecnica && <p className="mt-3 text-xs text-muted-foreground">Base técnica preservada: esta revisão não pode ser inativada.</p>}
+          {!detalhe.tecnica && detalhe.ativa && <p className="mt-3 text-xs text-muted-foreground">Ative outra revisão antes de inativar esta.</p>}
           {detalhe.validacao_pendente && <p role="status" className="mt-4 text-sm text-muted-foreground">Aguardando validação técnica. Atualize o estado para consultar o resultado.</p>}
           {detalhe.resultado_validacao?.ok === false && <div role="alert" className="mt-4 rounded-lg border border-destructive/30 p-3 text-sm"><strong>Validação não aprovada</strong><ul className="mt-1 list-inside list-disc">{(detalhe.resultado_validacao.erros ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul></div>}
           {alterado && <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">Há alterações neste navegador que ainda não foram salvas.</p>}

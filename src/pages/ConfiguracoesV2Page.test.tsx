@@ -8,7 +8,7 @@ const auth = vi.hoisted(() => ({ isFounder: false, userId: 'fundador-a' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
 
 const base: ConfigDetail = {
-  id: 'uuid-a', nome: 'Configuração existente', versao: 3, estado: 'RASCUNHO', ativa: false,
+  id: 'uuid-a', nome: 'Configuração existente', versao: 3, estado: 'RASCUNHO', ativa: false, tecnica: false,
   hash_sha256: null, criada_em: '2026-10-13T10:00:00Z', validada_em: null, aposentada_em: null,
   conteudo: { 'helena-v2/agents/isabela.yaml': { missao: 'Texto registrado', servicos: ['SRV-COPY'] } },
 };
@@ -129,4 +129,17 @@ it('limpa a revisão anterior ao trocar a identidade do fundador', async () => {
   tela.rerender(<MemoryRouter><ConfiguracoesV2Page repositorio={repo}/></MemoryRouter>);
   expect(screen.queryByText('Editar documentos')).toBeNull();
   await waitFor(() => expect(repo.listar).toHaveBeenCalledTimes(2));
+});
+
+it.each([
+  [{ ...base, estado: 'VALIDADA' as const, ativa: true }, 'Ative outra revisão antes de inativar esta.'],
+  [{ ...base, estado: 'VALIDADA' as const, tecnica: true }, 'Base técnica preservada: esta revisão não pode ser inativada.'],
+])('impede inativar revisão em uso pelo banco', async (revisao, aviso) => {
+  auth.isFounder = true;
+  const repo = repositorio(revisao);
+  mostrar(repo);
+  fireEvent.click(await screen.findByRole('button', { name: /Configuração existente/ }));
+  expect(await screen.findByText(aviso)).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Inativar' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(repo.aposentar).not.toHaveBeenCalled();
 });

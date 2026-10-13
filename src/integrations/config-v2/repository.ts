@@ -7,6 +7,7 @@ export type ConfigRevision = {
   versao: number;
   estado: 'RASCUNHO' | 'VALIDADA' | 'APOSENTADA';
   ativa: boolean;
+  tecnica: boolean;
   hash_sha256: string | null;
   criada_em: string;
   validada_em: string | null;
