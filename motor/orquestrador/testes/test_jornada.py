@@ -33,6 +33,10 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
         assert toques == ['CONFIRMO', 'APROVAR']
         assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
         assert {e.ficha.identidade for e in motor.executor.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA'}
+        with motor._con() as con:
+            entrega = con.execute("SELECT conteudo FROM helena_v2.entrega WHERE card_id=%s AND etapa_codigo='E5' ORDER BY id DESC LIMIT 1",
+                                  (card,)).fetchone()
+        assert isinstance(entrega['conteudo']['resposta'], dict)
     finally:
         motor.fechar()
 
