@@ -253,6 +253,34 @@ def test_copy_nao_confunde_percentual_decimal_com_milhar():
     assert any(f.id == "CHK-COPY-07" for f in rel.recusas)
 
 
+@pytest.mark.parametrize("fonte,frase", [
+    ("A atividade dura 10 horas.", "A atividade dura 10 h."),
+    ("A taxa de aprovação é 10 por cento.", "A taxa de aprovação é 10%."),
+    ("A atividade dura 10 h.", "A atividade dura 10 horas."),
+    ("A taxa de aprovação é 10%.", "A taxa de aprovação é 10 por cento."),
+])
+def test_copy_aceita_unidades_equivalentes_com_mesmo_valor(fonte, frase):
+    texto, contexto = montar_entrada(SPEC, CASOS["COPY-BOA-01"])
+    resposta = json.loads(texto)
+    resposta["entrega"]["versao_final"] += " " + frase
+    contexto["fontes_importadas"][0]["texto"] += " " + fonte
+    rel = validar(json.dumps(resposta, ensure_ascii=False), contexto)
+    assert not [f for f in rel.recusas if f.id == "CHK-COPY-07"], (fonte, frase)
+
+
+@pytest.mark.parametrize("fonte,frase", [
+    ("A atividade dura 5 horas.", "A atividade dura 5 h."),
+    ("A taxa de aprovação é 5 por cento.", "A taxa de aprovação é 5%."),
+])
+def test_treino_aceita_unidades_equivalentes_com_mesmo_valor(fonte, frase):
+    texto, contexto = montar_entrada(SPEC, CASOS["TREINO-BOA-01"])
+    resposta = json.loads(texto)
+    resposta["entrega"]["limites"].append(frase)
+    contexto["fontes_importadas"][0]["texto"] += " " + fonte
+    rel = validar(json.dumps(resposta, ensure_ascii=False), contexto)
+    assert not [f for f in rel.recusas if f.id == "CHK-TREINO-07"], (fonte, frase)
+
+
 def test_copy_recusa_apoio_de_outra_afirmacao():
     def trocar(e):
         e["afirmacoes"][2]["apoio"] = copy.deepcopy(e["afirmacoes"][1]["apoio"])

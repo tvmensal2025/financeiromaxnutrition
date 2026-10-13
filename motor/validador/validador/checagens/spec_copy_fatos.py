@@ -259,8 +259,13 @@ def _numeros_da_fonte(pagina, escalas: dict, com_datas: bool):
     return {v for _, v in _numeros_de(T.dobrar(n), escalas) if v is not None}, datas
 
 
-_UNIDADE = re.compile(r"\b(\d{1,12}(?:[.,]\d{1,12}){0,3})\s*(pessoas?|dias?|horas?|semanas?|minutos?|meses|%|h\b)")
+_UNIDADE = re.compile(r"\b(\d{1,12}(?:[.,]\d{1,12}){0,3})\s*(por\s+cento\b|pessoas?|dias?|horas?|semanas?|minutos?|meses|%|h\b)")
 _POR_EXTENSO = re.compile(r"\b(?:quinhentas|quinhentos|centenas|dez mil|duas semanas)\b")
+_UNIDADES_EQUIVALENTES = {"h": "hora", "hora": "hora", "horas": "hora", "%": "percentual", "por cento": "percentual"}
+
+
+def _unidade_canonica(unidade: str) -> str:
+    return _UNIDADES_EQUIVALENTES.get(" ".join(unidade.split()), unidade)
 
 
 def quantidade_sem_contexto(texto: str, fontes_texto: str) -> list:
@@ -268,13 +273,13 @@ def quantidade_sem_contexto(texto: str, fontes_texto: str) -> list:
     t, fontes = T.dobrar(texto), T.dobrar(fontes_texto)
     soltas = []
     unidades_da_fonte = {
-        (valor_do_numero(m.group(1)), m.group(2))
+        (valor_do_numero(m.group(1)), _unidade_canonica(m.group(2)))
         for m in _UNIDADE.finditer(fontes)
     }
     for m in _UNIDADE.finditer(t):
         unidade = m.group(0)
         valor = valor_do_numero(m.group(1))
-        if valor is None or (valor, m.group(2)) not in unidades_da_fonte:
+        if valor is None or (valor, _unidade_canonica(m.group(2))) not in unidades_da_fonte:
             soltas.append(unidade)
     for m in _POR_EXTENSO.finditer(t):
         palavra = m.group(0)
