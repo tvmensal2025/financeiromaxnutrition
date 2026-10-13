@@ -1,8 +1,9 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/verify-live-voice-pipeline.mjs
 const GATEWAY_URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host';
 const MEOWCALLER_URL = 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host';
-const INTERNAL_KEY = 'helena_meow_sec_8a3c1f9d2e';
-const GATEWAY_KEY = 'helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f';
+const INTERNAL_KEY = requireEnv('MEOWCALLER_TOKEN');
+const GATEWAY_KEY = requireEnv('MCP_BEARER_TOKEN');
 
 async function test() {
   console.log('=== TESTE 1: Status e Diagnóstico do Meowcaller Go Service ===');

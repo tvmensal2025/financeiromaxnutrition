@@ -1,3 +1,4 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/set-evolution-webhook.mjs
 const EVOLUTION_BASE_URL = 'https://helena-automation-evolution-api.d9v63q.easypanel.host';
 const GATEWAY_URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host';
@@ -17,7 +18,7 @@ async function setWebhook() {
   const res = await fetch(`${GATEWAY_URL}/api/integrations/evolution/set-webhook`, {
     method: 'POST',
     headers: {
-      'Authorization': 'Bearer helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f',
+      'Authorization': `Bearer ${requireEnv('MCP_BEARER_TOKEN')}`,
       'Content-Type': 'application/json'
     }
   });

@@ -1,6 +1,7 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/test-accurate.mjs
 const GATEWAY_URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host';
-const GATEWAY_KEY = 'helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f';
+const GATEWAY_KEY = requireEnv('MCP_BEARER_TOKEN');
 
 async function main() {
   console.log('=== TESTE 1: Configurações do Voice Agent ===');

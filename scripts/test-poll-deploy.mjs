@@ -1,3 +1,4 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/test-poll-deploy.mjs
 async function poll() {
   console.log('Aguardando build dos containers no EasyPanel...');
@@ -5,7 +6,7 @@ async function poll() {
     await new Promise((r) => setTimeout(r, 6000));
     try {
       const res = await fetch('https://helena-automation-helena-gateway.d9v63q.easypanel.host/api/integrations/meowcaller/status', {
-        headers: { Authorization: 'Bearer helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f' }
+        headers: { Authorization: `Bearer ${requireEnv('MCP_BEARER_TOKEN')}` }
       });
       if (res.ok) {
         const data = await res.json();
@@ -16,7 +17,7 @@ async function poll() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Bearer helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f'
+            Authorization: `Bearer ${requireEnv('MCP_BEARER_TOKEN')}`
           },
           body: JSON.stringify({ phone: '11971254913' })
         });

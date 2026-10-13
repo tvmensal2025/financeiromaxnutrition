@@ -1,7 +1,8 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/debug-meowcaller-call.mjs
 const GATEWAY_URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host';
 const MEOWCALLER_URL = 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host';
-const MCP_TOKEN = 'helena_mcp_sec_91b7d5e4a2c0836471fa2840be6d3c9514782f';
+const MCP_TOKEN = requireEnv('MCP_BEARER_TOKEN');
 
 async function diagnose() {
   console.log('1. Verificando health direto do Meowcaller Service...');

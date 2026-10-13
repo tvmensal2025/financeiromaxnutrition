@@ -13,17 +13,17 @@ Este documento contém a especificação oficial para conectar **qualquer nova f
 | :--- | :--- |
 | **Domínio / Base URL** | `https://helena-automation-kokoro.d9v63q.easypanel.host` |
 | **Endpoint REST Direto** | `https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1/audio/speech` |
-| **API Key (`KW_SECRET_API_KEY`)** | `qjuo4ld0exr5bkexo3cczbbcoanvrzu4` |
+| **API Key (`KW_SECRET_API_KEY`)** | `<SUA_CHAVE>` |
 | **Modelo (`model`)** | `model` |
 | **Voz Padrão Oficial (Pedro)** | `pm_alex*0.7+am_liam*0.3` |
-| **Header de Autenticação** | `Authorization: Bearer qjuo4ld0exr5bkexo3cczbbcoanvrzu4` |
+| **Header de Autenticação** | `Authorization: Bearer <SUA_CHAVE>` |
 | **Formato de Retorno** | `audio/mpeg` (MP3 streaming de alta qualidade) |
 
 ### Variáveis de Ambiente Prontas para o seu arquivo `.env`:
 ```env
 # Configurações Oficiais Kokoro TTS
 KOKORO_BASE_URL=https://helena-automation-kokoro.d9v63q.easypanel.host
-KOKORO_API_KEY=qjuo4ld0exr5bkexo3cczbbcoanvrzu4
+KOKORO_API_KEY=<SUA_CHAVE>
 KOKORO_MODEL=model
 KOKORO_DEFAULT_VOICE=pm_alex*0.7+am_liam*0.3
 ```
@@ -36,7 +36,7 @@ Se a sua nova ferramenta possui integração nativa com o **OpenAI Audio / TTS**
 
 * **OpenAI Base URL:** `https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1`  
   *(alguns clientes exigem sem o `/api`: `https://helena-automation-kokoro.d9v63q.easypanel.host/v1`)*
-* **OpenAI API Key:** `qjuo4ld0exr5bkexo3cczbbcoanvrzu4`
+* **OpenAI API Key:** `<SUA_CHAVE>`
 * **Model Name:** `model`
 * **Voice:** `pm_alex*0.7+am_liam*0.3` *(ou qualquer voz do catálogo abaixo)*
 
@@ -105,7 +105,7 @@ Para que a nova ferramenta gere áudios com a mesma qualidade de estúdio, apliq
 ### Exemplo A: cURL (Terminal / Script Shell)
 ```bash
 curl -X POST "https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1/audio/speech" \
-  -H "Authorization: Bearer qjuo4ld0exr5bkexo3cczbbcoanvrzu4" \
+  -H "Authorization: Bearer <SUA_CHAVE>" \
   -H "Content-Type: application/json" \
   -H "Accept: audio/mpeg" \
   -d '{
@@ -125,7 +125,7 @@ import fs from 'node:fs/promises';
 
 async function falarComKokoro(texto, voice = 'pm_alex*0.7+am_liam*0.3', arquivoSaida = 'saida.mp3') {
   const url = 'https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1/audio/speech';
-  const apiKey = 'qjuo4ld0exr5bkexo3cczbbcoanvrzu4';
+  const apiKey = '<SUA_CHAVE>';
 
   const res = await fetch(url, {
     method: 'POST',
@@ -164,7 +164,7 @@ import requests
 def gerar_audio_kokoro(texto: str, voice: str = "pm_alex*0.7+am_liam*0.3", output_path: str = "audio.mp3"):
     url = "https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1/audio/speech"
     headers = {
-        "Authorization": "Bearer qjuo4ld0exr5bkexo3cczbbcoanvrzu4",
+        "Authorization": "Bearer <SUA_CHAVE>",
         "Content-Type": "application/json"
     }
     payload = {

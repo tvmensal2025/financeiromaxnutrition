@@ -1,6 +1,7 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/test-live-speech-speed.mjs
 const GATEWAY_URL = 'https://helena-automation-helena-gateway.d9v63q.easypanel.host';
-const INTERNAL_KEY = 'helena_meow_sec_8a3c1f9d2e';
+const INTERNAL_KEY = requireEnv('MEOWCALLER_TOKEN');
 
 async function main() {
   console.log('=== TESTANDO VELOCIDADE E QUALIDADE DO ELEVENLABS SCRIBE + FLASH V2.5 ===');

@@ -1,6 +1,7 @@
+import { requireEnv } from './require-env.mjs';
 // scripts/test-meow-headers.mjs
 const MEOWCALLER_URL = 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host';
-const KEY = 'helena_meow_sec_8a3c1f9d2e';
+const KEY = requireEnv('MEOWCALLER_TOKEN');
 
 const headerVariants = [
   { 'x-api-key': KEY },

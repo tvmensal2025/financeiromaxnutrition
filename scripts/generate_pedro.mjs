@@ -1,7 +1,8 @@
+import { requireEnv } from './require-env.mjs';
 import fs from 'fs';
 import path from 'path';
 
-const API_KEY = 'qjuo4ld0exr5bkexo3cczbbcoanvrzu4';
+const API_KEY = requireEnv('KW_SECRET_API_KEY');
 const API_URL = 'https://helena-automation-kokoro.d9v63q.easypanel.host/api/v1/audio/speech';
 
 const pedroVariants = [
