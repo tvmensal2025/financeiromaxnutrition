@@ -587,6 +587,11 @@ export async function speakInCall({ callId, text, voice = null }) {
   };
 }
 
+/** true depois que o personagem se despediu por falhas seguidas do GPT: nada mais é transcrito nem falado. */
+export function isCallClosing(callId) {
+  return Boolean(getCallSession(callId)?.closingAfterFailures);
+}
+
 /** Encerra a ligação pelo meowcaller com a mesma conexão usada para tocar o áudio. */
 function hangupInCall(callId) {
   return hangupCall(callId, { baseUrl: MEOWCALLER_BASE_URL, token: requireMeowcallerToken() });
@@ -660,7 +665,8 @@ export async function handleCallConnectedWebhook(payload = {}, {
 
   if (remote_number) call.remoteNumber = remote_number;
   if (isInbound) {
-    // Ligação RECEBIDA: a IA só atende aluno conhecido do eLiving (VOICE_INBOUND_CALL_POLICY, padrão restrito).
+    // Ligação RECEBIDA: decisão por VOICE_INBOUND_CALL_POLICY. Padrão "all" (decisão do dono, 13/10/2026): a Sirlene
+    // atende todos e converte quem não é aluno; "students" só aluno conhecido; "none" ninguém.
     // Webhooks repetidos reaproveitam a mesma consulta.
     call.inboundGate ||= Promise.resolve().then(() => decideInbound(call))
       .catch(() => ({ allowed: false, reason: 'context_unavailable' }));
@@ -754,7 +760,7 @@ export async function handleUserSilence({ callId }) {
   if (!callId) throw new Error('callId é obrigatório');
   // Ligação recusada, ainda sem decisão ou já se despedindo: nenhuma cutucada (nada de voz).
   if (!isCallAllowedNow(callId)) return { ok: true, ignored: true, reason: 'call_not_allowed' };
-  if (getCallSession(callId)?.closingAfterFailures) return { ok: true, ignored: true, reason: 'call_closing' };
+  if (isCallClosing(callId)) return { ok: true, ignored: true, reason: 'call_closing' };
   const session = getCallSession(callId) || registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
   const profile = session?.activeProfileKey ? getProfileByKey(session.activeProfileKey) : getProfileByKey('sirlene_normal');
   if (profile.opening_enabled !== true && !getCallHistory(callId).some(turn => turn.role === 'user')) return { ok: true, ignored: true, reason: 'waiting_for_customer' };
@@ -822,7 +828,7 @@ export async function processUserSpeech(params, deps = {}) {
   if (endedVoiceCalls.has(String(callId).toUpperCase())) return { ok: true, ignored: true, reason: 'already_ended' };
   if (!callId) throw new Error('callId é obrigatório');
   // Depois da despedida por falhas seguidas do GPT, nada mais é processado nem falado.
-  if (getCallSession(callId)?.closingAfterFailures) return { ok: true, ignored: true, reason: 'call_closing', call_id: callId };
+  if (isCallClosing(callId)) return { ok: true, ignored: true, reason: 'call_closing', call_id: callId };
   // Ligação recebida de quem não é aluno conhecido: nada de STT, GPT ou voz (inclui o áudio em lote).
   const gate = await awaitCallGate(callId);
   if (!gate.allowed) return { ok: true, ignored: true, reason: 'call_not_allowed', call_id: callId };

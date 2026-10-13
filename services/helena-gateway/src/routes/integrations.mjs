@@ -84,7 +84,8 @@ import {
   processUserSpeech,
   prepareLiveSpeech,
   restartActiveReplyForProfile,
-  getCallHistory
+  getCallHistory,
+  isCallClosing
 } from '../integrations/voice-agent.mjs';
 import { transcribeLivePCM } from '../integrations/live-transcription.mjs';
 import { awaitCallGate } from '../integrations/inbound-call-gate.mjs';
@@ -1119,7 +1120,12 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         req.headers['content-type'] !== 'audio/pcm') {
       return res.status(400).json({ ok: false, error: 'Cabeçalhos de áudio inválidos' });
     }
-    // Ligação recebida de quem não é aluno conhecido: não transcreve. 200 evita o reenvio do áudio em lote.
+    // Depois da despedida (falhas seguidas do GPT), nada mais é transcrito. 200 evita o reenvio do áudio em lote.
+    if (isCallClosing(callId)) {
+      req.resume();
+      return res.json({ ok: true, result: { ok: true, ignored: true, reason: 'call_closing', call_id: callId } });
+    }
+    // Ligação recusada pela política de ligação recebida: não transcreve. 200 evita o reenvio do áudio em lote.
     const gate = await awaitCallGate(callId);
     if (!gate.allowed) {
       req.resume();

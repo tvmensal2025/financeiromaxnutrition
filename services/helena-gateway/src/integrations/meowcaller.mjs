@@ -15,6 +15,17 @@ export function resolveMeowcallerToken(env = process.env) {
 
 const MEOWCALLER_TOKEN = resolveMeowcallerToken();
 
+/**
+ * Variáveis sem as quais a ligação por WhatsApp não funciona (para o aviso na partida; só nomes, nunca valores):
+ * VOICE_GATEWAY_INTERNAL_KEY (chave dos webhooks do meowcaller) e MEOWCALLER_TOKEN (tocar, responder e desligar).
+ */
+export function missingCallLinkEnv(env = process.env) {
+  const missing = [];
+  if (!String(env?.VOICE_GATEWAY_INTERNAL_KEY ?? '').trim()) missing.push('VOICE_GATEWAY_INTERNAL_KEY');
+  if (!resolveMeowcallerToken(env)) missing.push('MEOWCALLER_TOKEN');
+  return missing;
+}
+
 function getHeaders() {
   const headers = {
     'Content-Type': 'application/json',

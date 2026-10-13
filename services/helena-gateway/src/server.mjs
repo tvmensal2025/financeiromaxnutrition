@@ -4,6 +4,7 @@ import { configureVoiceAgentStore } from './integrations/voice-agent.mjs';
 import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
 import { createVoiceSessionAuth } from './voice-session-auth.mjs';
 import { maskPhone } from './log-privacy.mjs';
+import { missingCallLinkEnv } from './integrations/meowcaller.mjs';
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
  * Conecta o ecossistema Helena (GPT via Hermes / Supabase / Evolution API)
@@ -1775,6 +1776,10 @@ const server = disableListen
       console.log(`[HELENA_GATEWAY] Supabase: ${SUPABASE_URL}`);
       console.log(`[HELENA_GATEWAY] Evolution API: ${EVOLUTION_BASE_URL ? 'CONFIGURADA' : 'DESATIVADA'}`);
       console.log(`[HELENA_GATEWAY] Voice Streaming: ${((process.env.CALL_VOICE_STREAMING_ENABLED ?? 'true') !== 'false') ? 'ATIVADO' : 'DESATIVADO'}`);
+      // Só o nome da variável: sem elas a ligação por WhatsApp não toca áudio nem aceita os webhooks do meowcaller.
+      for (const name of missingCallLinkEnv()) {
+        console.warn(`[HELENA_GATEWAY] ⚠️ ${name} não configurada: a ligação por WhatsApp não funciona até ela existir (README, seção 5).`);
+      }
 
       // Inicia loops periódicos
       const scheduleTimer = setInterval(tickScheduledJobs, SCHEDULE_TICK_MS);

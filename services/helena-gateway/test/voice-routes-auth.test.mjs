@@ -274,6 +274,42 @@ test('(f) atendimento: a resposta ao meowcaller não leva a fala da abertura', a
   }
 });
 
+// ---------------------------------------------------------------- (g) depois da despedida
+// Falha se: a fala ao vivo voltar a ser transcrita depois que o personagem se despediu (falhas seguidas do GPT).
+test('(g) fala ao vivo depois da despedida: 200 ignorado, sem transcrever', async () => {
+  const { settleCallGate } = await import('../src/integrations/inbound-call-gate.mjs');
+  const { registerCallSession, endCallSession } = await import('../src/integrations/call-engine.mjs');
+  const callId = `ROTA-DESPEDIDA-${Date.now()}`;
+  const session = registerCallSession({ callId, direction: 'INBOUND', profileKey: 'sirlene_normal' });
+  settleCallGate(callId, { allowed: true, reason: 'known_student' });
+  session.closingAfterFailures = true;
+  try {
+    const res = await fetch(`${baseUrl}/api/integrations/voice-agent/user-speech-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/pcm', 'X-API-Key': 'test-voice-gateway-key', 'X-Call-ID': callId, 'X-Speech-Epoch': '1' },
+      body: Buffer.alloc(3200, 1)
+    });
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.result.ignored, true);
+    assert.equal(data.result.reason, 'call_closing');
+    noProviderTouched();
+  } finally {
+    endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
+});
+
+// ---------------------------------------------------------------- (h) aviso na partida
+// Falha se: o serviço subir sem avisar (só o nome) que falta a chave da ligação.
+test('(h) na partida, o serviço avisa (só o nome) as variáveis da ligação que faltam', async () => {
+  const { missingCallLinkEnv } = await import('../src/integrations/meowcaller.mjs');
+  assert.deepEqual(missingCallLinkEnv({}), ['VOICE_GATEWAY_INTERNAL_KEY', 'MEOWCALLER_TOKEN']);
+  assert.deepEqual(missingCallLinkEnv({ VOICE_GATEWAY_INTERNAL_KEY: 'x', MEOWCALLER_API_KEY: 'y' }), []);
+  assert.deepEqual(missingCallLinkEnv({ MEOWCALLER_TOKEN: 'y', VOICE_GATEWAY_INTERNAL_KEY: '  ' }), ['VOICE_GATEWAY_INTERNAL_KEY']);
+  const server = SRC('server.mjs');
+  assert.match(server, /missingCallLinkEnv\(\)/, 'server.mjs avisa na partida');
+});
+
 for (const path of ['/api/integrations/call-engine/preview', '/api/integrations/google-chirp3-hd/preview']) {
   test(`(c) conta válida e serviço continuam gerando voz em ${path}`, async () => {
     for (const token of [USER_A.token, SERVICE_TOKEN]) {

@@ -1,5 +1,7 @@
-// Ligação RECEBIDA pelo WhatsApp: a IA só atende aluno conhecido do eLiving (ficha encontrada pelo telefone).
-// Número desconhecido, ambíguo ou ficha fora do ar: não atende e não gasta STT, GPT nem voz.
+// Ligação RECEBIDA pelo WhatsApp. Padrão "all" (decisão do dono, 13/10/2026): a Sirlene atende todo número; o aluno
+// conhecido conversa com a ficha dele e quem não é aluno ouve o roteiro de conversão do Admin.
+// Opção "students": só aluno conhecido (ficha encontrada pelo telefone); número desconhecido, ambíguo ou ficha fora do
+// ar não é atendido e não gasta STT, GPT nem voz. Opção "none": ninguém.
 // Nenhum provedor real é chamado: ficha, operadora, OpenAI e voz são simulados.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
