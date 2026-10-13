@@ -92,6 +92,13 @@ def test_bootstrap_tecnico_real_idempotente_e_sem_ativacao(fabrica):
         with pytest.raises(psycopg.errors.InsufficientPrivilege, match="CONFIG_SEM_ATIVACAO"):
             con.execute("select helena_v2.criar_card('config','pre-ativacao','x','Teste',now()+interval '2 days',%s,null,%s,0,false)",
                         (Jsonb(S.ROTEIRO_UMA_ETAPA), Jsonb({"config_revision_id": rev["id"]})))
+        with pytest.raises(psycopg.errors.InsufficientPrivilege, match="CONFIG_SEM_ATIVACAO"):
+            con.execute("select helena_v2.criar_card('config','pre-ativacao-sem-id','x','Teste',now()+interval '2 days',%s)",
+                        (Jsonb(S.ROTEIRO_UMA_ETAPA),))
+    with banco.conectar(papel="service_role") as con:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege, match="CONFIG_SEM_ATIVACAO"):
+            con.execute("select helena_v2.criar_card('config','motor-sem-id','x','Teste',now()+interval '2 days',%s)",
+                        (Jsonb(S.ROTEIRO_UMA_ETAPA),))
 
 
 def test_bootstrap_recusa_maquina_inventada_com_impressao_correta(fabrica):

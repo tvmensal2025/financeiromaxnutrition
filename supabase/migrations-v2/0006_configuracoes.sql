@@ -442,6 +442,9 @@ begin
     end if;
   else
     v_id := v_ativa;
+    if v_id is null and v_tecnica is not null then
+      raise exception 'CONFIG_SEM_ATIVACAO' using errcode = '42501';
+    end if;
   end if;
   if v_id is not null then
     select c.estado into v_estado from helena_v2.configuracao c where c.id=v_id;
