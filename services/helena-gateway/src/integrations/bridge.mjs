@@ -4,6 +4,7 @@
  * Provedor oficial do Sistema Helena para sintetização de chamadas telefônicas
  */
 
+import { maskPhone } from '../log-privacy.mjs';
 import { routeCallAudio } from './audio-router.mjs';
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
 import { getCallSession, getActiveGlobalProfile } from './call-engine.mjs';
@@ -26,7 +27,7 @@ export class MeowcallerVoiceBridge {
     const startedAt = Date.now();
     const activeProfile = getActiveGlobalProfile();
     const effectiveVoice = voiceProfileId || activeProfile.voice_id || getActiveCallVoice();
-    console.log(`[VOICE_BRIDGE] Iniciando bridge Google Chirp 3 HD Oficial para call_id=${callId} (${remoteNumber}) - Voz: ${effectiveVoice}`);
+    console.log(`[VOICE_BRIDGE] Iniciando bridge Google Chirp 3 HD Oficial para call_id=${callId} (${maskPhone(remoteNumber)}) - Voz: ${effectiveVoice}`);
 
     const bridgeSession = {
       callId,

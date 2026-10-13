@@ -88,6 +88,7 @@ import {
 } from '../integrations/voice-agent.mjs';
 import { transcribeLivePCM } from '../integrations/live-transcription.mjs';
 import { awaitCallGate } from '../integrations/inbound-call-gate.mjs';
+import { maskPhone, withoutSpeechContent } from '../log-privacy.mjs';
 
 import {
   getCallEngineConfig,
@@ -686,12 +687,12 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         // 4. Envia mensagem de volta ao cliente via Evolution API se configurada
         if (isEvolutionConfigured() && replyText) {
           if (shouldSkipDuplicateAutoReply(event.remote_number, replyText)) {
-            console.log(`[EVOLUTION_WEBHOOK] Auto-resposta omitida (debounce) para ${event.remote_number}`);
+            console.log(`[EVOLUTION_WEBHOOK] Auto-resposta omitida (debounce) para ${maskPhone(event.remote_number)}`);
           } else {
             try {
               const sendResult = await sendEvolutionText(event.remote_number, replyText);
               rememberAutoReplySent(event.remote_number, replyText);
-              console.log(`[EVOLUTION_WEBHOOK] Auto-resposta enviada para ${event.remote_number} (msgId: ${sendResult?.messageId})`);
+              console.log(`[EVOLUTION_WEBHOOK] Auto-resposta enviada para ${maskPhone(event.remote_number)} (msgId: ${sendResult?.messageId})`);
 
               // 5. Registra a resposta enviada em public.comunicacoes
               if (supabaseFetch) {
@@ -1103,7 +1104,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
   router.post('/api/integrations/voice-agent/webhook', authenticateVoiceGateway, async (req, res) => {
     try {
       const result = await handleCallConnectedWebhook(req.body || {});
-      return res.json({ ok: true, result });
+      // O meowcaller grava a resposta no log dele: nenhuma fala sai daqui.
+      return res.json({ ok: true, result: withoutSpeechContent(result) });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }
@@ -1132,7 +1134,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
       const transcript = await transcribeLivePCM(req, { apiKey: process.env.OPENAI_API_KEY, signal: capture.signal });
       capture.signal.throwIfAborted();
       const result = await processUserSpeech({ callId, speechEpoch, userText: transcript.text, sttMetrics: transcript.metrics });
-      return res.json({ ok: true, result, stt_metrics: transcript.metrics });
+      return res.json({ ok: true, result: withoutSpeechContent(result), stt_metrics: withoutSpeechContent(transcript.metrics) });
     } catch (err) {
       console.error('[VOICE_AGENT] Falha no STT em tempo real:', err.message);
       if (err.transcriptionMetrics) console.warn('[VOICE_STT_METRICS]', JSON.stringify({
@@ -1159,7 +1161,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         sampleRate: sample_rate || 16000,
         speechEpoch: speech_epoch
       });
-      return res.json({ ok: true, result });
+      // O meowcaller grava esta resposta no log e no diagnóstico dele: sem fala nem transcrição.
+      return res.json({ ok: true, result: withoutSpeechContent(result) });
     } catch (err) {
       console.error('[VOICE_AGENT] Erro ao processar fala do usuário:', err.message);
       return res.status(500).json({ ok: false, error: err.message });
@@ -1174,7 +1177,7 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
         return res.status(400).json({ ok: false, error: 'call_id é obrigatório' });
       }
       const result = await handleUserSilence({ callId: call_id });
-      return res.json({ ok: true, result });
+      return res.json({ ok: true, result: withoutSpeechContent(result) });
     } catch (err) {
       console.error('[VOICE_AGENT] Erro ao tratar silêncio do usuário:', err.message);
       return res.status(500).json({ ok: false, error: err.message });
@@ -1328,7 +1331,8 @@ export function createIntegrationsRouter({ supabaseFetch, authenticateUser, auth
   router.post('/api/integrations/voice-agent/ended', authenticateVoiceGateway, async (req, res) => {
     try {
       const result = await handleCallEndedWebhook(req.body || {});
-      return res.json({ ok: true, result });
+      // O resumo guarda os turnos com a conversa: fica só na memória do gateway (painel do fundador).
+      return res.json({ ok: true, result: withoutSpeechContent(result) });
     } catch (err) {
       return res.status(500).json({ ok: false, error: err.message });
     }

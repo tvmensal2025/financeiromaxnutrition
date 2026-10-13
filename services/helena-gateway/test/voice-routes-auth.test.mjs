@@ -34,6 +34,9 @@ globalThis.fetch = async (url, options = {}) => {
   if (target.startsWith('http://meowcaller.test/health')) {
     return { ok: true, json: async () => ({ status: 'healthy', whatsapp_status: 'CONNECTED', active_calls: 0 }) };
   }
+  if (/^http:\/\/meowcaller\.test\/v1\/calls\/[^/]+\/play$/.test(target)) {
+    return { ok: true, json: async () => ({ ok: true }) };
+  }
   if (target === 'http://meowcaller.test/v1/calls' && options.method === 'POST') {
     meowCalls.push(JSON.parse(options.body));
     return { ok: true, json: async () => ({ call_id: 'CALL-TESTE-1', status: 'DIALING' }) };
@@ -242,6 +245,30 @@ test('(e) fala de ligação recebida recusada: 200 ignorado, sem transcrever e s
     assert.equal(data.result.ignored, true);
     assert.equal(data.result.reason, 'call_not_allowed');
     noProviderTouched();
+  } finally {
+    endCallSession({ callId, reason: 'TEST_CLEANUP' });
+  }
+});
+
+// ---------------------------------------------------------------- (f) resposta ao meowcaller sem fala
+// Falha se: a resposta dos webhooks internos voltar a levar a fala (o meowcaller grava o corpo no log dele).
+test('(f) atendimento: a resposta ao meowcaller não leva a fala da abertura', async () => {
+  const { registerCallSession, endCallSession } = await import('../src/integrations/call-engine.mjs');
+  const callId = `ROTA-WEBHOOK-${Date.now()}`;
+  registerCallSession({ callId, direction: 'OUTBOUND', profileKey: 'sirlene_normal' });
+  try {
+    const res = await fetch(`${baseUrl}/api/integrations/voice-agent/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': 'test-voice-gateway-key' },
+      body: JSON.stringify({ call_id: callId, direction: 'OUTBOUND' })
+    });
+    assert.equal(res.status, 200);
+    const raw = await res.text();
+    const data = JSON.parse(raw);
+    assert.equal(data.result.handled, true, 'a abertura foi falada');
+    assert.equal(googleCalls.length, 1);
+    assert.doesNotMatch(raw, /"(greeting|text|user_text|reply_text)"/);
+    assert.doesNotMatch(raw, /Olá, aqui é/);
   } finally {
     endCallSession({ callId, reason: 'TEST_CLEANUP' });
   }

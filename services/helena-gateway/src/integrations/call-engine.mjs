@@ -27,6 +27,7 @@ import {
   DEFAULT_CHIRP3_HD_VOICE
 } from './google-chirp3-hd.mjs';
 import { googleFallbackVoiceForCharacter } from './elevenlabs.mjs';
+import { maskPhone } from '../log-privacy.mjs';
 
 /** Voz Google Chirp 3 HD FIXA do personagem (reserva), da configuração única. */
 function characterGoogleVoice(characterId) {
@@ -598,14 +599,6 @@ export function resetPersonalityToDefault(id) {
 // 8. GESTÃO DE CHAMADAS EM ANDAMENTO & HOT-SWAP AO VIVO
 // ======================================================================
 
-function maskPhoneNumber(phone) {
-  if (!phone || typeof phone !== 'string') return 'Não identificado';
-  const clean = phone.replace(/\D/g, '');
-  if (clean.length < 8) return phone;
-  const start = clean.slice(0, 4);
-  const end = clean.slice(-4);
-  return `+${start} ••••-${end}`;
-}
 
 /**
  * Registra o início ou conexão de uma chamada no motor quente
@@ -652,7 +645,7 @@ export function registerCallSession({ callId, remoteNumber = '', direction = 'IN
     businessId,
     direction: normalizedDirection,
     remoteNumber,
-    maskedNumber: maskPhoneNumber(remoteNumber),
+    maskedNumber: maskPhone(remoteNumber), // só os 4 últimos dígitos (log e painel)
     startedAt: Date.now(),
     answeredAt: Date.now(),
     endedAt: null,

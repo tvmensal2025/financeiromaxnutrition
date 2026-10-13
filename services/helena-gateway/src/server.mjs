@@ -3,6 +3,7 @@ import { createVoiceAgentStore } from './integrations/voice-agent-store.mjs';
 import { configureVoiceAgentStore } from './integrations/voice-agent.mjs';
 import { createVoiceAdminAuth } from './voice-admin-auth.mjs';
 import { createVoiceSessionAuth } from './voice-session-auth.mjs';
+import { maskPhone } from './log-privacy.mjs';
 /**
  * Helena Gateway — Backend Operacional do Sistema Helena
  * Conecta o ecossistema Helena (GPT via Hermes / Supabase / Evolution API)
@@ -1279,7 +1280,7 @@ async function processSingleOutboxItem(item) {
           provider_message_id: providerMessageId
         })
       });
-      console.log(`[OUTBOX] Notificação ${item.notification_id} enviada com sucesso para ${recipient}`);
+      console.log(`[OUTBOX] Notificação ${item.notification_id} enviada com sucesso para ${maskPhone(recipient)}`);
     } else {
       const errText = await evoRes.text().catch(() => 'Erro Evolution API');
       await handleOutboxFailure(item, `HTTP ${evoRes.status}: ${errText.slice(0, 200)}`);

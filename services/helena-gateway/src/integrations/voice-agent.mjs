@@ -28,6 +28,7 @@ import {
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
 import { publicVoiceConfig } from './voice-agent-store.mjs';
 import { hangupCall, resolveMeowcallerToken } from './meowcaller.mjs';
+import { maskPhone } from '../log-privacy.mjs';
 import {
   ELIVING_FALLBACK_MODEL,
   closingDelayMs,
@@ -539,7 +540,8 @@ export async function speakInCall({ callId, text, voice = null }) {
   const characterName = call?.activeCharacterName || profile.character_name;
   const modeName = call?.activeModeName || profile.mode_name;
 
-  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (${characterName} / ${modeName}): "${text}"`);
+  // Sem a fala no log (pode ter dado de saúde): só o tamanho.
+  console.log(`[VOICE_AGENT] 🔊 Sintetizando fala para chamada ${callId} (${characterName} / ${modeName}): ${stripAudioTags(text).length} caracteres`);
 
   // ElevenLabs V4 Turbo com a voz do PERSONAGEM; Google Chirp 3 HD só como reserva (voz fixa do personagem).
   const speechRes = await routeCallAudio({
@@ -644,7 +646,7 @@ export async function handleCallConnectedWebhook(payload = {}, {
   let call = getCallSession(call_id);
   const direction = String(payload.direction || call?.direction || 'INBOUND').trim().toUpperCase();
   const isInbound = direction === 'INBOUND';
-  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${remote_number}`);
+  console.log(`[VOICE_AGENT] 📞 Chamada atendida recebida via webhook: call_id=${call_id}, dir=${direction}, remote=${maskPhone(remote_number)}`);
 
   // Registra no call-engine em memória com sincronização
   if (!call) {
@@ -898,7 +900,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   let usedPersonality = call?.activePersonalityId || getActivePersonality().id;
 
   if (userText && userText.trim().length > 0) {
-    console.log(`[VOICE_AGENT] 🗣️ Cliente disse na chamada ${callId}: "${userText}"`);
+    console.log(`[VOICE_AGENT] 🗣️ Cliente falou na chamada ${callId}: ${userText.length} caracteres`);
 
     // Atualiza histórico com a fala do cliente
     callHistory.push({
@@ -955,7 +957,7 @@ async function processUserSpeechTurn({ callId, audioBase64, userText: liveText, 
   // Texto para tela, histórico, banco e telemetria: sem tags.
   const replyDisplay = stripAudioTags(replyText);
   const activeProfile = call?.activeProfileKey ? getProfileByKey(call.activeProfileKey) : getActiveGlobalProfile();
-  console.log(`[VOICE_AGENT] 💬 ${activeProfile.character_name} (${activeProfile.mode_name}) responderá na chamada ${callId}: "${replyText}"`);
+  console.log(`[VOICE_AGENT] 💬 ${activeProfile.character_name} (${activeProfile.mode_name}) responderá na chamada ${callId}: ${replyDisplay.length} caracteres`);
 
   // Atualiza histórico com a resposta do atendente
   callHistory.push({

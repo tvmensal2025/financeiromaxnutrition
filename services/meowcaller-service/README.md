@@ -105,6 +105,20 @@ O serviço aceita toda chamada VoIP recebida na hora (o WhatsApp exige o aceite 
 (padrão) só aluno conhecido do eLiving é atendido; os demais são desligados pelo gateway (`POST /v1/calls/{id}/hangup`)
 sem STT, GPT nem voz. A variável `ENABLE_AUTO_ANSWER_CONTROLLED_NUMBERS` deste serviço é lida mas **não tem efeito**.
 
+### Privacidade nos logs (pendente no Go)
+
+O helena-gateway já não registra telefone completo nem fala, e desde 13/10/2026 não devolve fala nas respostas dos
+webhooks. Falta mudar aqui (exige compilar e testar com ligação real):
+
+- `internal/voice/engine.go` (`OnIncomingCall`, log "Chamada VoIP atendida"): `Str("caller", peer)` registra o JID
+  com o telefone. Registrar só os 4 últimos dígitos.
+- `internal/voice/engine.go` (`updateDiagCallStart`): `LastPeer` guarda o JID completo e sai em `/v1/diagnostics`.
+- `internal/voice/engine.go` (`notifyUserSpeech`) e `updateDiagGatewayResponse`: gravam o corpo inteiro da
+  resposta do gateway (`Str("response", ...)` e `LastGatewayResponse`). Registrar só status e tamanho.
+- `internal/voice/engine.go` (`OriginateCall`, "Originando chamada") e `internal/api/handlers.go`
+  (`handleOriginateCall`): `Str("target", ...)` com o telefone de destino. Mascarar.
+- `internal/voice/engine.go` (pareamento): registra o telefone e o código de pareamento. Não registrar o código.
+
 ### Build e Execução Docker:
 ```bash
 docker build -t meowcaller-service:latest .
