@@ -160,7 +160,7 @@ def test_outro_processo_com_outra_ordem_de_hash_da_o_mesmo_resultado():
 # Se algum destes falhar sem você ter mexido no gerador, o sorteador do Python ou a ordem dos sorteios mudou.
 # Se você mexeu no gerador de propósito, imprima as novas e troque aqui:
 #     python -c "from simulador import *; print([rodar(Referencia(), s).assinatura[:16] for s in range(3)])"
-FOTOGRAFIA = {0: '0ec6bd0efaf01364', 1: '62a5ad277020fa96', 2: '3377174791f32449'}
+FOTOGRAFIA = {0: '0ec6bd0efaf01364', 1: '62a5ad277020fa96', 2: 'd4ac8ab10ad709ec'}
 
 
 def test_fotografia_das_primeiras_sementes():

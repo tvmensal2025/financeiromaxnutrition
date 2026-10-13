@@ -320,7 +320,7 @@ class Mundo:
         return [ev.relogio(nome, alvo)]
 
     def _cat_decisao(self, foto):
-        return [ev.motor("DECISAO_MUDOU")] if foto.card["estado"] in CARD_ATIVO else None
+        return [ev.fundador("PEDIR_AJUSTE", motivo_ajuste=self.rng.choice(MOTIVOS_DE_AJUSTE))] if foto.card["estado"] in CARD_ATIVO else None
 
     def _cat_queda(self, foto):
         """O motor cai: toda execução viva some, e o vigia dá cada uma como perdida."""

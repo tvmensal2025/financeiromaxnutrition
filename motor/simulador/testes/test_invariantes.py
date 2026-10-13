@@ -85,7 +85,7 @@ def test_teto_decisao_nova_tambem_zera_a_conta():
     memoria = {}
     for _ in range(LIMITE_INICIOS_SEM_ORDEM):
         achar("teto_de_execucoes", QUALQUER, f, f, _inicio(), memoria=memoria)
-    achar("teto_de_execucoes", motor("DECISAO_MUDOU"), f, f, OK, memoria=memoria)
+    achar("teto_de_execucoes", fundador("PEDIR_AJUSTE", motivo_ajuste="TOM"), f, f, OK, memoria=memoria)
     assert achar("teto_de_execucoes", QUALQUER, f, f, _inicio(), memoria=memoria) == []
 
 
@@ -392,19 +392,19 @@ def test_velha_etapa_pronta_sobre_anterior_que_voltou_e_acusada():
 @cobre("pronto_sem_informacao_velha")
 def test_velha_decisao_nova_com_etapa_que_continua_aprovada_e_acusada():
     f = foto("EM_ANDAMENTO", etapas=[etapa("E1", "APROVADA")])
-    achadas = achar("pronto_sem_informacao_velha", motor("DECISAO_MUDOU"), f, f)
+    achadas = achar("pronto_sem_informacao_velha", fundador("PEDIR_AJUSTE", motivo_ajuste="TOM"), f, f)
     assert any("continuou APROVADA depois de a decisão mudar" in m for m in achadas)
 
 
 def test_velha_decisao_nova_com_etapa_reaberta_passa():
     antes = foto("EM_ANDAMENTO", etapas=[etapa("E1", "APROVADA")])
     depois = foto("EM_ANDAMENTO", etapas=[etapa("E1", "EXECUTANDO", exec_viva=1)])
-    assert achar("pronto_sem_informacao_velha", motor("DECISAO_MUDOU"), antes, depois) == []
+    assert achar("pronto_sem_informacao_velha", fundador("PEDIR_AJUSTE", motivo_ajuste="TOM"), antes, depois) == []
 
 
 def test_velha_decisao_nova_recusada_nao_cobra_nada():
     f = foto("EM_ANDAMENTO", etapas=[etapa("E1", "APROVADA")])
-    assert achar("pronto_sem_informacao_velha", motor("DECISAO_MUDOU"), f, f, RECUSADA) == []
+    assert achar("pronto_sem_informacao_velha", fundador("PEDIR_AJUSTE", motivo_ajuste="TOM"), f, f, RECUSADA) == []
 
 
 def test_velha_etapa_pulada_libera_quem_depende():
