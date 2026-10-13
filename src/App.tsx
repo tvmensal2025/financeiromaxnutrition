@@ -2,7 +2,7 @@ import React, { lazy } from "react";
 import { PageBoundary } from "@/components/executive/PageBoundary";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
-import { BusinessProvider } from "@/contexts/BusinessContext";
+import { SessionBusinessBoundary } from "@/contexts/SessionBusinessBoundary";
 import { Layout } from "@/components/Layout";
 const Login = lazy(() => import("@/pages/Login"));
 const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
@@ -174,11 +174,11 @@ function Rotas() {
 export default function App() {
   return (
     <AuthProvider>
-      <BusinessProvider>
+      <SessionBusinessBoundary>
         <BrowserRouter>
           <PageBoundary><Rotas /></PageBoundary>
         </BrowserRouter>
-      </BusinessProvider>
+      </SessionBusinessBoundary>
     </AuthProvider>
   );
 }

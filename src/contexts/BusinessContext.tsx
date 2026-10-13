@@ -146,7 +146,7 @@ export type BusinessContextType = {
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
-export function BusinessProvider({ children }: { children: React.ReactNode }) {
+export function BusinessProvider({ children, autorizado = true }: { children: React.ReactNode; autorizado?: boolean }) {
   const { user, loading: authLoading } = useAuth();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [currentBusinessId, setCurrentBusinessIdState] = useState<string>("GRUPO");
@@ -241,11 +241,11 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !autorizado) return;
     if (user) void carregarEmpresas();
     else { setEmpresas([]); setCurrentBusinessIdState("GRUPO"); setCarregandoEmpresas(false); }
     return () => { versaoConsulta.current++; };
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, autorizado]);
 
   const setCurrentBusiness = (id: string) => {
     const idValidado = validarSalva(id, empresas);
