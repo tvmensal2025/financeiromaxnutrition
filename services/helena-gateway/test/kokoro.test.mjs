@@ -9,8 +9,13 @@ import {
 } from '../src/integrations/kokoro.mjs';
 
 test('Kokoro TTS - Verificação de Configuração e Vozes Oficiais', async (t) => {
-  await t.test('isKokoroConfigured retorna true com credenciais padrão', () => {
+  await t.test('isKokoroConfigured só liga com a chave no ambiente (sem valor padrão no código)', () => {
+    const saved = [process.env.KW_SECRET_API_KEY, process.env.KOKORO_API_KEY];
+    delete process.env.KW_SECRET_API_KEY; delete process.env.KOKORO_API_KEY;
+    assert.equal(isKokoroConfigured(), false);
+    process.env.KW_SECRET_API_KEY = 'chave-kokoro-de-teste';
     assert.equal(isKokoroConfigured(), true);
+    if (saved[1] !== undefined) process.env.KOKORO_API_KEY = saved[1];
   });
 
   await t.test('getKokoroVoices retorna Kokoro como motor oficial e Pedro como voz padrão', async () => {

@@ -267,6 +267,8 @@ function simulateLiveCallNetwork({ elevenStatus = 200 } = {}) {
   process.env.MAX_VOICE_CONTEXT_URL = CONTEXT_URL;
   process.env.MAX_VOICE_CONTEXT_TOKEN = 'token-contexto-simulado';
   process.env.GOOGLE_CALL_TTS_TIMEOUT_MS = '1000';
+  // Como em produção: o token do meowcaller vem do ambiente (não há valor padrão no código).
+  process.env.MEOWCALLER_TOKEN = 'token-meowcaller-simulado';
   setGoogleTTSClientForTesting({
     synthesizeSpeech: async request => { seen.google.push(request); return [{ audioContent: Buffer.alloc(64, 1) }]; }
   });

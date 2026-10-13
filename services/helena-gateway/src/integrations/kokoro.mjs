@@ -9,10 +9,10 @@ const KOKORO_BASE_URL = (
   'https://helena-automation-kokoro.d9v63q.easypanel.host'
 ).replace(/\/$/, '');
 
-const KW_SECRET_API_KEY =
-  process.env.KW_SECRET_API_KEY ||
-  process.env.KOKORO_API_KEY ||
-  'qjuo4ld0exr5bkexo3cczbbcoanvrzu4';
+/** Chave do Kokoro (KW_SECRET_API_KEY ou KOKORO_API_KEY). Sem valor padrão no código: sem a variável, desligado. */
+function kokoroApiKey() {
+  return String(process.env.KW_SECRET_API_KEY || process.env.KOKORO_API_KEY || '').trim();
+}
 
 const KOKORO_DEFAULT_MODEL = process.env.KOKORO_MODEL || 'model';
 
@@ -40,15 +40,16 @@ export const KOKORO_VOICES = {
 };
 
 export function isKokoroConfigured() {
-  return Boolean(KOKORO_BASE_URL && KW_SECRET_API_KEY);
+  return Boolean(KOKORO_BASE_URL && kokoroApiKey());
 }
 
 function getHeaders() {
-  if (!KW_SECRET_API_KEY) {
+  const key = kokoroApiKey();
+  if (!key) {
     throw new Error('KW_SECRET_API_KEY não configurada no servidor');
   }
   return {
-    'Authorization': `Bearer ${KW_SECRET_API_KEY}`,
+    'Authorization': `Bearer ${key}`,
     'Content-Type': 'application/json',
     'Accept': 'audio/mpeg, application/json'
   };

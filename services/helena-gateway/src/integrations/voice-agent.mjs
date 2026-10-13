@@ -27,7 +27,7 @@ import {
 } from './call-engine.mjs';
 import { getActiveCallVoice } from './google-chirp3-hd.mjs';
 import { publicVoiceConfig } from './voice-agent-store.mjs';
-import { hangupCall } from './meowcaller.mjs';
+import { hangupCall, resolveMeowcallerToken } from './meowcaller.mjs';
 import {
   ELIVING_FALLBACK_MODEL,
   closingDelayMs,
@@ -487,7 +487,16 @@ async function callLlmProvider(params) {
 // ======================================================================
 
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
-const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || 'helena_meow_sec_8a3c1f9d2e';
+/**
+ * Token do meowcaller (MEOWCALLER_TOKEN, igual a INTERNAL_API_KEY do meowcaller-service), lido na hora de usar.
+ * Sem a variável, falha fechada: nada é sintetizado nem enviado, e o log diz qual variável falta (sem valor).
+ */
+function requireMeowcallerToken() {
+  const token = resolveMeowcallerToken();
+  if (token) return token;
+  console.error('[VOICE_AGENT] MEOWCALLER_TOKEN não configurado: a ligação não toca áudio nem encerra chamada até a variável existir (igual a INTERNAL_API_KEY do meowcaller-service).');
+  throw new Error('MEOWCALLER_TOKEN não configurado no backend');
+}
 /** Transcreve o turno concluído usando a mesma conta OpenAI do agente. */
 export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', { signal } = {}) {
   if (!audioBuffer || audioBuffer.length < 300) {
@@ -519,6 +528,8 @@ export async function transcribeAudio(audioBuffer, mimeType = 'audio/wav', { sig
 export async function speakInCall({ callId, text, voice = null }) {
   if (!callId) throw new Error('callId é obrigatório');
   if (!text) throw new Error('text é obrigatório');
+  // Sem o token do meowcaller não há como tocar: falha antes de gastar a síntese de voz.
+  const meowcallerToken = requireMeowcallerToken();
 
   // Resolve o perfil ativo da chamada em andamento (Hot-Swap) ou perfil global
   const call = getCallSession(callId);
@@ -545,7 +556,7 @@ export async function speakInCall({ callId, text, voice = null }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': MEOWCALLER_TOKEN
+      'X-API-Key': meowcallerToken
     },
     body: JSON.stringify({
       audio_base64: base64Audio,
@@ -576,7 +587,7 @@ export async function speakInCall({ callId, text, voice = null }) {
 
 /** Encerra a ligação pelo meowcaller com a mesma conexão usada para tocar o áudio. */
 function hangupInCall(callId) {
-  return hangupCall(callId, { baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN });
+  return hangupCall(callId, { baseUrl: MEOWCALLER_BASE_URL, token: requireMeowcallerToken() });
 }
 
 function waitMs(ms) {
@@ -1086,9 +1097,11 @@ async function processStreamingSpeechTurn({ callId, speechEpoch, cfg, apiKey, ca
   const baseTelemetry = { callId, userText, sttMs, voice, characterId: profile.character_id,
     characterName: profile.character_name, mode: profile.mode, modeName: profile.mode_name, profileKey: profile.profile_key };
   try {
+    // Sem o token do meowcaller a resposta não teria como tocar: falha antes de chamar o GPT.
+    const meowcallerToken = requireMeowcallerToken();
     const result = await streamReplyToCall({ callId, speechEpoch, apiKey, model: cfg.ai_model,
       systemInstruction: buildCallInstruction(call, profile), profile,
-      userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: MEOWCALLER_TOKEN, signal });
+      userPrompt: userText, history: callHistory, voice, baseUrl: MEOWCALLER_BASE_URL, token: meowcallerToken, signal });
     signal.throwIfAborted();
     resetElivingFallback(call);
     void persistVoiceTurn(call, profile, '', result.text);

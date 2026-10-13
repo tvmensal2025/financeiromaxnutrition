@@ -310,7 +310,8 @@ it('removes every alias of an ended session', async () => {
 
 // Ambiente de ligação sem nenhum provedor real: sem chave da OpenAI, sem ficha remota.
 function withoutRealProviders(t) {
- const names = ['OPENAI_API_KEY', 'MAX_VOICE_CONTEXT_URL', 'MAX_VOICE_CONTEXT_TOKEN', 'ELEVENLABS_API_KEY'];
+ const names = ['OPENAI_API_KEY', 'MAX_VOICE_CONTEXT_URL', 'MAX_VOICE_CONTEXT_TOKEN', 'ELEVENLABS_API_KEY',
+  'MEOWCALLER_TOKEN', 'MEOWCALLER_API_KEY', 'MEOWCALLER_KEY'];
  const saved = Object.fromEntries(names.map(name => [name, process.env[name]]));
  for (const name of names) delete process.env[name];
  t.after(() => { for (const name of names) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; } });
@@ -429,6 +430,7 @@ it('ligação por WhatsApp sem streaming: pede para repetir no máximo 2 vezes e
 it('ligação com streaming: falha do GPT sem nada falado vira fala de reserva; resposta boa zera a contagem', async (t) => {
  withoutRealProviders(t);
  process.env.OPENAI_API_KEY = 'test-openai-only';
+ process.env.MEOWCALLER_TOKEN = 'token-meowcaller-de-teste';
  const { Readable, Transform } = await import('node:stream');
  const { setGoogleTTSClientForTesting } = await import('../src/integrations/google-chirp3-hd.mjs');
  const { registerCallSession, endCallSession, getCallSession } = await import('../src/integrations/call-engine.mjs');
@@ -478,4 +480,33 @@ it('ligação com streaming: falha do GPT sem nada falado vira fala de reserva; 
  } finally {
   endCallSession({ callId, reason: 'TEST_CLEANUP' });
  }
+});
+
+// ---------------------------------------------------------------- token do meowcaller sem valor padrão
+it('sem MEOWCALLER_TOKEN a fala falha fechada antes de sintetizar, com log claro e sem valor', async (t) => {
+ withoutRealProviders(t);
+ const calls = [];
+ t.mock.method(globalThis, 'fetch', async url => { calls.push(String(url)); return new Response('', { status: 500 }); });
+ const errors = [];
+ t.mock.method(console, 'error', (...args) => { errors.push(args.join(' ')); });
+ const { speakInCall } = await import('../src/integrations/voice-agent.mjs');
+ await assert.rejects(speakInCall({ callId: `sem-token-${Date.now()}`, text: 'Oi, tudo bem?' }), /MEOWCALLER_TOKEN não configurado/);
+ assert.deepEqual(calls, [], 'sem o token nada é sintetizado nem enviado ao meowcaller');
+ assert.ok(errors.some(line => /MEOWCALLER_TOKEN/.test(line)), 'o log diz qual variável falta');
+});
+
+it('com MEOWCALLER_TOKEN configurado, a fala usa o valor da variável', async (t) => {
+ withoutRealProviders(t);
+ process.env.MEOWCALLER_TOKEN = 'token-meowcaller-de-teste';
+ const { setGoogleTTSClientForTesting } = await import('../src/integrations/google-chirp3-hd.mjs');
+ setGoogleTTSClientForTesting({ synthesizeSpeech: async () => [{ audioContent: Buffer.from('audio-simulado') }] });
+ t.after(() => setGoogleTTSClientForTesting(null));
+ const sent = [];
+ t.mock.method(globalThis, 'fetch', async (url, options) => { sent.push({ url: String(url), key: options.headers['X-API-Key'] }); return Response.json({ ok: true }); });
+ const { speakInCall } = await import('../src/integrations/voice-agent.mjs');
+ const result = await speakInCall({ callId: `com-token-${Date.now()}`, text: 'Oi, tudo bem?' });
+ assert.equal(result.ok, true);
+ assert.equal(sent.length, 1);
+ assert.match(sent[0].url, /\/play$/);
+ assert.equal(sent[0].key, 'token-meowcaller-de-teste');
 });

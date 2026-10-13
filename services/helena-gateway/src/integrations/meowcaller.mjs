@@ -5,7 +5,15 @@
  */
 
 const MEOWCALLER_BASE_URL = (process.env.MEOWCALLER_BASE_URL || 'https://helena-automation-meowcaller-service.d9v63q.easypanel.host').replace(/\/$/, '');
-const MEOWCALLER_TOKEN = process.env.MEOWCALLER_TOKEN || process.env.MEOWCALLER_API_KEY || process.env.MEOWCALLER_KEY || '';
+/**
+ * Token do meowcaller-service (igual a INTERNAL_API_KEY dele). Nome principal: MEOWCALLER_TOKEN
+ * (aceita MEOWCALLER_API_KEY e MEOWCALLER_KEY). Nunca há valor padrão no código: sem a variável, '' (falha fechada).
+ */
+export function resolveMeowcallerToken(env = process.env) {
+  return String(env?.MEOWCALLER_TOKEN || env?.MEOWCALLER_API_KEY || env?.MEOWCALLER_KEY || '').trim();
+}
+
+const MEOWCALLER_TOKEN = resolveMeowcallerToken();
 
 function getHeaders() {
   const headers = {

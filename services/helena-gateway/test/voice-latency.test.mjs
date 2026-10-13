@@ -8,8 +8,8 @@ import { settleCallGate } from '../src/integrations/inbound-call-gate.mjs';
 import { createVoiceAgentStore } from '../src/integrations/voice-agent-store.mjs';
 
 test('a blocked history write does not block GPT, Google or playback', async t => {
-  const env = Object.fromEntries(['MAX_VOICE_CONTEXT_URL','MAX_VOICE_CONTEXT_TOKEN','OPENAI_API_KEY','CALL_VOICE_STREAMING_ENABLED'].map(k=>[k,process.env[k]]));
-  Object.assign(process.env,{MAX_VOICE_CONTEXT_URL:'http://context',MAX_VOICE_CONTEXT_TOKEN:'fake',OPENAI_API_KEY:'fake',CALL_VOICE_STREAMING_ENABLED:'true'});
+  const env = Object.fromEntries(['MAX_VOICE_CONTEXT_URL','MAX_VOICE_CONTEXT_TOKEN','OPENAI_API_KEY','CALL_VOICE_STREAMING_ENABLED','MEOWCALLER_TOKEN'].map(k=>[k,process.env[k]]));
+  Object.assign(process.env,{MAX_VOICE_CONTEXT_URL:'http://context',MAX_VOICE_CONTEXT_TOKEN:'fake',OPENAI_API_KEY:'fake',CALL_VOICE_STREAMING_ENABLED:'true',MEOWCALLER_TOKEN:'fake'});
   const call = registerCallSession({callId:'nonblocking-history',profileKey:'vital_normal'});
   call.accessToken = 'fake-session';
   settleCallGate(call.callId, { allowed: true, reason: 'known_student' }); // ligação já atendida para aluno conhecido
