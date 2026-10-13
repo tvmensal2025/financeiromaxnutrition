@@ -22,7 +22,6 @@ e os parâmetros não vieram, o validador para com ErroDeContexto: nunca aprova 
 Os arquivos spec_copy_fatos.py (CHK-COPY-06, 07 e 08) usam as funções deste.
 """
 import re
-import unicodedata
 from decimal import Decimal, InvalidOperation
 
 from .. import texto as T
@@ -39,7 +38,11 @@ CHAVE_DO_SLOGAN = "slogan"  # nome do campo no pacote da empresa (organograma.ya
 _TOKEN = re.compile(r"[a-z0-9]+")
 _LEET_DE_NUMERO = {k: v for k, v in _ganho._LEET.items() if k.isdigit()}
 _SEPARADORES_DE_LETRA_SOLTA = re.compile(r"[ \t.\-_*]+")
-_SIGLA_COM_LETRAS_SOLTAS = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z0-9][ \t.\-_*]+){2,}[A-Za-z0-9](?![A-Za-z0-9])")  # C P F, C.P.F., C-P-F
+_DISFARCES_VISUAIS = str.maketrans({"ᅠ": "", "ᅟ": "", "ㅤ": "", "⠀": "", "ﾠ": "", "ø": "o", "օ": "o", "ɢ": "g", "ʀ": "r", "ɴ": "n"})
+
+
+def _dobrar_busca(texto: str) -> str:
+    return T.dobrar(texto).translate(_DISFARCES_VISUAIS).replace("@", "a")
 
 
 # ---------------------------------------------------------------------------------------
@@ -123,7 +126,7 @@ def _calcular_visoes(texto: str) -> list:
     como está; sem separadores dentro da palavra (g-a-r-a-n-t-i-d-o); com letras soltas juntadas (g a r a n t i d o); e
     com números no lugar de letras (g4rantido), lendo o 1 como i ou como l. Letras de outro alfabeto, largas ou invisíveis
     já são tratadas por T.dobrar."""
-    f = T.dobrar(texto)
+    f = _dobrar_busca(texto)
     plano = _TOKEN.findall(f)
     leituras = [
         plano,
@@ -146,12 +149,28 @@ def _termo_normal(termo: str) -> str:
 def achar(exe, texto: str, termos) -> list:
     """Os termos da lista que aparecem no texto: palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento."""
     vistas = visoes(exe, texto)
+    dobrado = _dobrar_busca(texto) if len(texto) <= 5000 else ""
     achados = []
     for termo in termos:
         t = _termo_normal(termo)
-        if t and any(f" {t} " in v for v in vistas):
+        separado = (dobrado and 3 <= len(t) <= 9 and " " not in t and
+                    re.search(r"(?<![a-z0-9])" + r"[ \t.\-_*]+".join(map(re.escape, t)) + r"(?![a-z0-9])",
+                              dobrado))
+        if t and (separado or any(f" {t} " in v for v in vistas)):
             achados.append(termo)
     return achados
+
+
+def termos_com_variantes_de_vinculo(termos) -> list:
+    """Formas imediatas dos termos de vínculo já proibidos pelo pacote."""
+    normalizados = {_termo_normal(t) for t in termos}
+    variantes = {
+        "emprego": ("empregos", "empregado", "empregada", "empregados", "empregadas"),
+        "contratacao": ("contratando", "contratar", "contratado", "contratada", "contratados", "contratadas"),
+        "vaga de trabalho": ("vagas de trabalho",),
+        "carteira assinada": ("CLT",),
+    }
+    return list(termos) + [v for chave, formas in variantes.items() if chave in normalizados for v in formas]
 
 
 def frase_do_termo(texto: str, termo: str) -> str:
@@ -243,7 +262,7 @@ def sem_termo_proibido_do_pacote(exe, parametros):
     termos = _termos_do_pacote(exe, parametros, "CHK-COPY-02")
     if not termos:
         return []
-    return conferir_lista(exe, parametros, "CHK-COPY-02", "TERMO_PROIBIDO_DO_PACOTE", termos,
+    return conferir_lista(exe, parametros, "CHK-COPY-02", "TERMO_PROIBIDO_DO_PACOTE", termos_com_variantes_de_vinculo(termos),
                           "O texto tem termo que o pacote da empresa proíbe ({termos}). Reescreva sem ele.")
 
 
@@ -352,34 +371,16 @@ def alternativa_curta_de_verdade(exe, parametros):
 # ---------------------------------------------------------------------------------------
 # CHK-COPY-10: não pedir dado sensível
 # ---------------------------------------------------------------------------------------
-def _sem_acento_mantendo_a_caixa(texto: str) -> str:
-    """Como T.dobrar, mas sem passar para minúsculas: serve para achar siglas só em maiúsculas (CPF, RG, CNH)."""
-    t = T.INVISIVEIS.sub("", unicodedata.normalize("NFKC", texto))
-    saida = []
-    for c in t:
-        minuscula = c.lower()
-        parecida = T.TABELA_PARECIDAS.get(ord(minuscula))  # letra de outro alfabeto que imita uma latina (С cirílico -> C)
-        if parecida is not None:
-            c = parecida.upper() if c != minuscula else parecida
-        saida.append(c)
-    return "".join(c for c in unicodedata.normalize("NFD", "".join(saida)) if unicodedata.category(c) != "Mn")
-
-
 @da_spec("CHK-COPY-10", "Sem pedir dado sensível no canal aberto",
          "O convite podia pedir CPF, senha, código de verificação ou foto de documento numa conversa aberta.",
          ["C-11", "M-13"])
 def sem_pedir_dado_sensivel(exe, parametros):
     id_ = "CHK-COPY-10"
     termos = lista_de_textos(parametros, "termos", id_)
-    siglas = lista_de_textos(parametros, "siglas_maiusculas_palavra_inteira", id_, vazia_ok=True)
-    comuns = [t for t in termos if t not in siglas]
+    lista_de_textos(parametros, "siglas_maiusculas_palavra_inteira", id_, vazia_ok=True)
     falhas = []
     for caminho, texto in campos(exe, lista_de_textos(parametros, "onde", id_)):
-        achados = achar(exe, texto, comuns)
-        limpo = _sem_acento_mantendo_a_caixa(texto)
-        palavras = set(re.findall(r"[A-Za-z0-9]+", limpo))
-        palavras |= {_SEPARADORES_DE_LETRA_SOLTA.sub("", m.group(0)) for m in _SIGLA_COM_LETRAS_SOLTAS.finditer(limpo)}
-        achados += [s for s in siglas if s in palavras]  # sigla: só em maiúsculas e como palavra inteira (também separada por espaço ou ponto)
+        achados = achar(exe, texto, termos)
         if achados:
             citados = ", ".join(f"'{a}'" for a in achados[:5])
             falhas.append(Falha(id_, "DADO_SENSIVEL_PEDIDO", caminho,

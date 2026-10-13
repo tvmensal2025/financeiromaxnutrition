@@ -18,6 +18,7 @@ from .. import texto as T
 from ..registro import checagem
 from ..resultado import Falha
 from . import spec_treino_base as B
+from . import spec_copy as C
 
 
 def _procurar(exe, id_, motivo, instrucao, termos, simbolos=(), slogan=None):
@@ -25,7 +26,9 @@ def _procurar(exe, id_, motivo, instrucao, termos, simbolos=(), slogan=None):
     falhas = []
     for item in B.itens_de_texto(exe):
         texto = B.sem_o_slogan(item.texto, slogan)
-        achados = B.termos_no_texto(texto, termos) + B.simbolos_no_texto(texto, simbolos)
+        achados = C.achar(exe, texto, termos) + B.simbolos_no_texto(texto, simbolos)
+        if "R$" in simbolos and re.search(r"(?<!\w)R\s+\$", texto, re.I):
+            achados.append("R$")
         if achados:
             lista = ", ".join(f"'{a}'" for a in achados[:5])
             falhas.append(Falha(id_, motivo, item.caminho, f"O texto tem {lista}. {instrucao}", T.cortar(item.texto)))
@@ -81,7 +84,8 @@ def sem_termo_do_pacote(exe):
         if not isinstance(termos, list) or not all(isinstance(t, str) and t.strip() for t in termos):
             raise B.ErroDeParametro(f"A lista '{campo}' do pacote da empresa deveria ser uma lista de textos (veio {termos!r}).", "LISTA_DO_PACOTE_INVALIDA")
         return _procurar(exe, ID02, "TERMO_PROIBIDO_PELO_PACOTE",
-                         "O pacote da empresa proíbe este termo em qualquer texto do roteiro (mesmo negado). Escreva de outro jeito.", termos)
+                         "O pacote da empresa proíbe este termo em qualquer texto do roteiro (mesmo negado). Escreva de outro jeito.",
+                         C.termos_com_variantes_de_vinculo(termos))
     return B.rodar(exe, ID02, corpo)
 
 

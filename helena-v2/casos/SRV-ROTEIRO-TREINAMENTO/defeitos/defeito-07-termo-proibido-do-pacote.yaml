@@ -121,5 +121,5 @@ resposta:
     - 'Canal de dúvidas: o pacote não traz um canal confirmado, então o roteiro não leva nenhum. Diga qual usar.'
     - Enviar o roteiro às pessoas é ação sua, depois do parecer aprovado.
     limites:
-    - 'Vaga de trabalho, horas aprovadas e pagamento: ficam fora, porque o pedido não quer nada sobre dinheiro.'
+    - 'Vaga de trabalho: fica fora deste roteiro.'
     - 'Outras atividades do dia a dia: cada uma pede o seu roteiro; este cobre só o lanche na cozinha.'

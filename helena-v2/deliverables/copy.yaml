@@ -90,7 +90,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["renda", "rendimento", "rendimentos", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "ganhando", "lucro", "lucros", "lucrar", "remuneração", "remunerado", "remunerada", "salário", "salários", "comissão", "comissões", "dinheiro", "reais", "dólar", "dólares", "pagamento", "pagamentos", "paga", "pagam", "pagar", "bônus", "por hora", "valor por hora"]
+      termos: ["renda", "rendimento", "rendimentos", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "ganhando", "lucro", "lucros", "lucrar", "remuneração", "remunerado", "remunerada", "salário", "salários", "comissão", "comissões", "dinheiro", "reais", "dólar", "dólares", "pagamento", "pagamentos", "paga", "pagam", "pagar", "bônus", "por hora", "valor por hora", "cachê", "contos", "mil por mês", "vale ouro", "receba por", "ajuda de custo"]
       simbolos: ["R$", "US$", "€"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento; símbolo em qualquer posição"
@@ -111,7 +111,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "com certeza", "sem risco", "risco zero", "resultado certo", "resultado garantido", "vaga garantida", "vagas limitadas", "últimas vagas", "poucas vagas", "só hoje", "corra", "última chance", "oportunidade única", "milagre"]
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "garanto", "garantir", "com certeza", "sem risco", "sem riscos", "risco zero", "resultado certo", "resultado garantido", "vaga garantida", "vagas limitadas", "vaga limitada", "vaga é limitada", "últimas vagas", "última vaga", "poucas vagas", "só hoje", "apenas hoje", "corra", "corram", "última chance", "chance única", "não perca essa chance", "oportunidade única", "milagre", "milagres"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
       nao_confere: "pressão em outras palavras ('não fique de fora'): é da rubrica (RUB-COPY-04)"
@@ -121,7 +121,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "prescrição", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratar doenças", "cura", "curar", "cure", "emagrecer", "emagreça", "perder peso", "perca peso"]
+      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "diagnosticado", "prescrição", "prescrições", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratamento da ansiedade", "tratar doenças", "cura", "curar", "cure", "curado", "emagrecer", "emagreça", "emagrece", "emagrecimento", "perder peso", "perca peso", "perda de peso"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
       nao_confere: "conselho de saúde individual em outras palavras: é da rubrica (RUB-COPY-05)"
@@ -132,7 +132,7 @@ checagens_codigo:
     fase: "fase 1"
     parametros:
       so_empresa: BIZ-004
-      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
+      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "plataforma fitness", "app de treino", "plano alimentar", "kcal", "macros", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
       nao_confere: "a eLiving™ descrita como outra coisa que não inteligência pessoal de evolução: é da rubrica (RUB-COPY-07)"
@@ -142,7 +142,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
+      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io, .ee, .gl, .ly, .me, .xyz, .ai, .uk)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
       fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>"]
       sem_canal_confirmado: "o texto não leva canal e o item de o_que_precisa_aprovacao diz qual canal falta"
@@ -183,10 +183,10 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["CPF", "RG", "CNH", "senha", "código de verificação", "número do cartão", "cartão de crédito", "dados bancários", "conta bancária", "foto do documento", "documento com foto", "exame", "exames", "laudo"]
+      termos: ["CPF", "RG", "CNH", "senha", "código de verificação", "código por SMS", "código que chegar por SMS", "número do cartão", "número do seu cartão", "cartão de crédito", "dados bancários", "conta bancária", "foto do documento", "foto do seu documento", "foto da sua identidade", "documento com foto", "exame", "exames", "laudo", "laudos"]
       siglas_maiusculas_palavra_inteira: ["CPF", "RG", "CNH"]
       onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
-      como_compara: "palavras sem diferenciar maiúscula nem acento; siglas só em maiúsculas e como palavra inteira"
+      como_compara: "palavras sem diferenciar maiúscula nem acento; siglas em qualquer caixa e como palavra inteira"
 
 rubrica:
   - id: RUB-COPY-01

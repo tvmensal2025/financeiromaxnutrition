@@ -183,10 +183,15 @@ def sem_contato_inventado(exe, parametros):
 _NUMERO = re.compile(r"\d+(?:[.,]\d+)*")
 _DATA = re.compile(r"(?<!\d)\d{1,2}/\d{1,2}/\d{4}(?!\d)")
 _HORA = re.compile(r"(?<!\d)\d{1,2}:\d{2}(?!\d)")
-_CODIGO_DE_REGISTRO = re.compile(r"\b[A-Za-z]{2,}(?:-[A-Za-z]+)*-\d+\b")  # BIZ-003, DEC-024, CARD-TESTE-COPY-01: números de código, não de quantidade
+_CODIGO_DE_REGISTRO = re.compile(r"\b[A-Za-z]+(?:-[A-Za-z]+)*-\d+\b")  # C-11 também é código, não quantidade
 MAX_CARACTERES_DO_NUMERO = 40
 # Escalas da língua que a especificação NÃO define (ela só diz 'mil'): sem elas, '10 milhões' valeria o mesmo que '10'.
-ESCALAS_DA_LINGUA = {"milhao": Decimal(10) ** 6, "milhoes": Decimal(10) ** 6, "bilhao": Decimal(10) ** 9, "bilhoes": Decimal(10) ** 9}
+ESCALAS_DA_LINGUA = {
+    "k": Decimal(10) ** 3, "milhares": Decimal(10) ** 3,
+    "milhao": Decimal(10) ** 6, "milhoes": Decimal(10) ** 6,
+    "bilhao": Decimal(10) ** 9, "bilhoes": Decimal(10) ** 9,
+    "trilhao": Decimal(10) ** 12, "trilhoes": Decimal(10) ** 12,
+}
 
 
 def valor_do_numero(literal: str):
@@ -199,6 +204,8 @@ def valor_do_numero(literal: str):
             inteiro, _, decimal = literal.rpartition(",")
             if "," in inteiro:
                 return None
+            if len(decimal) == 3 and "." not in inteiro and inteiro and not inteiro.startswith("0"):
+                return None  # 10,000 é ambíguo entre vírgula decimal e milhar; não autentica nenhum valor
             if "." in inteiro:
                 grupos = inteiro.split(".")
                 if not (len(grupos[0]) <= 3 and all(len(g) == 3 for g in grupos[1:])):
@@ -228,7 +235,7 @@ def _numeros_de(f: str, escalas: dict) -> list:
     """[(como está escrito, valor ou None)] dos números de um texto já em minúsculas, com 'mil' (e milhão...) multiplicando."""
     palavras = "|".join(re.escape(p) for p in sorted(escalas, key=len, reverse=True))
     saida = []
-    for m in re.finditer(r"(\d+(?:[.,]\d+)*)(?:\s+(" + palavras + r")\b)?", f):
+    for m in re.finditer(r"(\d+(?:[.,]\d+)*)(?:[\s-]*(" + palavras + r")\b)?", f):
         valor = valor_do_numero(m.group(1))
         if valor is not None and m.group(2):
             valor *= escalas[m.group(2)]
@@ -252,6 +259,35 @@ def _numeros_da_fonte(pagina, escalas: dict, com_datas: bool):
     return {v for _, v in _numeros_de(T.dobrar(n), escalas) if v is not None}, datas
 
 
+_UNIDADE = re.compile(r"\b(\d{1,12}(?:[.,]\d{1,12}){0,3})\s*(pessoas?|dias?|horas?|semanas?|minutos?|meses|%|h\b)")
+_POR_EXTENSO = re.compile(r"\b(?:quinhentas|quinhentos|centenas|dez mil|duas semanas)\b")
+
+
+def quantidade_sem_contexto(texto: str, fontes_texto: str) -> list:
+    """Quantidades cuja unidade/escala não aparece junto da quantidade nas fontes."""
+    t, fontes = T.dobrar(texto), T.dobrar(fontes_texto)
+    soltas = []
+    unidades_da_fonte = {
+        (valor_do_numero(m.group(1)), m.group(2))
+        for m in _UNIDADE.finditer(fontes)
+    }
+    for m in _UNIDADE.finditer(t):
+        unidade = m.group(0)
+        valor = valor_do_numero(m.group(1))
+        if valor is None or (valor, m.group(2)) not in unidades_da_fonte:
+            soltas.append(unidade)
+    for m in _POR_EXTENSO.finditer(t):
+        palavra = m.group(0)
+        if palavra not in fontes:
+            soltas.append(palavra)
+    for m in re.finditer(r"\bvale\s+(\d+(?:[.,]\d+)*)\b", t):
+        if not re.search(r"\bvale\s+" + re.escape(m.group(1)) + r"\b", fontes):
+            soltas.append("vale " + m.group(1))
+    if re.search(r"\b\d{1,2}/\d{1,2}\b", t) and not re.search(r"\b\d{1,2}/\d{1,2}\b", fontes):
+        soltas.append("data parcial")
+    return soltas
+
+
 @da_spec("CHK-COPY-07", "Nenhum número solto",
          "O convite podia trazer número inventado (horas, pessoas, preço, prazo) que não vem do pedido nem do pacote, até a conta do Caio.",
          ["C-9", "C-11"])
@@ -268,6 +304,7 @@ def sem_numero_solto(exe, parametros):
         valores, datas = _numeros_da_fonte(pagina, escalas, ignora_datas)
         aceitos |= valores
         datas_aceitas |= datas
+    texto_das_fontes = " ".join(_texto_da_fonte(p) for p in fontes.values())
     falhas = []
     for caminho, texto in campos(exe, lista_de_textos(parametros, "onde", id_)):
         n = T.normalizar(texto)
@@ -285,6 +322,7 @@ def sem_numero_solto(exe, parametros):
         for escrito, valor in _numeros_de(T.dobrar(n), escalas):
             if valor is None or valor not in aceitos:
                 soltos.append(escrito)
+        soltos += quantidade_sem_contexto(n, texto_das_fontes)
         if soltos:
             lista = ", ".join(dict.fromkeys(soltos))
             falhas.append(Falha(id_, "NUMERO_SOLTO", caminho,
@@ -381,6 +419,8 @@ def afirmacoes_com_apoio(exe, parametros):
             falhar("FRASE_FORA_DO_TEXTO", base + ".frase",
                    "A frase da tabela não aparece igual na versão final nem na alternativa curta. Copie a frase do texto, palavra por palavra.",
                    frase if isinstance(frase, str) else "")
+        elif re.fullmatch(r"(?i)(?:oi|ola|bom dia|boa tarde|boa noite)[.!?\s]*", T.dobrar(frase)):
+            falhar("AFIRMACAO_TRIVIAL", base + ".frase", "A frase da tabela precisa trazer uma afirmação verificável do convite.", frase)
         apoio = linha.get("apoio")
         if not isinstance(apoio, dict) or not isinstance(apoio.get("trecho_original"), str):
             falhar("APOIO_AUSENTE", base + ".apoio", "A afirmação precisa de um apoio: o trecho literal do pedido ou do pacote ('trecho_original' e 'fonte_importada_id').")
@@ -403,4 +443,9 @@ def afirmacoes_com_apoio(exe, parametros):
             elif motivo:
                 falhar(motivo, base + ".apoio",
                        f"O apoio não é trecho literal da fonte {fonte_id}. Copie do pedido ou do pacote, igual, sem trocar nem juntar pedaços.", trecho)
+            elif any(isinstance(outra, dict) and isinstance(outra.get("apoio"), dict)
+                     and outra["apoio"].get("trecho_original") == trecho
+                     for j, outra in enumerate(linhas) if j != i):
+                falhar("APOIO_DE_OUTRA_AFIRMACAO", base + ".apoio",
+                       "O mesmo trecho foi usado como apoio de outra afirmação. Use a fonte que trata desta afirmação.", trecho)
     return falhas

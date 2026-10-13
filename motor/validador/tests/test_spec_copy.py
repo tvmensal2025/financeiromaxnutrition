@@ -207,8 +207,8 @@ def test_so_vale_a_palavra_inteira(frase):
     assert not [f for f in rel.recusas if f.id in ("CHK-COPY-03", "CHK-COPY-04", "CHK-COPY-10")], frase
 
 
-def test_sigla_so_vale_em_maiuscula_e_como_palavra_inteira():
-    for frase in ("Seu cpf.", "Uma foto do RGB.", "A CNHx é outra coisa."):
+def test_sigla_so_vale_como_palavra_inteira():
+    for frase in ("Uma foto do RGB.", "A CNHx é outra coisa."):
         assert not pegou(com_frase(frase), "CHK-COPY-10"), frase
 
 

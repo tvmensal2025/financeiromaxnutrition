@@ -382,7 +382,7 @@ def test_04_apostrofo_dentro_de_palavra_nao_e_aspa():
     assert not falhas("CHK-TREINO-04", mudar)
 
 
-def test_04_olha_sinal_erro_como_evitar_e_checklist_mas_nao_a_preparacao():
+def test_04_olha_sinal_erro_como_evitar_checklist_e_preparacao():
     def sinal(r, c):
         passo(r, "P4")["sinal"] = 'A tela "Painel secreto" abre.'
     def como_evitar(r, c):
@@ -393,9 +393,8 @@ def test_04_olha_sinal_erro_como_evitar_e_checklist_mas_nao_a_preparacao():
         entrega(r, "checklist_final")[0] = 'P1: você tocou em "Painel secreto"?'
     def preparacao(r, c):
         entrega(r, "preparacao")[0] = 'Abra o "Painel secreto".'
-    for mudar in (sinal, como_evitar, erro_, checklist):
+    for mudar in (sinal, como_evitar, erro_, checklist, preparacao):
         assert motivos("CHK-TREINO-04", mudar) == ["NOME_ENTRE_ASPAS_SEM_ORIGEM"], mudar.__name__
-    assert not falhas("CHK-TREINO-04", preparacao)          # a lista `onde` do YAML não inclui a preparação
 
 
 def test_04_onde_procurar_e_quais_aspas_valem_vem_do_yaml():

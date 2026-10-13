@@ -11,6 +11,7 @@ CHK-TREINO-05 (`ids_dos_erros`): continuam escritos num lugar só.
 Como mudar: mude o YAML (limite, expressão, padrão de id). O que o código não confere (se o passo é mesmo algo que um leigo faz
 sozinho, se a pergunta é clara) é da rubrica (RUB-TREINO-01 e 07).
 """
+import re
 from .. import texto as T
 from ..registro import checagem
 from ..resultado import Falha
@@ -63,7 +64,14 @@ def passos_com_uma_acao(exe):
                 falhas.append(Falha(ID03, "PASSO_COM_MAIS_DE_UMA_FRASE", onde,
                                     "O passo deve ser uma frase só, com um único ponto final, de exclamação ou de interrogação, no fim.", T.cortar(texto)))
             achadas = B.termos_no_texto(texto, expressoes)
-            if achadas:
+            duas_ordens = re.search(
+                r"(?:,|;|\be\b|\bdepois\b)\s*(?:na sequencia\s+)?"
+                r"(?:ajuste|toque|apoie|grave|assista|envie|avise|abra|feche|segure|coloque|verifique|confira|mova)\b",
+                T.dobrar(texto),
+            )
+            if duas_ordens and not achadas:
+                achadas = [duas_ordens.group(0)]
+            if achadas and B.uma_so_frase(texto):
                 falhas.append(Falha(ID03, "DUAS_ACOES_NO_PASSO", onde,
                                     f"O passo junta duas ações ('{achadas[0]}'). Faça um passo para cada ação.", T.cortar(texto)))
         return falhas

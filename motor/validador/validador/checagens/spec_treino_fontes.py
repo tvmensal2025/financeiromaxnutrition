@@ -19,6 +19,7 @@ from .. import texto as T
 from ..registro import checagem
 from ..resultado import Falha
 from . import spec_treino_base as B
+from . import spec_copy_fatos as C
 
 ID04, ID05, ID07, ID08 = "CHK-TREINO-04", "CHK-TREINO-05", "CHK-TREINO-07", "CHK-TREINO-08"
 _PONTAS = " .,;:!?…"
@@ -62,6 +63,13 @@ def aspas_com_origem(exe):
         regexes = _regexes_de_aspas(p)
         onde = _onde_procurar(p)
         fontes = [B.normal(B.texto_da_fonte(f)) for f in B.fontes_aceitas(exe, B.lista_de_textos(p, "fontes_aceitas"))]
+        # A normalização das páginas retira as aspas. O contexto "botão X" da
+        # fonte ainda permite conferir o nome inteiro, sem aceitar só "X".
+        nomes_nas_fontes = set()
+        for fonte in fontes:
+            for m in re.finditer(r"\bbotao\s+", fonte):
+                trecho = re.split(r"[.;!?]|\s+e\b", fonte[m.end():], maxsplit=1)[0]
+                nomes_nas_fontes.add(trecho.strip())
         falhas, vistos = [], set()
         for secao, coluna in onde:
             for caminho, texto in B.celulas(exe, secao, coluna):
@@ -71,10 +79,18 @@ def aspas_com_origem(exe):
                         if not citado or (caminho, citado) in vistos:
                             continue
                         vistos.add((caminho, citado))
-                        if not any(B.tem_com_limite(f, citado) for f in fontes):
+                        e_nome_de_botao = bool(re.search(r"\bbot[aã]o\s*$", texto[:m.start()], re.I))
+                        truncado = e_nome_de_botao and citado not in nomes_nas_fontes
+                        if truncado or not any(B.tem_com_limite(f, citado) for f in fontes):
                             falhas.append(Falha(ID04, "NOME_ENTRE_ASPAS_SEM_ORIGEM", caminho,
                                                 f"O texto entre aspas '{m.group(1).strip()}' não aparece igual no pedido, no pacote nem em fonte importada. "
                                                 "Nome de tela, botão ou regra só entra se a fonte o traz.", T.cortar(texto)))
+                for m in re.finditer(r"\bbot[aã]o\s+([A-ZÀ-ÖØ-Þ][^.,;!?\n]+)", texto):
+                    nome = B.normal(re.split(r"\s+e\b", m.group(1), maxsplit=1)[0].strip())
+                    if nome not in nomes_nas_fontes and (caminho, nome) not in vistos:
+                        vistos.add((caminho, nome))
+                        falhas.append(Falha(ID04, "NOME_DE_BOTAO_SEM_ORIGEM", caminho,
+                                            f"O botão '{nome}' não consta das fontes do pacote.", T.cortar(texto)))
         return falhas
     return B.rodar(exe, ID04, corpo)
 
@@ -153,7 +169,23 @@ def apoio_literal(exe):
                 falhas.append(Falha(ID05, "ERRO_SEM_APOIO", f"{cam}.{B.COL_APOIO}",
                                     "Todo erro precisa de um apoio: o trecho da fonte do pacote que diz a regra.", T.cortar(str(linha.get("erro", "")))))
             else:
-                falhas += _confere_apoio(linha[B.COL_APOIO], f"{cam}.{B.COL_APOIO}", fontes_ok, exe.fontes, minimo, frase_inteira)
+                falhas_do_apoio = _confere_apoio(linha[B.COL_APOIO], f"{cam}.{B.COL_APOIO}", fontes_ok, exe.fontes, minimo, frase_inteira)
+                falhas += falhas_do_apoio
+                apoio = linha[B.COL_APOIO]
+                afirmacao = linha.get("o_que_acontece")
+                if not falhas_do_apoio and isinstance(apoio, dict) and isinstance(afirmacao, str):
+                    original = B.normal(apoio.get("trecho_original", ""))
+                    atual = B.normal(afirmacao)
+                    negacao = re.compile(r"\b(?:nao|nunca|jamais)\b")
+                    reprovacao = re.compile(r"\breprova\w*\b")
+                    inverte = (bool(negacao.search(atual)) != bool(negacao.search(original))
+                               and bool(reprovacao.search(atual)) and bool(reprovacao.search(original)))
+                    sancao_nova = (re.search(r"\bbloquead\w*\b", atual)
+                                   and not re.search(r"\bbloquead\w*\b", original))
+                    if inverte or sancao_nova:
+                        falhas.append(Falha(ID05, "REGRA_NAO_SUSTENTADA_PELO_APOIO", f"{cam}.o_que_acontece",
+                                            "A consequência escrita contradiz ou amplia a regra citada. Reescreva conforme o apoio.",
+                                            T.cortar(afirmacao)))
         for i, linha in enumerate(B.linhas_da_secao(exe, B.SECAO_PASSOS)):
             if isinstance(linha, dict) and linha.get(B.COL_APOIO) is not None:  # o apoio do passo é opcional; se existe, tem de valer
                 falhas += _confere_apoio(linha[B.COL_APOIO], f"entrega.{B.SECAO_PASSOS}[{i}].{B.COL_APOIO}", fontes_ok, exe.fontes, minimo, frase_inteira)
@@ -177,6 +209,7 @@ def sem_numero_solto(exe):
         aceitas = B.fontes_aceitas(exe, B.lista_de_textos(p, "fontes_aceitas"))
         padroes = _padroes_de_ids(exe)
         valores = B.valores_das_fontes(aceitas)
+        texto_das_fontes = " ".join(B.texto_da_fonte(f) for f in aceitas)
         do_pedido = B.normal(" ".join(B.texto_da_fonte(f) for f in aceitas if f.leitura_id.startswith(B.PREFIXO_DO_PEDIDO)))
         falhas = []
         for item in B.itens_de_texto(exe):
@@ -188,10 +221,15 @@ def sem_numero_solto(exe):
                         falhas.append(Falha(ID07, "DATA_OU_HORA_SOLTA", item.caminho,
                                             f"A data ou hora '{m.group(0)}' não está no pedido original. Tire ou peça a fonte.", T.cortar(item.texto)))
                 texto = rx.sub(" ", texto)
+            tem_numero_solto = False
             for possiveis, escrito in B.valores_no_texto(texto):
                 if not (possiveis & valores):
+                    tem_numero_solto = True
                     falhas.append(Falha(ID07, "NUMERO_SOLTO", item.caminho,
                                         f"O número '{escrito}' não aparece no pedido, no pacote nem em fonte importada. Use só números que a fonte traz.", T.cortar(item.texto)))
+            for escrito in ([] if tem_numero_solto else C.quantidade_sem_contexto(texto, texto_das_fontes)):
+                falhas.append(Falha(ID07, "NUMERO_SEM_UNIDADE_NA_FONTE", item.caminho,
+                                    f"A quantidade '{escrito}' não aparece com esse sentido nas fontes.", T.cortar(item.texto)))
         return falhas
     return B.rodar(exe, ID07, corpo)
 
