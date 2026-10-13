@@ -15,6 +15,14 @@ Para quem mantém (você ou outro agente). Uma página. Regra de ouro: **a regra
 | Uma checagem do portão 1 | o YAML da entrega (números) e `motor/validador/validador/checagens/spec_<tipo>*.py` (lógica) | testes do validador | o quadro de cobertura do README se atualiza com `python -m spec_helena --atualizar-readme` |
 | Ideias e anotações de aula | `docs/ideias/AAAA-MM-DD-assunto.md` | nada | não mexe em nada: é só um lugar para guardar |
 
+## Personalização por revisões
+
+A tela **Configuração e revisões** (`/configuracoes-v2`, fundador e flag `VITE_HELENA_V2_HABILITADA=true`) edita os documentos reais de agentes, organograma, serviços, modelos, roteiros e entregas. Clone uma revisão, altere o rascunho, salve, solicite validação e só então ative. O worker técnico processa a fila; o navegador não aprova sua própria configuração. Consulte `motor/orquestrador/README.md` para os comandos locais.
+
+Cada novo card do motor exige uma revisão ativa e conserva seu identificador. Para inativar a revisão ativa, primeiro ative outra; a base técnica é preservada. Revisões inativadas continuam no histórico e cards em andamento conservam sua própria revisão. Retirar um serviço exige ajustar também as dependências, fichas e roteiros afetados: a validação recusa referências quebradas. Duas edições simultâneas não se sobrescrevem; a segunda precisa atualizar a versão.
+
+Identidades, schemas de validação, permissões e a máquina de estados exigem mudança técnica com testes e migração. O painel não elimina essa necessidade. Os bundles operacionais não incluem os exemplos dos testes. O motor desta etapa continua sendo uma prova local com opt-in explícito para respostas simuladas; ainda não é um executor conectado à produção.
+
 ## Os comandos (todos locais, nenhum toca no banco real, no servidor ou na publicação)
 
 ```sh
