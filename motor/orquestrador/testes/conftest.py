@@ -10,7 +10,7 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from sqlalchemy.engine import URL
 
 RAIZ = Path(__file__).resolve().parents[3]
-for parte in ('orquestrador', 'executor', 'validador'):
+for parte in ('orquestrador', 'executor', 'validador', 'ferramentas'):
     sys.path.insert(0, str(RAIZ / 'motor' / parte))
 ARQUIVO = RAIZ / 'supabase' / 'migrations-v2' / 'testes' / 'conftest.py'
 spec = importlib.util.spec_from_file_location('suporte_banco_v2', ARQUIVO)

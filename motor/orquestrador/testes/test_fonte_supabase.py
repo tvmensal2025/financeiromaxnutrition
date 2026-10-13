@@ -181,3 +181,14 @@ def test_empresa_do_card_precisa_pertencer_ao_plano():
 def test_estado_e_revisao_documental_bloqueiam_reuso(opcao):
     with pytest.raises(FonteSupabaseErro):
         FonteSupabase(transporte=Transporte(**opcao)).carregar_tarefa('TASK-1', _plano())
+
+
+def test_consulta_sql_aceita_http_201_observado_na_api_real():
+    transporte = Transporte()
+    def resposta_201(request, timeout):
+        resposta = transporte(request, timeout)
+        if request.get_method() == 'POST':
+            resposta.status = 201
+        return resposta
+    captura = FonteSupabase(transporte=resposta_201).carregar_tarefa('TASK-1', _plano())
+    assert captura['tarefa']['task_id'] == 'TASK-1'

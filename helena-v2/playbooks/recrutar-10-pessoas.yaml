@@ -42,8 +42,10 @@ etapas:
   - id: E1
     servico: SRV-CALCULO      # conta e cenários (Caio)
     objetivo: >-
-      Conta da receita com 10 pessoas (horas por semana x US$ 0,50 por hora aprovada, paga pela
-      plataforma), em três cenários, e quanto cada participante recebe.
+      Conta da receita com 10 pessoas, em três cenários, e quanto cada participante recebe,
+      usando apenas horas, taxa aplicável, beneficiário e pagador confirmados com origem.
+      A referência de US$ 0,50 não é tarifa contratada: se faltar comprovação, registrar
+      os dados faltantes; cenários com premissas só depois de confirmação do Fundador.
     entradas: [pesquisa_indicacao_equipe, condicoes_participante]
     depende_de: []
 

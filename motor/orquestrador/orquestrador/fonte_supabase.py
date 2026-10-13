@@ -88,7 +88,8 @@ class FonteSupabase:
                           method='POST' if data is not None else 'GET')
         try:
             with self._transporte(request, min(restante, 8)) as response:
-                if response.status != 200:
+                aceitos = (200, 201) if body is not None else (200,)
+                if response.status not in aceitos:
                     raise FonteSupabaseErro(f'Management API respondeu HTTP {response.status}')
                 raw = response.read(_MAX_BODY + 1)
         except FonteSupabaseErro:

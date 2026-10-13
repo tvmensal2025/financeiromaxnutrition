@@ -153,7 +153,7 @@ jobs:
           --health-retries 12
     env:
       HELENA_V2_TESTE_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
-      PYTHONPATH: .:../executor:../validador
+      PYTHONPATH: .:../executor:../validador:../ferramentas
     defaults:
       run:
         working-directory: motor/orquestrador
