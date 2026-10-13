@@ -18,17 +18,31 @@ export interface ClienteCardsV2 {
 export type CardV2 = {
   id: string; titulo: string; empresa: string | null; estado: string;
   dono: string | null; prazo: string; criado_em: string;
+  versao?: number; motivo?: string; pedido_grande?: boolean;
 };
 export type EtapaV2 = {
   id: string; codigo: string; nome: string; estado: string; autor: string;
   dono: string | null; prazo_ate: string | null; revisores: string[];
   versao: number; portao1_ok: boolean; entrega_fresca: boolean;
+  motivo?: string; revisor?: string; julgadora?: boolean;
 };
+export type AcaoExternaV2 = { id: string; codigo: string; etapa_codigo: string; estado: string;
+  tipo: string; versao: number; tem_ferramenta: boolean };
 export type EntregaV2 = {
   id: number; etapa_id: string; versao: number; portao1: string | null;
   conteudo: unknown; criada_em: string;
 };
-export type DetalheCardV2 = { etapas: EtapaV2[]; entregas: EntregaV2[] };
+export type ResumoOrdemCardV2 = { pedido_original: string | null; como_e_o_pronto: unknown;
+  nao_pode: unknown; fontes_que_pode_ler: unknown };
+export type DetalheCardV2 = { etapas: EtapaV2[]; entregas: EntregaV2[]; acoes?: AcaoExternaV2[];
+  ordem?: ResumoOrdemCardV2 | null };
+export type EventoFundadorV2 = { maquina: 'card' | 'etapa' | 'acao_externa'; alvo: string;
+  evento: 'RESPONDER' | 'APROVAR' | 'PEDIR_AJUSTE' | 'CANCELAR'; parametros: Record<string, string>;
+  versaoVista: number | null; toque: string };
+export type HistoricoToqueFundadorV2 = { historico_id: number; resultado: string; momento: string;
+  maquina: EventoFundadorV2['maquina']; alvo_id: string; evento: EventoFundadorV2['evento'] };
+export type PerguntaEtapaFundadorV2 = { card_id: string; etapa_id: string; versao: number; chave: number;
+  historico_id: number; pergunta: string; opcoes: { letra: 'A' | 'B' | 'C'; texto: string; consequencia: string }[] };
 export type PedidoPublicacao = { id?: string | number; pedido_id?: string | number; pedido_em: string; dia_brasilia: string };
 export type SituacaoPublicacao = { fundador: boolean; dia_brasilia: string; pedido: PedidoPublicacao | null };
 export type SolicitacaoCardReal = {
@@ -50,6 +64,9 @@ export interface RepositorioCardsV2 {
   consultarSolicitacaoPorChave(chaveIdempotencia: string): Promise<ResultadoSolicitacaoCardReal | null>;
   listarSolicitacoesReais(): Promise<ResumoSolicitacaoCardReal[]>;
   consultarSolicitacaoPorTarefa(tarefaId: string): Promise<ResumoSolicitacaoCardReal | null>;
+  aplicarEventoFundador(evento: EventoFundadorV2): Promise<{ resultado: string }>;
+  consultarToqueFundador(cardId: string, toque: string): Promise<HistoricoToqueFundadorV2 | null>;
+  lerPerguntaEtapaFundador(etapaId: string): Promise<PerguntaEtapaFundadorV2 | null>;
 }
 async function ler<T>(consulta: PromiseLike<RespostaBancoV2>): Promise<T> {
   const resultado = await consulta;
@@ -61,19 +78,22 @@ export function criarRepositorioCardsV2(cliente: ClienteCardsV2): RepositorioCar
   const banco = cliente.schema('helena_v2');
   return {
     listar: () => ler<CardV2[]>(banco.from('card')
-      .select('id,titulo,empresa,estado,dono,prazo,criado_em').order('criado_em', { ascending: false })),
+      .select('id,titulo,empresa,estado,dono,prazo,criado_em,versao,motivo,pedido_grande').order('criado_em', { ascending: false })),
     async detalhar(cardId) {
-      const [etapas, entregas] = await Promise.all([
+      const [etapas, entregas, acoes, ordem] = await Promise.all([
         ler<EtapaV2[]>(banco.from('etapa')
-          .select('id,codigo,nome,estado,autor,dono,prazo_ate,revisores,versao,portao1_ok,entrega_fresca')
+          .select('id,codigo,nome,estado,autor,dono,prazo_ate,revisores,versao,portao1_ok,entrega_fresca,motivo,revisor,julgadora')
           .eq('card_id', cardId).eq('atual', true).order('ordem')),
         ler<EntregaV2[]>(banco.from('entrega').select('id,etapa_id,versao,portao1,conteudo,criada_em')
           .eq('card_id', cardId).eq('portao1', 'PASSOU').order('id')),
+        ler<AcaoExternaV2[]>(banco.rpc('listar_acoes_card', { p_card_id: cardId })),
+        ler<ResumoOrdemCardV2>(banco.from('card').select('pedido_original:ordem_de_servico->>pedido_original,como_e_o_pronto:ordem_de_servico->como_e_o_pronto,nao_pode:ordem_de_servico->nao_pode,fontes_que_pode_ler:ordem_de_servico->fontes_que_pode_ler')
+          .eq('id', cardId).maybeSingle()),
       ]);
       const aprovadas = new Map(etapas.filter(e =>
         ['APROVADA', 'PRONTA'].includes(e.estado) && e.portao1_ok && e.entrega_fresca,
       ).map(e => [e.id, e.versao]));
-      return { etapas, entregas: entregas.filter(e => aprovadas.get(e.etapa_id) === e.versao) };
+      return { etapas, entregas: entregas.filter(e => aprovadas.get(e.etapa_id) === e.versao), acoes, ordem };
     },
     situacaoPublicacao: () => ler<SituacaoPublicacao>(banco.rpc('situacao_publicacao')),
     async pedirPublicacao() {
@@ -118,6 +138,28 @@ export function criarRepositorioCardsV2(cliente: ClienteCardsV2): RepositorioCar
         throw new Error('O banco não devolveu a solicitação esperada.');
       }
       return data as ResumoSolicitacaoCardReal;
+    },
+    async aplicarEventoFundador(evento) {
+      const { data, error } = await banco.rpc('aplicar_evento', {
+        p_maquina: evento.maquina, p_alvo: evento.alvo, p_papel: 'FUNDADOR', p_evento: evento.evento,
+        p_parametros: evento.parametros, p_ator: null, p_chave: null, p_versao_vista: evento.versaoVista,
+        p_conteudo: null, p_toque: evento.toque, p_automaticos: true,
+      });
+      if (error) throw new ErroBancoCardsV2(error.message || 'O banco recusou esta ação.', error.code);
+      if (!data || typeof data !== 'object' || typeof (data as { resultado?: unknown }).resultado !== 'string') {
+        throw new Error('O banco não confirmou o estado desta ação.');
+      }
+      return data as { resultado: string };
+    },
+    async consultarToqueFundador(cardId, toque) {
+      const { data, error } = await banco.rpc('consultar_toque_fundador', { p_card_id: cardId, p_toque: toque });
+      if (error) throw new ErroBancoCardsV2(error.message || 'Não foi possível consultar o toque.', error.code);
+      return data as HistoricoToqueFundadorV2 | null;
+    },
+    async lerPerguntaEtapaFundador(etapaId) {
+      const { data, error } = await banco.rpc('ler_pergunta_etapa_fundador', { p_etapa_id: etapaId });
+      if (error) throw new ErroBancoCardsV2(error.message || 'Não foi possível ler a pergunta.', error.code);
+      return data as PerguntaEtapaFundadorV2 | null;
     },
   };
 }

@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowRight, CheckCircle2, Clock3, FileText } from 'lucide-react';
 import { useAuth } from '@/auth';
-import type { CardV2, DetalheCardV2, RepositorioCardsV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
+import type { CardV2, DetalheCardV2, RepositorioCardsV2, ResumoOrdemCardV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
 import { SolicitarCardReal } from './SolicitarCardReal';
+import { AcoesFundadorV2 } from './AcoesFundadorV2';
+import { PerguntaFundadorV2 } from './PerguntaFundadorV2';
+import { alvoAcao, alvoCard, alvoEtapa } from '@/integrations/cards-v2/acoes-fundador';
+import { limparToquesDaIdentidade } from '@/integrations/cards-v2/toque-pendente';
 
 type PageProps = { repositorio?: RepositorioCardsV2 };
 type Estado<T> = { carregando: boolean; dado: T | null; erro: string | null };
@@ -19,6 +23,16 @@ function dataBrasilia(valor: string | null): string {
   return Number.isNaN(data.getTime()) ? 'Data indisponível' : data.toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short',
   });
+}
+
+function resumoDaOrdem(valor: ResumoOrdemCardV2 | null | undefined): { pedido: string | null; criterios: string[]; restricoes: string[]; fontes: string[] } {
+  if (!valor || typeof valor !== 'object' || Array.isArray(valor)) return { pedido: null, criterios: [], restricoes: [], fontes: [] };
+  const ordem = valor as Record<string, unknown>;
+  const textos = (lista: unknown) => Array.isArray(lista) ? lista.filter((item): item is string => typeof item === 'string') : [];
+  const criterios = Array.isArray(ordem.como_e_o_pronto) ? ordem.como_e_o_pronto.map(item =>
+    item && typeof item === 'object' && 'texto' in item && typeof item.texto === 'string' ? item.texto : null).filter((item): item is string => item !== null) : [];
+  return { pedido: typeof ordem.pedido_original === 'string' ? ordem.pedido_original : null,
+    criterios, restricoes: textos(ordem.nao_pode), fontes: textos(ordem.fontes_que_pode_ler) };
 }
 
 function linhasDaEntrega(conteudo: unknown): { rotulo: string; valor: string }[] {
@@ -58,6 +72,14 @@ function Entrega({ conteudo }: { conteudo: unknown }) {
 
 export default function CardV2Page({ repositorio }: PageProps) {
   const { user, isFounder } = useAuth();
+  const anterior = useRef<{ id: string | null; fundador: boolean }>({ id: null, fundador: false });
+  useEffect(() => {
+    const antes = anterior.current;
+    if (antes.id && antes.fundador && (!isFounder || user?.id !== antes.id)) {
+      try { limparToquesDaIdentidade(antes.id); } catch { /* A sessão do navegador pode não oferecer armazenamento. */ }
+    }
+    anterior.current = { id: user?.id ?? null, fundador: isFounder };
+  }, [user?.id, isFounder]);
   return <ConteudoCardV2 key={`${user?.id ?? 'anon'}:${isFounder ? 'fundador' : 'membro'}`} repositorio={repositorio} />;
 }
 
@@ -131,12 +153,22 @@ function ConteudoCardV2({ repositorio }: PageProps) {
 
   const selecionado = lista.dado?.find(c => c.id === cardId);
   const detalheVisivel = idDoDetalhe === cardId ? detalhe.dado : null;
+  const ordemVisivel = resumoDaOrdem(detalheVisivel?.ordem);
   function atualizarCards() {
     setTentativaLista(n => n + 1);
     if (cardId) {
       setIdDoDetalhe(null);
       setDetalhe(inicio());
       setTentativaDetalhe(n => n + 1);
+    }
+  }
+  async function relerDepoisEvento(id: string) {
+    if (!repo) throw new Error('Banco indisponível.');
+    const [cards, dados] = await Promise.all([repo.listar(), repo.detalhar(id)]);
+    setLista({ carregando: false, dado: cards, erro: null });
+    if (cardId === id) {
+      setIdDoDetalhe(id);
+      setDetalhe({ carregando: false, dado: dados, erro: null });
     }
   }
   function escolherCard(id: string) {
@@ -195,6 +227,14 @@ function ConteudoCardV2({ repositorio }: PageProps) {
             <h2 className="mt-2 text-xl font-semibold">{selecionado?.titulo || 'Card'}</h2>
             {selecionado && <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>Dono: {selecionado.dono || 'Não informado'}</span><span>Prazo: {dataBrasilia(selecionado.prazo)}</span></p>}
           </header>
+          {selecionado && (ordemVisivel.pedido || ordemVisivel.criterios.length > 0 || ordemVisivel.restricoes.length > 0 || ordemVisivel.fontes.length > 0) && <section aria-label="Pedido confirmado do card" className="rounded-lg border border-border bg-muted/20 p-4 text-sm">
+            <h3 className="font-semibold">Pedido registrado</h3>
+            {ordemVisivel.pedido && <p className="mt-2 whitespace-pre-wrap break-words">{ordemVisivel.pedido}</p>}
+            {ordemVisivel.criterios.length > 0 && <div className="mt-3"><h4 className="font-medium">Critérios de pronto</h4><ul className="list-disc pl-5">{ordemVisivel.criterios.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
+            {ordemVisivel.restricoes.length > 0 && <div className="mt-3"><h4 className="font-medium">Restrições</h4><ul className="list-disc pl-5">{ordemVisivel.restricoes.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
+            {ordemVisivel.fontes.length > 0 && <div className="mt-3"><h4 className="font-medium">Fontes autorizadas</h4><ul className="list-disc break-words pl-5">{ordemVisivel.fontes.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
+          </section>}
+          {isFounder && user?.id && repo && selecionado && detalheVisivel && <AcoesFundadorV2 key={`card-${selecionado.id}-${selecionado.versao}`} alvo={alvoCard(selecionado)} identidade={user.id} cardId={selecionado.id} repositorio={repo} onAtualizar={() => relerDepoisEvento(selecionado.id)} />}
           {detalhe.carregando && <p className="animate-pulse py-4 text-sm text-muted-foreground">Carregando etapas…</p>}
           {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="ml-3 font-semibold underline">Tentar novamente</button></div>}
           {!detalhe.carregando && detalheVisivel?.etapas.length === 0 && <p className="text-sm text-muted-foreground">Este card ainda não tem etapas.</p>}
@@ -204,7 +244,17 @@ function ConteudoCardV2({ repositorio }: PageProps) {
             {detalheVisivel.entregas.filter(entrega => entrega.etapa_id === etapa.id).map(entrega => <div key={entrega.id} className="mt-5 rounded-xl border border-border bg-card p-4">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4" />Entrega aprovada · versão {entrega.versao}</h4><Entrega conteudo={entrega.conteudo} />
             </div>)}
+            {isFounder && user?.id && repo && etapa.motivo !== 'PERGUNTA' && <AcoesFundadorV2 key={`etapa-${etapa.id}-${etapa.versao}`} alvo={alvoEtapa(etapa)} identidade={user.id} cardId={cardId} repositorio={repo} onAtualizar={() => relerDepoisEvento(cardId)} />}
+            {isFounder && user?.id && repo && etapa.estado === 'ESPERANDO_FUNDADOR' && etapa.motivo === 'PERGUNTA' && <PerguntaFundadorV2 key={`pergunta-${etapa.id}-${etapa.versao}`} etapa={etapa} identidade={user.id} cardId={cardId} repositorio={repo} onAtualizar={() => relerDepoisEvento(cardId)} />}
           </article>)}
+          {detalheVisivel?.acoes && detalheVisivel.acoes.length > 0 && <section aria-label="Ações externas do card" className="space-y-4 border-t border-border pt-5">
+            <h3 className="font-semibold">Ações externas</h3>
+            {detalheVisivel.acoes.map(acao => <article key={acao.id} className="rounded-lg border border-border p-4 text-sm">
+              <h4 className="font-semibold">{acao.codigo} · {acao.etapa_codigo}</h4>
+              <p className="mt-1 text-muted-foreground">Estado: {acao.estado.replace(/_/g, ' ')} · Tipo: {acao.tipo.replace(/_/g, ' ')}</p>
+              {isFounder && user?.id && repo && <AcoesFundadorV2 key={`acao-${acao.id}-${acao.versao}`} alvo={alvoAcao(acao)} identidade={user.id} cardId={cardId} repositorio={repo} onAtualizar={() => relerDepoisEvento(cardId)} />}
+            </article>)}
+          </section>}
         </>}
       </section>
     </div>

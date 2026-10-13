@@ -17,6 +17,9 @@ function repositorio(parcial: Partial<RepositorioCardsV2> = {}): RepositorioCard
     consultarSolicitacaoPorChave: vi.fn().mockResolvedValue(null),
     listarSolicitacoesReais: vi.fn().mockResolvedValue([]),
     consultarSolicitacaoPorTarefa: vi.fn().mockResolvedValue(null),
+    aplicarEventoFundador: vi.fn().mockResolvedValue({ resultado: 'APLICADO' }),
+    consultarToqueFundador: vi.fn().mockResolvedValue(null),
+    lerPerguntaEtapaFundador: vi.fn().mockResolvedValue(null),
     ...parcial,
   };
 }
@@ -38,6 +41,7 @@ it('remove cards da conta anterior imediatamente ao trocar a identidade', async 
 
 it('descarta estado de fundador ao perder a permissão na mesma conta', async () => {
   auth.isFounder = true;
+  sessionStorage.setItem('helena-v2-toque:usuario-a:card:privado', '{"cardId":"privado"}');
   const listar = vi.fn().mockResolvedValueOnce([card('privado', 'Card antes do downgrade')]).mockResolvedValueOnce([]);
   const repo = repositorio({ listar });
   const tela = render(<CardV2Page repositorio={repo} />);
@@ -47,7 +51,20 @@ it('descarta estado de fundador ao perder a permissão na mesma conta', async ()
   tela.rerender(<CardV2Page repositorio={repo} />);
   expect(screen.queryByText('Card antes do downgrade')).toBeNull();
   expect(screen.queryByLabelText('Solicitar card real')).toBeNull();
+  await waitFor(() => expect(sessionStorage.getItem('helena-v2-toque:usuario-a:card:privado')).toBeNull());
   expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
+});
+
+it('mostra decisão do fundador com versão real apenas para card selecionado em estado permitido', async () => {
+  auth.isFounder = true;
+  const esperando = { ...card('card-real', 'Pedido sob revisão'), estado: 'ESPERANDO_CONFIRMACAO', motivo: 'NENHUM', versao: 4 };
+  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([esperando]),
+    detalhar: vi.fn().mockResolvedValue({ etapas: [], entregas: [], acoes: [], ordem: { pedido_original: 'Pedido real carregado do banco.',
+      como_e_o_pronto: [], nao_pode: [], fontes_que_pode_ler: [] } }) })} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Pedido sob revisão/ }));
+  expect(await screen.findByText('Pedido real carregado do banco.')).toBeTruthy();
+  expect(screen.getByLabelText('Decisão do fundador')).toBeTruthy();
+  expect(screen.getByText('Pedido registrado')).toBeTruthy();
 });
 
 it('mostra vazio, erro e permite tentar novamente', async () => {
