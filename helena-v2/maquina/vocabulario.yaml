@@ -153,6 +153,7 @@ acoes:
       efeito: interno
       parametros:
         motivo_ajuste: [ERRO_DE_FATO, FALTOU_TEMA, TOM, FORMATO]
+      nota: "Na etapa, refaz a peça. No card aberto, é ajuste global da decisão: o sinal registrado refaz as etapas que a usaram. No card fechado, abre card ligado."
     USAR_COMO_EXEMPLO:
       efeito: interno
       parametros: {}
@@ -233,7 +234,7 @@ botoes_do_fundador: [APROVAR, PEDIR_AJUSTE, USAR_COMO_EXEMPLO, CANCELAR, RESPOND
 entradas_do_app:
   NOVO_PEDIDO: "O código grava a mensagem com o número único do app e cria o card em RASCUNHO, antes de qualquer IA."
   TEXTO_NO_CARD: "Vira comentário do card e nunca muda estado."
-  BOTAO: "Leva o número único do toque e a versão que você viu (regras_gerais.toques_do_fundador_exigem_versao_vista); com versão antiga, Aprovar, Pedir ajuste e Responder nunca mudam estado."
+  BOTAO: "Leva o número único do toque e a versão que você viu (regras_gerais.toques_do_fundador_exigem_versao_vista); com versão antiga, Aprovar, Pedir ajuste e Responder nunca mudam estado. Pedir ajuste no card aberto emite decisão nova com origem neste toque."
 
 # Classes de falha (plano v3, "Falhas e esperas"). O tipo é lido pelo motor no
 # registro de uso e no veredito do validador, nunca no texto do agente.

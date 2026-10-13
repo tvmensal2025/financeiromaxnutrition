@@ -417,6 +417,9 @@ class Maquina:
         if ev.papel == "REVISOR" and self._exige_revisor and self._i_revisor and ev.ator != s[self._i_revisor]:
             return []
         q = ev.q
+        declarados = self.parametros.get((ev.papel, cands[0].evento), {})
+        if any(q.get(nome) not in dominio for nome, dominio in declarados.items()):
+            return []
         return [ln for ln in cands if (ln.guarda is None or ln.guarda(s, q))
                 and all(q.get(p) in dom for p, dom in ln.checa_param)]
 
@@ -544,27 +547,34 @@ def conferir_estrutura(vocab, tab, maqs, rel):
         rel.add("R11", "recusa do fundador sem destino para estado aberto ou final")
     rg = tab.get("regras_gerais", {})
     # regra 13: o histórico nunca registra como sua uma decisão que você não tomou
-    emissores = defaultdict(set)   # evento de entrada -> papéis das linhas que emitem o sinal
+    emissores = defaultdict(set)   # (máquina de destino, evento) -> papéis das linhas que emitem o sinal
     for nome, m in maqs.items():
         for ln in m.linhas:
             for s, _c in ln.sinais:
                 lig = tab.get("ligacoes", {}).get(s) or {}
                 if "entrega" in lig:
-                    emissores[lig["entrega"]["evento"]].add(ln.papel)
+                    for alvo in lig.get("para") or []:
+                        destino = ("card" if alvo == "card" else "acao_externa" if alvo == "acoes_abertas"
+                                   else "etapa" if alvo.startswith(("etapas", "dependentes", "julgadas")) else None)
+                        if destino:
+                            emissores[(destino, lig["entrega"]["evento"])].add(ln.papel)
     for nome, m in maqs.items():
         i_fim = m.idx.get("fim")
         for ln in m.linhas:
             if i_fim and any(p == i_fim and t == "set" and v == "FUNDADOR" for p, t, v in ln.efeitos) and ln.papel != "FUNDADOR":
-                if not (ln.evento in m.entradas and rg.get("entradas_so_por_sinal") and emissores[ln.evento] == {"FUNDADOR"}):
+                if not (ln.evento in m.entradas and rg.get("entradas_so_por_sinal")
+                        and emissores[(nome, ln.evento)] == {"FUNDADOR"}):
                     rel.add("R13", f"{ln.id}: grava fim FUNDADOR sem vir só de um toque seu ({ln.papel} {ln.evento})")
     # entradas: só por sinal, e toda entrada tem quem a emita
     for nome, m in maqs.items():
         for ev in m.entradas:
-            if ev not in emissores:
+            if (nome, ev) not in emissores:
                 rel.add("LIGACAO", f"{nome}: a entrada {ev} não é entregue por nenhuma ligação")
         for ev in (tab.get("automaticos") or {}).get(nome, []):
             if ev in m.entradas:
                 rel.add("LIGACAO", f"{nome}: o automático {ev} é entrada (só pode chegar por sinal)")
+    if emissores[("card", "DECISAO_MUDOU")] != {"FUNDADOR"}:
+        rel.add("R13", "card DECISAO_MUDOU precisa vir de sinal emitido só por toque FUNDADOR")
     # a cascata de cancelamento alcança a ação em todo estado aberto dela
     for nome_l, lig in tab.get("ligacoes", {}).items():
         if "acoes_abertas" in (lig.get("para") or []):
