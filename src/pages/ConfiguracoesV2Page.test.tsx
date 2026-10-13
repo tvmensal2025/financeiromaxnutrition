@@ -155,3 +155,15 @@ it('aceita novo documento apenas com nome minúsculo permitido pelo backend', as
   fireEvent.change(nome, { target: { value: 'helena-v2/agents/agente_novo.yaml' } });
   expect(adicionar.disabled).toBe(false);
 });
+
+it('limita o nome do arquivo a 255 caracteres incluindo .yaml', async () => {
+  auth.isFounder = true;
+  mostrar(repositorio());
+  fireEvent.click(await screen.findByRole('button', { name: /Configuração existente/ }));
+  const nome = await screen.findByLabelText('Novo documento');
+  const adicionar = screen.getByRole('button', { name: 'Adicionar documento' }) as HTMLButtonElement;
+  fireEvent.change(nome, { target: { value: `helena-v2/agents/${'a'.repeat(250)}.yaml` } });
+  expect(adicionar.disabled).toBe(false);
+  fireEvent.change(nome, { target: { value: `helena-v2/agents/${'a'.repeat(251)}.yaml` } });
+  expect(adicionar.disabled).toBe(true);
+});
