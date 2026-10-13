@@ -17,7 +17,6 @@ from validador import validar
 from .plano import RAIZ, validar_plano
 
 _MOTOR = None
-FUNDADOR_TESTE = '00000000-0000-4000-8000-000000000001'
 
 
 def _ativo():
@@ -102,8 +101,6 @@ class Motor:
         con = psycopg.connect(self.url_banco, autocommit=True, row_factory=dict_row)
         if papel:
             con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))
-            if papel == 'authenticated':
-                con.execute("SELECT set_config('request.jwt.claim.sub', %s, false)", (FUNDADOR_TESTE,))
         return con
 
     def _linha(self, sql, args=(), papel='service_role'):
@@ -137,7 +134,7 @@ class Motor:
         from datetime import datetime, timedelta, timezone
         roteiro = self._roteiro_do_banco(plano)
         resposta = self._linha('SELECT helena_v2.criar_card(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) AS resposta',
-                               ('teste', numero, 'Recrutar as primeiras 10 pessoas', plano['nome'],
+                               ('teste', numero, plano['nome'], plano['nome'],
                                 datetime.now(timezone.utc) + timedelta(days=7), Jsonb(roteiro), 'BIZ-003',
                                 Jsonb(plano), 0, True))['resposta']
         return resposta['card_id']

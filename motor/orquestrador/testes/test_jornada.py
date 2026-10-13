@@ -5,10 +5,21 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(RAIZ / 'motor' / 'orquestrador'))
-from orquestrador.motor import Motor
+from orquestrador.motor import Motor as MotorBase
 from spec_helena.leitura import ler_yaml
 
 PLANO = ler_yaml(RAIZ / 'helena-v2' / 'playbooks' / 'recrutar-10-pessoas.yaml')
+FUNDADOR_TESTE = '00000000-0000-4000-8000-000000000001'
+
+
+class Motor(MotorBase):
+    """A fixture do banco cria esta identidade; só os testes a injetam."""
+
+    def _con(self, papel='service_role'):
+        con = super()._con(papel)
+        if papel == 'authenticated':
+            con.execute("SELECT set_config('request.jwt.claim.sub', %s, false)", (FUNDADOR_TESTE,))
+        return con
 
 
 def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
@@ -37,6 +48,29 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
             entrega = con.execute("SELECT conteudo FROM helena_v2.entrega WHERE card_id=%s AND etapa_codigo='E5' ORDER BY id DESC LIMIT 1",
                                   (card,)).fetchone()
         assert isinstance(entrega['conteudo']['resposta'], dict)
+    finally:
+        motor.fechar()
+
+
+def test_dossie_avulso_executa_ravi_e_revisao_sem_alterar_roteiro_canonico(banco, url_dbos):
+    plano = {
+        'id': 'dossie-avulso-teste',
+        'nome': 'Dossiê de pesquisa com fontes',
+        'orcamento_meta': {'execucoes': 4, 'chamadas_total': 100},
+        'etapas': [{'id': 'E1', 'servico': 'SRV-DOSSIE',
+                   'objetivo': 'Conferir os termos da Mimix sobre indicação e pagamento',
+                   'entradas': [], 'depende_de': []}],
+    }
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(plano, 'dossie-ravi')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        assert em_revisao['estado'] == 'REVISAO'
+        motor._revisar(em_revisao)
+        assert [(e.ficha.identidade, e.ficha.papel) for e in motor.executor.execucoes] == [
+            ('HELENA', 'COORDENACAO'), ('RAVI', 'AUTOR'), ('ISABELA', 'REVISOR')]
     finally:
         motor.fechar()
 
