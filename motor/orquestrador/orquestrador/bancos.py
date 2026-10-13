@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import ssl
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 
@@ -38,12 +39,11 @@ def _validar_url(url: str) -> None:
         host = partes.hostname
         porta = partes.port
         usuario = unquote(partes.username or '', errors='strict')
-        banco = unquote(partes.path.lstrip('/'), errors='strict')
         params = parse_qsl(partes.query, keep_blank_values=True, strict_parsing=True)
     except (TypeError, ValueError, UnicodeError):
         raise DestinoRealInvalido('DSN real malformado') from None
     if (partes.scheme not in ('postgresql', 'postgresql+psycopg') or partes.fragment
-            or not host or host != host.lower() or porta != 5432 or banco != 'postgres'
+            or not host or host != host.lower() or porta != 5432 or partes.path != '/postgres'
             or not usuario or not _ROLE.fullmatch(usuario.split('.')[0])
             or len(params) != 1 or params[0] != ('sslmode', 'verify-full')):
         raise DestinoRealInvalido('DSN fora do formato PostgreSQL canônico com TLS verificado')
@@ -73,8 +73,22 @@ def validar_destinos_reais(url_banco: str, url_dbos: str) -> dict:
         raise DestinoRealInvalido('variáveis PG de override não são permitidas no runtime real')
     _validar_url(url_banco)
     _validar_url(url_dbos)
+    parametros = parametros_conexao_real()
     return {'system_database_url': url_dbos, 'dbos_system_schema': DBOS_SCHEMA,
-            'run_migrations': False}
+            'run_migrations': False,
+            'db_engine_kwargs': {'connect_args': {
+                'sslrootcert': parametros['sslrootcert'],
+                'connect_timeout': parametros['connect_timeout'],
+            }}}
+
+
+def parametros_conexao_real() -> dict:
+    """CA do trust store atual, sem ler certificados nem alterar a seleção do sistema."""
+    cafile = ssl.get_default_verify_paths().cafile
+    if not cafile or not os.path.isfile(cafile) or not os.access(cafile, os.R_OK):
+        raise DestinoRealInvalido('arquivo de CA do sistema indisponível para TLS verificado')
+    return {'sslrootcert': cafile, 'connect_timeout': 10,
+            'options': '-c lock_timeout=5s -c statement_timeout=30s'}
 
 
 _PAPEL_SQL = """
@@ -93,6 +107,17 @@ SELECT json_build_object(
   'replication_sessao', sessao.rolreplication,
   'membro_service_role', pg_has_role(current_user, 'service_role', 'MEMBER'),
   'sessao_membro_service_role', pg_has_role(session_user, 'service_role', 'MEMBER'),
+  'pode_set_service_role', pg_has_role(current_user, 'service_role', 'SET'),
+  'herda_service_role', pg_has_role(current_user, 'service_role', 'USAGE'),
+  'vinculo_set', (SELECT am.set_option FROM pg_auth_members am
+    JOIN pg_roles sr ON sr.oid = am.roleid AND sr.rolname = 'service_role'
+    WHERE am.member = atual.oid),
+  'vinculo_inherit', (SELECT am.inherit_option FROM pg_auth_members am
+    JOIN pg_roles sr ON sr.oid = am.roleid AND sr.rolname = 'service_role'
+    WHERE am.member = atual.oid),
+  'vinculo_admin', (SELECT am.admin_option FROM pg_auth_members am
+    JOIN pg_roles sr ON sr.oid = am.roleid AND sr.rolname = 'service_role'
+    WHERE am.member = atual.oid),
   'dono_app', EXISTS (
     SELECT 1 FROM pg_namespace n WHERE n.nspname = 'helena_v2' AND n.nspowner = atual.oid),
   'dono_app_sessao', EXISTS (
@@ -125,7 +150,8 @@ def preflight_papel_runtime(con, *, sistema: bool = False) -> dict:
     chaves = ('super_atual', 'bypass_atual', 'create_role_atual', 'create_db_atual',
               'replication_atual', 'super_sessao', 'bypass_sessao', 'create_role_sessao',
               'create_db_sessao', 'replication_sessao', 'dono_app', 'dono_app_sessao', 'dono_dbos',
-              'membro_service_role', 'sessao_membro_service_role')
+              'membro_service_role', 'sessao_membro_service_role', 'pode_set_service_role',
+              'herda_service_role')
     if any(type(dados.get(k)) is not bool for k in chaves):
         raise PapelRuntimeInvalido('flags de papel runtime incompletas')
     if any(dados[k] for k in chaves if k.startswith(('super_', 'bypass_', 'create_', 'replication_'))):
@@ -134,8 +160,16 @@ def preflight_papel_runtime(con, *, sistema: bool = False) -> dict:
         raise PapelRuntimeInvalido('runtime não pode ser dono do schema do aplicativo')
     if not sistema and (not dados['membro_service_role'] or dados['dono_dbos']):
         raise PapelRuntimeInvalido('papel do aplicativo sem membership ou com posse DBOS')
+    if not sistema and (dados['vinculo_set'] is not True
+                        or dados['vinculo_inherit'] is not False
+                        or dados['vinculo_admin'] is not False
+                        or not dados['pode_set_service_role'] or dados['herda_service_role']):
+        raise PapelRuntimeInvalido('vínculo service_role deve permitir SET sem herança ou ADMIN')
     if sistema and (dados['membro_service_role'] or dados['sessao_membro_service_role']):
         raise PapelRuntimeInvalido('papel DBOS não deve pertencer a service_role')
+    if sistema and (dados['pode_set_service_role'] or dados['herda_service_role']
+                   or any(dados.get(k) is not None for k in ('vinculo_set', 'vinculo_inherit', 'vinculo_admin'))):
+        raise PapelRuntimeInvalido('papel DBOS possui vínculo service_role')
     if sistema and not dados['dono_dbos']:
         raise PapelRuntimeInvalido('papel DBOS não é dono do schema de sistema preparado')
     return {'papel_atual': atual, 'papel_sessao': sessao, 'sistema': sistema,

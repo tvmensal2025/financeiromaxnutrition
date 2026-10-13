@@ -1,11 +1,13 @@
 """Gates de produção avaliados sem DNS, socket ou segredo real."""
 
+from types import SimpleNamespace
 from urllib.parse import quote
 
 import pytest
 
 from orquestrador.bancos import (DestinoRealInvalido, PapelRuntimeInvalido,
-                                 preflight_papel_runtime, validar_destinos_reais)
+                                 parametros_conexao_real, preflight_papel_runtime,
+                                 validar_destinos_reais)
 
 
 REF = 'wxkgrykduqtsgmjkzlou'
@@ -22,9 +24,12 @@ def test_direto_pooler_e_mesmo_banco_sem_migracao(monkeypatch):
     monkeypatch.delenv('PGHOST', raising=False)
     direto = _url()
     pooler = _url(POOL, f'helena_dbos.{REF}')
-    assert validar_destinos_reais(direto, pooler) == {
-        'system_database_url': pooler, 'dbos_system_schema': 'dbos_helena_v2',
-        'run_migrations': False}
+    config = validar_destinos_reais(direto, pooler)
+    assert config['system_database_url'] == pooler
+    assert config['dbos_system_schema'] == 'dbos_helena_v2'
+    assert config['run_migrations'] is False
+    assert config['db_engine_kwargs']['connect_args'] == {
+        'sslrootcert': parametros_conexao_real()['sslrootcert'], 'connect_timeout': 10}
     assert validar_destinos_reais(direto, direto)['system_database_url'] == direto
 
 
@@ -39,6 +44,8 @@ def test_direto_pooler_e_mesmo_banco_sem_migracao(monkeypatch):
     _url(user='service_role'),
     _url(porta=6543),
     _url(banco='other'),
+    _url().replace('/postgres?', '//postgres?'),
+    _url().replace('/postgres?', '///postgres?'),
     _url(params='sslmode=require'),
     _url(params='sslmode=verify-full&hostaddr=127.0.0.1'),
     _url(params='sslmode=verify-full&sslmode=disable'),
@@ -56,6 +63,20 @@ def test_recusa_dsn_inseguro_sem_vazar_credencial(monkeypatch, url):
 def test_recusa_env_libpq_que_poderia_redirecionar_conexao(monkeypatch):
     monkeypatch.setenv('PGHOSTADDR', '127.0.0.1')
     with pytest.raises(DestinoRealInvalido, match='override'):
+        validar_destinos_reais(_url(), _url())
+
+
+def test_ca_sistema_preservada_e_ausencia_recusada(monkeypatch, tmp_path):
+    import orquestrador.bancos as bancos
+    ca = tmp_path / 'ca.pem'
+    ca.write_text('apenas marcador de teste')
+    monkeypatch.setattr(bancos.ssl, 'get_default_verify_paths',
+                        lambda: SimpleNamespace(cafile=str(ca)))
+    assert parametros_conexao_real() == {
+        'sslrootcert': str(ca), 'connect_timeout': 10,
+        'options': '-c lock_timeout=5s -c statement_timeout=30s'}
+    ca.unlink()
+    with pytest.raises(DestinoRealInvalido, match='CA'):
         validar_destinos_reais(_url(), _url())
 
 
@@ -77,6 +98,8 @@ class ConexaoFalsa:
 def _dados(**altera):
     dados = {'papel_atual': 'helena_runtime', 'papel_sessao': 'helena_runtime',
              'membro_service_role': True, 'sessao_membro_service_role': True,
+             'pode_set_service_role': True, 'herda_service_role': False,
+             'vinculo_set': True, 'vinculo_inherit': False, 'vinculo_admin': False,
              'dono_app': False,
              'dono_app_sessao': False, 'dono_dbos': False}
     for prefixo in ('super', 'bypass', 'create_role', 'create_db', 'replication'):
@@ -91,6 +114,8 @@ def test_preflight_app_e_dbos_so_leem_papeis():
     assert len(app.queries) == 1
     sistema = ConexaoFalsa(_dados(papel_atual='helena_dbos', papel_sessao='helena_dbos',
                                  membro_service_role=False, sessao_membro_service_role=False,
+                                 pode_set_service_role=False, herda_service_role=False,
+                                 vinculo_set=None, vinculo_inherit=None, vinculo_admin=None,
                                  dono_dbos=True))
     assert preflight_papel_runtime(sistema, sistema=True)['dono_dbos'] is True
 
@@ -106,6 +131,11 @@ def test_preflight_app_e_dbos_so_leem_papeis():
     ({'dono_app_sessao': True}, False),
     ({'dono_dbos': True}, False),
     ({'membro_service_role': False}, False),
+    ({'pode_set_service_role': False}, False),
+    ({'herda_service_role': True}, False),
+    ({'vinculo_set': False}, False),
+    ({'vinculo_inherit': True}, False),
+    ({'vinculo_admin': True}, False),
     ({'membro_service_role': True}, True),
     ({'membro_service_role': False, 'sessao_membro_service_role': False,
       'dono_dbos': False}, True),
