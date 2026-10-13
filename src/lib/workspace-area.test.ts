@@ -16,6 +16,8 @@ it.each([
   ['/modulo/agentes', 'inteligencia'],
   ['/modulo/dicionario_dados', 'inteligencia'],
   ['/configuracoes-v2', 'governanca'],
+  ['/inbox', 'governanca'],
+  ['/cobertura', 'governanca'],
   ['/modulo/decisoes', 'governanca'],
   ['/modulo/auditoria', 'governanca'],
   ['/modulo/documentos', 'registros'],

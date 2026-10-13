@@ -23,6 +23,6 @@ export function areaDoCaminho(pathname: string): WorkspaceArea {
   if (['/financeiro', '/crm', '/indicadores', '/portfolio', '/empresas', '/identidade'].includes(pathname)) return 'negocios';
   if (['/execucao', '/entregas', '/cards-v2', '/calendario', '/consumo'].includes(pathname)) return 'operacao';
   if (['/equipe', '/conversa'].includes(pathname)) return 'inteligencia';
-  if (['/sistema', '/integracoes', '/configuracoes-v2', '/supervisao'].includes(pathname)) return 'governanca';
+  if (['/sistema', '/integracoes', '/configuracoes-v2', '/supervisao', '/inbox', '/cobertura'].includes(pathname)) return 'governanca';
   return 'comando';
 }

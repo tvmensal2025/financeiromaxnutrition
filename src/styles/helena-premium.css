@@ -324,3 +324,54 @@ html.dark .he-studio .he-sidebar-signature p { color: #d6e3d0; }
   .he-studio .he-business-switcher .font-semibold { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .he-studio .he-business-switcher > svg:last-child { display: none; }
 }
+
+/* Acesso e autorização aparecem fora do Layout, mas pertencem ao mesmo sistema visual. */
+.he-public-shell { min-height: 100dvh; }
+.he-public-shell .he-login-editorial { background: #e6ebd9; color: #24382b; }
+.he-public-shell .he-login-editorial .he-brand-copy > div > span { color: #24382b; }
+.he-public-shell .he-login-editorial .he-brand-copy > span { color: #526354; }
+.he-public-shell .he-login-form-area { background: #fcfcf8; }
+.he-public-shell .he-login-card h1 { font-weight: 500; }
+.he-public-shell :where(input, button):focus-visible,
+.he-access-screen button:focus-visible { outline: 3px solid #709762; outline-offset: 3px; }
+html.dark .he-public-shell .he-login-editorial { background: #293c2f; color: #edf1e5; }
+html.dark .he-public-shell .he-login-editorial .he-brand-copy > div > span { color: #edf1e5; }
+html.dark .he-public-shell .he-login-editorial .he-brand-copy > span { color: #c2d0bd; }
+html.dark .he-public-shell .he-login-form-area { background: #17201b; }
+
+.he-access-screen {
+  background: linear-gradient(145deg, #f6f7f1, #e9eee5);
+  font-family: 'Figtree', system-ui, sans-serif;
+}
+.he-access-card {
+  position: relative;
+  width: min(100%, 460px);
+  padding: clamp(24px, 5vw, 40px);
+  overflow: hidden;
+  border: 1px solid #dfe5d8;
+  border-radius: 20px;
+  background: #fcfcf8;
+  box-shadow: 0 14px 42px #20382a12;
+}
+.he-access-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 48px;
+  height: 3px;
+  background: #709762;
+}
+.he-access-card h1 { font: 500 28px/1.15 'Outfit', system-ui, sans-serif; letter-spacing: -.035em; }
+.he-access-card .text-muted-foreground { color: #586a5a; }
+.he-access-logo { flex: none; }
+.he-access-action { min-height: 44px; justify-content: center; font-weight: 600; }
+html.dark .he-access-screen { background: linear-gradient(145deg, #17201b, #222f25); }
+html.dark .he-access-card { background: #263129; border-color: #3b493c; box-shadow: 0 14px 42px #0003; }
+html.dark .he-access-card .text-muted-foreground { color: #b2bda8; }
+@media (max-width: 420px) {
+  .he-access-actions { flex-direction: column; }
+  .he-access-actions .he-access-action { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .he-public-shell *, .he-access-screen * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
