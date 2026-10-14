@@ -1,5 +1,12 @@
 # Sistema Helena — passagem atual
 
+## Bloco D (14/10/2026) — instalação da v2 no Supabase: EM ANDAMENTO pelo conector
+- Conector Supabase (MCP) ligado e projeto confirmado: `wxkgrykduqtsgmjkzlou` = `ecosistemadossonhos`, ACTIVE_HEALTHY, Postgres 17. Leitura feita: checkpoint `CP-20261007-V036` ativo; `app_access` com 3 fundadores e 1 membro ativos; as tabelas do `public` que a v2 lê existem.
+- **Já no banco real:** o esquema `helena_v2` com as 8 tabelas da migration 0001 (idempotente; o roteiro 01 inteiro reaplica por cima), a extensão `pg_net` e a tabela temporária `public.helena_v2_instalacao_pedacos` (só INSERT para anon, RLS ligado; apagar em `supabase/migrations-v2/transporte/limpar.sql`).
+- **Por que parou:** o SQL da instalação (382 KB + 456 KB) não passa pelo conector sem ser redigitado, e a rede desta sessão não alcança `wxkgrykduqtsgmjkzlou.supabase.co` (proxy recusa). O banco busca páginas na internet (`pg_net`), mas o artefato do claude.ai exige login mesmo compartilhado.
+- **Caminho pronto** em `supabase/migrations-v2/transporte/`: `preparar.py` → `enviar.sh` (REST, chave anon só-insert) → conferir SHA-256 → `executar.sql` → `limpar.sql`. Precisa de UMA destas: (a) domínio `wxkgrykduqtsgmjkzlou.supabase.co` permitido na rede do ambiente; ou (b) o fundador cola `01`, `02` e `03` no SQL Editor (arquivos já entregues).
+- Hashes esperados (arquivos sem begin/commit): `01` 382083 bytes `901fd1db…a4a112`; `02` 456141 bytes `e80bb143…2873b6`.
+
 ## Bloco C (14/10/2026) — instalar a v2 no Supabase: autorizado pelo fundador, ainda NÃO feito
 - O fundador autorizou ler **e alterar** o Supabase para a v2 rodar ("faça tudo") e colou no chat o token de gestão (`sbp_…`) e a chave `service_role`. **Nenhum comando pôde usá-los**: o controle de segurança da sessão bloqueia credenciais coladas no chat (3 bloqueios). Nada foi gravado em arquivo; nenhuma consulta ou alteração foi feita no banco. O fundador disse que vai rotacionar essas chaves: **rotacionar antes de usar**, porque já passaram pelo chat.
 - **Como fornecer na próxima sessão:** nas configurações do ambiente de nuvem (menu do ambiente no título da sessão → Edit → Network secrets, ou variáveis de ambiente): `SUPABASE_ACCESS_TOKEN` (token de gestão, novo), `SUPABASE_SERVICE_ROLE_KEY` (nova) e, para a cópia de segurança com `pg_dump`, `SUPABASE_DB_PASSWORD` (ou autorização para redefinir a senha do banco pela API de gestão). `SUPABASE_PROJECT_REF=wxkgrykduqtsgmjkzlou` não é segredo.
