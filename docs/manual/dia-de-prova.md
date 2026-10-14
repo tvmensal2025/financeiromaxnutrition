@@ -32,7 +32,7 @@ Registrar para cada critério **PASSOU / FALHOU / NÃO COMPROVADO**, apontando a
 
 - **Planilha de evidências:** `docs/manual/dia-de-prova-evidencias.csv` (cabeçalho pronto; uma linha por tarefa e por observação de login; sem token nem dado pessoal).
 - **Roteiro de instalação do banco v2, para revisão:** `python -m orquestrador gerar-instalacao --saida <pasta nova fora do repositório>` gera `01_instalar_v2.sql`, `02_base_tecnica.sql`, `03_conferir_depois.sql`, `LEIA-ANTES.md` e `manifesto.json`. Nada é executado; só entra no Supabase real com a frase exata do `LEIA-ANTES.md`.
-- **Vigia de 5 em 5 minutos e alarmes:** `python -m orquestrador vigiar --saida <arquivo>` (só lê o banco). O canal em arquivo é o mínimo; um canal realmente independente do servidor (teste 7) **não existe ainda** e só se prova com a frase do dia de prova.
+- **Vigia de 5 em 5 minutos e alarmes:** `python -m orquestrador vigiar --saida <arquivo> [--canal-webhook]` (só lê o banco; precisa só de `HELENA_V2_DATABASE_URL`, não do Hermes). O canal em arquivo sempre é usado; `--canal-webhook` acrescenta um webhook HTTPS (URL na variável `HELENA_V2_ALARME_WEBHOOK_URL`, que o fundador preenche; o fornecedor ainda não foi escolhido). A independência do servidor da v2 e o aviso em até 15 minutos (teste 7) **não estão comprovados**: só se provam no dia de prova.
 - **Durabilidade com executor falso** (queda de processo com `kill -9`, reinícios, trocas de versão, dois motores): testes em `motor/orquestrador/testes/test_durabilidade.py`; o resultado atual está no `HANDOFF-CLAUDE-CODE.md`. Com o Hermes real, tudo isso continua **NÃO COMPROVADO**.
 
 **Frase exata proposta ao fundador: “AUTORIZO O DIA DE PROVA DA V2 COM HERMES REAL E CHATGPT”. Até recebê-la, este roteiro permanece parado.**
