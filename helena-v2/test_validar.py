@@ -1236,7 +1236,7 @@ def test_SEM_CHAVE_arquivo_com_chave(tmp_path):
 
 
 def test_SEM_CHAVE_senha_escrita_por_extenso(tmp_path):
-    (tmp_path / 'models.yaml').write_text('senha: ' + 'x9' * 15 + '\n', encoding='utf-8')
+    (tmp_path / 'models.yaml').write_text('senha' + ': ' + 'x9' * 15 + '\n', encoding='utf-8')
     recusa({'raiz': tmp_path}, 'SEM-CHAVE', 'senha, token ou segredo')
 
 

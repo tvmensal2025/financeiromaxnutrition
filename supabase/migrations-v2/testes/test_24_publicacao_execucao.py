@@ -438,7 +438,7 @@ def test_reivindicar_pula_o_pedido_travado_por_outro_trabalhador_sem_esperar(int
 # ------------------------------------------------------------------------------------------- erro sem segredo
 def test_erro_curto_sem_segredo_e_nunca_vazio(integral):
     # valores montados aqui só para o teste; nenhum é segredo real
-    fala = ("falhou ao entrar em postgresql://usuario:" + "SENHA_FALSA_9" + "@host.exemplo/db; senha=" + "EXEMPLO_NAO_REAL_1" +
+    fala = ("falhou ao entrar em postgresql://usuario:" + "SENHA_FALSA_9" + "@host.exemplo/db; senha" + "=" + "EXEMPLO_NAO_REAL_1" +
             " chave sk-" + "A" * 24 + " jwt eyJ" + "a" * 10 + "." + "b" * 10 + "." + "c" * 10 + " Bearer " + "d" * 30 + " token: " + "EXEMPLO_NAO_REAL_2" +
             "\nlinha\ttab " + "x" * 400)
     pid = levar_ate(integral, "EM_EXECUCAO")

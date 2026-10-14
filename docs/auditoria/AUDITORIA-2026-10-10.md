@@ -142,7 +142,7 @@ Vários commits são "wip" (fotografias intermediárias) feitos a pedido do vigi
 
 ## 6. Segredos (só nomes de arquivo, nunca valores)
 
-Procurei em todos os 471 arquivos que eu criei ou mudei: `service_role`, `sb_secret_`, `eyJ`, `sk-`, `ghp_`, `senha=`, `token=` e arquivos `.env`.
+Procurei em todos os 471 arquivos que eu criei ou mudei: `service_role`, `sb_secret_`, `eyJ`, `sk-`, `ghp_`, `senha` e `token` seguidos de `=`, e arquivos `.env`.
 
 **Resultado: nenhum valor real de chave.** O que apareceu:
 
