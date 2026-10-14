@@ -91,6 +91,7 @@ def execution_packet(detail, phase='EXECUTE'):
         'review': pick(result, ('reviewer_agent_id', 'reviewed_by', 'review_reason', 'review_pending')),
         'runtime_binding': detail.get('runtime_binding'),
         'company_identity': detail.get('company_identity'),
+        'founder_decisions': detail.get('founder_decisions', []),  # decisoes vigentes do Fundador; a mais recente define a prioridade
         'agent_quality_contract': detail.get('agent_quality_contract'),
         'evidence_records': list(records.values()),
         'revision_evidence_records': revision_records,
@@ -99,7 +100,10 @@ def execution_packet(detail, phase='EXECUTE'):
         'artifact_records': detail.get('artifact_records', []),
         'source_job': pick(detail.get('source_job') or {}, ('job_id', 'result_summary')),
     }
-    if phase in ('RESOLVE', 'COORDINATE'):
+    if phase == 'REPLAN':
+        packet['replan'] = pick(result, ('replan_count', 'replan_root', 'replan_of', 'replan_reason'))
+        packet['replan'].setdefault('replan_count', 0)
+    if phase in ('RESOLVE', 'COORDINATE', 'REPLAN'):
         history = result.get('brief_revision_history') or []
         latest = history[-1] if history else {}
         packet['brief_correction'] = {
@@ -116,12 +120,12 @@ def execution_packet(detail, phase='EXECUTE'):
         packet['submission_summary'] = job.get('result_summary')
         packet['review_contract'] = detail.get('review_contract')
     encoded = json.dumps(packet, ensure_ascii=False, separators=(',', ':'))
-    if len(encoded) > 65000:
+    if len(encoded) > 200000:
         compact = compact_exact_values(packet)
         compact_encoded = json.dumps(compact, ensure_ascii=False, separators=(',', ':'))
         if len(compact_encoded) < len(encoded):
             encoded = compact_encoded
-    if len(encoded) > 65000:
+    if len(encoded) > 200000:
         raise ValueError('Task packet too large; reduce duplicated inputs before inference')
     return encoded
 

@@ -1,0 +1,40 @@
+# Resposta CORRETA da Helena (autora) para o caso pedido.yaml (CASO-REL-001).
+# Formato: schemas/acao.schema.json, $defs/saida_do_autor. Precisa passar em todas as
+# checagens do tipo relatorio_final e nas comuns, e ser aprovada pela rubrica.
+
+id: REL-BOA-02
+caso: CASO-REL-001
+descricao: 'Versão curta: 3 linhas de resumo cobrindo E1, E2 e E4; 4 passos.'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    resumo:
+    - frase: Com 10 pessoas, a conta vai de US$ 10 a US$ 50 por semana; o cenário base, de US$ 25, depende de você
+        confirmar 5 horas por semana por pessoa.
+      refs: E1
+    - frase: Roteiro e convite estão aprovados; ficou sem conferir se uma pessoa leiga enquadra a câmera sozinha,
+        com risco baixo.
+      refs: E2, E3
+    - frase: 'O parecer aprovou convite, roteiro e cadastro com uma condição: só gravar rosto ou voz de quem autorizou;
+        para passar de 10 pessoas, ouvir um advogado antes.'
+      refs: E4, PF-01
+    proximos_passos:
+    - ordem: 1
+      passo: Confirmar ou corrigir as 5 horas por semana por pessoa.
+      depois_de: nada
+      refs: E1
+    - ordem: 2
+      passo: Ler o parecer e cadastrar a empresa na Mimix e no Hub.
+      depois_de: nada
+      refs: PF-01, E4
+    - ordem: 3
+      passo: Enviar o convite aprovado, sem mudar o texto.
+      depois_de: '2'
+      refs: AF-COPY-ENVIAR-OU-PUBLICAR, E3
+    - ordem: 4
+      passo: Enviar o roteiro de treinamento a quem aceitar.
+      depois_de: '3'
+      refs: AF-TREINAMENTO-ENVIAR, E2

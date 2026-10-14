@@ -1,0 +1,303 @@
+[
+ {
+  "trecho": "O destino da URA (desligar, avisando os clientes, ou manter como exceção escrita) é um cartão de decisão seu na fase 0, e ligação de saída só acontece com o seu toque.",
+  "problema": "O texto trata como aberta uma decisão que o fundador já tomou. Em DECISOES-DO-FUNDADOR-20261010.md, a decisão 3 diz: central da v1 (URA e ligações de saída por IA) = Desligar, e decisões ali registradas \"não precisam ser perguntadas de novo\". Perguntar outra vez vai contra o AGENTS.md (\"não pedir novamente se já concedida\"). Além disso, \"ligação de saída só com o seu toque\" sugere que as ligações continuam existindo, o que contradiz o desligamento decidido.",
+  "cenario": "Na fase 0, a sessão mostra o cartão de novo. O fundador escolhe \"manter como exceção\" sem lembrar que já tinha decidido, e a URA segue respondendo clientes. Outra saída ruim: as ligações de saída continuam ligadas, \"esperando o toque\".",
+  "conserto": "Trocar por: \"Você já decidiu em 10/10: desligar a central da v1 (URA e ligações de saída). Na fase 0 fica só o inventário, apenas de leitura, do que ela faz hoje (inclusive se a voz usa API paga, o que seria exceção à DEC-014) e o aviso aos clientes. Desligar mexe no ar: pede a sua frase exata para essa ação. Até lá, nenhuma ligação de saída é feita.\"",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Nesse caso, o que segura é o seu toque de publicar no EasyPanel, a impressão digital da tabela conferida dentro do banco e o vigia, que roda dentro do Supabase e só muda com uma mudança de banco autorizada por você.",
+  "problema": "Promete demais. Contra uma sessão desviada, nenhuma dessas três peças segura. É a própria sessão que escreve o código, o teste, a imagem (que o CI dela chama de \"testada\") e o SQL que o fundador roda no editor, inclusive a tabela nova com a impressão digital nova e a mudança do vigia. \"Autorizada por você\" não quer dizer \"conferida por você\", e um fundador que não programa não distingue um digest bom de um malicioso. A crítica (pontos 1 e 9) diz que essa proteção cobre acidente, não adulteração, e exige oferecer a decisão de uma conta separada e sem administração para as sessões; isso não aparece aqui. E nada liga o digest colado a uma rodada em que a prova passou: a prova pode nem rodar se os minutos do GitHub acabarem.",
+  "cenario": "A sessão desviada muda passagens.yaml e o teste no mesmo envio, monta a imagem com a impressão digital nova e entrega um script \"trocar a tabela\". O fundador digita a frase, roda o SQL e cola o digest. O motor liga, o vigia confere a impressão nova e tudo fica verde.",
+  "conserto": "Escrever: \"Contra uma sessão desviada, o seu toque garante só que nada chega ao ar sem você. Ele não detecta uma mudança maliciosa, porque quem escreve o código, o teste e o SQL é a própria sessão. A impressão digital e o vigia pegam erro e edição à mão, não uma troca planejada. Para reduzir esse risco: uma conta separada e sem administração para as sessões (decisão sua) e uma revisão independente antes de cada toque.\"",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Esta impressão digital é a da tabela; a do momento de publicar é outra, a da imagem testada que você cola no EasyPanel.",
+  "problema": "Dá como fato algo que a decisão fixa 2 e a crítica (ponto 10) mandam marcar como NÃO CONFIRMADO: que o EasyPanel aceita a impressão digital (digest) no campo da imagem. A seção afirma isso duas vezes, aqui e em \"o seu toque de publicar no EasyPanel\", sem a marca.",
+  "cenario": "Na fase 0 descobre-se que o campo do EasyPanel só aceita uma etiqueta (como :latest). O \"toque com digest\" descrito na seção não existe e a trava de publicar perde o sentido.",
+  "conserto": "Acrescentar: \"(NÃO CONFIRMADO: se o EasyPanel aceita a impressão digital no campo da imagem é conferido na fase 0. Se não aceitar, o plano diz o caminho alternativo antes da fase 2.)\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Nas regras que têm trava, um programa que erre não consegue mover o card: o banco recusa o movimento.",
+  "problema": "É um absoluto falso (crítica, ponto 9), e a própria seção o desmente em quatro pontos. (a) \"Uma regra nova passa as primeiras 24 horas só acendendo a luz, antes de começar a travar\": no primeiro dia no ar as 13 regras são novas, então ficam 24 horas sem trava. (b) A trava \"nunca bloqueia Cancelar\". (c) Ela \"recusa só o movimento que cria uma violação nova\". (d) Partes de regras marcadas \"Trava: Sim\" ficam no motor, não no banco: a fila entre cards (regra 7), o perfil do processo (regra 4) e as decisões usadas (regra 10), segundo o quadro \"não alcança\".",
+  "cenario": "No primeiro dia no ar, um defeito do motor deixa uma etapa ser trabalhada duas vezes (regra 3). O banco aceita, porque a regra está nas 24 horas de observação, e o fundador acreditava que isso \"não consegue\" acontecer.",
+  "conserto": "\"Nas regras que têm trava, passadas as 24 horas de observação de cada regra, o banco recusa o movimento que cria uma violação nova (menos Cancelar). As partes de cada regra que ficam fora da tabela, e quem as cobre, estão no quadro 'O que a prova da tabela não alcança'.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O banco recusa mudar ou apagar eventos; teste 8 restaura o backup toda semana. A limpeza da LGPD e as limpezas de 7 e 14 dias apagam dados de propósito, com prazo escrito",
+  "problema": "O texto se contradiz. Se o banco recusa apagar eventos, a limpeza da LGPD não consegue apagá-los. Se existe um caminho que passa por cima da recusa, ele não está descrito: quem usa, com qual acesso e se pede frase. Na tabela principal, a regra 13 continua absoluta (\"Toda mudança fica no histórico, e o histórico reconstrói o card\", com Trava \"Sim\"), sem a marca \"(mudou na v3.1)\", e é justamente a frase que a crítica (ponto 9) mandou corrigir. Por fim, as limpezas de 7 dias (cópias das páginas) e de 14 dias (execuções do DBOS) não apagam o histórico do card, e misturá-las aqui confunde.",
+  "cenario": "Um recrutado pede a exclusão dos dados pela LGPD. Ou o DELETE é recusado pela trava, ou alguém cria às pressas um acesso de administrador que apaga eventos sem regra, e o card fechado deixa de ser reconstruível.",
+  "conserto": "Regra 13: \"Toda mudança fica no histórico enquanto o card existir. O histórico só é apagado pela limpeza da LGPD, por uma função única, com prazo escrito, que deixa registrado que apagou (sem o conteúdo) (mudou na v3.1).\" No quadro, separar: \"As limpezas de 7 e 14 dias apagam cópias de páginas e execuções do DBOS, não o histórico do card.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Por isso não existe uma jornada diferente por agente nem por empresa, e o que a prova confere num card vale para o card de qualquer um dos 21.",
+  "problema": "Promete demais e contradiz o próprio texto. Hoje o provar.py roda a camada 2 sobre um único roteiro de exemplo (E1 | E2 -> EJ -> ER) e cobre os 21 só pela simetria dos nomes. O comportamento depende da forma de cada roteiro e das marcas de cada etapa (julgadora, internet, pulável, permite perguntar, prazo de terceiro, dependências). A mesma seção diz depois que \"a prova roda em cada roteiro\": se valesse para qualquer card, isso seria desnecessário. A Laura, de escopo pessoal, também foge do caso geral.",
+  "cenario": "O roteiro de outro agente tem duas etapas julgadoras em cadeia, ou uma etapa pulável que depende de uma julgadora. Isso cria um estado preso que o roteiro de exemplo não tem, e o fundador acha que já estava provado.",
+  "conserto": "\"A tabela é a mesma para os 21. O que a prova confere vale para cada roteiro sobre o qual ela rodou; por isso ela roda sobre cada roteiro do catálogo antes de ele entrar (na versão em construção, roda sobre um roteiro de exemplo).\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "As etapas do card e qualquer ação externa ainda não executada são canceladas junto.",
+  "problema": "Pela tabela em construção, a ação externa só nasce quando o card fica pronto (linha E110, sinal CRIAR_ACAO_EXTERNA). Já o Cancelar do card só vale em estado aberto (linha C22), e sobre card fechado \"vira só comentário\", como diz esta mesma seção. Então o Cancelar do card nunca alcança uma ação externa pendente: ela tem Cancelar próprio (linhas X03 e X11), e uma ação já em execução não é cancelada (linha X23).",
+  "cenario": "O card está pronto, com uma publicação autorizada. O fundador se arrepende e toca Cancelar no card. O toque vira comentário, a ação autorizada continua e o motor a executa.",
+  "conserto": "\"Enquanto o card está aberto, ainda não existe ação externa: ela só nasce quando o card fica pronto. Depois disso, cada ação externa tem o próprio botão Cancelar, que vale até ela começar. Ação em execução não dá para desfazer.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Card novo e ajuste valem na hora, com botão de desfazer. A letra de uma opção (A, B ou C) também vale na hora, porque quem lê a letra é o código.",
+  "problema": "O caminho do WhatsApp fura três regras escritas na mesma seção. (a) Não existe botão nem evento \"desfazer\" no vocabulário, que o texto chama de fonte única dos botões, nem passagem na tabela. Um ajuste reabre trabalho, refaz o que depende dele, gasta uma das 3 ordens e, na 4ª, substitui o card, o que é final e sem volta. (b) A mensagem do WhatsApp não leva \"a versão que você viu\", mas Pedir ajuste e Responder exigem versão. (c) O vocabulário diz \"Nenhum tipo de mensagem é decidido por IA na v2.0\", então esse caminho fica fora da prova. O mesmo erro aparece em \"Pedido pequeno segue na hora, e o botão Cancelar desfaz\": Cancelar não desfaz, encerra num final sem volta.",
+  "cenario": "A Helena classifica \"refaz a parte do convite\" como ajuste do card errado, e é a 4ª ordem dele: o card é substituído e vai para cancelado. O \"desfazer\" não tem passagem. Ou a letra \"A\" responde a uma pergunta que mudou depois de enviada.",
+  "conserto": "\"Depois da troca, ajuste pelo WhatsApp só vale depois do seu toque no app ou do OK com o código, como cancelar. Card novo vale na hora, e quem desfaz é o Cancelar do rascunho. A letra A, B ou C só vale se a pergunta não mudou desde que foi enviada; se mudou, vira comentário. Esse caminho entra no vocabulário, na tabela e na prova antes da troca.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Aprovar, Cancelar ou Usar como exemplo sobre um card fechado viram só comentário.",
+  "problema": "Contradiz o passo 9 da tabela (\"Você aprova, pede ajuste (que abre um card novo ligado) ou marca como exemplo\" no card pronto). Pronto é um final, ou seja, card fechado. Na tabela em construção, Aprovar no card pronto não é comentário: registra a aprovação e relê as fontes. E Usar como exemplo vale para cada entrega aprovada ou pronta. O leitor leigo não sabe se a aprovação dele contou.",
+  "cenario": "O fundador aprova o card pronto e lê, nesta mesma seção, que o toque \"vira só comentário\". Conclui que a aprovação não valeu e repete, ou passa a desconfiar do botão.",
+  "conserto": "\"Sobre um card cancelado ou encerrado com falha, Aprovar, Cancelar e Usar como exemplo viram só comentário. No card pronto, Aprovar registra a sua aprovação e relê as fontes, Usar como exemplo vale para cada entrega toda conferida e Cancelar vira comentário.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se já existe um card aberto da mesma empresa e do mesmo serviço, o app pergunta se o pedido novo entra nele.",
+  "problema": "A tabela em construção não tem passagem para juntar um pedido novo a um card aberto. Juntar muda o pedido, o que pela regra 10 obriga a refazer o que dependia dele, e deveria contar como uma das 3 ordens. Mesmo assim, não é nenhum dos quatro destinos da regra 11 (passagem, comentário, resposta guardada ou card novo ligado). E o serviço só é conhecido depois da leitura de volta da Helena (passo 2, por IA); num card de roteiro com várias etapas, \"mesmo serviço\" nem está definido. A frase \"quem compara é o código\" esconde que a entrada da comparação veio da IA.",
+  "cenario": "O fundador toca \"sim, entra nele\" num card que já tem a E1 aprovada. O pedido do card muda sem passagem: a E1 não é refeita (regra 10 furada), ou o motor improvisa um caminho que a prova nunca percorreu.",
+  "conserto": "\"Se você disser sim, o pedido novo vira um pedido de ajuste no card aberto, pela mesma passagem do Pedir ajuste: conta como uma das suas ordens e refaz o que dependia do pedido. Se disser não, segue como card novo. A comparação acontece depois da leitura de volta, sobre o roteiro proposto.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Um serviço só aparece na lista quando o agente dele está em \"estágio\" ou \"ativo\"; os outros pedidos seguem para a v1, como diz o último item desta seção.",
+  "problema": "O último item só descreve o desvio para a v1 \"na troca\", pelo WhatsApp. Antes da troca, os pedidos entram pela caixa \"Novo pedido\" do app da v2, e não existe caminho do app da v2 para a v1, que recebe pelo WhatsApp. A tabela de 9 passos e a tabela de passagens também não têm saída para \"nenhum serviço ligado serve\". A verificação da MEL-25 (furo 3) apontou exatamente esse pedido sem destino. \"Estágio\" também fica sem explicação para o leitor leigo.",
+  "cenario": "Na fase 2, com só 5 agentes ligados, o fundador pede no app uma campanha de marketing. A Helena não acha serviço na lista: o rascunho fica parado até o padrão cancelar, ou ela escolhe o serviço mais parecido, que está errado.",
+  "conserto": "\"Antes da troca, se nenhum serviço ligado serve, a Helena diz isso na leitura de volta e o card fecha como 'fazer pela v1', com o texto pronto para você mandar no WhatsApp da v1.\" Acrescentar essa saída à tabela e explicar \"estágio\" entre parênteses.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A empresa (iGreen, Saúde, Humano Digital ou eLiving™) é uma informação do card: o agente recebe só o pacote daquela empresa, com a grafia, a voz e as proibições dela.",
+  "problema": "Contradiz a decisão fixa 6 e a análise dos especialistas (seção 5.1): a Laura tem escopo pessoal, sem acesso aos pacotes das empresas. Mas a ordem de serviço exige \"empresa\" como campo fixo, e o texto diz que \"não existe uma jornada diferente por agente\". Não está escrito o que vai no campo empresa num card da Laura nem qual pacote ela recebe.",
+  "cenario": "Num card da Laura, o campo empresa é obrigatório. A Helena chuta \"Humano Digital\" e a Laura recebe o pacote de uma empresa, contra o escopo dela; ou a conferência do card recusa e o pedido não anda.",
+  "conserto": "\"A empresa é uma das 4 ou 'Pessoal (Laura)'. No pessoal, o agente não recebe pacote de empresa nenhuma.\" Pôr o mesmo valor na lista de campos da ordem de serviço.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Antes da troca do WhatsApp, a Helena classifica 50 mensagens suas, você confirma cada uma no celular (de 10 a 20 minutos)",
+  "problema": "A verificação da MEL-44 marcou a origem das \"50 mensagens reais\" como não confirmada. Na v1, o WhatsApp é uma URA de clientes: a tabela public.comunicacoes guarda mensagens de qualquer número, cortadas em 500 caracteres, e não foi achada nenhuma tabela com as conversas dele com a Helena. As sessões na nuvem não alcançam o Supabase; só o PC dele alcança (crítica, ponto 6). E 3 rodadas de 50 são 150 classificações na mesma cota da v1: \"grátis\" vale para dinheiro, não para cota.",
+  "cenario": "Na hora do conjunto-ouro não existem 50 mensagens dele. A sessão usa mensagens de clientes (dados de terceiros, problema de LGPD) ou não consegue ler nada sem o PC dele.",
+  "conserto": "Acrescentar: \"(NÃO CONFIRMADO: de onde vêm as 50 mensagens. Se não houver histórico seu, serão as primeiras 50 que você escrever no app; mensagens de clientes nunca entram. Ler dados da v1 só pelo seu PC, em leitura, com a sua frase. As 150 classificações gastam cota, por isso rodam fora do horário de uso.)\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Nenhuma mensagem se perde nem vira duas.",
+  "problema": "Absoluto sem mecanismo para a primeira metade. O item só explica o \"não vira duas\" (índice único) e o teste 11, que repete a mesma mensagem do WhatsApp. Nada garante que a mensagem não se perde se o app enviar com a VPS fora ou com o banco só para leitura (acima de 500 MB). E o teste 11 cobre o WhatsApp, não o app, que é o canal da v2 antes da troca.",
+  "cenario": "Com o banco só para leitura, o app dá erro. O fundador escreve de novo: o pedido ganha número novo e vira dois cards; ou ele desiste e o pedido some.",
+  "conserto": "\"Uma mensagem gravada não vira duas. Uma que não foi gravada aparece para você como 'não enviada', com o botão Reenviar, que manda o mesmo número. O teste 11 cobre o app e o WhatsApp.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Esta é a única exceção escrita à regra 4, e ela fica numa linha própria da tabela.",
+  "problema": "O passagens.yaml em construção não tem essa linha, e a tabela de estados nem consegue expressá-la. A regra 4 codificada trata de quem é designado revisor; a Clara revisar a E5 não a viola, porque ninguém julga a E5 depois. \"Conferir só fidelidade\" é regra de conteúdo (rubrica e código), não de estado. Além disso, \"cada revisor possível é autor de alguma delas\" só vale com os 5 agentes da primeira meta (a conferência diz \"inevitável com 5 agentes\"); com os 21 ligados, pode existir um revisor de fora. E \"Ela nunca julga de novo o mérito\" é um absoluto sobre o comportamento de uma IA.",
+  "cenario": "O fundador pede para ver \"a linha da exceção\" e ela não existe. Ou, mais tarde, com outro agente ligado que poderia revisar, a exceção continua valendo sem necessidade.",
+  "conserto": "\"A exceção fica escrita na ficha do relatório final (rubrica só de fidelidade, sem critério de mérito) e numa checagem por código, e vale enquanto nenhum agente ligado de fora das E1 a E4 puder revisar.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Se a mesma definição precisar existir em duas linguagens, a da prova e a do banco, uma é gerada da outra, ou as duas passam pelos mesmos históricos e precisam dar o mesmo veredito; duas cópias soltas não entram.",
+  "problema": "A segunda opção são duas cópias escritas: uma em Python (a prova) e outra em SQL (a trava e o vigia), conferidas por comparação. Isso contradiz o título \"Cada regra é escrita uma vez só\" e \"não três versões da mesma lógica\". Hoje a especificação vive em Python no provar.py, e a trava e o vigia terão de ser SQL, então esse segundo caminho é o mais provável.",
+  "cenario": "Na fase 2 escolhe-se a comparação. O fundador continua achando que cada regra está \"escrita uma vez só\", quando na verdade existem duas cópias, e a diferença só aparece nos históricos que a comparação percorreu.",
+  "conserto": "Trocar o título por \"Cada regra tem uma definição de referência\" e dizer: \"Se forem duas cópias (prova e banco), a comparação nos mesmos históricos, a cada mudança, é o que pega a diferença.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "e um aviso parado há mais de 15 minutos dispara alarme pelo robô do próprio healthchecks e por e-mail, mesmo com a VPS fora do ar.",
+  "problema": "O alarme só sai quando o sinal de vida do Supabase deixa de chegar e vencem o período e a tolerância do healthchecks. A verificação da MEL-37 (ponto 5) diz que o padrão do healthchecks (período de 1 dia e tolerância de 1 hora) quebra a meta de 15 minutos, e o texto não diz que esses tempos são fixados em cada checagem. Na prática, o tempo real é 15 minutos mais o intervalo do sinal mais a tolerância, contra o teste 7 da v3 (\"em até 15 minutos\").",
+  "cenario": "Com a VPS fora e o healthchecks na configuração padrão, o fundador recebe o alarme horas depois, e o teste 7 falha ou é afrouxado em silêncio.",
+  "conserto": "\"... dispara alarme em cerca de 30 minutos (15 de espera, mais o intervalo do sinal e a tolerância, fixados em cada checagem do healthchecks); o teste 7 mede esse tempo\", e ajustar o teste 7.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "a 2 depende do tempo e é garantida pelo relógio dos prazos",
+  "problema": "Ficou da v3 sem ajuste e contradiz o quadro \"não alcança\", que dá o teto de ordens como o que garante a regra 2. O relógio do prazo do card só avisa (no prazo chama a Helena; uma hora depois avisa você) e nunca encerra um card. O fim vem dos tetos (6 execuções por rodada, 3 ordens) e do padrão das esperas.",
+  "cenario": "Um card com prazo vencido continua aberto indefinidamente enquanto as ordens não chegam ao teto. O fundador achava que o relógio encerraria o card.",
+  "conserto": "\"A 2 depende de tetos e de tempo: os tetos de execuções e de ordens e o padrão das esperas garantem que o card termina, e o vigia confere.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "da 4ª em diante, o prazo muda do mesmo jeito, mas os avisos ficam no nível em que estavam. Esse teto é uma proposta e depende do seu sim.",
+  "problema": "Se o card já disparou os 3 avisos e o fundador estende o prazo pela 4ª vez, nenhum aviso sai no prazo novo e o card fica vermelho para sempre. Isso fere a regra 1 (\"nada espera sem prazo e alerta\"). \"Ficam no nível em que estavam\" é incompreensível para um leigo. E \"depende do seu sim\" não diz que algum teto é obrigatório para a prova terminar (MEL-23): se ele disser não, o texto não diz o que acontece.",
+  "cenario": "Na 4ª prorrogação, o novo prazo passa sem aviso nenhum e o card continua \"atrasado\" desde a data antiga. O fundador não percebe que perdeu o prazo novo.",
+  "conserto": "\"Da 4ª mudança em diante, um card que já estava atrasado continua marcado como atrasado e não avisa de novo no prazo novo. Se você não quiser 3, escolha outro número; sem número nenhum, a prova não termina.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "**Cada toque leva a versão que você viu.** (novo na v3.1, vindo do relatório do card e da MEL-39)",
+  "problema": "Está marcado errado: a v3 já tinha isso (\"Cada toque leva a versão do card que você viu; se ele mudou depois que você abriu, o app mostra a versão nova antes de aceitar\"), então o certo é \"mudou\", não \"novo\". E o comportamento mudou: na v3 o app aceitava depois de mostrar; na v3.1 o toque vira comentário. O texto também mistura a versão do card com a versão do código do app (MEL-39) e não trata o ponto grave da verificação da MEL-39: uma publicação desfeita deixa o app abaixo da versão mínima e sem botões.",
+  "cenario": "O fundador compara com a v3 e não vê que o Aprovar sobre versão antiga deixou de valer. Ou, depois de uma publicação desfeita, o app fica sem nenhum botão que funcione.",
+  "conserto": "\"(mudou na v3.1: na v3, o app mostrava a versão nova e aceitava o toque; agora, o toque sobre versão antiga vira comentário).\" Separar a conferência da versão do código do app e dizer que Cancelar e Pausar tudo funcionam mesmo com o app desatualizado.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Os 21 agentes ligam na v2 um por vez, pelos portões, porque a cota do ChatGPT e a VPS são limitadas; até a vez de cada um, o pedido dele segue para a v1.",
+  "problema": "Supõe, sem conferir, que a v1 atende esses pedidos. A v1 travou (LEIA-PRIMEIRO; crítica, ponto 3: o ponto de partida pode já estar vermelho). Para 16 agentes, por meses, \"segue para a v1\" não está verificado, e CONNECTED não comprova OPERATIONAL (AGENTS.md).",
+  "cenario": "Um pedido para a Camila vai para a v1, que está parada para aquele agente. O card mostra \"rodando na v1\" e nada acontece.",
+  "conserto": "\"... segue para a v1, se ela estiver funcionando para aquele agente (conferido no checklist da v1 na fase 0). Se não estiver, o card mostra 'parado na v1' e o pedido espera a vez do agente.\"",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "A v1 também atende clientes pelo WhatsApp, com um menu automático de Vendas e Suporte (a URA, no arquivo whatsapp-ura.mjs)",
+  "problema": "A descrição está incompleta. O whatsapp-ura.mjs tem 4 opções: Vendas (Victor), Suporte (Joana), Financeiro e Boletos (Caio, que pede ao cliente CPF/CNPJ ou o número da fatura) e Atendimento Executivo (Marina), além de uma rota padrão para a Joana. A opção que coleta dados pessoais ficou de fora, e isso pesa na LGPD e no aviso aos clientes antes de desligar.",
+  "cenario": "O inventário e o aviso aos clientes, feitos a partir deste texto, esquecem que a URA pediu CPF/CNPJ. Os dados de clientes guardados ficam sem plano de LGPD quando ela for desligada.",
+  "conserto": "\"... com um menu automático de 4 opções (Vendas, Suporte, Financeiro e Boletos, que pede CPF/CNPJ ou o número da fatura, e Atendimento Executivo) ...\" e incluir no inventário quais dados de clientes ficaram guardados e por quanto tempo.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Na troca, que só acontece depois do conjunto-ouro e da sua frase, um registro muda o canal",
+  "problema": "O canal do WhatsApp, na prática, é o endereço de aviso (webhook) da instância única da Evolution (`helena_messages`). A v1 regrava esse endereço para ela mesma toda vez que alguém usa \"Conectar\" na Central de Canais: `connectEvolution()` chama `setEvolutionWebhook()` (scratchpad/ag/services/helena-gateway/src/integrations/evolution.mjs, l. 204), e a rota `/api/integrations/evolution/connect` pede só um usuário logado. O texto não diz onde mora o \"registro\", qual peça recebe o aviso depois da troca, nem como separa o seu número dos clientes (\"A troca vale só para o seu número\") se a instância só tem um endereço. O ensaio da troca roda uma vez e não pega uma volta silenciosa mais tarde.",
+  "cenario": "Semanas depois da troca, a sessão do WhatsApp cai (o próprio plano diz que ela se refaz pelo QR code). Você abre a Central de Canais da v1 e toca em Conectar. A v1 aponta o aviso da Evolution de volta para ela. Seus pedidos passam a cair no tratador da v1, que trata toda mensagem de entrada como cliente: cria um job para a Joana e manda a resposta automática do menu. Na v2 não chega nada, então nada vai para \"sem classificar\", o vigia não vê e nenhum aviso dispara. Você acha que a Helena v2 recebeu.",
+  "conserto": "Escrever qual peça recebe o aviso da Evolution depois da troca (uma só) e como ela separa o seu número do resto. Tirar da v1 a regravação automática do endereço (ou desligar a rota de conectar da v1) antes da troca. O motor confere de hora em hora o endereço configurado na Evolution e avisa se ele mudar. O sinal de vida inclui \"última mensagem sua recebida pela v2\". No ensaio da troca: reconectar pela v1 depois da troca e exigir o aviso em até 15 minutos.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "e o que a v2 ainda não faz segue para a v1, com o card mostrando \"rodando na v1\"",
+  "problema": "\"Rodando na v1\" não está no vocabulário: os estados abertos do card são só RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO e ESPERANDO_FUNDADOR. Isso contradiz a frase \"a tabela, a prova, a trava e o vigia usam esses nomes e nenhum outro\". Sem estado, esse card fica sem dono, sem prazo e sem saída provada, e a v2 nunca fica sabendo se a v1 terminou. O texto também não diz como o pedido entra na v1: hoje a entrada da v1 pelo WhatsApp é a própria URA, que a decisão de 10/10 manda desligar. Como os 21 agentes ligam um por vez, esse vai ser o caminho da maioria dos pedidos durante meses, e é justamente a v1 que travou (as \"sete travas\").",
+  "cenario": "Depois da troca, você pede pelo WhatsApp um plano de contratação, e a Bianca ainda não está ligada. O card mostra \"rodando na v1\". O job da v1 trava como já aconteceu antes. A v2 não vigia esse card, o relógio dos prazos não dispara porque o estado está fora da tabela, e você só percebe dias depois.",
+  "conserto": "Pôr no vocabulário um final próprio, por exemplo ENVIADO_PARA_V1, com o número do job da v1 e o prazo. Um vigia só de leitura confere esse job pelo número e avisa se ele passar do prazo. Dizer qual peça grava o pedido na v1, sem depender da URA, e ensaiar na troca com um pedido de agente não ligado até o fim.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Um serviço só aparece na lista quando o agente dele está em \"estágio\" ou \"ativo\"; os outros pedidos seguem para a v1, como diz o último item desta seção.",
+  "problema": "O último item só fala do WhatsApp depois da troca. Antes dela, o app é a única entrada da v2 e não tem nenhum caminho até a v1. A lista fechada que a Helena recebe só tem serviços ligados, e a leitura de volta (LER_DE_VOLTA, que no vocabulário não tem parâmetros) não tem a saída \"nenhum serviço serve\". Então a Helena só pode encaixar o pedido no serviço ligado mais parecido (agente errado, portões errados) ou falhar, e aí cai no beco sem saída do furo do rascunho sem leitura de volta.",
+  "cenario": "Fase 3, com Caio, Isabela, Clara e Helena ligados. Você pede no app \"roteiro de ativação de clientes da eLiving™\", que é da Renata, ainda na v1. O mais parecido na lista é o \"roteiro de treinamento\" da Isabela. Num pedido grande, o nome do serviço aparece na leitura de volta, mas é fácil não notar. Num pedido pequeno, depois que a regra de tamanho existir, ele já começa a rodar. A entrega passa nos portões da Isabela, que não conferem ativação de clientes, e chega como \"pronto\".",
+  "conserto": "Dar à Helena o catálogo inteiro, com o estado de cada serviço. A leitura de volta ganha a saída fechada \"serviço fora da v2\". Quando o serviço escolhido não está em estágio nem ativo, quem fecha o rascunho é o código, e não a Helena, com um final novo no vocabulário (por exemplo, É_DA_V1). O app então mostra \"este pedido é da v1: mande pelo WhatsApp\". Escrever uma jornada de teste por agente ainda não ligado.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Nesse caso, o que segura é o seu toque de publicar no EasyPanel, a impressão digital da tabela conferida dentro do banco e o vigia, que roda dentro do Supabase e só muda com uma mudança de banco autorizada por você.",
+  "problema": "Pela decisão 2 de 10/10, a chave de acesso total (service_role) continua valendo até o fim dos testes e está em 9 arquivos rastreados. Ela continua no histórico do git mesmo depois que os arquivos passarem a ler de variável de ambiente. Uma sessão de IA com o seu login do GitHub consegue ler essa chave. Com ela, a sessão passa por cima das regras de linha (RLS) e grava em qualquer tabela que não teve o acesso da service_role tirado à mão: as linhas da tabela de passagens, a impressão esperada (se ela ficar numa tabela), os eventos do card e a tabela de avisos. O texto não diz que os objetos da v2 ficam fechados para essa chave.",
+  "cenario": "Uma sessão desviada por uma instrução plantada numa página lê a chave com `git log -p`. Ela muda uma linha da tabela de passagens e a impressão esperada ao mesmo tempo, e o vigia continua verde. Ou ela grava um evento \"Usar como exemplo\" em seu nome numa entrega com erro plantado, e esse exemplo de ouro passa a ensinar o serviço por 90 dias.",
+  "conserto": "Escrever que, até a troca das chaves, essas três proteções não valem contra quem tem a service_role. Na v2, tirar todo acesso (REVOKE ALL) de service_role, anon e authenticated, por extenso, em cada tabela, sequência e função. Guardar a impressão esperada dentro de uma função, que só muda por mudança de estrutura do banco, e nunca numa tabela. Eventos seus entram só por uma função que confere o seu usuário (auth.uid). O teste 11 ganha: \"com a chave de acesso total atual, escrever em cada tabela da v2 e chamar cada função: tudo recusado\". Outra saída: trocar a chave antes de qualquer tabela da v2 guardar aprovações suas, ou registrar esta consequência exata como risco aceito.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "A letra de uma opção (A, B ou C) também vale na hora, porque quem lê a letra é o código.",
+  "problema": "No WhatsApp, uma letra sozinha não diz a qual pergunta responde nem qual versão você viu. A regra nova \"Cada toque leva a versão que você viu\" só vale no app. Com duas perguntas abertas, o código não tem alvo definido. E em \"em resolução\" as opções fixas são refazer, seguir sem e encerrar: uma letra pode encerrar o card (E87, que leva o card a ENCERRADO_COM_FALHA, um final sem volta). Isso fura a proteção \"Cancelar... só vale depois do seu toque no app\".",
+  "cenario": "O card do Caio pergunta \"A) 3 cenários, B) 1, C) 5\". Enquanto isso, a E4 de outro card vai para resolução com \"A) refazer, B) seguir sem, C) encerrar\". Você responde \"C\" pensando nos cenários. O código aplica a letra à pergunta mais recente, o outro card é encerrado e a sua letra fica registrada como decisão sua.",
+  "conserto": "Cada pergunta enviada pelo WhatsApp leva um código curto (por exemplo, \"responda 7K-C\"). A letra sozinha só vale com exatamente uma pergunta aberta e a versão igual à do envio. Opções que encerram ou pulam (encerrar, seguir sem, pular) nunca valem por letra, só no app. Teste: duas perguntas abertas e uma letra sozinha; a mensagem vai para \"sem classificar\" e a Helena pergunta qual era.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Card novo e ajuste valem na hora, com botão de desfazer.",
+  "problema": "A tabela de passagens não tem nenhum evento de desfazer. Um Pedir ajuste numa etapa aprovada (E111) apaga a aprovação, reabre a etapa e as que dependem dela (regra 10) e conta no teto de ordens. Na 4ª ordem, substitui o card (E117 e C28, com o card indo para CANCELADO, que é final). Um desfazer que devolvesse a aprovação seria uma aprovação sem portão, e a regra 9 proíbe isso. Ou seja, a única classificação por IA que sobra na v2 consegue provocar uma mudança sem volta.",
+  "cenario": "Depois da troca, você escreve no WhatsApp \"o convite ficou bom, mas nas próximas dá para ser mais direto\", que era só um comentário. A Helena classifica como ajuste do card do convite, com a E3 já aprovada. Vale na hora: a E3 volta para a Isabela, e a E4 e a E5 são refeitas, gastando cota. Se era a 4ª ordem do card, ele é substituído. O botão de desfazer não tem o que desfazer.",
+  "conserto": "No WhatsApp, um ajuste classificado por IA vira só uma \"proposta de ajuste\", que espera o seu toque no app ou o \"OK\" com o código curto, como o cancelar. Outra saída: definir o desfazer como linha da tabela, válida só antes de o motor começar a execução, com prova. Rodar o conjunto-ouro de novo a cada troca de modelo.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "15 minutos. Se ela falhar duas vezes ou passar do tempo, o rascunho vai para você sem a leitura de volta",
+  "problema": "O serviço do catálogo só é escolhido pela Helena, na leitura de volta. Sem ela, o rascunho fica sem serviço. O seu \"Confirmo\" (C06) leva à conferência do plano, que recusa porque o serviço não existe (C11, PLANO_INVALIDO). Nesse estado, a tabela só aceita Cancelar ou o padrão; a nota da C11 diz \"só cancelar (ou o padrão)\". O mesmo beco vale para causas passageiras, como um serviço que desce de estado sozinho (MEL-26: \"Descer é automático\") enquanto o card espera o seu Confirmo por 24 a 48 horas.",
+  "cenario": "A cota do ChatGPT acaba às 14h, e a janela é de 5 horas. Você faz 3 pedidos no app. Em 15 minutos, cada um volta sem a leitura de volta. Você toca em Confirmo, o plano sai inválido e o único botão que faz alguma coisa é Cancelar. Você precisa digitar tudo de novo depois que a cota voltar, e, se esquecer, o padrão cancela os 3 em 48 horas.",
+  "conserto": "Quando a Helena falhar, o app mostra a lista de serviços ligados e você escolhe o serviço com um toque (escolha sua, não da IA). Outra saída: o rascunho espera em \"esperando capacidade\", e a leitura de volta é refeita quando a cota voltar, sem contar como falha da Helena (regra 12). Plano inválido por causa passageira ganha a opção \"tentar de novo\", uma linha da tabela que conta como ordem. Escrever uma jornada de teste com a cota esgotada durante a leitura de volta.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "o card atual é substituído por um card novo ligado, com as entregas dele e o seu pedido.",
+  "problema": "O que o card novo faz com as entregas do antigo fica fora da tabela e fora da prova: no provar.py, `criar_card_ligado` só soma \"card novo ligado\". Esse ponto também não está na tabela \"O que a prova da tabela não alcança\". Se o card novo usar as entregas aprovadas como aprovadas, ele pode fechar com informação velha (regra 10) e com entregas que não passaram pelos portões dele (regra 9). Isso acontece justamente no caso C17, em que a substituição vem de uma decisão nova. Se ele refizer tudo, gasta a cota de E1 a E5 de novo.",
+  "cenario": "A 4ª ordem do card é a decisão nova \"o valor por hora agora é US$ 0,40\". O card é substituído \"com as entregas e a decisão nova\". Se a E1, calculada com US$ 0,50, entrar no card novo como aprovada, o relatório final sai com o número antigo e sem nenhum aviso.",
+  "conserto": "Escrever a regra: no card novo ligado, as entregas herdadas entram como referência e nunca como aprovadas. Cada etapa é refeita ou vai para você como \"reaproveitar\", com um toque por entrega e a versão da decisão à vista. A checagem R10 passa a valer também entre os dois cards. Pôr \"card novo ligado\" na tabela do que a prova não alcança, com quem cobre e o teste.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "as suas ordens que reabrem trabalho (pedir ajuste, refazer, esperar, modelo menor, decisão nova ou confirmar de novo) não gastam o limite de 6 execuções da etapa, mas têm um teto próprio: 3 por card.",
+  "problema": "Dois itens da lista não são pedido seu de retrabalho naquele card. (a) \"Decisão nova\": a decisão tem alcance de empresa, agente ou serviço (e a regra guardada da MEL-45 também). Uma só decisão conta como ordem em todo card aberto que a usa (C16), e os cards que já estão em 3 são todos substituídos na seguinte (C17). (b) \"Esperar\" numa falta de cota (E88): a regra 12 diz que falha do provedor não pune, mas cada aviso de 6 horas respondido com \"esperar\" gasta uma ordem.",
+  "cenario": "Numa terça à tarde você treina os agentes da eLiving™ e cria 4 regras com alcance de empresa, como \"nunca usar a palavra dieta\". Os 6 cards abertos da eLiving™ recebem 4 decisões novas cada um e são todos substituídos. Cada card novo precisa de outra leitura de volta e, enquanto a regra de tamanho não existir, do seu Confirmo: são 6 confirmações e todo o trabalho refeito. Outro caso: num limite semanal de cota, 4 respostas \"esperar\" em dois dias substituem o card, e a leitura de volta do card novo falha por falta de cota.",
+  "conserto": "Contar no teto só as ordens dadas naquele card (pedir ajuste, refazer e confirmar de novo). Uma decisão de alcance maior reabre o que depende dela (regra 10) sem gastar o teto dos cards, e antes de valer o app mostra \"esta regra vai refazer N etapas em M cards\" e pede confirmação. \"Esperar\" por capacidade não conta. Teste: uma decisão de empresa com 6 cards abertos já em 3 ordens.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Nenhuma mensagem se perde nem vira duas.",
+  "problema": "O índice único resolve a duplicação, não a perda. A Evolution tenta entregar o aviso 10 vezes, com intervalos que dobram a partir de 5 segundos até o máximo de 300 (cerca de 20 minutos ao todo), e depois só registra \"Todas as tentativas falharam\", sem fila de sobra. Os códigos 400, 401, 403, 404 e 422 não são tentados de novo nem uma vez (pesquisa/ataque-B-verificacao-nas-fontes.md). Se o recebedor estiver na VPS, uma queda de mais de cerca de 20 minutos, uma publicação longa ou uma senha que não bate (401) perde a mensagem sem deixar rastro no banco. O teste 11 só testa repetição.",
+  "cenario": "Depois da troca, a VPS reinicia às 23h e leva 40 minutos para voltar. Você manda 2 pedidos pelo WhatsApp. A Evolution desiste, nada aparece em \"sem classificar\" e você supõe que a Helena recebeu.",
+  "conserto": "Uma conciliação a cada 15 minutos, e também quando o recebedor liga, que lê na Evolution as últimas mensagens da sua conversa e grava as que faltam; o índice único torna isso seguro. Se a Evolution guarda as mensagens na base dela nesta VPS: NÃO CONFIRMADO. O recebedor só responde sucesso depois de gravar. Senha que não bate gera aviso. Teste: recebedor fora por 30 minutos e recebedor respondendo 401; a mensagem precisa chegar depois, pela conciliação.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Cancelar e Pausar tudo nunca travam.",
+  "problema": "Na tabela (reações), Pausar tudo \"pausa a fila por 20 minutos e desliga sozinha; execuções vivas terminam\". É a mesma pausa da publicação. O freio de emergência se solta sozinho e não para o que já está rodando, mas o texto o apresenta como garantia.",
+  "cenario": "À 1h da manhã você vê um agente em laço gastando cota, ou uma decisão errada refazendo 20 etapas. Toca em Pausar tudo e vai dormir. Vinte minutos depois a fila volta e gasta o resto da janela de 5 horas, e a v1, que divide a mesma cota, para junto.",
+  "conserto": "Separar as duas pausas. A da publicação vence em 20 minutos. A sua só termina quando você toca em \"Retomar\", com lembrete a cada 6 horas, e pergunta se as execuções vivas devem ser encerradas. Teste: Pausar tudo, esperar 30 minutos e conferir que nada começou.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Texto escrito fora de um botão vira comentário no card e nunca muda nada.",
+  "problema": "O Responder da tabela só aceita opções fechadas (RESPOSTA_A, B ou C e parecidas). Não existe \"outra resposta\", e o texto não diz se o Responder aceita texto. Se a resposta que você quer não está entre as opções, o único lugar para escrever é o comentário, que não destrava a etapa, e o texto não diz que o comentário chega ao agente.",
+  "cenario": "O Caio pergunta \"Quantas horas por semana cada pessoa trabalha? A) 10, B) 20, C) 40\". Você escreve \"15\" no card. Vira comentário, a etapa continua esperando, vêm os lembretes de 24 e 48 horas e o padrão cancela a etapa. O card pergunta se é para pular, refazer ou encerrar. Refazer gasta uma ordem, e o Caio continua sem saber das 15 horas.",
+  "conserto": "Todo Responder ganha \"outra resposta (escrever)\". O código escolhe a linha da tabela, e o texto viaja até o agente só como dado, marcado como resposta sua. Teste: responder com texto próprio e conferir que a execução seguinte recebe esse texto.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se já existe um card aberto da mesma empresa e do mesmo serviço, o app pergunta se o pedido novo entra nele.",
+  "problema": "Entrar no card muda o pedido de um card aberto, e pela regra 10 isso obriga a refazer o que dependia dele. Mas a tabela não tem evento de \"pedido mudou\", e essa ação não está na lista de ordens que contam no teto. Ou o texto juntado vira um anexo solto que as etapas já aprovadas nunca leem, ou é uma passagem sem prova.",
+  "cenario": "O card \"convite para 10 pessoas\" já tem a E2 e a E3 aprovadas. Você pede \"o convite precisa ter versão em espanhol\", o app pergunta e você toca em \"entra nele\". A E3 continua aprovada, a E5 monta o relatório, a versão em espanhol nunca é feita e o card diz \"pronto\".",
+  "conserto": "Fazer de \"juntar\" uma linha da tabela (PEDIDO_MUDOU), que reabre as etapas que usam o pedido (regra 10) e conta como ordem. Outra saída, mais simples: o aviso de pedido parecido oferece só \"abrir card ligado\" ou \"cancelar este\". Escrever uma jornada de teste para o caso.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Pedido pequeno segue na hora, e o botão Cancelar desfaz",
+  "problema": "No app, o tipo da mensagem vem do botão, mas a empresa e o serviço são deduzidos pela Helena: o texto não diz que \"Novo pedido\" tem um campo de empresa. Num pedido pequeno, você não vê nenhum dos dois antes do trabalho começar. Além disso, a regra de código que separa pequeno de grande vai precisar do serviço; se ela usar o serviço escolhido pela Helena, um erro da IA faz um pedido grande parecer pequeno e pular o seu Confirmo. A empresa define o pacote (grafia, voz e proibições, como a DEC-023 da eLiving™).",
+  "cenario": "Você pede \"3 legendas sobre a nova linha\". A Helena entende Saúde em vez de eLiving™. Como é pequeno, roda direto: as legendas saem na voz da Saúde, sem as proibições da eLiving™ (por exemplo, chamá-la de \"app fitness\"), e os portões do serviço não pegam.",
+  "conserto": "Pôr em \"Novo pedido\" um seletor de empresa obrigatório (as 4 e \"pessoal\"), já preenchido com a última usada e tocado por você. A regra de tamanho usa só dados que você escolheu. Se ela depender do serviço escolhido pela Helena, o pedido pequeno mostra a leitura de volta por 30 segundos, com um botão \"Errado\", antes de começar. Escrever o teste do caso.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O vigia também devolve à fila uma execução que ficou sem processo vivo, com número novo e sem gastar tentativa.",
+  "problema": "Na tabela, o evento do vigia (SEM_EXECUCAO_VIVA) só existe em EXECUTANDO e REVISAO (E34, E35, E69 e E70). Uma etapa NA_FILA com motivo NORMAL só sai pelo motor, e nada confere se ela está mesmo na fila do motor. A v3 (B-11) dizia que o vigia devolve as etapas que o motor cancela ao ligar por serem de outra versão; o texto novo deixou isso de fora. Com o DBOS, a fila mora num segundo lugar, as tabelas do próprio DBOS, e o vigia da regra 1 vê dono e prazo e dá como certo.",
+  "cenario": "Uma publicação troca a versão do motor. Ao ligar, o motor cancela no DBOS as etapas da versão antiga que estavam na fila, como manda a v3. Três etapas continuam NA_FILA na nossa tabela, sem entrada no DBOS. O prazo do card é daqui a 5 dias: são 4 dias parados sem aviso, até o aviso de 80%.",
+  "conserto": "O vigia compara cada etapa NA_FILA com a fila do motor e devolve a que faltar em até 10 minutos. Outra saída: o motor lê a fila da nossa tabela, para haver uma fonte só. A R01 ganha \"etapa na fila há mais de X minutos sem entrada no motor\". O teste 4 confere isso depois da publicação que troca a versão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se a trava única é liberada quando o motor cai é NÃO CONFIRMADO, e vira teste que bloqueia: sem ele passar, a fase 2 não passa",
+  "problema": "Não há caminho escrito para o caso de o teste falhar, e o teste pode passar pelo motivo errado. A trava pega por uma conexão do pooler de sessão só é solta quando o banco percebe que a conexão morreu. Se o processo é morto, o sistema avisa o banco na hora. Se a VPS perde energia ou rede, a conexão fica meio aberta até vencerem os tempos de espera do pooler e da conexão, que podem durar horas (os valores do Supavisor estão NÃO CONFIRMADO).",
+  "cenario": "O teste mata o processo do motor, a trava é solta e o teste passa. Meses depois, a VPS cai sem aviso de rede. O motor novo sobe, não consegue pegar a trava, recusa ligar e todos os cards ficam parados por horas, até a conexão antiga vencer.",
+  "conserto": "O teste derruba também a rede, sem fechar a conexão, e mede quanto tempo a trava leva para ser solta. Deixar escrita a saída se não couber em 15 minutos: uma trava por prazo, com uma linha de dono e validade renovada a cada 10 segundos, que vence sozinha. Essa saída vale também para o motor próprio, no cartão de decisão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O banco calcula a mesma impressão digital a partir das linhas que tem gravadas, então uma edição à mão no banco também é pega.",
+  "problema": "No provar.py, a impressão é o SHA-256 do JSON do vocabulário mais a tabela, gerado pelo Python com chaves em ordem alfabética e sem espaços, e inclui os textos de nota e de \"por que\". O tipo jsonb do Postgres, convertido em texto, ordena as chaves primeiro pelo tamanho e põe espaço depois de vírgula e de dois-pontos. Calculada do jeito simples, a impressão do banco nunca bate, e o banco ainda precisaria guardar as notas para refazer a conta.",
+  "cenario": "Na primeira publicação da fase 2, a impressão do banco não bate e o motor se recusa a ligar. Sob pressão, uma sessão passa a calcular a impressão no motor, e com isso a proteção contra edição à mão no banco deixa de existir.",
+  "conserto": "Definir por extenso a forma de cálculo (linhas e campos em ordem fixa, texto simples em vez de JSON), igual nas duas linguagens, e tirar as notas do cálculo. Um teste no GitHub, contra um Postgres de verdade, compara as duas impressões a cada mudança.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "A empresa (iGreen, Saúde, Humano Digital ou eLiving™) é uma informação do card: o agente recebe só o pacote daquela empresa, com a grafia, a voz e as proibições dela.",
+  "problema": "A Laura (AGT-02, comunicação do fundador) tem escopo pessoal, \"sem acesso aos pacotes das empresas\". Mas a empresa é campo fixo do card, com só 4 valores, e o pedido parecido compara por empresa. Um card da Laura teria de escolher uma empresa e receberia o pacote dela, e os seus dados pessoais (exercícios, feedback) ficariam guardados como se fossem de uma empresa, com o prazo e o acesso da LGPD daquela empresa.",
+  "cenario": "Você pede à Laura um exercício de fala. O card exige empresa, a Helena põe Humano Digital, a Laura recebe o pacote dessa empresa, e a sua gravação fica registrada como dado de trabalho da Humano Digital.",
+  "conserto": "Criar o valor \"Pessoal\" para empresa, com pacote próprio e sem nenhum dos 4. Só os serviços da Laura aceitam esse valor, e o catálogo recusa a Laura com empresa.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Aprovar, Cancelar ou Usar como exemplo sobre um card fechado viram só comentário.",
+  "problema": "Pronto também é um card fechado (final), e o passo 9 diz \"Você aprova, pede ajuste... ou marca como exemplo\" justamente no card pronto. A tabela (reações) dá efeito ao Aprovar no card PRONTO, que registra a aprovação e lê as fontes de novo, e ao Usar como exemplo na etapa PRONTA.",
+  "cenario": "Quem programar seguindo este texto faz o Aprovar do card pronto virar comentário. A nova leitura das fontes, que \"avisa se a página mudou\", nunca acontece, e nenhum exemplo de ouro é criado.",
+  "conserto": "Escrever \"sobre um card cancelado ou encerrado\". No card pronto, Aprovar e Usar como exemplo têm os efeitos do passo 9.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Toda mensagem sua é gravada pelo código antes de qualquer IA, com o número único que o WhatsApp ou o app dá a ela.",
+  "problema": "No app, se o número único for criado a cada envio, reenviar depois de um erro de rede gera outro número e outro card. O teste 11 só testa a repetição no WhatsApp.",
+  "cenario": "No 4G, você toca em Enviar, a tela fica girando e mostra erro, mas o banco já tinha gravado. Você toca de novo: nascem dois rascunhos, a Helena faz duas leituras de volta e você fica com dois cards.",
+  "conserto": "O número nasce quando a caixa \"Novo pedido\" abre e fica com o rascunho até o banco confirmar. O botão fica travado durante o envio. Teste: cortar a rede depois da gravação e reenviar.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "O destino da URA (desligar, avisando os clientes, ou manter como exceção escrita) é um cartão de decisão seu na fase 0",
+  "problema": "Pelo arquivo DECISOES-DO-FUNDADOR-20261010.md, você já decidiu desligar a URA em 10/10, e decidiu também o DBOS, que o texto ainda trata como \"recomendado\" numa escolha em aberto. Perguntar de novo contraria o AGENTS.md (\"não pedir novamente se já concedida\") e adia o desligamento.",
+  "cenario": "Na fase 0, o cartão pergunta de novo o que fazer com a URA. A decisão fica parada à espera de uma resposta que já foi dada, e a URA continua respondendo clientes enquanto isso.",
+  "conserto": "Escrever \"Você já decidiu desligar (10/10). Falta: o inventário só de leitura, o aviso aos clientes e a sua frase exata para desligar\". Sobre o motor, dizer \"DBOS, decidido em 10/10\" e manter o motor próprio só como registro da alternativa.",
+  "gravidade": "baixa"
+ }
+]

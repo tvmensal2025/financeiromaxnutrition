@@ -1,0 +1,193 @@
+name: Helena v2
+
+# Confere a v2 inteira a cada envio: a especificação (helena-v2), as 4 peças do motor e o app.
+# Nada aqui toca no Supabase, no EasyPanel ou no Hermes: só arquivos, testes e build.
+
+# Roda em todo pull request e nos envios para as duas linhas principais. Um ramo de trabalho sem pull request
+# não roda sozinho (abra o PR como rascunho, ou use "Run workflow" na aba Actions): assim o mesmo commit não
+# é conferido duas vezes, uma pelo envio e outra pelo pull request.
+on:
+  pull_request:
+  push:
+    branches: [main, missao-cumprida-v4]
+  workflow_dispatch:
+
+concurrency:
+  group: helena-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  especificacao:
+    name: Especificação (helena-v2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: helena-v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: helena-v2/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Validar a especificação
+        run: python validar.py
+
+      - name: Testes do validador e da máquina de regras
+        run: python -m pytest -q
+
+  motor:
+    name: Motor (${{ matrix.peca }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        peca: [ferramentas, validador, executor, simulador]
+    defaults:
+      run:
+        working-directory: motor/${{ matrix.peca }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: motor/${{ matrix.peca }}/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Testes
+        run: python -m pytest -q
+
+  app:
+    name: App (testes e build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes do app
+        run: npm test
+
+      - name: Conferir tipos do app
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      - name: Build de produção
+        run: npm run build
+
+  banco-v2:
+    name: Banco v2 (PostgreSQL de teste)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Um PostgreSQL 16 descartável, só neste job. Sem senha: o container vive e morre aqui, fora da internet.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      HELENA_V2_TESTE_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+    defaults:
+      run:
+        working-directory: supabase/migrations-v2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: supabase/migrations-v2/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: O SQL gerado confere com o YAML
+        run: python gerar_passagens.py --conferir
+
+      - name: Testes do banco (esquema, gerador, jornadas, diferencial, 13 regras, escrita direta)
+        run: python -m pytest
+
+  # Três grupos em paralelo, cada um com seu PostgreSQL: durabilidade (queda de processo com kill -9, reinícios, trocas de
+  # versão) e despacho (fila com vagas) levam muitos minutos e não devem esconder nem atrasar os testes rápidos.
+  orquestrador-v2:
+    name: Orquestrador v2 (${{ matrix.grupo }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - grupo: rápidos
+            testes: --ignore=testes/test_durabilidade.py --ignore=testes/test_despacho.py
+          - grupo: durabilidade
+            testes: testes/test_durabilidade.py
+          - grupo: despacho
+            testes: testes/test_despacho.py
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      HELENA_V2_TESTE_DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+      PYTHONPATH: .:../executor:../validador:../ferramentas
+    defaults:
+      run:
+        working-directory: motor/orquestrador
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: motor/orquestrador/requirements.txt
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+      # O PostgreSQL de teste repete no log o texto inteiro de cada comando que dá erro (inclusive erros esperados dos
+      # testes). Isso enche o log do job e esconde o resumo do pytest. Aqui só se cala esse eco; os erros continuam logados.
+      - name: Calar o eco de comandos com erro no log do PostgreSQL de teste
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect("postgresql://postgres@localhost:5432/postgres", autocommit=True) as con:
+              con.execute("alter system set log_min_error_statement = 'panic'")
+              con.execute("select pg_reload_conf()")
+          PY
+
+      - name: Testes do orquestrador (${{ matrix.grupo }})
+        run: python -m pytest -q -rf --tb=short ${{ matrix.testes }}

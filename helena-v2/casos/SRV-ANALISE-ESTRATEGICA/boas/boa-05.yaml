@@ -1,0 +1,14 @@
+# Caso BOM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml (variante SEM-DADOS).
+# A 'resposta' é a saída do Augusto no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: é a ação certa quando falta dado ou o pedido é de outro serviço.
+id: ESTRAT-BOA-05
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+variante: SEM-DADOS
+nota: 'Sem nenhum dado do negócio: registra a falha dizendo o que falta, sem inventar.'
+resposta:
+  acao: REGISTRAR_FALHA
+  motivo_falha: FALTAM_DADOS
+  explicacao: 'O pedido não traz nenhum dado do negócio para comparar os caminhos: faltam o tamanho e a origem da lista
+    de espera, o orçamento do lançamento, as horas do time e quem revisa o conteúdo. Sem eles, toda a análise seria suposição.
+    Traga esses números num pedido novo.'

@@ -1,0 +1,1045 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "helena-v2/card",
+  "title": "Card (v3.1): ordem de serviço e estado",
+  "description": "O card é a fonte única de cada trabalho. Estados, motivos e fins de maquina/vocabulario.yaml (versão 2.0.0); as passagens são as de maquina/passagens.yaml, aplicadas só pelo motor pela função única do banco. Contadores da máquina (ordens, perguntas, voltas, nível de prazo...) vivem na tabela do card e não são escritos aqui. Sem 👍/👎: o que você faz no card são os botões do vocabulário, gravados no histórico com o número único do toque e a versão vista.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "card_id",
+    "versao",
+    "id_mensagem_origem",
+    "ordem_de_servico",
+    "pedido_grande",
+    "escolha",
+    "plano",
+    "estado",
+    "motivo",
+    "fim",
+    "card_anterior",
+    "encaminhamento",
+    "decisoes_versao",
+    "criado_em"
+  ],
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 80,
+      "description": "Gerado pelo código, nunca pelo modelo."
+    },
+    "versao": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Versão que o app mostra; todo toque leva a versão vista e, se ela mudou, Aprovar, Pedir ajuste e Responder viram comentário."
+    },
+    "id_mensagem_origem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canal",
+        "numero"
+      ],
+      "description": "Número único da mensagem que criou o card, gravado pelo código ANTES de qualquer IA (A-8, B-16). O par canal+numero é único no banco: a mesma mensagem nunca vira dois cards.",
+      "properties": {
+        "canal": {
+          "enum": [
+            "APP",
+            "WHATSAPP",
+            "TOQUE_DO_FUNDADOR"
+          ]
+        },
+        "numero": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      }
+    },
+    "ordem_de_servico": {
+      "$ref": "#/$defs/ordem_de_servico"
+    },
+    "pedido_grande": {
+      "type": "boolean",
+      "description": "Regra de código, nunca da IA sozinha (furo 6): true se você marcou 'confirmar antes' na caixa Novo pedido; o código também marca true quando a escolha da Helena é ROTEIRO ou FORA_DA_V2 (só aumenta a confirmação, nunca diminui). É a guarda de C01/C02, gravada antes de a linha ser aplicada."
+    },
+    "escolha": {
+      "description": "O que a Helena escolheu (ou você, no CONFIRMO com escolha); null enquanto o card é rascunho. O grafo é montado pelo código (servicos.yaml, montagem_do_plano).",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "id"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "SERVICO"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "id"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "ROTEIRO"
+            },
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "maxLength": 80
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tipo"
+          ],
+          "properties": {
+            "tipo": {
+              "const": "FORA_DA_V2"
+            },
+            "servico_que_atenderia": {
+              "type": "string",
+              "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+            },
+            "roteiro_que_atenderia": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "maxLength": 80
+            }
+          }
+        }
+      ]
+    },
+    "plano": {
+      "$ref": "#/$defs/plano"
+    },
+    "estado": {
+      "enum": [
+        "RASCUNHO",
+        "ESPERANDO_CONFIRMACAO",
+        "VALIDANDO_PLANO",
+        "EM_ANDAMENTO",
+        "ESPERANDO_FUNDADOR",
+        "PRONTO",
+        "CANCELADO",
+        "ENCERRADO_COM_FALHA"
+      ]
+    },
+    "motivo": {
+      "enum": [
+        "NENHUM",
+        "HELENA_FALHOU",
+        "PLANO_INVALIDO",
+        "VALIDADOR_FALHOU",
+        "DEPENDENCIA",
+        "NAO_PODE"
+      ]
+    },
+    "fim": {
+      "enum": [
+        "PAI",
+        "PADRAO",
+        "PULADA",
+        "ENCERRAR_CARD",
+        "CARD_PRONTO",
+        "FUNDADOR",
+        "SUBSTITUIDO",
+        "FALHA",
+        "NENHUM"
+      ]
+    },
+    "card_anterior": {
+      "description": "Ligação com o card anterior: ajuste depois de pronto (card pronto não volta a andar; A-6), substituição no teto de ordens (passagens C17, C28, C29, C33) ou sua resposta depois de o card fechar.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "card_id",
+            "ligacao"
+          ],
+          "properties": {
+            "card_id": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 80
+            },
+            "ligacao": {
+              "enum": [
+                "AJUSTE_DEPOIS_DE_PRONTO",
+                "SUBSTITUICAO",
+                "RESPOSTA_TARDIA"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "encaminhamento": {
+      "description": "Pedido que a v2 ainda não atende e que você encaminhou à v1 (servicos.yaml, destino_fora_da_v2). null quando não houve.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "para",
+            "numero_v1",
+            "em",
+            "id_toque"
+          ],
+          "properties": {
+            "para": {
+              "const": "V1"
+            },
+            "numero_v1": {
+              "type": "string",
+              "pattern": "^JOB-HR-[0-9a-f]{32}$"
+            },
+            "em": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+            },
+            "id_toque": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        }
+      ]
+    },
+    "decisoes_versao": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "description": "Versão das decisões vigentes lidas na hora; mudou, o que dependia é refeito (regra 10)."
+    },
+    "criado_em": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+    },
+    "atualizado_em": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "enum": [
+              "RASCUNHO",
+              "ESPERANDO_CONFIRMACAO",
+              "VALIDANDO_PLANO",
+              "EM_ANDAMENTO",
+              "ESPERANDO_FUNDADOR"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fim": {
+            "const": "NENHUM"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "PRONTO"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fim": {
+            "const": "CARD_PRONTO"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "CANCELADO"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fim": {
+            "enum": [
+              "PADRAO",
+              "FUNDADOR",
+              "SUBSTITUIDO"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "ENCERRADO_COM_FALHA"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "fim": {
+            "const": "FUNDADOR"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "enum": [
+              "RASCUNHO",
+              "VALIDANDO_PLANO",
+              "EM_ANDAMENTO"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "motivo": {
+            "const": "NENHUM"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "ESPERANDO_CONFIRMACAO"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "motivo": {
+            "enum": [
+              "NENHUM",
+              "HELENA_FALHOU",
+              "PLANO_INVALIDO",
+              "VALIDADOR_FALHOU"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "ESPERANDO_FUNDADOR"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "motivo": {
+            "enum": [
+              "DEPENDENCIA",
+              "NAO_PODE"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "enum": [
+              "EM_ANDAMENTO",
+              "ESPERANDO_FUNDADOR",
+              "PRONTO",
+              "ENCERRADO_COM_FALHA"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "escolha": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "enum": [
+                  "SERVICO",
+                  "ROTEIRO"
+                ]
+              }
+            }
+          },
+          "plano": {
+            "type": "object"
+          }
+        }
+      },
+      "description": "Depois de PLANO_VALIDO o card sempre tem serviço ou roteiro escolhido e o plano montado, com os revisores efetivos de cada etapa."
+    },
+    {
+      "if": {
+        "properties": {
+          "estado": {
+            "const": "RASCUNHO"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "escolha": {
+            "type": "null"
+          },
+          "plano": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "estado": {
+                "enum": [
+                  "VALIDANDO_PLANO",
+                  "EM_ANDAMENTO",
+                  "ESPERANDO_FUNDADOR",
+                  "PRONTO",
+                  "ENCERRADO_COM_FALHA"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "estado": {
+                "const": "ESPERANDO_CONFIRMACAO"
+              },
+              "motivo": {
+                "not": {
+                  "const": "HELENA_FALHOU"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "ordem_de_servico": {
+            "required": [
+              "o_que_quer",
+              "como_e_o_pronto",
+              "nao_pode"
+            ]
+          }
+        }
+      },
+      "description": "Do 'Entendi assim' em diante (ou do seu CONFIRMO sem leitura), a ordem de serviço está completa. Em RASCUNHO e com HELENA_FALHOU ela só tem os campos da caixa Novo pedido."
+    },
+    {
+      "if": {
+        "properties": {
+          "ordem_de_servico": {
+            "properties": {
+              "empresa": {
+                "const": "PESSOAL"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "escolha": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "tipo",
+                  "id"
+                ],
+                "properties": {
+                  "tipo": {
+                    "const": "SERVICO"
+                  },
+                  "id": {
+                    "enum": [
+                      "SRV-PLANO-DE-PRATICA"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "tipo"
+                ],
+                "properties": {
+                  "tipo": {
+                    "const": "FORA_DA_V2"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "escolha": {
+            "not": {
+              "type": "object",
+              "required": [
+                "tipo",
+                "id"
+              ],
+              "properties": {
+                "tipo": {
+                  "const": "SERVICO"
+                },
+                "id": {
+                  "enum": [
+                    "SRV-PLANO-DE-PRATICA"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Card PESSOAL só com serviço da Laura, e serviço da Laura só em card PESSOAL (MAT-14)."
+    },
+    {
+      "if": {
+        "properties": {
+          "escolha": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "const": "FORA_DA_V2"
+              }
+            },
+            "required": [
+              "tipo"
+            ]
+          }
+        },
+        "required": [
+          "escolha"
+        ]
+      },
+      "then": {
+        "properties": {
+          "pedido_grande": {
+            "const": true
+          }
+        }
+      },
+      "description": "FORA_DA_V2 sempre pede a sua confirmação (servicos.yaml, destino_fora_da_v2)."
+    },
+    {
+      "if": {
+        "properties": {
+          "encaminhamento": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "encaminhamento"
+        ]
+      },
+      "then": {
+        "properties": {
+          "estado": {
+            "const": "CANCELADO"
+          },
+          "fim": {
+            "const": "FUNDADOR"
+          }
+        }
+      },
+      "description": "Só o seu Cancelar com encaminhar_para_v1 encaminha; o padrão nunca encaminha."
+    },
+    {
+      "if": {
+        "properties": {
+          "id_mensagem_origem": {
+            "properties": {
+              "canal": {
+                "const": "TOQUE_DO_FUNDADOR"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "card_anterior": {
+            "type": "object"
+          }
+        }
+      },
+      "description": "Card nascido de um toque seu (ajuste depois de pronto, substituição no teto de ordens, resposta tardia com o card fechado) é sempre ligado ao anterior."
+    }
+  ],
+  "x-regras-do-validador": [
+    "plano.etapas[].revisores termina em FUNDADOR e só tem agentes com aptidão APTA no tipo do serviço da etapa (MAT-21)",
+    "plano: toda etapa de serviço SEMPRE julgado está no 'julga' de uma etapa SRV-PARECER do mesmo plano (MAT-22)",
+    "empresa da ordem de serviço está nas empresas de todos os serviços do plano e tem pacote CONFIRMADO (MAT-23)"
+  ],
+  "$defs": {
+    "item_do_pronto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "texto",
+        "quem_confere",
+        "risco"
+      ],
+      "description": "Item do pronto do card (camada CARD; MEL-29). Toda restrição de 'nao_pode' vira item de risco ALTO.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^CARD-[1-5]$"
+        },
+        "texto": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "quem_confere": {
+          "enum": [
+            "CODIGO",
+            "IA",
+            "FUNDADOR"
+          ]
+        },
+        "checagem": {
+          "type": "string",
+          "pattern": "^CHK-[A-Z0-9]+(-[A-Z0-9]+)*$",
+          "description": "Obrigatória quando CODIGO: ID de checagem que já existe. A Helena não inventa checagem."
+        },
+        "risco": {
+          "enum": [
+            "ALTO",
+            "BAIXO"
+          ]
+        },
+        "motivo_fundador": {
+          "enum": [
+            "ACAO_EXTERNA",
+            "JURIDICO",
+            "PLANO_DA_META"
+          ],
+          "description": "Item seu só onde o plano já põe você; conferido no seu Aprovar, nunca como pergunta à parte."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "quem_confere": {
+                "const": "CODIGO"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "checagem"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "checagem"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "quem_confere": {
+                "const": "FUNDADOR"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "motivo_fundador"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "motivo_fundador"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "ordem_de_servico": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "empresa",
+        "prazo",
+        "prioridade",
+        "pedido_original"
+      ],
+      "description": "Ordem de serviço. Origem de cada campo (furo 6): empresa, prazo e prioridade vêm da caixa Novo pedido, gravados pelo código como toque seu ANTES de qualquer IA; pedido_original também. o_que_quer, como_e_o_pronto e nao_pode vêm da leitura de volta da Helena (no pedido grande, valem com o seu CONFIRMO); sem leitura (HELENA_FALHOU), o código preenche com o começo do seu pedido e com o pronto_padrao do serviço escolhido por você. O pedido original viaja inteiro por todas as etapas e revisões.",
+      "properties": {
+        "empresa": {
+          "enum": [
+            "BIZ-001",
+            "BIZ-002",
+            "BIZ-003",
+            "BIZ-004",
+            "PESSOAL"
+          ],
+          "description": "Escolha obrigatória na caixa Novo pedido: BIZ-001 iGreen Energy, BIZ-002 Ecossistema de Saúde, BIZ-003 Humano Digital, BIZ-004 eLiving™, ou PESSOAL (só serviço da Laura; MAT-14). Nunca escolhida por IA. Decide o pacote que o agente recebe; pacote não CONFIRMADO dá PLANO_INVALIDO (MAT-23)."
+        },
+        "o_que_quer": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 400
+        },
+        "como_e_o_pronto": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/item_do_pronto"
+          }
+        },
+        "prazo": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$",
+          "description": "Data e hora de Brasília (-03:00), da caixa Novo pedido. Se você não mexer, o código grava o padrão fixo (PROPOSTA: 3 dias corridos depois do pedido, às 18:00). Só você muda (botão MUDAR_PRAZO; regra 7); a sugestão da Helena vira item na sua lista. Cada mudança rearma os 3 avisos até TETO_MUDANCAS_PRAZO."
+        },
+        "prioridade": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "1 = máxima. Da caixa Novo pedido; se você não mexer, o código grava o padrão fixo 3 (PROPOSTA). Só você muda (botão MUDAR_PRIORIDADE; regra 7)."
+        },
+        "nao_pode": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          }
+        },
+        "pedido_original": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000,
+          "description": "Suas palavras, exatamente como chegaram (chave colada é trocada por '[chave removida]' antes de gravar)."
+        },
+        "fontes_que_pode_ler": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 20,
+          "items": {
+            "type": "string",
+            "pattern": "^https://[^\\s?#]+$",
+            "maxLength": 500
+          },
+          "description": "Links do pedido que você ligou como 'pode ler' (só https, sem consulta nem fragmento). Só estes entram na lista de ler_pagina, e ainda passam pelo acesso_sem_efeito (servicos.yaml, ferramentas_nossas)."
+        }
+      }
+    },
+    "etapa_do_plano": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "servico",
+        "autor",
+        "revisores",
+        "depende_de"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^E[0-9]{1,2}$"
+        },
+        "servico": {
+          "type": "string",
+          "pattern": "^SRV-[A-Z0-9]+(-[A-Z0-9]+)*$"
+        },
+        "autor": {
+          "enum": [
+            "HELENA",
+            "LAURA",
+            "AUGUSTO",
+            "MARINA",
+            "CAIO",
+            "CLARA",
+            "BIANCA",
+            "DANIEL",
+            "THEO",
+            "NINA",
+            "RAVI",
+            "MAYA",
+            "BRUNO",
+            "OLIVIA",
+            "VICTOR",
+            "CAMILA",
+            "ISABELA",
+            "PEDRO",
+            "RENATA",
+            "JOANA",
+            "FELIPE"
+          ],
+          "description": "Uma das 21 identidades de vocabulario.identidades.agentes (sem acento, como o banco grava)."
+        },
+        "revisores": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "HELENA",
+              "LAURA",
+              "AUGUSTO",
+              "MARINA",
+              "CAIO",
+              "CLARA",
+              "BIANCA",
+              "DANIEL",
+              "THEO",
+              "NINA",
+              "RAVI",
+              "MAYA",
+              "BRUNO",
+              "OLIVIA",
+              "VICTOR",
+              "CAMILA",
+              "ISABELA",
+              "PEDRO",
+              "RENATA",
+              "JOANA",
+              "FELIPE",
+              "FUNDADOR"
+            ]
+          },
+          "contains": {
+            "const": "FUNDADOR"
+          },
+          "description": "Revisores EFETIVOS (servicos.yaml, revisores_efetivos): [revisor, reserva] do serviço só com aptidão APTA no tipo, e FUNDADOR no fim. Pelo menos um agente. Congelada para a vida do card; é a lista que vai para a máquina."
+        },
+        "depende_de": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^E[0-9]{1,2}$"
+          }
+        },
+        "julga": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^E[0-9]{1,2}$"
+          }
+        },
+        "acao_do_fundador": {
+          "enum": [
+            "AF-ADMIN-PAGAR-RENOVAR-ASSINAR",
+            "AF-PESSOAS-PUBLICAR-VAGA",
+            "AF-TECNICA-CONTRATAR-SERVICO",
+            "AF-CAMPANHA-LANCAR",
+            "AF-COPY-ENVIAR-OU-PUBLICAR",
+            "AF-TREINAMENTO-ENVIAR",
+            "AF-VENDAS-CONTATAR",
+            "AF-PARCERIA-CONTATAR",
+            "AF-SUCESSO-FALAR-COM-CLIENTE",
+            "AF-ATENDIMENTO-ENVIAR-RESPOSTA"
+          ],
+          "description": "A única ação do fundador que a entrega desta etapa pode propor (CHK-COMUM-10)."
+        }
+      }
+    },
+    "plano": {
+      "description": "Plano montado pelo código no VALIDANDO_PLANO e aprovado pelo validador (PLANO_VALIDO). null antes disso.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "origem",
+            "versao_do_catalogo",
+            "montado_em",
+            "etapas"
+          ],
+          "properties": {
+            "origem": {
+              "enum": [
+                "SERVICO_NAO_JULGADO",
+                "SERVICO_SEMPRE_JULGADO",
+                "ROTEIRO"
+              ],
+              "description": "servicos.yaml, montagem_do_plano."
+            },
+            "roteiro_id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            },
+            "versao_do_catalogo": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            },
+            "montado_em": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?-03:00$"
+            },
+            "etapas": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "$ref": "#/$defs/etapa_do_plano"
+              }
+            },
+            "passos_fixos_do_fundador": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "texto",
+                  "coberto_pelo_parecer"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^PF-[0-9]{2}$"
+                  },
+                  "texto": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 240
+                  },
+                  "coberto_pelo_parecer": {
+                    "type": "string",
+                    "pattern": "^E[0-9]{1,2}$"
+                  }
+                }
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "origem": {
+                    "const": "ROTEIRO"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "roteiro_id"
+                ]
+              },
+              "else": {
+                "not": {
+                  "required": [
+                    "roteiro_id"
+                  ]
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "origem": {
+                    "const": "SERVICO_NAO_JULGADO"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "etapas": {
+                    "maxItems": 1
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "origem": {
+                    "const": "SERVICO_SEMPRE_JULGADO"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "etapas": {
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

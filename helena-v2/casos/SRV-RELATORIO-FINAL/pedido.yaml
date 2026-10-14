@@ -1,0 +1,181 @@
+# Caso de teste do SRV-RELATORIO-FINAL (Helena, AGT-01). Caso SINTÉTICO: os textos das entregas
+# aprovadas abaixo foram escritos para o teste e não são entregas reais.
+#
+# Por que Humano Digital (BIZ-003): o relatório só existe como última etapa de um roteiro, e o único
+# roteiro do catálogo hoje é o da primeira meta (playbooks/recrutar-10-pessoas.yaml). A eLiving™ não
+# tem roteiro ainda (ver pedidos ao catálogo).
+#
+# O que tem aqui, na ordem em que acontece:
+#   1. pacote_da_empresa: o que todo agente recebe junto com o card (grafia, voz, proibições).
+#   2. card: a ordem de serviço criada pela caixa Novo pedido e o plano montado pelo CÓDIGO a partir
+#      do roteiro (schemas/card.schema.json). Estado: EM_ANDAMENTO, com a E5 executando.
+#   3. leitura_de_volta: a resposta da Helena no papel HELENA (acao.schema.json, $defs/LER_DE_VOLTA).
+#   4. pacote_do_relatorio: o que o motor entrega à Helena na E5: as entregas aprovadas (trechos) e a
+#      parte montada pelo código. É contra ele que as checagens CHK-REL-* conferem as respostas de
+#      boas/ e defeitos/.
+# Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: CASO-REL-001
+servico: SRV-RELATORIO-FINAL
+agente: AGT-01
+empresa: BIZ-003
+descricao: >-
+  Relatório final (E5) do roteiro recrutar-10-pessoas: plano dos 7 dias para recrutar as primeiras
+  10 pessoas na Mimix e no Hub, com conta, treinamento, convite e parecer já aprovados.
+
+pacote_da_empresa:
+  empresa: BIZ-003
+  nome: "Humano Digital"
+  estado: CONFIRMADO
+  grafia: "Humano Digital"
+  voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+  decisoes: [DEC-024, DEC-025]
+  proibicoes:
+    - "Qualquer termo de ganho no convite (reais, dólares, renda, ganho, 'por hora'); o convite nem recebe a conta (C-11)."
+    - "Prometer renda, vaga ou disponibilidade."
+  # Lista fechada lida pela CHK-REL-PACOTE. LISTA DE TESTE: até você registrar a lista oficial do
+  # pacote (FORA-PACOTE-DE-VOZ), o caso usa estes termos.
+  termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida"]
+
+card:
+  card_id: "CARD-20261010-0001"
+  versao: 7
+  id_mensagem_origem: {canal: APP, numero: "app-20261010-090000-0001"}
+  ordem_de_servico:
+    empresa: BIZ-003
+    prazo: "2026-10-17T18:00:00-03:00"
+    prioridade: 1
+    pedido_original: >-
+      Quero o plano para recrutar as primeiras 10 pessoas na Mimix e no Hub em 7 dias: a conta do que
+      a empresa recebe, o treinamento para gravar sem ser reprovado, o convite e a checagem jurídica.
+      Nada de prometer renda no convite.
+    o_que_quer: "Plano dos 7 dias para recrutar as primeiras 10 pessoas na Mimix e no Hub, com conta, treinamento, convite e parecer jurídico."
+    como_e_o_pronto:
+      - {id: CARD-1, texto: "Plano dos 7 dias com o que só você faz, na ordem certa", quem_confere: IA, risco: ALTO}
+      - {id: CARD-2, texto: "Nenhum agente cadastra, contata ou publica: tudo de fora vem na sua lista", quem_confere: CODIGO, checagem: CHK-COMUM-05, risco: ALTO}
+      - {id: CARD-3, texto: "Parecer jurídico do convite e do roteiro, lido por você antes de agir", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+      - {id: CARD-4, texto: "Tudo em português simples", quem_confere: CODIGO, checagem: CHK-COMUM-03, risco: BAIXO}
+    nao_pode:
+      - "Prometer renda ou ganho no convite"
+      - "Cadastrar ou contatar alguém em seu nome"
+  pedido_grande: true
+  escolha: {tipo: ROTEIRO, id: recrutar-10-pessoas}
+  plano:
+    origem: ROTEIRO
+    roteiro_id: recrutar-10-pessoas
+    versao_do_catalogo: "3.1.0"
+    montado_em: "2026-10-10T09:12:00-03:00"
+    # Revisores EFETIVOS: [revisor, reserva] do serviço só com aptidão APTA no tipo, e FUNDADOR no fim
+    # (MAT-21). A máquina ainda tira o autor e quem julga a peça depois (regra 4).
+    etapas:
+      - {id: E1, servico: SRV-CALCULO, autor: CAIO, revisores: [HELENA, CLARA, FUNDADOR], depende_de: []}
+      - {id: E2, servico: SRV-ROTEIRO-TREINAMENTO, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-TREINAMENTO-ENVIAR}
+      - {id: E3, servico: SRV-COPY, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR}
+      - {id: E4, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E2, E3], julga: [E2, E3]}
+      - {id: E5, servico: SRV-RELATORIO-FINAL, autor: HELENA, revisores: [CAIO, CLARA, FUNDADOR], depende_de: [E1, E2, E3, E4]}
+    passos_fixos_do_fundador:
+      - {id: PF-01, texto: "Cadastrar a Humano Digital na Mimix e no Hub e configurar a indicação.", coberto_pelo_parecer: E4}
+  estado: EM_ANDAMENTO
+  motivo: NENHUM
+  fim: NENHUM
+  card_anterior: null
+  encaminhamento: null
+  decisoes_versao: "DEC-024 v1, DEC-025 v1"
+  criado_em: "2026-10-10T09:00:00-03:00"
+  atualizado_em: "2026-10-13T15:40:00-03:00"
+
+# Resposta da Helena no papel HELENA (coordenação), antes do seu CONFIRMO. Ela só escolhe o roteiro;
+# empresa, prazo e prioridade vieram da caixa Novo pedido; quem monta o plano acima é o código.
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: ROTEIRO, id: recrutar-10-pessoas}
+  entendi_assim:
+    o_que_quer: "Plano dos 7 dias para recrutar as primeiras 10 pessoas na Mimix e no Hub, com conta, treinamento, convite e parecer jurídico."
+    como_e_o_pronto:
+      - {texto: "Plano dos 7 dias com o que só você faz, na ordem certa", quem_confere: IA, risco: ALTO}
+      - {texto: "Nenhum agente cadastra, contata ou publica: tudo de fora vem na sua lista", quem_confere: CODIGO, checagem: CHK-COMUM-05, risco: ALTO}
+      - {texto: "Parecer jurídico do convite e do roteiro, lido por você antes de agir", quem_confere: FUNDADOR, risco: ALTO}
+      - {texto: "Tudo em português simples", quem_confere: CODIGO, checagem: CHK-COMUM-03, risco: BAIXO}
+    nao_pode:
+      - "Prometer renda ou ganho no convite"
+      - "Cadastrar ou contatar alguém em seu nome"
+
+# O que o motor entrega à Helena na E5 (entrada_minima do relatorio_final). Trechos das entregas
+# aprovadas: o código entrega a versão aprovada inteira; aqui está só o que o caso precisa.
+etapa_do_relatorio: E5
+pacote_do_relatorio:
+  entregas_aprovadas:
+    E1:
+      servico: SRV-CALCULO
+      autor: CAIO
+      revisor: HELENA
+      versao_aprovada: 1
+      aprovada_em: "2026-10-11T11:20:00-03:00"
+      trechos:
+        entradas:
+          - "Pessoas no grupo: 10 (dado seu, no pedido)."
+          - "Valor por hora aprovada que a plataforma paga à empresa: US$ 0,50 (dado seu, no roteiro)."
+          - "Horas por semana por pessoa: 2 no conservador, 5 no base e 10 no otimista (premissa do Caio, a confirmar por você)."
+          - "Cada participante recebe US$ 5 por hora aprovada, integral, pago pela plataforma (dado seu, no roteiro)."
+        formula: "receita por semana = pessoas x horas por semana x US$ 0,50"
+        cenarios:
+          - "Conservador: 10 x 2 x 0,50 = US$ 10 por semana."
+          - "Base: 10 x 5 x 0,50 = US$ 25 por semana."
+          - "Otimista: 10 x 10 x 0,50 = US$ 50 por semana."
+        riscos: ["As horas por semana são premissa; a plataforma pode reprovar horas, e a receita cai junto."]
+        pergunta_aberta: "Você confirma 5 horas por semana por pessoa como cenário base?"
+    E2:
+      servico: SRV-ROTEIRO-TREINAMENTO
+      autor: ISABELA
+      revisor: CAIO
+      versao_aprovada: 1
+      aprovada_em: "2026-10-11T16:05:00-03:00"
+      trechos:
+        objetivo: "Gravar atividades do dia a dia com qualidade e privacidade, sem ser reprovado."
+        passo_a_passo:
+          - "Passo 1: escolha um lugar claro e silencioso."
+          - "Passo 2: avise quem mora com você e grave só quem autorizou."
+          - "Passo 3: enquadre a câmera na altura do peito, mostrando as mãos."
+          - "Passo 4: grave de 5 a 15 minutos por atividade."
+        erros_que_reprovam: ["Rosto ou voz de outra pessoa sem autorização.", "Imagem escura ou tremida."]
+        sem_conferir: "Se uma pessoa leiga consegue enquadrar a câmera sozinha no passo 3 (risco baixo)."
+    E3:
+      servico: SRV-COPY
+      autor: ISABELA
+      revisor: CAIO
+      versao_aprovada: 2
+      aprovada_em: "2026-10-12T10:30:00-03:00"
+      trechos:
+        versao_final: >-
+          Oi! A Humano Digital está montando um grupo de 10 pessoas para gravar atividades do dia a dia
+          e ajudar a treinar inteligência artificial. A gente ensina tudo passo a passo, e a participação
+          é feita por cadastro na plataforma. Quer saber como funciona? Responda esta mensagem.
+        o_que_precisa_do_seu_ok: "O envio, depois do parecer aprovado e do cadastro da empresa nas plataformas."
+    E4:
+      servico: SRV-PARECER
+      autor: CLARA
+      revisor: HELENA
+      segundo_revisor: FUNDADOR
+      versao_aprovada: 1
+      aprovada_em: "2026-10-13T15:30:00-03:00"
+      trechos:
+        semaforo: "OK para o roteiro (E2), o convite (E3) e o passo fixo de cadastro (PF-01)."
+        condicao: "Ninguém grava rosto ou voz de outra pessoa sem a autorização dela."
+        ordem: "O cadastro da empresa na Mimix e no Hub vem antes de qualquer convite."
+        quando_chamar_advogado: "Antes de passar de 10 pessoas ou se houver indicação paga a participante."
+        tabela_de_leis: "Conferido contra a tabela de leis v1 (texto a conferir); não substitui um advogado."
+  parte_montada_pelo_codigo:
+    riscos:
+      - {etapa: E4, risco: ALTO, texto: "Gravação com rosto ou voz de outra pessoa sem a autorização dela."}
+      - {etapa: E4, risco: ALTO, texto: "Passar de 10 pessoas ou pagar indicação a participante sem ouvir um advogado."}
+      - {etapa: E1, risco: BAIXO, texto: "As horas por semana são premissa; a plataforma pode reprovar horas."}
+    perguntas_abertas:
+      - {etapa: E1, texto: "Você confirma 5 horas por semana por pessoa como cenário base?"}
+    sem_conferir:
+      - {etapa: E2, risco: BAIXO, texto: "Se uma pessoa leiga consegue enquadrar a câmera sozinha no passo 3."}
+    premissas:
+      - {etapa: E1, texto: "Horas por semana por pessoa: 2, 5 e 10."}
+    so_voce_faz:
+      - {id: PF-01, tipo: PASSO_FIXO, texto: "Cadastrar a Humano Digital na Mimix e no Hub e configurar a indicação.", coberto_pelo_parecer: E4}
+      - {id: AF-COPY-ENVIAR-OU-PUBLICAR, tipo: ACAO_DO_FUNDADOR, etapa: E3, texto: "Enviar ou publicar o texto aprovado, depois do parecer aprovado."}
+      - {id: AF-TREINAMENTO-ENVIAR, tipo: ACAO_DO_FUNDADOR, etapa: E2, texto: "Enviar o roteiro aprovado às pessoas, depois do parecer aprovado."}

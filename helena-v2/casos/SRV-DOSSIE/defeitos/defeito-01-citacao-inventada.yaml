@@ -1,0 +1,100 @@
+# Caso RUIM do SRV-DOSSIE (Ravi, AGT-11) para o pedido ../pedido.yaml.
+# O QUE É: igual à boa-01 (menos onde o defeito mexe), com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código; RECUSA volta ao autor); RUB-... = portão 2 (revisor). Serve ao teste 5 (validador) e, depois,
+# ao teste 9 do par revisor x dossiê. COMO MUDAR: mude a boa-01 e refaça o defeito a partir dela; mantenha UM defeito só.
+id: DOSSIE-RUIM-01
+servico: SRV-DOSSIE
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01-indicacao-e-pagamento.yaml
+defeito_plantado: 'A citação da fonte S3 (item 5) é paráfrase: ''Cada participante ganha um código pessoal... amigos e parentes''
+  não está em nenhuma parte da página lida.'
+deve_falhar_em: CHK-COMUM-06
+portao: 1 (código)
+motivo_esperado: trecho_original de S3 não está na parte 2 da cópia guardada.
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-termos-parte-1.yaml
+- fitas/02-termos-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    entidade:
+    - nome: Mimix
+      tipo: PLATAFORMA
+      pergunta: O que os termos da Mimix dizem sobre indicação e pagamento?
+    fatos:
+    - id: F1
+      afirmacao: A Mimix paga cada tarefa aprovada em dólares americanos, pela tabela de valores que está no aplicativo no
+        dia da aprovação.
+      fontes: S1
+    - id: F2
+      afirmacao: O pagamento sai até 30 dias depois da aprovação da tarefa, por transferência para a conta que o participante
+        cadastrou, e as tarifas do banco ficam com o participante.
+      fontes: S2
+    - id: F3
+      afirmacao: Cada participante tem um código de indicação pessoal para compartilhar com quem ainda não tem conta na Mimix.
+      fontes: S3
+    - id: F4
+      afirmacao: O bônus de indicação é pago ao participante que indicou quando a pessoa indicada tem a primeira tarefa aprovada
+        em até 60 dias depois do cadastro.
+      fontes: S4
+    - id: F5
+      afirmacao: O bônus é pago uma única vez por pessoa indicada, e contas duplicadas feitas pelo próprio participante não
+        geram bônus.
+      fontes: S5
+    interpretacoes:
+    - id: I1
+      leitura: 'Leitura minha: o bônus depende de a pessoa indicada trabalhar e ser aprovada em 60 dias, então quem indica
+        não controla se o bônus será pago.'
+      baseada_em: F4, F5
+    lacunas:
+    - id: L1
+      o_que_falta: 'O valor pago por tarefa: os termos mandam para uma tabela de valores do aplicativo, que não veio nas páginas
+        lidas.'
+      documento_que_falta: Tabela de valores por tarefa publicada no aplicativo da Mimix
+      onde_procurar: Aplicativo da Mimix, na lista de tarefas, e Central de ajuda da Mimix, seção Pagamentos
+      termos_procurados: US$, valor por tarefa, por hora, centavos
+    - id: L2
+      o_que_falta: 'O valor do bônus de indicação: os termos dizem quando ele é pago, mas não quanto.'
+      documento_que_falta: Tabela de valores do bônus de indicação
+      onde_procurar: Aplicativo da Mimix, na tela do código de indicação, e Central de ajuda da Mimix, seção Indicação
+      termos_procurados: valor do bônus, valor por indicação, quanto vale, US$
+    fontes:
+    - id: S1
+      referencia: Termos do Programa de Participantes, item 3 (Pagamento)
+      citacao:
+        trecho_original: A Mimix paga cada tarefa aprovada em dólares americanos, de acordo com a tabela de valores publicada
+          no aplicativo no dia da aprovação.
+        leitura_id: LEI-DOS-0001
+        parte: 1
+    - id: S2
+      referencia: Termos do Programa de Participantes, item 4 (Prazo e forma de pagamento)
+      citacao:
+        trecho_original: O pagamento é feito até 30 dias depois da aprovação da tarefa, por transferência para a conta cadastrada
+          pelo participante, e as tarifas do banco ficam por conta dele.
+        leitura_id: LEI-DOS-0001
+        parte: 1
+    - id: S3
+      referencia: Termos do Programa de Participantes, item 5 (Indicação)
+      citacao:
+        trecho_original: Cada participante ganha um código pessoal que pode compartilhar com amigos e parentes que ainda não
+          têm conta.
+        leitura_id: LEI-DOS-0001
+        parte: 2
+    - id: S4
+      referencia: Termos do Programa de Participantes, item 6 (Bônus de indicação)
+      citacao:
+        trecho_original: A Mimix paga um bônus ao participante que indicou quando a pessoa indicada tem a primeira tarefa
+          aprovada dentro de 60 dias depois do cadastro.
+        leitura_id: LEI-DOS-0001
+        parte: 2
+    - id: S5
+      referencia: Termos do Programa de Participantes, item 7 (Limites da indicação)
+      citacao:
+        trecho_original: O bônus é pago uma única vez por pessoa indicada, e indicações feitas pelo próprio participante com
+          contas duplicadas não geram bônus.
+        leitura_id: LEI-DOS-0001
+        parte: 2

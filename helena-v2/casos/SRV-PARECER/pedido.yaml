@@ -1,0 +1,298 @@
+# Caso de teste do SRV-PARECER (Clara, AGT-06). Caso SINTÉTICO: a legenda, a política de privacidade
+# e a tabela de leis de teste foram escritas para o teste; não são documentos reais da eLiving™.
+#
+# Por que eLiving™ (BIZ-004) no caso principal: o parecer atende Humano Digital e eLiving™ (só pacotes
+# CONFIRMADOS; MAT-23), e este é o caminho do grafo fixo de um serviço SEMPRE julgado (servicos.yaml,
+# montagem_do_plano, SERVICO_SEMPRE_JULGADO): E1 = SRV-COPY (Isabela), E2 = SRV-PARECER (Clara), julga
+# [E1]. O pedido é o exemplo do catálogo "Faz a legenda do post de lançamento da eLiving™".
+# A Humano Digital (BIZ-003) entra pela variante V-ROTEIRO-HUMANO-DIGITAL: o OUTRO caminho, o roteiro da
+# primeira meta (E4 = parecer, julga E2 e E3, cobre o passo fixo PF-01), igual ao do caso do relatório
+# final (casos/SRV-RELATORIO-FINAL/pedido.yaml, E4).
+#
+# Endereços: as regras da eLiving™ proíbem inventar URL ("Utilizar somente canais oficialmente
+# confirmados"; docs/manual/eliving/comando-master-eliving.md). Por isso o link da política usa o domínio reservado
+# '.invalid' (RFC 2606: nunca existe na internet). Ele está no lugar do link que você colaria.
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que a Clara recebe junto com o card (grafia, voz, proibições).
+#   2. card: a ordem de serviço (caixa Novo pedido + leitura de volta confirmada) e o plano montado
+#      pelo CÓDIGO, com os revisores efetivos (schemas/card.schema.json).
+#   3. pacote_do_parecer: o que o motor entrega à Clara na E2: a peça julgada em cada versão, a lista
+#      de passos fixos (vazia no avulso), a tabela de leis DE TESTE e as páginas da lista (fitas/).
+#   4. variantes: os pedidos derivados usados pelas outras boas: sem 'pode ler' (boa-03), público de 13
+#      a 17 anos (boa-04), roteiro da Humano Digital com passo fixo (boa-05) e pacote sem a tabela de
+#      leis (boa-06). Cada variante diz o que muda; o resto é igual ao caso principal.
+#   5. a pasta fitas/ tem as respostas gravadas da ler_pagina (a política, em 2 partes, e a recusa).
+# Aviso sobre a tabela de leis de TESTE: ela traz poucas linhas, para provar as checagens. Os trechos
+# foram transcritos para o teste e NÃO foram conferidos contra a URL oficial (o ambiente de escrita não
+# alcança os sites do governo). A tabela de verdade (FON-LEIS-v<n>) é publicada por você com o texto
+# oficial copiado da URL, a data da cópia e as notas reais; até lá nenhum parecer real roda.
+# Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: CASO-PAR-001
+servico: SRV-PARECER
+agente: AGT-06
+empresa: BIZ-004
+descricao: >-
+  Parecer (E2) sobre a legenda do post de lançamento da eLiving™ no Instagram (E1, SRV-COPY), num card
+  avulso com o grafo fixo do serviço sempre julgado. A legenda promete que os dados ficam só no Brasil,
+  e a política de privacidade (parte 2) diz que podem ficar fora.
+
+pacote_da_empresa:
+  empresa: BIZ-004
+  nome: "eLiving™"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-004
+  grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+  slogan: "Onde sua evolução ganha direção."
+  posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+  pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+  decisoes: [DEC-023]
+  fontes: [docs/manual/eliving/comando-master-eliving.md, docs/manual/eliving/manual-de-comportamento-agentes-eliving.md]
+  # LISTA DE TESTE: até você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ).
+  termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "dieta restritiva", "emagrecimento garantido", "promessa de cura"]
+
+card:
+  card_id: "CARD-TESTE-PARECER-01"
+  versao: 6
+  id_mensagem_origem: {canal: APP, numero: "app-20261010-140500-0007"}
+  ordem_de_servico:
+    empresa: BIZ-004
+    prazo: "2026-10-14T18:00:00-03:00"
+    prioridade: 2
+    pedido_original: >-
+      Faz a legenda do post de lançamento da eLiving™ no Instagram. Quero falar dos 4 pilares e passar
+      confiança sobre os dados das pessoas. A política de privacidade (rascunho) está neste link:
+      https://rascunho.eliving-politica.invalid/politica-de-privacidade
+    o_que_quer: "Legenda do post de lançamento da eLiving™ no Instagram, com os 4 pilares e uma frase de confiança sobre os dados."
+    como_e_o_pronto:
+      - {id: CARD-1, texto: "Legenda pronta para publicar, na voz da eLiving™, com os 4 pilares", quem_confere: IA, risco: BAIXO}
+      - {id: CARD-2, texto: "Nada na legenda contradiz a política de privacidade", quem_confere: IA, risco: ALTO}
+      - {id: CARD-3, texto: "Parecer jurídico lido por você antes de publicar", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+    nao_pode:
+      - "Prometer diagnóstico, cura ou resultado"
+      - "Publicar sem o seu ok"
+    fontes_que_pode_ler: ["https://rascunho.eliving-politica.invalid/politica-de-privacidade"]
+  pedido_grande: true          # você marcou "confirmar antes"
+  escolha: {tipo: SERVICO, id: SRV-COPY}
+  plano:
+    origem: SERVICO_SEMPRE_JULGADO
+    versao_do_catalogo: "3.1.0"
+    montado_em: "2026-10-10T14:08:00-03:00"
+    # Revisores EFETIVOS (MAT-21): E1 = [CAIO (APTA em copy), FUNDADOR] (a reserva Camila está SEM_PROVA
+    # e sai); E2 = [HELENA (APTA em parecer), FUNDADOR]. A máquina ainda tira o autor e quem julga a
+    # peça depois (regra 4): a Clara e a Helena nunca revisam a E1.
+    etapas:
+      - {id: E1, servico: SRV-COPY, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR}
+      - {id: E2, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E1], julga: [E1]}
+  estado: EM_ANDAMENTO
+  motivo: NENHUM
+  fim: NENHUM
+  card_anterior: null
+  encaminhamento: null
+  decisoes_versao: "DEC-023 v1"
+  criado_em: "2026-10-10T14:05:00-03:00"
+  atualizado_em: "2026-10-10T14:30:00-03:00"
+
+# O que o motor entrega à Clara na E2 (entrada_minima do parecer).
+etapa_do_parecer: E2
+pacote_do_parecer:
+  pecas_julgadas:
+    E1:
+      servico: SRV-COPY
+      autor: ISABELA
+      revisor: CAIO
+      acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+      # Cada versão é a peça inteira, como o código entrega (seções do tipo copy). A versão 2 é a que
+      # a Isabela entrega depois do AJUSTE do parecer aprovado por você (E82).
+      versoes:
+        1:
+          aprovada_em: "2026-10-10T14:25:00-03:00"
+          versao_final: >-
+            Chegou a eLiving™. Onde sua evolução ganha direção. Agora existe uma inteligência acompanhando
+            sua evolução diária: a Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus
+            exames em linguagem simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância
+            dos seus hábitos. Seus dados de saúde ficam guardados com total segurança, só no Brasil. Baixe e
+            comece hoje.
+          alternativa_curta: "eLiving™: onde sua evolução ganha direção. Seus dados ficam só no Brasil. Baixe hoje."
+          onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+          o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+        2:
+          aprovada_em: "2026-10-10T16:10:00-03:00"
+          versao_final: >-
+            Chegou a eLiving™. Onde sua evolução ganha direção. Agora existe uma inteligência acompanhando
+            sua evolução diária: a Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus
+            exames em linguagem simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância
+            dos seus hábitos. Você escolhe o que registrar; a política de privacidade explica onde seus
+            dados ficam. Baixe e comece hoje. Para maiores de 18 anos.
+          alternativa_curta: "eLiving™: onde sua evolução ganha direção. Para maiores de 18 anos. Baixe hoje."
+          onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+          o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+  passos_fixos: []           # grafo fixo do avulso: nenhum passo fixo (o código diz que a lista é vazia)
+  # Tabela de leis DE TESTE, entregue como fonte importada. AVISO: trechos transcritos só para o teste,
+  # a conferir contra a URL oficial (deliverables/parecer.yaml, CHK-PARECER-LEI-NA-TABELA) antes de
+  # qualquer uso real. Não é a tabela publicada (FON-LEIS-v<n>) e não fundamenta parecer de verdade.
+  tabela_de_leis:
+    fonte_importada_id: FON-LEIS-TESTE-v0
+    linhas:
+      - referencia: "CDC, art. 37, § 1º"
+        lei: CDC
+        texto: "É enganosa qualquer modalidade de informação ou comunicação de caráter publicitário, inteira ou parcialmente falsa, ou, por qualquer outro modo, mesmo por omissão, capaz de induzir em erro o consumidor a respeito da natureza, características, qualidade, quantidade, propriedades, origem, preço e quaisquer outros dados sobre produtos e serviços."
+        nota: nenhuma
+      - referencia: "LGPD, art. 5º, II"
+        lei: LGPD
+        texto: "dado pessoal sensível: dado pessoal sobre origem racial ou étnica, convicção religiosa, opinião política, filiação a sindicato ou a organização de caráter religioso, filosófico ou político, dado referente à saúde ou à vida sexual, dado genético ou biométrico, quando vinculado a uma pessoa natural;"
+        nota: nenhuma
+      - referencia: "LGPD, art. 11, I"
+        lei: LGPD
+        texto: "quando o titular ou seu responsável legal consentir, de forma específica e destacada, para finalidades específicas;"
+        nota: nenhuma
+      - referencia: "LGPD, art. 14, caput"
+        lei: LGPD
+        texto: "O tratamento de dados pessoais de crianças e de adolescentes deverá ser realizado em seu melhor interesse, nos termos deste artigo e da legislação pertinente."
+        nota: nenhuma
+      - referencia: "LGPD, art. 33, caput"
+        lei: LGPD
+        texto: "A transferência internacional de dados pessoais somente é permitida nos seguintes casos:"
+        nota: NOTA-TESTE-01
+      - referencia: "Código Civil, art. 20, caput"
+        lei: CODIGO-CIVIL
+        texto: "Salvo se autorizadas, ou se necessárias à administração da justiça ou à manutenção da ordem pública, a divulgação de escritos, a transmissão da palavra, ou a publicação, a exposição ou a utilização da imagem de uma pessoa poderão ser proibidas, a seu requerimento e sem prejuízo da indenização que couber, se lhe atingirem a honra, a boa fama ou a respeitabilidade, ou se se destinarem a fins comerciais."
+        nota: NOTA-TESTE-02
+      - referencia: "CLT, art. 3º, caput"
+        lei: CLT
+        texto: "Considera-se empregado toda pessoa física que prestar serviços de natureza não eventual a empregador, sob a dependência deste e mediante salário."
+        nota: nenhuma
+    notas:
+      NOTA-TESTE-01: "Nota de TESTE, sem conteúdo jurídico: existe só para provar a CHK-PARECER-NOTA-DE-JURISPRUDENCIA. A tabela publicada traz as notas reais, conferidas."
+      NOTA-TESTE-02: "Nota de TESTE, sem conteúdo jurídico: segunda nota, para provar a mesma checagem numa linha de outra lei. A tabela publicada traz as notas reais, conferidas."
+    aliases_das_leis:
+      LGPD: ["LGPD", "Lei Geral de Proteção de Dados"]
+      CDC: ["CDC", "Código de Defesa do Consumidor"]
+      CODIGO-CIVIL: ["Código Civil"]
+      CLT: ["CLT", "Consolidação das Leis do Trabalho"]
+  # Páginas da lista de ler_pagina (só o link que você ligou como 'pode ler'). As respostas da
+  # ferramenta estão gravadas em fitas/ (MEL-31): o teste roda o modelo com a ferramenta simulada.
+  paginas_da_lista:
+    - url: "https://rascunho.eliving-politica.invalid/politica-de-privacidade"
+      leitura_id: LEI-PAR-0001
+      partes_total: 2
+      fitas: [fitas/01-politica-parte-1.yaml, fitas/02-politica-parte-2.yaml]
+  decisoes: ["DEC-023 v1"]
+
+variantes:
+  V-SEM-PODE-LER:
+    o_que_muda: "Você colou o link da política no pedido, mas não ligou 'pode ler': fontes_que_pode_ler fica vazia e o link não entra na lista de ler_pagina."
+    ordem_de_servico: {fontes_que_pode_ler: []}
+    pacote_do_parecer: {paginas_da_lista: []}
+    fita: fitas/03-politica-fora-da-lista.yaml
+    usada_por: [boas/boa-03-fonte-insuficiente.yaml, jornada-falha.yaml]
+  V-ADOLESCENTES:
+    o_que_muda: "Seu pedido pede a legenda para adolescentes de 13 a 17 anos; a peça julgada é a versão abaixo."
+    pedido_original: >-
+      Faz a legenda do post de lançamento da eLiving™ no Instagram para o público de 13 a 17 anos. Quero
+      falar dos 4 pilares. A política de privacidade (rascunho) está neste link:
+      https://rascunho.eliving-politica.invalid/politica-de-privacidade
+    pecas_julgadas:
+      E1:
+        versoes:
+          1:
+            aprovada_em: "2026-10-10T14:25:00-03:00"
+            versao_final: >-
+              Chegou a eLiving™, feita para quem tem de 13 a 17 anos. Onde sua evolução ganha direção. A
+              Sirlene ajuda a organizar suas refeições, o Doutor Vital traduz seus exames em linguagem
+              simples, o Alex te ajuda a se mexer todo dia e o Rafael cuida da constância dos seus hábitos.
+              Baixe e comece hoje.
+            alternativa_curta: "eLiving™ para quem tem de 13 a 17 anos. Baixe hoje."
+            onde_usar: "Legenda do post de lançamento no Instagram da eLiving™."
+            o_que_precisa_do_seu_ok: "Publicar a legenda, depois do parecer aprovado."
+    usada_por: [boas/boa-04-nao-pode.yaml]
+  V-ROTEIRO-HUMANO-DIGITAL:
+    o_que_muda: >-
+      Outra empresa e o outro caminho do catálogo: Humano Digital (BIZ-003, pacote CONFIRMADO) no roteiro
+      recrutar-10-pessoas. A etapa do parecer é a E4: julga o roteiro de treinamento (E2) e o convite
+      (E3) e cobre o passo fixo PF-01 (cadastro na Mimix e no Hub, que só você faz). O link da política
+      não existe aqui: o parecer não usa ler_pagina (usou_internet NAO). É o mesmo card do caso do
+      relatório final (casos/SRV-RELATORIO-FINAL/pedido.yaml); o parecer aprovado de lá é o desta boa.
+    empresa: BIZ-003
+    etapa_do_parecer: E4
+    pacote_da_empresa:
+      empresa: BIZ-003
+      nome: "Humano Digital"
+      estado: CONFIRMADO
+      fonte_importada_id: FON-PACOTE-BIZ-003
+      grafia: "Humano Digital"
+      voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+      decisoes: [DEC-024, DEC-025]
+      proibicoes:
+        - "Qualquer termo de ganho no convite (reais, dólares, renda, ganho, 'por hora'); o convite nem recebe a conta (C-11, MAT-16)."
+        - "Prometer renda, vaga ou disponibilidade."
+      # LISTA DE TESTE, a mesma dos casos do cálculo e do relatório final.
+      termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida"]
+    ordem_de_servico:
+      empresa: BIZ-003
+      prazo: "2026-10-17T18:00:00-03:00"
+      prioridade: 1
+      pedido_original: >-
+        Quero o plano para recrutar as primeiras 10 pessoas na Mimix e no Hub em 7 dias: a conta do que
+        a empresa recebe, o treinamento para gravar sem ser reprovado, o convite e a checagem jurídica.
+        Nada de prometer renda no convite.
+      fontes_que_pode_ler: []
+    plano:
+      origem: ROTEIRO
+      roteiro_id: recrutar-10-pessoas
+      versao_do_catalogo: "3.1.0"
+      # Só as etapas que o parecer enxerga. Revisores efetivos (MAT-21): E2 e E3 = [CAIO, FUNDADOR];
+      # E4 = [HELENA, FUNDADOR]. A Clara e a Helena nunca revisam E2 nem E3 (regra 4).
+      etapas:
+        - {id: E2, servico: SRV-ROTEIRO-TREINAMENTO, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-TREINAMENTO-ENVIAR}
+        - {id: E3, servico: SRV-COPY, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR}
+        - {id: E4, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E2, E3], julga: [E2, E3]}
+      passos_fixos_do_fundador:
+        - {id: PF-01, texto: "Cadastrar a Humano Digital na Mimix e no Hub e configurar a indicação.", coberto_pelo_parecer: E4}
+    pacote_do_parecer:
+      pecas_julgadas:
+        E2:
+          servico: SRV-ROTEIRO-TREINAMENTO
+          autor: ISABELA
+          revisor: CAIO
+          acao_do_fundador: AF-TREINAMENTO-ENVIAR
+          versoes:
+            1:
+              aprovada_em: "2026-10-11T16:05:00-03:00"
+              objetivo: "Gravar atividades do dia a dia com qualidade e privacidade, sem ser reprovado."
+              passo_a_passo:
+                - "Passo 1: escolha um lugar claro e silencioso."
+                - "Passo 2: avise quem mora com você e grave só quem autorizou."
+                - "Passo 3: enquadre a câmera na altura do peito, mostrando as mãos."
+                - "Passo 4: grave de 5 a 15 minutos por atividade."
+                - "Passo 5: não grave crianças nem adolescentes."
+              erros_que_reprovam:
+                - "Rosto ou voz de outra pessoa sem autorização."
+                - "Imagem escura ou tremida."
+              checklist_final: "Lugar claro, só quem autorizou, de 5 a 15 minutos, sem crianças nem adolescentes."
+        E3:
+          servico: SRV-COPY
+          autor: ISABELA
+          revisor: CAIO
+          acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+          versoes:
+            2:
+              aprovada_em: "2026-10-12T10:30:00-03:00"
+              versao_final: >-
+                Oi! A Humano Digital está montando um grupo de 10 pessoas para gravar atividades do dia a
+                dia e ajudar a treinar inteligência artificial. A gente ensina tudo passo a passo, e a
+                participação é feita por cadastro na plataforma. Quer saber como funciona? Responda esta
+                mensagem.
+              alternativa_curta: "Humano Digital: grupo de 10 pessoas para gravar o dia a dia. Quer saber como? Responda esta mensagem."
+              onde_usar: "Mensagem de WhatsApp e redes da Humano Digital."
+              o_que_precisa_do_seu_ok: "O envio, depois do parecer aprovado e do cadastro da empresa nas plataformas."
+      passos_fixos:
+        - {id: PF-01, texto: "Cadastrar a Humano Digital na Mimix e no Hub e configurar a indicação."}
+      paginas_da_lista: []
+      decisoes: ["DEC-024 v1", "DEC-025 v1"]
+    usada_por: [boas/boa-05-roteiro-passo-fixo.yaml]
+  V-SEM-TABELA:
+    o_que_muda: "O pacote chega sem a tabela de leis (FON-LEIS-v<n> não publicada ou não anexada). O resto é igual ao caso principal (versão 1 da legenda)."
+    pacote_do_parecer: {tabela_de_leis: null}
+    usada_por: [boas/boa-06-falta-tabela.yaml]

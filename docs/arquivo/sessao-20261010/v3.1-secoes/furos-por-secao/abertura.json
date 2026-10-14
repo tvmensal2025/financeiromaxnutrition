@@ -1,0 +1,338 @@
+[
+ {
+  "trecho": "É um repositório privado separado, que só você cria e no qual nenhum app de IA entra. // A sessão de IA entra no GitHub com o seu próprio login, como administradora. Você não controla as permissões desse acesso. // o backup fica num lugar que nenhuma sessão alcança;",
+  "problema": "O texto se contradiz. A premissa dele mesmo diz que a sessão usa o login do fundador, como administradora, e que ele não controla as permissões. Um repositório criado nessa mesma conta herda esse alcance. A promessa 'nenhum app de IA entra / nenhuma sessão alcança' não tem como ser cumprida, e nenhum teste a prova (o teste 11 só confere segredos e versão no ar). Os 'dois pontos NÃO CONFIRMADOS' do texto não incluem este.",
+  "cenario": "Uma sessão desviada, ou só errada, lista o helena-backup pelo login do fundador, apaga as releases (backup perdido) ou escreve um workflow lá. Esse workflow roda com o papel de leitura do banco e com a chave privada da restauração semanal ('o único lugar com a chave que abre a cópia'). Ele decifra e exfiltra o banco inteiro, com os dados pessoais dos recrutados. As duas defesas que o texto lista como independentes do GitHub (backup fora do alcance e diagnóstico) caem juntas.",
+  "conserto": "Criar o helena-backup em uma conta ou organização separada do GitHub, com login e verificação em duas etapas próprios, que nunca foi conectada a nenhuma sessão de IA. Ou então escrever 'NÃO CONFIRMADO' e só afirmar o isolamento depois de um teste: a partir da sessão, tentar listar, clonar, disparar workflow e apagar release no helena-backup, e exigir recusa. Guardar a cópia da chave privada fora do computador (o v3 tinha isso, e a frase 'único lugar com a chave' removeu).",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "o banco recusa qualquer passagem fora da tabela, seja qual for o código; // Entra \"nenhuma credencial de produção no GitHub\" // O portão 0a passa a ser \"igual ou melhor que antes do passo\", depende da sua escolha sobre quando trocar as chaves",
+  "problema": "O texto afirma, sem condição, que não há credencial de produção no GitHub e que 'o banco recusa qualquer passagem fora da tabela, seja qual for o código'. Mas o fundador decidiu hoje (DECISOES-DO-FUNDADOR, item 2) trocar as chaves só no fim dos testes. Até lá a chave de acesso total (service_role) continua valendo e está escrita em claro em 9 arquivos rastreados (mapa-estado-atual §1: 9 service_role e 2 anon, em main e em outras branches, e no histórico do git). Conferi com grep: 11 arquivos rastreados têm chave no formato JWT. A decisão pede que o risco aceito seja 'escrito no plano', e esta abertura não o escreve. O item 5 ainda descreve a troca e o desligamento das chaves antigas como se estivessem em curso.",
+  "cenario": "Qualquer sessão, ou qualquer branch codex/ ou cursor/ com acesso ao repositório, lê scripts/cadastrar-eliving.mjs, pega a chave de acesso total e chama o Supabase direto. Isso passa por cima do 'só o motor grava' e do 'esquema fechado para fora', e nenhum teste de segredos do GitHub vê, porque a chave está no código e não em Actions secrets. O fundador lê 'nenhuma credencial de produção no GitHub' e acredita nisso.",
+  "conserto": "Escrever na abertura o risco aceito com todas as letras: 'até a troca das chaves, existe credencial de acesso total dentro do repositório; as proteções abaixo só valem depois dela'. Condicionar as frases 'o que segura o sistema' e o teste 11 à data da troca. Trocar já os 9 arquivos para ler de variável de ambiente (a decisão pede isso), e rodar gitleaks no histórico inteiro, com a lista de impressões digitais das chaves vivas, que vira item obrigatório do portão final. Incluir no teste 11 uma verificação do conteúdo do repositório, e não só dos segredos de Actions.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "As ações (entregar, perguntar, devolver a quem pediu e registrar falha) chegam por ferramentas nossas, que só registram a resposta. // O serviço que não usa internet recebe o servidor só com as ferramentas de ação. A Isabela fica sem ferramenta de leitura. // Até lá, e se não passar, o canal continua o do v3, o texto final conferido, e a escolha fica registrada.",
+  "problema": "A defesa contra a regra do Hermes 'lista de ferramentas vazia libera todas' (v3, seção O agente) agora depende de toda execução ter pelo menos uma ferramenta de ação. Duas lacunas: (1) no canal de reserva, 'o do v3', ninguém recebe ferramenta de ação, e o texto acabou de revogar o 'servidor vazio' do v3 para os serviços sem internet, então a Isabela ficaria com lista vazia; (2) as quatro ações listadas são só as do autor, e o texto não diz qual ferramenta nossa o revisor e a Helena recebem para dar veredito ou recomendar. Revisores não leem internet, então teriam lista vazia também.",
+  "cenario": "O dia de prova da fase 2 mostra que o hermes -z não termina sozinho depois da ação, e o canal volta para o do v3. A ficha da Isabela (sem internet) gera lista de ferramentas vazia. O Hermes libera terminal e arquivos, e uma instrução plantada num pedido ou numa página colada executa comando na VPS que também hospeda a v1, o WhatsApp e o EasyPanel. O mesmo vale para o revisor, que lê trechos de páginas da internet.",
+  "conserto": "Escrever que, em qualquer canal, toda ficha de qualquer papel (autor, revisor, Helena) recebe o servidor de ferramentas nosso, no mínimo com uma ferramenta inofensiva, e nunca lista vazia. Dizer qual ferramenta tipada o revisor e a Helena usam. Estender o teste 3 ao canal de reserva e aos papéis que não são autor, e fazer o motor se recusar a abrir uma execução cuja lista efetiva não bata com a ficha.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Um comando direto seu (DEC-022) já vale como autorização. // A autorização não vence por data: vale até ser usada e só é pedida de novo se a versão, o estado ou o escopo mudarem, como diz o AGENTS.md. // que registra, mas não trava.",
+  "problema": "Três problemas. (1) O DEC-022 (AGENTS.md) é o poder do fundador de criar empresas, contas e entidades. O texto o generaliza para 'comando direto = autorização' de qualquer mudança no banco ou no servidor. Isso contradiz a decisão do fundador de hoje: 'toda mudança no banco, no servidor ou no ar continua exigindo a frase exata dele para aquela ação'. (2) A autorização sem prazo e sem trava ('registra, mas não trava') é um arquivo no repositório que a própria sessão escreve, confere e dá por 'usado'. (3) Quem decide que 'versão, estado ou escopo mudaram' é a mesma sessão que quer agir.",
+  "cenario": "O fundador escreve numa conversa 'arruma o backup' ou 'dá uma olhada nas portas'. A sessão entende isso como comando direto, registra um AUT e aplica uma mudança de banco ou servidor sem a frase exata. Meses depois uma AUT que nunca foi 'usada' continua valendo. A sessão declara que 'o estado não mudou' e executa um SQL contra um banco que já tem cards e dados de recrutados.",
+  "conserto": "Restringir o DEC-022 a 'criar empresa, conta ou entidade na tabela de destino', como no AGENTS.md. Para todo o resto, exigir a frase exata do nível 2 para aquela ação. Cada AUT precisa guardar a impressão digital do estado conferido, e a execução precisa reconferi-la e abortar se divergir (conferência por script, não por julgamento da sessão). Marcar a AUT como 'usada' é parte do mesmo passo que executa. Autorizações com escopo de banco ou servidor ficam fora da regra 'sem validade'.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "No app, \"Preparar publicação\" pausa e esvazia a fila e mostra a impressão digital da versão aprovada. No EasyPanel, você cola essa impressão digital e aperta Deploy.",
+  "problema": "Reabre o furo B-12 do registro: 'a pausa da fila que a publicação liga se desliga sozinha em 20 minutos' (v3, Manutenção). Nesta abertura a pausa não tem prazo, nem estado nem dono. O toque agora são dois passos em dois aplicativos, num celular, e o segundo pode nunca acontecer. A regra 1 (nada espera sem dono e prazo) fica sem cobertura. 'Esvazia' também não diz se espera os passos em andamento terminarem ou os mata, gastando cota.",
+  "cenario": "Às 22h o fundador toca em 'Preparar publicação' no celular, é interrompido e dorme. A fila fica pausada e vazia a noite toda. Os prazos dos cards continuam correndo e disparam alertas de atraso em cascata. Ou ele aperta Deploy no EasyPanel sem ter preparado, e passos em andamento são mortos no meio da execução.",
+  "conserto": "Carregar do v3: a pausa de 'Preparar publicação' expira sozinha em 20 minutos e avisa; o estado 'publicação preparada' tem dono (o fundador) e prazo. Dizer que 'esvaziar' é esperar os passos terminarem (com teto) e não matá-los. Dizer que o motor novo, ao ligar, trata como publicação não preparada qualquer versão que subir sem a marca de preparo (cancela o que ficou de outra versão, como no v3). Cobrir no teste 4.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se falhar, ela não pega trabalho, e você recebe \"volte para X\", com a impressão digital anterior pronta para colar. // o motor é o único remetente ao Telegram",
+  "problema": "Quem envia 'volte para X' é só o motor, e a falha de que se fala é justamente a de uma versão nova que não sobe ou se recusa a ligar (sem endereço do banco, chave paga no ambiente, impressão digital da tabela diferente, migração que falha). O token do robô 'fica só no motor'. Sem remetente, o único aviso que chega é o genérico do healthchecks ('motor vivo' parou), sem dizer qual versão anterior colar. A 'volta automática' foi removida, então o sistema fica parado sem ninguém que mande de volta.",
+  "cenario": "Deploy de uma imagem que quebra ao ligar (migração falha). O motor antigo já foi parado e o novo não sobe. Em até 15 minutos o healthchecks diz 'motor fora'. O fundador, num celular, não sabe qual impressão digital era a anterior nem que a mudança do banco ficou pela metade. A fila e os prazos esperam.",
+  "conserto": "Mostrar a impressão digital anterior na tela 'Preparar publicação', no cartão de diagnóstico e no corpo do alarme do healthchecks (campo fixo na mensagem do sinal). Rodar a migração numa transação única e idempotente. Prever um modo mínimo do motor ('só avisar') que sobe mesmo sem passar na autoverificação, só para enviar o 'volte para X'. Testar com publicação quebrada de propósito, medindo o tempo até o aviso chegar com a impressão digital anterior.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Card novo só começa abaixo de 50% na janela curta e de 60% na semanal, e a partir de 80% tudo pausa e mostra a hora de volta. A leitura usa o comando de uso do Hermes, e o dia de prova confere se ele mostra as duas janelas sem gastar cota (NÃO CONFIRMADO).",
+  "problema": "O v3 tinha um orçamento diário fixo ('uma parte fixa do limite'). Ele foi trocado por uma leitura que ninguém confirmou, sem dizer o que o motor faz se a leitura falhar, vier vazia, vier só de uma janela ou o comando gastar cota. Isso reabre K-15, A-12 e M-23 do registro (a v2 pode consumir toda a cota e atrapalhar a v1). O número é lido em momentos discretos, e o consumo da v1 é autônomo (mapa-estado-atual: o cron da v1 roda a cada 2 minutos, com até 6 ações por ciclo). Também não está dito se 'tudo pausa' inclui revisores e a vaga curta da Helena, o que contraria a ordem de prioridade do v3 ('Helena recebendo pedidos, revisores, cards em andamento e cards novos').",
+  "cenario": "O comando de uso muda de formato, devolve vazio ou dá erro numa quarta-feira. O motor, sem regra de fallback, ou deixa passar tudo (a v2 queima a cota semanal da conta e a v1 para) ou trava tudo (cards sem avanço, sem aviso claro). Entre duas leituras, a v1 passa de 70% para 100%.",
+  "conserto": "Escrever o fallback: se a leitura falhar ou ficar velha (por exemplo mais de 10 minutos), vale o orçamento diário fixo do v3 por conta própria, e o motor avisa. Tratar 'tudo pausa em 80%' com a ordem de prioridade do v3 (quem pausa primeiro) e dizer o que acontece com os cards em andamento. Se a leitura não passar no dia de prova, o plano precisa de um item 'se não passar' como o do hermes -z.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os casos de teste guardam as respostas de ferramenta gravadas, e a regressão exige 3 de 3. // testa cada mudança sem senha",
+  "problema": "Regressão 'em 3 de 3' significa chamar o modelo 3 vezes por caso, com o login do ChatGPT. Esse login só mora na VPS, e o GitHub 'testa sem senha'. Então a regressão roda na VPS, na vaga de trabalho única, e consome a mesma cota que os cards e a v1. O texto não diz onde ela roda, quando, quanto custa para 21 agentes, nem se obedece aos limites de 50/60/80% e à vaga única. A mesma dúvida vale para os 5 casos noturnos do v3.",
+  "cenario": "Ao ligar o 5º agente, cada mudança de ficha dispara a bateria de 21 agentes × casos × 3. Ela ocupa a única vaga por horas e gasta uma fatia grande da cota semanal, justamente quando um card real espera. A cota passa de 60%, 'card novo' deixa de começar e o fundador vê o sistema parado, sem ninguém ter pedido nada.",
+  "conserto": "Definir a regressão como trabalho de fundo da própria fila: prioridade mais baixa que cards reais, só abaixo de um teto de cota (por exemplo 30%), com orçamento mensal de chamadas escrito. Rodar só a bateria do agente que mudou, e a completa só em troca de modelo, e dizer onde cada uma roda. Contar esse custo no teste 1.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A mudança do banco roda ao ligar o serviço, só se houver mudança pendente, e não tenta de novo em laço se falhar. A credencial que muda o banco mora só no EasyPanel, e um teste confere que o processo do agente não consegue vê-la.",
+  "problema": "Se a migração roda 'ao ligar o serviço', a credencial de alteração do banco está no ambiente do serviço do motor (ou do servidor de ferramentas, que lê páginas hostis), e não só do 'processo do agente'. O v3 diz que o motor se recusa a ligar 'com o acesso de administrador' e deve usar só o acesso limitado. As duas coisas não cabem juntas, e o texto só testa o agente. Não diz se a migração é uma etapa separada, nem se é uma transação única. Com a volta automática removida, uma migração que falha pela metade deixa a versão antiga sobre um banco parcialmente alterado.",
+  "cenario": "O motor sobe com a credencial de DDL no ambiente para poder migrar. Sua autoverificação ('acesso limitado, nunca de administrador') ou falha e o motor não liga, ou foi afrouxada para passar. Um texto plantado numa página lida pelo servidor de ferramentas, com falha de isolamento, alcança a credencial que apaga ou altera tabelas.",
+  "conserto": "Separar a migração em um contêiner de execução única, com a credencial de DDL, que termina antes de o motor subir, e o motor nunca recebe essa credencial. Cada migração em transação única, com verificação de estado antes e depois. Estender o teste 'o agente não vê a credencial' para o motor e o servidor de ferramentas, e escrever o que o fundador faz se a migração falhar sem a volta automática.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Onde o app é servido hoje, se no EasyPanel ou na Hostinger, ainda é NÃO CONFIRMADO, e a fase 0 descobre só lendo, sem mudar nada. // Nada muda o que está no ar sem o seu toque, e o toque mora no EasyPanel, não no GitHub. // a montagem de produção falha se faltar uma variável, o que mantém a versão anterior no ar.",
+  "problema": "A frase central do plano ('nada muda o que está no ar sem o seu toque') é dada como regra geral, mas o app (a única tela do fundador, no celular) pode estar numa hospedagem (Hostinger ou outra) que publica sozinha a cada envio ao GitHub. A garantia 'mantém a versão anterior no ar' só vale se existir uma montagem de produção que pode falhar, e a publicação automática é justamente o que o plano desliga. A fase 0 descobre onde está o app, mas o texto não manda desligar nenhuma ligação automática entre GitHub e hospedagem, nem a inclui no teste 11.",
+  "cenario": "O app está na Hostinger com 'implantar a partir do Git' ligado. Uma sessão faz push na branch de produção e a tela do fundador muda sem que ele toque em nada. Pior: ela aponta o app para outro gateway, e o token de login dele vai junto (MEL-33). O teste 11 'a versão no ar não mudou' só olha o EasyPanel.",
+  "conserto": "Na fase 0 (só leitura), listar toda ligação de implantação automática (Hostinger Git, integração da Vercel, webhook do EasyPanel) a partir de cada conta. Desligá-las com a frase do nível 2. Reescrever a abertura como 'depois que o app estiver no EasyPanel ou com a implantação automática desligada'. Estender o teste 11 à hospedagem do app.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A empresa é uma informação do card, e o agente recebe só o pacote daquela empresa: grafia, voz e proibições.",
+  "problema": "O isolamento por empresa cobre grafia, voz e proibições. Mas o v3 diz que o agente também recebe 'as lições e exemplos daquele serviço', e que um exemplo de ouro 'vale para as próximas entregas do serviço', e regras 'nunca faça isso' valem 'para todos os agentes do serviço'. Agora o serviço é compartilhado pelas 4 empresas, e nada diz que lição, exemplo, decisão e regra carregam a empresa. A eLiving tem posicionamento inegociável, e a Saúde tem alegações regulamentadas.",
+  "cenario": "O fundador marca 'Usar como exemplo' numa copy da iGreen com promessa de economia e tom comercial. A Isabela passa a receber esse exemplo nos cards da eLiving e da Saúde. Os cards saem com a linguagem da iGreen. Uma regra 'nunca falar de X' aprendida em uma empresa passa a barrar texto legítimo de outra. O validador de grafia (eLiving™) pode passar, e o contágio de conteúdo não aparece em lugar nenhum.",
+  "conserto": "Todo exemplo, lição, regra numerada e preferência recebe a empresa de origem. O padrão é injetar só os da mesma empresa. 'Vale para todas as empresas' exige marcação explícita do fundador. Colocar no teste de regressão um caso cruzado (exemplo da empresa A não aparece no pacote da empresa B), por agente.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "A cópia é completa toda noite, se couber nos limites; se não couber, a cada 2 ou 3 noites.",
+  "problema": "Reabre o desenho do v3 (K-7/B-10), que fazia as tabelas que mudam (cards, caixa de entrada, decisões, histórico) toda noite, justamente para caber no limite de tráfego do plano grátis. No v3.1, se a cópia completa não couber, não há cópia parcial intermediária. A janela sem cópia sobe para 3 noites, e as decisões do fundador e as mensagens recebidas nesse intervalo somem numa restauração. Dumps diários completos também gastam o tráfego do plano grátis do Supabase, o mesmo que a produção usa (o texto só trata do teto de minutos do GitHub e não do tráfego). A regra do MEL-16 'depois de restaurar, uma ação externa aprovada depois da cópia volta para esperando você' não foi trazida para o texto.",
+  "cenario": "Dia 1 de manhã o banco corrompe depois de um erro de migração. A última cópia é de 3 noites atrás. Duas decisões do fundador, dois cards fechados e as mensagens do WhatsApp registradas desde então se perdem. A restauração em si ainda esgota o tráfego mensal e restringe o projeto grátis.",
+  "conserto": "Manter o parcial diário das tabelas que mudam, mais o completo semanal, como no v3, ou medir o tráfego real na fase 0 antes de escolher e escrever o que cada formato custa. Dizer que o backup nunca tem prioridade sobre o tráfego da produção. Trazer para a abertura a regra de pós-restauração (motor começa vazio, mensagens e decisões do intervalo são reconstruídas pelo livro de entrada).",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "refazer com 1,5 vez o orçamento (até 2 vezes), seguir sem a etapa (só se o roteiro permitir, e nunca na E4 nem na E5) ou encerrar.",
+  "problema": "(1) A regra 5 do v3 limita a etapa a 6 execuções, com 'trava no banco: Sim', e o 'teto geral' é o caminho comum para 'em resolução'. O texto não diz se 'refazer' reinicia o contador, se conta como pedido do fundador ou se a trava do banco o recusaria. (2) 'Nunca na E4 nem na E5' usa nomes de etapa da primeira meta. Com 21 agentes, cada um com seu roteiro, não existe equivalente escrito para a revisão jurídica ou o relatório final dos outros roteiros.",
+  "cenario": "(1) A etapa bate no teto de 6, vai para 'em resolução' e o fundador aperta 'refazer'. O banco recusa a 7ª execução e o cartão fica sem saída útil, ou a regra 5 é furada para o botão funcionar. (2) Num roteiro da Saúde ou da eLiving, a revisão jurídica ou de alegação de saúde não é E4. O roteiro 'permite' pular a etapa, e uma copy sem checagem chega pronta ao fundador.",
+  "conserto": "Escrever que 'refazer' é decisão do fundador e abre um novo ciclo com contador próprio (com teto absoluto), e cobri-lo na prova das combinações. Trocar 'nunca na E4 nem na E5' por uma marca de dado na etapa ('não pulável': revisão jurídica, de alegação regulada e relatório final), que o catálogo exige em todo roteiro.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Antes do plano de recrutar as 10 pessoas, uma pesquisa com fontes oficiais aprovadas por você. Ela olha o risco de pirâmide ou de marketing multinível (Lei 1.521/51, art. 2º, IX, e o CDC)",
+  "problema": "A pesquisa não tem portão: nada na abertura impede que o card E1 a E5 rode, inclusive a E4 da Clara, antes de ela ser aprovada. Além disso, o validador (v3, Qualidade) só confere leis da tabela (LGPD, CC, 9.610, Marco Civil, CDC, CLT, ECA Digital, 15.123), e a Lei 1.521/51 não está nela. Pirâmide e marketing multinível também não estão nos temas obrigatórios do jurídico (imagem, voz, dado sensível, transferência, menores, vínculo de trabalho e publicidade).",
+  "cenario": "A primeira meta roda de ponta a ponta na fase 3. A E4 aprova o convite com a checagem de imagem, voz e LGPD, e sai 'pronta'. O risco de pirâmide, que é o maior da meta, passa como 'lei não conferida' (ou nem aparece), e o fundador convida as 10 pessoas.",
+  "conserto": "Fazer da pesquisa jurídica aprovada um pré-requisito do roteiro (a E4 não inicia sem ela). Acrescentar a Lei 1.521/51 à tabela de leis com texto oficial, e 'pirâmide ou multinível' e 'tratamento de dados de recrutados (finalidade, prazo, eliminação)' aos temas obrigatórios do serviço jurídico, com caso de teste.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "a fase 0a, \"estancar\", começa com uma cópia completa do banco antes de qualquer mudança // A fase 0b, \"vigiar\", corre junto com a fase 1 e cuida de backup, healthchecks, Telegram e diagnóstico.",
+  "problema": "A cópia que abre a 0a não tem executor nem lugar. O backup pertence à 0b. Para fazer a cópia, é preciso criar o helena-backup, um papel de leitura no banco (que é uma mudança no banco) e o par de chaves. As sessões na nuvem não alcançam o Supabase, e o PC do fundador bloqueia o supabase.exe (HANDOFF, mapa-estado-atual). A crítica ponto 2 pedia exatamente 'criar o helena-backup já na 0a e usar um workflow que você mesmo dispara', e a abertura não traz isso. Circularidade: 'cópia antes de qualquer mudança' exige uma mudança antes.",
+  "cenario": "O fundador chega ao primeiro SQL da 0a (fechar as 38 funções) sem cópia, porque o repositório de backup e o papel só existem na 0b. Ou usa a senha de administrador do banco num workflow, que é o que o plano proíbe. O 'caminho de volta' de cada SQL é um script de reversão, e não os dados.",
+  "conserto": "Mover para o início da 0a a criação do helena-backup (feita pelo fundador), do par de chaves e de um workflow disparado só por ele. Dizer como a cópia é feita sem papel novo (a conexão que ele já usa, só dentro do helena-backup, com a senha trocada depois), ou aceitar o papel de leitura como a única mudança permitida antes da cópia, e fazer dela o primeiro passo explícito do portão 0a.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Avisos saem em 70% e 90% da cota. Se for preciso cortar, o backup é o último a sair. // O único segredo permitido no repositório principal é um papel que só lê uma tabela de números do diagnóstico.",
+  "problema": "Os avisos de cota de minutos precisam ler o consumo do GitHub, que exige um token de cobrança. O texto só permite um segredo no repositório principal (a leitura do diagnóstico), e não diz onde esse token mora nem quem envia o aviso. Pior: 'cortar' só vale para os workflows novos. A v1 gasta cerca de 730 minutos, quase 40% dos 2.000, e nenhuma regra diz como cortá-la. Ainda não existe a tabela única de minutos, mas 'o backup é o último a sair' já está prometido.",
+  "cenario": "No dia 22 do mês os 2.000 minutos acabam por causa de checagens da v1 e de pushes das sessões. O backup da noite não roda, a restauração da semana também não, e o aviso de 90% nunca saiu, porque ninguém tinha como ler o consumo. O fundador só sabe disso quando o healthchecks acusa 'backup da noite' parado.",
+  "conserto": "Dizer onde o consumo é lido (por exemplo, um passo do próprio job de backup que lê o uso com um token de leitura guardado no helena-backup) e quem avisa. Colocar os workflows da v1 na mesma tabela de minutos, com regra de corte (por exemplo, desligar os da v1 em 80%). Reservar uma fatia fixa de minutos ao backup e à restauração, para a ordem de prioridade ser cumprida de fato.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "o planejamento: faz primeiro o inventário do que a v1 faz com terceiros e traz um cartão de decisão: desligar a URA, avisando os clientes, ou mantê-la como exceção escrita.",
+  "problema": "O fundador já decidiu hoje (DECISOES-DO-FUNDADOR, item 3) 'Desligar' a central da v1 (URA e ligações de saída por IA), só com a frase exata dele e com os clientes avisados antes. O texto reabre a decisão como cartão de duas opções, e o AGENTS.md diz para não pedir de novo o que já foi decidido. O texto também não ordena a 0a: no v3 a 0a trava o WhatsApp 'só no seu número', o que silencia a URA antes de os clientes serem avisados.",
+  "cenario": "A sessão apresenta o cartão e o fundador, cansado, escolhe 'manter como exceção' sem lembrar da decisão anterior. Ou a 0a trava o WhatsApp e os clientes ficam sem resposta, sem aviso, no meio da semana.",
+  "conserto": "Trocar o cartão pelo registro da decisão ('Desligar', 10/10/2026) e pela sequência: inventário só de leitura, aviso aos clientes, frase exata do nível 2, desligamento, e só depois o travamento do WhatsApp. O cartão da voz paga fica apenas se o inventário achar uso real.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "O servidor responde \"ação registrada, encerre\", e o Hermes precisa terminar sozinho e inteiro.",
+  "problema": "Não está dito o que o servidor faz se o agente ignora o 'encerre' e chama outra ação antes de terminar (o modo -z não limita passos). O v3 trata 'duas ações' como formato errado. Aqui a primeira já foi 'aceita'. Se a segunda for aceita, a última vence. Se for recusada como formato errado, uma entrega válida vira falha de formato e gasta tentativa.",
+  "cenario": "O agente chama 'Entregar' e, em seguida, 'Perguntar' ou 'Registrar falha'. O card passa a esperar o fundador por uma pergunta que ele não devia receber, ou uma entrega boa é descartada. A mesma execução, repetida, pode dar resultados diferentes.",
+  "conserto": "Escrever: a primeira ação válida fecha a execução, as seguintes são ignoradas e registradas como aviso (sem conta de tentativa), e o resultado do card nunca muda depois da primeira. Incluir o caso no dia de prova da fase 2.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "e o backup guarda no máximo 8 semanas, por causa do espaço e da LGPD.",
+  "problema": "O limite de 8 semanas cobre a retenção, mas o texto não trata a eliminação. Um pedido de apagamento (de um recrutado, por exemplo) some do banco, mas permanece nas cópias por até 8 semanas. Uma restauração dessas cópias traz o dado de volta. 'Como se apaga' está só entre os itens da pesquisa jurídica, sem passo no roteiro de restauração.",
+  "cenario": "O recrutado pede a eliminação dos dados no dia 10. O banco é apagado. No dia 12 uma restauração usa a cópia do dia 3, e o dado reaparece, sem ninguém notar, na base que o fundador usa para contatar pessoas.",
+  "conserto": "Manter um registro de eliminações (só identificadores com hash, fora do banco principal, também no helena-backup), e fazer do reaplicar esse registro um passo obrigatório do roteiro de restauração, conferido no teste 8. Escrever essa regra junto com o resultado da pesquisa de LGPD.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "o plano não recomenda renovar nem deixar de renovar até você conferir no painel o que vence nessa data, porque as fontes que temos se contradizem.",
+  "problema": "Honesto, mas sem dono nem prazo. A data é 27/10/2026, a 17 dias de hoje, e é externa: não depende de nenhuma fase nem de teste. O plano diz 'nenhuma fase por data', e este item só tem consequência por data. A regra 1 (nada aberto sem dono e prazo) não é aplicada a ele, e a Hostinger pode ser onde o app ou o domínio estão (item NÃO CONFIRMADO acima). A consequência de deixar vencer pode ser perda sem volta.",
+  "cenario": "Fundador solo, no meio da 0a, esquece de conferir o painel. Em 27/10 o plano da Hostinger vence ou é suspenso, e o app ou o domínio ou um backup que só existe lá somem. Ninguém no sistema avisou, porque o item não é um card.",
+  "conserto": "Transformar em card do fundador, com prazo (por exemplo 20/10), com aviso nos dias 20, 24 e 26, e com um passo de leitura (anotar plano, data e o que roda lá) antes de qualquer decisão. Se ele não responder até 25/10, o padrão é um aviso forte e a recomendação 'renovar o mínimo para não perder', registrada como padrão, nunca como decisão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os 171 achados das quatro primeiras rodadas estão no arquivo 02-registro-de-furos.md, cada um com o conserto, o teste que prova e a fase em que fecha.",
+  "problema": "O arquivo 02 não contém os 171 com teste e fase. A rodada 3 mostra só 6 exemplos dos 37, e o próprio arquivo diz que \"a lista completa das 37 está no arquivo do plano no PC do fundador\". As tabelas das rodadas 1 e 2 têm só as colunas Furo, Conserto e Fase, sem \"teste que prova\". Na rodada 4 faltam M-12 e M-17 a M-22 (a conferência e o mapa do estado atual confirmam). Pelo que está listado, são cerca de 140 de 171.",
+  "cenario": "O fundador lê \"Nenhum furo conhecido está sem conserto escrito\" e aprova. Cerca de 31 furos da rodada 3 não podem ser conferidos no pacote, e a frase vira exatamente a promessa sem prova que a crítica ponto 9 manda evitar.",
+  "conserto": "Escrever a contagem real: \"cerca de 140 estão no arquivo; os outros 31 da rodada 3 ainda estão no PC do fundador (NÃO CONFIRMADO) e entram na fase 0/1 pelo furos.yaml; as rodadas 1 e 2 ainda não têm a coluna do teste\". Só repetir \"nenhum sem conserto escrito\" depois da importação.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "O GitHub não guarda nenhuma credencial de produção.",
+  "problema": "Frase falsa hoje e contraditória com o próprio texto. (1) Onze arquivos rastreados no repositório do GitHub (tvmensal2025/financeiromaxnutrition: scripts/*eliving*.mjs, scripts/inspecionar-tabelas.mjs, services/helena-gateway/dev-server.mjs etc.) trazem chaves escritas: 9 de acesso total ao banco e 2 públicas. Confirmei com git grep, sem copiar valores. A decisão do fundador de 10/10 (DECISOES-DO-FUNDADOR-20261010.md, item 2) mantém essa chave válida até o fim dos testes. (2) O texto diz mais abaixo que o diagnóstico usa um \"papel que só lê\" guardado no repositório principal e que os segredos do backup (leitura do banco e chave) moram no helena-backup. Isso também é credencial de produção no GitHub. O teste 11 repete o absoluto (\"nenhuma credencial de produção no GitHub\").",
+  "cenario": "O fundador conclui que uma sessão desviada, que lê o repositório com o login dele, não alcança o banco. Ela lê a chave de acesso total nos arquivos, ou no histórico do git, e muda dados sem passar pelo motor nem pelo toque no EasyPanel.",
+  "conserto": "Trocar por frase medida: \"O GitHub não guarda nenhum segredo que escreva em produção ou publique. Hoje há uma chave de acesso total em 9 arquivos do repositório (mais 2 com chave pública), risco aceito por você até o fim dos testes. Os únicos segredos previstos são dois papéis só de leitura (diagnóstico e backup).\" Ajustar a tabela \"Onde cada peça roda\" e o teste 11 na mesma linha.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "depende da sua escolha sobre quando trocar as chaves",
+  "problema": "O fundador já escolheu (DECISOES-DO-FUNDADOR-20261010.md, item 2): a troca fica \"no fim dos testes\", e a fase 0a NÃO inclui a troca. O texto trata a escolha como aberta (item 10) e diz que a regra das chaves antigas \"continua\" (item 5). O v3 dizia \"Chaves trocadas já na fase 0\", e o item 5 de \"Regras do v3 que a v3.1 altera (leia antes de aprovar)\" não conta que isso foi revertido. O risco aceito também não aparece em lugar nenhum da abertura.",
+  "cenario": "Antes de digitar a frase de aprovação, o fundador acha que a chave exposta no chat é trocada na fase 0, como no v3. Na verdade ela segue com acesso total durante toda a construção, e ele não leu essa troca de combinado na lista feita para isso.",
+  "conserto": "Acrescentar um item na lista: \"Chaves. No v3: troca na fase 0. Na v3.1, por decisão sua de 10/10: troca no fim dos testes, com data de revisão. Risco aceito: até lá, a chave de acesso total vale e está em 9 arquivos rastreados. Proteções: repositório privado, gitleaks em todo envio e arquivos lendo variável de ambiente já agora, sem trocar o valor.\" Tirar \"depende da sua escolha\" do portão 0a.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "O que segura o sistema mesmo nesse caso é o que não depende do GitHub:",
+  "problema": "A lista que vem logo depois depende do GitHub em quase todos os itens, e o texto se contradiz. (a) \"o backup fica num lugar que nenhuma sessão alcança\": o helena-backup é um repositório da mesma conta, e o próprio texto diz que a sessão entra \"com o seu próprio login, como administradora\" e que \"você não controla as permissões desse acesso\". A pesquisa MEL-16 diz que \"sem app de IA\" não se garante só criando o repositório (apps em All repositories e tokens clássicos com escopo repo alcançam tudo). (b) \"o cartão de diagnóstico mostra a versão que está no ar\": o cartão é gerado por um workflow do repositório principal, que a sessão edita. (c) \"o banco recusa qualquer passagem fora da tabela, seja qual for o código\" e \"nenhum agente tem ferramenta que grava ou age fora\": a tabela, as migrações e o servidor de ferramentas vêm do código do repositório, e a migração \"roda ao ligar o serviço\". Uma sessão desviada pode incluir uma migração ou ferramenta que desfaz essas travas, e o toque no EasyPanel não prova que o código é honesto (o texto admite isso).",
+  "cenario": "O fundador lê que há cinco garantias independentes do GitHub, relaxa a desconfiança com a sessão e aprova uma publicação. Quatro das cinco garantias foram escritas, ou podem ser desligadas, pelo mesmo acesso que ele acaba de ouvir que não controla.",
+  "conserto": "Reescrever: \"Só uma coisa não depende do GitHub: nada vai ao ar sem o seu toque no EasyPanel. As outras valem enquanto o código aprovado for honesto: o backup só fica fora do alcance se você restringir cada app de IA a repositórios escolhidos e revogar tokens clássicos (o teste 11 confere); o cartão de diagnóstico é gerado pelo GitHub e não é prova independente; migrações e ferramentas saem do repositório.\" Manter o cartão de decisão da conta separada para as sessões.",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "Um comando direto seu (DEC-022) já vale como autorização.",
+  "problema": "A DEC-022 (AGENTS.md) só dá precedência a comandos diretos do fundador para criar empresas, contas ou entidades. O texto a generaliza para \"um comando direto\" qualquer. Isso contradiz o próprio nível 2 da frase (cada mudança no banco ou no servidor), o LEIA-PRIMEIRO (\"Mudança no banco ou no servidor só depois de uma frase exata digitada por ele\") e a decisão do fundador de 10/10 (\"Decidir não é executar: toda mudança no banco, no servidor ou no ar continua exigindo a frase exata dele\").",
+  "cenario": "O fundador escreve no chat \"desliga a URA\" ou \"fecha essas funções\". A sessão trata como autorização de execução e roda a mudança sem a frase exata e sem avisar os clientes.",
+  "conserto": "Limitar: \"Um comando direto seu para criar empresa, conta ou entidade (DEC-022) vale como autorização daquela criação. Qualquer outra mudança no banco, no servidor ou no ar exige a frase exata do nível 2.\"",
+  "gravidade": "alta"
+ },
+ {
+  "trecho": "O plano faz um inventário e traz um cartão de decisão: manter como exceção escrita ou desligar, avisando os clientes.",
+  "problema": "O fundador já decidiu: DECISOES-DO-FUNDADOR-20261010.md, item 3, diz \"Desligar\" a central (URA de clientes e ligações de saída por IA). Também diz \"O agente nunca liga nem responde cliente sozinho\". O texto reabre a decisão e oferece como opção \"manter como exceção escrita\", que ele recusou. A mesma ideia repete no ponto da v1 (\"desligar a URA, avisando os clientes, ou mantê-la como exceção escrita\").",
+  "cenario": "O fundador abre o plano e vê de novo uma pergunta que já respondeu. Ou aprova a v3.1 achando que a URA continua ativa até ele decidir, e a sessão não prepara o desligamento nem o aviso aos clientes.",
+  "conserto": "Escrever: \"Decidido por você em 10/10: desligar a central. Falta o inventário só de leitura, o aviso prévio aos clientes e a sua frase exata para desligar. Se a voz usa a API paga da OpenAI, isso se resolve nesse inventário.\" Manter \"ligação de saída só com o seu toque\" até o desligamento.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O vigia acusa em até 5 minutos o que parar.",
+  "problema": "Absoluto que o resto do mesmo texto desmente. O vigia de dentro confere a cada 5 minutos, mas se o próprio Supabase, o relógio ou a VPS pararem, quem avisa é o healthchecks, e o texto diz \"o aviso 'motor fora' chega em até 15 minutos\". O teste 7 também usa 15 minutos. Além disso, nada de dentro acusa a si mesmo parado.",
+  "cenario": "O fundador entende que qualquer parada vira alarme no celular em 5 minutos. Num dia em que o motor cai de madrugada, o aviso demora até 15 minutos, mais o tempo do reenvio, e ele acha que o sistema falhou.",
+  "conserto": "Trocar por: \"O vigia de dentro confere as 13 regras a cada 5 minutos. Se o Supabase, o relógio ou o motor pararem, o aviso vem de fora em até 15 minutos.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os agentes seguem as regras do processo porque não têm como fazer diferente. Isso vale para os 21, não só para os 5 da primeira meta.",
+  "problema": "Dupla falsidade. (1) Absoluto: o agente pode tentar fazer diferente (formato errado, ação fora da ficha); o que existe é recusa na hora. O texto mesmo prevê \"formato errado\" e 2 correções. (2) Para os 16 agentes que ainda estão na v1, a frase não vale hoje. O texto diz depois \"Até cada um ligar na v2, o que ele faz continua na v1\", e na v1 os agentes usam ferramentas do gateway que gravam, além de guardas escritas à mão. A crítica ponto 9 pede frases medidas.",
+  "cenario": "O fundador entende que os 21 já estão travados. Ele libera um agente da v1 numa tarefa com contato externo achando que o motor o impede, mas ele ainda roda no caminho antigo.",
+  "conserto": "Trocar por: \"Na v2, o que o agente fizer fora do processo é recusado: formato fora da ficha, ação que ele não tem e passagem fora da tabela. Isso vale para cada agente a partir do momento em que ele liga na v2; até lá, ele segue as regras da v1.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "O agente devolve uma de poucas ações chamando uma ferramenta nossa, de formato fechado, e o servidor recusa na hora o que vier fora do formato.",
+  "problema": "É o primeiro dos \"quatro motivos\" e está afirmado como fato, mas o item 4 diz que não está confirmado que o Hermes em `hermes -z` encerra sozinho depois da ferramenta (NÃO CONFIRMADO). A pesquisa MEL-27 diz que isso só se prova no dia de prova da fase 2 e que, se falhar, o canal volta a ser o texto final conferido (sem ferramenta de formato fechado). A abertura se contradiz entre o motivo 1 e o item 4.",
+  "cenario": "Se o dia de prova mostrar que o Hermes não respeita a ferramenta, o motivo 1 passa a ser falso, mas o fundador já aprovou o plano lendo-o como certo.",
+  "conserto": "Escrever o motivo 1 com a condição: \"O agente devolve a ação por uma ferramenta nossa de formato fechado, e o servidor recusa o que vier fora dele. Isso depende do dia de prova da fase 2 (NÃO CONFIRMADO). Se falhar, a ação vem no texto final, conferido pelo código.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Segundo, nada fica guardado para sempre: há limpezas programadas, como as cópias das páginas lidas e as execuções antigas do motor, e o backup guarda no máximo 8 semanas, por causa do espaço e da LGPD.",
+  "problema": "Absoluto novo, no sentido contrário ao que a crítica ponto 9 corrigiu. As limpezas citadas (cópias das páginas em 7 dias, execuções do motor em 14 dias, backup) não cobrem o resto: o histórico do card (regra 13: \"toda mudança fica no histórico\"), as decisões, as entregas aprovadas e os trechos citados \"que ficam no banco\" (v3) não têm prazo de apagar. Quanto tempo guardar os dados dos recrutados é justamente a pergunta da pesquisa jurídica ainda não feita.",
+  "cenario": "O fundador entende que os dados de quem foi recrutado somem sozinhos e promete isso numa conversa. Eles continuam no banco e nas entregas porque nenhuma regra manda apagar.",
+  "conserto": "Trocar por: \"Só algumas coisas têm prazo para apagar: cópias das páginas lidas, execuções antigas do motor e backups. O histórico dos cards e as decisões não têm prazo definido; quanto tempo guardar dados de recrutados e como apagar a pedido é o que a pesquisa jurídica vai responder.\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "e o backup guarda no máximo 8 semanas, por causa do espaço e da LGPD.",
+  "problema": "Mudança de retenção não declarada e motivo trocado. O v3 dizia \"Ficam as 2 últimas semanas\". A pesquisa MEL-16 corrigida passou a \"apagar as releases com mais de 14 dias, guardando uma completa por semana durante 8 semanas\", e a própria crítica avisa que \"retenção de 8 semanas também prolonga dados pessoais (LGPD)\". O texto vende as 8 semanas como limite \"por causa da LGPD\", sendo que elas aumentam a guarda de 2 para 8 semanas. O item 11 do \"leia antes de aprovar\" não conta essa mudança.",
+  "cenario": "O fundador aprova achando que o backup guarda 2 semanas, como no v3, e dados de pessoas recrutadas ficam em cópias por até 8 semanas. Um pedido de apagamento (LGPD) só some dos backups depois desse prazo.",
+  "conserto": "No item 11, acrescentar: \"A guarda sobe de 2 semanas (v3) para até 8 semanas: cópias da noite por 14 dias e uma completa por semana por 8 semanas. Um dado apagado a pedido de titular some dos backups em até 8 semanas.\" Tirar a ideia de que a LGPD motiva o prazo.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "refazer com 1,5 vez o orçamento (até 2 vezes)",
+  "problema": "Números que não estão na máquina de passagens, que a tarefa manda usar como referência de tetos. Em helena-v2/maquina/passagens.yaml, TETO_REPLANEJAMENTO vale 1 (\"refazer vale uma vez por etapa\"), e a passagem E85 só aceita REFAZER com replan menor que 1. Não existe \"1,5\" na máquina. O \"até 2 vezes\" vem da MEL-24 e conflita com o 1.",
+  "cenario": "O fundador aprova \"até 2 vezes\". A prova em camadas, que usa o YAML, só permite 1. Na primeira etapa em resolução o cartão oferece menos do que o plano prometeu, ou o plano é mudado depois de aprovado.",
+  "conserto": "Escrever sem número: \"refazer a etapa uma vez, com mais orçamento (valor a calibrar na fase 2)\", ou ajustar o YAML antes e só então citar \"2\". Não prometer \"1,5 vez\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "os seus pedidos têm um teto próprio por card, e acima dele o card é substituído por um card novo ligado, com as entregas e o seu pedido.",
+  "problema": "Está escrito como regra firme, mas na máquina (passagens.yaml, TETO_ORDENS = 3) vem marcado \"PROPOSTA: depende do seu sim\". O texto da máquina fala de \"teto de ordens numa etapa\", não só \"por card\". Limita o poder do fundador de pedir ajustes e entra como fato num \"Dois limites escritos por extenso\".",
+  "cenario": "O fundador aprova sem perceber que é uma proposta. Na 4ª ordem o card dele é substituído e ele não esperava essa regra.",
+  "conserto": "Marcar: \"proposta que depende do seu sim: a partir de um teto de ordens (3 na proposta atual, a calibrar), o card é substituído por um card novo ligado\". Colocar na lista de pedidos de decisão.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Se falhar, ela não pega trabalho, e você recebe \"volte para X\", com a impressão digital anterior pronta para colar.",
+  "problema": "Contradiz a regra mantida em \"O que continua igual\" (\"publicar no máximo uma vez por dia\"). Voltar a versão é uma segunda publicação no mesmo dia, e o texto não escreve nenhuma exceção. Com a volta automática removida, a volta passa a ser um toque seu extra.",
+  "cenario": "A publicação do dia falha de tarde. O plano diz que só se publica uma vez por dia. A sessão ou o fundador fica sem saber se pode voltar na hora, ou espera até o dia seguinte com a versão quebrada no ar.",
+  "conserto": "Escrever a exceção: \"voltar à versão anterior não conta no limite de uma publicação por dia\". Conferir que o teste 4 e a receita \"publicar e voltar\" usam a mesma exceção.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Verificação em duas etapas com dois caminhos em cada conta, e um ensaio com o celular desligado antes do portão da fase 2.",
+  "problema": "\"Em cada conta\" é afirmado como fato, mas mais abaixo o texto diz que o EasyPanel ter verificação em duas etapas é NÃO CONFIRMADO. O EasyPanel é justamente o novo lugar do toque de publicar, o controle central do plano.",
+  "cenario": "Se o EasyPanel não tiver verificação em duas etapas, a única trava de publicação fica protegida só por senha, e a abertura prometeu o contrário.",
+  "conserto": "Escrever: \"em cada conta que tiver esse recurso; no EasyPanel isso ainda é NÃO CONFIRMADO e você confere na fase 0a. Se não houver, o cartão de decisão traz outra proteção (acesso por rede privada ou senha forte em cofre).\"",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os achados da quinta rodada (48 melhorias e 12 correções) estão consertados neste texto e entram no mesmo registro.",
+  "problema": "Exagero. As 48 melhorias são propostas, não todos furos. Várias são para fases futuras (MEL-43, 44 e 45 para a fase 3/4, MEL-48 só como teste agora), e a MEL-20 (tirar o DBOS) não foi adotada por decisão do fundador. Dizer que estão \"consertados neste texto\" mistura as três situações. \"Entram no mesmo registro\" ainda é futuro: o furos.yaml não existe.",
+  "cenario": "O fundador acredita que as 48 já estão resolvidas e que o registro já traz os achados da rodada 5. Itens adiados (como o conjunto-ouro das 50 mensagens) parecem prontos, e a MEL-20 parece ter sido aplicada.",
+  "conserto": "Trocar por contagem honesta: \"X melhorias aplicadas neste texto, Y adiadas para a fase 3 ou 4 (com a fase), 1 não adotada por decisão sua (MEL-20); o registro recebe esses achados quando o furos.yaml for criado\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Toda semana prova que a cópia volta, e é o único lugar com a chave que abre a cópia.",
+  "problema": "Perdeu uma proteção do v3 e contradiz a pesquisa. O v3 dizia \"uma cópia [da chave] fica com você, fora do computador\", e a MEL-16 corrigida manda o fundador \"guardar uma cópia da chave do age fora do computador\". O texto diz que o helena-backup é o único lugar com a chave.",
+  "cenario": "A conta do GitHub é bloqueada, o repositório é apagado ou o fundador perde o acesso. Todos os backups ficam criptografados e ninguém consegue abri-los.",
+  "conserto": "Trocar por: \"a chave privada que abre a cópia fica no helena-backup (usada só na restauração) e numa cópia sua, impressa ou em cofre, fora do computador\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Os workflows ligam por prioridade: backup, depois diagnóstico, depois gitleaks.",
+  "problema": "Com \"Se for preciso cortar, o backup é o último a sair\", o gitleaks é o primeiro a ser cortado. Mas a decisão do fundador de 10/10 (item 2) mantém a chave de acesso total em arquivos do repositório e usa como proteção principal \"nenhum arquivo novo pode ter chave (varredura de segredos a cada envio)\". Além disso, o texto manda juntar as checagens leves num job só, o que torna difícil cortar só o gitleaks. A MEL-07 dizia \"o backup nunca é cortado\", e o texto afrouxa para \"último a sair\".",
+  "cenario": "A cota de 2.000 minutos aperta (v1 com 730, diagnóstico com 240, mais cerca de 300 envios). O gitleaks é desligado primeiro, e um arquivo novo com chave entra no repositório sem alarme.",
+  "conserto": "Trocar a ordem de corte: cortar primeiro testes pesados e prévias, e deixar o gitleaks (barato, cerca de 1 minuto por envio, mantido no job leve) entre os últimos. Manter \"backup nunca é cortado\".",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Publicar é o seu toque no EasyPanel, colando a impressão digital (o código único de uma imagem já montada e testada).",
+  "problema": "\"Impressão digital\" é usada para quatro coisas diferentes no mesmo texto: a imagem do EasyPanel, a versão da ação do workflow (\"o código do commit\"), o segredo guardado pelo gitleaks e a versão da tabela de passagens. O ato mais sensível do fundador é colar uma delas num campo.",
+  "cenario": "O fundador recebe duas \"impressões digitais\" na mesma mensagem (a do commit e a da imagem) e cola a errada no EasyPanel. Ou o campo recusa, ou a versão que sobe não é a testada.",
+  "conserto": "Reservar um nome só para o que ele cola: \"código da imagem\" (digest). Usar \"código do commit\" para as ações do workflow, \"marca do segredo\" para o gitleaks e \"código da tabela\" para as passagens. Explicar uma vez onde ele encontra o código no app.",
+  "gravidade": "media"
+ },
+ {
+  "trecho": "Tudo isso fecha na fase 1, antes de qualquer peça nova.",
+  "problema": "A conferência (CONFERENCIA-HELENA-V2-X-PLANO-V3.md) separa as divergências 7 a 12 como \"fecham na fase 2, mas mudam as fichas\". O texto cita como exemplo \"as ferramentas ainda são as do Hermes, e não as nossas\", mas as ferramentas nossas só existem na fase 2. Na fase 1 muda só a ficha.",
+  "cenario": "O fundador acha que a fase 1 deixa as ferramentas próprias prontas. Na fase 2 elas precisam ser construídas, e o portão da fase 1 parece ter falhado.",
+  "conserto": "Escrever: \"Na fase 1 as fichas e o roteiro passam a descrever o plano (inclusive as ferramentas nossas); o servidor de ferramentas em si é construído na fase 2\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "Este é o plano único, revisto do começo ao fim a partir do plano v3.",
+  "problema": "Existem três arquivos do plano v3 com duas frases de aprovação diferentes (docs/PLANO-HELENA-V3.md, docs/planos/2026-10-09-PLANO-HELENA-V3.md e 01-plano-v3.md; furo M-2 aberto na conferência e no mapa do estado atual). O texto manda para o histórico só \"o plano v3\" (09/10/2026) com a linha \"SUBSTITUÍDO PELO PLANO v3.1\", e não cita os outros dois, um deles com motor no Postgres sem DBOS.",
+  "cenario": "Uma sessão futura abre docs/PLANO-HELENA-V3.md, que ainda diz \"aprovo o plano v3\" e o motor no Postgres, e o trata como vigente.",
+  "conserto": "Dizer que os três arquivos do v3 ganham \"SUBSTITUÍDO PELO PLANO v3.1\" e vão para o histórico, e que a v3.1 passa a ter uma frase de aprovação só.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "A mudança do banco roda ao ligar o serviço, só se houver mudança pendente, e não tenta de novo em laço se falhar.",
+  "problema": "Conflito com uma regra do v3 que o texto diz manter. O v3 manda o motor conferir que usa \"o acesso limitado dele, nunca com o de administrador\". Se a migração roda ao ligar o mesmo serviço, a credencial que muda o banco está no ambiente do motor, que o Hermes herda se não for limpo. O texto afirma que o teste confere que o agente não a vê, mas não explica como o motor passa a autoverificação.",
+  "cenario": "A migração e o motor compartilham o mesmo contêiner e variáveis. O motor se recusa a ligar por achar acesso de administrador, ou liga e o processo do agente herda a credencial.",
+  "conserto": "Escrever que a migração é um passo separado (contêiner de inicialização ou serviço próprio), com credencial própria que o motor não recebe, e que a autoverificação do motor segue valendo.",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "No máximo 2 processos do Hermes rodam ao mesmo tempo.",
+  "problema": "O item 8 muda o limite de 3 para 2, mas a lista \"leia antes de aprovar\" não avisa que o teste 2 do v3 (\"48 horas com 3 ou mais tarefas em paralelo\") e o teste 6 (\"3 tarefas ao mesmo tempo\") deixam de poder rodar como estão escritos. O v3 também diz \"O motor roda no máximo 3 agentes ao mesmo tempo\" na seção do servidor.",
+  "cenario": "Os testes de base são aprovados e depois impossíveis de executar. O portão da fase 2 depende de testes que o próprio plano proíbe.",
+  "conserto": "Acrescentar ao item 8: \"os testes 2 e 6 passam a medir no máximo 2 processos, e o de login força as duas renovações entre a vaga de trabalho e a da Helena\". Atualizar o texto de \"Servidor dividido\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "chegam por ferramentas nossas, que só registram a resposta.",
+  "problema": "Para um leitor leigo, \"registrar\" é gravar. Isso bate de frente com \"Nenhum agente tem ferramenta que grava no banco ou age fora\" e com \"Só o motor grava\". O texto não diz onde a resposta é guardada.",
+  "cenario": "O fundador acha que a ferramenta de ação grava no banco e que a regra \"só o motor grava\" foi quebrada, ou fica sem entender como a ação chega ao motor.",
+  "conserto": "Escrever: \"as ferramentas só guardam a resposta na memória do servidor de ferramentas, que a entrega ao motor. Quem grava no banco continua sendo só o motor\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "como diz o AGENTS.md",
+  "problema": "O AGENTS.md só diz: \"Alterações no banco exigem autorização explícita do fundador; não pedir novamente se já concedida para a mesma ação\". Não fala em versão, estado ou escopo mudarem. A regra de renovar a autorização nesses casos é a MEL-10 corrigida, não o AGENTS.md.",
+  "cenario": "Uma sessão cita o AGENTS.md para defender uma regra que ele não tem, ou deixa de pedir de novo porque o AGENTS.md só fala em \"mesma ação\".",
+  "conserto": "Escrever: \"não vence por data, como diz o AGENTS.md (não pedir de novo para a mesma ação); a v3.1 acrescenta que pede de novo se a versão, o estado ou o escopo mudarem\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "e todo furo achado vira regra no código e teste, para não voltar.",
+  "problema": "Promessa absoluta. A MEL-28 prevê situações de furo \"substituído\" e \"não confirmado\", e há furos de texto ou decisão que não viram regra de código. O texto da \"Dá para não ter erro nenhum?\" diz que o plano não promete \"zero erro\", mas aqui promete \"para não voltar\".",
+  "cenario": "Um furo antigo reaparece em outra forma. O fundador lembra que o plano garantiu que não voltaria.",
+  "conserto": "Trocar por: \"todo furo achado ganha um código no registro e, sempre que dá, vira regra no código e teste; os que não dá para testar ficam marcados como tais\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "com precedência entre as regras (escape, observação, revisor suspenso, disjuntor)",
+  "problema": "Quatro termos de jargão sem explicação para um leitor que não é programador e lê no celular. \"Escape\" quer dizer uma entrega errada aprovada que depois voltou com \"erro de fato\" (MEL-42), e \"observação\" quer dizer que o serviço passa a ter você como revisor final. Também \"respostas de ferramenta gravadas\" aparece logo abaixo sem explicação.",
+  "cenario": "O fundador lê \"escape\" como fuga ou saída, não entende a regra e aprova sem saber o que está aprovando.",
+  "conserto": "Explicar entre parênteses: \"escape (entrega errada que foi aprovada), observação (o serviço fica com você como revisor final), revisor suspenso (revisor que deixou passar erro plantado) e disjuntor (pausa do agente que falhou 3 vezes)\". E \"respostas de ferramenta gravadas (uma fita do que a ferramenta devolveu, para repetir o teste sem internet)\".",
+  "gravidade": "baixa"
+ },
+ {
+  "trecho": "e o checklist da v1 ganha a DEC-022 (criar empresa) e a URA.",
+  "problema": "\"URA\" aparece aqui, no item 10 e no resumo \"O que entra de novo\", sem explicação. Só vai ser explicada (\"atendimento automático por menu\") bem mais abaixo, em \"A v1, ao lado, até a troca\". Também \"esquema próprio do banco\" e \"nada aberto na v2\" (\"Tabelas da v2 num esquema próprio do banco...\") não têm explicação para leigo.",
+  "cenario": "O fundador lê o checklist, não sabe o que é URA nem \"esquema\", e pula ou confirma sem entender.",
+  "conserto": "Explicar no primeiro uso: \"URA (o atendimento automático por menu do WhatsApp)\"; \"esquema (uma gaveta separada dentro do banco)\"; \"nada aberto (nenhuma porta de acesso público às tabelas da v2)\".",
+  "gravidade": "baixa"
+ }
+]

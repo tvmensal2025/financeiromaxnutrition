@@ -1,0 +1,25 @@
+# Fita (MEL-31): resposta GRAVADA da nossa ferramenta ler_pagina (parte 1 de 2).
+# FITA SINTÉTICA: a página e o texto foram inventados para o teste. NÃO são os termos reais da Mimix, e o domínio
+# '.invalid' não existe (RFC 2606). Partes reais têm até 20 mil caracteres; aqui são curtas de propósito.
+# COMO MUDAR: mude o texto aqui e refaça os trechos citados nas boas e nos defeitos (casos/SRV-DOSSIE/pedido.yaml explica).
+id: FITA-DOS-01
+ferramenta: ler_pagina
+efeito: LER
+sintetica: true
+chamada:
+  url: "https://termos.mimix.invalid/programa-de-participantes"
+  parte: 1
+resposta:
+  situacao: LIDA
+  leitura_id: LEI-DOS-0001
+  parte: 1
+  partes_total: 2
+  url_final: "https://termos.mimix.invalid/programa-de-participantes"
+  redirecionamentos: 0
+  lida_em: "2026-10-11T10:06:10-03:00"
+  texto: >-
+    Termos do Programa de Participantes da Mimix — versão de teste de 01/10/2026.
+    1. Quem pode participar. O programa é aberto a pessoas com 18 anos ou mais, e cada pessoa pode manter somente uma conta de participante.
+    2. Tarefas. O participante escolhe as tarefas de gravação disponíveis no aplicativo, e cada tarefa só conta depois de aprovada pela equipe de revisão da Mimix.
+    3. Pagamento. A Mimix paga cada tarefa aprovada em dólares americanos, de acordo com a tabela de valores publicada no aplicativo no dia da aprovação.
+    4. Prazo e forma de pagamento. O pagamento é feito até 30 dias depois da aprovação da tarefa, por transferência para a conta cadastrada pelo participante, e as tarifas do banco ficam por conta dele.

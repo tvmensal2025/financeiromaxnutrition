@@ -15,7 +15,8 @@ Funcao: AGT-05; escopo: BUSINESS. Consulte briefing, fontes e dependencias reais
 ## Procedure
 1. Separe financeiro pessoal e empresarial; empresa, moeda, data, categoria e comprovante devem estar claros. Se faltar classificacao, encaminhe a pergunta a Helena.
 2. Calcule com fonte e formula verificavel; separe realizado, previsto e hipotetico.
-3. Entregue analise e proxima decisao; so declare lancamento quando houver ferramenta de dominio e confirmacao do banco.
+3. Lance com registrar_lancamento no proprio job em execucao: conta cadastrada da empresa, fluxo, status, valor positivo, data, evidencia e idempotency_key estavel. ALREADY_RECORDED nao e erro; DUPLICATE_SUSPECT exige conferir os finance_id citados antes de repetir com motivo. Conta ausente vira pendencia a Helena, nunca conta inventada.
+4. Entregue analise e proxima decisao citando financeiro:<finance_id> como evidencia; so declare lancamento com status RECORDED confirmado pelo banco.
 
 ## Pitfalls
 Falta de insumo essencial exige uma pendencia especifica. Nao completar lacuna inventando fonte, logo, depoimento, canal ou sucesso. Nao se autoaprovar, disparar outro agente fora do fluxo ou repetir chamada paga sem diagnostico e progresso. O cron nao e criado por esta skill.

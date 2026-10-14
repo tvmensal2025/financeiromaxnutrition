@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({ from: vi.fn(), write: vi.fn(), founder: true }
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: mocks.founder }) }));
 vi.mock('@/contexts/BusinessContext', () => ({ useBusiness: () => ({ currentBusinessId: 'BIZ-003', businesses: [{ business_id: 'BIZ-003', nome:'Humano Digital' },{ business_id:'BIZ-002',nome:'Saúde360' }] }) }));
 vi.mock('@/lib/supabase', () => ({supabase:{from:mocks.from}}));
-vi.mock('@/lib/escrita-protegida', () => ({ escreverRegistro:mocks.write }));
+vi.mock('@/lib/escrita-protegida', () => ({ escreverRegistro:mocks.write, ehConflitoDeVersao:(c:unknown)=>c==='PT409'||c==='40001' }));
 import IdentidadePage from './IdentidadePage';
 describe('cadastro da identidade', () => {
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe('cadastro da identidade', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Logo aprovado'); expect(mocks.write).not.toHaveBeenCalled();
   });
   it('salva no registro certo com versão original e mantém rascunho no conflito', async () => {
-    mocks.write.mockResolvedValue({data:null,error:{code:'40001',message:'Outra conversa alterou este registro. Seu rascunho foi preservado.'}});
+    mocks.write.mockResolvedValue({data:null,error:{code:'PT409',message:'Outra conversa alterou este registro. Seu rascunho foi preservado.'}});
     open(); await screen.findByText('Cores e tipografia');
     fireEvent.change(screen.getByLabelText(/Sobre a empresa/),{target:{value:'Descrição editada para esta empresa.'}});
     fireEvent.click(screen.getByRole('button',{name:'Salvar rascunho'}));

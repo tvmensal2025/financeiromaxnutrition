@@ -1,0 +1,57 @@
+{
+  "acao": "ENTREGAR",
+  "parecer": "AJUSTE",
+  "acao_externa": {
+    "tipo": "NENHUMA"
+  },
+  "entrega": {
+    "pergunta": "O convite e o roteiro podem ser usados com a Plataforma Exemplo?",
+    "semaforo": "AJUSTE",
+    "fundamento_citado": [
+      {
+        "texto": "Imagem e voz: a plataforma usa a imagem e a voz dos vídeos para treinar modelos, e isso exige autorização clara do participante.",
+        "citacoes": [
+          {
+            "trecho_original": "O participante autoriza a plataforma a usar a imagem e a voz presentes nos vídeos enviados, para fins de treinamento de modelos de inteligência artificial.",
+            "leitura_id": "LEI-001",
+            "parte": 2
+          }
+        ]
+      },
+      {
+        "texto": "Menores: vídeos de menores de idade só podem ser enviados com autorização por escrito dos responsáveis legais.",
+        "citacoes": [
+          {
+            "trecho_original": "É proibido enviar vídeos de terceiros ou de menores de idade sem a autorização por escrito dos responsáveis legais.",
+            "leitura_id": "LEI-001",
+            "parte": 2
+          }
+        ]
+      },
+      {
+        "texto": "Transferência para fora do país: os pagamentos saem por transferência internacional, o que exige cuidado com a base legal do envio de dados.",
+        "citacoes": [
+          {
+            "trecho_original": "Os pagamentos são feitos em dólares americanos por transferência internacional, e o participante arca com as tarifas do banco.",
+            "leitura_id": "LEI-001",
+            "parte": 1
+          }
+        ]
+      },
+      {
+        "texto": "Dado sensível: voz e imagem podem identificar a pessoa e entrar na categoria de dados pessoais sensíveis, conforme a LGPD.",
+        "citacoes": [
+          {
+            "fonte_importada_id": "FON-LEI-LGPD",
+            "trecho_original": "trecho do artigo copiado da tabela de leis para conferência"
+          }
+        ]
+      }
+    ],
+    "ajustes_necessarios": [
+      "Vínculo de trabalho: o roteiro não pode impor horário, metas ou chefia, para não parecer subordinação nem criar vínculo de trabalho.",
+      "Publicidade: o convite é publicidade e deve dizer com clareza quem é a plataforma e que a participação é voluntária."
+    ],
+    "quando_chamar_advogado": "Chame um advogado antes de enviar qualquer convite ou de assinar qualquer termo."
+  }
+}

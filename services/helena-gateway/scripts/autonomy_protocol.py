@@ -67,3 +67,27 @@ Se a tarefa ja encerrou, encaminhe o aprendizado pelo fluxo existente da coorden
 nao reabra ou mude status somente para gravar memoria. Fundador recebe material final,
 com as decisoes comerciais reservadas a ele; ajustes tecnicos seguem entre os responsaveis.
 '''
+
+
+# Versao para EXECUCAO (2026-10-08): sem as regras de quem escreve briefing (teto 7000,
+# contagem de payload, check_task_brief), que levavam o executor a encolher a entrega em laco.
+EXECUTION_RULE = '''
+
+## AUTONOMIA_NA_EXECUCAO_V2
+Dentro do pedido autorizado, resolva falhas previsiveis sem devolver trabalho interno ao fundador.
+A definicao de pronto da missao prevalece sobre regras genericas. Entregue com submit_work uma vez,
+depois de conferir com o checklist e o check_delivery; nao reescreva em laco para encolher.
+Recusa de parametro: leia o erro, corrija a causa uma vez e reenvie; se continuar recusado,
+registre causa e proximo responsavel. Nao repita chamada identica que foi recusada.
+Timeout/conexao perdida: releia manifesto e eventos; se confirmado, continue da etapa gravada;
+se incerto, registre reconciliacao pendente. Nao repetir IA, geracao ou escrita cegamente.
+Versao desatualizada: releia manifesto e somente secoes alteradas antes de gravar.
+Permissao negada: confira empresa, papel e alias autorizado; nao eleve acesso.
+Ferramenta ausente de verdade (chamada pelo nome e recusada): registre bloqueio tecnico; nao fabrique entrega.
+REQUEST_CHANGES: corrija exatamente os achados do parecer e submeta ao revisor independente;
+nao se autoaprove. Especialistas nao chamam handoff_task nem criam ou liberam missoes.
+Permissoes sao por acao e empresa. Aprovacao interna nao autoriza pagamento, assinatura,
+compromisso, publicacao ou envio externo. Laura/PERSONAL fica separada do fluxo empresarial.
+Pergunte ao fundador somente sobre informacao comercial ausente, decisao reservada, gasto ou escopo;
+nao invente esses dados. Separe fato, hipotese e recomendacao. Nao declare sucesso sem confirmacao do Gateway.
+'''

@@ -1,0 +1,120 @@
+# Caso RUIM do SRV-ROTEIRO-TREINAMENTO (Isabela, AGT-17) para o pedido ../pedido.yaml (variante CAMINHADA). SINTÉTICO.
+# Igual à boa-02, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x roteiro_treinamento (Caio).
+id: TREINO-RUIM-08
+servico: SRV-ROTEIRO-TREINAMENTO
+pedido: ../pedido.yaml
+variante: CAMINHADA
+derivado_de: ../boas/boa-02-caminhada.yaml
+defeito_plantado: O P3 manda tocar no botão "Iniciar caminhada", nome entre aspas que nenhuma fonte do pacote traz (o botão
+  da fonte é "Gravar").
+deve_falhar_em: CHK-TREINO-04
+portao: 1 (código)
+motivo_esperado: Iniciar caminhada
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-TREINAMENTO-ENVIAR
+  entrega:
+    objetivo: 'Você é participante da Humano Digital e lê isto no celular: ao terminar, você consegue gravar sozinho uma caminhada
+      curta pelo seu bairro, dentro das regras da plataforma e sem mostrar outras pessoas.'
+    preparacao:
+    - Separe uma faixa ou bolsa de celular para prender o celular ao peito.
+    - 'Escolha um trajeto curto, que você faça no tempo de uma gravação: de 5 a 15 minutos.'
+    - Prefira um horário e um caminho com poucas pessoas na rua.
+    - Guarde documentos e cartões no bolso, longe da câmera.
+    passo_a_passo:
+    - id: P1
+      o_que_fazer: Avise quem mora com você que vai sair para gravar.
+      sinal: Quem mora com você sabe que a gravação vai começar.
+      apoio:
+        trecho_original: O participante avisa quem mora com ele antes de gravar.
+        fonte_importada_id: FON-CONDICOES-PARTICIPANTE-01
+    - id: P2
+      o_que_fazer: Prenda o celular ao peito, na faixa ou bolsa de celular, com a câmera para a frente.
+      sinal: O celular fica no peito, e não na sua mão.
+      apoio:
+        trecho_original: Em atividade em movimento, como uma caminhada, o celular vai preso ao peito, numa faixa ou bolsa de
+          celular, e não na mão.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P3
+      o_que_fazer: Toque no botão "Iniciar caminhada".
+      sinal: A gravação começou.
+      apoio:
+        trecho_original: Para começar, a pessoa toca no botão "Gravar" e, para terminar, toca no botão "Parar".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P4
+      o_que_fazer: Caminhe pelo trajeto escolhido até o fim, com as mãos à frente do corpo.
+      sinal: O trajeto termina e a gravação tem de 5 a 15 minutos.
+      apoio:
+        trecho_original: A câmera fica na altura do peito e mostra as mãos durante toda a atividade.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P5
+      o_que_fazer: Toque no botão "Parar" ao chegar.
+      sinal: A gravação terminou.
+      apoio:
+        trecho_original: Para começar, a pessoa toca no botão "Gravar" e, para terminar, toca no botão "Parar".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P6
+      o_que_fazer: Assista à gravação inteira antes de enviar.
+      sinal: Você viu a gravação até o fim, sem pessoas desconhecidas nem crianças.
+      apoio:
+        trecho_original: Antes de enviar, a pessoa assiste à gravação inteira e apaga o que não pode aparecer.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P7
+      o_que_fazer: Toque no botão "Enviar para avaliação".
+      sinal: A gravação segue para a avaliação da plataforma.
+      apoio:
+        trecho_original: Para enviar, a pessoa toca no botão "Enviar para avaliação".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P8
+      o_que_fazer: Abra a tela "Minhas gravações" para ver o resultado da avaliação.
+      sinal: Você vê o resultado da gravação na tela.
+      apoio:
+        trecho_original: A plataforma avalia a gravação depois do envio e mostra o resultado na tela "Minhas gravações".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    erros_que_reprovam:
+    - id: E1
+      erro: Deixar a imagem tremer durante a caminhada.
+      o_que_acontece: Gravação tremida é reprovada.
+      como_evitar: Prenda o celular ao peito, na faixa ou bolsa, e não o segure na mão.
+      apoio:
+        trecho_original: Gravação tremida é reprovada.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: E2
+      erro: Deixar o rosto ou a voz de uma pessoa desconhecida na gravação.
+      o_que_acontece: Rosto ou voz de outra pessoa na gravação, sem a autorização dela, é motivo de reprovação.
+      como_evitar: Escolha um caminho com poucas pessoas e, se alguém aparecer ou falar, apague essa parte antes de enviar.
+      apoio:
+        trecho_original: Rosto ou voz de outra pessoa na gravação, sem a autorização dela, é motivo de reprovação.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: E3
+      erro: Gravar perto de crianças.
+      o_que_acontece: Crianças não podem aparecer nem falar em nenhuma gravação.
+      como_evitar: Fique longe de escola e de parquinho e, se uma criança aparecer ou falar, apague essa parte antes de enviar.
+      apoio:
+        trecho_original: Crianças não podem aparecer nem falar em nenhuma gravação.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    privacidade_e_terceiros:
+    - 'Quem passa na rua não autorizou: só deixe na gravação o rosto ou a voz de quem autorizou.'
+    - Se uma pessoa desconhecida ou uma criança aparecer ou falar, apague essa parte antes de enviar.
+    - 'Endereços, documentos e telas com dados não podem aparecer: não enquadre papéis nem telas de ninguém.'
+    - Não pare para conversar com quem passa e não peça nenhum dado a ninguém durante a caminhada.
+    checklist_final:
+    - 'P1: você avisou quem mora com você que ia sair para gravar?'
+    - 'P2 e E1: o celular está preso ao peito e não na sua mão?'
+    - 'P4: você caminhou o trajeto escolhido até o fim?'
+    - 'E2: nenhuma pessoa desconhecida apareceu ou falou na gravação?'
+    - 'E3: nenhuma criança apareceu ou falou na gravação?'
+    - 'P6: você assistiu à gravação inteira antes de enviar?'
+    o_que_precisa_aprovacao:
+    - 'Quem não tem faixa nem bolsa de celular: a fonte não traz outra forma de gravar a caminhada. Você decide o que dizer
+      a essa pessoa.'
+    - 'Canal de dúvidas: o pacote não traz um canal confirmado, então o roteiro não leva nenhum. Diga qual usar.'
+    - Enviar o roteiro às pessoas é ação sua, depois do parecer aprovado.
+    limites:
+    - 'Este roteiro trata apenas da gravação e da privacidade.'
+    - 'Outras atividades do dia a dia: cada uma pede o seu roteiro; este cobre só a caminhada curta pelo bairro.'

@@ -1,0 +1,133 @@
+{
+  "hoje": "2026-10-10",
+  "execucao_id": "EXE-0001",
+  "modelo": {
+    "tipo": "parecer",
+    "servico": "SRV-PARECER",
+    "limite": 6000,
+    "secoes": [
+      {
+        "id": "pergunta",
+        "titulo": "Pergunta",
+        "tipo_de_campo": "texto",
+        "obrigatoria": true
+      },
+      {
+        "id": "semaforo",
+        "titulo": "Semáforo",
+        "tipo_de_campo": "texto",
+        "obrigatoria": true,
+        "valores_permitidos": [
+          "PODE",
+          "AJUSTE",
+          "NAO_PODE"
+        ]
+      },
+      {
+        "id": "fundamento_citado",
+        "titulo": "Fundamento citado",
+        "tipo_de_campo": "lista",
+        "obrigatoria": true,
+        "exige_citacao": true
+      },
+      {
+        "id": "ajustes_necessarios",
+        "titulo": "Ajustes necessários",
+        "tipo_de_campo": "lista",
+        "obrigatoria": true
+      },
+      {
+        "id": "quando_chamar_advogado",
+        "titulo": "Quando chamar advogado",
+        "tipo_de_campo": "texto",
+        "obrigatoria": true
+      }
+    ],
+    "acoes_permitidas": [
+      "ENTREGAR",
+      "REGISTRAR_FALHA"
+    ],
+    "acao_externa_permitida": [
+      "NENHUMA"
+    ],
+    "validador": {
+      "confere_leis": true,
+      "exige_fontes": true,
+      "exigir_termos_lidos_por_inteiro": true,
+      "secoes_dos_temas": [
+        "fundamento_citado",
+        "ajustes_necessarios"
+      ]
+    }
+  },
+  "paginas_lidas": [
+    {
+      "leitura_id": "LEI-001",
+      "url": "https://www.plataformaexemplo.com.br/termos",
+      "tipo": "termos_de_uso",
+      "execucao": "EXE-0001",
+      "partes_total": 2,
+      "partes": {
+        "1": "Termos de Uso da Plataforma Exemplo\n1. Cadastro\nO participante deve ter pelo menos 18 anos de idade e aceitar estes termos antes de enviar qualquer vídeo para a plataforma.\nCada pessoa pode manter somente uma conta ativa, e a conta não pode ser vendida nem transferida para outra pessoa.\n2. Pagamentos\nA plataforma pode alterar os valores pagos por tarefa a qualquer momento, mediante aviso prévio publicado nesta página.\nOs pagamentos são feitos em dólares americanos por transferência internacional, e o participante arca com as tarifas do banco.\n",
+        "2": "3. Conteúdo\nO participante autoriza a plataforma a usar a imagem e a voz presentes nos vídeos enviados, para fins de treinamento de modelos de inteligência artificial.\nÉ proibido enviar vídeos de terceiros ou de menores de idade sem a autorização por escrito dos responsáveis legais.\n4. Encerramento\nA plataforma pode encerrar contas que violem estas regras, sem aviso prévio e sem direito a pagamento de tarefas pendentes.\nVeja também o Art. 5 destes termos. O prazo de resposta do suporte é de cinco dias úteis.\nA conta é pessoal – não pode ser compartilhada com ninguém, nem mesmo com familiares próximos.\nA plataforma chama de \"conta ativa\" a conta que enviou vídeos nos últimos trinta dias, conforme o painel do participante.\nConforme o art. 7º, o participante pode pedir a exclusão dos dados.\n"
+      }
+    },
+    {
+      "leitura_id": "LEI-002",
+      "url": "https://www.plataformaexemplo.com.br/en/terms",
+      "tipo": "termos_de_uso",
+      "execucao": "EXE-0001",
+      "partes_total": 1,
+      "partes": {
+        "1": "Terms of Service\n1. Accounts\nUsers must be at least 18 years old and must accept these terms before they upload any video to the platform.\nEach person may keep only one active account, and an account may not be sold or transferred to another person.\n"
+      }
+    },
+    {
+      "leitura_id": "LEI-003",
+      "url": "https://www.outrosite.com.br/politica",
+      "tipo": "pagina",
+      "execucao": "EXE-0001",
+      "partes_total": 1,
+      "partes": {
+        "1": "Política de privacidade do Outro Site\nColetamos o endereço de e-mail do visitante para enviar novidades sobre os nossos produtos e serviços de treinamento.\n"
+      }
+    },
+    {
+      "leitura_id": "LEI-004",
+      "url": "https://www.plataformaexemplo.com.br/pagamentos",
+      "tipo": "pagina",
+      "execucao": "EXE-0001",
+      "partes_total": 1,
+      "partes": {
+        "1": "Tabela de pagamentos da Plataforma Exemplo\nO valor pago por hora de tarefa concluída é de US$ 0.50 (cinquenta centavos de dólar), conforme a tabela vigente nesta página.\nO pagamento é feito somente depois da aprovação da tarefa pela equipe da plataforma.\n"
+      }
+    },
+    {
+      "leitura_id": "LEI-005",
+      "url": "https://www.bancoexemplo.com.br/cotacao",
+      "tipo": "pagina",
+      "execucao": "EXE-0001",
+      "partes_total": 1,
+      "partes": {
+        "1": "Boletim do Banco Exemplo\nCotação do dólar comercial em 09/10/2026: R$ 5,40 para cada US$ 1,00, segundo o boletim diário publicado pelo banco.\n"
+      }
+    }
+  ],
+  "fontes_importadas": [],
+  "links_do_pedido": [
+    "https://www.plataformaexemplo.com.br/termos"
+  ],
+  "decisoes_vigentes": [
+    {
+      "id": "DEC-101",
+      "texto": "Meta da primeira rodada: 10 pessoas.",
+      "valor": "10",
+      "unidade": "pessoas"
+    },
+    {
+      "id": "DEC-102",
+      "texto": "O texto do convite não promete nenhum tipo de retorno."
+    }
+  ],
+  "usou_internet": "SIM"
+}

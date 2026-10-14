@@ -135,3 +135,243 @@ html.dark .he-page-heading > div:first-child > div > span:first-child {backgroun
 .he-copy-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:118px;padding:9px 12px;border:1px solid #9fc7b0;border-radius:10px;background:#fff;color:#007a3d;font-size:11px;font-weight:700;white-space:nowrap;}.he-copy-button:hover{background:#e8f4e9}.he-copy-button:disabled{cursor:not-allowed;opacity:.5;}
 .he-copy-textarea{display:block;width:100%;min-height:155px;margin-top:17px;padding:15px;border:1px solid #cfe0d1;border-radius:12px;background:#fff;color:var(--pe-text);font:13px/1.65 'Figtree',sans-serif;resize:vertical;outline:none;}.he-copy-textarea:focus{border-color:#77ad88;box-shadow:0 0 0 3px #007a3d12;}
 @media(max-width:767px){.he-delivery-summary{grid-template-columns:repeat(2,minmax(0,1fr));}.he-delivery-modal{padding:20px 16px;}.he-delivery-modal-head{gap:12px}.he-section-title{display:grid;gap:15px}.he-copy-button{width:max-content}.he-delivery-stepper{overflow-x:auto;padding-bottom:5px}.he-delivery-stepper span{font-size:9px}.he-delivery-stepper span:not(:last-child)::after{margin:0 5px;}}
+/* Camada de acabamento das áreas autenticadas. Usa apenas conteúdo e estados reais. */
+.he-studio {
+  --he-workspace-rule: #a4b894;
+  font-family: 'Figtree', system-ui, sans-serif;
+  font-optical-sizing: auto;
+}
+
+.he-studio[data-workspace='negocios'] { --he-workspace-rule: #b5ba99; }
+.he-studio[data-workspace='operacao'] { --he-workspace-rule: #83a587; }
+.he-studio[data-workspace='inteligencia'] { --he-workspace-rule: #98af93; }
+.he-studio[data-workspace='governanca'] { --he-workspace-rule: #899e91; }
+.he-studio[data-workspace='registros'] { --he-workspace-rule: #afad95; }
+
+.he-studio .pe-sidebar {
+  box-shadow: inset -1px 0 0 #ffffff80;
+}
+.he-studio .pe-sidebar .pe-nav-item {
+  position: relative;
+  font-size: 13px !important;
+  line-height: 1.3;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.he-studio .pe-sidebar .pe-nav-item:hover { transform: translateX(2px); }
+.he-studio .pe-sidebar .pe-nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 999px;
+  background: #abc991;
+}
+.he-studio .he-nav-group-toggle {
+  width: calc(100% - 24px);
+  margin-inline: 12px;
+  border-top: 1px solid var(--he-line);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .11em;
+}
+.he-studio .he-nav-group-toggle svg { transition: transform .2s ease; }
+.he-studio .pe-topbar { box-shadow: 0 1px 0 #fff8; }
+.he-studio .pe-main { min-width: 0; }
+
+/* Mesma hierarquia visual para dashboards, cadastros, editores e subpáginas. */
+.he-studio .pe-main :where(h1, h2, h3) { text-wrap: balance; }
+.he-studio .pe-main :where(h1) { color: var(--he-ink); }
+.he-studio .pe-main :where(p, dd, td) { overflow-wrap: anywhere; }
+.he-studio .pe-main :where(.pe-page-header, .he-page-heading, .he-deliveries-heading, header.border-b) {
+  border-bottom-color: var(--he-line);
+}
+.he-studio .pe-main :where(.pe-page-header, .he-page-heading, .he-deliveries-heading) {
+  background-image: linear-gradient(var(--he-workspace-rule), var(--he-workspace-rule));
+  background-position: left top;
+  background-repeat: no-repeat;
+  background-size: 40px 3px;
+  padding-top: 18px;
+}
+.he-studio .pe-main :where(.bg-card, .pe-card, .premium-card) { border-color: var(--he-line); }
+.he-studio .pe-main :where(table) { font-variant-numeric: tabular-nums; }
+.he-studio .pe-main :where(table tbody tr) { transition: background-color .15s ease; }
+.he-studio .pe-main :where(table tbody tr:hover) { background: hsl(var(--muted) / .44); }
+.he-studio .pe-main :where(input, select, textarea) { color: hsl(var(--foreground)); }
+.he-studio .pe-main :where(input, select, textarea)::placeholder { color: hsl(var(--muted-foreground) / .78); }
+.he-studio .pe-main :where(button) { touch-action: manipulation; }
+.he-studio .pe-main :where(button:not(:disabled)):active { transform: translateY(1px); }
+.he-studio .pe-main :where(button:disabled) { cursor: not-allowed; }
+.he-studio .pe-main :where([role='tab'], [aria-pressed='true']) { font-variant-numeric: tabular-nums; }
+.he-studio .pe-main :where([role='alert']) { border-left: 3px solid hsl(var(--destructive)); }
+.he-studio .pe-main :where([role='status']) { line-height: 1.6; }
+
+/* Área de operação: listas densas para leitura, detalhes com espaço para textos longos. */
+.he-v2-card-page,
+.he-v2-config-page { max-width: 1400px; }
+.he-studio .pe-main > .he-v2-card-page,
+.he-studio .pe-main > .he-v2-config-page { max-width: none; padding: 8px 0 48px; }
+.he-v2-card-page > header,
+.he-v2-config-page > header { padding-block: 8px 28px; }
+.he-v2-card-page > header p:first-child,
+.he-v2-config-page > header p:first-child { letter-spacing: .16em; }
+.he-v2-card-page > header h1,
+.he-v2-config-page > header h1 { max-width: 22ch; }
+.he-v2-card-page > div.grid > section,
+.he-v2-config-page > div.grid > aside,
+.he-v2-config-page > div.grid > div > section { min-width: 0; }
+.he-v2-card-page [aria-label='Lista de cards'] > div.divide-y,
+.he-v2-config-page aside ul { border-color: var(--he-line); }
+.he-v2-card-page [aria-label='Lista de cards'] button[aria-current='true'],
+.he-v2-config-page aside button[aria-current='true'] {
+  background: hsl(var(--primary) / .09);
+  box-shadow: inset 3px 0 0 hsl(var(--primary));
+}
+.he-v2-card-page [aria-label='Publicação'],
+.he-v2-config-page section.border-dashed {
+  border-color: var(--he-workspace-rule);
+  background: hsl(var(--card) / .68);
+}
+.he-v2-config-page [role='tablist'] [aria-selected='true'] {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+.he-v2-config-page textarea[aria-label='JSON do documento'] { font-variant-ligatures: none; }
+
+/* Escala de leitura móvel sem barras laterais ou alvos minúsculos. */
+@media (max-width: 767px) {
+  .he-studio .pe-main { padding-inline: 16px; }
+  .he-studio .pe-sidebar .pe-nav-item { min-height: 46px; }
+  .he-v2-card-page,
+  .he-v2-config-page { padding-inline: 0; }
+  .he-v2-card-page > header h1,
+  .he-v2-config-page > header h1 { font-size: clamp(30px, 9vw, 40px); }
+  .he-v2-card-page [aria-label='Publicação'],
+  .he-v2-config-page section { padding-inline: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .he-studio .pe-sidebar .pe-nav-item,
+  .he-studio .he-nav-group-toggle svg,
+  .he-studio .pe-main :where(table tbody tr) { transition: none; }
+  .he-studio .pe-sidebar .pe-nav-item:hover,
+  .he-studio .pe-main :where(button:not(:disabled)):active { transform: none; }
+}
+
+/* Cadastros e detalhes: mesma escala de controles nas subrotas de módulos. */
+.he-studio[data-workspace='registros'] .pe-main :where(.rounded-xl.border.bg-card, .rounded-lg.border.bg-card) {
+  border-radius: 18px;
+  box-shadow: 0 3px 18px #20382a06;
+}
+.he-studio[data-workspace='registros'] .pe-main :where(label) { font-weight: 600; }
+.he-studio[data-workspace='registros'] .pe-main :where(table) { font-size: 13px; }
+.he-studio[data-workspace='negocios'] .pe-main :where(.he-metric) { font-variant-numeric: tabular-nums; }
+.he-studio[data-workspace='inteligencia'] .pe-main :where(.hc-agent, .he-focus-card) { border-radius: 18px; }
+.he-studio[data-workspace='governanca'] .pe-main :where(.pe-card, .bg-card.border) { border-top-color: var(--he-workspace-rule); }
+
+/* Consentimento fica fora da navegação, mas usa a mesma tipografia e foco. */
+.he-oauth-shell {
+  font-family: 'Figtree', system-ui, sans-serif;
+  background: var(--he-paper);
+}
+.he-oauth-shell h1,
+.he-oauth-shell h2 { font-family: 'Outfit', system-ui, sans-serif; letter-spacing: -.035em; }
+.he-oauth-shell :where(button, a):focus-visible { outline: 3px solid #709762; outline-offset: 3px; }
+.he-oauth-shell :where(button:not(:disabled)):active { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) {
+  .he-oauth-shell :where(button, a) { transition: none; }
+  .he-oauth-shell :where(button:not(:disabled)):active { transform: none; }
+}
+
+/* O arquivo Studio vem antes desta camada: fixar toda a paleta da navegação clara. */
+.he-studio .pe-sidebar {
+  background: #fcfcf8;
+  color: #22382b;
+  border-color: #dedfd5;
+}
+.he-studio .pe-nav-item { color: #445749 !important; }
+.he-studio .pe-sidebar .pe-nav-item { min-height: 44px; }
+.he-studio .pe-sidebar-section { color: #586a5a !important; }
+.he-studio .he-nav-group-toggle { color: #526354; min-height: 44px; }
+.he-studio .he-nav-group-toggle:hover { color: #213a2c; background: #eef0e7; }
+.he-studio .he-brand-copy > div > span { color: #22382b; }
+.he-studio .he-brand-copy > span,
+.he-studio .he-sidebar-signature,
+.he-studio .he-sidebar-signature span { color: #526354; }
+.he-studio .he-sidebar-signature p { color: #344a39; }
+html.dark .he-studio .pe-sidebar { background: #222d24; color: #edf1e5; border-color: #3b493c; }
+html.dark .he-studio .he-brand-copy > span { color: #c2d0bd; }
+html.dark .he-studio .pe-sidebar-section { color: #b6c9af !important; }
+html.dark .he-studio .he-nav-group-toggle,
+html.dark .he-studio .he-sidebar-signature,
+html.dark .he-studio .he-sidebar-signature span { color: #c2d0bd; }
+html.dark .he-studio .he-nav-group-toggle:hover { color: #f0f5e9; background: #303d2e; }
+html.dark .he-studio .he-sidebar-signature p { color: #d6e3d0; }
+
+/* Controles pequenos tinham ícones legíveis, mas área de toque insuficiente. */
+.he-studio .pe-topbar button { min-width: 44px; min-height: 44px; }
+.he-studio .he-notification-trigger { width: 44px; height: 44px; }
+.he-modal-close { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+.he-notification-footer,
+.he-notification-item { min-height: 44px; }
+@media (max-width: 420px) {
+  .he-studio .he-business-switcher {
+    max-width: clamp(74px, calc(100vw - 254px), 148px);
+    min-width: 0;
+    padding-inline: 6px;
+  }
+  .he-studio .he-business-switcher .font-semibold { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .he-studio .he-business-switcher > svg:last-child { display: none; }
+}
+
+/* Acesso e autorização aparecem fora do Layout, mas pertencem ao mesmo sistema visual. */
+.he-public-shell { min-height: 100dvh; }
+.he-public-shell .he-login-editorial { background: #e6ebd9; color: #24382b; }
+.he-public-shell .he-login-editorial .he-brand-copy > div > span { color: #24382b; }
+.he-public-shell .he-login-editorial .he-brand-copy > span { color: #526354; }
+.he-public-shell .he-login-form-area { background: #fcfcf8; }
+.he-public-shell .he-login-card h1 { font-weight: 500; }
+.he-public-shell :where(input, button):focus-visible,
+.he-access-screen button:focus-visible { outline: 3px solid #709762; outline-offset: 3px; }
+html.dark .he-public-shell .he-login-editorial { background: #293c2f; color: #edf1e5; }
+html.dark .he-public-shell .he-login-editorial .he-brand-copy > div > span { color: #edf1e5; }
+html.dark .he-public-shell .he-login-editorial .he-brand-copy > span { color: #c2d0bd; }
+html.dark .he-public-shell .he-login-form-area { background: #17201b; }
+
+.he-access-screen {
+  background: linear-gradient(145deg, #f6f7f1, #e9eee5);
+  font-family: 'Figtree', system-ui, sans-serif;
+}
+.he-access-card {
+  position: relative;
+  width: min(100%, 460px);
+  padding: clamp(24px, 5vw, 40px);
+  overflow: hidden;
+  border: 1px solid #dfe5d8;
+  border-radius: 20px;
+  background: #fcfcf8;
+  box-shadow: 0 14px 42px #20382a12;
+}
+.he-access-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 48px;
+  height: 3px;
+  background: #709762;
+}
+.he-access-card h1 { font: 500 28px/1.15 'Outfit', system-ui, sans-serif; letter-spacing: -.035em; }
+.he-access-card .text-muted-foreground { color: #586a5a; }
+.he-access-logo { flex: none; }
+.he-access-action { min-height: 44px; justify-content: center; font-weight: 600; }
+html.dark .he-access-screen { background: linear-gradient(145deg, #17201b, #222f25); }
+html.dark .he-access-card { background: #263129; border-color: #3b493c; box-shadow: 0 14px 42px #0003; }
+html.dark .he-access-card .text-muted-foreground { color: #b2bda8; }
+@media (max-width: 420px) {
+  .he-access-actions { flex-direction: column; }
+  .he-access-actions .he-access-action { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .he-public-shell *, .he-access-screen * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

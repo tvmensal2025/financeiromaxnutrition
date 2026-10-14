@@ -1,0 +1,33 @@
+# Caso RUIM do SRV-DOSSIE (Ravi, AGT-11) para o pedido ../pedido.yaml.
+# O QUE É: igual à boa-02 (menos onde o defeito mexe), com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código; RECUSA volta ao autor); RUB-... = portão 2 (revisor). Serve ao teste 5 (validador) e, depois,
+# ao teste 9 do par revisor x dossiê. COMO MUDAR: mude a boa-02 e refaça o defeito a partir dela; mantenha UM defeito só.
+id: DOSSIE-RUIM-11
+servico: SRV-DOSSIE
+pedido: ../pedido.yaml
+variante: V-SO-LACUNA
+derivado_de: ../boas/boa-02-so-lacuna.yaml
+defeito_plantado: A lacuna L1 lista um termo só ('reembolso'); o mínimo são 2 termos diferentes.
+deve_falhar_em: CHK-DOSSIE-AUSENCIA
+portao: 1 (código)
+motivo_esperado: termos_procurados com menos termos que o mínimo de CHK-DOSSIE-AUSENCIA (parametros.termos_min).
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-termos-parte-1.yaml
+- fitas/02-termos-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    entidade:
+    - nome: Mimix
+      tipo: PLATAFORMA
+      pergunta: O que os termos da Mimix dizem sobre reembolso de equipamento, como celular e microfone?
+    lacunas:
+    - id: L1
+      o_que_falta: 'Se a Mimix reembolsa equipamento, como celular ou microfone: os termos lidos não tratam desse assunto.'
+      documento_que_falta: Política de equipamentos ou de reembolso da Mimix, se houver
+      onde_procurar: Central de ajuda da Mimix, seção Equipamentos, e perguntas frequentes do aplicativo
+      termos_procurados: reembolso

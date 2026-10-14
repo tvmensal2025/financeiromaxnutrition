@@ -1,0 +1,325 @@
+# Tipo de entrega: roteiro_treinamento (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: ISABELA (AGT-17). Serviço: SRV-ROTEIRO-TREINAMENTO (servicos.yaml). Revisor titular: CAIO
+# (APTA em roteiro_treinamento); reserva: OLIVIA (SEM_PROVA, fora da lista efetiva até o teste 9 e
+# o seu toque); você é sempre a última reserva (MAT-03). Julgado depois pela Clara, sempre
+# (julgado_pelo_parecer: SEMPRE, MAT-22): por isso a Helena não revisa este tipo (regra 4).
+# Substitui o bloco 'roteiro_treinamento' de entregas.yaml, que fica só como história.
+#
+# O que é: o passo a passo que uma pessoa LEIGA DE FORA (participante, cliente) faz sozinha, no
+# celular, sem ajuda: objetivo, preparação, passos, erros que reprovam (ou atrapalham), privacidade
+# de outras pessoas e de lugares, e um checklist final de sim ou não. Treinar a equipe interna
+# numa rotina da operação NÃO é este serviço (SRV-PROCEDIMENTO-OPERACIONAL, Olívia). Enviar o
+# roteiro às pessoas é sempre ação sua (AF-TREINAMENTO-ENVIAR), depois do parecer aprovado.
+#
+# Regra de ouro deste tipo: a Isabela não tem ferramenta e não conhece a plataforma por fora. Nome
+# de tela, botão, prazo e regra do que reprova só entram com o trecho literal da fonte do pacote
+# (pedido original, pacote da empresa ou fonte importada aprovada, como as regras de gravação).
+# Sem a fonte, ela não adivinha: REGISTRAR_FALHA com FALTAM_DADOS, dizendo qual passo ou regra
+# falta (ENT-TREINO-REGRAS). Isto fecha o risco de um roteiro que ensina a pessoa a errar.
+#
+# Seções guardadas da v1 (entregas.yaml): objetivo, preparacao, passo_a_passo, erros_que_reprovam,
+# privacidade_e_terceiros e checklist_final. Novas: o_que_precisa_aprovacao e limites.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui. Nenhum critério da rubrica depende de lei (MAT-22): a conferência jurídica (dado
+# pessoal, imagem e voz de terceiros, menores, publicidade) é do parecer da Clara no mesmo card.
+#
+# Neutro quanto ao motor (DBOS ou motor próprio): tudo aqui é dado nosso.
+
+tipo: roteiro_treinamento
+versao: "3.1.0"
+descricao: "Roteiro de treinamento para pessoa leiga de fora: objetivo, preparação, passos de uma ação só, erros que reprovam com a regra citada, privacidade de terceiros e checklist de sim ou não."
+dono: ISABELA
+servico: SRV-ROTEIRO-TREINAMENTO
+
+secoes:
+  - id: objetivo
+    titulo: "O que a pessoa consegue fazer ao terminar"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com um verbo que dá para observar, para quem é a pessoa e onde ela lê (ex.: no celular). Não muda o que você pediu."
+  - id: preparacao
+    titulo: "O que deixar pronto antes de começar"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 8
+    descricao: "Aparelho, lugar, tempo e cuidados antes do primeiro passo, em itens curtos que a pessoa consegue cumprir sozinha."
+  - id: passo_a_passo
+    titulo: "Passo a passo"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 12
+    descricao: "Um passo por linha, na ordem em que a pessoa faz, cada um com UMA ação. Tela, botão, prazo ou regra da plataforma só com o trecho de apoio."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "P1, P2, P3... em ordem, sem pular nem repetir."}
+      - {id: o_que_fazer, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "Uma frase de até 200 caracteres com uma só ação que a pessoa faz sozinha."}
+      - {id: sinal, tipo_de_campo: texto, descricao: "O que a pessoa vê ou ouve quando deu certo."}
+      - {id: apoio, tipo_de_campo: citacao, obrigatoria: false, descricao: "Trecho literal da fonte do pacote, quando o passo cita nome de tela, botão, prazo ou regra da plataforma."}
+  - id: erros_que_reprovam
+    titulo: "Erros que reprovam ou atrapalham"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 8
+    descricao: "Um erro por linha: o que a pessoa faz, o que acontece (reprovação ou resultado ruim) e como evitar. O motivo vem sempre de um trecho da fonte do pacote."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "E1, E2, E3... em ordem, sem pular nem repetir."}
+      - {id: erro, tipo_de_campo: texto, descricao: "O que a pessoa faz de errado, observável."}
+      - {id: o_que_acontece, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "O que acontece por causa do erro, dito igual à fonte, sem aumentar nem suavizar."}
+      - {id: como_evitar, tipo_de_campo: texto, descricao: "Uma forma prática de evitar, que a pessoa faz sozinha."}
+      - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal (frase inteira ou 12 palavras seguidas) da fonte do pacote que diz a regra."}
+  - id: privacidade_e_terceiros
+    titulo: "Privacidade de outras pessoas e de lugares"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 6
+    descricao: "Regras práticas sobre quem aparece ou fala ao redor, crianças, documentos, endereços e telas com dados. Nunca manda expor, gravar ou pedir dado de outra pessoa."
+  - id: checklist_final
+    titulo: "Checklist final"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 10
+    descricao: "Perguntas de sim ou não, cada uma terminando em '?', citando o passo (P) ou o erro (E) que confere. Todo erro da tabela aparece em pelo menos uma pergunta."
+  - id: o_que_precisa_aprovacao
+    titulo: "O que precisa do seu ok antes de enviar"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "O que só você confirma antes de mandar às pessoas (regras da plataforma que podem ter mudado, canal de dúvidas, data). Enviar é ação sua, depois do parecer aprovado."
+  - id: limites
+    titulo: "O que este roteiro não cobre"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 3
+    descricao: "O que ficou de fora e para onde vai (ex.: treino da sua equipe: SRV-PROCEDIMENTO-OPERACIONAL; regra da plataforma que a fonte não traz: você envia a fonte)."
+
+limite: 8000
+
+checagens_codigo:
+  - id: CHK-TREINO-01
+    descricao: "Sem promessa de aprovação, ganho ou resultado: nenhum termo da lista fechada (garantido, 'nunca será reprovado', renda, ganho, 'dinheiro fácil', 'risco zero' e parecidos) no texto, mesmo negado. O único trecho aceito é o slogan oficial do pacote, literal."
+    fecha_furos: [C-11, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "nunca será reprovado", "não será reprovado", "sempre aprovado", "sempre aprovada", "aprovação certa", "resultado certo", "sem risco", "risco zero", "milagre", "dinheiro fácil", "renda", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "lucro", "real", "reais", "dólar", "dólares", "salário", "dinheiro", "pagamento", "pix"]
+      simbolos: ["R$", "US$", "€"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento; símbolo em qualquer posição"
+      excecao: "o slogan oficial do pacote da empresa, igual ao pacote (ex.: 'Onde sua evolução ganha direção.')"
+      nao_confere: "promessa disfarçada ('seguindo estes passos suas gravações vão ser aprovadas'): é da rubrica (RUB-TREINO-05)"
+  - id: CHK-TREINO-02
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; este arquivo não copia a lista), fora de trechos citados, sem diferenciar maiúscula nem acento."
+    fecha_furos: [DEC-023, DEC-024, DEC-025]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  - id: CHK-TREINO-03
+    descricao: "Passos com uma ação só: ids P1, P2... em ordem, de 3 a 12 passos; cada o_que_fazer tem até 200 caracteres, uma só frase e nenhum 'e depois', 'em seguida' ou 'logo após'."
+    fecha_furos: [A-17, K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids: "^P([1-9]|1[0-2])$ em sequência a partir de P1"
+      passos: {minimo: 3, maximo: 12}
+      maximo_caracteres: 200
+      uma_frase: "um só ponto final, ponto de exclamação ou interrogação, no fim"
+      expressoes_de_duas_acoes: ["e depois", "em seguida", "logo após", "logo depois", "e então"]
+  - id: CHK-TREINO-04
+    descricao: "Nome de tela, botão ou regra com origem: todo texto entre aspas nos passos, sinais, erros e checklist aparece igual no pedido original, no pacote ou em fonte importada aprovada."
+    fecha_furos: [C-8, B-17]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      onde: ["passo_a_passo.o_que_fazer", "passo_a_passo.sinal", "erros_que_reprovam.erro", "erros_que_reprovam.o_que_acontece", "erros_que_reprovam.como_evitar", "preparacao", "objetivo", "privacidade_e_terceiros", "limites", "checklist_final"]
+      aspas: ["\"...\"", "'...'", "“...”", "‘...’", "«...»", "„...“", "`...`", "「...」"]
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>", "fonte importada aprovada que veio no pacote do card"]
+      normaliza: ["espaços repetidos", "aspas tipográficas", "maiúscula e acento"]
+  - id: CHK-TREINO-05
+    descricao: "Regras com apoio: todo erro tem id E1, E2... em ordem e um apoio que é trecho literal (frase inteira ou 12 palavras seguidas) de fonte do pacote; o apoio de um passo, quando existe, também."
+    fecha_furos: [C-8, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids_dos_erros: "^E([1-8])$ em sequência a partir de E1"
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>", "fonte importada aprovada que veio no pacote do card"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+      nunca_aceita: "leitura_id (a Isabela não lê página)"
+  - id: CHK-TREINO-06
+    descricao: "Checklist de sim ou não que cobre os erros: de 3 a 10 itens, cada um com até 160 caracteres, terminando em '?' e citando um passo (P) ou erro (E) que existe; todo erro aparece em algum item."
+    fecha_furos: [A-17, CONF-21]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      itens: {minimo: 3, maximo: 10}
+      maximo_caracteres: 160
+      termina_em: "?"
+      cita: "pelo menos um id P1-P12 ou E1-E8 que existe nas tabelas desta entrega"
+      cobertura: "todo id E da tabela erros_que_reprovam aparece em pelo menos um item"
+  - id: CHK-TREINO-07
+    descricao: "Nenhum número solto: todo número em algarismos do texto (menos ids P, E e os números da lista) aparece, com o mesmo valor, no pedido original, no pacote ou em fonte importada aprovada."
+    fecha_furos: [C-9, C-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      formato: "milhar com ponto e decimal com vírgula; 'mil' depois do número multiplica por 1.000"
+      ignora: ["ids P1-P12 e E1-E8", "datas dd/mm/aaaa e horas hh:mm que estão no pedido"]
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>", "fonte importada aprovada que veio no pacote do card"]
+  - id: CHK-TREINO-08
+    descricao: "Nenhum contato nem dado pessoal inventado: link, e-mail, @usuário, telefone, CPF ou CEP no texto só se aparecer igual no pedido original ou no pacote."
+    fecha_furos: [C-7, M-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io, .ee, .gl, .ly, .me, .xyz, .ai, .uk)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>"]
+  - id: CHK-TREINO-09
+    descricao: "Sem orientação de saúde: nenhum termo da lista fechada de diagnóstico, prescrição, remédio, tratamento, cura ou emagrecimento no texto, mesmo negado."
+    fecha_furos: [DEC-023, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "diagnosticado", "prescrição", "prescrições", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratamento da ansiedade", "tratar doenças", "cura", "curar", "cure", "curado", "emagrecer", "emagreça", "emagrece", "emagrecimento", "perder peso", "perca peso", "perda de peso"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
+      nao_confere: "conselho de saúde individual em outras palavras: é da rubrica (RUB-TREINO-06)"
+  - id: CHK-TREINO-10
+    descricao: "A eLiving™ não vira app de calorias: no card da eLiving™ (BIZ-004), nenhum termo da lista fechada de caloria, dieta ou app fitness no texto, mesmo negado."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      so_empresa: BIZ-004
+      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "plataforma fitness", "app de treino", "plano alimentar", "kcal", "macros", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
+      nao_confere: "a eLiving™ e os quatro pilares descritos de outro jeito: é da rubrica (RUB-TREINO-08)"
+
+rubrica:
+  - id: RUB-TREINO-01
+    pergunta: "Cada passo é algo que uma pessoa leiga faz sozinha, no celular, na ordem, sem depender de ajuda nem de palavra técnica que o texto não explica?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código conta ações e tamanho; se um leigo consegue fazer o passo sozinho é julgamento sobre o texto."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-02
+    pergunta: "A preparação e os passos juntos levam ao objetivo, sem passo faltando entre dois passos nem passo que a preparação não deixa possível?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê a ordem dos ids; se o caminho está completo para chegar ao objetivo é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-03
+    pergunta: "O que acontece em cada erro diz o mesmo que o trecho de apoio, sem aumentar nem suavizar a regra, e a forma de evitar resolve aquele erro?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê que o trecho existe na fonte; se o texto do erro diz o mesmo que ele só a leitura compara."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-04
+    pergunta: "A privacidade de quem aparece ou fala ao redor, de crianças, de documentos, endereços e telas com dados está ensinada com regra prática, sem mandar a pessoa gravar, expor ou pedir dado de outra pessoa?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código acha dado pessoal escrito; uma instrução que expõe terceiros em palavras comuns só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-05
+    pergunta: "Nenhum trecho promete aprovação, resultado ou vantagem, nem finge que a pessoa não pode errar, mesmo sem as palavras da lista (ex.: 'seguindo isto suas gravações vão ser aprovadas')?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; a mesma promessa dita de outro jeito só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-06
+    pergunta: "Em assunto de saúde, o roteiro fica em informação geral e não diz à pessoa o que fazer com o próprio corpo, nem sugere que substitui médico, nutricionista ou educador físico?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; o conselho para o caso de alguém, em palavras comuns, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-07
+    pergunta: "O checklist tira dúvida em sim ou não sobre o que mais reprova, sem item vago como 'fiz tudo certo?' ou item que repete outro?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê o formato e a cobertura dos ids; se cada pergunta é clara e útil é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-TREINO-08
+    pergunta: "A voz é a da empresa do pacote e, no texto da eLiving™, nenhum trecho a faz parecer dieta, academia ou contador de calorias, nem apresenta Sirlene, Doutor Vital, Alex ou Rafael como pessoas reais ou profissionais?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; o produto ou os personagens descritos de outro jeito, e o tom da voz, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica, mais os itens CARD-n de IA do card. Camada 3 (você): só quando a
+# entrega propõe a ação AF-TREINAMENTO-ENVIAR; mesmo assim ela só nasce na sua lista quando o card
+# fica PRONTO, com o parecer aprovado por você no mesmo card (MAT-22). Nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-TREINO-01, CHK-TREINO-02, CHK-TREINO-03, CHK-TREINO-04, CHK-TREINO-05, CHK-TREINO-06,
+           CHK-TREINO-07, CHK-TREINO-08, CHK-TREINO-09, CHK-TREINO-10]
+  rubrica: [RUB-TREINO-01, RUB-TREINO-02, RUB-TREINO-03, RUB-TREINO-04, RUB-TREINO-05, RUB-TREINO-06,
+            RUB-TREINO-07, RUB-TREINO-08]
+  fundador:
+    quando: QUANDO_HA_ACAO_EXTERNA
+    o_que_confere: "Você lê o roteiro, confere se as regras da plataforma ainda valem e é você quem envia às pessoas, uma vez, depois do parecer aprovado. A Isabela nunca envia."
+
+temas_obrigatorios:
+  - id: TEMA-DADOS-PESSOAIS-E-TERCEIROS
+    tema: "Dados pessoais (LGPD), imagem e voz de terceiros, crianças e lugares"
+    como_conferir: "Seção privacidade_e_terceiros (mínimo de dois itens), CHK-TREINO-08 (nenhum contato ou documento inventado) e RUB-TREINO-04 (regra prática, sem expor terceiros). O enquadramento legal é da Clara no parecer."
+  - id: TEMA-PROMESSA-ENGANOSA
+    tema: "Promessa de aprovação, ganho ou resultado a quem segue o roteiro"
+    como_conferir: "CHK-TREINO-01 (palavras da lista) e RUB-TREINO-05 (promessa disfarçada); a Clara julga a promessa no parecer."
+  - id: TEMA-SAUDE-SEM-ORIENTACAO
+    tema: "Orientação médica individual em saúde"
+    como_conferir: "CHK-TREINO-09 (palavras da lista) e RUB-TREINO-06 (conselho para o caso de alguém, ou substituir profissional)."
+  - id: TEMA-ELIVING-NAO-E-APP-DE-CALORIAS
+    tema: "eLiving™ é inteligência pessoal de evolução, nunca app de calorias; os quatro pilares são personagens"
+    como_conferir: "CHK-TREINO-10 (calorias, dieta, app fitness), CHK-COMUM-09 (grafia eLiving™) e RUB-TREINO-08 (produto e personagens descritos de outro jeito)."
+  - id: TEMA-REGRA-DA-PLATAFORMA-INVENTADA
+    tema: "Tela, botão, prazo ou regra da plataforma que a fonte não traz"
+    como_conferir: "CHK-TREINO-04 (nome entre aspas existe na fonte), CHK-TREINO-05 (apoio literal) e RUB-TREINO-03 (o motivo diz o mesmo que o trecho). Sem a fonte: REGISTRAR_FALHA."
+
+revisor_confere:
+  - "Se cada passo é uma ação que uma pessoa leiga faz sozinha, no celular, na ordem (RUB-TREINO-01)."
+  - "Se a preparação e os passos levam ao objetivo, sem passo faltando (RUB-TREINO-02)."
+  - "Se o que acontece em cada erro diz o mesmo que o trecho de apoio e a forma de evitar resolve (RUB-TREINO-03)."
+  - "Se a privacidade de terceiros e de lugares está ensinada com regra prática (RUB-TREINO-04)."
+  - "Se nada promete aprovação, resultado ou vantagem, mesmo em palavras novas (RUB-TREINO-05)."
+  - "Se, em saúde, fica em informação geral, sem dizer o que a pessoa faz com o próprio corpo (RUB-TREINO-06)."
+  - "Se o checklist é de sim ou não, claro e cobre o que mais reprova (RUB-TREINO-07)."
+  - "Se a voz é a do pacote e a eLiving™ e os quatro pilares aparecem do jeito certo (RUB-TREINO-08)."
+
+revisor_nao_reavalia:
+  - "Termo de promessa ou proibido, passo com duas ações, nome entre aspas sem fonte, apoio literal, checklist em sim ou não, número solto, contato inventado, saúde e calorias da lista: o código já conferiu (CHK-TREINO-01 a 10)."
+  - "Se a regra da plataforma citada é a verdadeira hoje: só você; o revisor julga se o roteiro diz o mesmo que o trecho."
+  - "Lei, imagem e voz de terceiros, menores e publicidade: é do parecer da Clara (MAT-22); o revisor não decide o que é permitido."
+  - "Procedimento para a equipe interna: é do SRV-PROCEDIMENTO-OPERACIONAL (Olívia); o revisor não pede que entre."
+  - "Tela ou regra real da plataforma fora do pacote: o revisor revisa sem internet e não confere nada na rede."
+
+entrada_minima:
+  - id: ENT-TREINO-TEMA
+    o_que: "O que a pessoa precisa aprender a fazer e quem ela é (leiga, de fora, lê no celular)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-TREINO-ESCOPO
+    o_que: "Qual situação o roteiro cobre quando o pedido serve a mais de uma (ex.: primeira gravação ou todas). Escolha fechada A/B/C, nunca texto livre."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-TREINO-REGRAS
+    o_que: "As regras, telas e botões de que o roteiro depende e o que reprova, em fonte importada aprovada, no pacote ou no pedido original."
+    de_onde: FONTE_IMPORTADA
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-TREINO-PACOTE
+    o_que: "O pacote CONFIRMADO da empresa do card: grafia, voz, slogan, canais confirmados, decisões vigentes e termos proibidos."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

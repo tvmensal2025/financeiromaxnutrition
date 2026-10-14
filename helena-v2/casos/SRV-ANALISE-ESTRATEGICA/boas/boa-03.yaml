@@ -1,0 +1,123 @@
+# Caso BOM do SRV-ANALISE-ESTRATEGICA (Augusto, AGT-03) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída do Augusto no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-ESTRATEGIA-01 a 09) e na rubrica.
+id: ESTRAT-BOA-03
+servico: SRV-ANALISE-ESTRATEGICA
+pedido: ../pedido.yaml
+nota: 'Mínima: duas opções, dois critérios, sem contas; depende de uma hipótese e de uma estimativa.'
+deve_passar_em:
+- CHK-ESTRATEGIA-01
+- CHK-ESTRATEGIA-02
+- CHK-ESTRATEGIA-03
+- CHK-ESTRATEGIA-04
+- CHK-ESTRATEGIA-05
+- CHK-ESTRATEGIA-06
+- CHK-ESTRATEGIA-07
+- CHK-ESTRATEGIA-08
+- CHK-ESTRATEGIA-09
+- RUB-ESTRATEGIA-01
+- RUB-ESTRATEGIA-02
+- RUB-ESTRATEGIA-03
+- RUB-ESTRATEGIA-04
+- RUB-ESTRATEGIA-05
+- RUB-ESTRATEGIA-06
+- RUB-ESTRATEGIA-07
+- RUB-ESTRATEGIA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    decisao: Lançar a eLiving™ só no Brasil, em português, ou já com a versão em inglês, pensando nos próximos 6 meses.
+    premissas:
+    - id: DADO-4
+      tipo: DADO
+      afirmacao: O orçamento do lançamento é de R$ 6.000 por mês.
+      valor:
+        valor: 6000
+        unidade: R$ por mês
+        origem: DADO_DO_FUNDADOR
+        ref: pedido original
+      prova:
+        trecho_original: Tenho R$ 6.000 por mês para o lançamento, somando anúncio, ferramentas e o freelancer.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: DADO-6
+      tipo: DADO
+      afirmacao: A revisão técnica do conteúdo dos pilares só existe em português.
+      prova:
+        trecho_original: O conteúdo dos 4 pilares é revisado por uma nutricionista e um médico que só trabalham em português.
+        fonte_importada_id: FON-PEDIDO-ESTRATEGIA-01
+    - id: EST-1
+      tipo: ESTIMATIVA
+      afirmacao: Traduzir as telas e o conteúdo dos 4 pilares para o inglês, com revisão técnica, custa cerca de R$ 9.000
+        de uma vez.
+      valor:
+        valor: 9000
+        unidade: R$
+        origem: PREMISSA
+    - id: HIP-2
+      tipo: HIPOTESE
+      afirmacao: Sem anúncio, os inscritos dos Estados Unidos na lista chegam a 100 em 60 dias.
+      valor:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+    opcoes:
+    - id: O1
+      nome: Só Brasil
+      o_que_muda: Lança só em português, para o Brasil; o inglês fica fora dos 6 meses.
+    - id: O2
+      nome: Brasil e inglês juntos
+      o_que_muda: Lança já com a versão em inglês, para o Brasil e para fora.
+    criterios:
+    - id: CR1
+      criterio: Custo no orçamento
+      por_que_importa: O orçamento mensal tem de cobrir o lançamento inteiro.
+    - id: CR4
+      criterio: Qualidade do conteúdo de saúde
+      por_que_importa: Conteúdo dos pilares sem revisão técnica põe em risco a confiança na marca.
+    comparacao:
+    - opcao: O1
+      criterio: CR1
+      avaliacao: Não gasta com tradução; o orçamento vai todo para o lançamento no Brasil.
+      base: DADO-4
+    - opcao: O1
+      criterio: CR4
+      avaliacao: Todo conteúdo passa pela revisão que já existe em português.
+      base: DADO-6
+    - opcao: O2
+      criterio: CR1
+      avaliacao: Pela estimativa, a tradução custaria R$ 9.000 de uma vez, mais que um mês de orçamento.
+      base: EST-1, DADO-4
+    - opcao: O2
+      criterio: CR4
+      avaliacao: O conteúdo em inglês não tem quem o revise hoje.
+      base: DADO-6
+    recomendacao:
+    - opcao: O1
+      por_que: 'Vence nos dois critérios: não gasta com tradução e mantém a revisão técnica que já existe.'
+      depende_de: HIP-2
+      muda_se: Se HIP-2 se confirmar (100 inscritos dos Estados Unidos em 60 dias) e houver revisor em inglês, O2 passa
+        a ser a recomendada.
+    plano_de_validacao:
+    - premissa: HIP-2
+      indicador: Inscritos dos Estados Unidos na lista de espera
+      como_medir: Contagem por país na lista de espera, que você já tem.
+      caminho: SEM_ACAO_EXTERNA
+      servico: —
+      janela_dias:
+        valor: 60
+        unidade: dias
+        origem: PREMISSA
+      limiar:
+        valor: 100
+        unidade: pessoas
+        origem: PREMISSA
+      se_atingir: O2
+      se_nao_atingir: O1
+    riscos:
+    - 'A procura de fora pode crescer devagar sem anúncio em inglês; sinal: a contagem dos Estados Unidos parada por
+      duas semanas.'
+    limites:
+    - 'Sem conferência jurídica: regras para dados de usuários de fora do Brasil ficam para o parecer, num roteiro.'

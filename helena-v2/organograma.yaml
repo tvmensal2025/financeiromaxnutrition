@@ -1,0 +1,158 @@
+# Organograma do Sistema Helena (v3.1).
+#
+# Os 21 agentes formam UM centro de serviços compartilhado pelas 4 empresas. Não são 21
+# funcionários por empresa: a empresa é uma informação do card (ordem de serviço, escolhida
+# por você na caixa Novo pedido), e o agente recebe só o pacote daquela empresa (grafia, voz e
+# proibições). Análise dos especialistas, seção 5.1, e MEL-26.
+#
+# Fonte única de: nome, cargo, grupo, escopo e o pacote de cada empresa. A ficha
+# (agents/<nome>.yaml) repete id, nome, função, fase e estado, e o validador recusa
+# divergência. O caminho da ficha, os tipos de entrega, o que cada um revisa (com a aptidão
+# de cada par), a ordem de ativação e as regras da matriz ficam em servicos.yaml. As
+# identidades (HELENA, CAIO...) são as de maquina/vocabulario.yaml.
+#
+# "estado" e "fase_de_ativacao" do agente são um RESUMO para a tela, derivado dos serviços
+# dele (servicos.yaml, MAT-13). Nunca são usados para designar revisor nem para decidir se a
+# Helena coordena: para isso valem a aptidão de revisão por par e o estado da coordenação.
+# Hoje nada está publicado: o estado é o que esta especificação pede quando for publicada.
+
+versao: "3.1.0"
+fonte_dos_nomes: maquina/vocabulario.yaml
+
+# Quem manda em tudo. Não é agente e não é IA.
+fundador:
+  identidade: FUNDADOR
+  responsavel_por: "Todos os agentes e todas as empresas."
+  so_ele:
+    - "Empresa, prioridade e prazo de qualquer card (caixa Novo pedido e botões; regra 7)."
+    - "Ok para qualquer ação externa: cadastro, contato, gasto, contrato ou publicação (regra 8), uma vez."
+    - "Segundo revisor de todo parecer jurídico ('leia antes de agir')."
+    - "Subir um serviço de estado (estágio, ativo), ligar a aptidão de revisão de cada par e publicar."
+    - "Pausar ou religar a coordenação da Helena e as aptidões de revisão (o disjuntor só pausa serviço)."
+    - "Escrever o pacote de voz e proibições de cada empresa (servicos.yaml, FORA-PACOTE-DE-VOZ)."
+    - "Última reserva de toda revisão: se ninguém mais puder revisar, a revisão vem para ele."
+
+# A coordenadora. Dona de todo card; não move o card (quem move é o motor, pelas regras).
+coordenacao:
+  identidade: HELENA
+  o_que_faz: "Leitura de volta (escolhe 1 serviço, 1 roteiro ou 'fora da v2'), recomendação numa etapa em resolução (lista fechada), relatório final, e revisão de cálculo, parecer e prática pessoal."
+  o_que_nao_faz: "Não escolhe empresa, fila, prioridade nem prazo; não replaneja; não executa trabalho de especialista; não é revisora universal; não recomenda sobre peça de que participou (servicos.yaml, MAT-26)."
+  estados_separados: "Coordenação (ATIVA ou PAUSADA, só por toque seu), aptidões de revisão (por tipo) e o serviço de relatório (autor) são independentes: pausar o relatório não para a leitura de volta nem as revisões (servicos.yaml, MAT-13)."
+
+# As 4 empresas são CONTEXTO do card, nunca uma cópia da equipe. O pacote de cada uma vai
+# para o agente junto com o card. Códigos descobertos nos checkpoints mestre de 01/10, 04/10
+# e 07/10 (decisão nº 4 do fundador, 10/10/2026). Card de empresa com pacote não CONFIRMADO
+# dá PLANO_INVALIDO com o motivo (servicos.yaml, MAT-23).
+empresas:
+  BIZ-001:
+    nome: "iGreen Energy"
+    area: "Energia solar e sustentabilidade; foco em validação e aquisição comercial."
+    pacote:
+      estado: NAO_CONFIRMADO
+      falta: "Voz e proibições (ex.: nenhuma promessa de economia garantida)."
+      dono: FUNDADOR
+      prazo: "Antes de qualquer serviço atender a iGreen; no mais tardar, no portão da fase 4 (servicos.yaml, FORA-PACOTE-DE-VOZ)."
+  BIZ-002:
+    nome: "Ecossistema de Saúde"
+    area: "Saúde, nutrição, longevidade e medicina preventiva."
+    pacote:
+      estado: NAO_CONFIRMADO
+      falta: "Voz e proibições (ex.: nenhuma promessa de cura, nenhum diagnóstico, regras de publicidade de saúde)."
+      dono: FUNDADOR
+      prazo: "Antes de qualquer serviço atender o Ecossistema de Saúde; no mais tardar, no portão da fase 4 (servicos.yaml, FORA-PACOTE-DE-VOZ)."
+  BIZ-003:
+    nome: "Humano Digital"
+    area: "Conecta pessoas adultas a oportunidades de dados para inteligência artificial (Mimix e Hub). Primeira meta da v2."
+    pacote:
+      estado: CONFIRMADO
+      conteudo: "Decisões DEC-024 e DEC-025 (vigentes, lidas na hora pelo motor); proibido qualquer termo de ganho no convite (C-11)."
+  BIZ-004:
+    nome: "eLiving™"
+    area: "Inteligência pessoal de evolução (nunca app fitness comum nem contador de calorias)."
+    pacote:
+      estado: CONFIRMADO
+      conteudo: >-
+        Grafia exata 'eLiving™' (nunca 'E-living', 'Eliving' ou 'Iliving'); slogan 'Onde sua evolução
+        ganha direção.'; quatro pilares do produto: Sirlene (Nutrição), Doutor Vital (Saúde), Alex
+        (Movimento) e Rafael (Hábitos), com os limites deles (nenhum diagnóstico, prescrição, treino
+        clínico ou promessa de cura). Fontes: docs/manual/eliving/comando-master-eliving.md e
+        docs/manual/eliving/manual-de-comportamento-agentes-eliving.md (DEC-023).
+
+# Escopo pessoal: não é empresa. Só a Laura atende; o card PESSOAL nunca recebe pacote de
+# empresa e só passa pela Laura, pela Helena e por você (servicos.yaml, MAT-14).
+escopo_pessoal:
+  codigo: PESSOAL
+  quem_atende: [LAURA]
+  regra: "Dados pessoais seus não se misturam com o contexto das empresas; a Laura não recebe pacote de empresa."
+
+# Grupos funcionais (por tipo de trabalho, não por empresa).
+grupos:
+  GRP-COORDENACAO:          {nome: "Coordenação", agentes: [HELENA]}
+  GRP-ESTRATEGIA-PROJETOS:  {nome: "Estratégia e projetos", agentes: [AUGUSTO, MARINA]}
+  GRP-FINANCAS-DADOS-ADM:   {nome: "Finanças, dados e administração", agentes: [CAIO, DANIEL, FELIPE]}
+  GRP-JURIDICO-RISCO:       {nome: "Jurídico e risco", agentes: [CLARA]}
+  GRP-PESSOAS:              {nome: "Pessoas", agentes: [BIANCA]}
+  GRP-PRODUTO-TECNOLOGIA:   {nome: "Produto e tecnologia", agentes: [NINA, MAYA, THEO, BRUNO]}
+  GRP-MERCADO:              {nome: "Mercado e crescimento", agentes: [RAVI, CAMILA, ISABELA, VICTOR, PEDRO]}
+  GRP-CLIENTES-OPERACAO:    {nome: "Clientes e operação", agentes: [RENATA, JOANA, OLIVIA]}
+  GRP-PESSOAL-DO-FUNDADOR:  {nome: "Pessoal do fundador", agentes: [LAURA]}
+
+# Os 21, na ordem de vocabulario.identidades.agentes.
+# escopo: EMPRESAS (atende as empresas do serviço, conforme o card) ou PESSOAL (só a Laura).
+# fase_de_ativacao e estado: resumo derivado (MAT-13). O passo de cada um está em
+# servicos.yaml, ordem_de_ativacao.
+agentes:
+  - {id: AGT-01, identidade: HELENA,  nome: "Helena",  cargo: "Coordenadora (CEO virtual)",                 grupo: GRP-COORDENACAO,         escopo: EMPRESAS, fase_de_ativacao: "v2.0",   estado: ESTAGIO}
+  - {id: AGT-02, identidade: LAURA,   nome: "Laura",   cargo: "Comunicação e desenvolvimento do fundador", grupo: GRP-PESSOAL-DO-FUNDADOR, escopo: PESSOAL,  fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-03, identidade: AUGUSTO, nome: "Augusto", cargo: "Estratégia",                                 grupo: GRP-ESTRATEGIA-PROJETOS, escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-04, identidade: MARINA,  nome: "Marina",  cargo: "Planos de projeto e cronogramas",            grupo: GRP-ESTRATEGIA-PROJETOS, escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-05, identidade: CAIO,    nome: "Caio",    cargo: "Finanças",                                   grupo: GRP-FINANCAS-DADOS-ADM,  escopo: EMPRESAS, fase_de_ativacao: "v2.0",   estado: ESTAGIO}
+  - {id: AGT-06, identidade: CLARA,   nome: "Clara",   cargo: "Jurídico, risco e conformidade",             grupo: GRP-JURIDICO-RISCO,      escopo: EMPRESAS, fase_de_ativacao: "v2.0",   estado: ESTAGIO}
+  - {id: AGT-07, identidade: BIANCA,  nome: "Bianca",  cargo: "Pessoas e cultura",                          grupo: GRP-PESSOAS,             escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-08, identidade: DANIEL,  nome: "Daniel",  cargo: "Dados e indicadores",                        grupo: GRP-FINANCAS-DADOS-ADM,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-09, identidade: THEO,    nome: "Theo",    cargo: "Tecnologia",                                 grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-10, identidade: NINA,    nome: "Nina",    cargo: "Produto",                                    grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-11, identidade: RAVI,    nome: "Ravi",    cargo: "Pesquisa",                                   grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "fase 3", estado: PAUSADO}
+  - {id: AGT-12, identidade: MAYA,    nome: "Maya",    cargo: "Design de experiência e interface",          grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-13, identidade: BRUNO,   nome: "Bruno",   cargo: "Testes de produto e software",               grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-14, identidade: OLIVIA,  nome: "Olívia",  cargo: "Operações (rotina interna)",                 grupo: GRP-CLIENTES-OPERACAO,   escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-15, identidade: VICTOR,  nome: "Victor",  cargo: "Vendas",                                     grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-16, identidade: CAMILA,  nome: "Camila",  cargo: "Marketing e crescimento",                    grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-17, identidade: ISABELA, nome: "Isabela", cargo: "Conteúdo e texto",                           grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "v2.0",   estado: ESTAGIO}
+  - {id: AGT-18, identidade: PEDRO,   nome: "Pedro",   cargo: "Parcerias",                                  grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-19, identidade: RENATA,  nome: "Renata",  cargo: "Sucesso do cliente",                         grupo: GRP-CLIENTES-OPERACAO,   escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-20, identidade: JOANA,   nome: "Joana",   cargo: "Atendimento (rascunhos de resposta)",        grupo: GRP-CLIENTES-OPERACAO,   escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-21, identidade: FELIPE,  nome: "Felipe",  cargo: "Administração",                              grupo: GRP-FINANCAS-DADOS-ADM,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+
+# Sobreposições resolvidas (análise, seção 5.1, e revisão de 10/10/2026). O detalhe de cada
+# serviço, com o que ele não atende e para onde vai, está em servicos.yaml; os pedidos de
+# fronteira têm gabarito em servicos.yaml, pedidos_de_fronteira.
+sobreposicoes_resolvidas:
+  - entre: "Marina e o motor"
+    como: "O motor coordena cards e etapas (fila, dependências, prazos, avisos). A Marina escreve planos de projeto e cronogramas para VOCÊ executar fora do sistema; nunca acompanha, move ou cobra card."
+  - entre: "Bruno e os revisores"
+    como: "Cada serviço tem o seu revisor na matriz. O Bruno testa produto e software (plano e leitura de testes) e é só reserva de dois tipos de produto; não é revisor universal."
+  - entre: "Olívia e Felipe"
+    como: "Olívia: COMO a rotina interna da operação funciona (gatilho, passos, dono, controles). Felipe: O QUE existe e QUANDO vence (documentos, fornecedores, prazos, com fonte)."
+  - entre: "Olívia e Isabela"
+    como: "Olívia: procedimento para a SUA equipe. Isabela: treinamento para pessoa leiga DE FORA (participante ou cliente)."
+  - entre: "Augusto, Camila e Nina"
+    como: "Augusto: onde jogar (opções de negócio). Camila: como atrair (campanha e experimento, sem texto final). Nina: o que construir no produto (problema e requisitos)."
+  - entre: "Camila, Isabela e Victor"
+    como: "Camila planeja a campanha para muitas pessoas; Isabela escreve o texto final; Victor monta a abordagem um a um."
+  - entre: "Renata, Joana e Daniel"
+    como: "Joana: rascunho de resposta a UMA solicitação, com a categoria do caso. Renata: plano de sucesso e retenção. Daniel: lote de reclamações, contagem e tendência."
+  - entre: "Caio, Felipe e Daniel"
+    como: "Caio: dinheiro (valores, caixa, custo, margem, cenários). Felipe: agenda de vencimentos e documentos, sem valores de caixa. Daniel: indicadores que não são dinheiro (funil, uso, atendimento)."
+  - entre: "Laura e Bianca"
+    como: "Laura: só o seu desenvolvimento pessoal (escopo PESSOAL). Bianca: funções, vagas e desempenho das empresas."
+  - entre: "Helena e as revisões"
+    como: "A Helena revisa só cálculo, parecer e prática pessoal; as outras revisões estão distribuídas (servicos.yaml, MAT-08). O Caio é o revisor titular do convite e do roteiro de treinamento desde a v2.0, porque a regra 4 tira a Helena dessas peças (ela revisa o parecer que as julga)."
+
+# Fora do organograma, de propósito.
+fora_do_organograma:
+  personagens_do_produto_eliving:
+    quem: [Sirlene, Doutor Vital, Alex, Rafael]
+    o_que_sao: "Personagens do produto eLiving™ (Nutrição, Saúde, Movimento e Hábitos). Não são funcionários, não são agentes, não recebem card e não aparecem em servicos.yaml nem no vocabulário da máquina."
+    onde_ficam: "Numa pasta própria do produto. O prefixo de ID deles é decisão sua."
+  motor_relogio_vigia: "Peças de código (papéis MOTOR, RELOGIO e VIGIA da máquina), não agentes."

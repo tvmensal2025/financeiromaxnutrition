@@ -1,0 +1,14 @@
+# Pendências conhecidas da especificação: problemas REAIS, já sabidos, com o motivo.
+#
+# O validar.py mostra cada uma como PENDENTE (aviso) e sai com código 0 se só houver pendências.
+# Qualquer problema que NÃO esteja aqui é ERRO e faz o validar.py sair com código 1.
+# Uma pendência que já foi resolvida e continua aqui também é ERRO: tire a linha dela.
+# Para tratar tudo como erro (sem aceitar pendência):  python validar.py --estrito
+#
+# Campos: regra (a etiqueta entre colchetes), alvo (o arquivo ou pasta antes dos dois-pontos),
+# motivo, e "maximo" (opcional) — se a mensagem trouxer um número maior que este, vira ERRO.
+pendencias:
+  - regra: FICHA-AUSENTE
+    alvo: agents
+    maximo: 13
+    motivo: faltam as fichas v3.1 de 13 agentes, fora do primeiro card (fila no HANDOFF-CLAUDE-CODE.md); se faltar mais de 13, é erro

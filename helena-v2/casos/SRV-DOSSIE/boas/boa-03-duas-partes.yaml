@@ -1,0 +1,67 @@
+# Caso BOM do SRV-DOSSIE (Ravi, AGT-11) para o pedido ../pedido.yaml.
+# O QUE É: a resposta certa do Ravi, no formato de schemas/acao.schema.json ($defs/saida_do_autor). Tem de passar em
+# todas as checagens do tipo (deliverables/dossie.yaml) e na rubrica. Caso SINTÉTICO: texto da página inventado (fitas/).
+# COMO MUDAR: se mudar o texto da página, mude a fita e todo trecho_original que a cita; 'leituras_feitas' é o registro
+# de uso da ler_pagina nesta execução (as fitas que o motor devolveu).
+id: DOSSIE-BOA-03
+servico: SRV-DOSSIE
+pedido: ../pedido.yaml
+variante: V-PAGAMENTO-E-ENCERRAMENTO
+nota: 'Variante V-PAGAMENTO-E-ENCERRAMENTO: só fatos, sem leitura nem lacuna; as fontes vêm de partes diferentes da mesma
+  página (parte 1 e parte 2).'
+deve_passar_em:
+- CHK-DOSSIE-FORMA
+- CHK-DOSSIE-ENTIDADE
+- CHK-DOSSIE-FATOS
+- CHK-DOSSIE-SEPARACAO
+- CHK-DOSSIE-LACUNAS
+- CHK-DOSSIE-AUSENCIA
+- CHK-DOSSIE-SEM-PROMESSA-DE-RENDA
+- CHK-DOSSIE-SEM-ACAO-EXTERNA
+- RUB-DOSSIE-01
+- RUB-DOSSIE-02
+- RUB-DOSSIE-03
+- RUB-DOSSIE-04
+- RUB-DOSSIE-05
+- RUB-DOSSIE-06
+veredito_esperado_do_revisor: APROVAR
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-termos-parte-1.yaml
+- fitas/02-termos-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    entidade:
+    - nome: Mimix
+      tipo: PLATAFORMA
+      pergunta: O que os termos da Mimix dizem sobre pagamento e sobre encerramento da conta?
+    fatos:
+    - id: F1
+      afirmacao: O pagamento de cada tarefa aprovada sai até 30 dias depois da aprovação, por transferência para a conta cadastrada
+        pelo participante.
+      fontes: S1
+    - id: F2
+      afirmacao: A Mimix pode encerrar a conta de quem descumprir os termos do programa.
+      fontes: S2
+    - id: F3
+      afirmacao: Quem tem a conta encerrada recebe pelas tarefas que já estavam aprovadas antes do encerramento.
+      fontes: S2
+    fontes:
+    - id: S1
+      referencia: Termos do Programa de Participantes, item 4 (Prazo e forma de pagamento)
+      citacao:
+        trecho_original: O pagamento é feito até 30 dias depois da aprovação da tarefa, por transferência para a conta cadastrada
+          pelo participante, e as tarifas do banco ficam por conta dele.
+        leitura_id: LEI-DOS-0001
+        parte: 1
+    - id: S2
+      referencia: Termos do Programa de Participantes, item 8 (Encerramento da conta)
+      citacao:
+        trecho_original: A Mimix pode encerrar uma conta que descumpra estes termos, e o participante recebe pelas tarefas
+          já aprovadas antes do encerramento.
+        leitura_id: LEI-DOS-0001
+        parte: 2

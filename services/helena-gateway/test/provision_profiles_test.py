@@ -64,7 +64,7 @@ class ProvisionTest(unittest.TestCase):
             module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())
             upgraded = module.yaml.safe_load(config_path.read_text())
-            self.assertEqual(upgraded['mcp_servers']['helena_operacao']['tools']['include'], module.EXECUTOR_TOOLS)
+            self.assertEqual(upgraded['mcp_servers']['helena_operacao']['tools']['include'], module.EXECUTOR_TOOLS + ['check_delivery'])
             upgraded['mcp_servers']['helena_operacao']['url'] = 'https://unexpected.invalid/mcp'
             config_path.write_text(module.yaml.safe_dump(upgraded))
             with self.assertRaises(ValueError):
@@ -80,7 +80,7 @@ class ProvisionTest(unittest.TestCase):
             for profile in ('helena--grupo', 'marina--biz003'):
                 config_path = home / 'profiles' / profile / 'config.yaml'
                 config = module.yaml.safe_load(config_path.read_text())
-                config['mcp_servers']['helena_operacao']['tools']['include'] = [name for name in module.profile_tools(profile) if name != 'revise_task_brief']
+                config['mcp_servers']['helena_operacao']['tools']['include'] = [name for name in module.profile_tools(profile) if name not in ('revise_task_brief', 'replan_job', 'record_coordination_note', 'revise_draft_brief', 'check_delivery')]
                 config_path.write_text(module.yaml.safe_dump(config))
             module.run(home, True)
             self.assertEqual(manifest, (home / 'helena-runtime' / 'manifest-publico.json').read_text())

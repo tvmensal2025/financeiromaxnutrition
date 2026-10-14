@@ -61,6 +61,10 @@ class ReviewStateTests(unittest.TestCase):
         self.assertTrue(any(r['status']=='STARTED' for r in state['receipts'].values()))
         if self.runner_mode in ('APPROVE','REQUEST_CHANGES'):
             approve(self.d, self.runner_mode)
+        if self.runner_mode == 'REPLACE':
+            self.d['job'].update(status='CANCELLED', result_payload={'replaced_by': CHILD})
+        if self.runner_mode == 'ESCALATE':
+            self.d['job'].update(status='WAITING_APPROVAL', result_payload={'founder_decision_required': True})
         return 0
 
     def worker(self):
@@ -220,16 +224,29 @@ class ReviewStateTests(unittest.TestCase):
         self.d['job']['result_payload']={}
         self.assertEqual(wf.phase_for(self.d),('RESOLVE','AGT-01'))
 
-    def test_exhausted_attempts_do_not_spend_on_coordination(self):
+    def test_exhausted_attempts_go_to_replan_once(self):
+        # EM_RESOLUCAO: missao esgotada nao morre em silencio; uma chamada da coordenacao replaneja.
         self.d['job'].update(attempt_count=2,max_attempts=2,result_payload={})
+        self.assertEqual(wf.phase_for(self.d), ('REPLAN', 'AGT-01'))
+        self.runner_mode = 'REPLACE'
         result=self.run_tick()
-        self.assertEqual(result['status'],'ATTEMPT_LIMIT')
-        self.assertFalse(result['model_started'])
-        self.assertEqual(self.calls,0)
+        self.assertEqual(self.calls,1)
+        self.assertEqual(result['next_phase'],'RELEASE:'+CHILD)
+        self.assertEqual(self.run_tick()['status'] in ('NO_NEW_REVIEW','UNCHANGED_NO_RETRY'), True)
+        self.assertEqual(self.calls,1)
+
+    def test_replan_escalation_leaves_automatic_cycle(self):
+        self.d['job'].update(status='DRAFT',attempt_count=2,max_attempts=2,result_payload={})
+        self.assertEqual(wf.phase_for(self.d), ('REPLAN', 'AGT-01'))
+        self.runner_mode = 'ESCALATE'
+        self.assertEqual(self.run_tick()['next_phase'],'DELIVERED')
+        self.assertIsNone(wf.phase_for(self.d))
+        self.assertEqual(self.calls,1)
 
     def test_exhausted_job_does_not_starve_independent_review(self):
         blocked = copy.deepcopy(self.d)
-        blocked['job'].update(job_id=CHILD, attempt_count=2, max_attempts=2, result_payload={})
+        # Escalated to the Founder: no automatic phase, so it never starves the review queue.
+        blocked['job'].update(job_id=CHILD, status='WAITING_APPROVAL', attempt_count=2, max_attempts=2, result_payload={'founder_decision_required': True})
         self.context['pending_reviews_detail'] = [{'job_id': CHILD}, {'job_id': JOB}]
         original = self.request
         def request(gateway, token, name, args):
@@ -440,7 +457,7 @@ class WorkflowDeadlineTests(unittest.TestCase):
              patch.object(wf.subprocess, 'Popen') as spawn:
             spawn.return_value.wait.return_value = 0
             self.assertEqual(wf.run_query('hermes', 'helena--grupo', Path('.'), 'test', 'test'), 0)
-            spawn.return_value.wait.assert_called_once_with(timeout=480)
+            spawn.return_value.wait.assert_called_once_with(timeout=570)
             self.assertLess(wf.WORKFLOW_TIMEOUT_SECONDS, 600)
 
     def test_deadline_stops_process_and_reports_uncertain_result(self):
@@ -455,3 +472,73 @@ class WorkflowDeadlineTests(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main()
+
+
+class MultiBusinessScopeTests(unittest.TestCase):
+    def test_profile_serves_home_and_confirmed_companies_only(self):
+        ravi = {'business_id': 'BIZ-003', 'served_business_ids': ['BIZ-001', 'BIZ-003', 'BIZ-004']}
+        self.assertTrue(wf.serves(ravi, 'BIZ-003'))
+        self.assertTrue(wf.serves(ravi, 'BIZ-001'))
+        self.assertFalse(wf.serves(ravi, 'BIZ-002'))
+        self.assertFalse(wf.serves(ravi, None))
+        self.assertTrue(wf.serves({'business_id': 'BIZ-003'}, 'BIZ-003'))  # contexto antigo sem a lista
+        self.assertFalse(wf.serves({'business_id': 'BIZ-003'}, 'BIZ-001'))
+
+
+
+
+class HandoffClosedTests(unittest.TestCase):
+    def test_closed_handoff_keeps_approval_without_successor(self):
+        d = detail()
+        approve(d)
+        self.assertEqual(wf.phase_for(d), ('HANDOFF', 'AGT-01'))
+        d['events'].insert(0, {'event_type': 'HANDOFF_CLOSED'})
+        self.assertIsNone(wf.phase_for(d))
+        self.assertEqual(d['job']['status'], 'COMPLETED')
+
+
+
+
+class HandoffPromptTests(unittest.TestCase):
+    def test_handoff_prompt_selects_planned_step_and_forbids_foreign_progress(self):
+        d = detail()
+        approve(d)
+        prompt = wf.make_prompt('HANDOFF', d, 'a' * 64)
+        self.assertIn('nao impedem criar a etapa em DRAFT', prompt)
+        self.assertIn('Nao use record_progress neste job', prompt)
+        self.assertIn('close_handoff=true', prompt)
+        self.assertIn('NAO precisam de autorizacao do Fundador', prompt)
+
+    def test_handoff_closed_leaves_cycle_and_rule_version_changes_fingerprint(self):
+        d = detail()
+        approve(d)
+        before = wf.fingerprint(d, 'HANDOFF')
+        self.assertNotEqual(before, wf.fingerprint(d, 'REVIEW'))
+        d['events'].insert(0, {'event_type': 'HANDOFF_CLOSED'})
+        self.assertEqual(wf.next_phase('HANDOFF', {}, d), 'DELIVERED')
+        self.assertIsNone(wf.phase_for(d))
+
+
+
+class FailedReplanTests(unittest.TestCase):
+    def test_recent_failure_goes_to_replan_once_and_old_failure_stays_history(self):
+        d = detail()
+        d['job'].update(status='FAILED', attempt_count=2, max_attempts=2, completed_at='2026-10-07T14:16:00+00:00', result_payload={})
+        self.assertEqual(wf.phase_for(d), ('REPLAN', 'AGT-01'))
+        d['events'].insert(0, {'event_type': 'WORKFLOW_replan_job'})
+        self.assertIsNone(wf.phase_for(d))
+        old = detail()
+        old['job'].update(status='FAILED', attempt_count=2, max_attempts=2, completed_at='2026-10-03T10:00:00+00:00', result_payload={})
+        self.assertIsNone(wf.phase_for(old))
+
+
+
+class ReplacementCoordinationTests(unittest.TestCase):
+    def test_coordinate_prompt_releases_replacement_without_extra_technical_proof(self):
+        prompt = wf.make_prompt('COORDINATE', detail(), 'a' * 64)
+        self.assertIn('Missao substituta (result_payload.replan_of) e execucao nova', prompt)
+        self.assertIn('Nao exija prova tecnica adicional nem acione Theo', prompt)
+
+
+if __name__ == '__main__':
+    unittest.main()

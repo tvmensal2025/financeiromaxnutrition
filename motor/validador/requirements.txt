@@ -1,0 +1,10 @@
+# Dependências do validador (versões fixas).
+# O validador em si usa SÓ a biblioteca padrão do Python 3.13: nada para instalar em produção.
+# As linhas abaixo servem para rodar os testes: /tmp/venv-helena/bin/pip install -r requirements.txt
+# pyyaml: só para a ponte com a especificação (spec_helena/), usada pelos testes e pelo quadro de cobertura; o validador não a importa.
+pyyaml==6.0.3
+pytest==9.1.1
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0

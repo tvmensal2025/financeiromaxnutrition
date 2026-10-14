@@ -9,7 +9,9 @@ import { AlertCircle, Lock, Mail, ArrowRight, Loader2, ShieldCheck } from "lucid
  */
 function getSafeRedirect(target: string | null): string {
   if (!target) return "/";
-  if (target.startsWith("/") && !target.startsWith("//") && !target.includes("://")) {
+  // Só caminho local: sem "//", sem "://", sem barra invertida (alguns navegadores a tratam como "/") e sem caracteres de controle.
+  if (target.startsWith("/") && !target.startsWith("//") && !target.includes("://") && !target.includes("\\")
+    && !/[\u0000-\u001f\u007f]/.test(target)) {
     return target;
   }
   return "/";
@@ -49,7 +51,7 @@ export default function Login() {
   }
 
   return (
-    <div className="he-login-shell">
+    <div className="he-login-shell he-public-shell">
       <aside className="he-login-editorial"><ExecutiveLogo/><div><span>CLAREZA PARA DECIDIR. ESPAÇO PARA CRESCER.</span><h2>Seu próximo capítulo<br/><em>começa aqui.</em></h2><p>Negócios, equipe e entregas. Uma visão conectada para transformar suas ideias em movimento.</p><div className="he-login-art" aria-hidden="true"><i/><i/><i/><b>H</b></div></div><footer>SISTEMA HELENA <span>Central executiva</span></footer></aside>
       <div className="he-login-form-area">
         {/* Card Executivo Minimalista */}

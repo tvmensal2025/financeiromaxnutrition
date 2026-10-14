@@ -1,0 +1,353 @@
+# Tipo de entrega: calculo (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: CAIO (AGT-05). Serviço: SRV-CALCULO (servicos.yaml). Revisora titular: HELENA; reserva:
+# CLARA; você é sempre a última reserva (MAT-03). Substitui o bloco 'calculo' de entregas.yaml.
+#
+# O que é: o MODELO DE CÁLCULO do plano v3 ("um número do Caio não bater: ele preenche um modelo
+# de cálculo com entradas e fórmulas, e o código refaz cada conta; toda entrada diz a origem (dado
+# seu, fonte citada com data ou premissa dele), e câmbio só vale com fonte datada ou dado seu").
+# O Caio não escreve "conta por extenso" em texto livre (conferência v2 x v3, ponto 19): ele
+# preenche tabelas que o código lê, refaz e confere. O que o código não confere (se a fórmula
+# representa o mundo, se a premissa é razoável) fica com a revisora, pela rubrica.
+#
+# De onde vêm os números: só do pacote do card. O código guarda, antes de qualquer IA, o pedido
+# original como fonte importada FON-PEDIDO-<card> e o pacote da empresa como FON-PACOTE-<empresa>
+# (com as decisões vigentes lidas na hora); num roteiro, cada entrega aprovada de que a etapa
+# depende chega como FON-ENTREGA-<card>-<etapa>; fonte importada aprovada que veio no pacote
+# (ex.: um dossiê aprovado) chega com o id dela. O Caio não tem ferramenta: não lê página, não
+# busca cotação e não usa "o que sabe" (MEL-27 c: a fonte citada dele aponta para o pacote).
+#
+# Formato dos ids dentro da entrega (o código lê):
+#   entradas V1 a V15; contas K1 a K12 (na ordem em que são usadas);
+#   cenários CONSERVADOR, BASE e OTIMISTA; ajustes "V4 = 50; V2 = 3" (id, sinal de igual e número
+#   com vírgula decimal, separados por ponto e vírgula); ref de resultado de cenário "K3/BASE".
+# Números: milhar com ponto e decimal com vírgula no texto; no campo 'valor', número puro.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora"
+# (05), citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): o cálculo nunca é julgado pelo parecer
+# (julgado_pelo_parecer: NUNCA) e a faixa do card mostra "sem conferência jurídica". Embaixo dos
+# números, o app escreve "contas conferidas pelo código; premissas não" (plano v3).
+#
+# Neutro quanto ao motor (DBOS ou motor próprio): tudo aqui é dado nosso.
+
+tipo: calculo
+versao: "3.1.0"
+descricao: "Modelo de cálculo em dinheiro: entradas com origem (dado seu, fonte datada, entrega aprovada ou premissa), contas que o código refaz, três cenários das premissas, premissas a confirmar e os riscos dos números."
+dono: CAIO
+servico: SRV-CALCULO
+
+secoes:
+  - id: pergunta
+    titulo: "O que esta conta responde"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com a grandeza em dinheiro, para quem, o período e a moeda pedidos. Não muda o que você pediu."
+  - id: entradas
+    titulo: "Entradas (cada uma com origem)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 15
+    descricao: "Um número por linha. A origem e a prova ficam dentro de 'valor' (acao.schema.json, $defs/numero): dado seu, fonte e entrega aprovada com o trecho; premissa sem trecho."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "V1 a V15, sem repetir."}
+      - {id: o_que, tipo_de_campo: texto, descricao: "O que o número é, com a unidade e o período em palavras (ex.: 'horas gravadas por pessoa por semana')."}
+      - {id: valor, tipo_de_campo: numero, descricao: "valor, unidade e origem DADO_DO_FUNDADOR, FONTE_CITADA, ENTREGA_APROVADA ou PREMISSA; ref e citacao (trecho literal com fonte_importada_id) nas três primeiras; data_da_fonte na FONTE_CITADA."}
+  - id: contas
+    titulo: "Contas (refeitas pelo código)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 12
+    descricao: "Toda conta do modelo, na ordem em que é usada. O resultado é do cenário BASE (as entradas como estão)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "K1 a K12, sem repetir, em ordem crescente."}
+      - {id: o_que, tipo_de_campo: texto, descricao: "O que a conta mostra, com unidade e período em palavras simples."}
+      - {id: expressao, tipo_de_campo: texto, descricao: "Só ids de entradas, ids de contas anteriores, as constantes 100, 12, 30, 52 e 365 e + - × ÷ ( ), separados por espaço. Mês = 52 ÷ 12 semanas."}
+      - {id: resultado, tipo_de_campo: numero, descricao: "Resultado com unidade, origem CALCULADO e ref igual ao id da conta, calculado com os valores exatos e escrito com o arredondamento escolhido."}
+      - {id: natureza, tipo_de_campo: texto, descricao: "PREVISTO (projeção) ou REALIZADO (dinheiro que o trecho diz que já entrou ou saiu)."}
+  - id: resultado_principal
+    titulo: "Resultado principal"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 2
+    descricao: "A conta (ou as duas, ex.: em dólar e em reais) que responde à pergunta, e para que lado é melhor."
+    colunas:
+      - {id: conta, tipo_de_campo: texto, descricao: "Id de uma conta (K1 a K12); duas linhas nunca repetem a conta."}
+      - {id: sentido, tipo_de_campo: texto, descricao: "MAIOR_E_MELHOR (receita, saldo) ou MENOR_E_MELHOR (custo, prazo de retorno)."}
+  - id: cenarios
+    titulo: "Três cenários"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 6
+    descricao: "Para cada conta do resultado principal, exatamente uma linha CONSERVADOR, uma BASE e uma OTIMISTA. Só premissas mudam de um cenário para outro."
+    colunas:
+      - {id: cenario, tipo_de_campo: texto, descricao: "CONSERVADOR, BASE ou OTIMISTA."}
+      - {id: conta, tipo_de_campo: texto, descricao: "Id da conta do resultado principal."}
+      - {id: ajustes, tipo_de_campo: texto, descricao: "'—' no BASE; nos outros, 'V4 = 50; ...' só com entradas PREMISSA, valor diferente do da tabela de entradas."}
+      - {id: resultado, tipo_de_campo: numero, descricao: "Resultado da conta com os ajustes, origem CALCULADO, ref '<conta>/<CENARIO>'."}
+  - id: premissas_a_confirmar
+    titulo: "Premissas que você precisa confirmar"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 15
+    descricao: "Uma linha por entrada PREMISSA. O efeito de cada uma no resultado é calculado pelo código para o card (cenário conservador contra otimista), nunca escrito pelo Caio."
+    colunas:
+      - {id: entrada, tipo_de_campo: texto, descricao: "Id da entrada PREMISSA (V1 a V15)."}
+      - {id: por_que_este_valor, tipo_de_campo: texto, descricao: "De onde veio o valor, dito como suposição do Caio, nunca como dado da plataforma, do mercado ou seu."}
+      - {id: como_confirmar, tipo_de_campo: texto, descricao: "Como você confirma com o que já tem ou vai receber, sem nenhum agente agir fora."}
+  - id: leitura
+    titulo: "A resposta em poucas linhas"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 700
+    descricao: "A resposta à pergunta para um leigo, com a faixa dos três cenários e dizendo que é estimativa, quando for. Número só se estiver nas tabelas ou no pedido (CHK-CALCULO-09)."
+  - id: riscos
+    titulo: "Riscos dos números"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "O que pode tirar o resultado da faixa dos cenários, cada um com o sinal que avisa cedo."
+  - id: limites
+    titulo: "O que esta conta não cobre"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "O que ficou de fora e para onde vai (ex.: imposto e nota: contador, FORA-FISCAL-CONTABIL; vencimentos: SRV-CONTROLE-ADMINISTRATIVO; quando o dinheiro chega à conta, se o pedido não disse)."
+
+limite: 6000
+
+checagens_codigo:
+  - id: CHK-CALCULO-01
+    descricao: "Entradas tipadas: ids V1 a V15 sem repetir; cada valor tem unidade e origem DADO_DO_FUNDADOR, FONTE_CITADA, ENTREGA_APROVADA ou PREMISSA (nunca CALCULADO); cada entrada aparece em pelo menos uma expressão de conta."
+    fecha_furos: [C-9, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids: "^V([1-9]|1[0-5])$"
+      origens_aceitas: [DADO_DO_FUNDADOR, FONTE_CITADA, ENTREGA_APROVADA, PREMISSA]
+      entrada_sem_uso: "recusa (número decorativo)"
+  - id: CHK-CALCULO-02
+    descricao: "Origem provada: DADO_DO_FUNDADOR, ENTREGA_APROVADA e FONTE_CITADA trazem citação de fonte importada do pacote (nunca leitura_id) cujo trecho literal existe na fonte e contém o valor; FONTE_CITADA tem data_da_fonte; PREMISSA não tem ref nem citação."
+    fecha_furos: [C-9, M-16, C-8, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fontes_por_origem:
+        DADO_DO_FUNDADOR: ["FON-PEDIDO-<card> (pedido original)", "FON-PACOTE-<empresa> (pacote, com as decisões vigentes)"]
+        ENTREGA_APROVADA: ["FON-ENTREGA-<card>-<etapa>, de etapa da qual esta depende no plano"]
+        FONTE_CITADA: ["fonte importada aprovada que veio no pacote do card"]
+      ref_igual_a_fonte: "ref = fonte_importada_id da citação"
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+      numero_no_trecho: "milhar com ponto e decimal com vírgula; o valor tem de aparecer igual entre os números do trecho"
+      data_da_fonte: "obrigatória na FONTE_CITADA e nunca depois da criação do card"
+  # MEL-28: "câmbio com data" fica com ID reservado e 'fase 2', junto do modelo de cálculo.
+  - id: CHK-CALCULO-03
+    descricao: "Câmbio só com origem: entrada cuja unidade é cotação entre duas moedas só vale com DADO_DO_FUNDADOR ou FONTE_CITADA com data; PREMISSA, ENTREGA_APROVADA sem data ou cotação sem origem é recusada."
+    fecha_furos: [C-9, M-16]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      moedas: {"R$": BRL, "US$": USD, "€": EUR}
+      unidade_de_cambio: "'<moeda> por <moeda>' ou '<moeda>/<moeda>' (ex.: 'R$ por US$')"
+      origens_aceitas: [DADO_DO_FUNDADOR, FONTE_CITADA]
+      na_faixa: "a data do câmbio aparece na faixa do card (a do pedido, quando é dado seu)"
+  # Mesma função de avaliar expressão usada pela CHK-ESTRATEGIA-03 (K-8): por isso 'fase 2'.
+  - id: CHK-CALCULO-04
+    descricao: "Contas refeitas: o código avalia cada expressão com os valores exatos das entradas e das contas anteriores; o resultado declarado bate com o arredondamento escrito, tem origem CALCULADO e ref igual ao id; ids K em ordem crescente."
+    fecha_furos: [K-8, C-9]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      operadores: ["+", "-", "×", "÷", "(", ")"]
+      constantes_aceitas: [100, 12, 30, 52, 365]
+      ids_aceitos: "entrada existente ou conta de id menor"
+      valor_das_contas_anteriores: "o exato calculado pelo código, nunca o arredondado escrito"
+      tolerancia: "o menor entre meia unidade da última casa decimal escrita e 5% do exato"
+      erro_relativo_maximo_pct: 5
+      divisao_por_zero: "recusa"
+      ids: "^K([1-9]|1[0-2])$"
+  - id: CHK-CALCULO-05
+    descricao: "Moeda coerente: soma e subtração só entre valores da mesma moeda (ou sem moeda); trocar de moeda só multiplicando ou dividindo por uma entrada de câmbio; a moeda calculada de cada conta é a da unidade declarada."
+    fecha_furos: [K-8, C-9]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      moeda_da_unidade: "o símbolo de moeda escrito na unidade (R$, US$, €); sem símbolo, sem moeda"
+      multiplicacao: "moeda × sem moeda = moeda; moeda A × câmbio 'B por A' = moeda B; moeda × moeda = recusa"
+      divisao: "moeda ÷ mesma moeda = sem moeda; moeda ÷ sem moeda = moeda; sem moeda ÷ moeda = recusa"
+  - id: CHK-CALCULO-06
+    descricao: "Três cenários refeitos e em ordem: para cada conta do resultado principal, uma linha de cada cenário; BASE sem ajuste e igual ao resultado da conta; ajustes só em PREMISSA, iguais entre as contas do mesmo cenário; o código refaz cada resultado e confere a ordem pelo sentido."
+    fecha_furos: [K-8, M-16]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      cenarios: [CONSERVADOR, BASE, OTIMISTA]
+      sentidos: [MAIOR_E_MELHOR, MENOR_E_MELHOR]
+      ajuste: "'Vn = número', separados por ';'; só entrada de origem PREMISSA; valor diferente do da tabela de entradas"
+      pelo_menos_um_ajuste: "CONSERVADOR ou OTIMISTA muda ao menos uma premissa"
+      ordem: "MAIOR_E_MELHOR: CONSERVADOR <= BASE <= OTIMISTA; MENOR_E_MELHOR: CONSERVADOR >= BASE >= OTIMISTA; CONSERVADOR diferente de OTIMISTA"
+      tolerancia: "a mesma da CHK-CALCULO-04"
+  - id: CHK-CALCULO-07
+    descricao: "Premissas à vista: toda entrada PREMISSA tem exatamente uma linha em premissas_a_confirmar, e toda linha dessa seção aponta para uma entrada PREMISSA."
+    fecha_furos: [M-16, C-9]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-CALCULO-08
+    descricao: "Previsão separada do realizado: conta que usa, direta ou indiretamente, alguma entrada PREMISSA é PREVISTO; REALIZADO só em conta sem nenhuma premissa na cadeia; resultado de cenário é sempre previsão."
+    fecha_furos: [C-13, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      naturezas: [PREVISTO, REALIZADO]
+  - id: CHK-CALCULO-09
+    descricao: "Nenhum número solto: todo número em algarismos no texto livre é valor de entrada, valor de ajuste, resultado declarado (de conta ou de cenário), constante do modelo ou está no pedido original."
+    fecha_furos: [C-9, K-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      texto_livre: ["pergunta", "entradas.o_que", "contas.o_que", "premissas_a_confirmar.por_que_este_valor", "premissas_a_confirmar.como_confirmar", "leitura", "riscos", "limites"]
+      formato: "milhar com ponto e decimal com vírgula; 'mil' depois do número multiplica por 1.000"
+      por_extenso: "valor em dinheiro ou porcentagem escrito por extenso (ex.: 'cem dólares', 'dez por cento') é convertido e conferido igual"
+      ignora: ["ids V1-V15, K1-K12, CARD-n, SRV-..., CHK-..., RUB-..., DEC-nnn, BIZ-nnn, FON-...", "datas dd/mm/aaaa e horas hh:mm", "trecho_original das citações"]
+      constantes_do_modelo: [100, 12, 30, 52, 365]
+      compara: "valor numérico igual ao de uma fonte aceita"
+  - id: CHK-CALCULO-10
+    descricao: "Sem certeza sobre previsão: nenhuma expressão da lista fechada fora de trechos citados, mesmo negada (sem diferenciar maiúscula nem acento). Para incerteza, escreve 'estimativa' ou 'previsão'."
+    fecha_furos: [C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garante", "garantia", "com certeza", "certamente", "sem dúvida", "sem a menor dúvida", "sem risco", "risco zero", "é certo que", "lucro certo", "renda certa", "dinheiro certo", "já está no caixa", "não tem como dar errado"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-CALCULO-11
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; este arquivo não copia a lista), fora de trechos citados, sem diferenciar maiúscula nem acento."
+    fecha_furos: [DEC-023, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  # Sem furo próprio no registro para "agente faz trabalho de fora do serviço"; o mais próximo é
+  # A-12 (o que a v2 não faz segue para quem faz). Pedido ao catálogo: abrir esse furo.
+  - id: CHK-CALCULO-12
+    descricao: "Sem conta fiscal: nenhuma entrada nem conta trata de imposto, nota fiscal ou fechamento contábil (FORA-FISCAL-CONTABIL); o assunto só pode aparecer em limites ou riscos, mandando ao contador."
+    fecha_furos: [A-12]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      onde: ["entradas.o_que", "contas.o_que", "pergunta"]
+      palavras: ["imposto", "impostos", "tributo", "tributos", "tributação", "tributária", "carga tributária", "alíquota", "nota fiscal", "fechamento contábil", "Simples Nacional", "Simples", "lucro presumido"]
+      siglas_maiusculas_palavra_inteira: ["DAS", "DARF", "IRPF", "ISS", "ISSQN", "NFS-e", "NF-e", "ICMS", "IRPJ", "CSLL", "PIS", "COFINS", "INSS", "IOF"]
+      como_compara: "palavras sem diferenciar maiúscula nem acento; siglas só em maiúsculas e como palavra inteira ('das' minúsculo não conta)"
+
+rubrica:
+  - id: RUB-CALCULO-01
+    pergunta: "Cada expressão faz o que a coluna o_que da conta diz, sem faltar fator nem trocar período (ex.: 'por mês' com semana virando mês por 52 ÷ 12)?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código refaz a expressão escrita; se ela representa o que o texto diz é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-02
+    pergunta: "O resultado principal responde à pergunta do pedido: a mesma grandeza, para quem, no período e na moeda pedidos?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Comparar a pergunta do seu pedido com a conta escolhida é julgamento sobre o texto."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-03
+    pergunta: "A unidade e o período de cada entrada com trecho dizem o mesmo que o trecho (ex.: 'por semana' não virou 'por mês', 'por hora aprovada' não virou 'por hora gravada')?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código acha o número no trecho; a unidade e o período são palavras que só a leitura compara."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-04
+    pergunta: "Cada premissa é dita como suposição do Caio, com uma razão que um leigo entende, sem se passar por dado da plataforma, do mercado ou seu?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê a origem PREMISSA; uma premissa vestida de dado de mercado em palavras comuns só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-05
+    pergunta: "Os cenários mudam a premissa que mais pesa no resultado, numa faixa que cobre o razoável para este pedido, e não uma faixa estreita demais ou uma premissa que quase não pesa?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código confere ordem e contas; se a faixa é razoável depende do negócio."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-06
+    pergunta: "Nenhuma frase trata previsão como dinheiro em caixa, recebido ou certo (mesmo fora da lista fechada), e conta REALIZADO só soma dinheiro que o trecho diz que já entrou ou saiu?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; a mesma ideia dita de outro jeito, e o sentido de 'realizado', só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-07
+    pergunta: "Cada risco é deste cálculo (algo que pode tirar o resultado da faixa dos cenários) e traz o sinal que avisa cedo, sem risco genérico?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Ligar o risco aos números desta conta é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-CALCULO-08
+    pergunta: "Nada leva os números para fora nem contraria o pacote ou o 'não pode' do card (ex.: sugerir usar a conta em convite, anúncio ou mensagem a pessoas de fora)?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O convite nem recebe a conta (MAT-16); uma sugestão de levar o número para fora, em palavras comuns, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica, mais os itens CARD-n de IA do card. Camada 3 (você): NUNCA, porque o
+# serviço não tem ação do fundador nem parecer; você entra só como última reserva da revisão, e
+# nenhum padrão aprova. As premissas aparecem para você confirmar, mas confirmar não é aprovar.
+criterio_de_pronto:
+  codigo: [CHK-CALCULO-01, CHK-CALCULO-02, CHK-CALCULO-03, CHK-CALCULO-04, CHK-CALCULO-05, CHK-CALCULO-06,
+           CHK-CALCULO-07, CHK-CALCULO-08, CHK-CALCULO-09, CHK-CALCULO-10, CHK-CALCULO-11, CHK-CALCULO-12]
+  rubrica: [RUB-CALCULO-01, RUB-CALCULO-02, RUB-CALCULO-03, RUB-CALCULO-04, RUB-CALCULO-05, RUB-CALCULO-06,
+            RUB-CALCULO-07, RUB-CALCULO-08]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Se cada fórmula faz o que o texto da conta diz, sem fator faltando nem período trocado (RUB-CALCULO-01)."
+  - "Se o resultado principal responde à sua pergunta: grandeza, quem recebe ou paga, período e moeda (RUB-CALCULO-02)."
+  - "Se a unidade e o período de cada entrada batem com o trecho citado (RUB-CALCULO-03)."
+  - "Se cada premissa aparece como suposição, com razão que um leigo entende (RUB-CALCULO-04)."
+  - "Se os cenários mudam a premissa que mais pesa, numa faixa razoável (RUB-CALCULO-05)."
+  - "Se nada trata previsão como caixa ou certeza, e se REALIZADO é mesmo dinheiro que já aconteceu (RUB-CALCULO-06)."
+  - "Se os riscos são destes números e têm o sinal que avisa cedo (RUB-CALCULO-07)."
+  - "Se nada leva os números para fora ou contraria o pacote e o 'não pode' do card (RUB-CALCULO-08)."
+
+revisor_nao_reavalia:
+  - "Se as contas e os cenários batem, se cada número tem origem e trecho, se o câmbio tem origem, se a moeda é coerente e se há número solto: o código já conferiu (CHK-CALCULO-01 a 09)."
+  - "Se o valor de uma premissa é o verdadeiro: só você confirma; o revisor julga se ela está dita como suposição e se a faixa é razoável."
+  - "Imposto, nota e fechamento: ficam fora do serviço (FORA-FISCAL-CONTABIL); o revisor não pede que entrem."
+  - "Lei e conformidade: o cálculo não tem conferência jurídica (MAT-22)."
+  - "Cotação ou dado de mercado fora do pacote: o revisor revisa sem internet e não pesquisa."
+
+entrada_minima:
+  - id: ENT-CALCULO-PERGUNTA
+    o_que: "O que calcular: a grandeza em dinheiro e para quem (ex.: o que a empresa recebe, quanto custa, o ponto de equilíbrio)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-CALCULO-NUMEROS
+    o_que: "Os números de que a conta depende e que só você sabe (quantidade, preço ou valor por unidade, custo), no pedido ou em entrega aprovada do roteiro."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-CALCULO-PERIODO
+    o_que: "O período da resposta (por semana, por mês, nos próximos 3 meses...)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-CALCULO-CAMBIO
+    o_que: "A cotação, só quando o pedido quer o resultado em moeda diferente da dos números: dado seu no pedido ou fonte importada com data no pacote."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-CALCULO-PACOTE
+    o_que: "O pacote CONFIRMADO da empresa do card: grafia, voz, decisões vigentes e termos proibidos."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

@@ -31,6 +31,9 @@ import { agentQualityContract, QUALITY_VERSION } from './professional-output.mjs
 import { createTypeSafe } from './integrations/typesafe.mjs';
 import { jobView, JOB_SECTIONS } from './job-reader.mjs';
 import { kanbanSnapshot } from './kanban-snapshot.mjs';
+import { bindingForBusiness, servedBusinesses, servedByAgent } from './business-scope.mjs';
+import { registrarLancamento, FLUXOS, STATUS } from './finance-ledger.mjs';
+import { checkDelivery } from './delivery-check.mjs';
 
 // ======================================================================
 // CONFIGURAÇÃO E VARIÁVEIS DE AMBIENTE
@@ -178,7 +181,7 @@ const PRIORITY_ORDER = {
 /**
  * 1. list_ready_jobs
  */
-async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
+async function handleListReadyJobs({ limit = 10, agent_id, business_id, business_ids } = {}) {
   const boundedLimit = Math.min(Math.max(limit, 1), 25);
   const nowIso = new Date().toISOString();
 
@@ -188,6 +191,7 @@ async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
     url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
   }
   if (business_id) url += `&business_id=eq.${encodeURIComponent(business_id)}`;
+  else if (Array.isArray(business_ids)) url += `&business_id=in.(${business_ids.map(encodeURIComponent).join(',')})`;
 
   const rawJobs = await supabaseFetch(url);
   if (!Array.isArray(rawJobs)) {
@@ -212,9 +216,9 @@ async function handleListReadyJobs({ limit = 10, agent_id, business_id } = {}) {
   }
 
   const activeBindings = Array.isArray(bindings) ? bindings.filter(b => b.provider === 'HERMES' && b.status === 'ACTIVE') : [];
-  const bindingFor = job => activeBindings.find(b => b.agent_id === job.agent_id && (
-    b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP')
-  ));
+  const servedMap = await servedByAgent(supabaseFetch, activeBindings);
+  const bindingFor = job => activeBindings.map(b => b.agent_id === job.agent_id
+    && bindingForBusiness(b, job.business_id, servedMap.get(b.agent_id))).find(Boolean);
   const agenteMap = new Map((Array.isArray(agentes) ? agentes : []).map(a => [a.id || a.agent_id, a]));
 
   // Falha fechada: sem conexao ativa, tarefa e empresa, nao ha despacho.
@@ -325,9 +329,11 @@ async function handleRecordDispatch({
   const bindings = await supabaseFetch(
     `/rest/v1/agent_runtime_bindings?agent_id=eq.${encodeURIComponent(finalTargetAgent)}&status=eq.ACTIVE`
   );
-  const binding = Array.isArray(bindings) ? bindings.find(b => b.provider === 'HERMES' && (
-    b.business_id === job.business_id || (finalTargetAgent === 'AGT-01' && b.scope_type === 'GROUP')
-  )) : null;
+  let binding = null;
+  for (const b of Array.isArray(bindings) ? bindings : []) {
+    if (b.provider !== 'HERMES' || binding) continue;
+    binding = bindingForBusiness(b, job.business_id, await servedBusinesses(supabaseFetch, b));
+  }
   if (!binding) {
     throw new Error(`Agente ${finalTargetAgent} sem runtime ativo permitido`);
   }
@@ -408,9 +414,11 @@ async function handleGetJob({ job_id, ...readOptions }) {
   const bindings = await supabaseFetch(
     `/rest/v1/agent_runtime_bindings?select=agent_id,business_id,scope_type,profile_slug,provider,status&agent_id=eq.${encodeURIComponent(job.agent_id)}`
   ).catch(() => []);
-  const runtimeBinding = Array.isArray(bindings) ? bindings.find(b =>
-    b.provider === 'HERMES' && (b.business_id === job.business_id || (job.agent_id === 'AGT-01' && b.scope_type === 'GROUP'))
-  ) : null;
+  let runtimeBinding = null;
+  for (const b of Array.isArray(bindings) ? bindings : []) {
+    if (b.provider !== 'HERMES' || runtimeBinding) continue;
+    runtimeBinding = bindingForBusiness(b, job.business_id, await servedBusinesses(supabaseFetch, b));
+  }
 
   // A verified handoff carries the approved predecessor's evidence into the new task.
   // Same-company membership alone never grants access to another job's memory.
@@ -496,6 +504,11 @@ async function handleGetJob({ job_id, ...readOptions }) {
     quality_version: QUALITY_VERSION,
     agent_quality_contract: agentQualityContract(job.agent_id),
     company_identity: (await supabaseFetch(`/rest/v1/portfolio?business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`)).map(company => ({ business_id: company.business_id, row_version: company.row_version, brand_identity: company.brand_identity || null }))[0] || null,
+    // Decisoes vigentes do Fundador chegam a todo agente (antes so via briefing copiado, 08/10).
+    // Leitura auxiliar: falha nao bloqueia o job (lista vazia).
+    founder_decisions: await supabaseFetch(`/rest/v1/decisoes?business_id=eq.${encodeURIComponent(job.business_id)}&status=eq.VIGENTE&order=data_hora.desc&limit=8&select=decision_id,data_hora,tipo,decisao,observacoes`)
+      .then(rows => (Array.isArray(rows) ? rows : []).map(d => ({ decision_id: d.decision_id, data_hora: d.data_hora, tipo: d.tipo, decisao: String(d.decisao || '').slice(0, 1500), observacoes: d.observacoes ? String(d.observacoes).slice(0, 1200) : null })))
+      .catch(() => []),
     task: job.task_id ? (await supabaseFetch(`/rest/v1/tarefas?task_id=eq.${encodeURIComponent(job.task_id)}&business_id=eq.${encodeURIComponent(job.business_id)}&limit=1`))[0] || null : null,
     runtime_binding: runtimeBinding || null,
     connection: runtimeBinding ? {
@@ -823,10 +836,12 @@ async function handleEnqueueJob({
 /**
  * 10. queue_summary
  */
-async function handleQueueSummary({ business_id, agent_id } = {}) {
+async function handleQueueSummary({ business_id, agent_id, business_ids } = {}) {
   let url = '/rest/v1/agent_jobs?select=status,priority,agent_id,business_id';
   if (business_id) {
     url += `&business_id=eq.${encodeURIComponent(business_id)}`;
+  } else if (Array.isArray(business_ids)) {
+    url += `&business_id=in.(${business_ids.map(encodeURIComponent).join(',')})`;
   }
   if (agent_id) url += `&agent_id=eq.${encodeURIComponent(agent_id)}`;
 
@@ -1115,6 +1130,31 @@ const TOOLS_CONFIG = {
       limit: z.number().int().min(1).max(100).optional()
     }).strict(),
     handler: args => kanbanSnapshot(supabaseFetch, args)
+  },
+  check_delivery: {
+    description: 'Autoconferencia antes de submit_work, sem gravar: confere esquema, codigos internos, texto vago, rastreabilidade no summary, responsaveis com AGT e checagens versus definicao de pronto do proprio job. Use no maximo 2 vezes por execucao; nao substitui a revisao independente.',
+    schema: z.object({ job_id: z.string().regex(/^JOB-HR-[a-f0-9]{32}$/), summary: z.string().max(8000).optional(), delivery: z.object({}).passthrough() }).strict(),
+    handler: async ({ job_id, summary, delivery }) => {
+      const jobs = await supabaseFetch(`/rest/v1/agent_jobs?select=task_id&job_id=eq.${encodeURIComponent(job_id)}&limit=1`);
+      const taskId = Array.isArray(jobs) ? jobs[0]?.task_id : null;
+      const tasks = taskId ? await supabaseFetch(`/rest/v1/tarefas?select=definicao_de_pronto&task_id=eq.${encodeURIComponent(taskId)}&limit=1`) : [];
+      return checkDelivery({ delivery, summary, definitionOfDone: Array.isArray(tasks) ? tasks[0]?.definicao_de_pronto || '' : '' });
+    }
+  },
+  registrar_lancamento: {
+    description: 'Caio (AGT-05): registra um lancamento em financeiro dentro do proprio job em execucao. Empresa vem do job; conta deve existir e pertencer a empresa; idempotency_key evita repeticao; descricao, valor, conta e data iguais retornam DUPLICATE_SUSPECT sem gravar. Nao cria conta, nao paga e nao transfere dinheiro.',
+    schema: z.object({
+      job_id: z.string().regex(/^JOB-HR-[a-f0-9]{32}$/).optional(),
+      business_id: z.string().max(80).optional(),
+      fluxo: z.enum(FLUXOS), status: z.enum(STATUS),
+      descricao: z.string().min(3).max(300), valor: z.union([z.string().max(30), z.number()]),
+      conta_id: z.string().min(1).max(80), conta_destino_id: z.string().max(80).optional(),
+      vencimento: z.string().max(10).optional(), liquidacao: z.string().max(10).optional(), competencia: z.string().max(7).optional(),
+      categoria: z.string().max(120).optional(), plano_conta_id: z.string().max(80).optional(), contraparte: z.string().max(200).optional(),
+      evidencia: z.string().min(1).max(1000), idempotency_key: z.string().min(8).max(120),
+      nao_e_duplicado_motivo: z.string().max(500).optional()
+    }).strict(),
+    handler: (args, context = {}) => registrarLancamento(supabaseFetch, args, context.identity || {})
   }
 };
 
@@ -1126,7 +1166,7 @@ const jobFields = textFields('job_id agent_id');
 const jobRequired = ['job_id', 'agent_id'];
 const mcpInputs = {
   workflow_candidates: inputObject({ created_after: { type: 'string', format: 'date-time' }, adopt_job_ids: { type: 'array', items: { type: 'string', pattern: '^JOB-HR-[a-f0-9]{32}$' }, maxItems: 100 }, after_job_id: { type: 'string', pattern: '^JOB-HR-[a-f0-9]{32}$' }, limit: { type: 'integer', minimum: 1, maximum: 25 } }, ['created_after']),
-  workflow_checkpoint: inputObject({ ...textFields('job_id fingerprint expected_status diagnostic'), repair_version: { type: 'string', const: 'review-contract-v2' }, after_run_id: { type: 'string', format: 'uuid' }, action: { type: 'string', enum: ['list', 'reserve', 'finish', 'recover'] }, phase: { type: 'string', enum: ['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE'] }, expected_task_version: { type: 'integer', minimum: 0 }, expected_updated_at: { type: 'string', format: 'date-time' }, run_id: { type: 'string', format: 'uuid' }, run_token: { type: 'string', format: 'uuid' }, status: { type: 'string', enum: ['CONFIRMED', 'RECONCILED', 'NEEDS_ATTENTION'] } }, ['action']),
+  workflow_checkpoint: inputObject({ ...textFields('job_id fingerprint expected_status diagnostic'), repair_version: { type: 'string', const: 'review-contract-v2' }, after_run_id: { type: 'string', format: 'uuid' }, action: { type: 'string', enum: ['list', 'reserve', 'finish', 'recover'] }, phase: { type: 'string', enum: ['REVIEW', 'HANDOFF', 'COORDINATE', 'RESOLVE', 'REPLAN'] }, expected_task_version: { type: 'integer', minimum: 0 }, expected_updated_at: { type: 'string', format: 'date-time' }, run_id: { type: 'string', format: 'uuid' }, run_token: { type: 'string', format: 'uuid' }, status: { type: 'string', enum: ['CONFIRMED', 'RECONCILED', 'NEEDS_ATTENTION'] } }, ['action']),
   revise_task_brief: inputObject({
     job_id: { type: 'string', minLength: 1, maxLength: 120 },
     idempotency_key: { type: 'string', minLength: 1, maxLength: 120 },
@@ -1151,7 +1191,9 @@ const mcpInputs = {
   waiting_helena: inputObject({ ...jobFields, ...textFields('contexto impacto decisao_necessaria recomendacao') }, [...jobRequired, 'contexto', 'impacto', 'decisao_necessaria', 'recomendacao']),
   enqueue_job: inputObject({ ...textFields('agent_id objective instruction business_id task_id scheduled_at available_at idempotency_key correlation_id'), priority: { type: 'string', enum: ['CRITICA', 'ALTA', 'MEDIA', 'BAIXA'] }, approval_required: { type: 'boolean' } }, ['agent_id', 'objective']),
   queue_summary: inputObject(textFields('business_id agent_id')),
-  kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } })
+  kanban_snapshot: inputObject({ business_id: { type: 'string', pattern: '^[A-Za-z0-9_-]{2,80}$' }, offset: { type: 'integer', minimum: 0, maximum: 10000 }, limit: { type: 'integer', minimum: 1, maximum: 100 } }),
+  check_delivery: inputObject({ ...textFields('job_id summary'), delivery: { type: 'object', additionalProperties: true } }, ['job_id', 'delivery']),
+  registrar_lancamento: inputObject({ ...textFields('job_id business_id descricao conta_id conta_destino_id vencimento liquidacao competencia categoria plano_conta_id contraparte evidencia idempotency_key nao_e_duplicado_motivo'), fluxo: { type: 'string', enum: FLUXOS }, status: { type: 'string', enum: STATUS }, valor: { type: ['string', 'number'] } }, ['fluxo', 'status', 'descricao', 'valor', 'conta_id', 'evidencia', 'idempotency_key'])
 };
 for (const [name, inputSchema] of Object.entries(mcpInputs)) TOOLS_CONFIG[name].inputSchema = inputSchema;
 

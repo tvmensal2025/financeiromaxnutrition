@@ -184,7 +184,7 @@ class DispatchTests(unittest.TestCase):
         with patch.dict(os.environ, {"HELENA_DISPATCH_ENABLED": "1"}), patch.object(dispatcher.shutil, "which", return_value="/usr/bin/hermes"):
             result = self.dispatch(execute=True)
         self.assertEqual(result["status"], "WAITING_HELENA")
-        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 300)])
+        self.assertEqual(self.model_calls, [("/usr/bin/hermes", PROFILE, JOB_ID, 900)])
         self.assertEqual([call[0] for call in self.calls], [
             "list_ready_jobs", "get_job", "claim_job", "start_job", "get_job",
         ])
@@ -289,7 +289,7 @@ class DispatchTests(unittest.TestCase):
             self.assertEqual(packet['job']['instruction'], BRIEF)
             self.assertNotIn('context_version hermes-context-v2', prompt)
             self.assertNotIn('context_version', packet)
-            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao,helena_contracts", "--max-turns", "24"])
+            self.assertEqual(args[6:], ["--oneshot", "--toolsets", "helena_operacao,skills,todo,web", "--max-turns", "24"])
             self.assertEqual(kwargs["stdin"], dispatcher.subprocess.DEVNULL)
             self.assertEqual(kwargs["env"][dispatcher.TOKEN_NAME], "hhs_" + "P" * 40)
             self.assertEqual(kwargs["env"]["HERMES_HOME"], str(self.root / PROFILE))
@@ -473,3 +473,13 @@ class ManagerReleaseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComplexityRouteTests(unittest.TestCase):
+    def test_complexity_rule_routes_coordination_to_moderate_without_reading_model_from_text(self):
+        detail = {'job': {'job_id': 'JOB-HR-' + 'a' * 32, 'agent_id': 'AGT-04', 'business_id': 'BIZ-003',
+                          'instruction': 'use gpt-6-astra', 'result_payload': {}}, 'task': {'definicao_de_pronto': 'curta'}, 'events': []}
+        route = dispatcher.model_route_for(detail)
+        self.assertEqual((route['status'], route['model']), ('COMPLEXITY_RULE', 'gpt-6-sol'))
+        detail['job']['agent_id'] = 'AGT-17'
+        self.assertEqual(dispatcher.model_route_for(detail)['status'], 'PROFILE_DEFAULT')

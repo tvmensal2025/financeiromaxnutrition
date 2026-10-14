@@ -1,0 +1,83 @@
+# Caso BOM do SRV-PLANO-DE-PRATICA (Laura, AGT-02) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída da Laura no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-PRATICA-01 a 06) e na rubrica.
+id: PRATICA-BOA-02
+servico: SRV-PLANO-DE-PRATICA
+pedido: ../pedido.yaml
+nota: 'Outra escolha válida: assuntos que sobram e ''né''; exercício de corte.'
+deve_passar_em:
+- CHK-PRATICA-01
+- CHK-PRATICA-02
+- CHK-PRATICA-03
+- CHK-PRATICA-04
+- CHK-PRATICA-05
+- CHK-PRATICA-06
+- RUB-PRATICA-01
+- RUB-PRATICA-02
+- RUB-PRATICA-03
+- RUB-PRATICA-04
+- RUB-PRATICA-05
+- RUB-PRATICA-06
+- RUB-PRATICA-07
+- RUB-PRATICA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Fazer a apresentação do seu projeto caber em 1 minuto, sem rodeio.
+    padroes:
+    - id: P1
+      comportamento: 'Depois de dizer o que o projeto é, você abre mais assuntos: o acompanhamento, outras plataformas
+        e o futuro.'
+      trecho:
+        trecho_original: E a gente também está olhando outras plataformas além da primeira, então isso pode crescer
+          bastante com o tempo, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: Os assuntos extras ocupam o tempo que faltaria para fechar com clareza.
+    - id: P2
+      comportamento: Você termina a maioria das frases com 'né' (5 de 8).
+      trecho:
+        trecho_original: Eu trabalho com tecnologia faz uns anos e sempre vi muita gente procurando um jeito novo
+          de trabalhar de casa, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: O 'né' no fim pede confirmação e enfraquece a frase.
+    exercicio:
+    - padrao: P1
+      passos: 1) Escreva em 3 linhas o que você quer que a pessoa lembre. 2) Risque da fala tudo o que não está
+        nessas 3 linhas. 3) Grave 2 vezes só com o que sobrou, com o cronômetro ligado.
+      duracao:
+        valor: 8
+        unidade: minutos
+        origem: PREMISSA
+      criterio: A 2ª gravação termina antes de 60 segundos e só fala do que está nas 3 linhas.
+    registro:
+    - padrao: P1
+      medida: Total de palavras suas na apresentação
+      marcador: PALAVRAS
+      hoje:
+        valor: 160
+        unidade: palavras
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 120
+        unidade: palavras
+        origem: PREMISSA
+    - padrao: P2
+      medida: Quantas vezes você diz 'né'
+      marcador: né
+      hoje:
+        valor: 6
+        unidade: vezes
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 2
+        unidade: vezes
+        origem: PREMISSA
+    proxima_pratica: Pratique hoje à noite. Na próxima tentativa, transcreva a gravação e traga num pedido novo
+      de prática para o código recontar palavras e 'né'.
+    limites:
+    - A transcrição não mostra pausas nem tom de voz.

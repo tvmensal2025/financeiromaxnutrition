@@ -1,0 +1,91 @@
+# Jornada de FALHA do card do Caio (AGT-05), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O pedido (eLiving™, BIZ-004, pacote CONFIRMADO; pedido pequeno, sem 'confirmar antes'; é o
+# segundo exemplo do catálogo):
+#   "Qual o ponto de equilíbrio da eLiving™ com assinatura de R$ 29 por mês?"
+# Falta o que só você sabe (ENT-CALCULO-NUMEROS): o custo fixo por mês e o custo de cada
+# assinante (loja de aplicativo, servidor). Sem eles, qualquer ponto de equilíbrio seria
+# inventado. O Caio não chuta custo de mercado: REGISTRAR_FALHA com FALTAM_DADOS.
+#
+# A resposta do Caio nesta jornada (formato schemas/acao.schema.json, REGISTRAR_FALHA):
+#   acao: REGISTRAR_FALHA
+#   motivo_falha: FALTAM_DADOS
+#   explicacao: "Para o ponto de equilíbrio da eLiving™ faltam dois números que só você sabe: o
+#                custo fixo por mês (equipe, ferramentas, servidor) e quanto sai de cada assinatura
+#                antes de chegar à empresa (taxa da loja de aplicativo e custo por assinante). Sem
+#                eles, a conta seria inventada."
+# (O agente escreve só o motivo; o TIPO da falha é do motor, C-20. A falha conta como tentativa.)
+#
+# O caminho: REGISTRAR_FALHA -> etapa EM_RESOLUCAO (E23) -> a Helena recomenda (E100). Ela pode ser
+# chamada: não é autora nem revisora DESIGNADA desta etapa (nenhuma revisão começou; MAT-26).
+# Recomenda ENCERRAR, porque REFAZER rodaria sobre o mesmo pacote, sem os custos, e falharia de
+# novo gastando execução. A etapa vai a VOCÊ (ESPERANDO_FUNDADOR, motivo RESOLUCAO), com dono e
+# prazo. A jornada termina aqui: você chamado.
+#
+# O que você pode fazer no cartão (não está na jornada):
+#   - ENCERRAR (E87): a etapa fecha e o card fica ENCERRADO_COM_FALHA; depois, Pedir ajuste no card
+#     fechado abre um card novo ligado (reação), onde o seu pedido traz os custos;
+#   - REFAZER (E85): a etapa volta à fila uma vez; só adianta se os custos chegarem ao pacote (hoje
+#     o texto no card não entra no pacote do agente: ver pedidos ao catálogo).
+#   - sem resposta: lembrete em 24 h e 48 h e depois o padrão (E91), que CANCELA a etapa sem
+#     aprovar nada; o card então chama você de novo (C13).
+#
+# Contas: execuções 1 de 6 (a falha registrada conta, E23); replanejamento 0 de 1; perguntas do
+# card 0 de 2. Nenhum teto estourado; nenhuma ação externa nasce.
+
+id: AGT-05-caio-falta-dado
+descricao: "Card da eLiving™ sem os custos: o Caio registra a falta em vez de inventar, a Helena recomenda encerrar e o card chama você."
+agente: AGT-05
+empresa: "eLiving™ (BIZ-004)"
+automatico: false
+card:
+  pedido_grande: false       # pedido pequeno: vale na hora, com o botão de desfazer (Cancelar)
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "conta e cenários (Caio, SRV-CALCULO)"
+      autor: CAIO
+      revisores: [HELENA, CLARA, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C02. Pedido pequeno: escolha SRV-CALCULO, sem pergunta de confirmação."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. BIZ-004 nas empresas do serviço e pacote CONFIRMADO (MAT-23); revisores efetivos [HELENA, CLARA, FUNDADOR]. Card EM_ANDAMENTO."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Etapa na fila (motivo NORMAL)."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1."
+  - papel: AUTOR
+    evento: REGISTRAR_FALHA
+    alvo: E1
+    params: {motivo_falha: FALTAM_DADOS, usou_internet: NAO}
+    nota: "E23. Falta ENT-CALCULO-NUMEROS (custo fixo por mês e custo de cada assinante). A explicação está no cabeçalho. Etapa EM_RESOLUCAO; execuções 1 de 6."
+  - papel: HELENA
+    evento: RECOMENDAR
+    alvo: E1
+    params: {opcao: ENCERRAR}
+    nota: "E100. Motivo: 'O Caio registrou a falta dos custos, que só você tem; refazer sem eles falharia de novo.' A etapa vai a você (ESPERANDO_FUNDADOR, motivo RESOLUCAO, espera INTERNA), com a recomendação. Opções: ENCERRAR ou REFAZER."
+
+esperado:
+  estado_card: EM_ANDAMENTO
+  etapas: {E1: ESPERANDO_FUNDADOR}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

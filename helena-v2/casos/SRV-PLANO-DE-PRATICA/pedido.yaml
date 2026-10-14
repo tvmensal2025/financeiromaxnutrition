@@ -1,0 +1,45 @@
+# Pedido de teste do SRV-PLANO-DE-PRATICA (Laura, AGT-02).
+#
+# Card PESSOAL: é o único escopo deste serviço (MAT-14). Por isso NÃO há pacote de empresa
+# (grafia, voz e proibições de empresa não se aplicam e não são enviados à Laura). As regras
+# que valem são as do próprio serviço: só as suas falas, nada de empresa, nada de diagnóstico.
+#
+# O material (a transcrição) está DENTRO do pedido original, como você colaria no app. O código
+# guarda o pedido original como fonte importada do card (FON-PEDIDO-PRATICA-01) antes de qualquer
+# IA; é contra ela que a CHK-PRATICA-01 confere os trechos e a CHK-PRATICA-02 refaz as contagens.
+# As suas falas começam com "EU:"; a do amigo ("OUVINTE:") nunca é citada nem contada.
+#
+# Números deste material (conferidos por código): 160 palavras suas, 6 "né" e 3 "tipo" nas
+# suas falas. A fala do OUVINTE tem mais 1 "né" (quem conta tudo erra: defeito-03).
+#
+# Sem fitas: o serviço não usa internet (ferramentas: []), então não há resposta de ferramenta
+# para gravar.
+
+id: PEDIDO-PRATICA-01
+servico: SRV-PLANO-DE-PRATICA
+card_id: CARD-TESTE-PRATICA-01
+pacote_da_empresa: null        # MAT-14: card PESSOAL nunca recebe pacote de empresa
+material:
+  fonte_importada_id: FON-PEDIDO-PRATICA-01
+  de_onde: "ordem_de_servico.pedido_original (gravado pelo código antes da IA)"
+  rotulo_do_fundador: "EU:"
+  outras_pessoas: ["OUVINTE:"]
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+ordem_de_servico:
+  empresa: PESSOAL
+  prazo: "2026-10-13T18:00:00-03:00"
+  prioridade: 3
+  pedido_original: |
+    Quero explicar meu projeto em 1 minuto, sem rodeio. Gravei a minha última tentativa ontem, no celular, e passou de 1 minuto. Segue a transcrição: EU sou eu; OUVINTE é um amigo que ouviu.
+
+    EU: Então, assim, antes de tudo deixa eu te contar como surgiu, né. Eu trabalho com tecnologia faz uns anos e sempre vi muita gente procurando um jeito novo de trabalhar de casa, né. E, ao mesmo tempo, as empresas que fazem inteligência artificial precisam de gravações e de textos de pessoas de verdade, tipo conversas do dia a dia, coisas bem simples. Aí eu pensei, tipo, por que não juntar as duas pontas, né. Então a Humano Digital é basicamente isso, assim, uma ponte entre as duas coisas. Mas não é só isso, né, porque tem toda a parte de explicar as regras, conferir se a gravação foi aceita, tipo um acompanhamento de perto de cada pessoa. E a gente também está olhando outras plataformas além da primeira, então isso pode crescer bastante com o tempo, né. Enfim, é um projeto em que eu acredito muito, que eu venho pensando faz tempo, e que tem tudo para dar certo, né.
+    OUVINTE: Legal, né. Mas o que exatamente a pessoa faz no primeiro dia?
+  o_que_quer: "Treinar a apresentação do seu projeto para caber em 1 minuto e ir direto ao ponto, a partir da gravação de ontem."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "Até 2 padrões da minha fala, cada um com o trecho exato.", quem_confere: CODIGO, checagem: CHK-PRATICA-01, risco: BAIXO}
+    - {id: CARD-2, texto: "Contagem de palavras, 'né' e 'tipo' que eu possa comparar na próxima tentativa.", quem_confere: CODIGO, checagem: CHK-PRATICA-02, risco: BAIXO}
+    - {id: CARD-3, texto: "Um exercício de até 15 minutos com critério que eu confira sozinho.", quem_confere: IA, risco: BAIXO}
+    - {id: CARD-4, texto: "Nada sobre o negócio: só a minha forma de falar.", quem_confere: IA, risco: ALTO}
+  nao_pode:
+    - "Falar do negócio ou dizer o que a empresa deve oferecer: só a minha forma de falar."

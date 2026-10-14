@@ -1,0 +1,60 @@
+# Caso RUIM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante BOAS-VINDAS. SINTÉTICO.
+# Igual a boa-03-boas-vindas.yaml, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU). Como mudar: troque só o trecho do defeito; o resto
+# tem de continuar igual à boa de origem.
+id: COPY-RUIM-09
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: BOAS-VINDAS
+derivado_de: ../boas/boa-03-boas-vindas.yaml
+defeito_plantado: Acrescenta na versão final 'Gravar atividades do dia a dia pode ajudar você a emagrecer.' (promessa de saúde
+  que ninguém informou).
+deve_falhar_em: CHK-COPY-04
+portao: 1 (código)
+motivo_esperado: termo de saúde da lista fechada ('emagrecer').
+passa_nas_demais: 'sim: todas as outras checagens comuns e CHK-COPY-01 a 10'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    onde_usar: Quem aceitou o convite da Humano Digital, por mensagem no WhatsApp, na mesma conversa da resposta. Quem ler
+      pode chamar você ali se tiver dúvidas.
+    versao_final: Que bom ter você por aqui! Agradeço por ter respondido ao convite da Humano Digital. A Humano Digital conecta
+      pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. O primeiro passo é uma conversa
+      comigo, para eu explicar como funciona. Na prática, você grava atividades do dia a dia no celular e a plataforma avalia
+      as gravações. Gravar atividades do dia a dia pode ajudar você a emagrecer. Se tiver dúvidas, pode me chamar nesta mesma
+      conversa.
+    alternativa_curta: Que bom ter você por aqui! Agradeço por ter respondido ao convite da Humano Digital. O primeiro passo
+      é uma conversa comigo, para eu explicar como funciona. Se tiver dúvidas, pode me chamar nesta mesma conversa.
+    afirmacoes:
+    - id: A1
+      frase: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no
+        Hub.
+      apoio:
+        trecho_original: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na
+          Mimix e no Hub.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A2
+      frase: O primeiro passo é uma conversa comigo, para eu explicar como funciona.
+      apoio:
+        trecho_original: O primeiro passo é eu conversar com a pessoa e explicar como funciona.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A3
+      frase: você grava atividades do dia a dia no celular e a plataforma avalia as gravações
+      apoio:
+        trecho_original: A pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A4
+      frase: pode me chamar nesta mesma conversa
+      apoio:
+        trecho_original: Se tiver dúvidas, a pessoa pode me chamar nesta mesma conversa.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    o_que_precisa_aprovacao:
+    - 'Quem assina a mensagem: o pedido não diz o seu nome, e o texto fala em primeira pessoa ("comigo").'
+    - 'Se e quando usar: você disse que ainda não vai usar, então nenhuma ação sua foi proposta. Enviar é ação sua, depois
+      do parecer aprovado.'
+    limites:
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'
+    - 'Cadastro na Mimix e no Hub: é ação sua.'

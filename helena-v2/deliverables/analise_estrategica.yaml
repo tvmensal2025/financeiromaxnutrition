@@ -1,0 +1,320 @@
+# Tipo de entrega: analise_estrategica (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: AUGUSTO (AGT-03). Serviço: SRV-ANALISE-ESTRATEGICA. Revisor titular: RAVI; reserva: CAIO;
+# você é sempre a última reserva.
+#
+# O que é: a comparação de 2 a 4 opções de negócio de UMA empresa pelos mesmos critérios, com
+# cada premissa marcada como DADO (com o trecho da fonte), ESTIMATIVA ou HIPOTESE, contas que o
+# código refaz, uma recomendação condicionada e um plano de validação (pronto_padrao do catálogo).
+# A escolha é sua: a entrega nunca decide nem age fora.
+#
+# De onde vêm os dados: só do pacote do card. O código guarda, antes de qualquer IA, o pedido
+# original como fonte importada FON-PEDIDO-<card> e o pacote da empresa como FON-PACOTE-<empresa>;
+# entregas aprovadas de etapas anteriores (num roteiro) chegam com o id delas (FON-ENTREGA-<card>-<etapa>).
+# O Augusto não tem ferramenta: fato de mercado que não está no pacote é ESTIMATIVA ou HIPOTESE.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora"
+# (05), citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): este tipo nunca é julgado pelo parecer
+# (julgado_pelo_parecer: NUNCA) e a faixa do card mostra "sem conferência jurídica".
+#
+# Formato dos ids dentro da entrega (o código lê): opções O1 a O4; critérios CR1 a CR6;
+# premissas DADO-n, EST-n e HIP-n (o prefixo É o tipo); contas K1 a K6. Listas de ids em uma
+# coluna de texto vêm separadas por vírgula (ex.: "DADO-1, K1").
+
+tipo: analise_estrategica
+versao: "3.1.0"
+descricao: "Comparação de 2 a 4 opções de negócio de uma empresa pelos mesmos critérios, com premissas tipadas (dado com trecho, estimativa ou hipótese), contas refeitas pelo código, recomendação condicionada e plano de validação."
+dono: AUGUSTO
+servico: SRV-ANALISE-ESTRATEGICA
+
+secoes:
+  - id: decisao
+    titulo: "A escolha em jogo"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com a escolha que você tem de fazer e o horizonte do pedido. Não muda o que você pediu."
+  - id: premissas
+    titulo: "Premissas (dado, estimativa ou hipótese)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 3
+    itens_max: 12
+    descricao: "Uma premissa por linha. 'valor' só quando a premissa é um número; 'prova' obrigatória no DADO e ausente nas outras (CHK-ESTRATEGIA-02)."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "DADO-n, EST-n ou HIP-n, sem repetir; o prefixo é o tipo."}
+      - {id: tipo, tipo_de_campo: texto, descricao: "DADO, ESTIMATIVA ou HIPOTESE, igual ao prefixo do id."}
+      - {id: afirmacao, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "O que se afirma, em uma frase."}
+      - {id: valor, tipo_de_campo: numero, obrigatoria: false, descricao: "Opcional. Número com unidade e origem: DADO_DO_FUNDADOR, FONTE_CITADA ou ENTREGA_APROVADA no DADO; PREMISSA nas outras."}
+      - {id: prova, tipo_de_campo: citacao, obrigatoria: false, descricao: "Só no DADO: trecho literal (frase inteira ou 12 palavras seguidas) do pedido, do pacote ou de entrega aprovada."}
+  - id: opcoes
+    titulo: "Opções"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 4
+    descricao: "Caminhos reais e diferentes para a mesma escolha."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "O1 a O4, sem repetir."}
+      - {id: nome, tipo_de_campo: texto, descricao: "Nome curto da opção."}
+      - {id: o_que_muda, tipo_de_campo: texto, descricao: "O que muda na prática se você escolher esta opção."}
+  - id: criterios
+    titulo: "Critérios (os mesmos para todas as opções)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 2
+    itens_max: 6
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "CR1 a CR6, sem repetir."}
+      - {id: criterio, tipo_de_campo: texto, descricao: "O que se compara."}
+      - {id: por_que_importa, tipo_de_campo: texto, descricao: "Por que este critério pesa nesta escolha."}
+  - id: comparacao
+    titulo: "Comparação"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 4
+    itens_max: 24
+    descricao: "Exatamente uma linha por par opção x critério (CHK-ESTRATEGIA-01)."
+    colunas:
+      - {id: opcao, tipo_de_campo: texto, descricao: "Id da opção (O1 a O4)."}
+      - {id: criterio, tipo_de_campo: texto, descricao: "Id do critério (CR1 a CR6)."}
+      - {id: avaliacao, tipo_de_campo: texto, descricao: "Como a opção se sai neste critério, só com o que a base sustenta."}
+      - {id: base, tipo_de_campo: texto, descricao: "Ids de premissas ou contas que sustentam a avaliação, separados por vírgula."}
+  - id: contas
+    titulo: "Contas (refeitas pelo código)"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 1
+    itens_max: 6
+    descricao: "Toda conta da análise. Sem conta, a seção não aparece."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "K1 a K6, sem repetir, na ordem em que são usadas."}
+      - {id: o_que, tipo_de_campo: texto, descricao: "O que a conta mostra, em palavras simples."}
+      - {id: expressao, tipo_de_campo: texto, descricao: "Só ids de premissas com valor, contas anteriores, constantes 100, 12, 30, 52 ou 365 e + - × ÷ ( ), separados por espaço."}
+      - {id: resultado, tipo_de_campo: numero, descricao: "Resultado com unidade, origem CALCULADO e ref = id da conta."}
+  - id: recomendacao
+    titulo: "Recomendação (a escolha é sua)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 1
+    colunas:
+      - {id: opcao, tipo_de_campo: texto, descricao: "Id da opção recomendada."}
+      - {id: por_que, tipo_de_campo: texto, descricao: "Por que esta opção, citando os critérios em que ela vence."}
+      - {id: depende_de, tipo_de_campo: texto, descricao: "Ids das ESTIMATIVAS e HIPÓTESES que, se falsas, mudam a recomendação."}
+      - {id: muda_se, tipo_de_campo: texto, descricao: "O resultado que faria a recomendação mudar, com o id da premissa e o id da outra opção."}
+  - id: plano_de_validacao
+    titulo: "Como validar antes de apostar"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "Uma linha por premissa de que a recomendação depende (CHK-ESTRATEGIA-05)."
+    colunas:
+      - {id: premissa, tipo_de_campo: texto, descricao: "Id da ESTIMATIVA ou HIPÓTESE que a linha testa."}
+      - {id: indicador, tipo_de_campo: texto, descricao: "O que se mede."}
+      - {id: como_medir, tipo_de_campo: texto, descricao: "De onde vem o número, sem nenhum agente agir fora."}
+      - {id: caminho, tipo_de_campo: texto, descricao: "SEM_ACAO_EXTERNA (dado que você já tem ou que o produto já registra) ou PEDIDO_NOVO (o teste exige ação de fora)."}
+      - {id: servico, tipo_de_campo: texto, descricao: "No PEDIDO_NOVO, o serviço que tem a ação do fundador para o teste; senão, um traço."}
+      - {id: janela_dias, tipo_de_campo: numero, descricao: "Prazo da medida em dias, de 1 a 90 (origem PREMISSA)."}
+      - {id: limiar, tipo_de_campo: numero, descricao: "Valor que separa 'confirmou' de 'não confirmou' (origem PREMISSA)."}
+      - {id: se_atingir, tipo_de_campo: texto, descricao: "Id da opção que fica se atingir o limiar."}
+      - {id: se_nao_atingir, tipo_de_campo: texto, descricao: "Id da opção que fica se não atingir; diferente da anterior."}
+  - id: riscos
+    titulo: "Riscos da opção recomendada"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "Cada risco com o sinal que avisa cedo."
+  - id: limites
+    titulo: "O que esta análise não cobre"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "O que ficou de fora e para onde vai (ex.: conta detalhada: SRV-CALCULO; ponto jurídico: parecer num roteiro)."
+
+limite: 6000
+
+checagens_codigo:
+  - id: CHK-ESTRATEGIA-01
+    descricao: "Mesmos critérios para todas as opções: a comparação tem exatamente uma linha por par (opção, critério) declarado, sem par faltando, repetido ou com id inexistente; cada linha tem base com ids de premissa ou conta que existem."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids_de_opcao: "^O[1-4]$"
+      ids_de_criterio: "^CR[1-6]$"
+      linhas_exigidas: "número de opções x número de critérios"
+      base: "1 ou mais ids de premissas ou contas desta entrega, separados por vírgula"
+  - id: CHK-ESTRATEGIA-02
+    descricao: "Premissas tipadas: o prefixo do id é o tipo; DADO tem prova com trecho literal da fonte do pacote e, com valor, o número está no trecho; ESTIMATIVA tem valor com origem PREMISSA; ESTIMATIVA e HIPOTESE não têm prova."
+    fecha_furos: [C-9, M-16, M-15, C-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      prefixos: {DADO: "DADO-", ESTIMATIVA: "EST-", HIPOTESE: "HIP-"}
+      fontes_aceitas: ["FON-PEDIDO-<card> (pedido original)", "FON-PACOTE-<empresa> (pacote da empresa)", "FON-ENTREGA-<card>-<etapa> (entrega aprovada no pacote)", "fonte importada aprovada que veio no pacote"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+      origem_do_valor: {DADO: [DADO_DO_FUNDADOR, FONTE_CITADA, ENTREGA_APROVADA], ESTIMATIVA: [PREMISSA], HIPOTESE: [PREMISSA]}
+      numero_no_trecho: "milhar com ponto e decimal com vírgula; o valor tem de aparecer igual entre os números do trecho"
+  # Mesma função de avaliar expressão do modelo de cálculo do Caio (K-8): por isso 'fase 2'.
+  - id: CHK-ESTRATEGIA-03
+    descricao: "Contas refeitas: o código avalia cada expressão com os valores das premissas e das contas anteriores; o resultado bate com o arredondamento declarado, tem origem CALCULADO e ref igual ao id da conta."
+    fecha_furos: [K-8, C-9]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      operadores: ["+", "-", "×", "÷", "(", ")"]
+      constantes_aceitas: [100, 12, 30, 52, 365]
+      ids_aceitos: "premissa com valor ou conta de id menor"
+      tolerancia: "meia unidade da última casa decimal escrita no resultado"
+      divisao_por_zero: "recusa"
+  - id: CHK-ESTRATEGIA-04
+    descricao: "Recomendação condicionada: uma linha; a opção existe; depende_de tem 1 ou mais ids de ESTIMATIVA ou HIPOTESE que existem (nunca só DADO); muda_se cita um desses ids e outra opção que existe."
+    fecha_furos: [C-13, M-16]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-ESTRATEGIA-05
+    descricao: "Plano de validação: todo id de depende_de tem linha; a premissa da linha é ESTIMATIVA ou HIPOTESE; janela de 1 a 90 dias; limiar é número; se_atingir e se_nao_atingir são opções que existem e diferentes; caminho é um dos dois valores."
+    fecha_furos: [M-16, B-17]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      caminhos: [SEM_ACAO_EXTERNA, PEDIDO_NOVO]
+      janela_dias: {minimo: 1, maximo: 90}
+      pedido_novo: "servico é um id escolhível de servicos.yaml, diferente de SRV-ANALISE-ESTRATEGICA, com acoes_do_fundador não vazia e com a empresa do card em empresas"
+      sem_acao_externa: "servico é '—'"
+  - id: CHK-ESTRATEGIA-06
+    descricao: "Sem projeção dita como resultado ou certeza: nenhuma expressão da lista fechada fora de trechos citados, mesmo negada (sem diferenciar maiúscula nem acento). Para incerteza, escreve 'é estimativa' ou 'é hipótese'."
+    fecha_furos: [C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["vai faturar", "vamos faturar", "vai vender", "vamos vender", "vai lucrar", "vai dar certo", "garantido", "garantida", "garantidos", "garantidas", "com certeza", "certamente", "sem risco", "risco zero", "sucesso certo", "não tem como dar errado", "é certo que"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  # Sem furo próprio no registro para "a IA decide no lugar do fundador" em texto (limite da v1,
+  # AGT-03). O mais próximo é M-5 (campo que só você muda) e C-13 (frase da IA que engana).
+  # Pedido ao catálogo: abrir esse furo.
+  - id: CHK-ESTRATEGIA-07
+    descricao: "Sem decisão tomada no seu lugar: nenhuma expressão da lista fechada fora de trechos citados (sem diferenciar maiúscula nem acento). A recomendação diz 'recomendo'; quem escolhe é você."
+    fecha_furos: [M-5, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["decidi", "decidimos", "escolhi", "escolhemos", "optei", "optamos", "fica decidido", "está decidido", "já está decidido", "decisão tomada", "decisão está tomada", "vou seguir com", "vamos seguir com", "já aprovei", "aprovei"]
+      onde: "todo texto da entrega, menos trecho_original das citações"
+  - id: CHK-ESTRATEGIA-08
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; esta ficha não copia a lista), fora de trechos citados, sem diferenciar maiúscula nem acento."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  - id: CHK-ESTRATEGIA-09
+    descricao: "Nenhum número solto: todo número escrito em texto livre (com %, R$ ou US$) é valor de premissa, resultado de conta, janela ou limiar do plano, ou está no pedido original; números de ids e trechos citados não contam."
+    fecha_furos: [C-9, K-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      formato: "milhar com ponto e decimal com vírgula; 'mil' depois do número multiplica por 1.000"
+      ignora: ["ids O1-O4, CR1-CR6, DADO-n, EST-n, HIP-n, K1-K6, SRV-..., CHK-..., RUB-...", "trecho_original das citações"]
+      compara: "valor numérico igual ao de uma fonte aceita"
+
+rubrica:
+  - id: RUB-ESTRATEGIA-01
+    pergunta: "Os critérios cobrem o que decide esta escolha no horizonte do pedido (pelo menos custo ou recurso, e risco), sem critério que não pesa na decisão?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Saber se um critério pesa nesta decisão é julgamento sobre o pedido inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-02
+    pergunta: "Cada avaliação da comparação diz só o que as premissas da coluna base sustentam, sem acrescentar fato que não está nelas?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que a base existe, não que ela sustenta a frase."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-03
+    pergunta: "Nenhuma frase apresenta como fato o que é ESTIMATIVA ou HIPOTESE, e nenhum DADO afirma mais do que o trecho citado diz?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere trecho e origem; uma estimativa dita como certeza em palavras comuns só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-04
+    pergunta: "A opção recomendada é a que a comparação favorece com estas premissas, e o 'muda se' aponta um resultado que de fato viraria a escolha?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê que os ids existem; se a recomendação segue da comparação é raciocínio."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-05
+    pergunta: "As opções são caminhos reais e diferentes para a mesma escolha, sem opção feita para perder nem duas iguais com nomes diferentes?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Opção espantalho ou repetida depende do sentido, não da forma."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-06
+    pergunta: "Cada linha do plano de validação mede a premissa que diz testar, de modo que o indicador e o limiar respondem se ela é verdadeira dentro da janela?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê indicador, janela e limiar; não sabe se medem a premissa certa."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-07
+    pergunta: "Nenhuma linha marcada SEM_ACAO_EXTERNA esconde contato, gasto, publicação, cadastro ou contrato, e nenhum texto pede que alguém aja fora sem passar pelo serviço que tem a ação do fundador?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê o caminho declarado; uma ação de fora descrita em 'como medir' só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ESTRATEGIA-08
+    pergunta: "Nenhuma opção ou recomendação contraria o posicionamento ou as proibições do pacote da empresa, mesmo sem usar os termos da lista (ex.: eLiving™ como app de treino ou de dieta)?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega os termos; o posicionamento contrariado com outras palavras só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo.
+# Camada 2 (rubrica): toda a rubrica. Camada 3 (você): NUNCA, porque o serviço não tem ação do
+# fundador nem parecer; você só entra como última reserva da revisão, e nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-ESTRATEGIA-01, CHK-ESTRATEGIA-02, CHK-ESTRATEGIA-03, CHK-ESTRATEGIA-04, CHK-ESTRATEGIA-05, CHK-ESTRATEGIA-06, CHK-ESTRATEGIA-07, CHK-ESTRATEGIA-08, CHK-ESTRATEGIA-09]
+  rubrica: [RUB-ESTRATEGIA-01, RUB-ESTRATEGIA-02, RUB-ESTRATEGIA-03, RUB-ESTRATEGIA-04, RUB-ESTRATEGIA-05, RUB-ESTRATEGIA-06, RUB-ESTRATEGIA-07, RUB-ESTRATEGIA-08]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Se os critérios são os que decidem esta escolha, sem critério que não pesa (RUB-ESTRATEGIA-01)."
+  - "Se cada avaliação diz só o que a base sustenta (RUB-ESTRATEGIA-02)."
+  - "Se nenhuma estimativa ou hipótese aparece como fato e nenhum DADO vai além do trecho (RUB-ESTRATEGIA-03)."
+  - "Se a recomendação segue da comparação e o 'muda se' viraria mesmo a escolha (RUB-ESTRATEGIA-04)."
+  - "Se as opções são reais e diferentes, sem espantalho (RUB-ESTRATEGIA-05)."
+  - "Se o plano de validação mede a premissa que diz testar (RUB-ESTRATEGIA-06)."
+  - "Se nenhuma linha esconde ação de fora e se nada contraria o pacote da empresa (RUB-ESTRATEGIA-07 e 08)."
+
+revisor_nao_reavalia:
+  - "Se a matriz está completa, se cada DADO tem trecho, se as contas batem, se há número solto e se o plano cobre as premissas: o código já conferiu (CHK-ESTRATEGIA-01 a 05 e 09)."
+  - "Qual opção você vai escolher: a decisão é sua; o revisor julga se a recomendação segue da comparação, não se ele escolheria outra."
+  - "Fato de mercado fora do pacote: o revisor revisa sem internet e não pesquisa; confere só se o que não tem trecho está marcado ESTIMATIVA ou HIPOTESE."
+  - "Lei e conformidade: a análise não tem conferência jurídica (MAT-22); ponto jurídico aparece em limites, para ir ao parecer num roteiro."
+
+entrada_minima:
+  - id: ENT-ESTRATEGIA-DECISAO
+    o_que: "A escolha em jogo: entre quais caminhos você quer decidir, ou o objetivo para o qual quer caminhos."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-ESTRATEGIA-HORIZONTE
+    o_que: "O horizonte da decisão (ex.: os próximos 6 meses)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-ESTRATEGIA-DADOS
+    o_que: "Pelo menos um dado do negócio ligado à escolha (número, recurso, restrição ou resultado já medido), no pedido."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-ESTRATEGIA-PACOTE
+    o_que: "O pacote CONFIRMADO da empresa do card: grafia, posicionamento e termos proibidos."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

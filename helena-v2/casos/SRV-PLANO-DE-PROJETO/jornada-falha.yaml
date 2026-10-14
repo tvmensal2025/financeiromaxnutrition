@@ -1,0 +1,105 @@
+# Jornada de FALHA do card da Marina (AGT-04), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O pedido (Humano Digital, BIZ-003, pacote CONFIRMADO; pedido pequeno, sem 'confirmar antes'):
+#   "Monta o cronograma do lançamento do site da Humano Digital, com o que eu faço em cada semana,
+#    até 30 de novembro."
+# O que falta: o ESCOPO (ENT-PROJETO-ESCOPO). O pedido não diz o que precisa ser feito para lançar
+# o site, nem o que já está pronto. Também faltam as horas por semana (ENT-PROJETO-HORAS), mas sem
+# escopo não adianta perguntar as horas: o escopo é o que bloqueia.
+#
+# O caminho: execução 1 -> a Marina erra duas vezes na mesma entrega: inventa o escopo (textos,
+# domínio, páginas) e propõe uma ação do fundador ao motor (acao_externa SO_FUNDADOR com
+# AF-COPY-ENVIAR-OU-PUBLICAR, "publicar o site") -> o portão 1 recusa com os itens exatos:
+#   CHK-COMUM-10: "acao_externa SO_FUNDADOR fora de acao_externa_permitida [NENHUMA] do serviço";
+#   CHK-PROJETO-TRECHOS: "S1, S2, S3: trecho não está no pedido original".
+# A ação proposta NUNCA vira item na sua lista: só nasceria com o card PRONTO (E110), e a entrega foi
+# recusada. -> execução 2: sem trecho do seu pedido para nenhum item, a Marina não inventa:
+# REGISTRAR_FALHA com motivo FALTAM_DADOS -> em resolução -> a Helena recomenda -> VOCÊ é chamado,
+# com dono e prazo.
+#
+# A resposta da Marina na execução 2 (formato schemas/acao.schema.json, REGISTRAR_FALHA):
+#   acao: REGISTRAR_FALHA
+#   motivo_falha: FALTAM_DADOS
+#   explicacao: "Falta o que precisa ser feito para lançar o site e o que já está pronto (por exemplo:
+#                textos, páginas, endereço do site, quem monta). Sem isso, os marcos seriam inventados.
+#                Falta também quantas horas por semana você tem para o projeto."
+#
+# A Helena NÃO participou desta peça (a falha veio antes de qualquer revisão), então a MAT-26 não se
+# aplica e o motor pede a recomendação dela. Ela recomenda ENCERRAR: sem o escopo, um Refazer
+# falharia de novo; o caminho é um pedido novo com a lista. Se ela não responder em 30 min, o relógio
+# leva o cartão a você do mesmo jeito (E101). Você decide: Encerrar (e abrir um pedido novo com o que
+# precisa ser feito) ou Refazer (uma vez). SEGUIR_SEM não aparece: a etapa não é pulável. Se você
+# não responder: lembrete em 24 h e 48 h e depois o padrão, que cancela a etapa e nunca aprova nada
+# (E89-E91).
+#
+# Contas da etapa: entrega 1 (+1), falha 2 (+1) = 2 execuções de 6. Nenhuma ação externa criada.
+
+id: AGT-04-marina-falta-escopo-e-acao-externa
+descricao: "Card da Humano Digital sem escopo: o código recusa a entrega que inventou itens e propôs ação externa; na segunda execução a Marina registra FALTAM_DADOS em vez de inventar, e o card chama você."
+agente: AGT-04
+empresa: "Humano Digital (BIZ-003)"
+automatico: false
+card:
+  pedido_grande: false       # pedido pequeno: vale na hora, com o botão de desfazer (Cancelar)
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "plano de projeto (Marina)"
+      autor: MARINA
+      revisores: [AUGUSTO, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true        # card de empresa: o pacote traz a DEC-024 e a DEC-025, lidas na hora
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C02. Pedido pequeno: escolha SRV-PLANO-DE-PROJETO, sem pergunta de confirmação."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. BIZ-003 nas empresas do serviço, pacote CONFIRMADO (MAT-23); revisores efetivos [AUGUSTO, FUNDADOR]. Card EM_ANDAMENTO."
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Etapa na fila (motivo NORMAL)."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: SO_FUNDADOR, usou_internet: NAO}
+    nota: "E20. Entrega com escopo inventado e ação externa proposta (SO_FUNDADOR, AF-COPY-ENVIAR-OU-PUBLICAR). Fica guardada na etapa; nada acontece fora."
+  - papel: MOTOR
+    evento: PORTAO1_RECUSOU
+    alvo: E1
+    nota: "E43. Portão 1: CHK-COMUM-10 (este serviço só permite NENHUMA; o que é de fora vira marco seu) e CHK-PROJETO-TRECHOS (itens sem trecho do seu pedido). Volta à fila com os itens exatos."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2."
+  - papel: AUTOR
+    evento: REGISTRAR_FALHA
+    alvo: E1
+    params: {motivo_falha: FALTAM_DADOS, usou_internet: NAO}
+    nota: "E23. Falta ENT-PROJETO-ESCOPO. A Marina não inventa item, data nem horas. Etapa EM_RESOLUCAO (dona: Helena, prazo 30 min)."
+  - papel: HELENA
+    evento: RECOMENDAR
+    alvo: E1
+    params: {opcao: ENCERRAR}
+    nota: "E100. Recomendação da lista fechada: ENCERRAR (sem o escopo, Refazer falharia de novo). O cartão vai a você com o motivo, o que falta e a recomendação."
+
+esperado:
+  estado_card: EM_ANDAMENTO
+  etapas: {E1: ESPERANDO_FUNDADOR}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

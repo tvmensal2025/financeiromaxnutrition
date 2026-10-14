@@ -5,7 +5,7 @@ import { useAuth } from '@/auth';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { supabase } from '@/lib/supabase';
 import { brandPreview, uploadBrand } from '@/lib/media-client';
-import { escreverRegistro } from '@/lib/escrita-protegida';
+import { escreverRegistro, ehConflitoDeVersao } from '@/lib/escrita-protegida';
 import { BRAND_FIELDS, brandMissing, brandSchema, emptyBrand, safeBrandAsset, type BrandIdentity } from '@/lib/brand-identity';
 import humano from '@/data/humano-digital-brand.json';
 import eliving from '@/data/eliving-brand.json';
@@ -74,7 +74,7 @@ export default function IdentidadePage() {
     setBusy(true);
     try {
       const response = await escreverRegistro('portfolio', selected, version, { brand_identity: result.data });
-      if (response.error || !response.data) throw new Error(response.error?.code === '40001' ? response.error.message : 'Não foi possível salvar a identidade. Seu rascunho foi preservado; confira a conexão e a disponibilidade do cadastro.');
+      if (response.error || !response.data) throw new Error(ehConflitoDeVersao(response.error?.code) ? response.error.message : 'Não foi possível salvar a identidade. Seu rascunho foi preservado; confira a conexão e a disponibilidade do cadastro.');
       setBrand(result.data); setVersion(response.data.row_version as number | string); setDirty(false);
       setMessage(approve ? 'Identidade aprovada e salva para a equipe.' : 'Rascunho salvo. A produção visual aguarda aprovação da identidade.');
     } catch (e) { setError(e instanceof Error ? e.message : 'Não foi possível salvar. Seu rascunho foi mantido.'); }

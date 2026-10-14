@@ -1,0 +1,82 @@
+# Caso BOM do SRV-PLANO-DE-PRATICA (Laura, AGT-02) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída da Laura no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-PRATICA-01 a 06) e na rubrica.
+id: PRATICA-BOA-04
+servico: SRV-PLANO-DE-PRATICA
+pedido: ../pedido.yaml
+nota: Rodeio e muletas, com trechos diferentes; exercício de abertura em 2 partes.
+deve_passar_em:
+- CHK-PRATICA-01
+- CHK-PRATICA-02
+- CHK-PRATICA-03
+- CHK-PRATICA-04
+- CHK-PRATICA-05
+- CHK-PRATICA-06
+- RUB-PRATICA-01
+- RUB-PRATICA-02
+- RUB-PRATICA-03
+- RUB-PRATICA-04
+- RUB-PRATICA-05
+- RUB-PRATICA-06
+- RUB-PRATICA-07
+- RUB-PRATICA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Caber em 1 minuto e dizer logo o que é o seu projeto.
+    padroes:
+    - id: P1
+      comportamento: Você gasta as 4 primeiras frases com a origem da ideia; o que o projeto é só aparece na 5ª.
+      trecho:
+        trecho_original: Eu trabalho com tecnologia faz uns anos e sempre vi muita gente procurando um jeito novo
+          de trabalhar de casa, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: Quem ouve fica quase metade da fala esperando saber do que se trata.
+    - id: P2
+      comportamento: Você usa 'né' e 'tipo' como apoio ao longo da fala.
+      trecho:
+        trecho_original: Mas não é só isso, né, porque tem toda a parte de explicar as regras, conferir se a gravação
+          foi aceita, tipo um acompanhamento de perto de cada pessoa.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: As muletas somam tempo sem somar informação.
+    exercicio:
+    - padrao: P1
+      passos: '1) Escreva a abertura em 2 partes curtas: o que o projeto é e para quem é. 2) Fale só essa abertura
+        em voz alta 3 vezes, cronometrando. 3) Grave a apresentação inteira uma vez, começando por ela.'
+      duracao:
+        valor: 12
+        unidade: minutos
+        origem: PREMISSA
+      criterio: Na gravação, as 2 partes da abertura aparecem antes de 15 segundos no cronômetro.
+    registro:
+    - padrao: P1
+      medida: Total de palavras suas na apresentação
+      marcador: PALAVRAS
+      hoje:
+        valor: 160
+        unidade: palavras
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 120
+        unidade: palavras
+        origem: PREMISSA
+    - padrao: P2
+      medida: Quantas vezes você diz 'né'
+      marcador: né
+      hoje:
+        valor: 6
+        unidade: vezes
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 2
+        unidade: vezes
+        origem: PREMISSA
+    proxima_pratica: Repita o exercício em 2 dias seguidos. Depois, traga a transcrição da gravação inteira num
+      pedido novo de prática, com as suas falas marcadas 'EU:', para comparar as contagens.
+    limites:
+    - 'A transcrição não mostra o seu ritmo: o tempo de 1 minuto só aparece no cronômetro.'

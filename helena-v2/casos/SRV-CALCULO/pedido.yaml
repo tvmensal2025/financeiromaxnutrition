@@ -1,0 +1,124 @@
+# Pedido de teste do SRV-CALCULO (Caio, AGT-05). Caso SINTÉTICO: os números abaixo foram
+# escritos para o teste e não são dados reais da empresa (a cotação de R$ 5,40 é a que o pedido
+# diz que você viu; não é cotação conferida).
+#
+# Por que Humano Digital (BIZ-003): o SRV-CALCULO atende Humano Digital e eLiving™, as duas com
+# pacote CONFIRMADO (organograma.yaml, MAT-23), e a conta da receita das 10 pessoas é a E1 da
+# primeira meta e o card do dia de prova da fase 2 ("só a E1 do Caio de ponta a ponta, sem
+# internet"). Aqui ela vem como card avulso, que é o primeiro exemplo de pedido do catálogo. A
+# eLiving™ aparece na jornada de falha (ponto de equilíbrio sem os custos).
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que o Caio recebe junto com o card (grafia, voz, proibições). O código
+#      guarda o texto como fonte importada FON-PACOTE-BIZ-003.
+#   2. fontes_importadas: o que o código guarda ANTES de qualquer IA. O pedido original é
+#      FON-PEDIDO-CALCULO-01: é contra ele que a CHK-CALCULO-02 confere cada trecho de dado seu, e
+#      a CHK-CALCULO-09 aceita número citado do pedido.
+#   3. ordem_de_servico: como fica depois do seu CONFIRMO (card.schema.json, ordem_de_servico).
+#   4. leitura_de_volta e plano: a escolha da Helena e o plano montado pelo CÓDIGO
+#      (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO), com os revisores efetivos.
+#   5. variantes: os pedidos derivados das boas 02 a 05 (só em dólar, sem período, sem o valor
+#      por hora e pedido de imposto), cada um com a sua fonte importada.
+#
+# Números deste material (conferidos por código; mês = 52 ÷ 12 semanas):
+#   horas gravadas por mês = 10 × 5 × 52 ÷ 12 = 216,666... (216,67)
+#   aprovação (premissa do Caio): 50% / 70% / 90%
+#   US$ por mês = 216,666... × aprovação ÷ 100 × 0,50 = 54,1666... / 75,8333... / 97,5
+#                 (54,17 / 75,83 / 97,50)
+#   R$ por mês  = US$ por mês × 5,40 = 292,5 / 409,5 / 526,5 (292,50 / 409,50 / 526,50)
+#
+# Sem fitas: o serviço não usa internet (ferramentas: []), então não há resposta de ferramenta
+# para gravar. Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: PEDIDO-CALCULO-01
+servico: SRV-CALCULO
+agente: AGT-05
+card_id: CARD-TESTE-CALCULO-01
+empresa: BIZ-003
+criado_em: "2026-10-10T09:30:00-03:00"
+
+pacote_da_empresa:
+  empresa: BIZ-003
+  nome: "Humano Digital"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-003
+  grafia: "Humano Digital"
+  voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+  decisoes: [DEC-024, DEC-025]
+  proibicoes:
+    - "Qualquer termo de ganho no convite (reais, dólares, renda, ganho, 'por hora'); o convite nem recebe a conta (C-11, MAT-16)."
+    - "Prometer renda, vaga ou disponibilidade."
+  # Lista fechada lida pela CHK-CALCULO-11. LISTA DE TESTE, a mesma do caso do relatório final:
+  # até você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ), o caso usa estes termos.
+  termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida"]
+
+fontes_importadas:
+  - {id: FON-PEDIDO-CALCULO-01, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+  - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+ordem_de_servico:
+  empresa: BIZ-003
+  prazo: "2026-10-13T18:00:00-03:00"
+  prioridade: 2
+  pedido_original: "Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5 horas por semana na Mimix e no Hub? A plataforma paga à empresa US$ 0,50 por hora aprovada de cada pessoa indicada. Nem toda hora gravada é aprovada, e eu ainda não sei quanto é aprovado. Quero o valor em dólar e em reais, com a cotação de R$ 5,40 por dólar que eu vi hoje no meu banco. Quero os 3 cenários e o que pode dar errado nos números. Não quero previsão tratada como dinheiro certo."
+  o_que_quer: "Saber quanto a Humano Digital recebe da plataforma por mês com 10 pessoas gravando 5 horas por semana, em dólar e em reais, em três cenários."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "O valor por mês em dólar e em reais, nos três cenários.", quem_confere: CODIGO, checagem: CHK-CALCULO-06, risco: BAIXO}
+    - {id: CARD-2, texto: "Cada número com a origem: dado meu, fonte com data ou premissa.", quem_confere: CODIGO, checagem: CHK-CALCULO-02, risco: BAIXO}
+    - {id: CARD-3, texto: "O que pode dar errado nos números.", quem_confere: IA, risco: BAIXO}
+    - {id: CARD-4, texto: "Nada de previsão tratada como dinheiro certo.", quem_confere: IA, risco: ALTO}
+  nao_pode:
+    - "Tratar previsão como dinheiro certo."
+
+# Leitura de volta da Helena (papel HELENA), antes do seu CONFIRMO (acao.schema.json, LER_DE_VOLTA).
+# Ela só escolhe o serviço; empresa, prazo e prioridade vieram da caixa Novo pedido.
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: SERVICO, id: SRV-CALCULO}
+  entendi_assim:
+    o_que_quer: "Saber quanto a Humano Digital recebe da plataforma por mês com 10 pessoas gravando 5 horas por semana, em dólar e em reais, em três cenários."
+    como_e_o_pronto:
+      - {texto: "O valor por mês em dólar e em reais, nos três cenários.", quem_confere: CODIGO, checagem: CHK-CALCULO-06, risco: BAIXO}
+      - {texto: "Cada número com a origem: dado meu, fonte com data ou premissa.", quem_confere: CODIGO, checagem: CHK-CALCULO-02, risco: BAIXO}
+      - {texto: "O que pode dar errado nos números.", quem_confere: IA, risco: BAIXO}
+      - {texto: "Nada de previsão tratada como dinheiro certo.", quem_confere: IA, risco: ALTO}
+    nao_pode:
+      - "Tratar previsão como dinheiro certo."
+
+# Plano montado pelo código (SERVICO_NAO_JULGADO: uma etapa só). Revisores EFETIVOS: [revisor,
+# reserva] do serviço só com aptidão APTA no tipo, e FUNDADOR no fim (MAT-21). Hoje a Helena e a
+# Clara estão APTAS em calculo (servicos.yaml, agentes), então a lista é [HELENA, CLARA, FUNDADOR].
+plano:
+  origem: SERVICO_NAO_JULGADO
+  versao_do_catalogo: "3.1.0"
+  montado_em: "2026-10-10T09:35:00-03:00"
+  etapas:
+    - {id: E1, servico: SRV-CALCULO, autor: CAIO, revisores: [HELENA, CLARA, FUNDADOR], depende_de: []}
+  # Sem etapa SRV-PARECER: o serviço é julgado_pelo_parecer NUNCA, e a faixa do card mostra
+  # "sem conferência jurídica". Sem ação do fundador: a entrega só pode dizer acao_externa NENHUMA.
+
+# Pedidos derivados (empresa, prazo e plano iguais) para as boas 02 a 05: mostram o modelo sem
+# câmbio e o que o Caio faz quando falta o período, quando falta um número seu e quando o pedido
+# é de fora do serviço.
+variantes:
+  SO-DOLAR:
+    usada_por: boas/boa-02.yaml
+    fonte_importada_id: FON-PEDIDO-CALCULO-02
+    pedido_original: "Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5 horas por semana na Mimix e no Hub? A plataforma paga à empresa US$ 0,50 por hora aprovada de cada pessoa indicada. Nem toda hora gravada é aprovada, e eu ainda não sei quanto é aprovado. Quero o valor só em dólar, nos 3 cenários."
+    o_que_falta: "Nada: sem pedido em reais, não há câmbio e o resultado fica em dólar."
+  SEM-PERIODO:
+    usada_por: boas/boa-03.yaml
+    fonte_importada_id: FON-PEDIDO-CALCULO-03
+    pedido_original: "Quanto a Humano Digital recebe com 10 pessoas gravando 5 horas por semana? A plataforma paga à empresa US$ 0,50 por hora aprovada de cada pessoa indicada."
+    o_que_falta: ENT-CALCULO-PERIODO
+  SEM-VALOR:
+    usada_por: boas/boa-04.yaml
+    fonte_importada_id: FON-PEDIDO-CALCULO-04
+    pedido_original: "Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5 horas por semana na Mimix e no Hub? Quero em reais."
+    o_que_falta: "ENT-CALCULO-NUMEROS (quanto a plataforma paga por hora) e ENT-CALCULO-CAMBIO (o pedido quer reais)."
+  IMPOSTO:
+    usada_por: boas/boa-05.yaml
+    fonte_importada_id: FON-PEDIDO-CALCULO-05
+    pedido_original: "Quanto de imposto a Humano Digital vai pagar sobre o que a Mimix e o Hub pagarem neste mês?"
+    o_que_falta: "Nada: é pedido de imposto, do FORA-FISCAL-CONTABIL (servicos.yaml, nao_atende)."

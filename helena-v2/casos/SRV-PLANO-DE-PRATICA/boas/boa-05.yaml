@@ -1,0 +1,70 @@
+# Caso BOM do SRV-PLANO-DE-PRATICA (Laura, AGT-02) para o pedido ../pedido.yaml.
+# A 'resposta' é a saída da Laura no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Tem de passar em todas as checagens de código (comuns e CHK-PRATICA-01 a 06) e na rubrica.
+id: PRATICA-BOA-05
+servico: SRV-PLANO-DE-PRATICA
+pedido: ../pedido.yaml
+nota: Rodeio e assuntos que sobram; o exercício trabalha o P2 (cortar acréscimos).
+deve_passar_em:
+- CHK-PRATICA-01
+- CHK-PRATICA-02
+- CHK-PRATICA-03
+- CHK-PRATICA-04
+- CHK-PRATICA-05
+- CHK-PRATICA-06
+- RUB-PRATICA-01
+- RUB-PRATICA-02
+- RUB-PRATICA-03
+- RUB-PRATICA-04
+- RUB-PRATICA-05
+- RUB-PRATICA-06
+- RUB-PRATICA-07
+- RUB-PRATICA-08
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Apresentar o projeto em 1 minuto, sem rodeio.
+    padroes:
+    - id: P1
+      comportamento: Você abre avisando que vai contar a história, em vez de dizer o que o projeto é.
+      trecho:
+        trecho_original: Então, assim, antes de tudo deixa eu te contar como surgiu, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: O começo, que é a parte que mais se ouve, fica com a história e não com o projeto.
+    - id: P2
+      comportamento: No fim, você acrescenta assuntos que não cabem em 1 minuto, como outras plataformas e o crescimento
+        futuro.
+      trecho:
+        trecho_original: E a gente também está olhando outras plataformas além da primeira, então isso pode crescer
+          bastante com o tempo, né.
+        fonte_importada_id: FON-PEDIDO-PRATICA-01
+      efeito: Esses acréscimos ajudam a fala a passar de 1 minuto.
+    exercicio:
+    - padrao: P2
+      passos: 1) Na transcrição, risque as frases que falam de futuro ou de outras plataformas. 2) Leia em voz alta
+        o que sobrou, cronometrando. 3) Grave uma vez só com o que sobrou.
+      duracao:
+        valor: 6
+        unidade: minutos
+        origem: PREMISSA
+      criterio: A gravação termina antes de 60 segundos e não fala de outras plataformas nem de futuro.
+    registro:
+    - padrao: P2
+      medida: Total de palavras suas na apresentação
+      marcador: PALAVRAS
+      hoje:
+        valor: 160
+        unidade: palavras
+        origem: CALCULADO
+        ref: contagem nas suas falas (EU:) do pedido original
+      meta:
+        valor: 120
+        unidade: palavras
+        origem: PREMISSA
+    proxima_pratica: Faça o exercício antes da próxima apresentação e traga a nova transcrição num pedido novo de
+      prática.
+    limites:
+    - 'É uma tentativa só: outra gravação pode mostrar outros padrões.'

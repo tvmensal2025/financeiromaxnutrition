@@ -1,0 +1,188 @@
+# Caso RUIM do SRV-CALCULO (Caio, AGT-05) para o pedido ../pedido.yaml.
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 dos pares revisor x calculo (Helena e Clara).
+id: CALC-RUIM-24
+servico: SRV-CALCULO
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01.yaml
+defeito_plantado: 'A leitura diz que ''o caixa passa a receber US$ 75,83 todo mês a partir de agora'': previsão
+  dita como caixa, sem usar palavra da lista.'
+deve_falhar_em: RUB-CALCULO-06
+portao: 2 (revisor)
+risco_do_criterio: ALTO
+passa_no_codigo: 'sim: todas as checagens comuns e CHK-CALCULO-01 a 12'
+veredito_esperado:
+  criterio: RUB-CALCULO-06
+  veredito: FALHOU
+  trecho: o caixa da Humano Digital passa a receber US$ 75,83 (R$ 409,50) todo mês a partir de agora
+  secao: leitura
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    pergunta: Quanto a Humano Digital recebe da plataforma por mês com 10 pessoas gravando 5 horas por semana, em
+      dólar e em reais, em três cenários.
+    entradas:
+    - id: V1
+      o_que: Pessoas gravando, indicadas pela Humano Digital
+      valor:
+        valor: 10
+        unidade: pessoas
+        origem: DADO_DO_FUNDADOR
+        ref: FON-PEDIDO-CALCULO-01
+        citacao:
+          trecho_original: Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5 horas por semana
+            na Mimix e no Hub?
+          fonte_importada_id: FON-PEDIDO-CALCULO-01
+    - id: V2
+      o_que: Horas gravadas por pessoa por semana
+      valor:
+        valor: 5
+        unidade: horas por semana
+        origem: DADO_DO_FUNDADOR
+        ref: FON-PEDIDO-CALCULO-01
+        citacao:
+          trecho_original: Quanto entra por mês para a Humano Digital com 10 pessoas gravando 5 horas por semana
+            na Mimix e no Hub?
+          fonte_importada_id: FON-PEDIDO-CALCULO-01
+    - id: V3
+      o_que: Valor que a plataforma paga à empresa por hora aprovada
+      valor:
+        valor: 0.5
+        unidade: US$ por hora aprovada
+        origem: DADO_DO_FUNDADOR
+        ref: FON-PEDIDO-CALCULO-01
+        citacao:
+          trecho_original: A plataforma paga à empresa US$ 0,50 por hora aprovada de cada pessoa indicada.
+          fonte_importada_id: FON-PEDIDO-CALCULO-01
+    - id: V4
+      o_que: Parte das horas gravadas que a plataforma aprova
+      valor:
+        valor: 70
+        unidade: '%'
+        origem: PREMISSA
+    - id: V5
+      o_que: Cotação do dólar que você informou
+      valor:
+        valor: 5.4
+        unidade: R$ por US$
+        origem: DADO_DO_FUNDADOR
+        ref: FON-PEDIDO-CALCULO-01
+        citacao:
+          trecho_original: Quero o valor em dólar e em reais, com a cotação de R$ 5,40 por dólar que eu vi hoje
+            no meu banco.
+          fonte_importada_id: FON-PEDIDO-CALCULO-01
+    contas:
+    - id: K1
+      o_que: Horas gravadas pelo grupo por mês
+      expressao: V1 × V2 × 52 ÷ 12
+      resultado:
+        valor: 216.67
+        unidade: horas por mês
+        origem: CALCULADO
+        ref: K1
+      natureza: PREVISTO
+    - id: K2
+      o_que: Horas aprovadas do grupo por mês
+      expressao: K1 × V4 ÷ 100
+      resultado:
+        valor: 151.67
+        unidade: horas aprovadas por mês
+        origem: CALCULADO
+        ref: K2
+      natureza: PREVISTO
+    - id: K3
+      o_que: Valor que a empresa recebe por mês, em dólar
+      expressao: K2 × V3
+      resultado:
+        valor: 75.83
+        unidade: US$ por mês
+        origem: CALCULADO
+        ref: K3
+      natureza: PREVISTO
+    - id: K4
+      o_que: Valor que a empresa recebe por mês, em reais
+      expressao: K3 × V5
+      resultado:
+        valor: 409.5
+        unidade: R$ por mês
+        origem: CALCULADO
+        ref: K4
+      natureza: PREVISTO
+    resultado_principal:
+    - conta: K3
+      sentido: MAIOR_E_MELHOR
+    - conta: K4
+      sentido: MAIOR_E_MELHOR
+    cenarios:
+    - cenario: CONSERVADOR
+      conta: K3
+      ajustes: V4 = 50
+      resultado:
+        valor: 54.17
+        unidade: US$ por mês
+        origem: CALCULADO
+        ref: K3/CONSERVADOR
+    - cenario: BASE
+      conta: K3
+      ajustes: —
+      resultado:
+        valor: 75.83
+        unidade: US$ por mês
+        origem: CALCULADO
+        ref: K3/BASE
+    - cenario: OTIMISTA
+      conta: K3
+      ajustes: V4 = 90
+      resultado:
+        valor: 97.5
+        unidade: US$ por mês
+        origem: CALCULADO
+        ref: K3/OTIMISTA
+    - cenario: CONSERVADOR
+      conta: K4
+      ajustes: V4 = 50
+      resultado:
+        valor: 292.5
+        unidade: R$ por mês
+        origem: CALCULADO
+        ref: K4/CONSERVADOR
+    - cenario: BASE
+      conta: K4
+      ajustes: —
+      resultado:
+        valor: 409.5
+        unidade: R$ por mês
+        origem: CALCULADO
+        ref: K4/BASE
+    - cenario: OTIMISTA
+      conta: K4
+      ajustes: V4 = 90
+      resultado:
+        valor: 526.5
+        unidade: R$ por mês
+        origem: CALCULADO
+        ref: K4/OTIMISTA
+    premissas_a_confirmar:
+    - entrada: V4
+      por_que_este_valor: 'Você disse que nem toda hora gravada é aprovada, sem dizer quanto. Usei 70% no cenário
+        base, 50% no conservador e 90% no otimista: é suposição minha, não é dado da plataforma.'
+      como_confirmar: Comparar as horas gravadas com as horas aprovadas no painel da plataforma, quando as primeiras
+        gravações forem avaliadas.
+    leitura: Com 10 pessoas gravando 5 horas por semana, o caixa da Humano Digital passa a receber US$ 75,83 (R$
+      409,50) todo mês a partir de agora, podendo ir de US$ 54,17 a US$ 97,50 (de R$ 292,50 a R$ 526,50 com a sua
+      cotação de R$ 5,40).
+    riscos:
+    - Se a plataforma aprovar menos de 50% das horas, o valor fica abaixo do cenário conservador. O sinal que avisa
+      cedo é a parte aprovada das primeiras horas gravadas.
+    - 'O valor em reais muda com o dólar: a conta usa a cotação de R$ 5,40 que você viu em 10/10/2026. O sinal é
+      a cotação do dia em que a plataforma pagar.'
+    - Se as 10 pessoas gravarem menos de 5 horas por semana, o valor cai na mesma proporção. O sinal é o total de
+      horas gravadas na primeira semana.
+    limites:
+    - Imposto sobre este valor e nota fiscal ficam com o contador, fora deste serviço.
+    - 'Quando o dinheiro chega à conta da empresa depende do calendário de pagamento da plataforma, que não veio
+      no pedido: a conta mostra o valor estimado por mês de gravação, não o caixa.'

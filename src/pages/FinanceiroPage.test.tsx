@@ -160,7 +160,7 @@ describe("FinanceiroPage", () => {
                       business_id: "BIZ-001",
                       nome: "Banco Inter PJ",
                       instituicao: "Inter",
-                      saldo_atual_brl: 25400,
+                      saldo_atual: 25400,
                       ativa: "SIM",
                     },
                   ],
@@ -195,7 +195,7 @@ describe("FinanceiroPage", () => {
     renderPage();
 
     expect(await screen.findByText("Financeiro")).toBeInTheDocument();
-    expect(screen.getByText("Caixa realizado")).toBeInTheDocument();
+    expect(await screen.findByText("Caixa realizado")).toBeInTheDocument();
     expect(screen.getByText("Entradas")).toBeInTheDocument();
     expect(screen.getByText("Saídas")).toBeInTheDocument();
     expect(screen.getByText("Resultado")).toBeInTheDocument();

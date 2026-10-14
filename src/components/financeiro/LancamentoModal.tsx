@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, DollarSign, Calendar, Building2, Tag, Layers, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { escreverRegistro } from "@/lib/escrita-protegida";
+import { parseBRLCents } from "@/lib/domain/money";
 import { useBusiness } from "@/contexts/BusinessContext";
 
 export type LancamentoEditavel = {
@@ -28,7 +29,7 @@ interface LancamentoModalProps {
   onSalvo: () => void;
   lancamentoParaEditar?: LancamentoEditavel | null;
   contasDisponiveis?: Array<{ conta_id: string; nome?: string | null }>;
-  planosDisponiveis?: Array<{ plano_conta_id: string; nome_conta?: string | null }>;
+  planosDisponiveis?: Array<{ plano_conta_id: string; nome?: string | null }>;
 }
 
 export function LancamentoModal({
@@ -57,7 +58,7 @@ export function LancamentoModal({
     vencimento: hoje,
     liquidacao: hoje,
     competencia: mesAtual,
-    conta_id: "CONTA-PRINCIPAL",
+    conta_id: "",
     categoria: "Despesa Operacional",
     plano_conta_id: "",
   });
@@ -75,7 +76,7 @@ export function LancamentoModal({
         vencimento: lancamentoParaEditar.vencimento || hoje,
         liquidacao: lancamentoParaEditar.liquidacao || "",
         competencia: lancamentoParaEditar.competencia || mesAtual,
-        conta_id: lancamentoParaEditar.conta_id || "CONTA-PRINCIPAL",
+        conta_id: lancamentoParaEditar.conta_id || "",
         categoria: lancamentoParaEditar.categoria || "",
         plano_conta_id: lancamentoParaEditar.plano_conta_id || "",
       });
@@ -90,7 +91,7 @@ export function LancamentoModal({
         vencimento: hoje,
         liquidacao: hoje,
         competencia: mesAtual,
-        conta_id: contasDisponiveis[0]?.conta_id || "CONTA-PRINCIPAL",
+        conta_id: contasDisponiveis[0]?.conta_id || "",
         categoria: "Despesa Operacional",
         plano_conta_id: planosDisponiveis[0]?.plano_conta_id || "",
       });
@@ -104,13 +105,20 @@ export function LancamentoModal({
     e.preventDefault();
     setErro("");
 
-    const val = Number(String(form.valor_original).replace(",", "."));
+    const centavos = parseBRLCents(String(form.valor_original ?? "").trim());
+    const val = centavos === null ? NaN : centavos / 100;
     if (!form.descricao?.trim()) {
       setErro("Informe uma descrição para o lançamento.");
       return;
     }
     if (isNaN(val) || val <= 0) {
-      setErro("O valor deve ser um número maior que zero.");
+      setErro("Informe um valor válido maior que zero (ex.: 1000, 1.000,00 ou 49,90).");
+      return;
+    }
+    if (!form.conta_id || !contasDisponiveis.some((c) => c.conta_id === form.conta_id)) {
+      setErro(contasDisponiveis.length === 0
+        ? "Nenhuma conta financeira cadastrada. Cadastre a conta antes de lançar; o sistema não cria conta sozinho."
+        : "Selecione a conta de origem do lançamento.");
       return;
     }
 
@@ -130,7 +138,7 @@ export function LancamentoModal({
             ? form.liquidacao || form.vencimento || hoje
             : null,
         competencia: form.competencia || mesAtual,
-        conta_id: form.conta_id || "CONTA-PRINCIPAL",
+        conta_id: form.conta_id,
         conta_destino_id: form.fluxo === "TRANSFERÊNCIA" ? form.conta_destino_id : null,
         categoria: form.categoria || null,
         plano_conta_id: form.plano_conta_id || null,

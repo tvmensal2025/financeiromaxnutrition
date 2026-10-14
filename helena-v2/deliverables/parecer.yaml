@@ -1,0 +1,494 @@
+# Tipo de entrega: parecer (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: CLARA. Serviço: SRV-PARECER (servicos.yaml). Revisora titular: HELENA; reserva: FUNDADOR; e
+# você é SEMPRE o segundo revisor: o parecer só vale com o seu Aprovar (passagens.yaml E74, E81-E83).
+# Substitui o bloco 'parecer' de entregas.yaml (fase 1 antiga). Neutro quanto ao motor.
+#
+# O que o parecer é: a única julgadora do sistema. Entra num roteiro ou no grafo fixo de todo serviço
+# com ação do fundador (MAT-07, MAT-22) e julga, ANTES de você agir:
+#   - cada etapa do 'julga' do plano (peças dos 14 tipos de julga_tipos): OK, AJUSTE ou NAO_PODE;
+#   - cada passo fixo do roteiro que o plano diz que ele cobre: OK ou NAO_PODE (passo fixo não é
+#     refeito por agente);
+#   - os 8 temas obrigatórios (C-10; conferência, ponto 4).
+# O semáforo da entrega (parâmetro 'parecer' de ENTREGAR) é o pior das linhas: NAO_PODE > AJUSTE > OK.
+# Na máquina: AJUSTE aprovado por você devolve a peça ao autor e o parecer é refeito sobre o texto
+# novo (E82), até 2 voltas (TETO_VOLTAS_JURIDICO; conferência, ponto 5); NAO_PODE aprovado por você
+# para o card e pergunta a você (C14): refazer a peça ou encerrar.
+#
+# O que fica com o CÓDIGO, não com a Clara (faixa do card; plano v3, "Jurídico com data"): contra qual
+# versão da tabela de leis o parecer foi conferido, "não substitui um advogado", "leia antes de agir",
+# quanto de cada página foi lido ("2 de 2 partes") e as marcas 'não conferida'.
+#
+# Formas das colunas (acao.schema.json, $defs/valor_tabela): texto puro, número ou citação. Listas de
+# ids numa célula ("F1, F6") são separadas por vírgula; 'nenhum' quer dizer vazio.
+
+tipo: parecer
+versao: "3.1.0"
+descricao: >-
+  Parecer jurídico e de risco sobre as peças do card e os passos fixos do roteiro, antes de você agir:
+  OK, AJUSTE ou NÃO PODE por peça, os temas obrigatórios, cada conclusão com trecho da tabela de leis
+  ou de página lida por inteiro, e quando chamar advogado. Vale só com o seu Aprovar.
+dono: CLARA
+servico: SRV-PARECER
+
+secoes:
+  - id: pecas
+    titulo: "Peças julgadas"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 12
+    descricao: "Uma linha por etapa do 'julga' do plano, na versão aprovada que veio no pacote."
+    colunas:
+      - {id: etapa, tipo_de_campo: texto, descricao: "Id da etapa julgada (E1..E12)."}
+      - {id: versao, tipo_de_campo: numero, descricao: "Versão aprovada da peça que veio no pacote."}
+      - {id: semaforo, tipo_de_campo: texto, descricao: "OK, AJUSTE ou NAO_PODE."}
+      - {id: por_que, tipo_de_campo: texto, descricao: "Até 400 caracteres, em português simples."}
+      - {id: trecho_da_peca, tipo_de_campo: texto, descricao: "Trecho literal da peça (até 300); obrigatório em AJUSTE e NAO_PODE; 'nenhum' só em OK."}
+      - {id: ajuste, tipo_de_campo: texto, descricao: "Em AJUSTE: o que trocar, tirar ou acrescentar (até 400); em OK e NAO_PODE: 'nenhum'."}
+      - {id: fundamentos, tipo_de_campo: texto, descricao: "Ids da seção fundamentos (F1..F20), separados por vírgula."}
+  - id: passos_fixos
+    titulo: "Passos fixos do roteiro"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 10
+    descricao: "Uma linha por passo fixo que o plano diz que esta etapa cobre; sem passo fixo no plano, a seção não vem."
+    colunas:
+      - {id: passo, tipo_de_campo: texto, descricao: "Id do passo fixo (PF-nn)."}
+      - {id: semaforo, tipo_de_campo: texto, descricao: "OK ou NAO_PODE (nunca AJUSTE)."}
+      - {id: condicao, tipo_de_campo: texto, descricao: "Condição para o passo valer (até 240) ou 'nenhuma'."}
+      - {id: por_que, tipo_de_campo: texto, descricao: "Até 400 caracteres."}
+      - {id: fundamentos, tipo_de_campo: texto, descricao: "Ids da seção fundamentos."}
+  - id: temas
+    titulo: "Temas obrigatórios"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 8
+    itens_max: 8
+    descricao: "Uma linha por tema de temas_obrigatorios, na ordem deles."
+    colunas:
+      - {id: tema, tipo_de_campo: texto, descricao: "Id do tema (TEMA-...)."}
+      - {id: aplica, tipo_de_campo: texto, descricao: "SIM ou NAO."}
+      - {id: natureza, tipo_de_campo: texto, descricao: "OBRIGACAO_CONFIRMADA, INTERPRETACAO, PONTO_INCERTO ou, com NAO, NAO_SE_APLICA."}
+      - {id: resposta, tipo_de_campo: texto, descricao: "Até 400 caracteres; com NAO, diz por que não se aplica."}
+      - {id: trecho_da_peca, tipo_de_campo: texto, descricao: "Com SIM: trecho literal da peça (ou os PF-nn, no tema dos passos fixos); com NAO: 'nenhum'."}
+      - {id: fundamentos, tipo_de_campo: texto, descricao: "Com SIM: ids de fundamentos; com NAO: 'nenhum'."}
+  - id: fundamentos
+    titulo: "Fundamentos (trechos citados)"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 20
+    descricao: "Cada trecho que sustenta uma conclusão: da tabela de leis do pacote ou de página da lista lida por inteiro nesta execução."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "F1 a F20, sem repetir."}
+      - {id: origem, tipo_de_campo: texto, descricao: "TABELA_DE_LEIS ou TERMOS_LIDOS."}
+      - {id: referencia, tipo_de_campo: texto, descricao: "Na tabela: igual à coluna referencia da linha (ex.: 'LGPD, art. 33, caput'); na página: documento e item (até 120)."}
+      - {id: citacao, tipo_de_campo: citacao, descricao: "Trecho contínuo; tabela de leis = fonte_importada_id; página = leitura_id e parte."}
+      - {id: nota, tipo_de_campo: texto, descricao: "Id da nota de jurisprudência da linha da tabela, ou 'nenhuma'."}
+  - id: ausencias
+    titulo: "O que os documentos lidos não dizem"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 5
+    descricao: "Única forma de afirmar que um documento lido não diz algo: com os termos procurados, que o código busca de novo."
+    colunas:
+      - {id: documento, tipo_de_campo: texto, descricao: "leitura_id da página (LEI-...), lida por inteiro nesta execução."}
+      - {id: o_que_nao_consta, tipo_de_campo: texto, descricao: "Até 200 caracteres."}
+      - {id: termos_procurados, tipo_de_campo: texto, descricao: "2 a 8 termos, separados por vírgula; nenhum pode estar na cópia guardada."}
+  - id: condicoes
+    titulo: "Condições para agir"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 6
+    descricao: "O que precisa estar valendo antes de uma ação de fora do plano (ação do fundador ou passo fixo)."
+    colunas:
+      - {id: condicao, tipo_de_campo: texto, descricao: "Até 240 caracteres."}
+      - {id: antes_de, tipo_de_campo: texto, descricao: "Id da ação do fundador de uma etapa julgada (AF-...), id de passo fixo coberto (PF-nn) ou 'qualquer passo de fora'."}
+      - {id: fundamentos, tipo_de_campo: texto, descricao: "Ids da seção fundamentos."}
+  - id: quando_chamar_advogado
+    titulo: "Quando chamar um advogado"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "Situações concretas em que você para e ouve um advogado antes de agir."
+    colunas:
+      - {id: gatilho, tipo_de_campo: texto, descricao: "Até 240 caracteres."}
+      - {id: cobre, tipo_de_campo: texto, descricao: "Ids de temas (TEMA-...), de etapas (E..) ou de passos fixos (PF-..), ou 'geral'."}
+  - id: nao_coberto
+    titulo: "O que este parecer não cobre"
+    tipo_de_campo: lista
+    obrigatoria: false
+    itens_min: 0
+    itens_max: 5
+    descricao: "Itens de até 240 caracteres: o que não veio para o parecer ou está fora do serviço."
+
+limite: 9000
+
+temas_obrigatorios:
+  - {id: TEMA-IMAGEM, tema: "Imagem de pessoa (foto, vídeo, rosto)", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento; o revisor confere se a peça usa imagem de alguém (RUB-PARECER-04)."}
+  - {id: TEMA-VOZ, tema: "Voz de pessoa (gravação, áudio, imitação)", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-DADO-SENSIVEL, tema: "Dado pessoal sensível (saúde, biometria, origem, religião, vida sexual...)", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-TRANSFERENCIA-INTERNACIONAL, tema: "Transferência de dados para fora do país", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-MENORES, tema: "Crianças e adolescentes", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-VINCULO-DE-TRABALHO, tema: "Vínculo de trabalho (tarefa, pagamento, subordinação)", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-PUBLICIDADE, tema: "Publicidade e promessa (enganosa ou abusiva, ganho, saúde)", como_conferir: "Linha em temas; com SIM, trecho literal da peça e fundamento."}
+  - {id: TEMA-PASSOS-FIXOS, tema: "Passos fixos do roteiro (o que só você faz fora)", como_conferir: "SIM se e só se o plano tem passo fixo coberto por esta etapa; então trecho_da_peca lista os PF-nn e cada um tem linha em passos_fixos (CHK-PARECER-PASSOS-FIXOS)."}
+
+# ---------------------------------------------------------------------------------------
+# Checagens do portão 1, por código. As comuns (CHK-COMUM-01 a 10, servicos.yaml portao1_comum)
+# valem sempre e não se repetem aqui. Cada ID é o nome de uma função em helena-v2/checagens/, com
+# caso bom (casos/SRV-PARECER/boas/) e caso ruim (casos/SRV-PARECER/defeitos/; MEL-28).
+# "fase 2" = a função depende da tabela de leis publicada ou do registro de uso das leituras.
+# Normalização dos trechos (para aspas e espaços diferentes passarem; C-8): espaços seguidos viram um,
+# aspas curvas viram retas, sem diferença de maiúsculas só onde está escrito.
+# ---------------------------------------------------------------------------------------
+checagens_codigo:
+  - id: CHK-PARECER-SO-SECOES
+    descricao: >-
+      A entrega só tem as seções deste tipo, e cada linha só as colunas declaradas. Seção a mais (ex.:
+      'nova_versao' com a peça reescrita) recusa: quem refaz a peça é o autor dela.
+    fecha_furos: [K-13, A-17]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-TAMANHO
+    descricao: >-
+      Cada célula dentro do limite: por_que, ajuste e resposta até 400; trecho_da_peca até 300;
+      condicao e gatilho até 240; referencia até 120; o_que_nao_consta e termos_procurados até 200;
+      item de nao_coberto até 240. Ajuste nunca traz a peça inteira reescrita.
+    fecha_furos: [CONF-21]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      maximo: {por_que: 400, ajuste: 400, resposta: 400, trecho_da_peca: 300, condicao: 240, gatilho: 240,
+               referencia: 120, o_que_nao_consta: 200, termos_procurados: 200, item_nao_coberto: 240}
+  - id: CHK-PARECER-PECAS
+    descricao: >-
+      Em pecas, exatamente uma linha por etapa do 'julga' desta etapa no plano do card, e nenhuma outra;
+      a coluna versao é a versão aprovada de cada peça que veio no pacote desta execução.
+    fecha_furos: [M-4, K-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-SEMAFORO
+    descricao: >-
+      Semáforo de peça em {OK, AJUSTE, NAO_PODE}; de passo fixo em {OK, NAO_PODE}. O parâmetro 'parecer'
+      de ENTREGAR é o pior de todas as linhas (NAO_PODE > AJUSTE > OK); o motor lê só este parâmetro.
+    fecha_furos: [CONF-05, M-4]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros: {ordem_do_pior: [NAO_PODE, AJUSTE, OK], pecas: [OK, AJUSTE, NAO_PODE], passos_fixos: [OK, NAO_PODE]}
+  - id: CHK-PARECER-AJUSTE
+    descricao: >-
+      Linha AJUSTE tem trecho_da_peca e ajuste diferentes de 'nenhum'; linha NAO_PODE tem trecho_da_peca
+      diferente de 'nenhum' e ajuste 'nenhum' (não é ajuste de texto: o card pergunta a você); linha OK
+      tem ajuste 'nenhum'.
+    fecha_furos: [M-4, CONF-05]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-TRECHO-DA-PECA
+    descricao: >-
+      Todo trecho_da_peca diferente de 'nenhum' (em pecas e em temas, menos os PF-nn do tema dos passos
+      fixos) está, normalizado, dentro da versão da peça julgada que veio no pacote, com 3 palavras ou mais.
+    fecha_furos: [C-8, C-11]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros: {palavras_min: 3}
+  - id: CHK-PARECER-PASSOS-FIXOS
+    descricao: >-
+      Em passos_fixos, exatamente uma linha por passo fixo que o plano diz que esta etapa cobre
+      (coberto_pelo_parecer), nenhuma outra; sem passo fixo no plano, a seção não vem ou vem vazia. O
+      tema TEMA-PASSOS-FIXOS é SIM se e só se há passo fixo, e então o trecho_da_peca dele lista os mesmos PF-nn.
+    fecha_furos: [B-17, CONF-20]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-TEMAS
+    descricao: >-
+      Em temas, exatamente uma linha por tema de temas_obrigatorios. aplica em {SIM, NAO}. SIM: natureza
+      em {OBRIGACAO_CONFIRMADA, INTERPRETACAO, PONTO_INCERTO}, trecho_da_peca e fundamentos diferentes de
+      'nenhum'. NAO: natureza NAO_SE_APLICA, trecho_da_peca e fundamentos 'nenhum', e resposta não vazia.
+    fecha_furos: [C-10, CONF-04]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      temas: [TEMA-IMAGEM, TEMA-VOZ, TEMA-DADO-SENSIVEL, TEMA-TRANSFERENCIA-INTERNACIONAL, TEMA-MENORES,
+              TEMA-VINCULO-DE-TRABALHO, TEMA-PUBLICIDADE, TEMA-PASSOS-FIXOS]
+      naturezas_com_sim: [OBRIGACAO_CONFIRMADA, INTERPRETACAO, PONTO_INCERTO]
+  - id: CHK-PARECER-FUNDAMENTOS
+    descricao: >-
+      Toda linha de pecas, de passos_fixos e de condicoes, e todo tema SIM, cita pelo menos 1 id que
+      existe em fundamentos; todo fundamento é citado por alguma linha; ids F1..F20 sem repetir; origem
+      TABELA_DE_LEIS tem citação com fonte_importada_id; origem TERMOS_LIDOS, com leitura_id e parte.
+    fecha_furos: [M-15, C-8]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-CONDICOES
+    descricao: >-
+      Em condicoes, antes_de é o id da ação do fundador de uma etapa que este parecer julga (o que o plano
+      deu a ela), um PF-nn coberto por esta etapa ou o texto 'qualquer passo de fora'; nada de ação nova.
+    fecha_furos: [B-17, CONF-20]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-ADVOGADO
+    descricao: >-
+      quando_chamar_advogado tem de 1 a 5 linhas; todo tema PONTO_INCERTO, toda peça NAO_PODE e todo passo
+      fixo NAO_PODE aparecem na coluna cobre de alguma linha (pelo id do tema, da etapa ou do passo).
+    fecha_furos: [C-10, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+  - id: CHK-PARECER-SEM-GARANTIA
+    descricao: >-
+      Nenhuma frase de garantia jurídica ou de papel de advogado em todo texto da entrega, menos dentro de
+      citações (lista fechada, sem diferença de maiúsculas). Também pega texto plantado numa página e
+      repetido pela IA (C-7).
+    fecha_furos: [C-13, K-18]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      sem_diferenca_de_maiusculas: true
+      termos: ["100% legal", "100% dentro da lei", "totalmente legal", "totalmente dentro da lei", "sem nenhum risco",
+               "sem risco jurídico", "risco zero", "zero risco", "juridicamente garantido", "garantia jurídica",
+               "conformidade total", "total conformidade", "conformidade certificada", "certificado de conformidade",
+               "aprovado juridicamente", "dispensa advogado", "não precisa de advogado", "sou advogada",
+               "como sua advogada", "parecer de advogado", "zero furo"]
+  - id: CHK-PARECER-TERMO-DO-PACOTE
+    descricao: >-
+      Nenhum termo proibido pelo pacote da empresa (lista lida na hora) no texto da Clara, sem diferenciar
+      maiúscula nem acento. Ficam de fora as citações e a coluna trecho_da_peca, cópia da peça julgada. O
+      ajuste nunca sugere o termo (a eLiving™ nunca é 'contador de calorias'; DEC-023).
+    fecha_furos: [DEC-023, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "todo texto da entrega, menos trecho_original das citações e a coluna trecho_da_peca"
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  - id: CHK-PARECER-LEI-NA-TABELA
+    descricao: >-
+      Fundamento TABELA_DE_LEIS: fonte_importada_id é a tabela do pacote, a referencia é a de uma linha
+      dela e o trecho_original está, normalizado, no texto oficial dessa linha. Lei fora da tabela ou
+      trecho de outra linha recusa (lei inventada, citação de outro artigo).
+    fecha_furos: [C-10, K-18, K-9]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      # A TABELA DE LEIS (plano v3, portão 1; furos C-10 e K-18). Esta é a lista de leis e o lugar de
+      # cada uma; NÃO é a tabela publicada. Nenhum texto de lei foi escrito aqui de memória: cada linha
+      # recebe o texto oficial copiado da URL oficial, com a data da cópia e as notas de jurisprudência,
+      # e é publicada por você como fonte importada FON-LEIS-v<n>. Até lá, esta checagem fica reservada
+      # (fase 2) e nenhum parecer real roda. Endereços a abrir e conferir na publicação.
+      tabela_de_leis:
+        versao: "v0 (lista desta especificação; não publicada)"
+        publicacao: "fonte importada FON-LEIS-v<n>, com data, por toque seu; atualizar é item com data no manual do mantenedor"
+        leis:
+          - id: LGPD
+            nome: "Lei Geral de Proteção de Dados Pessoais"
+            norma: "Lei nº 13.709/2018"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-DADO-SENSIVEL, TEMA-TRANSFERENCIA-INTERNACIONAL, TEMA-MENORES, TEMA-IMAGEM, TEMA-VOZ]
+          - id: CODIGO-CIVIL
+            nome: "Código Civil"
+            norma: "Lei nº 10.406/2002"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-IMAGEM, TEMA-VOZ]
+          - id: DIREITO-AUTORAL
+            nome: "Lei de Direitos Autorais"
+            norma: "Lei nº 9.610/1998"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/leis/l9610.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-IMAGEM, TEMA-VOZ, TEMA-PUBLICIDADE]
+          - id: MARCO-CIVIL
+            nome: "Marco Civil da Internet"
+            norma: "Lei nº 12.965/2014"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2014/lei/l12965.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar; o art. 19 tem nota OBRIGATÓRIA (o plano usa este artigo como exemplo): a conferir a partir do julgamento do STF sobre ele"
+            temas: [TEMA-PUBLICIDADE, TEMA-DADO-SENSIVEL]
+          - id: CDC
+            nome: "Código de Defesa do Consumidor"
+            norma: "Lei nº 8.078/1990"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-PUBLICIDADE]
+          - id: CLT
+            nome: "Consolidação das Leis do Trabalho"
+            norma: "Decreto-Lei nº 5.452/1943"
+            url_oficial: "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-VINCULO-DE-TRABALHO]
+          - id: ECA-DIGITAL
+            nome: "ECA Digital (Estatuto Digital da Criança e do Adolescente)"
+            norma: "a conferir (número e data da lei)"
+            url_oficial: "a conferir"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-MENORES]
+          - id: LEI-15123
+            nome: "Lei 15.123/2025 (aumenta a pena de quem altera com IA a imagem ou a voz de uma mulher)"
+            norma: "Lei nº 15.123/2025"
+            url_oficial: "a conferir"
+            url_conferida: false
+            texto: "a conferir"
+            data_do_texto: "a conferir"
+            notas_de_jurisprudencia: "a registrar"
+            temas: [TEMA-IMAGEM, TEMA-VOZ]
+        cada_linha_publicada_tem: [referencia, lei, artigo, texto_oficial, url_oficial, data_da_copia, nota_de_jurisprudencia]
+        lei_fora_da_tabela: "Não fundamenta conclusão (recusa aqui) e, se só mencionada no texto, chega marcada 'não conferida' (CHK-PARECER-LEI-NAO-CONFERIDA)."
+  - id: CHK-PARECER-LEI-NAO-CONFERIDA
+    descricao: >-
+      Menção a norma no texto livre (por_que, ajuste, resposta, condicao, gatilho, o_que_nao_consta,
+      nao_coberto) que não está na tabela do pacote (padrões fechados abaixo) chega marcada 'não
+      conferida' na faixa.
+    fecha_furos: [K-18]
+    gravidade: MARCA
+    fase: "fase 2"
+    parametros:
+      padroes:
+        - '\bLei\s+n[º°o]?\s*\d'
+        - '\b(Decreto|Resolução|Resolucao|Portaria|Instrução Normativa|Medida Provisória|Súmula)\b'
+        - '\bCódigo Penal\b'
+        - '\bart(\.|igo)\s*\d'
+      aceita: "nomes e aliases das leis da tabela do pacote (ex.: 'LGPD', 'CDC'), sem artigo; com artigo, só se o artigo é uma linha da tabela"
+  - id: CHK-PARECER-NOTA-DE-JURISPRUDENCIA
+    descricao: >-
+      Fundamento de uma linha da tabela que tem nota de jurisprudência chega com o id dessa nota na
+      coluna nota; sem a nota, o fundamento chega marcado na faixa (ex.: art. 19 do Marco Civil).
+    fecha_furos: [C-10]
+    gravidade: MARCA
+    fase: "fase 2"
+  - id: CHK-PARECER-TERMOS-INTEIROS
+    descricao: >-
+      Toda página citada em fundamento TERMOS_LIDOS foi lida inteira NESTA execução: o registro de uso
+      da nossa ler_pagina mostra todas as partes ("x de x"). Página lida pela metade recusa (C-1, FC-5).
+    fecha_furos: [C-1, FC-5]
+    gravidade: RECUSA
+    fase: "fase 2"
+  - id: CHK-PARECER-AUSENCIA
+    descricao: >-
+      Frase que diz que um documento lido não diz algo só vale com linha em ausencias; e cada linha de
+      ausencias aponta uma leitura desta execução lida inteira, com 2 a 8 termos procurados, nenhum deles
+      na cópia guardada (o código busca de novo, sem diferença de maiúsculas). Sem isso, recusa (C-8).
+    fecha_furos: [C-8, C-1]
+    gravidade: RECUSA
+    fase: "fase 2"
+    parametros:
+      sem_diferenca_de_maiusculas: true
+      frase_de_ausencia: '\b(a política|a politica|os termos|o termo|a página|a pagina|o documento|o site|o contrato)\b[^.;]{0,80}\b((não|nao)\s+(diz|fala|menciona|trata|prevê|preve|informa|cita|traz|explica|aborda)|omite)\b'
+      termos_min: 2
+      termos_max: 8
+
+# ---------------------------------------------------------------------------------------
+# Rubrica do portão 2 (revisora: Helena; você é o segundo revisor). Só julgamento que o código não
+# confere. É o ÚNICO tipo em que critério pode depender de lei (MAT-22). A Helena revisa sem internet:
+# o código entrega o parágrafo em volta de cada citação e a peça julgada inteira (MAT-10).
+# ---------------------------------------------------------------------------------------
+rubrica:
+  - id: RUB-PARECER-01
+    pergunta: "Cada conclusão diz o que o trecho citado de fato diz, sem esticar, inverter ou ir além do sentido dele?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que o trecho existe e é da linha certa; se ele sustenta a conclusão é leitura de sentido."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-02
+    pergunta: "Todo ponto da peça julgada que traz risco jurídico (afirmação que a fonte contradiz, promessa, dado de terceiro, público vulnerável) foi tratado numa linha de peça ou de tema?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Achar o risco que ficou de fora exige ler a peça inteira contra as fontes; o código só confere as linhas que existem."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-03
+    pergunta: "Cada AJUSTE diz exatamente o que trocar, tirar ou acrescentar na peça, de modo que o autor faça a correção sem precisar perguntar?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código só vê que o ajuste não está vazio; se ele é executável e resolve o problema é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-04
+    pergunta: "Cada tema marcado como 'não se aplica' é mesmo alheio à peça e aos passos fixos, sem nenhum trecho deles que o toque?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Dizer se um tema toca a peça é leitura de sentido; o código só confere que a linha existe e está preenchida."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-05
+    pergunta: "O que está marcado como obrigação confirmada vem escrito no trecho citado, e o que é leitura da Clara ou dúvida está marcado como interpretação ou ponto incerto?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Separar o que a norma diz do que é leitura dela exige comparar o sentido da resposta com o do trecho."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-06
+    pergunta: "Cada gatilho de 'quando chamar advogado' é uma situação concreta que você reconhece quando acontece, e não um conselho genérico?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código confere que todo ponto incerto tem gatilho; se o gatilho é reconhecível na prática é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-07
+    pergunta: "As condições e a ordem dadas (o que vem antes de qual ação) bastam para que agir nessa ordem não crie o risco que o próprio parecer aponta?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere que a condição aponta uma ação do plano; se ela fecha o risco descrito é julgamento."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-PARECER-08
+    pergunta: "Uma pessoa leiga entende cada conclusão e sabe o que pode fazer, o que não pode e o que precisa mudar, sem jargão jurídico?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Clareza para quem não é do ramo é julgamento sobre o texto inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+criterio_de_pronto:
+  codigo: [CHK-PARECER-SO-SECOES, CHK-PARECER-TAMANHO, CHK-PARECER-PECAS, CHK-PARECER-SEMAFORO,
+           CHK-PARECER-AJUSTE, CHK-PARECER-TRECHO-DA-PECA, CHK-PARECER-PASSOS-FIXOS, CHK-PARECER-TEMAS,
+           CHK-PARECER-FUNDAMENTOS, CHK-PARECER-CONDICOES, CHK-PARECER-ADVOGADO, CHK-PARECER-SEM-GARANTIA,
+           CHK-PARECER-TERMO-DO-PACOTE, CHK-PARECER-LEI-NA-TABELA, CHK-PARECER-LEI-NAO-CONFERIDA, CHK-PARECER-NOTA-DE-JURISPRUDENCIA,
+           CHK-PARECER-TERMOS-INTEIROS, CHK-PARECER-AUSENCIA]
+  rubrica: [RUB-PARECER-01, RUB-PARECER-02, RUB-PARECER-03, RUB-PARECER-04, RUB-PARECER-05,
+            RUB-PARECER-06, RUB-PARECER-07, RUB-PARECER-08]
+  fundador:
+    quando: SEMPRE_NO_JURIDICO
+    o_que_confere: >-
+      Você é o segundo revisor: lê o parecer inteiro ('leia antes de agir') e toca Aprovar; só então ele
+      vale. Com AJUSTE, o seu Aprovar devolve a peça ao autor e o parecer é refeito; com NÃO PODE, o card
+      para e pergunta a você. Pedir ajuste volta o parecer à Clara. Nenhum padrão aprova por você.
+
+revisor_confere:
+  - "Fidelidade: cada conclusão diz o que o trecho citado diz, com o parágrafo em volta entregue pelo código (RUB-PARECER-01)."
+  - "Nada de fora: nenhum risco jurídico da peça julgada ficou sem linha (RUB-PARECER-02)."
+  - "Cada AJUSTE é executável pelo autor sem perguntar (RUB-PARECER-03)."
+  - "Cada tema 'não se aplica' é mesmo alheio à peça e aos passos fixos (RUB-PARECER-04)."
+  - "Obrigação confirmada, interpretação e ponto incerto marcados com honestidade (RUB-PARECER-05)."
+  - "Gatilhos de advogado concretos (RUB-PARECER-06) e condições que fecham o risco apontado (RUB-PARECER-07)."
+  - "Linguagem de leigo, sem jargão (RUB-PARECER-08)."
+  - "Revisa sem internet e sem ferramenta, com revisao-padrao; recebe a peça julgada inteira e o parágrafo em volta de cada citação."
+
+revisor_nao_reavalia:
+  - "O mérito da peça julgada fora do que o parecer diz: ela já foi aprovada pelo revisor dela; a Helena julga o parecer, não a peça."
+  - "O texto da tabela de leis: é a versão publicada por você; o código já conferiu que o trecho é da linha certa."
+  - "O que o código já recusou ou marcou (seções, tamanhos, temas presentes, ids, leitura inteira, termos de garantia, 'agiu fora')."
+
+entrada_minima:
+  - {id: ENT-PARECER-PECAS, o_que: "Cada etapa do 'julga' do plano, na versão aprovada, inteira, com o id da ação do fundador que o plano deu a ela.", de_onde: ENTREGA_APROVADA, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-PARECER-PEDIDO, o_que: "Ordem de serviço do card: pedido original, o que você quer, o que não pode e os links que você ligou como 'pode ler'.", de_onde: PEDIDO_DO_CARD, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-PARECER-PACOTE, o_que: "Pacote da empresa do card: grafia, voz, proibições e decisões vigentes que valem para a empresa.", de_onde: PACOTE_DA_EMPRESA, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-PARECER-PASSOS-FIXOS, o_que: "Lista dos passos fixos que o plano diz que esta etapa cobre (id e texto fixo); o código diz quando ela é vazia, como no grafo do avulso.", de_onde: PASSOS_FIXOS_DO_ROTEIRO, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-PARECER-TABELA, o_que: "Tabela de leis publicada (FON-LEIS-v<n>): referência, texto oficial, data e notas de jurisprudência de cada linha.", de_onde: FONTE_IMPORTADA, se_faltar: REGISTRAR_FALHA}
+  - {id: ENT-PARECER-PAGINAS, o_que: "Termos, política ou outro documento que a peça ou o passo fixo usa, na lista de ler_pagina (link 'pode ler' ou termos aprovados no roteiro), quando a peça depende dele.", de_onde: PAGINA_DA_LISTA, se_faltar: REGISTRAR_FALHA}

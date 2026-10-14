@@ -1,0 +1,164 @@
+# Pedido de teste do SRV-ROTEIRO-TREINAMENTO (Isabela, AGT-17). Caso SINTÉTICO: o pedido, as regras
+# de gravação e as condições do participante abaixo foram escritos para o teste. NÃO são as regras
+# reais da Mimix nem do Hub, e nenhum nome, contato, chave ou senha aparece aqui.
+#
+# De onde vem: é a etapa E2 do roteiro das 10 pessoas (playbooks/recrutar-10-pessoas.yaml): "Como
+# gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado", aqui como card
+# avulso da Humano Digital (BIZ-003, pacote CONFIRMADO). As regras do serviço NÃO são copiadas aqui:
+# estão em servicos.yaml (SRV-ROTEIRO-TREINAMENTO e portao1_comum) e em
+# deliverables/roteiro_treinamento.yaml (seções, CHK-TREINO-*, RUB-TREINO-*).
+#
+# Como mudar: para outra atividade, troque o pedido_original (ou crie uma variante) e mexa nas
+# fontes_importadas só se a regra mudou. Todo apoio das boas e dos defeitos é uma linha INTEIRA do
+# texto de FON-REGRAS-GRAVACAO-01 ou de FON-CONDICOES-PARTICIPANTE-01: se você mudar uma linha aqui,
+# mude o apoio igual nos casos (e rode o validar.py depois).
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que a Isabela recebe junto com o card (grafia, voz, termos proibidos).
+#      O código guarda o texto como fonte importada FON-PACOTE-BIZ-003.
+#   2. fontes_importadas: o que o código guarda ANTES de qualquer IA: o pedido original
+#      (FON-PEDIDO-TREINO-01), o pacote, as regras de gravação e as condições do participante. É
+#      contra elas que as checagens de aspas, apoio, número e contato conferem o texto.
+#   3. ordem_de_servico, leitura_de_volta e plano: como o card fica depois do seu CONFIRMO
+#      (card.schema.json). Serviço sempre julgado: a Clara (SRV-PARECER) julga o roteiro no mesmo card.
+#   4. variantes: os pedidos das boas 02 e 03 (caminhada e conversa em casa), cada um com a sua fonte
+#      importada. Mesma empresa, prazo e plano; muda só a situação que o fundador escolheu em A/B/C.
+#
+# Sem fitas: a Isabela não tem ferramenta (ferramentas: []), então não há página lida.
+# Horários de Brasília (-03:00).
+
+id: PEDIDO-TREINO-01
+servico: SRV-ROTEIRO-TREINAMENTO
+agente: AGT-17
+card_id: CARD-TESTE-TREINO-01
+empresa: BIZ-003
+criado_em: "2026-10-11T09:00:00-03:00"
+
+pacote_da_empresa:
+  empresa: BIZ-003
+  nome: "Humano Digital"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-003
+  grafia: "Humano Digital"
+  voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+  decisoes: [DEC-024, DEC-025]
+  proibicoes: "As do pacote da BIZ-003 em organograma.yaml; o roteiro não fala de dinheiro."
+  # Nenhum canal confirmado: o roteiro não leva canal de dúvidas (CHK-TREINO-08) e a entrega diz em
+  # o_que_precisa_aprovacao qual canal falta.
+  canais_confirmados: []
+  # Lista fechada lida pela CHK-TREINO-02. LISTA DE TESTE, a mesma de casos/SRV-COPY/pedido.yaml: até
+  # você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ), troque nos dois lugares.
+  termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida", "emprego", "contratação", "vaga de trabalho", "carteira assinada"]
+
+fontes_importadas:
+  - {id: FON-PEDIDO-TREINO-01, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+  - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+  - id: FON-REGRAS-GRAVACAO-01
+    o_que: "Regras de gravação da plataforma (SINTÉTICAS, escritas para o teste), importadas e aprovadas por você. Uma regra por linha."
+    texto: |
+      Cada gravação mostra uma atividade só, do começo ao fim.
+      Cada gravação dura de 5 a 15 minutos.
+      Em atividade parada, o celular fica deitado, na horizontal, apoiado em algum lugar firme.
+      Em atividade em movimento, como uma caminhada, o celular vai preso ao peito, numa faixa ou bolsa de celular, e não na mão.
+      A câmera fica na altura do peito e mostra as mãos durante toda a atividade.
+      Para começar, a pessoa toca no botão "Gravar" e, para terminar, toca no botão "Parar".
+      Gravação escura, em que não dá para ver as mãos com nitidez, é reprovada.
+      Gravação tremida é reprovada.
+      Música, televisão ou som alto ao fundo atrapalham a avaliação, e a gravação pode ser reprovada.
+      Rosto ou voz de outra pessoa na gravação, sem a autorização dela, é motivo de reprovação.
+      Crianças não podem aparecer nem falar em nenhuma gravação.
+      Documentos, telas com dados e endereços não podem aparecer na gravação.
+      Antes de enviar, a pessoa assiste à gravação inteira e apaga o que não pode aparecer.
+      Para enviar, a pessoa toca no botão "Enviar para avaliação".
+      A plataforma avalia a gravação depois do envio e mostra o resultado na tela "Minhas gravações".
+  - id: FON-CONDICOES-PARTICIPANTE-01
+    o_que: "Condições do participante (SINTÉTICAS, escritas para o teste), importadas e aprovadas por você. Uma condição por linha."
+    texto: |
+      O participante grava sozinho, com o próprio celular, dentro de casa ou em lugar público aberto.
+      O participante avisa quem mora com ele antes de gravar.
+      O participante só mantém na gravação a pessoa que autorizou.
+      Dúvidas sobre o treinamento vão para o canal que o fundador confirmar antes do envio.
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+# Este é o pedido da boa-01 (situação A, cozinha) e dos defeitos 01 e 04.
+ordem_de_servico:
+  empresa: BIZ-003
+  prazo: "2026-10-14T18:00:00-03:00"
+  prioridade: 2
+  pedido_original: >-
+    Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai
+    ler é o participante da Humano Digital: uma pessoa leiga, que lê no celular e faz tudo sozinha.
+    Escolhi a situação A: preparar um lanche na cozinha de casa. Use só as regras de gravação e as
+    condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro.
+  o_que_quer: "Roteiro para o participante da Humano Digital gravar um lanche na cozinha de casa com qualidade e privacidade, sem ser reprovado."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "Cada passo com uma ação só, que eu faço sozinho no celular.", quem_confere: CODIGO, checagem: CHK-TREINO-03, risco: BAIXO}
+    - {id: CARD-2, texto: "Cada regra do roteiro com o trecho da fonte que a apoia.", quem_confere: CODIGO, checagem: CHK-TREINO-05, risco: ALTO}
+    - {id: CARD-3, texto: "Cuidado com quem aparece ou fala ao redor, sem expor ninguém.", quem_confere: IA, risco: ALTO}
+    - {id: CARD-4, texto: "Nada que prometa aprovação, ganho ou resultado.", quem_confere: IA, risco: ALTO}
+    - {id: CARD-5, texto: "Parecer jurídico do roteiro, lido por você antes de enviar.", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+  nao_pode:
+    - "Prometer aprovação, ganho ou resultado"
+    - "Enviar o roteiro às pessoas em seu nome"
+
+# Leitura de volta da Helena (papel HELENA), antes do seu CONFIRMO (acao.schema.json, LER_DE_VOLTA).
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: SERVICO, id: SRV-ROTEIRO-TREINAMENTO}
+  entendi_assim:
+    o_que_quer: "Roteiro para o participante da Humano Digital gravar um lanche na cozinha de casa com qualidade e privacidade, sem ser reprovado."
+    como_e_o_pronto:
+      - {texto: "Cada passo com uma ação só, que eu faço sozinho no celular.", quem_confere: CODIGO, checagem: CHK-TREINO-03, risco: BAIXO}
+      - {texto: "Cada regra do roteiro com o trecho da fonte que a apoia.", quem_confere: CODIGO, checagem: CHK-TREINO-05, risco: ALTO}
+      - {texto: "Cuidado com quem aparece ou fala ao redor, sem expor ninguém.", quem_confere: IA, risco: ALTO}
+      - {texto: "Nada que prometa aprovação, ganho ou resultado.", quem_confere: IA, risco: ALTO}
+      - {texto: "Parecer jurídico do roteiro, lido por você antes de enviar.", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+    nao_pode:
+      - "Prometer aprovação, ganho ou resultado"
+      - "Enviar o roteiro às pessoas em seu nome"
+
+# Plano montado pelo código (SERVICO_SEMPRE_JULGADO: o serviço é sempre julgado pelo parecer, MAT-22).
+# Revisores EFETIVOS (MAT-21): E1 = [CAIO (APTA em roteiro_treinamento), FUNDADOR], porque a reserva
+# Olívia está SEM_PROVA e sai; E2 = [HELENA, FUNDADOR].
+plano:
+  origem: SERVICO_SEMPRE_JULGADO
+  versao_do_catalogo: "3.1.0"
+  montado_em: "2026-10-11T09:07:00-03:00"
+  etapas:
+    - {id: E1, servico: SRV-ROTEIRO-TREINAMENTO, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-TREINAMENTO-ENVIAR}
+    - {id: E2, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E1], julga: [E1]}
+
+# Pedidos derivados (empresa, prazo e plano iguais) para as boas 02 e 03 e seus defeitos. O pronto do
+# card é o mesmo; muda a situação que você escolheu na pergunta A/B/C (ENT-TREINO-ESCOPO).
+variantes:
+  CAMINHADA:
+    usada_por: boas/boa-02-caminhada.yaml
+    fonte_importada_id: FON-PEDIDO-TREINO-02
+    pedido_original: "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai ler é o participante da Humano Digital: uma pessoa leiga, que lê no celular e faz tudo sozinha. Escolhi a situação B: fazer uma caminhada curta pelo bairro. Use só as regras de gravação e as condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro."
+  CONVERSA:
+    usada_por: boas/boa-03-conversa-em-casa.yaml
+    fonte_importada_id: FON-PEDIDO-TREINO-03
+    pedido_original: "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai ler é o participante da Humano Digital: uma pessoa leiga, que lê no celular e faz tudo sozinha. Escolhi a situação C: conversar em casa com um familiar adulto. Quero muito cuidado com quem aparece e fala ao redor. Use só as regras de gravação e as condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro."
+  # Quarta variante: o MESMO pedido da boa-01 (situação A, lanche na cozinha), mas num card da eLiving™ (BIZ-004). Existe só para provar
+  # a CHK-TREINO-10 (que só vale na BIZ-004). Pacote da eLiving™ no mesmo desenho dos outros pedidos (ex.: SRV-ANALISE-ESTRATEGICA);
+  # as regras de gravação e as condições do participante continuam as das fontes importadas acima (SINTÉTICAS).
+  ELIVING:
+    usada_por: boas/boa-04-eliving-lanche.yaml
+    fonte_importada_id: FON-PEDIDO-TREINO-04
+    empresa: BIZ-004
+    pacote_da_empresa:
+      empresa: BIZ-004
+      nome: "eLiving™"
+      estado: CONFIRMADO
+      fonte_importada_id: FON-PACOTE-BIZ-004
+      grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+      slogan: "Onde sua evolução ganha direção."
+      posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+      pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+      decisoes: [DEC-023]
+      canais_confirmados: []
+      # Lista fechada lida pela CHK-TREINO-02. LISTA DE TESTE, a mesma de casos/SRV-ANALISE-ESTRATEGICA/pedido.yaml.
+      termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "contagem de calorias", "dieta restritiva", "perder peso rápido", "emagrecimento garantido", "promessa de cura"]
+    ordem_de_servico:
+      empresa: BIZ-004
+    pedido_original: "Como gravar atividades do dia a dia com qualidade e privacidade, para não ser reprovado? Quem vai ler é o participante da eLiving™: uma pessoa leiga, que lê no celular e faz tudo sozinha. Escolhi a situação A: preparar um lanche na cozinha de casa. Use só as regras de gravação e as condições do participante que estão nas fontes importadas. Não quero nada sobre dinheiro."

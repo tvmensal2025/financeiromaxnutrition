@@ -1,0 +1,207 @@
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -37,28 +37,26 @@
+   // Caso autenticação esteja ativada
+   if (loading) {
+     return (
+-      <div className="he-access-screen flex min-h-[100dvh] flex-col items-center justify-center p-6 text-foreground">
+-        <div className="he-access-card flex flex-col items-center gap-5 text-center">
+-          <div className="he-access-logo grid h-12 w-12 place-items-center rounded-xl bg-[#007A3D] text-white font-bold text-lg animate-pulse shadow-sm">
+-            H
+-          </div>
+-          <p role="status" className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground animate-pulse">
+-            Validando credenciais do Sistema Helena…
+-          </p>
++      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
++        <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#007A3D] text-white font-bold text-lg animate-pulse shadow-sm">
++          H
+         </div>
++        <p className="text-xs uppercase tracking-[0.2em] font-semibold text-muted-foreground animate-pulse">
++          Validando credenciais do Sistema Helena…
++        </p>
+       </div>
+     );
+   }
+ 
+   if (accessCheckFailed) {
+     return (
+-      <div className="he-access-screen flex min-h-[100dvh] items-center justify-center p-6 text-foreground">
+-        <section role="alert" className="he-access-card max-w-md space-y-4 rounded-xl border border-border bg-card p-6">
++      <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
++        <section role="alert" className="max-w-md space-y-4 rounded-xl border border-border bg-card p-6">
+           <h1 className="text-xl font-semibold">Não foi possível confirmar sua sessão</h1>
+           <p className="text-sm text-muted-foreground">O serviço não confirmou a validação de acesso ou a saída. Confira a conexão e tente novamente.</p>
+-          <div className="he-access-actions flex gap-3">
+-            <button type="button" onClick={() => window.location.reload()} className="he-access-action rounded-lg bg-primary px-4 py-2 text-primary-foreground">Tentar novamente</button>
+-            <button type="button" onClick={() => void sair()} className="he-access-action rounded-lg border border-border px-4 py-2">Sair</button>
++          <div className="flex gap-3">
++            <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground">Tentar novamente</button>
++            <button type="button" onClick={() => void sair()} className="rounded-lg border border-border px-4 py-2">Sair</button>
+           </div>
+         </section>
+       </div>
+@@ -74,9 +72,9 @@
+   // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
+   if (!isMember) {
+     return (
+-      <div className="he-access-screen flex min-h-[100dvh] w-full flex-col items-center justify-center p-4 text-foreground">
+-        <div className="he-access-card w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">
+-          <div className="he-access-logo mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
++      <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
++        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">
++          <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
+             <ShieldAlert className="h-6 w-6" />
+           </div>
+           <div className="space-y-1">
+@@ -91,7 +89,7 @@
+             <button
+               type="button"
+               onClick={() => sair()}
+-              className="he-access-action inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
++              className="inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-4 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+             >
+               <LogOut className="h-3.5 w-3.5" />
+               <span>Sair e Voltar ao Início</span>
+--- a/src/components/Layout.tsx
++++ b/src/components/Layout.tsx
+@@ -35,7 +35,6 @@
+ import { useBusiness } from "@/contexts/BusinessContext";
+ import { useAuth } from "@/auth";
+ import { MODULOS } from "@/lib/modulos";
+-import { areaDoCaminho } from "@/lib/workspace-area";
+ 
+ type NavItemConfig = {
+   to: string;
+@@ -47,31 +46,32 @@
+ 
+ const BLOCO_CENTRAL: NavItemConfig[] = [
+   { to: "/", label: "Sala de comando", icon: LayoutDashboard, end: true },
++  { to: "/financeiro", label: "Cockpit Financeiro", icon: Receipt, badge: "8 Abas" },
+   { to: "/conversa", label: "Conversa com Helena", icon: MessageSquare },
+   { to: "/supervisao", label: "Supervisão da Helena", icon: Shield },
+-  { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
+-];
+-
+-const BLOCO_NEGOCIOS: NavItemConfig[] = [
+-  { to: "/portfolio", label: "Portfólio", icon: Building2 },
+   { to: "/empresas", label: "Operação por empresa", icon: Building2 },
+-  { to: "/indicadores", label: "Indicadores de negócio", icon: LayoutDashboard },
+-  { to: "/crm", label: "CRM", icon: Target },
+-  { to: "/financeiro", label: "Financeiro", icon: Receipt },
+-  { to: "/identidade", label: "Identidade da empresa", icon: Package },
+-  { to: "/modulo/marketing", label: "Marketing", icon: Zap },
+-  { to: "/modulo/clientes", label: "Clientes", icon: UserCheck },
+-  { to: "/modulo/produto", label: "Produto", icon: Package },
+-];
+-
+-const BLOCO_OPERACAO: NavItemConfig[] = [
++  { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
+   { to: "/execucao", label: "Central de Execução", icon: Activity },
+   { to: "/entregas", label: "Entregas da equipe", icon: FileText },
+   ...(import.meta.env.VITE_HELENA_V2_HABILITADA === 'true'
+     ? [{ to: "/cards-v2", label: "Cards v2", icon: Layers }]
+     : []),
++  { to: "/identidade", label: "Identidade da empresa", icon: Package },
++  { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
++];
++
++const BLOCO_NEGOCIOS: NavItemConfig[] = [
++  { to: "/portfolio", label: "Portfólio", icon: Building2 },
++  { to: "/indicadores", label: "Indicadores de negócio", icon: LayoutDashboard },
++  { to: "/crm", label: "CRM", icon: Target },
++  { to: "/modulo/marketing", label: "Marketing", icon: Zap },
++  { to: "/modulo/clientes", label: "Clientes", icon: UserCheck },
++  { to: "/modulo/produto", label: "Produto", icon: Package },
++];
++
++const BLOCO_OPERACAO: NavItemConfig[] = [
++  { to: "/financeiro", label: "Financeiro", icon: Receipt },
+   { to: "/calendario", label: "Calendário", icon: CalendarClock },
+-  { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
+   { to: "/modulo/projetos", label: "Projetos", icon: Briefcase },
+   { to: "/modulo/tarefas", label: "Tarefas", icon: CheckSquare },
+   { to: "/modulo/processos", label: "Processos", icon: Layers },
+@@ -134,7 +134,6 @@
+   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
+ 
+   const fecharMobile = () => setMobileAberto(false);
+-  const area = areaDoCaminho(pathname);
+ 
+   // Calcula o breadcrumb simples e executivo
+   const getBreadcrumb = () => {
+@@ -206,7 +205,7 @@
+   );
+ 
+   return (
+-    <div data-workspace={area} className="painel-elite he-studio flex min-h-[100dvh] bg-background text-foreground antialiased">
++    <div className="painel-elite he-studio flex min-h-screen bg-background text-foreground antialiased">
+       <a className="he-skip-link" href="#conteudo-principal">Ir para o conteúdo</a>
+       {/* Sidebar Desktop */}
+       <aside className="pe-sidebar sticky top-0 hidden h-[100dvh] flex-col overflow-hidden md:flex">
+--- a/src/pages/Login.tsx
++++ b/src/pages/Login.tsx
+@@ -49,7 +49,7 @@
+   }
+ 
+   return (
+-    <div className="he-login-shell he-public-shell">
++    <div className="he-login-shell">
+       <aside className="he-login-editorial"><ExecutiveLogo/><div><span>CLAREZA PARA DECIDIR. ESPAÇO PARA CRESCER.</span><h2>Seu próximo capítulo<br/><em>começa aqui.</em></h2><p>Negócios, equipe e entregas. Uma visão conectada para transformar suas ideias em movimento.</p><div className="he-login-art" aria-hidden="true"><i/><i/><i/><b>H</b></div></div><footer>SISTEMA HELENA <span>Central executiva</span></footer></aside>
+       <div className="he-login-form-area">
+         {/* Card Executivo Minimalista */}
+--- a/src/pages/OAuthConsent.tsx
++++ b/src/pages/OAuthConsent.tsx
+@@ -164,7 +164,7 @@
+   // Usuário autenticado mas sem app_access ativo
+   if (!authLoading && user && (!appAccess || !appAccess.active)) {
+     return (
+-      <div className="he-oauth-shell flex min-h-[100dvh] w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
++      <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
+         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">
+           <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
+             <ShieldAlert className="h-6 w-6" />
+@@ -250,7 +250,7 @@
+   // Estado 1: Carregamento
+   if (authLoading || detailsLoading) {
+     return (
+-      <div className="he-oauth-shell flex min-h-[100dvh] flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground p-4">
++      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground p-4">
+         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#007A3D] text-white font-bold text-xl shadow-sm animate-pulse">
+           H
+         </div>
+@@ -264,7 +264,7 @@
+   // Estado 2: Erro / Parâmetro inválido
+   if (errorMsg && !authDetails) {
+     return (
+-      <div className="he-oauth-shell min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
++      <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
+         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 sm:p-9 text-center space-y-5 shadow-sm">
+           <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
+             <ShieldAlert className="h-6 w-6" />
+@@ -300,7 +300,7 @@
+   const clientLogo = authDetails?.client?.logo_uri;
+ 
+   return (
+-    <div className="he-oauth-shell min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
++    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
+       <div className="w-full max-w-[480px]">
+         {/* Card Executivo de Consentimento */}
+         <div
+--- a/tailwind.config.ts
++++ b/tailwind.config.ts
+@@ -14,7 +14,7 @@
+     },
+     extend: {
+       fontFamily: {
+-        sans: ['Figtree', 'system-ui', '-apple-system', 'sans-serif'],
++        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+       },
+       colors: {
+         border: "hsl(var(--border))",
+--- a/src/main.tsx
++++ b/src/main.tsx
+@@ -11,4 +11,3 @@
+ );
+ 
+ import "./styles/helena-studio.css";
+-import "./styles/helena-premium.css";

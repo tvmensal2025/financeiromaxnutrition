@@ -1,3 +1,5 @@
+import { extractBRLCents } from "./domain/money";
+
 export type Negocio = {
   business_id: string;
   negocio: string;
@@ -106,29 +108,10 @@ export function semAcento(valor: string) {
 }
 
 export function lerValor(texto: string): number | null {
-  // 1. Padrão formal com R$
-  const m = texto.match(/r\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)/i);
-  if (m) {
-    const raw = m[1];
-    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
-    if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ""));
-    return Number(raw);
-  }
-  // 2. Padrão conversacional com "reais", "heais", "conto", "contos", "pila"
-  const mConversacional = texto.match(/(\d{1,3}(?:\.\d{3})*(?:,\d{2})?|\d+(?:,\d{2})?)\s*(?:reais|heais|conto|contos|pila|pilas)\b/i);
-  if (mConversacional) {
-    const raw = mConversacional[1];
-    if (raw.includes(",")) return Number(raw.replace(/\./g, "").replace(",", "."));
-    if (/^\d{1,3}(\.\d{3})+$/.test(raw)) return Number(raw.replace(/\./g, ""));
-    return Number(raw);
-  }
-  // 3. Padrão por extenso comum
-  if (/\bcem\s*(?:reais|heais|conto)\b/i.test(texto)) return 100;
-  if (/\bduzentos\s*(?:reais|heais|conto)\b/i.test(texto)) return 200;
-  if (/\bquinhentos\s*(?:reais|heais|conto)\b/i.test(texto)) return 500;
-  if (/\bmil\s*(?:reais|heais|conto)\b/i.test(texto)) return 1000;
-
-  return null;
+  // Centavos inteiros: "R$ 1000" vale mil (o regex antigo lia 100), e
+  // mais de um valor no mesmo texto fica sem confirmação em vez de chutado.
+  const centavos = extractBRLCents(texto);
+  return centavos === null ? null : centavos / 100;
 }
 
 function empresas(texto: string) {
@@ -330,188 +313,43 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
     return plano;
   }
 
-  if (/publica|post\b|stor(?:y|ies)|feed\b|renda extra|conteudo para rede|anuncio/.test(n)) {
-    const empresaAlvo = biz || "BIZ-003"; // Humano Digital é a empresa oficial para comunidade e validação de dados para IA
-
+  if (/publica|post\b|stor(?:y|ies)|feed\b|conteudo para rede|anuncio|campanha/.test(n)) {
+    // Pedido de conteúdo vira missão real: nada de texto pronto nem aprovação
+    // inventada. A entrega só existe depois da execução e da revisão dos agentes.
+    const empresaAlvo = empresasReais[0] || null;
     plano.tipo_acao = "CRIACAO_CONTEUDO";
-    plano.conclusao = "Equipe de Marketing acionada! O Post completo para o Feed e a sequência de 4 Stories sobre 'Oportunidade de Renda Extra' foram criados e estão 100% prontos para publicação.";
-    plano.decisao = "AGORA. Conteúdo gerado pela Isabela (AGT-17), com direção visual de Maya (AGT-16) e compliance de Bruno (AGT-05).";
-    plano.responsavel = "AGT-17 Isabela · AGT-16 Maya";
-    plano.proxima = "Copie os textos formatados abaixo ou autorize a equipe a agendar a postagem.";
-
-    plano.entrega_conteudo = {
-      tema: "Oportunidade de Renda Extra — Comunidade Humano Digital",
-      empresa: empresaAlvo,
-      dialogo_equipe: [
-        {
-          agente_id: "AGT-01",
-          agente: "Helena",
-          avatar_emoji: "👩‍💼",
-          papel: "CEO Virtual & Orquestradora",
-          fala: "Demanda do fundador recebida: criar uma campanha completa sobre Oportunidade de Renda Extra para atrair novos participantes para os projetos de IA da Humano Digital. Marina, estruture o briefing e coordene a esteira de marketing.",
-          acao: "Briefing executivo emitido e alçada delimitada",
-          horario: "15:40",
-        },
-        {
-          agente_id: "AGT-04",
-          agente: "Marina",
-          avatar_emoji: "📋",
-          papel: "PMO & Execução",
-          fala: "Recebido, Helena. Tarefa aberta no cronograma com prioridade ALTA. Despachando para Isabela redigir a copy no método AIDA e para Maya estruturar o pacote visual dos stories verticais 9:16.",
-          acao: "Despacho formal realizado com prazo imediato",
-          horario: "15:41",
-        },
-        {
-          agente_id: "AGT-17",
-          agente: "Isabela",
-          avatar_emoji: "✍️",
-          papel: "Marca, Conteúdo & Copywriter",
-          fala: "Copy finalizada! Estruturei um post magnético para Feed e 4 Stories com foco em trabalho flexível, ética e sem promessas fáceis de enriquecimento. Maya, a bola está com você para as especificações visuais.",
-          acao: "Redação de copy persuasiva concluída",
-          horario: "15:42",
-        },
-        {
-          agente_id: "AGT-12",
-          agente: "Maya",
-          avatar_emoji: "🎨",
-          papel: "Design UI/UX & Criativos",
-          fala: "Diretrizes visuais prontas! Paleta oficial (#101312 e #007A3D), zonas de segurança de 250px para Instagram Stories e adesivos de engajamento definidos. Bruno, para sua inspeção de qualidade.",
-          acao: "Design system e templates 9:16 finalizados",
-          horario: "15:43",
-        },
-        {
-          agente_id: "AGT-13",
-          agente: "Bruno",
-          avatar_emoji: "🛡️",
-          papel: "Qualidade, QA & Compliance",
-          fala: "Revisão técnica de qualidade concluída: textos 100% aderentes à LGPD, sem alegações enganosas de ganhos financeiros fixos, formatos adequados. Entrega aprovada com nota máxima!",
-          acao: "Parecer de QA APROVADO emitido",
-          horario: "15:44",
-        },
-      ],
-      post: {
-        headline: "🧠💰 Sua atenção e opinião humana valem muito para o futuro da Inteligência Artificial.",
-        corpo: `Você já percebeu que as maiores IAs do mundo precisam ser ensinadas e validadas por pessoas reais?
-
-Aqui na Humano Digital, nós conectamos pessoas comuns a empresas inovadoras que precisam de coleta, validação e anotação de dados humanos para calibrar seus modelos de IA.
-
-✅ Sem promessas milagrosas de dinheiro fácil.
-✅ Trabalho real, flexível e sob demanda no seu tempo livre.
-✅ Faça parte de uma comunidade estruturada e ativa.
-
-Se você tem atenção aos detalhes e quer aprender na prática como a IA se desenvolve enquanto gera uma renda extra consistente, essa oportunidade é para você.`,
-        cta: `👉 Quer saber como participar dos próximos projetos? Comente "RENDA EXTRA" ou clique no link da bio para agendar sua entrevista de 15 minutos com a nossa equipe!`,
-        hashtags: ["#RendaExtra", "#InteligenciaArtificial", "#HumanoDigital", "#TrabalhoRemoto", "#ComunidadeIA", "#FuturoDoTrabalho", "#Tecnologia"],
-        engajamento_esperado: "CTR projetado em 4.2% com taxa de conversão para direct estimada em 12%.",
-      },
-      stories: [
-        {
-          numero: 1,
-          titulo: "Story 1 — O Gancho (Atenção)",
-          visual: "Fundo grafite (#101312) com tipografia limpa em alto contraste branco e verde esmeralda.",
-          texto: "Você já parou para pensar de onde vêm os dados que treinam as maiores IAs do planeta?",
-          interacao: "Enquete: 'Nunca pensei nisso 🤔' vs 'Sim, sei como funciona 💡'",
-          tipo_adesivo: "enquete",
-        },
-        {
-          numero: 2,
-          titulo: "Story 2 — O Contexto (O Problema do Mercado)",
-          visual: "Card elegante mostrando o contraste: Modelos de IA avançados vs. Necessidade de Pessoas Reais.",
-          texto: "Nenhuma IA aprende sozinha. Ela precisa de seres humanos reais para testar, validar e dizer se as respostas fazem sentido no mundo real.",
-          interacao: "Texto de apoio: 'E quem faz isso são pessoas como você!'",
-          tipo_adesivo: "destaque",
-        },
-        {
-          numero: 3,
-          titulo: "Story 3 — A Oportunidade Real",
-          visual: "Visual com ícones de flexibilidade, trabalho remoto e remuneração séria por tarefa.",
-          texto: "A Humano Digital organiza uma comunidade qualificada para projetos de validação de dados para IA. Renda extra real, com critérios sérios e flexibilidade no seu ritmo.",
-          interacao: "Selo: '100% Remoto, Ético e Seguro'",
-          tipo_adesivo: "destaque",
-        },
-        {
-          numero: 4,
-          titulo: "Story 4 — A Chamada para Ação (Conversão)",
-          visual: "Botão de envio de mensagem direta destacado no rodapé com seta animada.",
-          texto: "Estamos abrindo vagas para novos participantes na nossa comunidade. Quer participar da próxima seleção?",
-          interacao: "Adesivo de Direct: 'Mande 'QUERO' aqui no Direct para receber o link!'",
-          tipo_adesivo: "dm",
-        },
-      ],
-      direcao_arte: "Paleta oficial Humano Digital: Fundo Grafite (#101312), Destaque Verde Esmeralda (#007A3D), Tipografia Sans-serif limpa (Inter). Formatos: 1:1 para Feed (1080x1080) e 9:16 para Stories (1080x1920).",
-      compliance: "Validado por Bruno (AGT-13): Sem promessas de ganhos fáceis ou garantia de renda fixa. Totalmente alinhado à LGPD e à identidade da empresa.",
-      dossie_executivo: {
-        objetivo_estrategico: "Captação de talentos qualificados para os projetos de treinamento e calibração de modelos de inteligência artificial da Humano Digital (BIZ-003).",
-        publico_alvo: "Profissionais liberais, estudantes universitários e pessoas em transição de carreira que buscam monetizar seu tempo livre com tarefas cognitivas de IA.",
-        canais_distribuicao: "Instagram (Feed + Stories sequenciais 9:16), LinkedIn e grupos selecionados do WhatsApp.",
-        metricas_sucesso: "Meta de 50 cadastros qualificados nas primeiras 48h com CAC zero (alcance puramente orgânico de rede).",
-        parecer_qualidade: "APROVADO POR UNANIMIDADE: Copy com metodologia AIDA, respeito rigoroso à LGPD e alinhamento com a diretriz do Fundador.",
-      },
-    };
-
+    if (!empresaAlvo) {
+      plano.conclusao = "Pedido de conteúdo recebido, mas a empresa não ficou clara. Nada foi gravado.";
+      plano.decisao = "ESCLARECIMENTO: a missão precisa de business_id antes de ir para a equipe.";
+      plano.pergunta_esclarecimento = "Para qual empresa é esse conteúdo?";
+      plano.opcoes_resposta = ctx.negocios.map((item) => ({
+        label: `${item.negocio} (${item.business_id})`,
+        comando: `${texto.trim()} — empresa ${item.business_id}`,
+      }));
+      plano.proxima = "Responda indicando a empresa para a Helena abrir a missão.";
+      return plano;
+    }
+    plano.conclusao = "Missão de conteúdo registrada. Ainda não existe peça produzida: a equipe executa e revisa antes de qualquer entrega.";
+    plano.decisao = "Fluxo: Camila (estratégia) → Isabela (copy) → Maya (peças) → revisão independente → Helena consolida.";
+    plano.responsavel = "AGT-16 Camila";
+    plano.proxima = "Camila recebe o pedido original e abre a estratégia; acompanhe em Entregas e na Sala de comando.";
     plano.escritas.push({
       tabela: "tarefas",
       row: {
         task_id: "{{TSK}}",
         business_id: empresaAlvo,
-        tarefa: "Campanha de Conteúdo: Oportunidade de Renda Extra (Post Feed + 4 Stories)",
+        tarefa: texto.trim().slice(0, 300),
         tipo: "MARKETING",
-        responsavel: "AGT-17",
+        responsavel: "AGT-16",
         prioridade: "ALTA",
-        status: "CONCLUÍDA",
-        definicao_de_pronto: "Post e sequência de 4 stories redigidos com headline, corpo, CTA e direção de arte completa.",
-        evidencia: "Material gerado pela Isabela (AGT-17) e aprovado pela Helena para publicação.",
+        status: "NÃO INICIADA",
+        definicao_de_pronto: "Todas as peças pedidas existem como arquivo final, com copy, revisão independente aprovada e evidência.",
         source_system: "HELENA",
         sync_status: "INTERNO",
       },
     });
-
-    plano.escritas.push({
-      tabela: "agent_jobs",
-      row: {
-        job_id: "{{JOB}}",
-        task_id: "{{TSK}}",
-        business_id: empresaAlvo,
-        agent_id: "AGT-17",
-        objective: "Campanha de Conteúdo: Oportunidade de Renda Extra (Post Feed + 4 Stories)",
-        instruction: "Produzir post completo para feed com AIDA e sequência de 4 stories 9:16 prontos para publicação.",
-        priority: "ALTA",
-        status: "COMPLETED",
-        approval_required: false,
-        approval_status: "APPROVED",
-        result_summary: "Post completo para Feed (AIDA) e 4 Stories verticais (9:16) formatados, revisados por Bruno (AGT-13) e prontos para publicação no Instagram e Facebook.",
-        result_payload: {
-          delivery_audience: "FOUNDER",
-          delivery_stage: "FINAL",
-          review_pending: false,
-          reviewed_by: "AGT-13",
-          reviewer_agent_id: "AGT-13",
-          copy: `${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}`,
-          caption: `${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}`,
-          delivery: {
-            schema_version: 1,
-            title: "Campanha: Oportunidade de Renda Extra (Feed + 4 Stories)",
-            content: `POST FEED:\n${plano.entrega_conteudo.post.headline}\n\n${plano.entrega_conteudo.post.corpo}\n\n${plano.entrega_conteudo.post.cta}\n\n${plano.entrega_conteudo.post.hashtags.join(" ")}\n\nSTORIES:\n` + plano.entrega_conteudo.stories.map(s => `[Story ${s.numero} - ${s.titulo}]\nVisual: ${s.visual}\nTexto: ${s.texto}\nInteração: ${s.interacao}`).join("\n\n"),
-            next_steps: "Copiar e publicar no perfil oficial da empresa no Instagram e Facebook.",
-            limitations: "Sem investimento em tráfego pago nesta fase de teste de validação.",
-            acceptance_checks: [
-              {
-                criterion: "Copy persuasiva sem promessa de dinheiro fácil",
-                evidence_ref: "MEM-MKT-RENDA-EXTRA",
-                finding: "100% de conformidade ética e jurídica",
-              },
-            ],
-          },
-        },
-        evidence_refs: ["MEM-MKT-RENDA-EXTRA"],
-        completed_at: agora,
-        source_system: "HELENA",
-        sync_status: "INTERNO",
-      },
-    });
-
-    handoff(plano, agora, "AGT-17", "Publicação Renda Extra (Post + Stories)", "Conteúdo redigido e aprovado pela coordenação para publicação imediata.", empresaAlvo);
-    memoria(plano, agora, "Campanha de Conteúdo Renda Extra", plano.conclusao, empresaAlvo, plano.proxima);
+    handoff(plano, agora, "AGT-16", "Missão de conteúdo do fundador", texto.trim(), empresaAlvo);
+    memoria(plano, agora, "Pedido de conteúdo do fundador", texto.trim(), empresaAlvo, plano.proxima);
     return plano;
   }
 
@@ -558,7 +396,7 @@ Se você tem atenção aos detalhes e quer aprender na prática como a IA se des
       memoria(plano, agora, "Intercompany bloqueado", plano.conclusao, "GRUPO", plano.proxima);
       return plano;
     }
-    if (faltando.length) {
+    if (faltando.length || !fluxo) {
       plano.conclusao = "Lançamento não gravado. Falta dado.";
       plano.decisao = `DADO A COLETAR: ${faltando.join(", ")}. Ausência não virou zero.`;
       plano.responsavel = AGENTES.caio;

@@ -37,7 +37,7 @@ export function createProfileStore(db) {
         throw new Error('Configuração de perfil não provisionada no servidor.');
       }
     } catch (err) {
-      if (err.data?.code === '40001' || err.data?.code === '23505') { loading = null; throw conflict(); }
+      if (err.data?.code === 'PT409' || err.data?.code === '40001' || err.data?.code === '23505') { loading = null; throw conflict(); }
       throw err;
     }
     if (!row?.row_version) throw new Error('O servidor não confirmou a gravação do perfil.');

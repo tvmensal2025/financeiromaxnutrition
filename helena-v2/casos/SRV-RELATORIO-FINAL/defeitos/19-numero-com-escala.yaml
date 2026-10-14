@@ -1,0 +1,46 @@
+id: REL-DEF-19
+caso: CASO-REL-001
+defeito_plantado: O resumo muda o cenário base para US$ 25k.
+deve_falhar_em: CHK-REL-NUMEROS
+camada: CODIGO
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    resumo:
+    - frase: O cenário base seria de US$ 25k por semana com 10 pessoas.
+      refs: E1
+    - frase: O roteiro de treinamento e o convite foram aprovados, e o convite não fala de valores.
+      refs: E2, E3
+    - frase: 'O parecer jurídico aprovou o convite, o roteiro e o cadastro nas duas plataformas, com uma condição:
+        ninguém grava rosto ou voz de outra pessoa sem a autorização dela.'
+      refs: E4, PF-01
+    - frase: Para crescer além de 10 pessoas, ou se houver indicação paga a participante, o parecer pede que você
+        ouça um advogado antes.
+      refs: E4
+    - frase: Ficou sem conferir se uma pessoa leiga enquadra a câmera sozinha no passo 3 do roteiro; esse ponto
+        foi marcado como risco baixo.
+      refs: E2
+    proximos_passos:
+    - ordem: 1
+      passo: Confirmar se 5 horas por semana por pessoa é o cenário base da conta.
+      depois_de: nada
+      refs: E1
+    - ordem: 2
+      passo: Ler o parecer jurídico inteiro antes de qualquer passo de fora.
+      depois_de: nada
+      refs: E4
+    - ordem: 3
+      passo: Cadastrar a Humano Digital na Mimix e no Hub, como manda o passo fixo do roteiro.
+      depois_de: '2'
+      refs: PF-01, E4
+    - ordem: 4
+      passo: Enviar o convite aprovado às primeiras 10 pessoas, sem mudar o texto.
+      depois_de: '3'
+      refs: AF-COPY-ENVIAR-OU-PUBLICAR, E3
+    - ordem: 5
+      passo: Enviar o roteiro de treinamento aprovado a quem aceitar o convite.
+      depois_de: '4'
+      refs: AF-TREINAMENTO-ENVIAR, E2

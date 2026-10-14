@@ -1,0 +1,17 @@
+# Resposta CORRETA da Helena (autora) para o caso pedido.yaml (CASO-REL-001).
+# Formato: schemas/acao.schema.json, $defs/saida_do_autor. Precisa passar em todas as
+# checagens do tipo relatorio_final e nas comuns, e ser aprovada pela rubrica.
+
+id: REL-BOA-04
+caso: CASO-REL-001
+descricao: 'Falta dado: a Helena registra a falha com motivo, sem inventar o passo fixo.'
+variante_do_pedido:
+  descricao: O pacote chega sem o PF-01 em parte_montada_pelo_codigo.so_voce_faz (o resto igual).
+  remover_do_pacote:
+  - pacote_do_relatorio.parte_montada_pelo_codigo.so_voce_faz[id=PF-01]
+resposta:
+  acao: REGISTRAR_FALHA
+  motivo_falha: FALTAM_DADOS
+  explicacao: 'A parte montada pelo código veio sem o passo fixo de cadastro na Mimix e no Hub, que o parecer aprovado
+    cobre e põe antes do convite. Sem ele, não dá para ligar os próximos passos à lista do que só você faz. Falta:
+    o passo fixo na lista do pacote.'

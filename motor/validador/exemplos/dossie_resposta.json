@@ -1,0 +1,58 @@
+{
+  "acao": "ENTREGAR",
+  "parecer": "OK",
+  "acao_externa": {
+    "tipo": "NENHUMA"
+  },
+  "entrega": {
+    "resumo_executivo": "A Plataforma Exemplo exige idade mínima de 18 anos e conta única por pessoa. Os pagamentos são em dólares e a plataforma pode encerrar contas sem aviso.",
+    "fatos_com_fonte": [
+      {
+        "texto": "O participante precisa ter pelo menos 18 anos de idade para enviar vídeos.",
+        "citacoes": [
+          {
+            "trecho_original": "O participante deve ter pelo menos 18 anos de idade e aceitar estes termos antes de enviar qualquer vídeo para a plataforma.",
+            "leitura_id": "LEI-001",
+            "parte": 1
+          }
+        ]
+      },
+      {
+        "texto": "Cada pessoa só pode ter uma conta ativa, e a conta não pode ser vendida.",
+        "citacoes": [
+          {
+            "trecho_original": "Cada pessoa pode manter somente uma conta ativa, e a conta não pode ser vendida nem transferida para outra pessoa.",
+            "leitura_id": "LEI-001",
+            "parte": 1
+          }
+        ]
+      },
+      {
+        "texto": "Os pagamentos saem em dólares por transferência internacional e o participante paga as tarifas do banco.",
+        "citacoes": [
+          {
+            "trecho_original": "Os pagamentos são feitos em dólares americanos por transferência internacional, e o participante arca com as tarifas do banco.",
+            "leitura_id": "LEI-001",
+            "parte": 1
+          }
+        ]
+      },
+      {
+        "texto": "A plataforma pode encerrar contas sem aviso prévio e sem pagar tarefas pendentes.",
+        "citacoes": [
+          {
+            "trecho_original": "A plataforma pode encerrar contas que violem estas regras, sem aviso prévio e sem direito a pagamento de tarefas pendentes.",
+            "leitura_id": "LEI-001",
+            "parte": 2
+          }
+        ]
+      }
+    ],
+    "lacunas": [
+      "Não encontramos o endereço de suporte para dúvidas de pagamento."
+    ],
+    "riscos": [
+      "Os termos podem mudar a qualquer momento, então a leitura precisa ser refeita antes de agir."
+    ]
+  }
+}

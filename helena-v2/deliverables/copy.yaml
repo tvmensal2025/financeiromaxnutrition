@@ -1,0 +1,307 @@
+# Tipo de entrega: copy (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: ISABELA (AGT-17). Serviço: SRV-COPY (servicos.yaml). Revisor titular: CAIO (APTA em copy);
+# reserva: CAMILA (SEM_PROVA, fora da lista efetiva até o teste 9 e o seu toque); você é sempre a
+# última reserva (MAT-03). Julgado depois pela Clara, sempre (julgado_pelo_parecer: SEMPRE, MAT-22):
+# por isso a Helena não revisa este tipo (regra 4) e a faixa do card mostra o parecer. Substitui o
+# bloco 'copy' de entregas.yaml, que fica só como história.
+#
+# O que é: o texto pronto que vai a quem é de fora (convite, legenda, mensagem de boas-vindas):
+# uma versão final, uma alternativa curta e, junto, a lista de onde vem cada afirmação e do que só
+# você decide antes de publicar. Quem escreve é a Isabela; enviar ou publicar é sempre ação sua
+# (AF-COPY-ENVIAR-OU-PUBLICAR), depois do parecer aprovado.
+#
+# Regra de ouro deste tipo (C-11, MAT-16): o convite NÃO recebe a conta do Caio nem nenhum número
+# de ganho. Por isso este arquivo não tem seção de dinheiro, nenhuma entrada vem do cálculo e o
+# código recusa termo de ganho no texto que sai (CHK-COPY-01). O ganho disfarçado ('seu tempo livre
+# pode render muito') o código não pega: é da rubrica (RUB-COPY-03) e, depois, da Clara.
+#
+# De onde vêm os fatos: só do pacote do card. O código guarda, antes de qualquer IA, o pedido
+# original como fonte importada FON-PEDIDO-<card> e o pacote da empresa como FON-PACOTE-<empresa>
+# (com as decisões vigentes lidas na hora); fonte importada aprovada que o roteiro ligar ao card
+# chega com o id dela. A Isabela não tem ferramenta: não lê página, não busca, não confere perfil
+# nem link (MEL-27). O que não está no pacote ou ela pergunta (canal), ou registra a falta, ou
+# deixa fora e avisa em o_que_precisa_aprovacao.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora"
+# (05), citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): a conferência jurídica (dado pessoal,
+# publicidade, imagem, voz, vínculo de trabalho) é do parecer da Clara no mesmo card.
+#
+# Neutro quanto ao motor (DBOS ou motor próprio): tudo aqui é dado nosso.
+
+tipo: copy
+versao: "3.1.0"
+descricao: "Texto pronto para quem é de fora (convite, legenda, mensagem): versão final, alternativa curta, de onde vem cada afirmação e o que precisa do seu ok. Nunca tem termo de ganho."
+dono: ISABELA
+servico: SRV-COPY
+
+secoes:
+  - id: onde_usar
+    titulo: "Para quem é e onde aparece"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase: quem vai ler, onde o texto aparece (WhatsApp, rede social, mensagem) e o que a pessoa pode fazer ao ler. Não muda o que você pediu."
+  - id: versao_final
+    titulo: "Versão final"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 1200
+    descricao: "O texto pronto, em português simples, sem HTML, na voz do pacote da empresa. Só afirma o que o pedido ou o pacote dizem; sem prova, resultado, preço ou contato inventados."
+  - id: alternativa_curta
+    titulo: "Alternativa curta"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 400
+    descricao: "Outra versão da mesma mensagem, bem mais curta que a final (no máximo 60% do tamanho dela), com o mesmo convite à ação."
+  - id: afirmacoes
+    titulo: "De onde vem cada afirmação"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 8
+    descricao: "Uma linha por afirmação do texto sobre a empresa, o produto ou a participação: a frase como está no texto e o trecho literal do pedido ou do pacote que a sustenta."
+    colunas:
+      - {id: id, tipo_de_campo: texto, descricao: "A1 a A8, sem repetir."}
+      - {id: frase, tipo_de_campo: texto, descricao: "A frase ou pedaço do texto que afirma, copiado igual da versão final ou da alternativa curta."}
+      - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal (frase inteira ou 12 palavras seguidas) de uma fonte do pacote: FON-PEDIDO-<card>, FON-PACOTE-<empresa> ou fonte importada aprovada."}
+  - id: o_que_precisa_aprovacao
+    titulo: "O que precisa do seu ok antes de publicar"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "O que só você confirma ou preenche antes de usar (canal oficial, data, nome que aparece). Enviar ou publicar é ação sua, depois do parecer aprovado; a Isabela nunca envia."
+  - id: limites
+    titulo: "O que ficou de fora de propósito"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 3
+    descricao: "O que o pedido ou o pacote não deixaram entrar no texto e para onde vai (ex.: condições e valores: ficam fora; plano de canais: Camila; texto de voz da empresa: você)."
+
+limite: 5000
+
+checagens_codigo:
+  - id: CHK-COPY-01
+    descricao: "Sem termo de ganho: nenhum termo da lista fechada (renda, ganho, lucro, salário, dinheiro, reais, dólares, 'por hora', R$, US$ e parecidos) no texto que sai, mesmo negado. O único trecho aceito é o slogan oficial do pacote, literal."
+    fecha_furos: [C-11]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["renda", "rendimento", "rendimentos", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "ganhando", "lucro", "lucros", "lucrar", "remuneração", "remunerado", "remunerada", "salário", "salários", "comissão", "comissões", "dinheiro", "reais", "dólar", "dólares", "pagamento", "pagamentos", "paga", "pagam", "pagar", "bônus", "por hora", "valor por hora", "cachê", "contos", "mil por mês", "vale ouro", "receba por", "ajuda de custo"]
+      simbolos: ["R$", "US$", "€"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento; símbolo em qualquer posição"
+      excecao: "o slogan oficial do pacote da empresa, igual ao pacote (ex.: 'Onde sua evolução ganha direção.')"
+      nao_confere: "ganho disfarçado em outras palavras: é da rubrica (RUB-COPY-03)"
+  - id: CHK-COPY-02
+    descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; este arquivo não copia a lista), no texto que sai, sem diferenciar maiúscula nem acento."
+    fecha_furos: [DEC-023, DEC-024, DEC-025]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      sem_lista_no_pacote: "passa, e a faixa mostra 'pacote sem lista de termos'"
+  - id: CHK-COPY-03
+    descricao: "Sem promessa nem pressão da lista fechada: garantia, 'sem risco', vaga garantida, escassez ou urgência inventada ('últimas vagas', 'só hoje', 'corra'), mesmo negada."
+    fecha_furos: [C-11, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "garanto", "garantir", "com certeza", "sem risco", "sem riscos", "risco zero", "resultado certo", "resultado garantido", "vaga garantida", "vagas limitadas", "vaga limitada", "vaga é limitada", "últimas vagas", "última vaga", "poucas vagas", "só hoje", "apenas hoje", "corra", "corram", "última chance", "chance única", "não perca essa chance", "oportunidade única", "milagre", "milagres"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
+      nao_confere: "pressão em outras palavras ('não fique de fora'): é da rubrica (RUB-COPY-04)"
+  - id: CHK-COPY-04
+    descricao: "Sem orientação de saúde: nenhum termo da lista fechada de diagnóstico, prescrição, remédio, tratamento, cura ou emagrecimento no texto que sai, mesmo negado."
+    fecha_furos: [DEC-023, C-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "diagnosticado", "prescrição", "prescrições", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratamento da ansiedade", "tratar doenças", "cura", "curar", "cure", "curado", "emagrecer", "emagreça", "emagrece", "emagrecimento", "perder peso", "perca peso", "perda de peso"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
+      nao_confere: "conselho de saúde individual em outras palavras: é da rubrica (RUB-COPY-05)"
+  - id: CHK-COPY-05
+    descricao: "A eLiving™ não vira app de calorias: no card da eLiving™ (BIZ-004), nenhum termo da lista fechada de caloria, dieta ou app fitness no texto que sai, mesmo negado."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      so_empresa: BIZ-004
+      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "plataforma fitness", "app de treino", "plano alimentar", "kcal", "macros", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
+      nao_confere: "a eLiving™ descrita como outra coisa que não inteligência pessoal de evolução: é da rubrica (RUB-COPY-07)"
+  - id: CHK-COPY-06
+    descricao: "Nenhum contato inventado: link, e-mail, @usuário, telefone, CPF ou CEP no texto só se aparecer igual no pedido original ou no pacote."
+    fecha_furos: [DEC-023, C-7]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io, .ee, .gl, .ly, .me, .xyz, .ai, .uk)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>"]
+      sem_canal_confirmado: "o texto não leva canal e o item de o_que_precisa_aprovacao diz qual canal falta"
+  - id: CHK-COPY-07
+    descricao: "Nenhum número solto: todo número em algarismos do texto que sai aparece, com o mesmo valor, no pedido original ou no pacote."
+    fecha_furos: [C-9, C-11]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      formato: "milhar com ponto e decimal com vírgula; 'mil' depois do número multiplica por 1.000"
+      compara: "valor numérico igual ao de um número da fonte aceita"
+      ignora: ["ids A1-A8", "datas dd/mm/aaaa e horas hh:mm que estão no pedido"]
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>"]
+  - id: CHK-COPY-08
+    descricao: "Afirmações com apoio: toda frase da tabela afirmacoes aparece igual na versão final ou na alternativa, e o apoio é trecho literal (frase inteira ou 12 palavras seguidas) de fonte do pacote que existe."
+    fecha_furos: [C-8, M-15]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      ids: "^A[1-8]$"
+      fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>", "fonte importada aprovada que veio no pacote do card"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+      normaliza: ["espaços repetidos", "aspas tipográficas"]
+      nunca_aceita: "leitura_id (a Isabela não lê página)"
+  - id: CHK-COPY-09
+    descricao: "A alternativa é curta de verdade: no máximo 400 caracteres e no máximo 60% do tamanho da versão final."
+    fecha_furos: [CONF-21]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      maximo_caracteres: 400
+      maximo_proporcao: 0.6
+  - id: CHK-COPY-10
+    descricao: "Sem pedir dado sensível no canal aberto: o texto que sai não pede CPF, RG, senha, código de verificação, dados bancários, foto de documento ou exame, mesmo negado."
+    fecha_furos: [C-11, M-13]
+    gravidade: RECUSA
+    fase: "fase 1"
+    parametros:
+      termos: ["CPF", "RG", "CNH", "senha", "código de verificação", "código por SMS", "código que chegar por SMS", "número do cartão", "número do seu cartão", "cartão de crédito", "dados bancários", "conta bancária", "foto do documento", "foto do seu documento", "foto da sua identidade", "documento com foto", "exame", "exames", "laudo", "laudos"]
+      siglas_maiusculas_palavra_inteira: ["CPF", "RG", "CNH"]
+      onde: ["versao_final", "alternativa_curta", "afirmacoes.frase"]
+      como_compara: "palavras sem diferenciar maiúscula nem acento; siglas em qualquer caixa e como palavra inteira"
+
+rubrica:
+  - id: RUB-COPY-01
+    pergunta: "O texto serve ao pedido: fala com o público e no canal que o pedido diz, e o único passo que pede da pessoa é o que o pedido autoriza?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Comparar o público, o canal e o passo pedido com o que o texto faz é leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-02
+    pergunta: "Toda afirmação do texto sobre a empresa, o produto ou a participação tem apoio no pedido ou no pacote, sem depoimento, resultado, número de pessoas ou prova que ninguém informou?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código confere as linhas da tabela; uma afirmação que ficou fora dela, ou um apoio que não diz o mesmo, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-03
+    pergunta: "Nenhum trecho insinua ganho ou vantagem financeira, mesmo sem usar as palavras da lista (ex.: 'seu tempo livre vira recompensa', 'complemente o orçamento')?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; a mesma promessa dita de outro jeito (C-11, ganho disfarçado) só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-04
+    pergunta: "Nenhum trecho pressiona ou promete sem base (urgência ou escassez inventadas, 'todo mundo já está', 'não fique de fora'), e a pessoa vê que pode não responder ou tirar dúvida antes?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as expressões conhecidas; a pressão dita de outro jeito, e se a pessoa tem saída, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-05
+    pergunta: "Em assunto de saúde, o texto fica em informação geral e acolhimento, sem dar orientação para a situação de uma pessoa nem sugerir que substitui médico, nutricionista ou educador físico?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; o conselho para o caso de alguém, em palavras comuns, só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-06
+    pergunta: "A voz é a da empresa do pacote (jeito de falar, tratamento por 'você', slogan quando for usá-lo) e uma pessoa leiga entende na primeira leitura, sem jargão nem frase longa demais?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Tom, voz e clareza para quem lê são julgamento sobre o texto inteiro."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-07
+    pergunta: "Nenhum trecho faz a eLiving™ parecer app de dieta, de academia ou contador de calorias, nem apresenta Sirlene, Doutor Vital, Alex ou Rafael como pessoas reais, profissionais de saúde ou funcionários?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada pega as palavras; o produto ou os personagens descritos de outro jeito só a leitura pega."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-COPY-08
+    pergunta: "Cada pendência que o texto deixa para o seu ok é a que de fato falta (canal, data, nome), dita com clareza, sem esconder o que mudaria o texto nem deixar buraco como 'link abaixo' sem o link?"
+    evidencia_exigida: TRECHO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "O código vê que a seção existe; se ela diz o que falta de verdade só a leitura confere."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica, mais os itens CARD-n de IA do card. Camada 3 (você): só quando a
+# entrega propõe a ação AF-COPY-ENVIAR-OU-PUBLICAR; mesmo assim ela só nasce na sua lista quando o
+# card fica PRONTO, com o parecer aprovado por você no mesmo card (MAT-22). Nenhum padrão aprova.
+criterio_de_pronto:
+  codigo: [CHK-COPY-01, CHK-COPY-02, CHK-COPY-03, CHK-COPY-04, CHK-COPY-05, CHK-COPY-06, CHK-COPY-07,
+           CHK-COPY-08, CHK-COPY-09, CHK-COPY-10]
+  rubrica: [RUB-COPY-01, RUB-COPY-02, RUB-COPY-03, RUB-COPY-04, RUB-COPY-05, RUB-COPY-06, RUB-COPY-07,
+            RUB-COPY-08]
+  fundador:
+    quando: QUANDO_HA_ACAO_EXTERNA
+    o_que_confere: "Você lê o texto, preenche o que falta (canal oficial, data) e é você quem envia ou publica, uma vez, depois do parecer aprovado. A Isabela nunca envia nem publica."
+
+temas_obrigatorios:
+  - id: TEMA-GANHO-E-PROMESSA
+    tema: "Ganho, renda e promessa enganosa em vendas"
+    como_conferir: "CHK-COPY-01 e CHK-COPY-03 (palavras da lista), RUB-COPY-03 e RUB-COPY-04 (disfarçado); a Clara julga a promessa no parecer. O convite nunca recebe a conta (MAT-16)."
+  - id: TEMA-PROVA-INVENTADA
+    tema: "Depoimento, resultado, número de pessoas e preço inventados"
+    como_conferir: "CHK-COPY-07 (número solto), CHK-COPY-08 (apoio literal) e RUB-COPY-02 (afirmação fora da tabela)."
+  - id: TEMA-DADOS-PESSOAIS
+    tema: "Dados pessoais (LGPD): contato de terceiros, dado sensível e recusa"
+    como_conferir: "CHK-COPY-06 (contato só do pacote) e CHK-COPY-10 (não pede dado sensível); RUB-COPY-04 (a pessoa pode não responder). O enquadramento legal é da Clara no parecer."
+  - id: TEMA-SAUDE-SEM-ORIENTACAO
+    tema: "Orientação médica individual em saúde"
+    como_conferir: "CHK-COPY-04 (palavras da lista) e RUB-COPY-05 (conselho para o caso de alguém, ou substituir profissional)."
+  - id: TEMA-ELIVING-NAO-E-APP-DE-CALORIAS
+    tema: "eLiving™ é inteligência pessoal de evolução, nunca app de calorias; os quatro pilares são personagens"
+    como_conferir: "CHK-COPY-05 (calorias, dieta, app fitness), CHK-COMUM-09 (grafia eLiving™) e RUB-COPY-07 (produto e personagens descritos de outro jeito)."
+  - id: TEMA-VINCULO-DE-TRABALHO
+    tema: "Convite que parece oferta de emprego ou contratação"
+    como_conferir: "CHK-COPY-02 (termos do pacote da Humano Digital, como emprego e contratação) e RUB-COPY-01; o enquadramento do vínculo é da Clara no parecer."
+
+revisor_confere:
+  - "Se o texto serve ao público, ao canal e ao passo que o pedido diz (RUB-COPY-01)."
+  - "Se toda afirmação sobre a empresa, o produto ou a participação tem apoio, sem prova inventada (RUB-COPY-02)."
+  - "Se nenhum trecho insinua ganho ou vantagem financeira, mesmo sem as palavras da lista (RUB-COPY-03)."
+  - "Se nada pressiona nem promete sem base e a pessoa pode não responder (RUB-COPY-04)."
+  - "Se, em saúde, fica em informação geral, sem orientação para o caso de alguém (RUB-COPY-05)."
+  - "Se a voz é a do pacote e uma pessoa leiga entende na primeira leitura (RUB-COPY-06)."
+  - "Se a eLiving™ não parece app de dieta, academia ou calorias e os quatro pilares não aparecem como pessoas reais (RUB-COPY-07)."
+  - "Se as pendências para o seu ok são as que de fato faltam, sem buraco no texto (RUB-COPY-08)."
+
+revisor_nao_reavalia:
+  - "Termo de ganho, termo proibido do pacote, promessa e pressão da lista, número solto, contato inventado, tamanho da alternativa e pedido de dado sensível: o código já conferiu (CHK-COPY-01 a 10)."
+  - "Se a afirmação do pacote é verdadeira no mundo: só você; o revisor julga se há apoio literal e se o texto diz o mesmo que ele."
+  - "Lei, publicidade, imagem, voz e vínculo de trabalho: é do parecer da Clara (MAT-22); o revisor não decide o que é permitido."
+  - "Plano de canais e estratégia da campanha: são da Camila; o revisor não pede que entrem no texto."
+  - "Canal, link ou perfil real: o revisor revisa sem internet e não confere nada na rede."
+
+entrada_minima:
+  - id: ENT-COPY-PUBLICO
+    o_que: "Para quem é o texto e o que a pessoa pode fazer ao ler (ex.: as 10 primeiras pessoas, responder a mensagem)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-COPY-CANAL
+    o_que: "Onde o texto aparece (WhatsApp, rede social, mensagem de boas-vindas). Escolha fechada A/B/C, nunca texto livre."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: PERGUNTAR
+  - id: ENT-COPY-FATOS
+    o_que: "Os fatos que o texto pode afirmar (o que a empresa oferece, para quem, o que acontece depois), no pedido original ou em fonte importada aprovada ligada ao card."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-COPY-PACOTE
+    o_que: "O pacote CONFIRMADO da empresa do card: grafia, voz, slogan, canais confirmados, decisões vigentes e termos proibidos."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

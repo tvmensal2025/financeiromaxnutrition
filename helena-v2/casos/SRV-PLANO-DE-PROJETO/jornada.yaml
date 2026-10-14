@@ -1,0 +1,137 @@
+# Jornada de ponta a ponta do card da Marina (AGT-04), no formato maquina/jornada.schema.json.
+# Reproduzida por maquina/provar.py, função replay(), sobre a tabela real (maquina/passagens.yaml).
+#
+# O card: o pedido de casos/SRV-PLANO-DE-PROJETO/pedido.yaml (eLiving™, BIZ-004, pacote CONFIRMADO):
+# cronograma do que falta para a primeira versão do app chegar às lojas até 18/12/2026.
+# O caminho: seu pedido -> leitura de volta da Helena -> seu CONFIRMO -> plano válido -> etapa na
+# fila -> execução -> portão 1 recusa (dependência) -> nova execução -> portão 1 ok -> o revisor
+# reprova com critério (RUB-PROJETO-02) -> correção -> portão 1 ok -> o revisor aprova -> card pronto.
+#
+# 'automatico: false' de propósito: todo evento do motor aparece escrito aqui, um por linha, para
+# você ver cada passo (como na reprodução do histórico).
+#
+# O plano tem UMA etapa (servicos.yaml, montagem_do_plano, SERVICO_NAO_JULGADO): o serviço da Marina
+# nunca é julgado pelo parecer (julgado_pelo_parecer: NUNCA) e não tem ação do fundador. Os revisores
+# são a lista EFETIVA gravada no card: [AUGUSTO, FUNDADOR]. Ela supõe o Augusto já APTO em
+# plano_de_projeto (teste 9 + seu toque), condição para o serviço ir a ESTAGIO (MAT-12); hoje está
+# SEM_PROVA. O Felipe (reserva, passo 7) só entra em cards novos depois de ligado e APTO.
+#
+# Contas da etapa (TETO_EXECUCOES = 6): entrega 1, entrega 2, reprovação 3, entrega 4, aprovação 5.
+# Reprovações: 1 de 2. Nenhum teto estourado. Nenhuma ação externa nasce: toda entrega diz NENHUMA
+# (o que é de fora, como criar as contas e enviar o app às lojas, são marcos seus no plano).
+# Neutra quanto ao motor: os eventos são os da tabela; nada aqui depende de DBOS ou de motor próprio.
+
+id: AGT-04-marina-plano-de-projeto-ponta-a-ponta
+descricao: "Card da eLiving™ com o plano da Marina, do pedido ao card pronto, com uma recusa do código (CHK-PROJETO-DEPENDENCIAS) e uma reprovação do revisor (RUB-PROJETO-02)."
+agente: AGT-04
+empresa: "eLiving™ (BIZ-004)"
+automatico: false
+card:
+  pedido_grande: true        # você marcou 'confirmar antes' na caixa Novo pedido
+  plano_valido: true
+
+roteiro:
+  etapas:
+    - id: E1
+      nome: "plano de projeto (Marina)"
+      autor: MARINA
+      revisores: [AUGUSTO, FUNDADOR]
+      depende_de: []
+      julga: []
+      internet: false
+      pulavel: false
+      prazo_de_terceiro: false
+      usa_decisao: true        # card de empresa: o pacote traz a DEC-023 (marca eLiving™), lida na hora
+      acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+
+eventos:
+  # --- O pedido e a confirmação (o card nasce em RASCUNHO pelo código, antes de qualquer IA)
+  - papel: HELENA
+    evento: LER_DE_VOLTA
+    nota: "C01. 'Entendi assim: cronograma, em marcos com datas, do que falta para a primeira versão do app da eLiving™ ser enviada e aprovada nas duas lojas até 18/12, cabendo nas suas 6 horas por semana. Pronto: CARD-1 a CARD-5. Não pode: mudar a data final; tratar a eLiving™ como app fitness. Confirma?' Escolha: SRV-PLANO-DE-PROJETO."
+  - papel: FUNDADOR
+    evento: RESPONDER
+    params: {opcao: CONFIRMO}
+    nota: "C06. Seu toque, com a versão que você viu."
+  - papel: MOTOR
+    evento: PLANO_VALIDO
+    nota: "C10. Validador do plano: serviço em ESTAGIO, dono ligado, BIZ-004 nas empresas do serviço com pacote CONFIRMADO (MAT-23), revisores efetivos [AUGUSTO, FUNDADOR] (MAT-21). Card EM_ANDAMENTO."
+  # --- A etapa entra na fila e roda
+  - papel: MOTOR
+    evento: DEPENDENCIAS_PRONTAS
+    alvo: E1
+    nota: "E01. Sem anteriores: a etapa vai para a fila (motivo NORMAL), na vaga da Marina."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 1: servidor de ferramentas vazio, 3 chamadas e 420 s (ficha)."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 1ª entrega: igual à boa-01, mas o envio (M6) começa em 02/12, antes do prazo das correções (M5, 04/12): é o defeito-03."
+  - papel: MOTOR
+    evento: PORTAO1_RECUSOU
+    alvo: E1
+    nota: "E43. Portão 1 (código): CHK-PROJETO-DEPENDENCIAS recusa, 'M6 começa em 2026-12-02, antes do prazo de M5 (2026-12-04)'. Volta à fila com o item exato."
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 2: a Marina recebe o item recusado e corrige só o início do M6."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 2ª entrega: datas certas, mas o pronto do M3 diz 'App bem encaminhado.': é o defeito-18."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: AUGUSTO}
+    nota: "E40. Portão 1 passou (comuns e CHK-PROJETO-*). Revisor designado: AUGUSTO, o primeiro da lista efetiva (não é o autor; ninguém julga esta peça depois)."
+  # --- Revisão: uma reprovação com critério
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+    nota: "E50. Revisão sem ferramenta, apelido revisao-padrao (MAT-10)."
+  - papel: REVISOR
+    evento: REPROVAR
+    alvo: E1
+    ator: AUGUSTO
+    nota: "E57. Veredito RUB-PROJETO-02 FALHOU, seção marcos, trecho 'App bem encaminhado.' (o código confere o trecho na entrega). O REPROVAR é calculado pelo código a partir dos vereditos. Volta à Marina com o critério; reprovações 1 de 2."
+  # --- Correção
+  - papel: MOTOR
+    evento: INICIAR_EXECUCAO
+    alvo: E1
+    nota: "E10. Execução 3: a Marina recebe o critério reprovado e corrige só o pronto do M3."
+  - papel: AUTOR
+    evento: ENTREGAR
+    alvo: E1
+    params: {parecer: OK, acao_externa: NENHUMA, usou_internet: NAO}
+    nota: "E20. 3ª entrega: casos/SRV-PLANO-DE-PROJETO/boas/boa-01.yaml (pronto do M3: 'O app abre no seu celular com todas as telas principais e os 4 textos de boas-vindas.')."
+  - papel: MOTOR
+    evento: PORTAO1_OK
+    alvo: E1
+    params: {escolhido: AUGUSTO}
+    nota: "E40. Portão 1 passou de novo. A lista efetiva é congelada: o revisor continua o AUGUSTO."
+  - papel: MOTOR
+    evento: INICIAR_REVISAO
+    alvo: E1
+  - papel: REVISOR
+    evento: APROVAR
+    alvo: E1
+    ator: AUGUSTO
+    nota: "E54. Os 8 critérios PASSOU e os itens CARD-3 e CARD-4 (de IA) PASSOU, cada TRECHO conferido pelo código. Etapa APROVADA."
+  # --- O final
+  - papel: MOTOR
+    evento: TODAS_PRONTAS
+    nota: "C12. Card PRONTO; o sinal CARD_PRONTO leva a E1 a PRONTA (E110). A entrega diz acao_externa NENHUMA: nenhuma ação nasce na sua lista. Criar as contas e enviar o app às lojas são marcos seus, que você faz fora do sistema."
+  - papel: FUNDADOR
+    evento: APROVAR
+    nota: "Reação (não muda estado): registra a sua aprovação do card pronto. Nada fora do sistema acontece."
+
+esperado:
+  estado_card: PRONTO
+  etapas: {E1: PRONTA}
+  acoes: {}
+  violacoes: 0
+  recusados: 0

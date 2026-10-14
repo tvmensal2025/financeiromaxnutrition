@@ -1,0 +1,428 @@
+# Tabela ÚNICA de passagens do Sistema Helena (v2.0) — card, etapa e ação externa.
+#
+# Cada linha: estado (de), evento, papel que pode disparar, guarda, efeito nos
+# contadores, próximo estado (para) e sinais para as outras máquinas. O dono e o
+# prazo de cada estado ficam no bloco "estados", escritos UMA vez (MEL-22); toda
+# linha herda o dono e o prazo do seu próximo estado. `python maquina/provar.py
+# --tabela` imprime a tabela expandida, linha a linha, com o dono e o prazo.
+#
+# Neutra quanto ao motor (DBOS ou motor próprio): o estado vive nas nossas tabelas
+# e nesta tabela; o motor só dispara eventos e a função única do banco aplica a linha.
+#
+# Sintaxe das guardas: expressão Python restrita (nomes, números, textos entre
+# aspas, and/or/not, comparações, in, + e -). Sem chamadas de função.
+# Efeitos: número = atribui; "+1" = soma; "$param" = copia o parâmetro do evento;
+# TEXTO = atribui o valor; "_macro" aplica um bloco de "macros".
+# "para: MESMO" = fica no mesmo estado (só mudam contadores).
+
+versao: "2.0.0"
+
+regras_gerais:
+  # Regra 3: só a chave da chamada atual grava. Vale para o autor, o revisor e a Helena
+  # (leitura de volta e recomendação). A chave é o número_de_execucao abaixo, nunca 'execucoes'.
+  respostas_de_agente_exigem_chave_atual: [AUTOR, REVISOR, HELENA]
+  numero_de_execucao:
+    o_que: "Chave de cada chamada de agente: card, etapa (ou o próprio card, na Helena), versão e número."
+    sobe_em: [INICIAR_EXECUCAO, INICIAR_REVISAO, "cada chamada da Helena (leitura de volta e recomendação)"]
+    nunca_zera: true          # sequência do banco; nem NOVA_RODADA, nem ZERAR_TENTATIVAS, nem versão nova a reaproveitam
+    nao_e: execucoes          # 'execucoes' é contador de tentativas (zera em rodada nova); nunca serve de chave
+    morte: "E34, E35, E69 e E70 marcam o número da execução dada como morta ANTES de liberar o próximo INICIAR; uma resposta dela chega depois como chave antiga e não grava."
+  respostas_de_revisor_exigem_revisor_designado: true # regra 4: só o revisor designado responde como REVISOR
+  # A-6, MEL-25 e plano l. 165: cada toque leva a versão que você viu. A versão da etapa sobe a
+  # cada entrega e a cada rodada nova; a da pergunta do card, a cada pergunta; a da ação, quando
+  # ela nasce. Com versão antiga estes botões nunca mudam estado: viram comentário com
+  # "a peça mudou, veja a versão nova" (recusa_do_fundador.versao_antiga). Cancelar sempre vale.
+  toques_do_fundador_exigem_versao_vista: [APROVAR, PEDIR_AJUSTE, RESPONDER]
+  # Regra 6: etapa só anda com o card ativo. Vale para TODO evento da etapa, menos os que o card
+  # manda justamente ao fechar (cancelamento em cascata e card pronto). O banco lê o estado do card
+  # na mesma transação; a prova deriva daqui, e não de uma constante dela, onde a etapa pode andar.
+  etapa_so_anda_com_card_ativo:
+    card_ativo: [EM_ANDAMENTO, ESPERANDO_FUNDADOR]
+    exceto: [CANCELADO_PAI, CARD_PRONTO]
+  # Eventos listados em 'entradas' só são aplicados dentro da transação da linha que emite o sinal
+  # correspondente (bloco 'ligacoes'), com o id da linha de origem gravado no histórico. O motor
+  # não consegue mandá-los direto: decisão nova, card pronto e encerrar o card têm sempre origem.
+  entradas_so_por_sinal: true
+  resposta_de_agente_sem_linha:                       # plano l. 78 e 94: qualquer outra resposta é formato errado
+    papel: MOTOR
+    evento: FALHA
+    parametros: {classe: FORMATO_ERRADO}
+  sinais_atomicos: true          # sinais entre máquinas são aplicados na mesma transação da linha
+  subcards_desligados: true      # MEL-24: nenhuma linha aceita PEDIR_SUBCARD na v2.0
+
+tetos:
+  TETO_EXECUCOES:       {valor: 6, por_que: "Regra 5 e 'Teto geral': cada etapa roda no máximo 6 vezes, somando autor e revisor, por qualquer motivo. As suas ordens abrem rodada nova e não gastam esse limite."}
+  TETO_FORMATO:         {valor: 1, por_que: "Formato errado ganha UMA nova tentativa só de formato; na segunda, em resolução (K-13, A-17)."}
+  TETO_TEMPO:           {valor: 1, por_que: "Tempo esgotado: mais uma tentativa com 50% mais tempo; na segunda, em resolução (divisão no meio desligada, MEL-24)."}
+  TETO_CHAMADAS:        {valor: 1, por_que: "Limite de chamadas: mais chamadas uma vez; na segunda, em resolução."}
+  TETO_REPROVACOES:     {valor: 2, por_que: "Duas voltas ao autor por reprovação; a reprovação seguinte vai para em resolução. Cabe exatamente no teto de 6."}
+  TETO_INFRA:           {valor: 3, por_que: "Regra 12: falha de provedor/servidor não gasta tentativa, mas na 3ª da mesma rodada a etapa para e chama você (plano: '3ª queda da mesma etapa')."}
+  TETO_AVISO_ESPERA:    {valor: 1, por_que: "Esperando capacidade: um aviso em 1 hora; em 6 horas você escolhe."}
+  TETO_REPLANEJAMENTO:  {valor: 1, por_que: "Em resolução, 'refazer' vale uma vez por etapa (plano: a etapa é replanejada uma vez)."}
+  TETO_ORDENS:          {valor: 3, por_que: "Suas ordens que reabrem trabalho no mesmo card (pedir ajuste, refazer, esperar, modelo menor, decisão nova, confirmar de novo depois de o validador do plano falhar). Não gastam o teto de 6, mas têm teto próprio para o card terminar e a prova acabar (MEL-23). Na 4ª, a ordem é LINHA, não comentário: este card é substituído por um card novo ligado, com as entregas deste e o seu pedido (E96, E97, E98, E117, C17, C29, C33): você nunca perde o poder de pedir e o card nunca fecha com a peça que você marcou como errada. PROPOSTA: depende do seu sim."}
+  TETO_PERGUNTAS:       {valor: 2, por_que: "Limite de perguntas do card (plano l. 84 e 302). Número proposto, a calibrar na fase 3."}
+  TETO_LEMBRETES:       {valor: 2, por_que: "Espera interna por você: lembrete em 24h e 48h; depois, o padrão (que nunca aprova)."}
+  TETO_VOLTAS_JURIDICO: {valor: 2, por_que: "A etapa jurídica manda a peça julgada de volta no máximo 2 vezes; depois, em resolução (MEL-23 pede um teto só: 2, como no plano)."}
+  TETO_NIVEL_PRAZO:     {valor: 3, por_que: "Três níveis de prazo do card, cada um dispara uma vez: 80%, vencido, mais 1 hora."}
+  TETO_FALHAS_HELENA:   {valor: 2, por_que: "Se a leitura de volta da Helena falhar duas vezes, o card vai para você sem ela."}
+  TETO_EXECUCOES_ACAO:  {valor: 1, por_que: "Regra 8: uma ação externa é executada no máximo uma vez, só pelo motor."}
+  TETO_MUDANCAS_PRAZO:  {valor: 3, por_que: "Cada mudança de prazo sua rearma os 3 avisos do prazo novo. O teto deixa a prova terminar; na 4ª, o campo muda e os avisos ficam como estão (reação). PROPOSTA: depende do seu sim."}
+  TETO_VALIDACAO_PLANO: {valor: 2, por_que: "O validador do plano é código nosso e roda na hora: se não responder em 60 s, roda de novo uma vez; na 2ª, o card espera você com o motivo VALIDADOR_FALHOU."}
+
+# Quem pode ser revisor de uma etapa (regra 4). O motor escolhe, na ordem da ficha,
+# o primeiro candidato disponível que não esteja excluído.
+# "Quem julga a peça depois" (regra 4) são o autor da etapa julgadora E os revisores possíveis
+# dela (a ficha da julgadora, menos o autor dela e você): quem revisa o parecer decide se ele vale,
+# e assim julgaria de novo uma peça que aprovou. Os dois conjuntos ficam disjuntos pela ficha,
+# o que é mais forte que comparar só o revisor que foi designado.
+designacao_de_revisor:
+  candidatos: revisores_da_ficha
+  excluir: [AUTOR_DA_ETAPA, AUTORES_DOS_JULGADORES, REVISORES_DOS_JULGADORES]
+  ultima_reserva: FUNDADOR   # sempre válida; só depois do portão 1 (PORTAO1_OK com escolhido FUNDADOR)
+  julgadora_tem_segundo_revisor: FUNDADOR   # plano l. 142 e 367: no jurídico você é o segundo revisor; só o seu Aprovar faz o parecer valer
+
+prazos:
+  leitura_de_volta:       {quanto: "15 min", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+  espera_do_fundador:     {quanto: "interna: lembrete em 24h e 48h e depois o padrão; externa: o padrão no prazo da pergunta", no_prazo: {papel: RELOGIO, evento: PRAZO_ESPERA_VENCIDO}}
+  na_hora:                {quanto: "até 60 s; sem resposta, o relógio dispara TEMPO_ESGOTADO", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+  # O prazo do card vale para o card e para as etapas que esperam dentro dele (aguardando as
+  # anteriores, na fila por prioridade, aprovada esperando o card fechar). Os 3 avisos existem em
+  # TODO estado aberto do card e cada um vale enquanto o card não passou dele.
+  prazo_do_card:          {quanto: "o do card (só você muda; cada mudança rearma os avisos)", no_prazo: {papel: RELOGIO, evento: PRAZO_VENCIDO}, avisos: [PRAZO_80, PRAZO_MAIS_1H], tratado_em: card}
+  tempo_maximo_da_ficha:  {quanto: "o da ficha (ex.: Clara 15 min)", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+  prazo_da_revisao:       {quanto: "o da ficha do revisor", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+  recomendacao_da_helena: {quanto: "30 min; depois vira cartão para você sem recomendação", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+  execucao_da_acao:       {quanto: "15 min; sem confirmação, vira conferência sua (nunca repete)", no_prazo: {papel: RELOGIO, evento: TEMPO_ESGOTADO}}
+
+variaveis:
+  card:
+    motivo:        {dominio: [NENHUM, HELENA_FALHOU, PLANO_INVALIDO, VALIDADOR_FALHOU, DEPENDENCIA, NAO_PODE], inicial: NENHUM}
+    ordens:        {teto: TETO_ORDENS, inicial: 0, compartilhada: true}
+    perguntas:     {teto: TETO_PERGUNTAS, inicial: 0, compartilhada: true}
+    voltas:        {teto: TETO_VOLTAS_JURIDICO, inicial: 0, compartilhada: true}
+    nivel_prazo:   {teto: TETO_NIVEL_PRAZO, inicial: 0}
+    lembretes:     {teto: TETO_LEMBRETES, inicial: 0}
+    falhas_helena: {teto: TETO_FALHAS_HELENA, inicial: 0}
+    validacoes:    {teto: TETO_VALIDACAO_PLANO, inicial: 0}
+    mudancas_prazo: {teto: TETO_MUDANCAS_PRAZO, inicial: 0}
+    fim:           {dominio: [NENHUM, PAI, PADRAO, PULADA, ENCERRAR_CARD, CARD_PRONTO, FUNDADOR, SUBSTITUIDO, FALHA], inicial: NENHUM}
+  etapa:
+    motivo:       {dominio: [NENHUM, NORMAL, CAPACIDADE, PERGUNTA, REVISAO, RESOLUCAO, INFRA], inicial: NENHUM}
+    espera:       {dominio: [NENHUMA, INTERNA, EXTERNA], inicial: NENHUMA}
+    execucoes:    {teto: TETO_EXECUCOES, inicial: 0}
+    formato:      {teto: TETO_FORMATO, inicial: 0}
+    tempo:        {teto: TETO_TEMPO, inicial: 0}
+    chamadas:     {teto: TETO_CHAMADAS, inicial: 0}
+    reprovacoes:  {teto: TETO_REPROVACOES, inicial: 0}
+    infra:        {teto: TETO_INFRA, inicial: 0}
+    aviso:        {teto: TETO_AVISO_ESPERA, inicial: 0}
+    replan:       {teto: TETO_REPLANEJAMENTO, inicial: 0}
+    ordens:       {teto: TETO_ORDENS, inicial: 0, compartilhada: true}
+    perguntas:    {teto: TETO_PERGUNTAS, inicial: 0, compartilhada: true}
+    voltas:       {teto: TETO_VOLTAS_JURIDICO, inicial: 0, compartilhada: true}
+    lembretes:    {teto: TETO_LEMBRETES, inicial: 0}
+    exec_viva:    {teto: 1, inicial: 0}
+    # 1 = esta tentativa é continuação automática (formato, tempo, chamadas, infraestrutura) de uma
+    # execução que pode ter lido a internet: a restrição continua valendo (MEL-27 d). O uso da
+    # execução ATUAL chega dentro da resposta (parâmetro usou_internet, preenchido pelo motor).
+    leu_internet: {teto: 1, inicial: 0}
+    revisor:      {dominio: [NENHUM], mais: revisores_possiveis, inicial: NENHUM}   # o resto do domínio vem de vocabulario.identidades
+    semaforo:     {dominio: [NENHUM, OK, AJUSTE, NAO_PODE], inicial: NENHUM}
+    fim:          {dominio: [NENHUM, PAI, PADRAO, PULADA, ENCERRAR_CARD, CARD_PRONTO, FUNDADOR, SUBSTITUIDO, FALHA], inicial: NENHUM}
+  acao_externa:
+    ok_registrado: {teto: 1, inicial: 0}
+    tentativas:    {teto: TETO_EXECUCOES_ACAO, inicial: 0}
+    lembretes:     {teto: TETO_LEMBRETES, inicial: 0}
+    fim:           {dominio: [NENHUM, PAI, PADRAO, FUNDADOR, FALHA], inicial: NENHUM}
+
+macros:
+  # Rodada nova aberta por uma ordem sua (ou por decisão nova): zera os contadores
+  # de tentativa. Não zera replan, ordens, perguntas nem voltas.
+  # Decisão nova enquanto a etapa espera: zera só as tentativas (a espera continua).
+  ZERAR_TENTATIVAS: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, aviso: 0}
+  NOVA_RODADA: {execucoes: 0, formato: 0, tempo: 0, chamadas: 0, reprovacoes: 0, infra: 0, aviso: 0, lembretes: 0, exec_viva: 0, leu_internet: 0, motivo: NORMAL, espera: NENHUMA, semaforo: NENHUM, revisor: NENHUM}
+  # A entrega atual deixa de valer (recusada, reprovada, envelhecida): some o parecer e o revisor designado.
+  LIMPAR_ENTREGA: {semaforo: NENHUM, revisor: NENHUM}
+
+estados:
+  card:
+    RASCUNHO:              {dono: HELENA, prazo: leitura_de_volta, inicial: true}
+    ESPERANDO_CONFIRMACAO: {dono: FUNDADOR, prazo: espera_do_fundador, padrao_nunca_aprova: true}
+    VALIDANDO_PLANO:       {dono: MOTOR, prazo: na_hora}
+    EM_ANDAMENTO:          {dono: HELENA, prazo: prazo_do_card}
+    ESPERANDO_FUNDADOR:    {dono: FUNDADOR, prazo: espera_do_fundador, padrao_nunca_aprova: true}
+    PRONTO:                {final: true}
+    CANCELADO:             {final: true}
+    ENCERRADO_COM_FALHA:   {final: true}
+  etapa:
+    AGUARDANDO_ANTERIORES: {dono: HELENA, prazo: prazo_do_card, inicial: true}
+    NA_FILA:               {dono: AUTOR, prazo: prazo_do_card, nota: "Fila por prioridade (só você muda). O atraso aparece nos avisos do prazo do card."}
+    EXECUTANDO:            {dono: AUTOR, prazo: tempo_maximo_da_ficha}
+    VALIDACAO:             {dono: MOTOR, prazo: na_hora}
+    REVISAO:               {dono: REVISOR, prazo: prazo_da_revisao}
+    ESPERANDO_FUNDADOR:    {dono: FUNDADOR, prazo: espera_do_fundador, padrao_nunca_aprova: true}
+    EM_RESOLUCAO:          {dono: HELENA, prazo: recomendacao_da_helena, depois: FUNDADOR}
+    APROVADA:              {dono: HELENA, prazo: prazo_do_card, nota: "Aprovada, esperando o card fechar; pode ser reaberta pela regra 10 enquanto o card estiver aberto."}
+    PRONTA:                {final: true}
+    CANCELADA:             {final: true}
+    ENCERRADA_COM_FALHA:   {final: true}
+  acao_externa:
+    PROPOSTA:              {dono: FUNDADOR, prazo: espera_do_fundador, inicial: true, padrao_nunca_aprova: true}
+    AUTORIZADA:            {dono: MOTOR, prazo: na_hora}
+    EXECUTANDO_ACAO:       {dono: MOTOR, prazo: execucao_da_acao}
+    INCERTA:               {dono: FUNDADOR, prazo: espera_do_fundador, padrao_nunca_aprova: true}
+    EXECUTADA:             {final: true}
+    FEITA_PELO_FUNDADOR:   {final: true}
+    RECUSADA:              {final: true}
+    EXPIRADA:              {final: true}
+    FALHOU:                {final: true}
+    NAO_CONFIRMADA:        {final: true, nota: "Pode ter acontecido: nunca é refeita por este card."}
+    CANCELADA:             {final: true}
+
+# Eventos que chegam de fora da máquina (de outra etapa ou do card), SÓ por sinal
+# (regras_gerais.entradas_so_por_sinal). Na camada 1 da prova eles podem chegar a qualquer
+# momento; na camada 2 só chegam pelas ligações. DEPENDENCIAS_PRONTAS não é entrada: é evento
+# do motor com guarda calculada pelo banco a partir das outras etapas (anteriores_satisfeitas).
+entradas:
+  etapa: [DEPENDENCIA_MUDOU, DECISAO_MUDOU, AJUSTE_DO_JULGADOR, REABRIR_POR_ORDEM, CANCELADO_PAI, CARD_PRONTO]
+  acao_externa: [CANCELADO_PAI]
+  card: [DECISAO_MUDOU, ENCERRAR_CARD, SUBSTITUIR_CARD]
+
+
+linhas:
+  card:
+    - {id: C01, de: RASCUNHO, evento: LER_DE_VOLTA, papel: HELENA, guarda: "pedido_grande", efeito: {lembretes: 0, falhas_helena: 0}, para: ESPERANDO_CONFIRMACAO, nota: "Pedido grande: 'Entendi assim: objetivo, prazo e como é o pronto. Confirma?'"}
+    - {id: C02, de: RASCUNHO, evento: LER_DE_VOLTA, papel: HELENA, guarda: "not pedido_grande", efeito: {falhas_helena: 0}, para: VALIDANDO_PLANO, nota: "Pedido pequeno vale na hora, com botão de desfazer (Cancelar)."}
+    - {id: C03, de: RASCUNHO, evento: FALHA, papel: MOTOR, guarda: "falhas_helena < TETO_FALHAS_HELENA - 1", efeito: {falhas_helena: "+1"}, para: MESMO}
+    - {id: C04, de: RASCUNHO, evento: FALHA, papel: MOTOR, guarda: "falhas_helena >= TETO_FALHAS_HELENA - 1", efeito: {falhas_helena: 0, motivo: HELENA_FALHOU, lembretes: 0}, para: ESPERANDO_CONFIRMACAO, nota: "Na 2ª falha da Helena o rascunho vai para você sem a leitura de volta."}
+    - {id: C05, de: RASCUNHO, evento: TEMPO_ESGOTADO, papel: RELOGIO, efeito: {motivo: HELENA_FALHOU, lembretes: 0, falhas_helena: 0}, para: ESPERANDO_CONFIRMACAO}
+    - {id: C06, de: ESPERANDO_CONFIRMACAO, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'CONFIRMO' and motivo in ('NENHUM', 'HELENA_FALHOU')", efeito: {motivo: NENHUM, lembretes: 0}, para: VALIDANDO_PLANO}
+    - {id: C07, de: [ESPERANDO_CONFIRMACAO, ESPERANDO_FUNDADOR], evento: LEMBRETE_24H, papel: RELOGIO, guarda: "lembretes == 0", efeito: {lembretes: 1}, para: MESMO}
+    - {id: C08, de: [ESPERANDO_CONFIRMACAO, ESPERANDO_FUNDADOR], evento: LEMBRETE_48H, papel: RELOGIO, guarda: "lembretes == 1", efeito: {lembretes: 2}, para: MESMO}
+    - {id: C09, de: [ESPERANDO_CONFIRMACAO, ESPERANDO_FUNDADOR], evento: PRAZO_ESPERA_VENCIDO, papel: RELOGIO, guarda: "lembretes >= TETO_LEMBRETES", efeito: {fim: PADRAO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS], nota: "Padrão registrado como padrão, nunca como decisão sua; nunca aprova."}
+    - {id: C10, de: VALIDANDO_PLANO, evento: PLANO_VALIDO, papel: MOTOR, efeito: {}, para: EM_ANDAMENTO}
+    - {id: C11, de: VALIDANDO_PLANO, evento: PLANO_INVALIDO, papel: MOTOR, efeito: {motivo: PLANO_INVALIDO, lembretes: 0}, para: ESPERANDO_CONFIRMACAO, nota: "Plano que não passa na conferência: o card espera você com o motivo; só cancelar (ou o padrão). Nenhuma etapa anda: a trava é regras_gerais.etapa_so_anda_com_card_ativo."}
+    - {id: C30, de: VALIDANDO_PLANO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "validacoes < TETO_VALIDACAO_PLANO - 1", efeito: {validacoes: "+1"}, para: MESMO, nota: "O validador do plano (código nosso) não respondeu em 60 s: roda de novo, uma vez."}
+    - {id: C31, de: VALIDANDO_PLANO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "validacoes >= TETO_VALIDACAO_PLANO - 1", efeito: {validacoes: TETO_VALIDACAO_PLANO, motivo: VALIDADOR_FALHOU, lembretes: 0}, para: ESPERANDO_CONFIRMACAO, nota: "Nenhuma etapa andou. Você escolhe confirmar de novo (é uma ordem sua) ou cancelar."}
+    - {id: C32, de: ESPERANDO_CONFIRMACAO, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'CONFIRMO' and motivo == 'VALIDADOR_FALHOU' and ordens < TETO_ORDENS", efeito: {motivo: NENHUM, lembretes: 0, validacoes: 0, ordens: "+1"}, para: VALIDANDO_PLANO}
+    - {id: C33, de: ESPERANDO_CONFIRMACAO, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'CONFIRMO' and motivo == 'VALIDADOR_FALHOU' and ordens >= TETO_ORDENS", efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Acima do teto de ordens: card novo ligado, com o mesmo pedido."}
+    - {id: C12, de: EM_ANDAMENTO, evento: TODAS_PRONTAS, papel: MOTOR, guarda: "todas_prontas", efeito: {fim: CARD_PRONTO}, para: PRONTO, sinais: [CARD_PRONTO]}
+    - {id: C13, de: EM_ANDAMENTO, evento: PERGUNTAR_AO_FUNDADOR, papel: MOTOR, guarda: "falha_sem_decisao", efeito: {motivo: DEPENDENCIA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Regra 6: etapa cancelada ou com falha para quem depende dela e o card pergunta: pular, refazer ou encerrar/cancelar."}
+    - {id: C14, de: EM_ANDAMENTO, evento: PERGUNTAR_AO_FUNDADOR, papel: MOTOR, guarda: "nao_pode_sem_decisao and not falha_sem_decisao", efeito: {motivo: NAO_PODE, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: C27, de: ESPERANDO_FUNDADOR, evento: MOTIVO_RESOLVIDO, papel: MOTOR, guarda: "(motivo == 'NAO_PODE' and not nao_pode_sem_decisao) or (motivo == 'DEPENDENCIA' and not falha_sem_decisao)", efeito: {motivo: NENHUM, lembretes: 0}, para: EM_ANDAMENTO, nota: "A pergunta perdeu o objeto (a etapa que a causou foi reaberta ou refeita): o card volta a andar sozinho, sem gastar ordem sua, e o app avisa que a pergunta foi retirada. Sem esta linha, um card com tudo aprovado ficaria preso e o padrão o cancelaria."}
+    - {id: C15, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: ENCERRAR_CARD, papel: MOTOR, efeito: {fim: FUNDADOR}, para: ENCERRADO_COM_FALHA, sinais: [CANCELAR_ETAPAS], nota: "Entrada só por sinal, e o único emissor é a E87 (o seu Encerrar numa etapa): por isso o fim fica registrado como seu."}
+    - {id: C28, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: SUBSTITUIR_CARD, papel: MOTOR, efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Entrada só por sinal de uma ordem sua acima do teto numa etapa (E96, E97, E98, E117): card novo ligado, com as entregas e o seu pedido."}
+    - {id: C34, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: PEDIR_AJUSTE, papel: FUNDADOR, efeito: {}, para: MESMO, sinais: [DECISAO_DO_FUNDADOR], nota: "Seu ajuste global no card aberto, com motivo e versão vista, emite o sinal que chega ao card como DECISAO_MUDOU. C16/C17 contam a ordem e a propagam às etapas. No card fechado, Pedir ajuste continua abrindo card ligado."}
+    - {id: C16, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: DECISAO_MUDOU, papel: MOTOR, guarda: "ordens < TETO_ORDENS", efeito: {ordens: "+1"}, para: MESMO, sinais: [DECISAO_MUDOU], nota: "Regra 10: o que usava a decisão é refeito."}
+    - {id: C17, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: DECISAO_MUDOU, papel: MOTOR, guarda: "ordens >= TETO_ORDENS", efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Acima do teto de ordens, o card não pode terminar com informação velha: é substituído por um card novo ligado, com as entregas e a decisão nova."}
+    - {id: C18, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'DEPENDENCIA' and opcao == 'PULAR' and falhas_pulaveis", efeito: {motivo: NENHUM, lembretes: 0}, para: EM_ANDAMENTO, sinais: [PULAR_FALHAS]}
+    - {id: C19, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'DEPENDENCIA' and opcao == 'REFAZER' and ordens < TETO_ORDENS", efeito: {motivo: NENHUM, lembretes: 0, ordens: "+1"}, para: EM_ANDAMENTO, sinais: [REFAZER_FALHAS]}
+    - {id: C20, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'NAO_PODE' and opcao == 'REFAZER' and ordens < TETO_ORDENS", efeito: {motivo: NENHUM, lembretes: 0, ordens: "+1"}, para: EM_ANDAMENTO, sinais: [REABRIR_JULGADAS]}
+    - {id: C29, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo in ('DEPENDENCIA', 'NAO_PODE') and opcao == 'REFAZER' and ordens >= TETO_ORDENS", efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Refazer acima do teto de ordens: card novo ligado, com as entregas deste (nunca vira comentário)."}
+    - {id: C21, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'ENCERRAR'", efeito: {fim: FUNDADOR}, para: ENCERRADO_COM_FALHA, sinais: [CANCELAR_ETAPAS]}
+    - {id: C22, de: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: CANCELAR, papel: FUNDADOR, efeito: {fim: FUNDADOR}, para: CANCELADO, sinais: [CANCELAR_ETAPAS], nota: "Cancelar não depende de IA nem da versão vista; o motor encerra o agente em até 15 s."}
+    # Prazo do card: os 3 avisos valem em TODO estado aberto e cada um vale enquanto o card não
+    # passou dele ('<'), para um nível perdido nunca travar os seguintes.
+    - {id: C23, de: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: PRAZO_80, papel: RELOGIO, guarda: "nivel_prazo < 1", efeito: {nivel_prazo: 1}, para: MESMO, nota: "Card amarelo."}
+    - {id: C24, de: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: PRAZO_VENCIDO, papel: RELOGIO, guarda: "nivel_prazo < 2", efeito: {nivel_prazo: 2}, para: MESMO, nota: "Chama a Helena para destravar; se o card espera você, o aviso vai direto para você."}
+    - {id: C25, de: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: PRAZO_MAIS_1H, papel: RELOGIO, guarda: "nivel_prazo < 3", efeito: {nivel_prazo: 3}, para: MESMO, nota: "Aviso para você."}
+    - {id: C26, de: [RASCUNHO, ESPERANDO_CONFIRMACAO, VALIDANDO_PLANO, EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: MUDAR_PRAZO, papel: FUNDADOR, guarda: "mudancas_prazo < TETO_MUDANCAS_PRAZO", efeito: {nivel_prazo: 0, mudancas_prazo: "+1"}, para: MESMO, nota: "Muda o campo prazo (só você) e rearma os 3 avisos para o prazo novo; o relógio dispara na hora o nível que o prazo novo já passou."}
+
+  etapa:
+    # --- Aguardando as anteriores (dona: Helena; prazo: o do card)
+    - {id: E01, de: AGUARDANDO_ANTERIORES, evento: DEPENDENCIAS_PRONTAS, papel: MOTOR, guarda: "anteriores_satisfeitas", efeito: {motivo: NORMAL}, para: NA_FILA, nota: "anteriores_satisfeitas é calculada pelo banco na mesma transação: toda anterior aprovada ou pulada (predicados.satisfaz_dependencia)."}
+    - {id: E02, de: AGUARDANDO_ANTERIORES, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {}, para: MESMO}
+    - {id: E03, de: AGUARDANDO_ANTERIORES, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: ZERAR_TENTATIVAS}, para: MESMO}
+    - {id: E04, de: AGUARDANDO_ANTERIORES, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    # --- Na fila (dono: autor; motivo NORMAL ou CAPACIDADE, com hora de voltar)
+    - {id: E10, de: NA_FILA, evento: INICIAR_EXECUCAO, papel: MOTOR, guarda: "motivo == 'NORMAL' and execucoes < TETO_EXECUCOES", efeito: {exec_viva: 1}, para: EXECUTANDO, nota: "Uma única entrada na fila: agente, prioridade e versão; número de execução novo (regras_gerais.numero_de_execucao)."}
+    - {id: E11, de: NA_FILA, evento: TETO_EXECUCOES, papel: MOTOR, guarda: "execucoes >= TETO_EXECUCOES", efeito: {motivo: NENHUM, aviso: 0}, para: EM_RESOLUCAO}
+    - {id: E12, de: NA_FILA, evento: SEM_CAPACIDADE, papel: MOTOR, guarda: "motivo == 'NORMAL' and infra < TETO_INFRA - 1", efeito: {motivo: CAPACIDADE, infra: "+1"}, para: MESMO}
+    - {id: E13, de: NA_FILA, evento: SEM_CAPACIDADE, papel: MOTOR, guarda: "motivo == 'NORMAL' and infra >= TETO_INFRA - 1", efeito: {motivo: INFRA, espera: INTERNA, infra: TETO_INFRA, lembretes: 0, leu_internet: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E14, de: NA_FILA, evento: CAPACIDADE_VOLTOU, papel: MOTOR, guarda: "motivo == 'CAPACIDADE'", efeito: {motivo: NORMAL, aviso: 0}, para: MESMO}
+    - {id: E15, de: NA_FILA, evento: AVISO_1H, papel: RELOGIO, guarda: "motivo == 'CAPACIDADE' and aviso < TETO_AVISO_ESPERA", efeito: {aviso: "+1"}, para: MESMO}
+    - {id: E16, de: NA_FILA, evento: ESPERA_6H, papel: RELOGIO, guarda: "motivo == 'CAPACIDADE' and aviso >= TETO_AVISO_ESPERA", efeito: {motivo: INFRA, espera: INTERNA, aviso: 0, lembretes: 0, leu_internet: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E17, de: NA_FILA, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {motivo: NENHUM, aviso: 0, leu_internet: 0}, para: AGUARDANDO_ANTERIORES}
+    - {id: E18, de: NA_FILA, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: MESMO}
+    - {id: E19, de: NA_FILA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI, motivo: NENHUM}, para: CANCELADA}
+    # --- Executando (dono: autor; prazo: tempo máximo da ficha)
+    - {id: E20, de: EXECUTANDO, evento: ENTREGAR, papel: AUTOR, guarda: "parecer == 'OK' or julgadora", efeito: {execucoes: "+1", exec_viva: 0, semaforo: "$parecer", leu_internet: 0}, para: VALIDACAO, nota: "A ação externa proposta é um campo desta entrega (dado, não estado): só vira proposta na sua lista quando o card fica pronto (E110), e só a da entrega que passou pelos portões."}
+    - {id: E21, de: EXECUTANDO, evento: PERGUNTAR, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_perguntar and perguntas < TETO_PERGUNTAS and not prazo_de_terceiro", efeito: {execucoes: "+1", exec_viva: 0, perguntas: "+1", motivo: PERGUNTA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Quem leu a internet (nesta execução, pelo registro de uso, ou na anterior de que esta é continuação de formato) só entrega ou registra falha."}
+    - {id: E120, de: EXECUTANDO, evento: PERGUNTAR, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_perguntar and perguntas < TETO_PERGUNTAS and prazo_de_terceiro", efeito: {execucoes: "+1", exec_viva: 0, perguntas: "+1", motivo: PERGUNTA, espera: EXTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Espera externa só quando o roteiro declara prazo de terceiro na etapa; o agente nunca escolhe o tipo."}
+    - {id: E22, de: EXECUTANDO, evento: DEVOLVER_A_QUEM_PEDIU, papel: AUTOR, guarda: "(leu_internet == 0 or not tem_internet) and usou_internet == 'NAO' and permite_devolver", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO, nota: "Sem sub-card, quem pediu é o card: vira cartão de resolução para você."}
+    - {id: E23, de: EXECUTANDO, evento: REGISTRAR_FALHA, papel: AUTOR, efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
+    - {id: E24, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO and tem_internet", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1", motivo: NORMAL, leu_internet: 1}, para: NA_FILA, nota: "Nova tentativa só de formato, sobre o mesmo texto: numa etapa com internet a restrição continua valendo (MEL-27 d), porque a execução que falhou pode ter lido a internet."}
+    - {id: E121, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO and not tem_internet", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA, nota: "Etapa sem internet (servidor de ferramentas vazio): a nova tentativa de formato não herda restrição."}
+    - {id: E25, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'FORMATO_ERRADO' and formato >= TETO_FORMATO", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
+    - {id: E26, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'LIMITE_CHAMADAS' and chamadas < TETO_CHAMADAS", efeito: {execucoes: "+1", exec_viva: 0, chamadas: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA}
+    - {id: E27, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe == 'LIMITE_CHAMADAS' and chamadas >= TETO_CHAMADAS", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
+    - {id: E28, de: EXECUTANDO, evento: FALHA, papel: MOTOR, guarda: "classe in ('GRANDE_DEMAIS', 'SITE', 'DESCONHECIDA')", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
+    - {id: E29, de: EXECUTANDO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "tempo < TETO_TEMPO", efeito: {execucoes: "+1", exec_viva: 0, tempo: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA}
+    - {id: E30, de: EXECUTANDO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "tempo >= TETO_TEMPO", efeito: {execucoes: "+1", exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: EM_RESOLUCAO}
+    - {id: E31, de: EXECUTANDO, evento: FALHA_INFRA, papel: MOTOR, guarda: "classe in ('PROVEDOR', 'QUEDA', 'FERRAMENTA') and infra < TETO_INFRA - 1", efeito: {exec_viva: 0, infra: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA, nota: "Regra 12: não gasta tentativa."}
+    - {id: E32, de: EXECUTANDO, evento: FALHA_INFRA, papel: MOTOR, guarda: "classe in ('COTA', 'LOGIN', 'BANCO') and infra < TETO_INFRA - 1", efeito: {exec_viva: 0, infra: "+1", motivo: CAPACIDADE, leu_internet: 0}, para: NA_FILA}
+    - {id: E33, de: EXECUTANDO, evento: FALHA_INFRA, papel: MOTOR, guarda: "infra >= TETO_INFRA - 1", efeito: {exec_viva: 0, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0, leu_internet: 0}, para: ESPERANDO_FUNDADOR, nota: "Regra 12: no teto, chama você."}
+    - {id: E34, de: EXECUTANDO, evento: SEM_EXECUCAO_VIVA, papel: VIGIA, guarda: "infra < TETO_INFRA - 1", efeito: {exec_viva: 0, infra: "+1", motivo: NORMAL, leu_internet: 0}, para: NA_FILA, nota: "O número da execução dada como morta é marcado morto antes do próximo INICIAR (regras_gerais.numero_de_execucao)."}
+    - {id: E35, de: EXECUTANDO, evento: SEM_EXECUCAO_VIVA, papel: VIGIA, guarda: "infra >= TETO_INFRA - 1", efeito: {exec_viva: 0, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0, leu_internet: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E37, de: EXECUTANDO, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {exec_viva: 0, motivo: NENHUM, leu_internet: 0}, para: AGUARDANDO_ANTERIORES}
+    - {id: E38, de: EXECUTANDO, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: NA_FILA}
+    - {id: E39, de: EXECUTANDO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {exec_viva: 0, fim: PAI}, para: CANCELADA}
+    # --- Validação (dono: motor; na hora) — portão 1, o validador automático
+    - {id: E40, de: VALIDACAO, evento: PORTAO1_OK, papel: MOTOR, guarda: "revisor_valido and escolhido != 'FUNDADOR'", efeito: {revisor: "$escolhido", exec_viva: 0}, para: REVISAO}
+    - {id: E41, de: VALIDACAO, evento: PORTAO1_OK, papel: MOTOR, guarda: "revisor_valido and escolhido == 'FUNDADOR'", efeito: {revisor: FUNDADOR, motivo: REVISAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Você é sempre a última reserva: se a regra 4 impedir todos os reservas, a revisão vem para você, já validada pelo portão 1."}
+    - {id: E43, de: VALIDACAO, evento: PORTAO1_RECUSOU, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, leu_internet: 0, motivo: NORMAL}, para: NA_FILA, nota: "Volta ao autor com o item exato recusado. PORTAO1_RECUSOU quer dizer que a ENTREGA falhou na conferência; validador que não rodou é FALHA_INFRA ou TEMPO_ESGOTADO (E47-E49, E42)."}
+    - {id: E44, de: VALIDACAO, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, motivo: NENHUM}, para: AGUARDANDO_ANTERIORES}
+    - {id: E45, de: VALIDACAO, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: NA_FILA}
+    - {id: E46, de: VALIDACAO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    - {id: E47, de: VALIDACAO, evento: FALHA_INFRA, papel: MOTOR, guarda: "infra < TETO_INFRA - 1", efeito: {infra: "+1"}, para: MESMO, nota: "O validador (código nosso) não rodou: roda de novo sobre a mesma entrega, sem gastar tentativa do autor (regra 12)."}
+    - {id: E48, de: VALIDACAO, evento: FALHA_INFRA, papel: MOTOR, guarda: "infra >= TETO_INFRA - 1", efeito: {_macro: LIMPAR_ENTREGA, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Regra 12: na 3ª falha do validador, chama você."}
+    - {id: E49, de: VALIDACAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "infra < TETO_INFRA - 1", efeito: {infra: "+1"}, para: MESMO, nota: "Validação sem resposta em 60 s: conta como falha de infraestrutura, nunca como tentativa do autor."}
+    - {id: E42, de: VALIDACAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "infra >= TETO_INFRA - 1", efeito: {_macro: LIMPAR_ENTREGA, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    # --- Revisão (dono: revisor designado; prazo: o da revisão) — portão 2
+    - {id: E50, de: REVISAO, evento: INICIAR_REVISAO, papel: MOTOR, guarda: "exec_viva == 0 and execucoes < TETO_EXECUCOES", efeito: {exec_viva: 1}, para: MESMO}
+    - {id: E51, de: REVISAO, evento: TETO_EXECUCOES, papel: MOTOR, guarda: "exec_viva == 0 and execucoes >= TETO_EXECUCOES", efeito: {_macro: LIMPAR_ENTREGA, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E52, de: REVISAO, evento: SEM_CAPACIDADE, papel: MOTOR, guarda: "exec_viva == 0 and infra < TETO_INFRA - 1", efeito: {infra: "+1"}, para: MESMO}
+    - {id: E53, de: REVISAO, evento: SEM_CAPACIDADE, papel: MOTOR, guarda: "exec_viva == 0 and infra >= TETO_INFRA - 1", efeito: {_macro: LIMPAR_ENTREGA, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E54, de: REVISAO, evento: APROVAR, papel: REVISOR, guarda: "exec_viva == 1 and not julgadora", efeito: {execucoes: "+1", exec_viva: 0}, para: APROVADA}
+    - {id: E74, de: REVISAO, evento: APROVAR, papel: REVISOR, guarda: "exec_viva == 1 and julgadora", efeito: {execucoes: "+1", exec_viva: 0, revisor: FUNDADOR, motivo: REVISAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "No jurídico você é o segundo revisor (plano l. 142 e 367): o card marca 'leia antes de agir'. O parecer só vale (aprovado, ajuste na peça julgada ou não pode) com o SEU Aprovar (E81, E82, E83)."}
+    - {id: E57, de: REVISAO, evento: REPROVAR, papel: REVISOR, guarda: "exec_viva == 1 and reprovacoes < TETO_REPROVACOES", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, reprovacoes: "+1", leu_internet: 0, motivo: NORMAL}, para: NA_FILA, nota: "Volta ao autor com os critérios reprovados."}
+    - {id: E58, de: REVISAO, evento: REPROVAR, papel: REVISOR, guarda: "exec_viva == 1 and reprovacoes >= TETO_REPROVACOES", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E59, de: REVISAO, evento: NAO_CONSIGO_CONFERIR, papel: REVISOR, guarda: "exec_viva == 1", efeito: {execucoes: "+1", exec_viva: 0, revisor: FUNDADOR, motivo: REVISAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Risco alto fora do alcance do revisor: cartão de revisão com texto montado pelo código."}
+    - {id: E60, de: REVISAO, evento: FALHA, papel: MOTOR, guarda: "exec_viva == 1 and classe == 'FORMATO_ERRADO' and formato < TETO_FORMATO", efeito: {execucoes: "+1", exec_viva: 0, formato: "+1"}, para: MESMO}
+    - {id: E61, de: REVISAO, evento: FALHA, papel: MOTOR, guarda: "exec_viva == 1 and classe == 'FORMATO_ERRADO' and formato >= TETO_FORMATO", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E62, de: REVISAO, evento: FALHA, papel: MOTOR, guarda: "exec_viva == 1 and classe == 'LIMITE_CHAMADAS' and chamadas < TETO_CHAMADAS", efeito: {execucoes: "+1", exec_viva: 0, chamadas: "+1"}, para: MESMO}
+    - {id: E63, de: REVISAO, evento: FALHA, papel: MOTOR, guarda: "exec_viva == 1 and classe == 'LIMITE_CHAMADAS' and chamadas >= TETO_CHAMADAS", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E64, de: REVISAO, evento: FALHA, papel: MOTOR, guarda: "exec_viva == 1 and classe in ('GRANDE_DEMAIS', 'SITE', 'DESCONHECIDA')", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E65, de: REVISAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "exec_viva == 1 and tempo < TETO_TEMPO", efeito: {execucoes: "+1", exec_viva: 0, tempo: "+1"}, para: MESMO}
+    - {id: E66, de: REVISAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, guarda: "exec_viva == 1 and tempo >= TETO_TEMPO", efeito: {_macro: LIMPAR_ENTREGA, execucoes: "+1", exec_viva: 0, motivo: NENHUM}, para: EM_RESOLUCAO}
+    - {id: E67, de: REVISAO, evento: FALHA_INFRA, papel: MOTOR, guarda: "exec_viva == 1 and infra < TETO_INFRA - 1", efeito: {exec_viva: 0, infra: "+1"}, para: MESMO}
+    - {id: E68, de: REVISAO, evento: FALHA_INFRA, papel: MOTOR, guarda: "exec_viva == 1 and infra >= TETO_INFRA - 1", efeito: {_macro: LIMPAR_ENTREGA, exec_viva: 0, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E69, de: REVISAO, evento: SEM_EXECUCAO_VIVA, papel: VIGIA, guarda: "exec_viva == 1 and infra < TETO_INFRA - 1", efeito: {exec_viva: 0, infra: "+1"}, para: MESMO, nota: "O número da revisão dada como morta é marcado morto antes do próximo INICIAR_REVISAO."}
+    - {id: E70, de: REVISAO, evento: SEM_EXECUCAO_VIVA, papel: VIGIA, guarda: "exec_viva == 1 and infra >= TETO_INFRA - 1", efeito: {_macro: LIMPAR_ENTREGA, exec_viva: 0, infra: TETO_INFRA, motivo: INFRA, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E71, de: REVISAO, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, exec_viva: 0, motivo: NENHUM}, para: AGUARDANDO_ANTERIORES}
+    - {id: E72, de: REVISAO, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: NA_FILA}
+    - {id: E73, de: REVISAO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {exec_viva: 0, fim: PAI}, para: CANCELADA}
+    # --- Esperando você (dono: você; padrão que nunca aprova)
+    - {id: E80, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'PERGUNTA' and opcao in ('RESPOSTA_A', 'RESPOSTA_B', 'RESPOSTA_C')", efeito: {motivo: NORMAL, espera: NENHUMA, lembretes: 0, leu_internet: 0}, para: NA_FILA}
+    - {id: E81, de: ESPERANDO_FUNDADOR, evento: APROVAR, papel: FUNDADOR, guarda: "motivo == 'REVISAO' and not (julgadora and semaforo == 'AJUSTE')", efeito: {motivo: NENHUM, espera: NENHUMA, lembretes: 0}, para: APROVADA}
+    - {id: E82, de: ESPERANDO_FUNDADOR, evento: APROVAR, papel: FUNDADOR, guarda: "motivo == 'REVISAO' and julgadora and semaforo == 'AJUSTE' and voltas < TETO_VOLTAS_JURIDICO", efeito: {_macro: LIMPAR_ENTREGA, voltas: "+1", motivo: NENHUM, espera: NENHUMA, lembretes: 0}, para: AGUARDANDO_ANTERIORES, sinais: [AJUSTE_DO_JULGADOR], nota: "Parecer de ajuste aprovado por você: a peça julgada volta ao autor e o jurídico refaz sobre o texto novo."}
+    - {id: E83, de: ESPERANDO_FUNDADOR, evento: APROVAR, papel: FUNDADOR, guarda: "motivo == 'REVISAO' and julgadora and semaforo == 'AJUSTE' and voltas >= TETO_VOLTAS_JURIDICO", efeito: {_macro: LIMPAR_ENTREGA, motivo: NENHUM, espera: NENHUMA, lembretes: 0}, para: EM_RESOLUCAO}
+    - {id: E84, de: ESPERANDO_FUNDADOR, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "motivo == 'REVISAO' and ordens < TETO_ORDENS", efeito: {_macro: NOVA_RODADA, ordens: "+1"}, para: NA_FILA, nota: "Seu ajuste volta ao autor e não gasta o teto de 6."}
+    - {id: E96, de: ESPERANDO_FUNDADOR, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "motivo == 'REVISAO' and ordens >= TETO_ORDENS", efeito: {_macro: LIMPAR_ENTREGA, fim: SUBSTITUIDO, motivo: NENHUM, espera: NENHUMA}, para: CANCELADA, sinais: [SUBSTITUIR_CARD], nota: "Teto de ordens: o seu ajuste substitui o card por um card novo ligado (C28); a peça que você marcou nunca fica aprovada."}
+    - {id: E85, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'RESOLUCAO' and opcao == 'REFAZER' and replan < TETO_REPLANEJAMENTO and ordens < TETO_ORDENS", efeito: {_macro: NOVA_RODADA, replan: "+1", ordens: "+1"}, para: NA_FILA}
+    - {id: E97, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'RESOLUCAO' and opcao == 'REFAZER' and (replan >= TETO_REPLANEJAMENTO or ordens >= TETO_ORDENS)", efeito: {_macro: LIMPAR_ENTREGA, fim: SUBSTITUIDO, motivo: NENHUM, espera: NENHUMA}, para: CANCELADA, sinais: [SUBSTITUIR_CARD], nota: "Refazer já usado nesta etapa ou teto de ordens: card novo ligado, replanejado do zero (nunca vira comentário)."}
+    - {id: E86, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'RESOLUCAO' and opcao == 'SEGUIR_SEM' and pulavel", efeito: {fim: PULADA, motivo: NENHUM, espera: NENHUMA}, para: ENCERRADA_COM_FALHA, nota: "Só se o roteiro permitir; nunca no jurídico nem no relatório (MEL-24)."}
+    - {id: E87, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo in ('RESOLUCAO', 'INFRA') and opcao == 'ENCERRAR'", efeito: {fim: ENCERRAR_CARD, motivo: NENHUM, espera: NENHUMA}, para: ENCERRADA_COM_FALHA, sinais: [ENCERRAR_CARD]}
+    - {id: E88, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'INFRA' and opcao in ('ESPERAR', 'MODELO_MENOR') and ordens < TETO_ORDENS", efeito: {_macro: NOVA_RODADA, ordens: "+1"}, para: NA_FILA}
+    - {id: E98, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'INFRA' and opcao in ('ESPERAR', 'MODELO_MENOR') and ordens >= TETO_ORDENS", efeito: {_macro: LIMPAR_ENTREGA, fim: SUBSTITUIDO, motivo: NENHUM, espera: NENHUMA}, para: CANCELADA, sinais: [SUBSTITUIR_CARD], nota: "Teto de ordens: a sua escolha vale e abre o card novo ligado; o padrão não corre por cima dela."}
+    - {id: E89, de: ESPERANDO_FUNDADOR, evento: LEMBRETE_24H, papel: RELOGIO, guarda: "espera in ('INTERNA', 'EXTERNA') and lembretes == 0", efeito: {lembretes: 1}, para: MESMO, nota: "Na espera externa, o relógio manda este lembrete antes do prazo da pergunta (MEL-37: nenhum padrão sem lembrete entregue)."}
+    - {id: E90, de: ESPERANDO_FUNDADOR, evento: LEMBRETE_48H, papel: RELOGIO, guarda: "espera == 'INTERNA' and lembretes == 1", efeito: {lembretes: 2}, para: MESMO}
+    - {id: E91, de: ESPERANDO_FUNDADOR, evento: PRAZO_ESPERA_VENCIDO, papel: RELOGIO, guarda: "(espera == 'INTERNA' and lembretes >= TETO_LEMBRETES) or (espera == 'EXTERNA' and lembretes >= 1)", efeito: {fim: PADRAO, motivo: NENHUM, espera: NENHUMA}, para: CANCELADA, nota: "O padrão cancela a etapa e fica registrado como padrão; nunca aprova entrega."}
+    - {id: E92, de: ESPERANDO_FUNDADOR, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, motivo: NENHUM, espera: NENHUMA, lembretes: 0}, para: AGUARDANDO_ANTERIORES}
+    - {id: E93, de: ESPERANDO_FUNDADOR, evento: DECISAO_MUDOU, papel: MOTOR, guarda: "motivo == 'REVISAO'", efeito: {_macro: NOVA_RODADA}, para: NA_FILA}
+    - {id: E94, de: ESPERANDO_FUNDADOR, evento: DECISAO_MUDOU, papel: MOTOR, guarda: "motivo != 'REVISAO'", efeito: {_macro: ZERAR_TENTATIVAS}, para: MESMO}
+    - {id: E95, de: ESPERANDO_FUNDADOR, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    - {id: E99, de: ESPERANDO_FUNDADOR, evento: CAPACIDADE_VOLTOU, papel: MOTOR, guarda: "motivo == 'INFRA' and infra < TETO_INFRA", efeito: {_macro: LIMPAR_ENTREGA, motivo: NORMAL, espera: NENHUMA, lembretes: 0, infra: TETO_INFRA, leu_internet: 0}, para: NA_FILA, nota: "Espera de capacidade (cota, login, banco: 6 horas sem voltar) e a capacidade voltou antes da sua resposta: a etapa volta sozinha à fila, sem gastar tentativa nem ordem. O infra vai ao teto: a próxima falha chama você na hora e esta linha não vale de novo nesta rodada (sem laço). Na 3ª falha seguida (infra já no teto), quem decide é você."}
+    # --- Em resolução (dona: Helena, depois você) — opções fixas (MEL-24)
+    - {id: E100, de: EM_RESOLUCAO, evento: RECOMENDAR, papel: HELENA, guarda: "(opcao != 'SEGUIR_SEM' or pulavel) and (opcao != 'REFAZER' or (replan < TETO_REPLANEJAMENTO and ordens < TETO_ORDENS))", efeito: {motivo: RESOLUCAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR, nota: "Só a chave da chamada atual da Helena grava (regra 3)."}
+    - {id: E101, de: EM_RESOLUCAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, efeito: {motivo: RESOLUCAO, espera: INTERNA, lembretes: 0}, para: ESPERANDO_FUNDADOR}
+    - {id: E102, de: EM_RESOLUCAO, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {motivo: NENHUM}, para: AGUARDANDO_ANTERIORES}
+    - {id: E103, de: EM_RESOLUCAO, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: ZERAR_TENTATIVAS}, para: MESMO}
+    - {id: E104, de: EM_RESOLUCAO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    # --- Aprovada (esperando o card fechar; regra 10 pode reabrir)
+    - {id: E110, de: APROVADA, evento: CARD_PRONTO, papel: MOTOR, efeito: {fim: CARD_PRONTO}, para: PRONTA, sinais: [CRIAR_ACAO_EXTERNA], nota: "Só aqui nasce a ação externa proposta: depois dos portões 1 e 2, do jurídico e do card pronto, a partir da entrega aprovada (se ela propõe uma). No máximo uma por etapa (identidade: card + etapa)."}
+    - {id: E111, de: APROVADA, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "ordens < TETO_ORDENS", efeito: {_macro: NOVA_RODADA, ordens: "+1"}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU], nota: "Volta ao autor; quem dependia dela é refeito (regra 10)."}
+    - {id: E117, de: APROVADA, evento: PEDIR_AJUSTE, papel: FUNDADOR, guarda: "ordens >= TETO_ORDENS", efeito: {_macro: LIMPAR_ENTREGA, fim: SUBSTITUIDO}, para: CANCELADA, sinais: [SUBSTITUIR_CARD], nota: "Teto de ordens: o seu ajuste substitui o card por um card novo ligado (C28); o card nunca fecha com a peça que você marcou como errada."}
+    - {id: E112, de: APROVADA, evento: AJUSTE_DO_JULGADOR, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, motivo: NORMAL, leu_internet: 0}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU]}
+    - {id: E113, de: APROVADA, evento: REABRIR_POR_ORDEM, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU]}
+    - {id: E114, de: APROVADA, evento: DEPENDENCIA_MUDOU, papel: MOTOR, efeito: {_macro: LIMPAR_ENTREGA, motivo: NENHUM}, para: AGUARDANDO_ANTERIORES, sinais: [DEPENDENTES_MUDOU]}
+    - {id: E115, de: APROVADA, evento: DECISAO_MUDOU, papel: MOTOR, efeito: {_macro: NOVA_RODADA}, para: NA_FILA, sinais: [DEPENDENTES_MUDOU]}
+    - {id: E116, de: APROVADA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+
+  acao_externa:
+    # A ação só nasce do card pronto (E110). Identidade: card + etapa; no máximo uma por etapa.
+    - {id: X01, de: PROPOSTA, evento: APROVAR, papel: FUNDADOR, guarda: "tem_ferramenta", efeito: {ok_registrado: 1}, para: AUTORIZADA, nota: "Só no app, com a versão vista (e código do autenticador a partir da fase 4)."}
+    - {id: X02, de: PROPOSTA, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'FEITO_POR_MIM'", efeito: {fim: FUNDADOR}, para: FEITA_PELO_FUNDADOR}
+    - {id: X03, de: PROPOSTA, evento: CANCELAR, papel: FUNDADOR, efeito: {fim: FUNDADOR}, para: RECUSADA}
+    - {id: X06, de: PROPOSTA, evento: LEMBRETE_24H, papel: RELOGIO, guarda: "lembretes == 0", efeito: {lembretes: 1}, para: MESMO, nota: "Lembrete antes do prazo da ação (MEL-37)."}
+    - {id: X04, de: PROPOSTA, evento: PRAZO_ESPERA_VENCIDO, papel: RELOGIO, guarda: "lembretes >= 1", efeito: {fim: PADRAO}, para: EXPIRADA, nota: "Só depois do lembrete entregue; o padrão nunca executa."}
+    - {id: X05, de: PROPOSTA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    - {id: X10, de: AUTORIZADA, evento: EXECUTAR_ACAO, papel: MOTOR, guarda: "ok_registrado == 1 and tentativas < TETO_EXECUCOES_ACAO", efeito: {tentativas: "+1"}, para: EXECUTANDO_ACAO, nota: "Chave única da ação: repetir o passo nunca executa duas vezes."}
+    - {id: X11, de: AUTORIZADA, evento: CANCELAR, papel: FUNDADOR, efeito: {fim: FUNDADOR}, para: RECUSADA}
+    - {id: X12, de: AUTORIZADA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {fim: PAI}, para: CANCELADA}
+    - {id: X13, de: AUTORIZADA, evento: TEMPO_ESGOTADO, papel: RELOGIO, efeito: {fim: PADRAO}, para: EXPIRADA, nota: "O motor não começou em 60 s: o seu ok vence e nada foi feito. Um ok vencido nunca é usado depois."}
+    - {id: X20, de: EXECUTANDO_ACAO, evento: ACAO_CONCLUIDA, papel: MOTOR, efeito: {}, para: EXECUTADA}
+    - {id: X21, de: EXECUTANDO_ACAO, evento: ACAO_FALHOU, papel: MOTOR, efeito: {fim: FALHA}, para: FALHOU}
+    - {id: X22, de: EXECUTANDO_ACAO, evento: TEMPO_ESGOTADO, papel: RELOGIO, efeito: {lembretes: 0}, para: INCERTA, nota: "Sem confirmação não se repete: você confere se aconteceu."}
+    - {id: X23, de: EXECUTANDO_ACAO, evento: CANCELADO_PAI, papel: MOTOR, efeito: {}, para: MESMO, nota: "Já em execução: não dá para desfazer; termina e registra."}
+    - {id: X30, de: INCERTA, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'ACONTECEU'", efeito: {}, para: EXECUTADA}
+    - {id: X31, de: INCERTA, evento: RESPONDER, papel: FUNDADOR, guarda: "opcao == 'NAO_ACONTECEU'", efeito: {fim: FALHA}, para: FALHOU}
+    - {id: X32, de: INCERTA, evento: LEMBRETE_24H, papel: RELOGIO, guarda: "lembretes == 0", efeito: {lembretes: 1}, para: MESMO}
+    - {id: X33, de: INCERTA, evento: LEMBRETE_48H, papel: RELOGIO, guarda: "lembretes == 1", efeito: {lembretes: 2}, para: MESMO}
+    - {id: X34, de: INCERTA, evento: PRAZO_ESPERA_VENCIDO, papel: RELOGIO, guarda: "lembretes >= TETO_LEMBRETES", efeito: {fim: PADRAO}, para: NAO_CONFIRMADA, nota: "Sem sua confirmação, fica 'não confirmada' (pode ter acontecido): nunca é marcada como falha e nunca é refeita por este card."}
+    - {id: X35, de: INCERTA, evento: CANCELADO_PAI, papel: MOTOR, efeito: {}, para: MESMO}
+
+# Ligações entre máquinas (sinais), aplicadas na mesma transação da linha que os emite.
+ligacoes:
+  CANCELAR_ETAPAS:    {entrega: {papel: MOTOR, evento: CANCELADO_PAI}, para: [etapas_abertas, acoes_abertas], nota: "Cascata: sub-etapas e ações ainda não executadas são canceladas junto."}
+  CARD_PRONTO:        {entrega: {papel: MOTOR, evento: CARD_PRONTO}, para: [etapas_aprovadas]}
+  DECISAO_DO_FUNDADOR: {entrega: {papel: MOTOR, evento: DECISAO_MUDOU}, para: [card], nota: "Só PEDIR_AJUSTE do fundador no card aberto emite; o histórico de C16/C17 aponta para esse toque."}
+  DECISAO_MUDOU:      {entrega: {papel: MOTOR, evento: DECISAO_MUDOU}, para: [etapas_abertas_que_usam_decisao]}
+  DEPENDENTES_MUDOU:  {entrega: {papel: MOTOR, evento: DEPENDENCIA_MUDOU}, para: [dependentes_diretos_abertos]}
+  AJUSTE_DO_JULGADOR: {entrega: {papel: MOTOR, evento: AJUSTE_DO_JULGADOR}, para: [julgadas_abertas]}
+  REABRIR_JULGADAS:   {entrega: {papel: MOTOR, evento: REABRIR_POR_ORDEM}, para: [julgadas_de_nao_pode]}
+  ENCERRAR_CARD:      {entrega: {papel: MOTOR, evento: ENCERRAR_CARD}, para: [card]}
+  SUBSTITUIR_CARD:    {entrega: {papel: MOTOR, evento: SUBSTITUIR_CARD}, para: [card]}
+  PULAR_FALHAS:       {no_card: marcar_falhas_como_puladas}
+  REFAZER_FALHAS:     {no_card: nova_versao_das_falhas, nota: "A etapa final continua final no histórico; nasce uma versão nova dela, que leva as suas respostas guardadas (recusa_do_fundador.resposta_tardia_com_card_aberto)."}
+  CRIAR_ACAO_EXTERNA: {no_card: criar_acao_externa, nota: "Só a E110 emite (etapa pronta, card pronto). Cria a proposta se a entrega aprovada propõe ação externa (campo acao_externa da última entrega, a que passou pelos portões). Vai para a lista do que só você faz; nunca é executada pelo agente. Identidade card + etapa: no máximo uma; índice único no banco."}
+  CARD_LIGADO:        {no_card: criar_card_ligado}
+
+# Como o card enxerga cada etapa (camadas 2 e 3 da prova). Primeira regra que casa vale.
+situacao_da_etapa:
+  - {estado: AGUARDANDO_ANTERIORES, situacao: ESPERA}
+  - {estado: [NA_FILA, EXECUTANDO, VALIDACAO, REVISAO, ESPERANDO_FUNDADOR, EM_RESOLUCAO], situacao: TRABALHO}
+  - {estado: APROVADA, semaforo: NAO_PODE, situacao: APROVADA_NAO_PODE}
+  - {estado: APROVADA, situacao: APROVADA}
+  - {estado: PRONTA, situacao: PRONTA}
+  - {estado: CANCELADA, fim: PAI, situacao: FIM_PAI}
+  - {estado: CANCELADA, fim: SUBSTITUIDO, situacao: FIM_PAI}   # cancelada junto com o card, que foi substituído
+  - {estado: CANCELADA, situacao: FALHOU}
+  - {estado: ENCERRADA_COM_FALHA, fim: PULADA, situacao: PULADA}
+  - {estado: ENCERRADA_COM_FALHA, situacao: ENCERROU}
+
+predicados:
+  satisfaz_dependencia: [APROVADA, PULADA]       # o que libera quem depende (anteriores_satisfeitas)
+  conta_como_pronta: [APROVADA, PULADA]          # o que deixa o card fechar como PRONTO
+  falha_que_pergunta: [FALHOU]                   # o que faz o card perguntar a você (regra 6)
+  aberta: [ESPERA, TRABALHO, APROVADA, APROVADA_NAO_PODE]
+
+# Eventos do motor que a reprodução de jornadas dispara sozinha quando a guarda vale
+# (são determinísticos). Ficam no histórico como qualquer outro evento.
+automaticos:
+  card: [PLANO_VALIDO, TODAS_PRONTAS, PERGUNTAR_AO_FUNDADOR, MOTIVO_RESOLVIDO]
+  etapa: [DEPENDENCIAS_PRONTAS, INICIAR_EXECUCAO, INICIAR_REVISAO, TETO_EXECUCOES]
+  acao_externa: [EXECUTAR_ACAO]
+
+# Respostas que não mudam estado (nem contadores de passagem). Nunca aprovam nada.
+# Valem só quando nenhuma linha aceita o evento; "guarda" (opcional) usa as variáveis da máquina.
+# Nenhuma ordem sua é reação: no teto de ordens, ela é linha e substitui o card.
+reacoes:
+  - {papel: FUNDADOR, evento: USAR_COMO_EXEMPLO, maquina: etapa, estados: [APROVADA, PRONTA], efeito_fora: "exemplo de ouro com data (90 dias, até 3 por serviço); só em entrega com tudo conferido"}
+  - {papel: FUNDADOR, evento: APROVAR, maquina: card, estados: [PRONTO], efeito_fora: "registra a sua aprovação do card pronto e relê cada fonte; avisa se uma página mudou"}
+  - {papel: FUNDADOR, evento: PEDIR_AJUSTE, maquina: card, estados: [PRONTO, CANCELADO, ENCERRADO_COM_FALHA], abre_card_ligado: true, efeito_fora: "abre card novo ligado, com as entregas deste, para o mesmo responsável (card fechado não volta a andar)"}
+  - {papel: FUNDADOR, evento: PAUSAR_TUDO, maquina: card, estados: TODOS, efeito_fora: "pausa a fila por 20 minutos e desliga sozinha; execuções vivas terminam; nenhuma passagem muda"}
+  - {papel: FUNDADOR, evento: MUDAR_PRIORIDADE, maquina: card, estados: ABERTOS, muda_campo: prioridade, efeito_fora: "muda o campo prioridade; só você"}
+  - {papel: FUNDADOR, evento: MUDAR_PRAZO, maquina: card, estados: ABERTOS, guarda: "mudancas_prazo >= TETO_MUDANCAS_PRAZO", muda_campo: prazo, efeito_fora: "teto de mudanças de prazo deste card: o campo muda e os avisos ficam no nível em que estão (o card continua marcado se já passou do prazo)"}
+  - {papel: HELENA, evento: SUGERIR_PRAZO, maquina: card, estados: ABERTOS, efeito_fora: "vira item na sua lista; o prazo original continua"}
+  - {papel: VIGIA, evento: REGRA_QUEBRADA, maquina: card, estados: TODOS, efeito_fora: "luz vermelha e um aviso por regra a cada 6 horas; nunca congela card (B-20)"}
+
+# Regra 11: todo toque seu tem destino. Botão sem linha nem reação no estado atual
+# (o destino é decidido pelo estado do ALVO do toque: card, etapa ou ação):
+recusa_do_fundador:
+  aberto: COMENTARIO_NO_CARD     # vira comentário visível no card, sem mudar nada
+  final: CARD_NOVO_LIGADO        # Responder ou Pedir ajuste sobre card fechado abre card novo já preenchido (plano: 'vale o que chegar primeiro')
+  final_abre_card_para: [RESPONDER, PEDIR_AJUSTE]
+  final_outros_botoes: COMENTARIO_NO_CARD   # Aprovar, Cancelar ou Usar como exemplo sobre card fechado: comentário; nada se aprova nem se abre
+  versao_antiga: COMENTARIO_NO_CARD   # "a peça mudou, veja a versão nova"; nunca muda estado
+  resposta_tardia_com_card_aberto: RESPOSTA_GUARDADA   # Responder a uma etapa já encerrada pelo padrão: decisão sua registrada, ligada à pergunta pelo número; viaja com REFAZER_FALHAS para a versão nova

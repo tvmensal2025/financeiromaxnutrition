@@ -1,0 +1,22 @@
+# Caso BOM do SRV-PARECER (Clara, AGT-06) para o pedido ../pedido.yaml, variante V-SEM-PODE-LER.
+# A 'resposta' é a saída da Clara no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# É um REGISTRAR_FALHA: não vai a revisão; a etapa vai a EM_RESOLUCAO e a Helena recomenda (E23, E100).
+# 'leituras_feitas' é o registro de uso da ler_pagina nesta execução (as fitas que o motor devolveu).
+id: PARECER-BOA-03
+servico: SRV-PARECER
+pedido: ../pedido.yaml
+variante: V-SEM-PODE-LER
+nota: 'Variante V-SEM-PODE-LER: o link da política não está em ''pode ler''. A ferramenta responde ''fonte insuficiente''
+  (fitas/03) e a Clara registra a falha em vez de julgar sem a política. É a entrega da jornada-falha.yaml.'
+deve_passar_em:
+- CHK-COMUM-05
+proximo_estado_da_etapa: EM_RESOLUCAO
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-politica-parte-1.yaml
+resposta:
+  acao: REGISTRAR_FALHA
+  motivo_falha: FONTE_INSUFICIENTE
+  explicacao: A legenda promete algo sobre os dados e manda ler a política de privacidade, mas o link da política não está
+    na lista de páginas que posso ler (o campo 'pode ler' do pedido está vazio). Sem a política, qualquer conclusão sobre
+    essa promessa seria inventada.

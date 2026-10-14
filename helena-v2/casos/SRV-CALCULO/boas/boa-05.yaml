@@ -1,0 +1,15 @@
+# Caso BOM do SRV-CALCULO (Caio, AGT-05) para o pedido ../pedido.yaml (variante IMPOSTO).
+# A 'resposta' é a saída do Caio no formato de schemas/acao.schema.json ($defs/saida_do_autor).
+# Não é entrega: o pedido é de outro destino (servicos.yaml, SRV-CALCULO nao_atende e
+# FORA-FISCAL-CONTABIL). Devolve com o destino certo, sem fazer a conta do imposto.
+id: CALC-BOA-05
+servico: SRV-CALCULO
+pedido: ../pedido.yaml
+variante: IMPOSTO
+nota: Devolve com FORA_DO_SERVICO e diz para onde vai; não pede sub-card nem manda trabalho a ninguém.
+resposta:
+  acao: DEVOLVER_A_QUEM_PEDIU
+  motivo: FORA_DO_SERVICO
+  explicacao: 'Imposto e nota fiscal não são deste serviço: ficam com o contador (FORA-FISCAL-CONTABIL) e, enquanto
+    isso, com a v1. Este serviço pode fazer só a conta do valor que a empresa recebe da plataforma, sem imposto,
+    num pedido novo.'

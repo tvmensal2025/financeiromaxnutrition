@@ -1,0 +1,140 @@
+"""O que é: regressões dos achados do ataque independente ao banco v2.
+Como mudar: acrescente o caso mínimo que reproduz cada novo achado.
+"""
+
+import pytest
+from psycopg import errors as E
+from psycopg.types.json import Jsonb
+
+import test_05_regras as R
+
+
+def test_funcoes_tem_pg_temp_por_ultimo(banco, con):
+    caminhos = con.execute("""select p.proname, p.proconfig from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'helena_v2'""").fetchall()
+    assert caminhos
+    assert all(any(x.replace(' ', '').endswith('pg_catalog,pg_temp')
+                   for x in (config or []) if x.startswith('search_path='))
+               for _, config in caminhos)
+
+
+def test_abrir_chamada_e_ler_de_volta_com_service_role(banco, con):
+    m = R.novo(con)
+    with banco.conectar('service_role') as motor:
+        chave = motor.execute('select helena_v2.abrir_chamada_helena(%s,%s)', ('card', m.card)).fetchone()[0]
+        assert chave > 0
+        resultado = motor.execute("select helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s)",
+                                  ('card', m.card, 'HELENA', 'LER_DE_VOLTA', '{}', None, chave)).fetchone()[0]
+        assert resultado['resultado'] == 'APLICADO'
+
+
+def test_vigia_e_leituras_funcionam_com_service_role(banco, con):
+    m = R.novo(con)
+    with banco.conectar('service_role') as motor:
+        assert motor.execute('select count(*) from helena_v2.vigia() where card_id = %s', (m.card,)).fetchone()[0] == 0
+        motor.execute('select helena_v2.conferir_card(%s)', (m.card,))
+        assert motor.execute('select helena_v2.situacao_efetiva(e) from helena_v2.etapa e where card_id = %s limit 1',
+                             (m.card,)).fetchone()[0]
+
+
+def test_decisao_mudou_direta_do_motor_e_recusada(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    with banco.conectar('service_role') as motor:
+        for _ in range(4):
+            r = motor.execute("select helena_v2.aplicar_evento(%s,%s,%s,%s)",
+                              ('card', m.card, 'MOTOR', 'DECISAO_MUDOU')).fetchone()[0]
+            assert r['resultado'] == 'RECUSADO'
+    assert m.estado_da('card') == 'EM_ANDAMENTO'
+    assert con.execute('select ordens from helena_v2.card where id = %s', (m.card,)).fetchone()[0] == 0
+
+
+def test_ajuste_do_fundador_e_origem_da_decisao_e_respeita_toque(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    versao = m.versao_do_alvo('card', m.card)
+    with banco.conectar('authenticated') as fundador:
+        r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                             ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, 'ajuste-1')).fetchone()[0]
+        assert r['resultado'] == 'APLICADO'
+        repetido = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                                    ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, 'ajuste-1')).fetchone()[0]
+        assert repetido['resultado'] == 'REPETIDO'
+    linhas = con.execute("select h.id, h.base_id, h.origem_id from (select h.id,h.origem_id,p.base_id from helena_v2.historico h "
+                        "left join helena_v2.passagem p on p.linha_id=h.linha_id and p.maquina=h.maquina "
+                        "where h.card_id=%s) h where base_id in ('C34','C16') order by id", (m.card,)).fetchall()
+    assert len(linhas) == 2
+    assert linhas[0][1] == 'C34' and linhas[1][1] == 'C16' and linhas[1][2] == linhas[0][0]
+    assert con.execute('select ordens from helena_v2.card where id=%s', (m.card,)).fetchone()[0] == 1
+
+
+def test_ajuste_sem_motivo_ou_com_versao_velha_nao_gasta_ordem(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    versao = m.versao_do_alvo('card', m.card)
+    with banco.conectar('authenticated') as fundador:
+        for params, vista in [(Jsonb({}), versao), (Jsonb({'motivo_ajuste': 'TOM'}), versao - 1)]:
+            r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s)",
+                                 ('card', m.card, params, vista)).fetchone()[0]
+            assert r['resultado'] != 'APLICADO'
+    assert con.execute('select ordens from helena_v2.card where id=%s', (m.card,)).fetchone()[0] == 0
+    assert con.execute("select count(*) from helena_v2.historico where card_id=%s and evento='DECISAO_MUDOU'",
+                       (m.card,)).fetchone()[0] == 0
+
+
+def test_quarto_ajuste_global_substitui_card_com_origem_do_fundador(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    with banco.conectar('authenticated') as fundador:
+        for i in range(4):
+            versao = m.versao_do_alvo('card', m.card)
+            r = fundador.execute("select helena_v2.aplicar_evento(%s,%s,'FUNDADOR','PEDIR_AJUSTE',%s,null,null,%s,null,%s)",
+                                 ('card', m.card, Jsonb({'motivo_ajuste': 'TOM'}), versao, f'ajuste-{i}')).fetchone()[0]
+            assert r['resultado'] == 'APLICADO'
+    assert m.estado_da('card') == 'CANCELADO'
+    assert con.execute('select count(*) from helena_v2.card where card_pai_id=%s', (m.card,)).fetchone()[0] == 1
+    linhas = con.execute("select p.base_id,h.origem_id from helena_v2.historico h join helena_v2.passagem p "
+                        "on p.maquina=h.maquina and p.linha_id=h.linha_id "
+                        "where h.card_id=%s and p.base_id in ('C16','C17') order by h.id", (m.card,)).fetchall()
+    assert [r[0] for r in linhas] == ['C16', 'C16', 'C16', 'C17']
+    assert all(r[1] is not None for r in linhas)
+
+
+@pytest.mark.parametrize('valor', ['infinity', '-infinity', '0001-01-01', 'banana', None, {}])
+def test_prazo_invalido_nao_apaga_toque_do_fundador(banco, con, valor):
+    m = R.novo(con)
+    m.em_andamento()
+    versao = m.versao_do_alvo('card', m.card)
+    antes = con.execute('select count(*) from helena_v2.historico where card_id = %s', (m.card,)).fetchone()[0]
+    with banco.conectar('authenticated') as fundador:
+        resultado = fundador.execute('select helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                                     ('card', m.card, 'FUNDADOR', 'MUDAR_PRAZO', Jsonb({}), None, None,
+                                      versao, Jsonb({'prazo': valor}))).fetchone()[0]
+        assert resultado['resultado'] == 'RECUSADO'
+    assert con.execute('select count(*) from helena_v2.historico where card_id = %s', (m.card,)).fetchone()[0] == antes + 1
+
+
+def test_prazo_de_espera_infinito_e_recusado(banco, con):
+    m = R.novo(con)
+    m.em_andamento()
+    m.executando()
+    etapa = m.etapa_id('E1')
+    chave = con.execute('select execucao_atual from helena_v2.etapa where id = %s', (etapa,)).fetchone()[0]
+    with banco.conectar('service_role') as motor:
+        with pytest.raises(E.CheckViolation):
+            motor.execute("select helena_v2.aplicar_evento('etapa', %s, 'AUTOR', 'PERGUNTAR', %s, %s, %s, "
+                          "null, null, null, true, '{}'::text[], 'infinity'::timestamptz)",
+                          (etapa, Jsonb({'usou_internet': 'NAO'}), 'CAIO', chave))
+
+
+@pytest.mark.parametrize('valor', ['abc', 1.5, 99999999999])
+def test_prioridade_malformada_nao_apaga_toque(banco, con, valor):
+    m = R.novo(con)
+    m.em_andamento()
+    antes = con.execute('select count(*) from helena_v2.historico where card_id = %s', (m.card,)).fetchone()[0]
+    with banco.conectar('authenticated') as fundador:
+        resultado = fundador.execute('select helena_v2.aplicar_evento(%s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                                     ('card', m.card, 'FUNDADOR', 'MUDAR_PRIORIDADE', Jsonb({}), None, None,
+                                      m.versao_do_alvo('card', m.card), Jsonb({'prioridade': valor}))).fetchone()[0]
+        assert resultado['resultado'] == 'RECUSADO'
+    assert con.execute('select count(*) from helena_v2.historico where card_id = %s', (m.card,)).fetchone()[0] == antes + 1
