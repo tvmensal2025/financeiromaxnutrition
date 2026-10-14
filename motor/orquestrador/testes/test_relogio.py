@@ -107,6 +107,30 @@ def test_aplicador_padrao_nao_valida_plano_sozinho(banco):
     assert _linha(banco, 'select estado from helena_v2.card where id = %s', (outro,))['estado'] == 'EM_ANDAMENTO'
 
 
+def test_evento_que_deixou_de_estar_devido_no_meio_da_volta_e_pulado(banco):
+    a = _card(banco, 'relogio-meio-a')
+    b = _card(banco, 'relogio-meio-b')
+    agora = _linha(banco, 'select prazo_ate from helena_v2.card where id = %s', (b,))['prazo_ate']
+    conexao = _servico(banco)
+    padrao = aplicador_do_banco(conexao)
+
+    def aplicar(maquina, alvo_id, papel, evento):
+        resposta = padrao(maquina, alvo_id, papel, evento)
+        if alvo_id == a:            # enquanto o relógio aplicava A, o fundador cancelou B
+            with banco.conectar() as dono:
+                assert dono.execute("select helena_v2.aplicar_evento('card', %s, 'FUNDADOR', 'CANCELAR')",
+                                    (b,)).fetchone()[0]['resultado'] == 'APLICADO'
+        return resposta
+
+    resumo = Relogio(conexao, aplicar).uma_volta(agora)
+    assert [e.card_id for e in resumo.eventos if e.card_id in (a, b)] == [a, b]
+    assert resumo.obsoletos >= 1 and resumo.recusados == 0
+    assert _linha(banco, 'select estado from helena_v2.card where id = %s', (a,))['estado'] == 'ESPERANDO_CONFIRMACAO'
+    assert _linha(banco, 'select estado from helena_v2.card where id = %s', (b,))['estado'] == 'CANCELADO'
+    assert _linha(banco, "select count(*) as n from helena_v2.historico where alvo_id = %s and papel = %s",
+                  (b, PAPEL))['n'] == 0      # nada caiu no estado novo de B, nem como recusa
+
+
 def _porta_fechada():
     with socket.socket() as s:
         s.bind(('127.0.0.1', 0))

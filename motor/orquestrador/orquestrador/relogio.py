@@ -1,8 +1,9 @@
 """Relógio dos prazos: o emissor dos eventos de tempo do papel RELOGIO.
 
 O que é: uma volta (1) lê `helena_v2.eventos_devidos(agora)` — o BANCO decide o que venceu (0017_relogio.sql) — e
-(2) aplica cada evento, na ordem devolvida, por `aplicar(maquina, alvo_id, 'RELOGIO', evento)`. Quem decide se o evento
-muda o estado é a tabela de passagens; aqui só se conta o que foi aplicado e o que foi recusado.
+(2) aplica cada evento, na ordem devolvida, por `aplicar(maquina, alvo_id, 'RELOGIO', evento)`, pulando o que deixou de
+estar devido no meio da volta. Quem decide se o evento muda o estado é a tabela de passagens; aqui só se conta o que foi
+aplicado, recusado ou pulado.
 Banco fora do ar (na leitura ou ao aplicar) levanta a exceção: nada fica em silêncio.
 Como mudar: instantes e escadas ficam no SQL; a forma de aplicar entra por injeção. `aplicador_do_banco` monta a padrão
 (helena_v2.aplicar_evento com os automáticos, sem disparar PLANO_VALIDO, que é só do validador do motor).
@@ -34,6 +35,7 @@ class ResumoDaVolta:
     devidos: int = 0
     aplicados: int = 0
     recusados: int = 0
+    obsoletos: int = 0                                      # deixaram de estar devidos no meio da volta
     eventos: List[EventoDevido] = field(default_factory=list)
     recusas: List[dict] = field(default_factory=list)      # {maquina, alvo_id, evento, resultado, motivo}
 
@@ -68,10 +70,16 @@ class Relogio:
         return devidos
 
     def uma_volta(self, agora: Optional[datetime] = None) -> ResumoDaVolta:
-        """Lê o que venceu e aplica tudo, na ordem. Uma recusa é contada (a guarda decidiu); um erro levanta."""
+        """Lê o que venceu e aplica tudo, na ordem. Uma recusa é contada (a guarda decidiu); um erro levanta.
+        Antes de cada evento depois do primeiro, o banco é consultado de novo: se o alvo andou no meio da volta (o autor
+        entregou, o card foi cancelado), o evento deixou de estar devido e é pulado (`obsoletos`), em vez de cair no
+        estado novo. NÃO fecha a corrida por completo: entre a consulta e a aplicação ainda há uma janela curta."""
         devidos = self.devidos(agora)
         resumo = ResumoDaVolta(devidos=len(devidos), eventos=list(devidos))
-        for ev in devidos:
+        for i, ev in enumerate(devidos):
+            if i > 0 and ev not in self.devidos(agora):
+                resumo.obsoletos += 1
+                continue
             resposta = self.aplicar(ev.maquina, ev.alvo_id, PAPEL, ev.evento)
             if not isinstance(resposta, dict) or 'resultado' not in resposta:
                 raise TypeError(f'aplicar devolveu algo que não é a resposta de aplicar_evento: {type(resposta).__name__}')
