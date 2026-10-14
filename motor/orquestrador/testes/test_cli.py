@@ -261,6 +261,96 @@ def test_runtime_real_com_executor_fora_do_registro_falha_fechado_sem_abrir_moto
             cli._abrir_runtime_real(iniciar_dbos=False)
 
 
+# --- vigiar: só HELENA_V2_DATABASE_URL (nada do Hermes), mesmas checagens de produção, canal em arquivo + webhook ----------
+REF = 'wxkgrykduqtsgmjkzlou'
+SENHA_DO_BANCO = 'senha-falsa-do-vigia-77'
+URL_DO_BANCO = f'postgresql+psycopg://helena_runtime:{SENHA_DO_BANCO}@db.{REF}.supabase.co:5432/postgres?sslmode=verify-full'
+VARIAVEIS_DO_HERMES = ('HELENA_V2_DBOS_SYSTEM_DATABASE_URL', 'HELENA_V2_HERMES_BIN', 'HELENA_V2_HERMES_HOME',
+                       'HELENA_V2_EXECUCOES_DIR', 'HELENA_V2_EXECUTOR')
+VARIAVEL_DO_WEBHOOK = 'HELENA_V2_ALARME_WEBHOOK_URL'
+SEGREDO_DA_URL = 'TOKEN_SECRETO_DA_URL_5b1e'
+UM_ALARME = [('13', None, 'veja postgresql://u:SENHA_FALSA_9@h:5432/db')]
+
+
+def _papel_ordinario(**altera):
+    dados = {'papel_atual': 'helena_runtime', 'papel_sessao': 'helena_runtime', 'membro_service_role': True,
+             'sessao_membro_service_role': True, 'pode_set_service_role': True, 'herda_service_role': False,
+             'vinculo_set': True, 'vinculo_inherit': False, 'vinculo_admin': False, 'dono_app': False,
+             'dono_app_sessao': False, 'dono_dbos': False, 'dono_app_indireto': False,
+             'dono_funcoes_indireto': False, 'alcanca_admin_indireto': False, 'dono_dbos_indireto': False}
+    for prefixo in ('super', 'bypass', 'create_role', 'create_db', 'replication'):
+        dados[prefixo + '_atual'] = dados[prefixo + '_sessao'] = False
+    return dados | altera
+
+
+class _ConexaoPostgresFalsa:
+    def __init__(self, banco, dsn, opcoes):
+        self.banco, self.dsn, self.opcoes = banco, dsn, opcoes
+        self.comandos, self.fechada = [], False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        self.close()
+        return False
+
+    def close(self):
+        self.fechada = True
+
+    def execute(self, consulta, args=()):
+        texto = consulta if isinstance(consulta, str) else repr(consulta)
+        self.comandos.append(texto)
+        banco = self.banco
+
+        class Cursor:
+            def fetchone(_):
+                return {'dados': banco.papel} if 'json_build_object' in texto else None
+
+            def fetchall(_):
+                return banco.alarmes if 'helena_v2.vigia()' in texto else []
+        return Cursor()
+
+
+class _PostgresFalso:
+    """Troca `psycopg.connect`: nenhuma rede. Registra cada conexão e responde como o banco responderia."""
+
+    def __init__(self, papel=None, alarmes=()):
+        self.papel, self.alarmes, self.conexoes = papel or _papel_ordinario(), list(alarmes), []
+
+    def connect(self, dsn, **opcoes):
+        self.conexoes.append(_ConexaoPostgresFalsa(self, dsn, opcoes))
+        return self.conexoes[-1]
+
+
+@pytest.fixture()
+def ambiente_do_vigia(monkeypatch, tmp_path):
+    """Só HELENA_V2_DATABASE_URL (falsa) e nada do Hermes; CA de mentira; nenhum runtime nem Motor pode abrir."""
+    import psycopg
+    import orquestrador.__main__ as cli
+    import orquestrador.bancos as bancos
+    from types import SimpleNamespace
+    ca = tmp_path / 'ca.pem'
+    ca.write_text('apenas marcador de teste')
+    monkeypatch.setattr(bancos.ssl, 'get_default_verify_paths', lambda: SimpleNamespace(cafile=str(ca)))
+    for nome in VARIAVEIS_DO_HERMES + (VARIAVEL_DO_WEBHOOK, 'PGHOST', 'PGHOSTADDR', 'PGOPTIONS'):
+        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.setenv('HELENA_V2_DATABASE_URL', URL_DO_BANCO)
+
+    def proibido(*_, **__):
+        pytest.fail('o vigiar abriu o runtime/Motor do Hermes: ele só deve precisar de HELENA_V2_DATABASE_URL')
+    monkeypatch.setattr(cli, '_abrir_runtime_real', proibido)
+    monkeypatch.setattr(cli, 'Motor', proibido)
+    postgres = _PostgresFalso(alarmes=UM_ALARME)
+    monkeypatch.setattr(psycopg, 'connect', postgres.connect)
+    postgres.ca = str(ca)
+    return postgres
+
+
+def _saida_json(capsys):
+    return json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+
+
 def test_cli_vigiar_uma_volta_grava_alarme_em_arquivo_sem_segredo(monkeypatch, capsys, tmp_path):
     import orquestrador.__main__ as cli
 
@@ -279,7 +369,7 @@ def test_cli_vigiar_uma_volta_grava_alarme_em_arquivo_sem_segredo(monkeypatch, c
                     return []
             return Cursor()
 
-    class MotorFalso:
+    class BancoFalso:
         fechado = False
 
         def _con(self, papel):
@@ -287,22 +377,195 @@ def test_cli_vigiar_uma_volta_grava_alarme_em_arquivo_sem_segredo(monkeypatch, c
             return ConexaoFalsa()
 
         def fechar(self):
-            MotorFalso.fechado = True
+            BancoFalso.fechado = True
 
-    monkeypatch.setattr(cli, '_abrir_runtime_real', lambda *, iniciar_dbos: MotorFalso())
+    def proibido(**_):
+        pytest.fail('o vigiar não pode abrir o runtime do Hermes')
+
+    monkeypatch.setattr(cli, '_abrir_runtime_real', proibido)
+    monkeypatch.setattr(cli, '_abrir_banco_somente_leitura', lambda: BancoFalso())
     arquivo = tmp_path / 'alarmes.jsonl'
     assert cli.main(['vigiar', '--uma-volta', '--saida', str(arquivo)]) == 0
     saida = json.loads(capsys.readouterr().out)
-    assert saida['alarmes'] == 1 and saida['enviados'] == 1 and MotorFalso.fechado
+    assert saida['alarmes'] == 1 and saida['enviados'] == 1 and BancoFalso.fechado
     linhas = arquivo.read_text(encoding='utf-8').splitlines()
     assert len(linhas) == 1 and 'SENHA_FALSA' not in linhas[0] and 'REGRA_13' in linhas[0]
 
 
-def test_cli_vigiar_sem_ambiente_falha_fechado(monkeypatch, capsys, tmp_path):
+def test_cli_vigiar_sem_database_url_falha_fechado_sem_conectar(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
     import orquestrador.__main__ as cli
-    for nome in ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL', 'HELENA_V2_HERMES_BIN',
-                 'HELENA_V2_HERMES_HOME', 'HELENA_V2_EXECUCOES_DIR'):
-        monkeypatch.delenv(nome, raising=False)
+    monkeypatch.delenv('HELENA_V2_DATABASE_URL')
     assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
-    assert json.loads(capsys.readouterr().out)['estado'] == 'FALHA_DE_RUNTIME'
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME'
+    assert not (tmp_path / 'a.jsonl').exists() and ambiente_do_vigia.conexoes == []
+
+
+def test_cli_vigiar_funciona_so_com_database_url_sem_nenhuma_variavel_do_hermes(ambiente_do_vigia, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    arquivo = tmp_path / 'alarmes.jsonl'
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(arquivo)]) == 0
+    saida = capsys.readouterr()
+    resumo = json.loads(saida.out)
+    assert resumo['alarmes'] == 1 and resumo['enviados'] == 1 and resumo['canais_falhos'] == 0
+    linhas = arquivo.read_text(encoding='utf-8').splitlines()
+    assert len(linhas) == 1 and 'REGRA_13' in linhas[0] and 'SENHA_FALSA' not in linhas[0]
+    assert SENHA_DO_BANCO not in saida.out + saida.err + linhas[0]
+    preflight, leitura = ambiente_do_vigia.conexoes                      # 1 conexão de conferência + 1 da volta
+    assert 'json_build_object' in preflight.comandos[0] and len(preflight.comandos) == 1      # papel conferido antes de SET ROLE
+    assert preflight.fechada and leitura.fechada
+    assert "Identifier('service_role')" in leitura.comandos[0] and 'SET ROLE' in leitura.comandos[0]
+    assert leitura.comandos[1:] and all('helena_v2.' in c or 'SELECT' in c for c in leitura.comandos[1:])
+    for conexao in (preflight, leitura):                                  # TLS verificado, CA do sistema, tempos e somente leitura
+        assert conexao.dsn.startswith('postgresql://') and 'sslmode=verify-full' in conexao.dsn
+        assert conexao.opcoes['sslrootcert'] == ambiente_do_vigia.ca and conexao.opcoes['connect_timeout'] == 10
+        assert 'statement_timeout=30s' in conexao.opcoes['options']
+        assert 'default_transaction_read_only=on' in conexao.opcoes['options']
+
+
+@pytest.mark.parametrize('url', [
+    URL_DO_BANCO.replace('verify-full', 'require'),
+    URL_DO_BANCO.replace(f'db.{REF}.supabase.co', 'banco.exemplo.org'),
+    URL_DO_BANCO.replace('helena_runtime', 'postgres'),
+    URL_DO_BANCO.replace('helena_runtime', 'service_role'),
+    URL_DO_BANCO.replace(':5432', ':6543'),
+    URL_DO_BANCO.replace('/postgres?', '/outro?'),
+    URL_DO_BANCO.replace('postgresql+psycopg', 'http'),
+    'postgresql://postgres@localhost:5432/postgres',
+])
+def test_cli_vigiar_aplica_as_mesmas_checagens_de_url_do_motor_e_nao_conecta(ambiente_do_vigia, monkeypatch, capsys, tmp_path, url):
+    import orquestrador.__main__ as cli
+    monkeypatch.setenv('HELENA_V2_DATABASE_URL', url)
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    saida = capsys.readouterr()
+    assert json.loads(saida.out)['estado'] == 'FALHA_DE_RUNTIME' and SENHA_DO_BANCO not in saida.out + saida.err
+    assert ambiente_do_vigia.conexoes == [] and not (tmp_path / 'a.jsonl').exists()
+
+
+def test_cli_vigiar_recusa_variavel_pg_que_redireciona_a_conexao(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    monkeypatch.setenv('PGHOSTADDR', '127.0.0.1')
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME' and ambiente_do_vigia.conexoes == []
+
+
+def test_cli_vigiar_recusa_ca_do_sistema_ausente(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    import os
+    import orquestrador.__main__ as cli
+    os.unlink(ambiente_do_vigia.ca)
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME' and ambiente_do_vigia.conexoes == []
+
+
+@pytest.mark.parametrize('altera', [{'super_atual': True}, {'papel_atual': 'postgres', 'papel_sessao': 'postgres'},
+                                    {'dono_app': True}, {'membro_service_role': False}, {'alcanca_admin_indireto': True}])
+def test_cli_vigiar_recusa_papel_com_privilegio_demais_e_nunca_chega_ao_set_role(ambiente_do_vigia, capsys, tmp_path, altera):
+    import orquestrador.__main__ as cli
+    ambiente_do_vigia.papel = _papel_ordinario(**altera)
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME'
+    (preflight,) = ambiente_do_vigia.conexoes
+    assert preflight.fechada and not any('SET ROLE' in c for c in preflight.comandos)
     assert not (tmp_path / 'a.jsonl').exists()
+
+
+def test_banco_somente_leitura_so_entrega_service_role(ambiente_do_vigia):
+    import orquestrador.__main__ as cli
+    banco = cli._abrir_banco_somente_leitura()
+    for papel in ('authenticated', 'postgres', None, ''):
+        with pytest.raises(RuntimeError, match='service_role'):
+            banco._con(papel)
+    assert banco._con('service_role') and banco.fechar() is None
+    assert SENHA_DO_BANCO not in repr(banco) + str(banco)
+
+
+def test_banco_somente_leitura_fecha_a_conexao_se_o_set_role_falhar(ambiente_do_vigia):
+    import orquestrador.__main__ as cli
+    banco = cli._abrir_banco_somente_leitura()
+
+    def quebra(self, consulta, args=()):
+        raise ConnectionError('SET ROLE recusado')
+    _ConexaoPostgresFalsa.execute, original = quebra, _ConexaoPostgresFalsa.execute
+    try:
+        with pytest.raises(ConnectionError):
+            banco._con('service_role')
+    finally:
+        _ConexaoPostgresFalsa.execute = original
+    assert ambiente_do_vigia.conexoes[-1].fechada
+
+
+# --- vigiar --canal-webhook ---------------------------------------------------------------------------------------------
+def _webhook_local(monkeypatch):
+    """Só o TESTE liga o http local; o comando vigiar nunca liga (há um teste para isso abaixo)."""
+    import functools
+    from orquestrador import vigilancia
+    monkeypatch.setattr(vigilancia, 'NotificadorHttp', functools.partial(vigilancia.NotificadorHttp, permitir_local=True))
+
+
+def test_cli_vigiar_canal_webhook_sem_a_variavel_e_erro_claro_antes_de_abrir_o_banco(ambiente_do_vigia, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    arquivo = tmp_path / 'a.jsonl'
+    assert cli.main(['vigiar', '--uma-volta', '--canal-webhook', '--saida', str(arquivo)]) == 1
+    saida = _saida_json(capsys)
+    assert saida['estado'] == 'FALHA_DE_CANAL' and VARIAVEL_DO_WEBHOOK in saida['motivo'] and 'não está definida' in saida['motivo']
+    assert ambiente_do_vigia.conexoes == [] and not arquivo.exists()
+
+
+@pytest.mark.parametrize('url', [f'http://exemplo.invalid/hook/{SEGREDO_DA_URL}',
+                                 f'https://usuario:senha@exemplo.invalid/{SEGREDO_DA_URL}'])
+def test_cli_vigiar_canal_webhook_com_url_insegura_e_recusado_sem_mostrar_a_url(ambiente_do_vigia, monkeypatch, capsys, tmp_path, url):
+    import orquestrador.__main__ as cli
+    monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, url)
+    assert cli.main(['vigiar', '--uma-volta', '--canal-webhook', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    saida = capsys.readouterr()
+    assert json.loads(saida.out)['estado'] == 'FALHA_DE_CANAL'
+    assert SEGREDO_DA_URL not in saida.out + saida.err and 'exemplo.invalid' not in saida.out + saida.err
+    assert ambiente_do_vigia.conexoes == []
+
+
+def test_cli_vigiar_nunca_liga_o_http_local_do_teste(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    """Sem o monkeypatch do teste, http://127.0.0.1 é recusado pelo comando de verdade."""
+    import orquestrador.__main__ as cli
+    monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, f'http://127.0.0.1:9/hook/{SEGREDO_DA_URL}')
+    assert cli.main(['vigiar', '--uma-volta', '--canal-webhook', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_CANAL'
+
+
+def test_cli_vigiar_canal_webhook_os_dois_canais_recebem_todo_alarme(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    from apoio.servidor_webhook import ServidorWebhook
+    _webhook_local(monkeypatch)
+    arquivo = tmp_path / 'alarmes.jsonl'
+    with ServidorWebhook() as servidor:
+        monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, servidor.url('/hook/' + SEGREDO_DA_URL))
+        assert cli.main(['vigiar', '--uma-volta', '--canal-webhook', '--saida', str(arquivo)]) == 0
+    saida = capsys.readouterr()
+    resumo = json.loads(saida.out)
+    assert resumo['alarmes'] == 1 and resumo['enviados'] == 1 and resumo['canais_falhos'] == 0
+    assert len(arquivo.read_text(encoding='utf-8').splitlines()) == 1
+    (metodo, caminho, _cabecalhos, corpo), = servidor.recebidos
+    assert metodo == 'POST' and json.loads(corpo)['codigo'] == 'REGRA_13' and 'SENHA_FALSA' not in corpo
+    assert SEGREDO_DA_URL not in saida.out + saida.err
+
+
+def test_cli_vigiar_webhook_fora_do_ar_nao_cala_o_arquivo_e_nao_vaza_a_url(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    from apoio.servidor_webhook import ServidorWebhook
+    _webhook_local(monkeypatch)
+    arquivo = tmp_path / 'alarmes.jsonl'
+    with ServidorWebhook(500) as servidor:
+        monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, servidor.url('/hook/' + SEGREDO_DA_URL))
+        assert cli.main(['vigiar', '--uma-volta', '--canal-webhook', '--saida', str(arquivo)]) == 0
+    saida = capsys.readouterr()
+    resumo = json.loads(saida.out)
+    assert resumo['enviados'] == 1 and resumo['canais_falhos'] == 1
+    assert 'REGRA_13' in arquivo.read_text(encoding='utf-8') and SEGREDO_DA_URL not in saida.out + saida.err
+
+
+def test_cli_vigiar_sem_a_opcao_nao_usa_o_webhook_mesmo_com_a_variavel_definida(ambiente_do_vigia, monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    from apoio.servidor_webhook import ServidorWebhook
+    _webhook_local(monkeypatch)
+    with ServidorWebhook() as servidor:
+        monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, servidor.url('/hook'))
+        assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 0
+    assert servidor.recebidos == []

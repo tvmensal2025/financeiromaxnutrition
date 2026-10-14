@@ -96,20 +96,78 @@ def _salvar_preparacao(caminho, preparacao):
         os.fsync(arquivo.fileno())
 
 
+class _BancoSomenteLeitura:
+    """O que o vigia precisa do banco: conexões service_role de LEITURA e fechar. Sem Hermes e sem DBOS."""
+
+    def __init__(self, dsn, parametros):
+        self._dsn, self._parametros = dsn, parametros
+
+    def _con(self, papel='service_role'):
+        if papel != 'service_role':
+            raise RuntimeError('o vigia só usa o papel service_role')
+        import psycopg
+        from psycopg import sql
+        from psycopg.rows import dict_row
+        con = psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row, **self._parametros)
+        try:
+            con.execute(sql.SQL('SET ROLE {}').format(sql.Identifier(papel)))
+        except BaseException:
+            con.close()
+            raise
+        return con
+
+    def fechar(self):
+        return None                     # cada conexão é aberta e fechada por volta; nada fica aberto aqui
+
+
+def _abrir_banco_somente_leitura():
+    """Abre o banco da v2 SÓ para ler, exigindo apenas HELENA_V2_DATABASE_URL (o vigia não usa Hermes nem DBOS).
+
+    Mesmas checagens de produção do Motor, reutilizadas de bancos.py: URL canônica com TLS verificado e sem override
+    PG* (validar_destinos_reais), CA do sistema (parametros_conexao_real), papel sem privilégio administrativo
+    (preflight_papel_runtime, uma vez, antes do SET ROLE) e SET ROLE service_role em cada conexão. Além disso a sessão
+    sai marcada como somente leitura no próprio PostgreSQL. Falha fechado; nenhuma mensagem traz a URL.
+    """
+    import psycopg
+    from psycopg.rows import dict_row
+    from .bancos import parametros_conexao_real, preflight_papel_runtime, validar_destinos_reais
+    url = os.environ.get('HELENA_V2_DATABASE_URL')
+    if not url:
+        raise ValueError('vigiar exige HELENA_V2_DATABASE_URL (o vigia só lê o banco; não precisa do Hermes)')
+    validar_destinos_reais(url, url)    # só o banco do card existe aqui: a mesma URL nos dois lugares é aceita pela função
+    dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
+    parametros = dict(parametros_conexao_real())
+    parametros['options'] += ' -c default_transaction_read_only=on'
+    with psycopg.connect(dsn, autocommit=True, row_factory=dict_row, **parametros) as con:
+        preflight_papel_runtime(con)
+    return _BancoSomenteLeitura(dsn, parametros)
+
+
 def _vigiar(args, parser):
-    """O vigia de 5 em 5 minutos: SÓ LÊ o banco (papel service_role) e avisa por um canal em arquivo."""
+    """O vigia de 5 em 5 minutos: SÓ LÊ o banco (papel service_role) e avisa por um canal em arquivo.
+
+    `--canal-webhook` acrescenta o canal por webhook HTTPS: os DOIS recebem todo alarme. Só precisa de
+    HELENA_V2_DATABASE_URL (e, com o webhook, da variável da URL do webhook); nada do Hermes.
+    """
     import signal
     import threading
-    from .vigilancia import NotificadorDeArquivo, Vigia, limpar_texto
+    from .vigilancia import NotificadorDeArquivo, NotificadorHttp, Vigia, limpar_texto
     if not args.saida:
-        parser.error('vigiar exige --saida com o arquivo onde os alarmes são gravados (um canal real entra depois)')
+        parser.error('vigiar exige --saida com o arquivo onde os alarmes são gravados (o canal em arquivo sempre é usado; '
+                     '--canal-webhook acrescenta o webhook)')
+    canais = [NotificadorDeArquivo(Path(args.saida))]
+    if args.canal_webhook:
+        try:
+            canais.append(NotificadorHttp())        # lê a URL da variável de ambiente; sem rede aqui
+        except ValueError as erro:
+            print(json.dumps({'estado': 'FALHA_DE_CANAL', 'motivo': limpar_texto(erro)}, ensure_ascii=False))
+            return 1
     try:
-        motor = _abrir_runtime_real(iniciar_dbos=False)
+        banco = _abrir_banco_somente_leitura()
     except Exception as erro:
         print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
         return 1
-    vigia = Vigia(lambda: motor._con('service_role'), [NotificadorDeArquivo(Path(args.saida))],
-                  registrar=lambda linha: print(linha, flush=True))
+    vigia = Vigia(lambda: banco._con('service_role'), canais, registrar=lambda linha: print(linha, flush=True))
     try:
         if args.uma_volta:
             volta = vigia.uma_volta()
@@ -122,7 +180,7 @@ def _vigiar(args, parser):
         vigia.rodar(parar, args.intervalo)
         return 0
     finally:
-        motor.fechar()
+        banco.fechar()
 
 
 def main(argv=None):
@@ -137,6 +195,7 @@ def main(argv=None):
     parser.add_argument('--card', help='UUID de um card real existente')
     parser.add_argument('--uma-volta', action='store_true', help='vigiar: faz uma volta e sai (padrão: roda até ser interrompido)')
     parser.add_argument('--intervalo', type=float, default=300.0, help='vigiar: segundos entre voltas (padrão 300)')
+    parser.add_argument('--canal-webhook', action='store_true', help='vigiar: avisa também por webhook HTTPS (URL na variável HELENA_V2_ALARME_WEBHOOK_URL)')
     args = parser.parse_args(argv)
     if args.comando == 'vigiar':
         return _vigiar(args, parser)
