@@ -96,17 +96,64 @@ def _salvar_preparacao(caminho, preparacao):
         os.fsync(arquivo.fileno())
 
 
+def _vigiar(args, parser):
+    """O vigia de 5 em 5 minutos: SÓ LÊ o banco (papel service_role) e avisa por um canal em arquivo."""
+    import signal
+    import threading
+    from .vigilancia import NotificadorDeArquivo, Vigia, limpar_texto
+    if not args.saida:
+        parser.error('vigiar exige --saida com o arquivo onde os alarmes são gravados (um canal real entra depois)')
+    try:
+        motor = _abrir_runtime_real(iniciar_dbos=False)
+    except Exception as erro:
+        print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
+        return 1
+    vigia = Vigia(lambda: motor._con('service_role'), [NotificadorDeArquivo(Path(args.saida))],
+                  registrar=lambda linha: print(linha, flush=True))
+    try:
+        if args.uma_volta:
+            volta = vigia.uma_volta()
+            print(json.dumps({'alarmes': volta.alarmes, 'enviados': volta.enviados, 'suprimidos': volta.suprimidos,
+                              'canais_falhos': volta.canais_falhos, 'metricas': vigia.metricas}, ensure_ascii=False))
+            return 0
+        parar = threading.Event()
+        for sinal in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sinal, lambda *_: parar.set())
+        vigia.rodar(parar, args.intervalo)
+        return 0
+    finally:
+        motor.fechar()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
                                           'preparar-tarefa-real', 'consumir-pedido-real',
-                                          'avancar-card-real'])
+                                          'avancar-card-real', 'gerar-instalacao', 'vigiar'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
-    parser.add_argument('--saida', help='Arquivo privado novo fora do checkout')
+    parser.add_argument('--saida', help='Arquivo (ou, em gerar-instalacao, pasta) privado novo fora do checkout')
     parser.add_argument('--solicitacao', help='UUID do pedido já autenticado no banco')
     parser.add_argument('--card', help='UUID de um card real existente')
+    parser.add_argument('--uma-volta', action='store_true', help='vigiar: faz uma volta e sai (padrão: roda até ser interrompido)')
+    parser.add_argument('--intervalo', type=float, default=300.0, help='vigiar: segundos entre voltas (padrão 300)')
     args = parser.parse_args(argv)
+    if args.comando == 'vigiar':
+        return _vigiar(args, parser)
+    if args.comando == 'gerar-instalacao':
+        # Só escreve arquivos SQL para REVISÃO numa pasta nova; não conecta em banco nenhum.
+        from .instalacao import ErroDeInstalacao, gerar_instalacao
+        if not args.saida:
+            parser.error('gerar-instalacao exige --saida com uma pasta nova fora do repositório')
+        try:
+            manifesto = gerar_instalacao(Path(args.saida))
+        except ErroDeInstalacao as erro:
+            print(json.dumps({'estado': 'RECUSADO', 'motivo': str(erro)}, ensure_ascii=False))
+            return 1
+        print(json.dumps({'estado': 'GERADO_PARA_REVISAO', 'executado': False, 'pasta': str(args.saida),
+                          'arquivos': sorted(manifesto['arquivos']), 'frase_exata': manifesto['frase_exata']},
+                         ensure_ascii=False))
+        return 0
     if args.comando in ('consumir-pedido-real', 'avancar-card-real'):
         valor = args.card if args.comando == 'avancar-card-real' else args.solicitacao
         if not valor:

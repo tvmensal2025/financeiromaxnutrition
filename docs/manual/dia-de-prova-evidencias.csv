@@ -1,0 +1,4 @@
+teste,id,horario_inicio,horario_fim,origem,card,agente,modelo,versao_do_hermes,resultado,tentativas,cota_v1_antes,cota_v1_depois,cota_v2_antes,cota_v2_depois,classe_de_falha,renovacoes_de_login_observadas,token_na_pasta_da_tarefa,login_derrubado,revisado_por,observacao
+cota,T01,,,WHATSAPP_OU_TELA,,,,,PASSOU_FALHOU_OU_NAO_COMPROVADO,,,,,,,,,,,
+cota,T02,,,,,,,,,,,,,,,,,,,
+login,L01,,,,,,,,,,,,,,,,,,,

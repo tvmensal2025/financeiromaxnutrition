@@ -28,4 +28,11 @@ Não existe neste repositório um comando que automatize as 20 tarefas ou as 48 
 
 Registrar para cada critério **PASSOU / FALHOU / NÃO COMPROVADO**, apontando a evidência concreta e quem a revisou. Qualquer falha impede avançar a fase. Estes testes ainda não foram realizados.
 
+## Antes do dia de prova: o que já está pronto (e o que NÃO está)
+
+- **Planilha de evidências:** `docs/manual/dia-de-prova-evidencias.csv` (cabeçalho pronto; uma linha por tarefa e por observação de login; sem token nem dado pessoal).
+- **Roteiro de instalação do banco v2, para revisão:** `python -m orquestrador gerar-instalacao --saida <pasta nova fora do repositório>` gera `01_instalar_v2.sql`, `02_base_tecnica.sql`, `03_conferir_depois.sql`, `LEIA-ANTES.md` e `manifesto.json`. Nada é executado; só entra no Supabase real com a frase exata do `LEIA-ANTES.md`.
+- **Vigia de 5 em 5 minutos e alarmes:** `python -m orquestrador vigiar --saida <arquivo>` (só lê o banco). O canal em arquivo é o mínimo; um canal realmente independente do servidor (teste 7) **não existe ainda** e só se prova com a frase do dia de prova.
+- **Durabilidade com executor falso** (queda de processo com `kill -9`, reinícios, trocas de versão, dois motores): testes em `motor/orquestrador/testes/test_durabilidade.py`; o resultado atual está no `HANDOFF-CLAUDE-CODE.md`. Com o Hermes real, tudo isso continua **NÃO COMPROVADO**.
+
 **Frase exata proposta ao fundador: “AUTORIZO O DIA DE PROVA DA V2 COM HERMES REAL E CHATGPT”. Até recebê-la, este roteiro permanece parado.**

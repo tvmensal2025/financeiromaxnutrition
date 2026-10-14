@@ -259,3 +259,50 @@ def test_runtime_real_com_executor_fora_do_registro_falha_fechado_sem_abrir_moto
         monkeypatch.setenv('HELENA_V2_EXECUTOR', nome)
         with pytest.raises(ValueError, match='não está no registro aprovado'):
             cli._abrir_runtime_real(iniciar_dbos=False)
+
+
+def test_cli_vigiar_uma_volta_grava_alarme_em_arquivo_sem_segredo(monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+
+    class ConexaoFalsa:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def execute(self, sql, args=()):
+            class Cursor:
+                def fetchall(self_):
+                    if 'helena_v2.vigia()' in sql:
+                        return [('13', None, 'veja postgresql://u:SENHA_FALSA_9@h:5432/db')]
+                    return []
+            return Cursor()
+
+    class MotorFalso:
+        fechado = False
+
+        def _con(self, papel):
+            assert papel == 'service_role'
+            return ConexaoFalsa()
+
+        def fechar(self):
+            MotorFalso.fechado = True
+
+    monkeypatch.setattr(cli, '_abrir_runtime_real', lambda *, iniciar_dbos: MotorFalso())
+    arquivo = tmp_path / 'alarmes.jsonl'
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(arquivo)]) == 0
+    saida = json.loads(capsys.readouterr().out)
+    assert saida['alarmes'] == 1 and saida['enviados'] == 1 and MotorFalso.fechado
+    linhas = arquivo.read_text(encoding='utf-8').splitlines()
+    assert len(linhas) == 1 and 'SENHA_FALSA' not in linhas[0] and 'REGRA_13' in linhas[0]
+
+
+def test_cli_vigiar_sem_ambiente_falha_fechado(monkeypatch, capsys, tmp_path):
+    import orquestrador.__main__ as cli
+    for nome in ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL', 'HELENA_V2_HERMES_BIN',
+                 'HELENA_V2_HERMES_HOME', 'HELENA_V2_EXECUCOES_DIR'):
+        monkeypatch.delenv(nome, raising=False)
+    assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 1
+    assert json.loads(capsys.readouterr().out)['estado'] == 'FALHA_DE_RUNTIME'
+    assert not (tmp_path / 'a.jsonl').exists()
