@@ -1,4 +1,5 @@
 """Reusa exatamente o cluster e as migrations dos testes do banco v2."""
+from contextlib import contextmanager
 import importlib.util
 import sys
 from pathlib import Path
@@ -19,9 +20,9 @@ spec.loader.exec_module(suporte)
 servidor = suporte.servidor
 
 
-@pytest.fixture(scope='session')
-def banco(servidor):
-    """Banco descartável do Motor com resposta durável da coordenadora."""
+@contextmanager
+def banco_proprio(servidor):
+    """Um banco descartável do Motor com resposta durável da coordenadora; apagado ao sair."""
     b = suporte.montar_banco(servidor, papeis_de_teste=suporte.PAPEIS_DE_TESTE)
     try:
         with b.conectar() as con:
@@ -31,10 +32,11 @@ def banco(servidor):
         suporte.derrubar_banco(b)
 
 
-@pytest.fixture(scope='session')
-def url_dbos(servidor):
+@contextmanager
+def url_dbos_propria(servidor, prefixo='helena_dbos_t_'):
+    """Um banco vazio só para as tabelas do DBOS; devolve a URL e o apaga ao sair."""
     import secrets
-    nome = 'helena_dbos_t_' + secrets.token_hex(5)
+    nome = prefixo + secrets.token_hex(5)
     with psycopg.connect(servidor, autocommit=True) as con:
         con.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(nome)))
     args = conninfo_to_dict(servidor)
@@ -47,3 +49,16 @@ def url_dbos(servidor):
     finally:
         with psycopg.connect(servidor, autocommit=True) as con:
             con.execute(sql.SQL('DROP DATABASE IF EXISTS {} WITH (FORCE)').format(sql.Identifier(nome)))
+
+
+@pytest.fixture(scope='session')
+def banco(servidor):
+    """O banco compartilhado pela sessão: quem muda a configuração ou cria dados deve usar `banco_proprio`."""
+    with banco_proprio(servidor) as b:
+        yield b
+
+
+@pytest.fixture(scope='session')
+def url_dbos(servidor):
+    with url_dbos_propria(servidor) as url:
+        yield url

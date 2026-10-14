@@ -18,6 +18,7 @@ from orquestrador.preparacao import confirmar_preparacao, preparar_tarefa_real
 from orquestrador.evidencias import EvidenciaInvalida
 from executor_helena.executor_falso import ExecutorFalso
 from executor_helena.executor import ExecutorHermes
+from conftest import banco_proprio, servidor, url_dbos_propria  # noqa: F401  (servidor é a fixture do cluster de teste)
 
 RAIZ = Path(__file__).resolve().parents[3]
 
@@ -747,7 +748,22 @@ def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monk
     assert gravado[1] == 'limpo'
 
 
-def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(banco, url_dbos):
+@pytest.fixture()
+def banco_do_pedido(servidor):
+    """Banco PRÓPRIO: este teste cria tabelas public.*, roda as migrations 0007 e 0009 e registra configuração. No banco da
+    sessão isso faria `test_jornada` (que exige um banco virgem) falhar quando este arquivo roda antes dele."""
+    with banco_proprio(servidor) as b:
+        yield b
+
+
+@pytest.fixture()
+def url_dbos_do_pedido(servidor):
+    with url_dbos_propria(servidor, 'helena_dbos_ped_') as url:
+        yield url
+
+
+def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(banco_do_pedido, url_dbos_do_pedido, servidor):
+    banco, url_dbos = banco_do_pedido, url_dbos_do_pedido
     """Prova local da porta 0007 com observação derivada de linhas do PostgreSQL."""
     with banco.conectar() as con:
         con.execute("""create table public.checkpoint_mestre (
