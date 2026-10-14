@@ -24,6 +24,10 @@ MANUTENCAO = (
     "conferir_card(uuid)",
     "situacao_efetiva(helena_v2.etapa)",
 )
+# Portas de serviço criadas depois da 0016 (já nascem só para service_role).
+SO_SERVICO_DEPOIS_DE_0016 = (
+    "eventos_devidos(timestamp with time zone)",   # 0017, o relógio dos prazos
+)
 
 
 @pytest.fixture()
@@ -194,7 +198,7 @@ def banco_integral_prod_shape(servidor):
                 job_id text primary key, task_id text, business_id text, agent_id text, status text,
                 approval_status text, result_payload jsonb, result_summary text,
                 evidence_refs jsonb, updated_at timestamptz)""")
-            for numero in range(1, 17):
+            for numero in range(1, 18):
                 arquivos = sorted(C.MIGRACOES.glob(f"{numero:04d}_*.sql"))
                 assert len(arquivos) == 1, numero
                 con.execute(arquivos[0].read_text(encoding="utf-8"))
@@ -203,7 +207,7 @@ def banco_integral_prod_shape(servidor):
         C.derrubar_banco(banco)
 
 
-def test_instalacao_integral_0001_a_0016_preserva_rpcs_e_isolamento(banco_integral_prod_shape):
+def test_instalacao_integral_0001_a_0017_preserva_rpcs_e_isolamento(banco_integral_prod_shape):
     banco = banco_integral_prod_shape
     with banco.conectar() as dono:
         assert dono.execute("select extnamespace::regnamespace::text from pg_extension where extname='pgcrypto'").fetchone()[0] == "extensions"
@@ -211,7 +215,7 @@ def test_instalacao_integral_0001_a_0016_preserva_rpcs_e_isolamento(banco_integr
             where table_schema='public' and table_name='app_access' order by ordinal_position""")] == [
                 "user_id", "role", "active", "created_at", "updated_at"]
         assert dono.execute("select helena_v2.tabela_confere()").fetchone()[0] is True
-        for assinatura in MANUTENCAO:
+        for assinatura in MANUTENCAO + SO_SERVICO_DEPOIS_DE_0016:
             nome = "helena_v2." + assinatura
             assert dono.execute("select has_function_privilege('authenticated', %s, 'execute')",
                                 (nome,)).fetchone()[0] is False, nome
@@ -225,5 +229,8 @@ def test_instalacao_integral_0001_a_0016_preserva_rpcs_e_isolamento(banco_integr
         assert fundador.execute("select helena_v2.sou_fundador()").fetchone()[0] is True
         with pytest.raises(E.InsufficientPrivilege):
             fundador.execute("select * from helena_v2.vigia()")
+    with banco.conectar("authenticated") as fundador, pytest.raises(E.InsufficientPrivilege):
+        fundador.execute("select * from helena_v2.eventos_devidos()")
     with banco.conectar("service_role") as servico:
         assert servico.execute("select count(*) from helena_v2.vigia()").fetchone()[0] == 0
+        assert servico.execute("select count(*) from helena_v2.eventos_devidos()").fetchone()[0] == 0
