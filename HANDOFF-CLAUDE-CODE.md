@@ -1,5 +1,11 @@
 # Sistema Helena — passagem atual
 
+## Bloco A (14/10/2026) — porta única de executores: trocar modelo ou runtime sem mexer na estrutura
+- `Executor` agora exige `rodar`, `cancelar`, `limpar` e `capacidades` (garantias declaradas). Registro aprovado em código: `motor/executor/executor_helena/registro.py`; o runtime vem de `HELENA_V2_EXECUTOR` (vazio = hermes); nome desconhecido falha fechado. Motor e CLI leem o registro (nada de `ExecutorHermes` fixo no caminho real).
+- Segundo runtime de teste (`runtime_alternativo.py`, processo comum e registro próprio) passa na suíte de conformidade e leva o MESMO card a PRONTO (`test_jornada.py`). Troca de modelo provada com as fichas reais (`test_troca_de_modelo.py`): uma linha de `models.yaml`.
+- Números: executor 555 passaram, 7 pulados de propósito; orquestrador: cli e motor_real 44 passaram, cards inteiros (Hermes de mentira e outro runtime) passaram isolados. EVE e OpenClaw: sem adaptador, NÃO CONFIRMADO (docs oficiais ainda não consultadas). Hermes real segue NÃO COMPROVADO.
+- Achado antigo (não é deste bloco): rodar `test_motor_real.py` ANTES de `test_jornada.py` dá `permission denied for function criar_card`; na ordem padrão (CI) passa. Corrigir quando sobrar tempo.
+
 ## Continuidade em 14/10/2026 — bloco 1 revisado; próximo bloco 2
 - Ramo `v2-primeiro-card`, ponto de partida `387d1d4`; PR 16 permanece rascunho. Histórico integral: `docs/arquivo/handoff-ate-20261013-387d1d4.md`.
 - Base medida antes das mudanças: especificação 296; ferramentas 588; validador 2352 + 31 adiados; simulador 727; executor 493; banco local 426; orquestrador 220; app 283. `python validar.py`, gerador SQL, TypeScript e build passaram; CI do ponto de partida ficou verde em 8 jobs.

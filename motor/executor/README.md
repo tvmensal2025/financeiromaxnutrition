@@ -60,7 +60,7 @@ O motor só enxerga a classe `Executor` (`executor_helena/executor.py`): `rodar`
 
 ```sh
 pip install -r requirements.txt
-python -m pytest -q        # 493 testes, cerca de 2 minutos; sem Hermes real, sem rede, sem gastar cota
+python -m pytest -q        # 555 testes e 7 pulados de propósito (simulações só do Hermes), cerca de 2 minutos; sem Hermes real, sem rede, sem gastar cota
 ```
 
 ## O que NÃO está provado
