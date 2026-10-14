@@ -133,3 +133,53 @@ def test_executor_sem_metodo_do_contrato_nem_nasce(faltando):
 def test_o_runtime_alternativo_mora_no_pacote_mas_nunca_no_registro():
     import executor_helena.runtime_alternativo as modulo
     assert modulo.RuntimeAlternativoDeTeste.capacidades.nome not in registro.nomes_aprovados()
+
+
+# --- degrau de homologação: pronto para conectar, nunca em produção ---------------------------------------------------
+def _homologando(monkeypatch, *adaptadores):
+    monkeypatch.setattr(registro, "EM_HOMOLOGACAO", tuple(adaptadores))
+
+
+def test_homologacao_hoje_nao_mistura_com_a_producao():
+    registro.conferir_homologacao()
+    assert set(registro.nomes_em_homologacao()).isdisjoint(registro.nomes_aprovados())
+
+
+def test_adaptador_em_homologacao_com_garantia_faltando_nao_roda_em_producao_e_a_mensagem_diz_o_que_falta(monkeypatch):
+    classe = _executor(_capacidades(nome="pronto", guarda_conversa=False, sem_reserva_escondida=False))
+    _homologando(monkeypatch, _adaptador(classe, nome="pronto"))
+    registro.conferir_homologacao()                                     # a forma está certa
+    with pytest.raises(ErroDeRegistro, match="pronto para conectar.*não está no registro aprovado.*sem_reserva_escondida, guarda_conversa"):
+        registro.adaptador_configurado({registro.VARIAVEL_DO_EXECUTOR: "pronto"})
+    with pytest.raises(ErroDeRegistro):
+        registro.montar_executor({registro.VARIAVEL_DO_EXECUTOR: "pronto", "NOVO_BIN": "/x"})   # nem com todas as variáveis
+
+
+def test_homologacao_com_nome_ou_classe_de_producao_e_recusada(monkeypatch):
+    _homologando(monkeypatch, _adaptador(ExecutorHermes, nome="hermes"))
+    with pytest.raises(ErroDeRegistro, match="ao mesmo tempo"):
+        registro.conferir_homologacao()
+    _homologando(monkeypatch, _adaptador(ExecutorHermes, nome="outro-nome"))
+    with pytest.raises(ErroDeRegistro):                                 # nome declarado nas capacidades difere
+        registro.conferir_homologacao()
+
+
+def test_homologacao_recusa_variavel_que_parece_valor(monkeypatch):
+    classe = _executor(_capacidades(nome="novo", guarda_conversa=False))
+    _homologando(monkeypatch, _adaptador(classe, variaveis=("chave=abc",)))
+    with pytest.raises(ErroDeRegistro, match="NOMES em maiúsculas"):
+        registro.conferir_homologacao()
+
+
+def test_ficha_de_conexao_traz_so_nomes_e_nunca_valores(monkeypatch):
+    classe = _executor(_capacidades(nome="pronto", limita_chamadas=False))
+    _homologando(monkeypatch, _adaptador(classe, nome="pronto", variaveis=("PRONTO_URL", "PRONTO_CHAVE")))
+    ambiente = {"PRONTO_CHAVE": "SEGREDO_QUE_NAO_PODE_APARECER", registro.VARIAVEL_DO_EXECUTOR: "hermes"}
+    fichas = registro.fichas_de_conexao(ambiente)
+    assert [f["nome"] for f in fichas] == ["hermes", "pronto"]
+    pronto = fichas[1]
+    assert pronto["estado"] == "PRONTO_PARA_CONECTAR_NAO_APROVADO"
+    assert pronto["variaveis_exigidas"] == ["PRONTO_URL", "PRONTO_CHAVE"] and pronto["variaveis_faltando"] == ["PRONTO_URL"]
+    assert pronto["garantias_faltando"] == ["limita_chamadas"] and pronto["escolhido"] is False
+    assert fichas[0]["escolhido"] is True and fichas[0]["estado"] == "APROVADO_PARA_PRODUCAO"
+    assert "SEGREDO_QUE_NAO_PODE_APARECER" not in repr(fichas)

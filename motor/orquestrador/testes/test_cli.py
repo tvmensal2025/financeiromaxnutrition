@@ -643,3 +643,19 @@ def test_cli_despachar_sem_runtime_falha_fechado_e_vagas_invalidas_sao_recusadas
     for vagas in ('0', '65', '-1'):
         with pytest.raises(SystemExit):
             cli.main(['despachar', '--uma-rodada', '--vagas', vagas])
+
+
+def test_cli_conferir_runtime_mostra_a_ficha_de_conexao_so_com_nomes_sem_rede_e_sem_banco(monkeypatch, capsys):
+    import orquestrador.__main__ as cli
+    import psycopg
+    monkeypatch.setattr(psycopg, 'connect', lambda *a, **k: pytest.fail('conferir-runtime não pode abrir conexão'))
+    monkeypatch.setenv('HELENA_V2_HERMES_HOME', '/valor/que/nao/pode/aparecer')
+    monkeypatch.delenv('HELENA_V2_EXECUTOR', raising=False)
+    assert cli.main(['conferir-runtime']) == 0
+    saida = capsys.readouterr().out
+    ficha = json.loads(saida)
+    hermes = next(r for r in ficha['runtimes'] if r['nome'] == 'hermes')
+    assert hermes['estado'] == 'APROVADO_PARA_PRODUCAO' and hermes['escolhido'] is True
+    assert 'HELENA_V2_HERMES_HOME' not in hermes['variaveis_faltando'] and 'HELENA_V2_HERMES_BIN' in hermes['variaveis_exigidas']
+    assert '/valor/que/nao/pode/aparecer' not in saida
+    assert all(r['estado'] in ('APROVADO_PARA_PRODUCAO', 'PRONTO_PARA_CONECTAR_NAO_APROVADO') for r in ficha['runtimes'])

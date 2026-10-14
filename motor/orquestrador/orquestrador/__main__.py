@@ -267,11 +267,24 @@ def _despachar(args, parser):
         motor.fechar()
 
 
+def _conferir_runtime():
+    """A ficha de conexão de cada runtime conhecido: o que falta para conectar. Só nomes; sem rede, sem banco, sem valores."""
+    from executor_helena.registro import ErroDeRegistro, fichas_de_conexao
+    try:
+        fichas = fichas_de_conexao(os.environ)
+    except ErroDeRegistro as erro:
+        print(json.dumps({'estado': 'REGISTRO_COM_DEFEITO', 'motivo': str(erro)}, ensure_ascii=False))
+        return 1
+    print(json.dumps({'runtimes': fichas, 'escolhido_por': 'HELENA_V2_EXECUTOR (vazio = hermes)'}, ensure_ascii=False))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
                                           'preparar-tarefa-real', 'consumir-pedido-real',
-                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio', 'despachar'])
+                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio', 'despachar',
+                                          'conferir-runtime'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
     parser.add_argument('--saida', help='Arquivo (ou, em gerar-instalacao, pasta) privado novo fora do checkout')
@@ -283,6 +296,8 @@ def main(argv=None):
     parser.add_argument('--vagas', type=int, default=1, help='despachar: quantos cards o motor avança ao mesmo tempo (padrão 1)')
     parser.add_argument('--canal-webhook', action='store_true', help='vigiar: avisa também por webhook HTTPS (URL na variável HELENA_V2_ALARME_WEBHOOK_URL)')
     args = parser.parse_args(argv)
+    if args.comando == 'conferir-runtime':
+        return _conferir_runtime()
     if args.comando in ('vigiar', 'relogio', 'despachar'):
         if args.intervalo is None:
             args.intervalo = {'vigiar': 300.0, 'relogio': 60.0, 'despachar': 5.0}[args.comando]
