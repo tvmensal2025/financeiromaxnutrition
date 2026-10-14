@@ -68,6 +68,7 @@ const repoCards = () => ({
 const repoConfig = () => ({
   listar: vi.fn().mockResolvedValue([]),
   ler: vi.fn(), salvar: vi.fn(), solicitarValidacao: vi.fn(), ativar: vi.fn(), aposentar: vi.fn(),
+  listarAtivacoes: vi.fn().mockResolvedValue([]), reverter: vi.fn(),
 });
 
 const entrar = (id: string, acesso: { role: string; active: boolean; user_id?: string } | null) => {
