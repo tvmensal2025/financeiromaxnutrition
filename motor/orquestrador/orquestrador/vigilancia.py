@@ -11,15 +11,22 @@ Alarmes não repetem à toa: o mesmo alarme só volta depois de `repetir_a_cada_
 NÃO COMPROVADO: um canal REALMENTE independente do servidor da v2 (celular, serviço externo). Aqui há o contrato
 `Notificador`, um canal em arquivo e um falso; o canal real entra depois, como adaptador revisado, e o teste 7 do
 plano (aviso em até 15 minutos, mesmo com o servidor fora do ar) só se prova no dia de prova.
+`NotificadorHttp` é o canal genérico por webhook HTTPS (o fornecedor não está escolhido); a URL é segredo e só vive
+numa variável de ambiente, nunca em texto de erro, log ou repr.
 """
+import http.client
 import json
+import os
 import re
 import threading
 import time
+import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from urllib.parse import urlsplit
 
 from executor_helena.segredos import PADROES_DE_VALOR
 
@@ -90,6 +97,92 @@ class NotificadorDeArquivo(Notificador):
         self.caminho.parent.mkdir(parents=True, exist_ok=True)
         with open(self.caminho, 'a', encoding='utf-8') as arquivo:
             arquivo.write(json.dumps(linha, ensure_ascii=False) + '\n')
+
+
+# --- canal por webhook HTTPS (independente do servidor da v2) ------------------------------------------------------
+VARIAVEL_DO_WEBHOOK_PADRAO = 'HELENA_V2_ALARME_WEBHOOK_URL'     # SÓ O NOME; o valor (a URL) é segredo e é do fundador
+TIMEOUT_DO_WEBHOOK_S = 5.0
+_HOSTS_LOCAIS_DE_TESTE = frozenset({'127.0.0.1', 'localhost'})
+
+
+class ErroDeWebhook(RuntimeError):
+    """O aviso NÃO foi entregue. A mensagem nunca traz a URL do webhook (ela é segredo)."""
+
+
+class _SemRedirecionamento(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *_args, **_kwargs):
+        return None                 # a resposta 3xx vira erro; o aviso nunca é reenviado para outro endereço
+
+
+class NotificadorHttp(Notificador):
+    """POST JSON {codigo, gravidade, resumo, referencia} para a URL lida da variável de ambiente `variavel`.
+
+    Só `https://` (o certificado é verificado). `http://127.0.0.1` e `http://localhost` só com `permitir_local=True`,
+    que é para teste local e que o comando `vigiar` NUNCA liga. Não segue redirecionamento. 2xx = entregue; qualquer
+    outra coisa levanta `ErroDeWebhook`. O corpo não leva `detalhe` e passa por `limpar_texto`.
+    A URL é segredo: fica só em atributo privado, e nenhuma mensagem de erro nem o repr a mostram.
+    """
+    nome = 'webhook'
+
+    def __init__(self, variavel: str = VARIAVEL_DO_WEBHOOK_PADRAO, *, ambiente: Optional[Mapping[str, str]] = None,
+                 timeout_s: float = TIMEOUT_DO_WEBHOOK_S, permitir_local: bool = False):
+        url = ((os.environ if ambiente is None else ambiente).get(variavel) or '').strip()
+        if not url:
+            raise ValueError(f'a variável {variavel} não está definida: o canal de alarme por webhook não pode ser aberto')
+        self._local = self._conferir_url(url, variavel, permitir_local)      # antes de qualquer rede
+        self._url = url
+        self.variavel, self.timeout_s = variavel, timeout_s
+
+    @staticmethod
+    def _conferir_url(url: str, variavel: str, permitir_local: bool) -> bool:
+        """Devolve True se a URL é de teste local. Recusa com mensagem que NÃO repete a URL."""
+        problema = None
+        try:
+            partes = urlsplit(url)
+            host, _porta = partes.hostname, partes.port
+        except ValueError:
+            problema = f'a URL em {variavel} é malformada'
+        if problema is None:
+            if not host:
+                problema = f'a URL em {variavel} é malformada'
+            elif partes.username is not None or partes.password is not None:
+                problema = f'a URL em {variavel} não pode trazer usuário ou senha embutidos'
+            elif partes.scheme == 'https':
+                return False
+            elif partes.scheme == 'http' and permitir_local and host in _HOSTS_LOCAIS_DE_TESTE:
+                return True
+            else:
+                problema = (f'a URL em {variavel} foi recusada: só https:// é aceito '
+                            '(http só em 127.0.0.1 ou localhost e só em teste local)')
+        raise ValueError(problema)
+
+    def __repr__(self) -> str:
+        return f'NotificadorHttp(variavel={self.variavel!r})'
+
+    def enviar(self, alarme: Alarme) -> None:
+        corpo = json.dumps({'codigo': limpar_texto(alarme.codigo, 80), 'gravidade': limpar_texto(alarme.gravidade, 20),
+                            'resumo': limpar_texto(alarme.resumo),
+                            'referencia': limpar_texto(alarme.referencia, 80) if alarme.referencia else None},
+                           ensure_ascii=False).encode('utf-8')
+        pedido = urllib.request.Request(self._url, data=corpo, method='POST', headers={
+            'Content-Type': 'application/json; charset=utf-8', 'User-Agent': 'helena-v2-vigia'})
+        manipuladores = [_SemRedirecionamento]
+        if self._local:
+            manipuladores.append(urllib.request.ProxyHandler({}))             # endereço local nunca passa por proxy
+        motivo = None
+        try:
+            with urllib.request.build_opener(*manipuladores).open(pedido, timeout=self.timeout_s) as resposta:
+                if not 200 <= resposta.status < 300:
+                    motivo = f'o webhook respondeu HTTP {resposta.status}'
+        except urllib.error.HTTPError as erro:                                # 3xx (não seguido), 4xx e 5xx
+            motivo = f'o webhook respondeu HTTP {erro.code}'
+            erro.close()
+        except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as erro:
+            causa = erro.reason if isinstance(erro, urllib.error.URLError) and isinstance(erro.reason, BaseException) else erro
+            motivo = ('o webhook não respondeu a tempo' if isinstance(causa, TimeoutError)
+                      else f'o webhook não pôde ser contatado ({type(causa).__name__})')
+        if motivo:                  # levantado FORA do except: nenhuma exceção de rede (que pode citar a URL) fica encadeada
+            raise ErroDeWebhook(motivo)
 
 
 # --- coleta (só SELECT) --------------------------------------------------------------------------------------------
