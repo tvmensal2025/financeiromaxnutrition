@@ -97,14 +97,14 @@ def _salvar_preparacao(caminho, preparacao):
 
 
 class _BancoSomenteLeitura:
-    """O que o vigia precisa do banco: conexões service_role de LEITURA e fechar. Sem Hermes e sem DBOS."""
+    """O que o vigia e o relógio precisam do banco: conexões service_role e fechar. Sem Hermes e sem DBOS."""
 
     def __init__(self, dsn, parametros):
         self._dsn, self._parametros = dsn, parametros
 
     def _con(self, papel='service_role'):
         if papel != 'service_role':
-            raise RuntimeError('o vigia só usa o papel service_role')
+            raise RuntimeError('só o papel service_role é usado aqui')
         import psycopg
         from psycopg import sql
         from psycopg.rows import dict_row
@@ -121,7 +121,13 @@ class _BancoSomenteLeitura:
 
 
 def _abrir_banco_somente_leitura():
-    """Abre o banco da v2 SÓ para ler, exigindo apenas HELENA_V2_DATABASE_URL (o vigia não usa Hermes nem DBOS).
+    """Abre o banco da v2 SÓ para ler (o vigia). Veja `_abrir_banco_service_role`."""
+    return _abrir_banco_service_role(somente_leitura=True)
+
+
+def _abrir_banco_service_role(*, somente_leitura):
+    """Abre o banco da v2 pelo papel service_role, exigindo apenas HELENA_V2_DATABASE_URL (nem Hermes nem DBOS).
+    `somente_leitura=False` é só do relógio, que precisa gravar o evento de prazo; o vigia lê.
 
     Mesmas checagens de produção do Motor, reutilizadas de bancos.py: URL canônica com TLS verificado e sem override
     PG* (validar_destinos_reais), CA do sistema (parametros_conexao_real), papel sem privilégio administrativo
@@ -133,11 +139,12 @@ def _abrir_banco_somente_leitura():
     from .bancos import parametros_conexao_real, preflight_papel_runtime, validar_destinos_reais
     url = os.environ.get('HELENA_V2_DATABASE_URL')
     if not url:
-        raise ValueError('vigiar exige HELENA_V2_DATABASE_URL (o vigia só lê o banco; não precisa do Hermes)')
+        raise ValueError('exige HELENA_V2_DATABASE_URL (vigiar e relogio só falam com o banco; não precisam do Hermes)')
     validar_destinos_reais(url, url)    # só o banco do card existe aqui: a mesma URL nos dois lugares é aceita pela função
     dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
     parametros = dict(parametros_conexao_real())
-    parametros['options'] += ' -c default_transaction_read_only=on'
+    if somente_leitura:
+        parametros['options'] += ' -c default_transaction_read_only=on'
     with psycopg.connect(dsn, autocommit=True, row_factory=dict_row, **parametros) as con:
         preflight_papel_runtime(con)
     return _BancoSomenteLeitura(dsn, parametros)
@@ -183,22 +190,68 @@ def _vigiar(args, parser):
         banco.fechar()
 
 
+def _relogio(args, parser):
+    """O relógio dos prazos: a cada volta pede ao BANCO o que venceu (eventos_devidos) e aplica cada evento como papel RELOGIO.
+
+    Só precisa de HELENA_V2_DATABASE_URL (nada do Hermes). A saída traz só contagens e nomes de evento, nunca texto de agente.
+    Quem avisa que o relógio parou é o vigia (alarme RELOGIO_ATRASADO). Erro numa volta não derruba o laço.
+    """
+    import signal
+    import threading
+    from .relogio import Relogio, aplicador_do_banco
+    from .vigilancia import limpar_texto
+    try:
+        banco = _abrir_banco_service_role(somente_leitura=False)
+    except Exception as erro:
+        print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
+        return 1
+    relogio = Relogio(lambda: banco._con('service_role'), aplicador_do_banco(lambda: banco._con('service_role')))
+
+    def uma_volta():
+        try:
+            resumo = relogio.uma_volta()
+        except Exception as erro:
+            print(json.dumps({'estado': 'VOLTA_COM_ERRO', 'tipo': limpar_texto(type(erro).__name__)}, ensure_ascii=False), flush=True)
+            return False
+        print(json.dumps({'estado': 'VOLTA_FEITA', 'devidos': resumo.devidos, 'aplicados': resumo.aplicados,
+                          'recusados': resumo.recusados, 'obsoletos': resumo.obsoletos,
+                          'eventos': sorted({e.evento for e in resumo.eventos})}, ensure_ascii=False), flush=True)
+        return True
+
+    try:
+        if args.uma_volta:
+            return 0 if uma_volta() else 1
+        parar = threading.Event()
+        for sinal in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sinal, lambda *_: parar.set())
+        while not parar.is_set():
+            uma_volta()
+            parar.wait(args.intervalo)
+        return 0
+    finally:
+        banco.fechar()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
                                           'preparar-tarefa-real', 'consumir-pedido-real',
-                                          'avancar-card-real', 'gerar-instalacao', 'vigiar'])
+                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
     parser.add_argument('--saida', help='Arquivo (ou, em gerar-instalacao, pasta) privado novo fora do checkout')
     parser.add_argument('--solicitacao', help='UUID do pedido já autenticado no banco')
     parser.add_argument('--card', help='UUID de um card real existente')
-    parser.add_argument('--uma-volta', action='store_true', help='vigiar: faz uma volta e sai (padrão: roda até ser interrompido)')
-    parser.add_argument('--intervalo', type=float, default=300.0, help='vigiar: segundos entre voltas (padrão 300)')
+    parser.add_argument('--uma-volta', action='store_true', help='vigiar e relogio: faz uma volta e sai (padrão: roda até ser interrompido)')
+    parser.add_argument('--intervalo', type=float, default=None, help='vigiar e relogio: segundos entre voltas (padrão: 300 no vigiar, 60 no relogio)')
     parser.add_argument('--canal-webhook', action='store_true', help='vigiar: avisa também por webhook HTTPS (URL na variável HELENA_V2_ALARME_WEBHOOK_URL)')
     args = parser.parse_args(argv)
-    if args.comando == 'vigiar':
-        return _vigiar(args, parser)
+    if args.comando in ('vigiar', 'relogio'):
+        if args.intervalo is None:
+            args.intervalo = 300.0 if args.comando == 'vigiar' else 60.0
+        if args.intervalo <= 0:
+            parser.error('--intervalo precisa ser maior que zero')
+        return _vigiar(args, parser) if args.comando == 'vigiar' else _relogio(args, parser)
     if args.comando == 'gerar-instalacao':
         # Só escreve arquivos SQL para REVISÃO numa pasta nova; não conecta em banco nenhum.
         from .instalacao import ErroDeInstalacao, gerar_instalacao

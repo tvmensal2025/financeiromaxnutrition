@@ -217,6 +217,12 @@ def coletar_alarmes(con, *, agora_s: Optional[float] = None) -> List[Alarme]:
         card_id = linha['id'] if isinstance(linha, dict) else linha[0]
         alarmes.append(Alarme('CARD_PARADO', MEDIA, f'card em andamento sem nenhum evento há mais de {CARD_PARADO_APOS_S // 3600} horas',
                               str(card_id)))
+    linhas_da_coluna = con.execute(
+        "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a WHERE a.attrelid = to_regclass('helena_v2.publicacoes') "
+        "AND a.attname = 'estado' AND NOT a.attisdropped) AS existe").fetchall()
+    if linhas_da_coluna and (linhas_da_coluna[0]['existe'] if isinstance(linhas_da_coluna[0], dict) else linhas_da_coluna[0][0]):
+        from .publicacao import alarmes_de_publicacao       # import tardio: publicacao.py importa este módulo
+        alarmes.extend(alarmes_de_publicacao(con))          # banco sem a migration 0018 não tem a coluna: aí não há o que olhar
     return alarmes
 
 

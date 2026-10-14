@@ -229,6 +229,17 @@ def test_alarme_so_depois_do_prazo_e_so_para_em_execucao(banco, motor):
         assert len(alarmes_de_publicacao(tupla, apos_s=0)) == 1
 
 
+def test_o_vigia_inclui_o_alarme_de_publicacao_parada_e_nao_inventa_nenhum_sem_pedido(banco, motor):
+    from orquestrador.vigilancia import coletar_alarmes
+    assert [a.codigo for a in coletar_alarmes(motor) if a.codigo == 'PUBLICACAO_PARADA'] == []
+    pid = semear(banco)[0]
+    with banco.conectar() as dono:
+        dono.execute("UPDATE helena_v2.publicacoes SET estado='EM_EXECUCAO', iniciada_em=now() - interval '2 hours' WHERE id=%s", (pid,))
+    parados = [a for a in coletar_alarmes(motor) if a.codigo == 'PUBLICACAO_PARADA']
+    assert [a.referencia for a in parados] == [str(pid)]
+    assert estado(banco, pid)[0] == 'EM_EXECUCAO'                          # o vigia só lê
+
+
 # ----------------------------------------------------------------------------------------- concorrência e papéis
 def test_dois_trabalhadores_no_mesmo_pedido_acionam_o_destino_uma_so_vez(banco):
     pid = semear(banco)[0]

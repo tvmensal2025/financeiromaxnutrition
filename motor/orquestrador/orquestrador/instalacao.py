@@ -3,7 +3,7 @@
 O que é: três arquivos SQL e um LEIA-ANTES, escritos numa pasta fora do repositório:
   01_instalar_v2.sql     as migrations em ordem, numa transação só (se uma falhar, nada fica pela metade);
   02_base_tecnica.sql    registra a configuração técnica (helena-v2/ validada offline) pelo papel service_role;
-  03_conferir_depois.sql só leituras: a tabela de regras confere, o vigia está vazio, as portas de manutenção estão fechadas;
+  03_conferir_depois.sql só leituras: a tabela de regras confere, o vigia está vazio, as portas de manutenção, do relógio, da publicação e das ativações estão fechadas;
   LEIA-ANTES.md          o que conferir antes, a frase exata do fundador, como voltar atrás;
   manifesto.json         o hash de cada arquivo, para provar que o revisado é o aplicado.
 Quem aplica: SOMENTE depois da frase exata do fundador (veja LEIA-ANTES.md). Este módulo só lê arquivos locais.
@@ -94,6 +94,28 @@ select 'authenticated não executa as portas de manutenção' as conferencia, no
 select 'service_role executa o vigia' as conferencia,
        has_function_privilege('service_role', 'helena_v2.vigia()', 'execute') as ok;
 select 'nenhum card existe ainda' as conferencia, not exists (select 1 from helena_v2.card) as ok;
+select 'relógio: eventos_devidos só para o service_role' as conferencia, not (
+  has_function_privilege('anon', 'helena_v2.eventos_devidos(timestamptz)', 'execute')
+  or has_function_privilege('authenticated', 'helena_v2.eventos_devidos(timestamptz)', 'execute'))
+  and has_function_privilege('service_role', 'helena_v2.eventos_devidos(timestamptz)', 'execute') as ok;
+select 'publicação: só o service_role reivindica, conclui, falha e reverte pedidos' as conferencia, not (
+  has_function_privilege('anon', 'helena_v2.reivindicar_publicacao()', 'execute')
+  or has_function_privilege('anon', 'helena_v2.concluir_publicacao(bigint,text,text)', 'execute')
+  or has_function_privilege('anon', 'helena_v2.falhar_publicacao(bigint,text)', 'execute')
+  or has_function_privilege('anon', 'helena_v2.reverter_publicacao(bigint)', 'execute')
+  or has_function_privilege('authenticated', 'helena_v2.reivindicar_publicacao()', 'execute')
+  or has_function_privilege('authenticated', 'helena_v2.concluir_publicacao(bigint,text,text)', 'execute')
+  or has_function_privilege('authenticated', 'helena_v2.falhar_publicacao(bigint,text)', 'execute')
+  or has_function_privilege('authenticated', 'helena_v2.reverter_publicacao(bigint)', 'execute'))
+  and has_function_privilege('service_role', 'helena_v2.reivindicar_publicacao()', 'execute') as ok;
+select 'publicação: anon não lê pedidos nem a situação' as conferencia, not (
+  has_table_privilege('anon', 'helena_v2.publicacoes', 'select')
+  or has_function_privilege('anon', 'helena_v2.situacao_publicacao()', 'execute')) as ok;
+select 'ativações: anon não ativa, não lista e não reverte configuração' as conferencia, not (
+  has_function_privilege('anon', 'helena_v2.ativar_configuracao(uuid,uuid)', 'execute')
+  or has_function_privilege('anon', 'helena_v2.listar_ativacoes(integer)', 'execute')
+  or has_function_privilege('anon', 'helena_v2.reverter_configuracao(uuid)', 'execute')) as ok;
+select 'nenhum pedido de publicação existe ainda' as conferencia, not exists (select 1 from helena_v2.publicacoes) as ok;
 """
 
 

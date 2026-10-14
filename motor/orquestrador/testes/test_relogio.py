@@ -6,6 +6,7 @@ Banco PRÓPRIO deste módulo (0001–0006 do suporte + 0017), como em test_durab
 Como mudar: regra de instante nova é testada em supabase/migrations-v2/testes/test_23_relogio.py; aqui só o emissor.
 """
 import socket
+import time
 from datetime import datetime, timedelta, timezone
 
 import psycopg
@@ -41,11 +42,11 @@ def _servico(banco):
     return conectar
 
 
-def _card(banco, numero, pedido_grande=False):
+def _card(banco, numero, pedido_grande=False, prazo_em_s=10 * 86400):
     with banco.conectar() as dono:
         return dono.execute(
-            "select helena_v2.criar_card('teste', %s, 'pedido', 'card do relógio', now() + interval '10 days', %s, 'eLiving™',"
-            " '{}'::jsonb, 0, %s)", (numero, Jsonb(ROTEIRO), pedido_grande)).fetchone()[0]['card_id']
+            "select helena_v2.criar_card('teste', %s, 'pedido', 'card do relógio', now() + make_interval(secs => %s), %s,"
+            " 'eLiving™', '{}'::jsonb, 0, %s)", (numero, prazo_em_s, Jsonb(ROTEIRO), pedido_grande)).fetchone()[0]['card_id']
 
 
 def _linha(banco, sql, args=()):
@@ -166,3 +167,67 @@ def test_banco_indisponivel_levanta_e_nada_fica_em_silencio(banco):
         Relogio(conexao, lambda *_a: None).uma_volta(longe)
     with pytest.raises(ValueError):
         Relogio(conexao, nunca).uma_volta(datetime.now())          # sem fuso: ambíguo
+
+
+def test_comando_relogio_uma_volta_aplica_o_prazo_vencido_e_mostra_so_contagens(banco, monkeypatch, capsys):
+    """`python -m orquestrador relogio --uma-volta` ponta a ponta contra o banco local (o abridor de produção é trocado
+    por um que aponta para o banco de teste, porque o de produção só aceita a URL canônica com TLS)."""
+    import json
+
+    import orquestrador.__main__ as cli
+    card = _card(banco, 'relogio-comando', prazo_em_s=1)      # o prazo é de 1 s: já venceu quando o comando rodar
+    time.sleep(1.5)
+    conectar = _servico(banco)
+    aberturas = []
+
+    class BancoDeTeste:
+        def _con(self, papel):
+            assert papel == 'service_role'
+            return conectar()
+
+        def fechar(self):
+            aberturas.append('fechado')
+
+    monkeypatch.setattr(cli, '_abrir_banco_service_role', lambda *, somente_leitura: (aberturas.append(somente_leitura), BancoDeTeste())[1])
+    monkeypatch.setattr(cli, 'Motor', lambda *a, **k: pytest.fail('o relógio não pode abrir o Motor do Hermes'))
+    assert cli.main(['relogio', '--uma-volta']) == 0
+    saida = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert aberturas == [False, 'fechado']                  # o relógio grava (não é somente leitura) e fecha o banco
+    assert saida['estado'] == 'VOLTA_FEITA' and saida['aplicados'] >= 1 and saida['recusados'] == 0
+    assert 'PRAZO_VENCIDO' in saida['eventos'] and card not in json.dumps(saida)      # só contagens e nomes de evento
+    assert _linha(banco, 'select estado, nivel_prazo from helena_v2.card where id = %s', (card,)) == {
+        'estado': 'RASCUNHO', 'nivel_prazo': 2}                 # C23 (amarelo) e C24 (vencido): sobe o nível, o estado fica
+    assert cli.main(['relogio', '--uma-volta']) == 0         # a segunda volta não repete o que já foi aplicado
+    segunda = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert 'PRAZO_VENCIDO' not in segunda['eventos'] and _linha(
+        banco, "select count(*) as n from helena_v2.historico where alvo_id = %s and papel = %s", (card, PAPEL))['n'] == 2
+
+
+def test_comando_relogio_banco_fora_do_ar_sai_com_erro_sem_mostrar_a_causa_inteira(banco, monkeypatch, capsys):
+    import json
+
+    import orquestrador.__main__ as cli
+    porta = _porta_fechada()
+
+    class BancoQueCai:
+        def _con(self, papel):
+            return psycopg.connect(host='127.0.0.1', port=porta, dbname='postgres', user='postgres', connect_timeout=2)
+
+        def fechar(self):
+            pass
+
+    monkeypatch.setattr(cli, '_abrir_banco_service_role', lambda *, somente_leitura: BancoQueCai())
+    assert cli.main(['relogio', '--uma-volta']) == 1
+    saida = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert saida == {'estado': 'VOLTA_COM_ERRO', 'tipo': 'OperationalError'}
+
+
+def test_comando_relogio_sem_database_url_falha_fechado(monkeypatch, capsys):
+    import json
+
+    import orquestrador.__main__ as cli
+    monkeypatch.delenv('HELENA_V2_DATABASE_URL', raising=False)
+    assert cli.main(['relogio', '--uma-volta']) == 1
+    assert json.loads(capsys.readouterr().out.strip().splitlines()[-1])['estado'] == 'FALHA_DE_RUNTIME'
+    with pytest.raises(SystemExit):
+        cli.main(['relogio', '--uma-volta', '--intervalo', '0'])

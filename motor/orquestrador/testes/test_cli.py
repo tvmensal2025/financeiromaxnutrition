@@ -422,6 +422,41 @@ def test_cli_vigiar_funciona_so_com_database_url_sem_nenhuma_variavel_do_hermes(
         assert 'default_transaction_read_only=on' in conexao.opcoes['options']
 
 
+def test_cli_relogio_so_precisa_de_database_url_grava_e_nao_abre_o_hermes(ambiente_do_vigia, capsys):
+    import orquestrador.__main__ as cli
+    assert cli.main(['relogio', '--uma-volta']) == 0
+    assert _saida_json(capsys) == {'estado': 'VOLTA_FEITA', 'devidos': 0, 'aplicados': 0, 'recusados': 0, 'obsoletos': 0, 'eventos': []}
+    preflight, leitura = ambiente_do_vigia.conexoes
+    assert 'json_build_object' in preflight.comandos[0] and "Identifier('service_role')" in leitura.comandos[0]
+    for conexao in (preflight, leitura):              # mesmas checagens do vigiar: TLS verificado, CA, tempos, papel conferido
+        assert 'sslmode=verify-full' in conexao.dsn and conexao.opcoes['sslrootcert'] == ambiente_do_vigia.ca
+        assert 'statement_timeout=30s' in conexao.opcoes['options']
+        assert 'default_transaction_read_only' not in conexao.opcoes['options']      # o relógio grava; só o vigiar é somente leitura
+    assert any('eventos_devidos' in c for c in leitura.comandos) and preflight.fechada and leitura.fechada
+
+
+@pytest.mark.parametrize('url', [
+    URL_DO_BANCO.replace('verify-full', 'require'),
+    URL_DO_BANCO.replace('helena_runtime', 'service_role'),
+    'postgresql://postgres@localhost:5432/postgres',
+])
+def test_cli_relogio_aplica_as_mesmas_checagens_de_url_e_nao_conecta(ambiente_do_vigia, monkeypatch, capsys, url):
+    import orquestrador.__main__ as cli
+    monkeypatch.setenv('HELENA_V2_DATABASE_URL', url)
+    assert cli.main(['relogio', '--uma-volta']) == 1
+    assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME' and ambiente_do_vigia.conexoes == []
+
+
+def test_cli_relogio_intervalo_padrao_e_de_60_s_e_o_do_vigiar_de_300(monkeypatch):
+    import orquestrador.__main__ as cli
+    vistos = {}
+    monkeypatch.setattr(cli, '_relogio', lambda args, parser: vistos.setdefault('relogio', args.intervalo) and 0)
+    monkeypatch.setattr(cli, '_vigiar', lambda args, parser: vistos.setdefault('vigiar', args.intervalo) and 0)
+    cli.main(['relogio'])
+    cli.main(['vigiar', '--saida', '/tmp/x'])
+    assert vistos == {'relogio': 60.0, 'vigiar': 300.0}
+
+
 @pytest.mark.parametrize('url', [
     URL_DO_BANCO.replace('verify-full', 'require'),
     URL_DO_BANCO.replace(f'db.{REF}.supabase.co', 'banco.exemplo.org'),

@@ -64,7 +64,7 @@ def test_roteiro_gerado_instala_e_confere_num_banco_com_a_forma_canonica(banco_v
         for comando in (pasta / '03_conferir_depois.sql').read_text(encoding='utf-8').split(';'):
             if comando.strip() and not all(l.strip().startswith('--') or not l.strip() for l in comando.splitlines()):
                 linhas.extend(con.execute(comando).fetchall())
-    assert len(linhas) == 7 and all(ok for _nome, ok in linhas), linhas
+    assert len(linhas) == 12 and all(ok for _nome, ok in linhas), linhas
     # a segunda aplicação da base técnica é idempotente (mesmo conteúdo)
     _aplicar(banco, pasta / '02_base_tecnica.sql')
 
