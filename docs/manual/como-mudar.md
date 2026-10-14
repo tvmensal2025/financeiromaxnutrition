@@ -15,6 +15,12 @@ Para quem mantém (você ou outro agente). Uma página. Regra de ouro: **a regra
 | Uma checagem do portão 1 | o YAML da entrega (números) e `motor/validador/validador/checagens/spec_<tipo>*.py` (lógica) | testes do validador | o quadro de cobertura do README se atualiza com `python -m spec_helena --atualizar-readme` |
 | Ideias e anotações de aula | `docs/ideias/AAAA-MM-DD-assunto.md` | nada | não mexe em nada: é só um lugar para guardar |
 
+## Trocar de modelo ou de runtime sem mexer na estrutura
+
+- **Trocar o modelo** de um agente: edite UMA linha do apelido em `helena-v2/models.yaml` e rode `python validar.py`. Fichas, banco e telas não mudam (`motor/executor/testes/test_troca_de_modelo.py` prova isso com as fichas reais).
+- **Trocar de runtime** (Hermes, EVE, OpenClaw ou outro): o motor fala com qualquer executor pela mesma porta (`rodar`, `cancelar`, `limpar`, `capacidades`). O nome do runtime escolhido vem da variável `HELENA_V2_EXECUTOR` (vazia = `hermes`). Só entra no registro (`motor/executor/executor_helena/registro.py`) um adaptador escrito, revisado e aprovado na suíte de conformidade; veja o passo a passo em `motor/executor/README.md` ("Como adicionar um executor novo"). Hoje só o Hermes está aprovado; EVE e OpenClaw **não têm adaptador** (NÃO CONFIRMADO).
+- **Fazer manutenção** (mudar missão, limites, serviços, roteiros): por ficha/YAML ou pela tela de configuração; nada disso exige mexer no motor.
+
 ## Personalização por revisões
 
 A tela **Configuração e revisões** (`/configuracoes-v2`, fundador e flag `VITE_HELENA_V2_HABILITADA=true`) edita os documentos reais de agentes, organograma, serviços, modelos, roteiros e entregas. Clone uma revisão, altere o rascunho, salve, solicite validação e só então ative. O worker técnico processa a fila; o navegador não aprova sua própria configuração. Consulte `motor/orquestrador/README.md` para os comandos locais.

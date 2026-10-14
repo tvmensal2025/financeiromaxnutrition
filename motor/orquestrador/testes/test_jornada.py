@@ -73,29 +73,58 @@ def test_executor_injetado_nao_habilita_casos_sinteticos(banco, url_dbos):
         motor.fechar()
 
 
+def _levar_ate_pronto(motor, card):
+    """Conduz o card pelos únicos toques previstos (confirmar e aprovar o parecer) até PRONTO. Devolve os toques."""
+    toques = []
+    for _ in range(100):
+        atual = motor._card(card)
+        if atual['estado'] == 'PRONTO':
+            break
+        if atual['estado'] == 'ESPERANDO_CONFIRMACAO':
+            motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
+                          toque='confirmar', nao_disparar=['PLANO_VALIDO'])
+            toques.append('CONFIRMO')
+        elif (juridico := next((e for e in motor._etapas(card) if e['codigo'] == 'E4'), None)) and juridico['estado'] == 'ESPERANDO_FUNDADOR':
+            motor._evento('etapa', juridico['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-parecer')
+            toques.append('APROVAR')
+        else:
+            assert motor.avancar(card), [(e['codigo'], e['estado']) for e in motor._etapas(card)]
+    return toques
+
+
 def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
     motor = Motor(banco.url, url_dbos)
     try:
         card = motor.criar_card(PLANO, 'jornada-principal')
         assert not any(nome.startswith('helena-v2/casos/') for nome in motor._ambiente_card(card)[0]['conteudo'])
-        toques = []
-        for _ in range(100):
-            atual = motor._card(card)
-            if atual['estado'] == 'PRONTO':
-                break
-            if atual['estado'] == 'ESPERANDO_CONFIRMACAO':
-                motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
-                              toque='confirmar', nao_disparar=['PLANO_VALIDO'])
-                toques.append('CONFIRMO')
-            elif (juridico := next((e for e in motor._etapas(card) if e['codigo'] == 'E4'), None)) and juridico['estado'] == 'ESPERANDO_FUNDADOR':
-                motor._evento('etapa', juridico['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-parecer')
-                toques.append('APROVAR')
-            else:
-                assert motor.avancar(card), [(e['codigo'], e['estado']) for e in motor._etapas(card)]
+        toques = _levar_ate_pronto(motor, card)
         assert motor._card(card)['estado'] == 'PRONTO'
         assert toques == ['CONFIRMO', 'APROVAR']
         assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
         assert {e.ficha.identidade for e in motor.executor.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA'}
+        with motor._con() as con:
+            entrega = con.execute("SELECT conteudo FROM helena_v2.entrega WHERE card_id=%s AND etapa_codigo='E5' ORDER BY id DESC LIMIT 1",
+                                  (card,)).fetchone()
+        assert isinstance(entrega['conteudo']['resposta'], dict)
+    finally:
+        motor.fechar()
+
+
+def test_o_mesmo_card_chega_a_pronto_com_outro_runtime_que_nao_e_o_hermes(banco, url_dbos, tmp_path):
+    """O motor não depende do Hermes nem do executor falso: um runtime de processo comum, com registro próprio,
+    leva o MESMO card aos mesmos estados, toques e entregas (portabilidade de executor)."""
+    from executor_helena.runtime_alternativo import RuntimeAlternativoDeTeste
+    referencia = {}
+    outro = RuntimeAlternativoDeTeste(tmp_path / 'runtime', texto=lambda execucao: referencia['motor']._texto_roteirizado(execucao))
+    motor = Motor(banco.url, url_dbos, executor=outro)
+    referencia['motor'] = motor
+    try:
+        assert motor.executor is outro and type(outro).__name__ == 'RuntimeAlternativoDeTeste'
+        card = motor.criar_card(PLANO, 'jornada-outro-runtime')
+        toques = _levar_ate_pronto(motor, card)
+        assert motor._card(card)['estado'] == 'PRONTO' and toques == ['CONFIRMO', 'APROVAR']
+        assert [e['estado'] for e in motor._etapas(card)] == ['PRONTA'] * 5
+        assert {e.ficha.identidade for e in outro.execucoes} == {'HELENA', 'CAIO', 'ISABELA', 'CLARA'}
         with motor._con() as con:
             entrega = con.execute("SELECT conteudo FROM helena_v2.entrega WHERE card_id=%s AND etapa_codigo='E5' ORDER BY id DESC LIMIT 1",
                                   (card,)).fetchone()

@@ -220,6 +220,22 @@ def test_modo_producao_recusa_optins_e_executor_nao_aprovado_antes_de_conectar(m
               modo_producao=True, iniciar_dbos=False)
 
 
+def test_modo_producao_recusa_executor_aprovado_que_perdeu_uma_garantia(monkeypatch):
+    """Mesmo dentro da lista aprovada, o runtime precisa declarar TODAS as garantias que o motor exige."""
+    import dataclasses
+    monkeypatch.setattr(motor_mod, '_preflight_bancos_reais',
+                        lambda *_args: pytest.fail('não pode tentar conexão'))
+
+    class HermesSemGarantia(ExecutorHermes):
+        capacidades = dataclasses.replace(ExecutorHermes.capacidades, sem_reserva_escondida=False, cancela_em_ate_s=60.0)
+
+    monkeypatch.setattr(motor_mod, 'ADAPTADORES_REAIS_APROVADOS', (ExecutorHermes, HermesSemGarantia))
+    urls = ('postgresql://app@db.exemplo/postgres', 'postgresql://dbos@db.exemplo/postgres')
+    with pytest.raises(ValueError, match='garantias exigidas pelo motor: sem_reserva_escondida, cancela_em_ate_s'):
+        Motor(*urls, executor=object.__new__(HermesSemGarantia), fonte_contexto=montar_contexto_real,
+              modo_producao=True, iniciar_dbos=False)
+
+
 def test_modo_producao_exige_preflight_antes_de_dbos_e_pina_config(monkeypatch):
     eventos = []
     config_destinos = {'system_database_url': 'postgresql://dbos@exemplo/postgres',

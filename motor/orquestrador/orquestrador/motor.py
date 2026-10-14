@@ -19,7 +19,8 @@ from psycopg.types.json import Jsonb
 from dbos import DBOS, DBOSConfig, SetWorkflowID
 
 from executor_helena.executor_falso import ExecutorFalso, Roteiro
-from executor_helena.executor import Executor, ExecutorHermes
+from executor_helena.executor import Executor
+from executor_helena.registro import classes_aprovadas, conferir_registro
 from executor_helena.ficha import ler_ficha
 from executor_helena.tipos import Execucao
 from spec_helena import Spec, listar_casos, montar_contexto, montar_resposta
@@ -34,8 +35,8 @@ _MOTOR = None
 VERSAO_CODIGO = 'primeiro-card-2-config'
 VERSAO_CODIGO_REAL = 'primeiro-card-3-real'
 _BUNDLES_VALIDADOS: set[str] = set()
-# Registro de adaptadores aprovados em código. Configuração editável não escolhe classes.
-ADAPTADORES_REAIS_APROVADOS: tuple[type[Executor], ...] = (ExecutorHermes,)
+# Registro de adaptadores aprovados em código (executor_helena/registro.py). Configuração editável não escolhe classes.
+ADAPTADORES_REAIS_APROVADOS: tuple[type[Executor], ...] = classes_aprovadas()
 
 
 def _ativo():
@@ -146,6 +147,10 @@ class Motor:
                     not callable(getattr(executor, 'limpar', None)) or
                     fonte_contexto is not montar_contexto_real):
                 raise ValueError('modo de produção exige executor real aprovado e montar_contexto_real')
+            conferir_registro()
+            faltando = executor.capacidades.faltando_para_producao()
+            if faltando:
+                raise ValueError('executor sem as garantias exigidas pelo motor: ' + ', '.join(faltando))
             dbos_config = _preflight_bancos_reais(url_banco, url_dbos)
         else:
             bancos = []

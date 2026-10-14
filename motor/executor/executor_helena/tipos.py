@@ -106,6 +106,37 @@ class Execucao:
         return float(self.tempo_max_s if self.tempo_max_s is not None else self.ficha.orcamento.tempo_s)
 
 
+# --- garantias que o motor exige de qualquer executor --------------------------------------------
+@dataclass(frozen=True)
+class Capacidades:
+    """O que um executor DECLARA garantir. O motor de produção só aceita quem garante tudo isto, e a suíte
+    de conformidade (testes/test_conformidade.py) confere cada garantia contra o comportamento real.
+
+    Quem escreve um adaptador novo (Hermes, EVE, OpenClaw ou outro) responde aqui, em código revisado.
+    """
+    nome: str                               # nome curto e estável do runtime (vai na variável HELENA_V2_EXECUTOR)
+    cancela_em_ate_s: float                 # tempo máximo para encerrar uma execução cancelada (exigido: até 15)
+    ferramentas_por_extenso: bool           # recebe a lista exata de ferramentas; lista vazia = nenhuma (B-6)
+    confere_modelo_e_provedor: bool         # lê do registro do PRÓPRIO runtime qual modelo e provedor rodaram
+    sem_reserva_escondida: bool             # nunca troca de modelo ou provedor sozinho (plano v3, C-15)
+    limita_chamadas: bool                   # corta o laço de chamadas pelo orçamento da ficha
+    falha_vem_do_registro: bool             # classifica a falha pelo registro do runtime, nunca pelo texto do agente
+    guarda_conversa: bool                   # devolve a conversa para o motor guardar antes de limpar
+
+    TETO_DE_CANCELAMENTO_S = 15.0
+
+    def faltando_para_producao(self) -> Tuple[str, ...]:
+        """Nomes das garantias que faltam. Vazio = o runtime cumpre tudo o que o motor exige."""
+        faltando = [nome for nome in ("ferramentas_por_extenso", "confere_modelo_e_provedor", "sem_reserva_escondida",
+                                      "limita_chamadas", "falha_vem_do_registro", "guarda_conversa")
+                    if getattr(self, nome) is not True]
+        if not isinstance(self.cancela_em_ate_s, (int, float)) or not 0 < self.cancela_em_ate_s <= self.TETO_DE_CANCELAMENTO_S:
+            faltando.append("cancela_em_ate_s")
+        if not isinstance(self.nome, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", self.nome):
+            faltando.append("nome")
+        return tuple(faltando)
+
+
 # --- resultado -----------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class Falha:

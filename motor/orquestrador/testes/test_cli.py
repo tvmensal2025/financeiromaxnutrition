@@ -241,3 +241,21 @@ def test_cli_avanco_fecha_segundo_runtime_em_erro(monkeypatch, capsys):
     assert json.loads(saida.out)['estado'] == 'FALHA_DE_RUNTIME'
     assert 'token-privado-do-provedor' not in saida.out + saida.err
     assert fechados == [False, True]
+
+
+def test_runtime_real_com_executor_fora_do_registro_falha_fechado_sem_abrir_motor(monkeypatch):
+    """HELENA_V2_EXECUTOR com nome desconhecido (EVE, OpenClaw ou erro de digitação) é recusado antes de abrir o Motor."""
+    import orquestrador.__main__ as cli
+
+    for nome in ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL', 'HELENA_V2_HERMES_BIN',
+                 'HELENA_V2_HERMES_HOME', 'HELENA_V2_EXECUCOES_DIR'):
+        monkeypatch.setenv(nome, '/algum/caminho')
+
+    def proibido(*_, **__):
+        pytest.fail('Motor aberto com executor fora do registro')
+
+    monkeypatch.setattr(cli, 'Motor', proibido)
+    for nome in ('eve', 'openclaw', 'hermez'):
+        monkeypatch.setenv('HELENA_V2_EXECUTOR', nome)
+        with pytest.raises(ValueError, match='não está no registro aprovado'):
+            cli._abrir_runtime_real(iniciar_dbos=False)

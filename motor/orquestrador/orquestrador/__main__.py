@@ -16,22 +16,21 @@ from spec_helena.leitura import ler_yaml
 
 
 def _abrir_runtime_real(*, iniciar_dbos):
-    """Somente adaptador aprovado no código; configurações não carregam plugins."""
+    """Somente adaptador aprovado no código (executor_helena/registro.py); configurações não carregam plugins.
+
+    O runtime vem do nome em HELENA_V2_EXECUTOR (padrão: hermes). Trocar de runtime não muda nada aqui.
+    """
     from .contexto_real import montar_contexto_real
-    from executor_helena.executor import ExecutorHermes
-    from executor_helena.perfil import ConfigDoExecutor
-    nomes = ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL',
-             'HELENA_V2_HERMES_BIN', 'HELENA_V2_HERMES_HOME', 'HELENA_V2_EXECUCOES_DIR')
-    valores = {n: os.environ.get(n) for n in nomes}
-    if any(not v for v in valores.values()):
+    from executor_helena.registro import ErroDeRegistro, adaptador_configurado, variaveis_faltando
+    nomes = ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL')
+    try:
+        adaptador = adaptador_configurado(os.environ)
+    except ErroDeRegistro as erro:
+        raise ValueError(str(erro)) from erro
+    if any(not os.environ.get(n) for n in nomes) or variaveis_faltando(adaptador, os.environ):
         raise ValueError('runtime real requer conexões e caminhos próprios; o token Management não os substitui')
-    binario = Path(valores['HELENA_V2_HERMES_BIN'])
-    if not binario.is_absolute() or not binario.is_file() or not os.access(binario, os.X_OK):
-        raise ValueError('executável Hermes não está preparado')
-    executor = ExecutorHermes(ConfigDoExecutor(
-        comando_hermes=(str(binario),), raiz_hermes=Path(valores['HELENA_V2_HERMES_HOME']),
-        pasta_das_execucoes=Path(valores['HELENA_V2_EXECUCOES_DIR'])))
-    return Motor(valores['HELENA_V2_DATABASE_URL'], valores['HELENA_V2_DBOS_SYSTEM_DATABASE_URL'],
+    executor = adaptador.montar(os.environ)
+    return Motor(os.environ['HELENA_V2_DATABASE_URL'], os.environ['HELENA_V2_DBOS_SYSTEM_DATABASE_URL'],
                  executor=executor, fonte_contexto=montar_contexto_real,
                  modo_producao=True, iniciar_dbos=iniciar_dbos)
 
