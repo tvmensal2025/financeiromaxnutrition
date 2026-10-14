@@ -27,6 +27,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Optional, Tuple
 
+from .adaptador_eve import ExecutorEve
+from .adaptador_eve import montar_config_do_ambiente as montar_config_da_eve
+from .adaptador_openclaw import ExecutorOpenClaw
+from .adaptador_openclaw import montar_config_do_ambiente as montar_config_do_openclaw
 from .executor import Executor, ExecutorHermes
 from .perfil import ConfigDoExecutor
 from .tipos import Capacidades
@@ -66,9 +70,31 @@ ADAPTADOR_HERMES = Adaptador(nome="hermes", classe=ExecutorHermes, variaveis=VAR
 APROVADOS: Tuple[Adaptador, ...] = (ADAPTADOR_HERMES,)
 
 
+# --- OpenClaw (em homologação) -----------------------------------------------------------------------
+VARIAVEIS_DO_OPENCLAW = ("HELENA_V2_OPENCLAW_BIN", "HELENA_V2_OPENCLAW_HOME", "HELENA_V2_EXECUCOES_DIR")
+
+
+def _montar_openclaw(ambiente: Mapping[str, str]) -> Executor:
+    return ExecutorOpenClaw(montar_config_do_openclaw(ambiente))
+
+
+ADAPTADOR_OPENCLAW = Adaptador(nome="openclaw", classe=ExecutorOpenClaw, variaveis=VARIAVEIS_DO_OPENCLAW,
+                               montar=_montar_openclaw)
+
+# --- EVE (em homologação) ----------------------------------------------------------------------------
+# HELENA_V2_EVE_TOKEN: credencial da rota do servidor da EVE (o valor só é lido na montagem; nunca impresso).
+VARIAVEIS_DA_EVE = ("HELENA_V2_EVE_URL", "HELENA_V2_EVE_TOKEN", "HELENA_V2_EXECUCOES_DIR")
+
+
+def _montar_eve(ambiente: Mapping[str, str]) -> Executor:
+    return ExecutorEve(montar_config_da_eve(ambiente))
+
+
+ADAPTADOR_EVE = Adaptador(nome="eve", classe=ExecutorEve, variaveis=VARIAVEIS_DA_EVE, montar=_montar_eve)
+
 # Prontos para conectar, ainda NÃO aprovados para produção (veja o topo do arquivo). Cada um declara com honestidade o
 # que está confirmado: o que falta aparece em `ficha_de_conexao`.
-EM_HOMOLOGACAO: Tuple[Adaptador, ...] = ()
+EM_HOMOLOGACAO: Tuple[Adaptador, ...] = (ADAPTADOR_OPENCLAW, ADAPTADOR_EVE)
 
 
 def nomes_em_homologacao() -> Tuple[str, ...]:
@@ -165,6 +191,8 @@ def ficha_de_conexao(adaptador: Adaptador, aprovado: bool, ambiente: Optional[Ma
         "variaveis_exigidas": list(adaptador.variaveis),
         "variaveis_faltando": list(variaveis_faltando(adaptador, ambiente)),
         "garantias_faltando": list(adaptador.classe.capacidades.faltando_para_producao()),
+        # o que a documentação oficial e os testes já dizem de cada garantia (só texto revisado no código, nunca valor)
+        "o_que_se_sabe": dict(getattr(adaptador.classe, "estado_das_garantias", None) or {}),
     }
 
 
