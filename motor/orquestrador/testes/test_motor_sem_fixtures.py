@@ -54,12 +54,26 @@ def _funcoes_com_a_palavra_casos(caminho: Path):
 PODEM_LER_A_PASTA_CASOS = {'motor.py': {'__init__'}, 'configuracao.py': {'validar_bundle'}}
 
 
-@pytest.mark.parametrize('modulo', sorted(p.name for p in PACOTE.glob('*.py')))
+@pytest.mark.parametrize('modulo', sorted(p.name for p in PACOTE.glob('*.py') if p.name not in {'placar_revisor.py'}))
 def test_a_pasta_de_casos_so_e_lida_onde_se_espera(modulo):
     assert _funcoes_com_a_palavra_casos(PACOTE / modulo) == PODEM_LER_A_PASTA_CASOS.get(modulo, set())
 
 
-@pytest.mark.parametrize('modulo', sorted(p.name for p in PACOTE.glob('*.py') if p.name != 'motor.py'))
+# Módulos que SÃO harness de teste (leem os exemplos da especificação de propósito) e que nenhum módulo do motor importa.
+HARNESS_DE_TESTE = {'placar_revisor.py'}
+
+
+def test_nenhum_modulo_do_motor_importa_o_harness_de_teste():
+    for modulo in PACOTE.glob('*.py'):
+        if modulo.name in HARNESS_DE_TESTE:
+            continue
+        fonte = modulo.read_text(encoding='utf-8')
+        for harness in HARNESS_DE_TESTE:
+            assert harness.removesuffix('.py') not in fonte, f'{modulo.name} importa o harness {harness}'
+
+
+@pytest.mark.parametrize('modulo', sorted(p.name for p in PACOTE.glob('*.py')
+                                          if p.name != 'motor.py' and p.name not in HARNESS_DE_TESTE))
 def test_nenhum_outro_modulo_do_orquestrador_importa_o_corpus_sintetico(modulo):
     fonte = (PACOTE / modulo).read_text(encoding='utf-8')
     for proibido in ('listar_casos', 'montar_resposta', 'montar_contexto(', 'spec_helena.casos'):

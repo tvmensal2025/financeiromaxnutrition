@@ -94,4 +94,27 @@ describe("Login Redirect Security", () => {
       expect(screen.getByTestId("dashboard")).toBeDefined();
     });
   });
+
+  it.each(["/\\evil.example/x", "/%5Cevil.example/x".replace("%5C", "\\"), "/ok\nSet-Cookie:x"])(
+    "recusa destino com barra invertida ou caractere de controle (%j) e volta para /", async (alvo) => {
+      mockUseAuth.mockReturnValue({
+        user: { id: "user-1", email: "fundador@maxnutrition.com.br" },
+        appAccess: { user_id: "user-1", role: "founder", active: true },
+        loading: false,
+        entrar: vi.fn(),
+      });
+
+      render(
+        <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent(alvo)}`]}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<div data-testid="dashboard">Dashboard Seguro</div>} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard")).toBeDefined();
+      });
+    });
 });
