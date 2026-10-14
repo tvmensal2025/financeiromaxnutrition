@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, Clock3, FileText } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, Clock3, FileText, Loader2, RotateCcw } from 'lucide-react';
 import { useAuth } from '@/auth';
-import type { CardV2, DetalheCardV2, RepositorioCardsV2, ResumoOrdemCardV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
+import { estadoDoPedido } from '@/integrations/cards-v2/repository';
+import type { CardV2, DetalheCardV2, PedidoPublicacao, RepositorioCardsV2, ResumoOrdemCardV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
 import { SolicitarCardReal } from './SolicitarCardReal';
 import { AcoesFundadorV2 } from './AcoesFundadorV2';
@@ -69,6 +70,53 @@ function Entrega({ conteudo }: { conteudo: unknown }) {
   </dl>{linhas.length > limiteInicial && <button type="button" aria-expanded={expandida} onClick={() => setExpandida(v => !v)} className="min-h-11 mt-3 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">
     {expandida ? 'Mostrar menos' : `Mostrar todas as ${linhas.length} partes da entrega`}
   </button>}</>;
+}
+
+// Texto verdadeiro por estado do pedido (migration 0018). "No ar" só aparece em PUBLICADA; pedido aceito nunca vira "no ar" aqui.
+function SituacaoDoPedido({ pedido }: { pedido: PedidoPublicacao }) {
+  const estado = estadoDoPedido(pedido);
+  const quando = (valor?: string | null) => valor ? dataBrasilia(valor) : null;
+  const versao = pedido.versao_publicada?.trim() || null;
+  const destino = pedido.destino?.trim() || null;
+  const icone = 'h-4 w-4 shrink-0';
+  let titulo: string;
+  let detalhes: (string | null)[];
+  let marca: JSX.Element;
+  switch (estado) {
+    case 'PEDIDA':
+      titulo = 'Pedido registrado';
+      detalhes = [`Feito em ${dataBrasilia(pedido.pedido_em)}. Aguardando execução; ainda não foi publicado.`];
+      marca = <Clock3 className={`${icone} text-muted-foreground`} aria-hidden="true" />;
+      break;
+    case 'EM_EXECUCAO':
+      titulo = 'Publicando…';
+      detalhes = [quando(pedido.iniciada_em) ? `Começou em ${quando(pedido.iniciada_em)}. Ainda não terminou.` : 'Ainda não terminou.'];
+      marca = <Loader2 className={`${icone} animate-spin text-amber-600`} aria-hidden="true" />;
+      break;
+    case 'PUBLICADA':
+      titulo = `No ar (versão ${versao ?? 'não informada'})`;
+      detalhes = [quando(pedido.concluida_em) ? `Publicado em ${quando(pedido.concluida_em)}.` : null, destino ? `Destino: ${destino}` : null];
+      marca = <CheckCircle2 className={`${icone} text-emerald-700`} aria-hidden="true" />;
+      break;
+    case 'FALHOU':
+      titulo = `Falhou: ${pedido.erro?.trim() || 'motivo não informado'}`;
+      detalhes = [quando(pedido.falhou_em) ? `Falhou em ${quando(pedido.falhou_em)}.` : null, 'Este pedido não consta como publicado.'];
+      marca = <AlertCircle className={`${icone} text-destructive`} aria-hidden="true" />;
+      break;
+    case 'REVERTIDA':
+      titulo = 'Revertida';
+      detalhes = [quando(pedido.revertida_em) ? `Revertida em ${quando(pedido.revertida_em)}.` : null, versao ? `A versão ${versao} foi revertida.` : null];
+      marca = <RotateCcw className={`${icone} text-muted-foreground`} aria-hidden="true" />;
+      break;
+    default:
+      titulo = 'Situação do pedido não reconhecida';
+      detalhes = ['Não trate este pedido como publicado.'];
+      marca = <AlertCircle className={`${icone} text-destructive`} aria-hidden="true" />;
+  }
+  return <div data-estado-publicacao={estado} className="mt-2 text-sm">
+    <p className="flex items-start gap-2 font-medium">{marca}<span className="min-w-0 break-words">{titulo}</span></p>
+    {detalhes.filter((linha): linha is string => !!linha).map((linha, i) => <p key={i} className="mt-1 break-words pl-6 text-muted-foreground">{linha}</p>)}
+  </div>;
 }
 
 export default function CardV2Page({ repositorio }: PageProps) {
@@ -192,7 +240,9 @@ function ConteudoCardV2({ repositorio }: PageProps) {
       {erroPedido && <p role="alert" className="mt-2 text-sm text-destructive">{erroPedido}</p>}
       {publicacao.erro && <button type="button" onClick={() => { setErroPedido(null); setTentativaPublicacao(n => n + 1); }}
         className="min-h-11 mt-2 text-sm font-semibold underline">Consultar novamente</button>}
-      {publicacao.dado?.pedido && <p className="mt-2 flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-700" />Pedido de hoje registrado em {dataBrasilia(publicacao.dado.pedido.pedido_em)}.</p>}
+      {publicacao.dado?.pedido && <SituacaoDoPedido pedido={publicacao.dado.pedido} />}
+      {publicacao.dado?.pedido && <button type="button" onClick={() => { setErroPedido(null); setTentativaPublicacao(n => n + 1); }}
+        className="min-h-11 mt-2 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">Atualizar situação</button>}
       {publicacao.dado?.fundador && !publicacao.dado.pedido && <button type="button" disabled={enviando} onClick={pedirPublicacao}
         className="min-h-11 mt-3 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 active:scale-[0.98] disabled:opacity-50">
         {enviando ? 'Registrando pedido…' : 'Pedir publicação'}

@@ -85,6 +85,17 @@ describe('detector de classe de alvo de toque', () => {
 });
 
 describe('CardV2Page (fundador): botões e links', () => {
+  it('com pedido de publicação em qualquer estado, o botão "Atualizar situação" declara alvo de toque', async () => {
+    for (const estado of ['PEDIDA', 'EM_EXECUCAO', 'PUBLICADA', 'FALHOU', 'REVERTIDA']) {
+      const pedido = { id: 1, pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13', estado, erro: estado === 'FALHOU' ? 'erro' : null, versao_publicada: 'v1' };
+      render(<CardV2Page repositorio={repoCards({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido }) })} />);
+      await screen.findByRole('button', { name: 'Atualizar situação' });
+      expect(semAlvo(), estado).toEqual([]);
+      expect(comAlvo(), estado).toEqual(expect.arrayContaining(['button "Atualizar situação"']));
+      cleanup();
+    }
+  });
+
   it('todo controle do fundador (inclusive os 4 "Revisar decisão") declara alvo de toque', async () => {
     render(<CardV2Page repositorio={repoCards()} />);
     fireEvent.click(await screen.findByRole('button', { name: /Card em andamento/ }));

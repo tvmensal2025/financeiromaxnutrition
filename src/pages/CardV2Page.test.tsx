@@ -1,7 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import CardV2Page from './CardV2Page';
-import type { RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
+import type { PedidoPublicacao, RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
 
 const auth = vi.hoisted(() => ({ isFounder: false, userId: 'usuario-a' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
@@ -105,7 +105,9 @@ it('mostra pedido de publicação só ao fundador confirmado pelo banco e atuali
   render(<CardV2Page repositorio={repositorio({ situacaoPublicacao, pedirPublicacao })} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Pedir publicação' }));
   await waitFor(() => expect(pedirPublicacao).toHaveBeenCalledTimes(1));
-  expect(await screen.findByText(/Pedido de hoje registrado/)).toBeTruthy();
+  const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
+  expect(await regiao.findByText('Pedido registrado')).toBeTruthy();
+  expect(regiao.queryByText(/no ar/i)).toBeNull();                 // pedido aceito nunca aparece como no ar
   expect(screen.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
 });
 
@@ -134,7 +136,7 @@ it('permite repetir consulta de publicação e não anuncia sucesso sem confirma
   fireEvent.click(screen.getByRole('button', { name: 'Consultar novamente' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Pedir publicação' }));
   expect(await screen.findByText(/Não foi possível confirmar o pedido/)).toBeTruthy();
-  expect(screen.queryByText(/Pedido de hoje registrado/)).toBeNull();
+  expect(within(screen.getByRole('region', { name: 'Publicação' })).queryByText('Pedido registrado')).toBeNull();
 });
 
 it('recarrega o detalhe quando o card selecionado é clicado novamente', async () => {
@@ -176,4 +178,113 @@ it('atualiza lista e detalhe do card selecionado sem recarregar a página', asyn
   expect(screen.getByRole('button', { name: /Card atualizado/ })).toBeTruthy();
   expect(listar).toHaveBeenCalledTimes(2);
   expect(detalhar).toHaveBeenCalledTimes(2);
+});
+
+// --- Texto verdadeiro por estado do pedido de publicação (migration 0018) ---------------------------------------------
+const pedidoHoje = (extra: Partial<PedidoPublicacao> = {}): PedidoPublicacao =>
+  ({ id: 7, pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13', ...extra });
+async function mostrarPublicacao(pedido: PedidoPublicacao | null, extra: Partial<RepositorioCardsV2> = {}) {
+  auth.isFounder = true;
+  render(<CardV2Page repositorio={repositorio({
+    situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido }), ...extra })} />);
+  const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
+  await waitFor(() => expect(regiao.queryByText('Carregando situação de publicação…')).toBeNull());
+  return regiao;
+}
+
+it('estado PEDIDA (ou pedido sem estado, de banco anterior à 0018): "Pedido registrado" e nunca "no ar"', async () => {
+  for (const pedido of [pedidoHoje({ estado: 'PEDIDA' }), pedidoHoje()]) {
+    const regiao = await mostrarPublicacao(pedido);
+    expect(regiao.getByText('Pedido registrado')).toBeTruthy();
+    expect(regiao.getByText(/ainda não foi publicado/)).toBeTruthy();
+    expect(regiao.queryByText(/no ar/i)).toBeNull();
+    expect(regiao.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
+    cleanup();
+  }
+});
+
+it('estado EM_EXECUCAO: "Publicando…", sem versão e sem "no ar"', async () => {
+  const regiao = await mostrarPublicacao(pedidoHoje({ estado: 'EM_EXECUCAO', iniciada_em: '2026-10-13T12:05:00Z' }));
+  expect(regiao.getByText('Publicando…')).toBeTruthy();
+  expect(regiao.getByText(/Ainda não terminou/)).toBeTruthy();
+  expect(regiao.queryByText(/no ar/i)).toBeNull();
+  expect(regiao.queryByText(/versão/i)).toBeNull();
+});
+
+it('estado PUBLICADA: "No ar (versão X)" e o destino informado', async () => {
+  const regiao = await mostrarPublicacao(pedidoHoje({ estado: 'PUBLICADA', destino: 'FALSO_DE_TESTE', versao_publicada: 'v-12',
+    iniciada_em: '2026-10-13T12:05:00Z', concluida_em: '2026-10-13T12:06:00Z' }));
+  expect(regiao.getByText('No ar (versão v-12)')).toBeTruthy();
+  expect(regiao.getByText('Destino: FALSO_DE_TESTE')).toBeTruthy();
+  expect(regiao.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
+});
+
+it('estado FALHOU: "Falhou: motivo", sem "no ar" e sem versão', async () => {
+  const regiao = await mostrarPublicacao(pedidoHoje({ estado: 'FALHOU', erro: 'RuntimeError: destino recusou', falhou_em: '2026-10-13T12:06:00Z',
+    versao_publicada: null }));
+  expect(regiao.getByText('Falhou: RuntimeError: destino recusou')).toBeTruthy();
+  expect(regiao.getByText('Este pedido não consta como publicado.')).toBeTruthy();
+  expect(regiao.queryByText(/no ar/i)).toBeNull();
+  cleanup();
+  const vazio = await mostrarPublicacao(pedidoHoje({ estado: 'FALHOU', erro: null }));
+  expect(vazio.getByText('Falhou: motivo não informado')).toBeTruthy();
+});
+
+it('estado REVERTIDA: "Revertida", sem "no ar"', async () => {
+  const regiao = await mostrarPublicacao(pedidoHoje({ estado: 'REVERTIDA', versao_publicada: 'v-12', destino: 'FALSO_DE_TESTE',
+    revertida_em: '2026-10-13T13:00:00Z', concluida_em: '2026-10-13T12:06:00Z' }));
+  expect(regiao.getByText('Revertida')).toBeTruthy();
+  expect(regiao.getByText('A versão v-12 foi revertida.')).toBeTruthy();
+  expect(regiao.queryByText(/no ar/i)).toBeNull();
+});
+
+it('estado desconhecido nunca vira "no ar" e a tela avisa', async () => {
+  const regiao = await mostrarPublicacao(pedidoHoje({ estado: 'ENVIADA_AO_CEU', versao_publicada: 'v-1' }));
+  expect(regiao.getByText('Situação do pedido não reconhecida')).toBeTruthy();
+  expect(regiao.getByText('Não trate este pedido como publicado.')).toBeTruthy();
+  expect(regiao.queryByText(/no ar/i)).toBeNull();
+});
+
+it('só PUBLICADA mostra "No ar": nos demais estados, mesmo com versão preenchida, o texto não aparece', async () => {
+  for (const estado of ['PEDIDA', 'EM_EXECUCAO', 'FALHOU', 'REVERTIDA', 'OUTRO']) {
+    const regiao = await mostrarPublicacao(pedidoHoje({ estado, versao_publicada: 'v-9', destino: 'x', concluida_em: '2026-10-13T12:06:00Z' }));
+    expect(regiao.queryByText(/no ar/i), estado).toBeNull();
+    cleanup();
+  }
+});
+
+it('botão de pedir só com fundador confirmado e sem pedido hoje; com pedido, só "Atualizar situação"', async () => {
+  const semPedido = await mostrarPublicacao(null);
+  expect(semPedido.getByRole('button', { name: 'Pedir publicação' })).toBeTruthy();
+  expect(semPedido.queryByRole('button', { name: 'Atualizar situação' })).toBeNull();
+  cleanup();
+  for (const estado of ['PEDIDA', 'EM_EXECUCAO', 'PUBLICADA', 'FALHOU', 'REVERTIDA']) {
+    const regiao = await mostrarPublicacao(pedidoHoje({ estado }));
+    expect(regiao.queryByRole('button', { name: 'Pedir publicação' }), estado).toBeNull();
+    expect(regiao.getByRole('button', { name: 'Atualizar situação' }), estado).toBeTruthy();
+    cleanup();
+  }
+});
+
+it('"Atualizar situação" relê o banco e troca "Publicando…" pelo estado verdadeiro', async () => {
+  auth.isFounder = true;
+  const situacaoPublicacao = vi.fn()
+    .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'EM_EXECUCAO' }) })
+    .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'FALHOU', erro: 'ConnectionError: fora do ar' }) });
+  render(<CardV2Page repositorio={repositorio({ situacaoPublicacao })} />);
+  const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
+  expect(await regiao.findByText('Publicando…')).toBeTruthy();
+  fireEvent.click(regiao.getByRole('button', { name: 'Atualizar situação' }));
+  expect(await regiao.findByText('Falhou: ConnectionError: fora do ar')).toBeTruthy();
+  expect(regiao.queryByText('Publicando…')).toBeNull();
+  expect(situacaoPublicacao).toHaveBeenCalledTimes(2);
+});
+
+it('membro não vê a área de publicação, nem com pedido no banco', async () => {
+  auth.isFounder = false;
+  render(<CardV2Page repositorio={repositorio({
+    situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'PUBLICADA', versao_publicada: 'v-1' }) }) })} />);
+  await screen.findByText('Nenhum card disponível.');
+  expect(screen.queryByRole('region', { name: 'Publicação' })).toBeNull();
+  expect(screen.queryByText(/no ar/i)).toBeNull();
 });

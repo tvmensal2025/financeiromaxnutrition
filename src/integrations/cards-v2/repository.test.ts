@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { criarRepositorioCardsV2, type ConsultaCardsV2 } from './repository';
+import { criarRepositorioCardsV2, estadoDoPedido, ESTADOS_PUBLICACAO, type ClienteCardsV2, type ConsultaCardsV2 } from './repository';
 
 // Cliente somente em memória: estes testes nunca importam o cliente do app.
 function cliente(tabelas: Record<string, unknown[]>, erro = false) {
@@ -142,5 +142,24 @@ describe('leitura de cards v2', () => {
     expect(await criarRepositorioCardsV2(banco).lerLeituraCardFundador('card-real')).toBeNull();
     expect(banco.chamadas).toEqual(['helena_v2', 'ler_leitura_card_fundador']);
     expect(banco.parametros).toEqual([{ p_card_id: 'card-real' }]);
+  });
+});
+
+describe('estado verdadeiro do pedido de publicação (0018)', () => {
+  const base = { pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13' };
+  it('conhece os cinco estados; sem estado conta como PEDIDA; estado estranho nunca vira publicada', () => {
+    for (const estado of ESTADOS_PUBLICACAO) expect(estadoDoPedido({ ...base, estado })).toBe(estado);
+    expect(estadoDoPedido(base)).toBe('PEDIDA');
+    expect(estadoDoPedido({ ...base, estado: null })).toBe('PEDIDA');
+    for (const estado of ['', 'publicada', 'ENVIADA', 'PUBLICADA ']) expect(estadoDoPedido({ ...base, estado, versao_publicada: 'v1' })).toBe('DESCONHECIDO');
+  });
+  it('repassa o pedido com tudo o que o banco devolveu, sem acrescentar nem inventar estado', async () => {
+    const situacao = { fundador: true, dia_brasilia: '2026-10-13', pedido: { ...base, id: 3, estado: 'FALHOU', erro: 'RuntimeError: destino recusou',
+      falhou_em: '2026-10-13T12:06:00Z', iniciada_em: '2026-10-13T12:05:00Z', destino: null, versao_publicada: null, concluida_em: null, revertida_em: null } };
+    const banco: ClienteCardsV2 = { schema: () => ({
+      from: () => { throw new Error('a situação vem só da função do banco'); },
+      rpc: async () => ({ data: situacao, error: null }),
+    }) };
+    expect(await criarRepositorioCardsV2(banco).situacaoPublicacao()).toEqual(situacao);
   });
 });

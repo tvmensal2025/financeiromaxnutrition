@@ -47,8 +47,22 @@ export type LeituraCardFundadorV2 = { card_id: string; versao: number; motivo_at
   chave: number; historico_id: number; momento: string;
   escolha: { tipo: 'SERVICO' | 'ROTEIRO'; id: string } | null;
   leitura_de_volta: string | { o_que_quer: string; como_e_o_pronto: string[]; nao_pode: string[] } };
-export type PedidoPublicacao = { id?: string | number; pedido_id?: string | number; pedido_em: string; dia_brasilia: string };
+/** Estados do pedido de publicação (migration 0018). "No ar" só existe em PUBLICADA. */
+export const ESTADOS_PUBLICACAO = ['PEDIDA', 'EM_EXECUCAO', 'PUBLICADA', 'FALHOU', 'REVERTIDA'] as const;
+export type EstadoPublicacao = (typeof ESTADOS_PUBLICACAO)[number];
+export type PedidoPublicacao = {
+  id?: string | number; pedido_id?: string | number; pedido_em: string; dia_brasilia: string;
+  // Os campos abaixo vêm da 0018. Banco anterior a ela não os envia: o pedido conta como PEDIDA (nunca como no ar).
+  estado?: string | null; destino?: string | null; versao_publicada?: string | null;
+  iniciada_em?: string | null; concluida_em?: string | null; falhou_em?: string | null;
+  revertida_em?: string | null; erro?: string | null;
+};
 export type SituacaoPublicacao = { fundador: boolean; dia_brasilia: string; pedido: PedidoPublicacao | null };
+/** Estado verdadeiro do pedido: sem estado = PEDIDA; estado que a tela não conhece = DESCONHECIDO (nunca "no ar"). */
+export function estadoDoPedido(pedido: PedidoPublicacao): EstadoPublicacao | 'DESCONHECIDO' {
+  if (pedido.estado === undefined || pedido.estado === null) return 'PEDIDA';
+  return (ESTADOS_PUBLICACAO as readonly string[]).includes(pedido.estado) ? pedido.estado as EstadoPublicacao : 'DESCONHECIDO';
+}
 export type SolicitacaoCardReal = {
   tarefaId: string;
   prazo: string;
