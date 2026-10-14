@@ -12,6 +12,7 @@ from psycopg.types.json import Jsonb
 
 import conftest as C
 import sorteio as S
+from integral import banco_integral
 
 
 MANUTENCAO = (
@@ -27,6 +28,14 @@ MANUTENCAO = (
 # Portas de serviço criadas depois da 0016 (já nascem só para service_role).
 SO_SERVICO_DEPOIS_DE_0016 = (
     "eventos_devidos(timestamp with time zone)",   # 0017, o relógio dos prazos
+)
+
+# Portas do trabalhador de publicação (0018): só o service_role executa; o fundador só pede e lê.
+PUBLICACAO_SO_SERVICO = (
+    "reivindicar_publicacao()",
+    "concluir_publicacao(bigint,text,text)",
+    "falhar_publicacao(bigint,text)",
+    "reverter_publicacao(bigint)",
 )
 
 
@@ -234,3 +243,24 @@ def test_instalacao_integral_0001_a_0017_preserva_rpcs_e_isolamento(banco_integr
     with banco.conectar("service_role") as servico:
         assert servico.execute("select count(*) from helena_v2.vigia()").fetchone()[0] == 0
         assert servico.execute("select count(*) from helena_v2.eventos_devidos()").fetchone()[0] == 0
+
+
+def test_instalacao_completa_portas_de_publicacao_so_do_servico_e_search_path_fixado(servidor):
+    with banco_integral(servidor) as banco, banco.conectar() as dono:
+        for assinatura in PUBLICACAO_SO_SERVICO:
+            nome = "helena_v2." + assinatura
+            for papel in ("public", "anon", "authenticated", "h2t_curioso"):
+                assert dono.execute("select has_function_privilege(%s, %s, 'execute')",
+                                    (papel, nome)).fetchone()[0] is False, (papel, nome)
+            assert dono.execute("select has_function_privilege('service_role', %s, 'execute')",
+                                (nome,)).fetchone()[0] is True, nome
+        for assinatura in ("pedir_publicacao()", "situacao_publicacao()"):
+            assert dono.execute("select has_function_privilege('authenticated', %s, 'execute')",
+                                ("helena_v2." + assinatura,)).fetchone()[0] is True, assinatura
+        funcoes = dono.execute("""select p.proname, p.proconfig from pg_proc p
+            join pg_namespace n on n.oid=p.pronamespace
+            where n.nspname='helena_v2' and p.prosecdef""").fetchall()
+        assert {nome for nome, _ in funcoes} >= {a.split("(")[0] for a in PUBLICACAO_SO_SERVICO}
+        assert all(any(c.replace(" ", "").endswith("pg_catalog,pg_temp")
+                       for c in (config or []) if c.startswith("search_path="))
+                   for _, config in funcoes)
