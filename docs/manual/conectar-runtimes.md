@@ -9,6 +9,8 @@ PYTHONPATH=../executor python -m orquestrador conferir-runtime
 
 O comando mostra cada runtime, o estado dele, as variáveis que faltam e o que já se sabe de cada garantia. Ele mostra só nomes, nunca valores.
 
+**Decisão do fundador (14/10/2026, DEC-031 provisória):** por enquanto todos os agentes ficam no **Hermes**. A EVE entra depois, com papel separado do Hermes (um coordena, o outro gerencia e aplica), quando houver runtime por papel, decisão sobre chave paga e dia de prova da EVE.
+
 ## A regra que vale para todos
 
 - O motor fala com qualquer runtime pela mesma porta: `rodar`, `cancelar`, `limpar` e `capacidades`. Banco, telas, fichas e regras não mudam quando o runtime muda.
