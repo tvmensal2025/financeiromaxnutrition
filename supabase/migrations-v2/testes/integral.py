@@ -1,8 +1,9 @@
-"""Banco de teste com a forma do projeto canônico e TODAS as migrations em ordem (0001 até a última).
+"""O QUE É: um banco de teste com a forma do projeto canônico e TODAS as migrations em ordem (0001 até a última).
 
-Para quem escreve teste de migration nova: `with banco_integral(servidor) as banco:` entrega um banco descartável com
-auth, extensions/pgcrypto, public.app_access e as tabelas públicas que a v2 lê, e com todas as migrations aplicadas.
-Migration nova entra sozinha (a lista vem da pasta). Nunca toca em banco remoto.
+DE ONDE VEM: monta o que o Supabase já tem (auth, extensions/pgcrypto, public.app_access e as tabelas públicas que a v2
+lê) e aplica as migrations da pasta. Nunca toca em banco remoto: usa só o servidor de teste local.
+COMO USAR: `with banco_integral(servidor) as banco:` entrega um banco descartável. `ate=N` para na migration N.
+COMO MUDAR: migration nova entra sozinha (a lista vem da pasta); tabela pública nova que a v2 passe a ler entra aqui.
 """
 import secrets
 from contextlib import contextmanager
