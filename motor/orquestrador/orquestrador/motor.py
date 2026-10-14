@@ -789,10 +789,21 @@ class Motor:
             self.executor.limpar(resultado)
         return numero
 
+    def _ja_aplicado(self, etapa_id, numero, papel):
+        """True se um evento deste `papel` com a chave `numero` já foi aplicado nesta etapa.
+
+        É a queda que acontece DEPOIS de o banco confirmar o evento e ANTES de o DBOS anotar o passo: ao retomar, o passo
+        roda de novo, encontra a etapa já adiante e não pode virar erro nem repetir o efeito."""
+        return self._linha(
+            "SELECT EXISTS (SELECT 1 FROM helena_v2.historico WHERE alvo_id=%s AND papel=%s AND chave=%s "
+            "AND resultado IN ('APLICADO','CONVERTIDO')) AS ja", (etapa_id, papel, numero))['ja']
+
     def conferir_e_aplicar(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
         modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'EXECUTANDO' or etapa['execucao_atual'] != numero:
+            if self._ja_aplicado(etapa_id, numero, 'AUTOR'):
+                return etapa['estado']                  # retomada depois da queda: o evento do autor já valeu
             raise RuntimeError('execução antiga ou cancelada')
         salva = self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
         if not salva:
@@ -853,7 +864,9 @@ class Motor:
                 with con.transaction():
                     self._conferir_fontes_real(etapa['card_id'], con=con)
                     return aplicar(con)
-        return aplicar()
+        with self._con() as con:                        # sintético também é atômico: a queda entre ENTREGAR e PORTAO1 não deixa a etapa presa
+            with con.transaction():
+                return aplicar(con)
 
     def executar_etapa(self, etapa_id):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
@@ -1069,6 +1082,8 @@ class Motor:
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
         modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'REVISAO' or etapa['execucao_atual'] != numero:
+            if self._ja_aplicado(etapa_id, numero, 'REVISOR'):
+                return etapa['estado']                  # retomada depois da queda: a aprovação do revisor já valeu
             raise RuntimeError('revisão antiga ou cancelada')
         salva = self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
         if not salva:

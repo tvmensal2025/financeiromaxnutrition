@@ -194,6 +194,57 @@ APOIO = Path(__file__).parent / 'apoio'
 MORTES_EXIGIDAS = 20
 
 
+def _eventos_aplicados(motor, etapa_id, numero, papel):
+    with motor._con() as con:
+        return con.execute("SELECT count(*) AS n FROM helena_v2.historico WHERE alvo_id=%s AND papel=%s AND chave=%s "
+                           "AND resultado IN ('APLICADO','CONVERTIDO')", (etapa_id, papel, numero)).fetchone()['n']
+
+
+def test_queda_entre_a_entrega_e_o_portao1_nao_deixa_a_etapa_presa_e_a_retomada_nao_repete(banco, url_dbos):
+    """Achado do kill -9 exato (a queda logo depois da resposta do agente): ENTREGAR e PORTAO1_OK eram eventos separados no
+    modo sintético; a queda entre eles deixava a etapa em VALIDACAO e a retomada dava 'execução antiga ou cancelada'.
+    Agora o par é atômico (como já era no modo real) e retomar um passo que já valeu não é erro nem repete o efeito."""
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'queda-entre-entrega-e-portao1')
+        etapa = _ate_execucao(motor, card)
+        numero = etapa['execucao_atual']
+        motor.executar_e_salvar(etapa['id'], numero)
+        original = motor._evento
+
+        def cai_no_portao1(maquina, alvo, papel, evento, *args, **kwargs):
+            if evento == 'PORTAO1_OK':
+                raise RuntimeError('queda simulada entre a entrega e o portão 1')
+            return original(maquina, alvo, papel, evento, *args, **kwargs)
+
+        motor._evento = cai_no_portao1
+        with pytest.raises(RuntimeError, match='queda simulada'):
+            motor.conferir_e_aplicar(etapa['id'], numero)
+        motor._evento = original
+        depois_da_queda = motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado']
+        assert depois_da_queda == 'EXECUTANDO' and _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 0   # nada pela metade
+
+        assert motor.conferir_e_aplicar(etapa['id'], numero) == 'REVISAO'                # a retomada conclui o par
+        assert _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 1
+        assert motor.conferir_e_aplicar(etapa['id'], numero) == 'REVISAO'                # repetir o passo que já valeu: sem erro
+        assert _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 1             # e sem repetir o efeito
+
+        # o mesmo para a aprovação do revisor
+        motor.executar_etapa(etapa['id'])
+        revisao = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        if revisao['estado'] == 'REVISAO':
+            motor._revisar(motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],)))
+        atual = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        numero_da_revisao = revisao['execucao_atual']
+        if atual['estado'] != 'REVISAO' and numero_da_revisao is not None:
+            antes = _eventos_aplicados(motor, etapa['id'], numero_da_revisao, 'REVISOR')
+            assert antes == 1
+            assert motor.conferir_e_aplicar_revisao(etapa['id'], numero_da_revisao) == atual['estado']
+            assert _eventos_aplicados(motor, etapa['id'], numero_da_revisao, 'REVISOR') == 1
+    finally:
+        motor.fechar()
+
+
 def _lancar_motor_em_processo(banco, url_dbos, card, atraso_s):
     filho = subprocess.Popen(
         [sys.executable, str(APOIO / 'motor_em_processo.py'), banco.url, url_dbos, str(card), str(atraso_s)],
