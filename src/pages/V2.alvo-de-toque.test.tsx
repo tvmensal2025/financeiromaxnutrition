@@ -2,10 +2,8 @@
 // NÃO prova nada sobre 360 px (isso segue NÃO COMPROVADO até haver navegador real).
 // Ele lê as classes dos botões/links/abas renderizados por CardV2Page e ConfiguracoesV2Page
 // e procura a classe de alvo de toque (min-h-11, h-11... sem prefixo responsivo):
-//  - quem já a declara não pode perdê-la;
-//  - controle novo sem ela faz o teste falhar;
-//  - as LACUNAS ATUAIS (botões sem a classe) ficam listadas abaixo como dívida conhecida;
-//    ao corrigir uma, o teste falha pedindo para tirá-la da lista.
+//  - TODO botão, link e aba renderizado por essas páginas precisa declarar a classe;
+//  - controle novo sem ela faz o teste falhar (não há mais lista de exceções).
 import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -86,45 +84,24 @@ describe('detector de classe de alvo de toque', () => {
   });
 });
 
-// LACUNAS CONHECIDAS (estado do código em 2026-10-14): botões sem min-h-11/h-11.
-// Cada item é um controle real renderizado; corrigir no código e remover daqui.
-const LACUNAS_CARDS_FUNDADOR = [
-  'button "Atualizar cards"', 'button "Card em andamentoEM ANDAMENTO · Helena"', 'button "Mostrar todas as 121 partes da entrega"',
-  'button "Pedir publicação"',
-].sort();
-const LACUNAS_CARDS_ERROS = ['button "Atualizar cards"', 'button "Consultar novamente"', 'button "Tentar novamente"'].sort();
-const LACUNAS_CONFIG_COMUNS = [
-  'button "Agentes"', 'button "Atualizar estado"', 'button "Clonar revisão"', 'button "Configuração existenteVersão 3 · rascunho"',
-  'button "Entregas"', 'button "Inativar"', 'button "Modelos"', 'button "Roteiros"', 'button "Serviços"', 'button "isabela.yaml"',
-];
-const LACUNAS_CONFIG_RASCUNHO = [
-  ...LACUNAS_CONFIG_COMUNS, 'button "Adicionar documento"', 'button "Adicionar campo"', 'button "Adicionar item"',
-  'button "Aplicar JSON ao rascunho"', 'button "Camposobjeto · 2"', 'button "Fechar editor avançado"',
-  'button "Retirar Item 1 do rascunho"', 'button "Retirar deste rascunho"', 'button "Retirar missao do rascunho"',
-  'button "Retirar servicos do rascunho"', 'button "Salvar rascunho"', 'button "Solicitar validação"', 'button "servicoslista · 1"',
-].sort();
-const LACUNAS_CONFIG_VALIDADA = [
-  ...LACUNAS_CONFIG_COMUNS.filter(n => !n.includes('rascunho')), 'button "Configuração existenteVersão 3 · validada"', 'button "Ativar revisão"',
-].sort();
-
 describe('CardV2Page (fundador): botões e links', () => {
-  it('os 4 "Revisar decisão" (card, etapa, pergunta e ação externa) declaram alvo de toque; as lacunas são só as listadas', async () => {
+  it('todo controle do fundador (inclusive os 4 "Revisar decisão") declara alvo de toque', async () => {
     render(<CardV2Page repositorio={repoCards()} />);
     fireEvent.click(await screen.findByRole('button', { name: /Card em andamento/ }));
     await screen.findByText('Pergunta atual da etapa');
     await screen.findByRole('button', { name: 'Pedir publicação' });
     await screen.findByRole('button', { name: /Mostrar todas as 121/ });
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Revisar decisão' })).toHaveLength(4));
-    expect(comAlvo()).toEqual(Array(4).fill('button "Revisar decisão"'));
-    expect(semAlvo()).toEqual(LACUNAS_CARDS_FUNDADOR);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo().filter(n => n === 'button "Revisar decisão"')).toHaveLength(4);
   });
 
-  it('nos estados de erro, só os botões listados ficam sem alvo de toque', async () => {
+  it('nos estados de erro, todo botão declara alvo de toque', async () => {
     render(<CardV2Page repositorio={repoCards({ listar: vi.fn().mockRejectedValue(new Error('x')), situacaoPublicacao: vi.fn().mockRejectedValue(new Error('x')) })} />);
     await screen.findByText('Não foi possível carregar os cards.');
     await screen.findByText('Não foi possível consultar a publicação.');
-    expect(comAlvo()).toEqual([]);
-    expect(semAlvo()).toEqual(LACUNAS_CARDS_ERROS);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(expect.arrayContaining(['button "Atualizar cards"', 'button "Tentar novamente"']));
   });
 
   it('botões das áreas do fundador que tratam falhas de leitura declaram alvo de toque', async () => {
@@ -138,34 +115,35 @@ describe('CardV2Page (fundador): botões e links', () => {
     expect(await screen.findByRole('button', { name: 'Consultar leitura novamente' })).toBeTruthy();
     expect(await screen.findByRole('button', { name: 'Consultar pergunta novamente' })).toBeTruthy();
     // O 3º é o "Revisar decisão" do próprio card (a ação 'Cancelar card' continua disponível).
-    expect(comAlvo()).toEqual(['button "Consultar leitura novamente"', 'button "Consultar pergunta novamente"', 'button "Revisar decisão"']);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(expect.arrayContaining(['button "Consultar leitura novamente"', 'button "Consultar pergunta novamente"', 'button "Revisar decisão"']));
   });
 });
 
 describe('ConfiguracoesV2Page (fundador): botões, abas e links', () => {
-  it('rascunho aberto com editor de documento e JSON avançado: nenhum botão declara alvo de toque hoje', async () => {
+  it('rascunho aberto com editor de documento e JSON avançado: todo controle declara alvo de toque', async () => {
     config(repoConfig());
     fireEvent.click(await screen.findByRole('button', { name: /Configuração existente/ }));
     fireEvent.click(await screen.findByRole('button', { name: /isabela.yaml/ }));
     fireEvent.click(await screen.findByText('Editar JSON avançado'));
     await screen.findByRole('button', { name: 'Aplicar JSON ao rascunho' });
-    expect(comAlvo()).toEqual([]);
-    expect(semAlvo()).toEqual(LACUNAS_CONFIG_RASCUNHO);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(expect.arrayContaining(['button "Salvar rascunho"', 'button "Aplicar JSON ao rascunho"']));
   });
 
-  it('revisão validada (botão Ativar revisão): idem', async () => {
+  it('revisão validada (botão Ativar revisão): todo controle declara alvo de toque', async () => {
     config(repoConfig({ ...base, estado: 'VALIDADA' }));
     fireEvent.click(await screen.findByRole('button', { name: /Configuração existente/ }));
     await screen.findByRole('button', { name: 'Ativar revisão' });
-    expect(comAlvo()).toEqual([]);
-    expect(semAlvo()).toEqual(LACUNAS_CONFIG_VALIDADA);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(expect.arrayContaining(['button "Ativar revisão"']));
   });
 
-  it('membro vê só o link "Voltar ao sistema", também sem alvo de toque', async () => {
+  it('membro vê só o link "Voltar ao sistema", que também declara alvo de toque', async () => {
     auth.isFounder = false;
     config(repoConfig());
     await screen.findByText('Acesso restrito');
-    expect(comAlvo()).toEqual([]);
-    expect(semAlvo()).toEqual(['a "Voltar ao sistema"']);
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(['a "Voltar ao sistema"']);
   });
 });

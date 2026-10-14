@@ -66,7 +66,7 @@ function Entrega({ conteudo }: { conteudo: unknown }) {
       <dt className="font-medium capitalize text-muted-foreground">{linha.rotulo}</dt>
       <dd className="min-w-0 whitespace-pre-wrap break-words text-foreground">{linha.valor}</dd>
     </div>)}
-  </dl>{linhas.length > limiteInicial && <button type="button" aria-expanded={expandida} onClick={() => setExpandida(v => !v)} className="mt-3 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">
+  </dl>{linhas.length > limiteInicial && <button type="button" aria-expanded={expandida} onClick={() => setExpandida(v => !v)} className="min-h-11 mt-3 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">
     {expandida ? 'Mostrar menos' : `Mostrar todas as ${linhas.length} partes da entrega`}
   </button>}</>;
 }
@@ -191,10 +191,10 @@ function ConteudoCardV2({ repositorio }: PageProps) {
       {publicacao.erro && <p role="alert" className="mt-2 text-sm text-destructive">{publicacao.erro}</p>}
       {erroPedido && <p role="alert" className="mt-2 text-sm text-destructive">{erroPedido}</p>}
       {publicacao.erro && <button type="button" onClick={() => { setErroPedido(null); setTentativaPublicacao(n => n + 1); }}
-        className="mt-2 text-sm font-semibold underline">Consultar novamente</button>}
+        className="min-h-11 mt-2 text-sm font-semibold underline">Consultar novamente</button>}
       {publicacao.dado?.pedido && <p className="mt-2 flex items-center gap-2 text-sm"><CheckCircle2 className="h-4 w-4 text-emerald-700" />Pedido de hoje registrado em {dataBrasilia(publicacao.dado.pedido.pedido_em)}.</p>}
       {publicacao.dado?.fundador && !publicacao.dado.pedido && <button type="button" disabled={enviando} onClick={pedirPublicacao}
-        className="mt-3 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 active:scale-[0.98] disabled:opacity-50">
+        className="min-h-11 mt-3 rounded-lg bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 active:scale-[0.98] disabled:opacity-50">
         {enviando ? 'Registrando pedido…' : 'Pedir publicação'}
       </button>}
     </section>}
@@ -204,17 +204,17 @@ function ConteudoCardV2({ repositorio }: PageProps) {
     <div className="grid gap-8 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.6fr)]">
       <section aria-label="Lista de cards" className="space-y-3">
         <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cards</h2>
-          <button type="button" onClick={atualizarCards} className="text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">Atualizar cards</button></div>
+          <button type="button" onClick={atualizarCards} className="min-h-11 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">Atualizar cards</button></div>
         {(erroInicial || lista.erro) && <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">
           <AlertCircle className="mb-2 h-4 w-4" />{erroInicial || lista.erro}
-          {erroInicial && <button type="button" onClick={() => setTentativaConexao(n => n + 1)} className="mt-3 block font-semibold underline">Tentar novamente</button>}
-          {lista.erro && <button type="button" onClick={() => setTentativaLista(n => n + 1)} className="mt-3 block font-semibold underline">Tentar novamente</button>}
+          {erroInicial && <button type="button" onClick={() => setTentativaConexao(n => n + 1)} className="min-h-11 mt-3 block font-semibold underline">Tentar novamente</button>}
+          {lista.erro && <button type="button" onClick={() => setTentativaLista(n => n + 1)} className="min-h-11 mt-3 block font-semibold underline">Tentar novamente</button>}
         </div>}
         {lista.carregando && !erroInicial && <p className="animate-pulse border-b border-border py-5 text-sm text-muted-foreground">Carregando cards…</p>}
         {!lista.carregando && lista.dado?.length === 0 && <p className="border-t border-border py-6 text-sm text-muted-foreground">Nenhum card disponível.</p>}
         <div className="divide-y divide-border border-y border-border">
           {lista.dado?.map(card => <button key={card.id} type="button" onClick={() => escolherCard(card.id)} aria-current={cardId === card.id ? 'true' : undefined}
-            className="group flex w-full items-center justify-between gap-3 px-2 py-4 text-left transition hover:bg-muted/50 active:scale-[0.99]">
+            className="min-h-11 group flex w-full items-center justify-between gap-3 px-2 py-4 text-left transition hover:bg-muted/50 active:scale-[0.99]">
             <span className="min-w-0"><strong className="block truncate text-sm">{card.titulo}</strong><span className="mt-1 block text-xs text-muted-foreground">{card.estado.replace(/_/g, ' ')} · {card.dono || 'Dono não informado'}</span></span>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
           </button>)}
@@ -237,7 +237,7 @@ function ConteudoCardV2({ repositorio }: PageProps) {
           </section>}
           {isFounder && user?.id && repo && selecionado && detalheVisivel && <LeituraCardFundadorV2 key={`card-${selecionado.id}-${selecionado.versao}-${selecionado.estado}-${selecionado.motivo}-${ordemVisivel.pedido ? 'pedido' : 'sem-pedido'}`} card={selecionado} identidade={user.id} pedidoOriginalDisponivel={!!ordemVisivel.pedido?.trim()} repositorio={repo} onAtualizar={() => relerDepoisEvento(selecionado.id)} />}
           {detalhe.carregando && <p className="animate-pulse py-4 text-sm text-muted-foreground">Carregando etapas…</p>}
-          {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="ml-3 font-semibold underline">Tentar novamente</button></div>}
+          {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="min-h-11 ml-3 font-semibold underline">Tentar novamente</button></div>}
           {!detalhe.carregando && detalheVisivel?.etapas.length === 0 && <p className="text-sm text-muted-foreground">Este card ainda não tem etapas.</p>}
           {detalheVisivel?.etapas.map(etapa => <article key={etapa.id} className="border-b border-border pb-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{etapa.codigo} · {etapa.nome}</h3><span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{etapa.estado.replace(/_/g, ' ')}</span></div>
