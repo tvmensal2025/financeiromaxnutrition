@@ -11,6 +11,7 @@ Uma decisão por arquivo: `DEC-NNN-assunto.md`, com data, o que foi decidido e p
    - `DEC-029-codigos-das-empresas.md`
    - `DEC-030-revisor-do-relatorio-final-caio.md`
    - `DEC-031-runtime-hermes-agora-eve-depois.md`
+   - `DEC-032-app-so-v2.md`
 
    Antes de gravar no Supabase, conferir (só leitura) que os números estão livres. Os documentos citam números fora de ordem, como DEC-101 e DEC-102.
 2. **A lista das decisões que os documentos citam**, cujo texto oficial está só no Supabase. Elas não foram copiadas para cá para não inventar texto.

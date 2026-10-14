@@ -6,7 +6,7 @@ import { agentQualityContract, buildReviewContract, qualityCheckId, qualityRevie
 import { validateRequestedArtifacts } from '../src/creative-brief.mjs';
 import { sampleDelivery, sampleQuality, creativeContext } from './quality-fixtures.mjs';
 
-const roster = JSON.parse(readFileSync(new URL('../../../src/lib/agentes.json',import.meta.url),'utf8'));
+const roster = JSON.parse(readFileSync(new URL('../../../docs/helena/dados-v1/agentes.json',import.meta.url),'utf8'));
 for (const agent of roster) test(`Contrato especifico de ${agent.agent_id}: ${agent.agente}`,()=>{
   const contract = agentQualityContract(agent.agent_id);
   assert.equal(contract.name,agent.agente); assert.equal(contract.role,agent.cargo_funcao);

@@ -1,5 +1,14 @@
 # Sistema Helena — passagem atual
 
+## Bloco B (14/10/2026) — o app roda só a v2 (DEC-032)
+- O fundador disse que a v1 está parada e pediu para rodar só a v2. O app (`src/`) agora é: `/login`, `/` (cards) e `/configuracoes` (fundador). `/cards-v2` e `/configuracoes-v2` redirecionam; qualquer rota da v1 cai em `/`. A flag `VITE_HELENA_V2_HABILITADA` não existe mais.
+- A v1 do app foi para `docs/arquivo/app-v1/` (171 arquivos, mesmos caminhos; fora do TypeScript, do vitest e do lint). Os JSON que o gateway e dois scripts leem foram para `docs/helena/dados-v1/` com os caminhos atualizados.
+- `App.tsx`, `Layout.tsx`, `main.tsx`, `src/styles/helena.css` (único CSS) e os dois `runtime.ts` reescritos. `BusinessContext`/`SessionBusinessBoundary` saíram: a empresa é campo do card. O `Protegida` (login, `app_access`, bloqueio) está igual.
+- Verificado localmente: TypeScript, vitest (16 arquivos, 171 testes), build e lint do app. Testes do gateway rodados para confirmar os caminhos novos dos JSON.
+- **NÃO mudou:** `services/`, `scripts/`, `supabase/migrations/` continuam (a central da v1 é a DEC-028, só com a frase exata). Banco, servidor e publicação não foram tocados. Hermes real segue NÃO COMPROVADO.
+- Correção ao que foi dito na avaliação desta sessão: as duas falhas ALTA do ataque de 11/10 (`pg_temp` no `search_path` e `abrir_chamada_helena` com `service_role`) **já estão corrigidas** e cobertas por `supabase/migrations-v2/testes/test_08_achados_banco.py`. O relato do ataque é fotografia datada.
+- Próximo: o dia de prova (`docs/manual/dia-de-prova.md`) com um serviço só; depois, decidir se `services/` e `scripts/` saem do repositório (DEC-028/DEC-027).
+
 ## Bloco A (14/10/2026) — porta única de executores: trocar modelo ou runtime sem mexer na estrutura
 - `Executor` agora exige `rodar`, `cancelar`, `limpar` e `capacidades` (garantias declaradas). Registro aprovado em código: `motor/executor/executor_helena/registro.py`; o runtime vem de `HELENA_V2_EXECUTOR` (vazio = hermes); nome desconhecido falha fechado. Motor e CLI leem o registro (nada de `ExecutorHermes` fixo no caminho real).
 - Segundo runtime de teste (`runtime_alternativo.py`, processo comum e registro próprio) passa na suíte de conformidade e leva o MESMO card a PRONTO (`test_jornada.py`). Troca de modelo provada com as fichas reais (`test_troca_de_modelo.py`): uma linha de `models.yaml`.

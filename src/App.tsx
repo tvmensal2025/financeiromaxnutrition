@@ -2,31 +2,17 @@ import React, { lazy } from "react";
 import { PageBoundary } from "@/components/executive/PageBoundary";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/auth";
-import { SessionBusinessBoundary } from "@/contexts/SessionBusinessBoundary";
 import { Layout } from "@/components/Layout";
+import { ShieldAlert, LogOut } from "lucide-react";
 const Login = lazy(() => import("@/pages/Login"));
-const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
-const Painel = lazy(() => import("@/pages/Painel"));
-const Modulo = lazy(() => import("@/pages/Modulo"));
-const CrmPage = lazy(() => import("@/pages/CrmPage"));
-const FinanceiroPage = lazy(() => import("@/pages/FinanceiroPage"));
-const CalendarioPage = lazy(() => import("@/pages/CalendarioPage"));
-const PortfolioPage = lazy(() => import("@/pages/PortfolioPage"));
-const IdentidadePage = lazy(() => import("@/pages/IdentidadePage"));
-const EquipePage = lazy(() => import("@/pages/EquipePage"));
-const SistemaPage = lazy(() => import("@/pages/SistemaPage"));
-const ExecucaoPage = lazy(() => import("@/pages/ExecucaoPage"));
-const EntregasPage = lazy(() => import("@/pages/EntregasPage"));
 const CardV2Page = lazy(() => import("@/pages/CardV2Page"));
 const ConfiguracoesV2Page = lazy(() => import("@/pages/ConfiguracoesV2Page"));
-const IntegracoesPage = lazy(() => import("@/pages/IntegracoesPage"));
-const ComandoPage = lazy(() => import("@/pages/ComandoPage"));
-const Conversa = lazy(() => import("@/pages/Conversa"));
-import { ShieldAlert, LogOut } from "lucide-react";
 
 /**
- * CONTROLE DE ACESSO EXECUTIVO:
- * Exigência mandatória de autenticação real via Supabase Auth.
+ * O app roda só a v2 (DEC-032): cards, ações do fundador e configuração da Helena.
+ * A v1 está parada; o código dela ficou em docs/arquivo/app-v1, só para consulta.
+ *
+ * CONTROLE DE ACESSO: autenticação real via Supabase Auth e app_access ativo.
  */
 export const EXIGIR_AUTENTICACAO = true;
 
@@ -34,7 +20,6 @@ function Protegida({ children }: { children: React.ReactNode }) {
   const { user, isMember, loading, accessCheckFailed, sair } = useAuth();
   const location = useLocation();
 
-  // Caso autenticação esteja ativada
   if (loading) {
     return (
       <div className="he-access-screen flex min-h-[100dvh] flex-col items-center justify-center p-6 text-foreground">
@@ -65,13 +50,13 @@ function Protegida({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Visitante não autenticado -> redireciona para /login preservando rota de destino
+  // Visitante não autenticado -> /login preservando o destino (só caminho local; o Login confere de novo).
   if (!user) {
     const returnTarget = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${returnTarget}`} replace />;
   }
 
-  // Usuário autenticado mas sem app_access ativo -> bloqueio executivo
+  // Autenticado sem app_access ativo -> bloqueio.
   if (!isMember) {
     return (
       <div className="he-access-screen flex min-h-[100dvh] w-full flex-col items-center justify-center p-4 text-foreground">
@@ -105,22 +90,18 @@ function Protegida({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Endereços antigos das telas v2 continuam funcionando, com a busca (?card=...) preservada. */
+function Redirecionar({ para }: { para: string }) {
+  const { search } = useLocation();
+  return <Navigate to={`${para}${search}`} replace />;
+}
+
 function Rotas() {
   return (
     <Routes>
-      {/* Rotas de Autenticação e Consentimento OAuth */}
       <Route path="/login" element={<Login />} />
       <Route path="/entrar" element={<Navigate to="/login" replace />} />
-      <Route
-        path="/oauth/consent"
-        element={
-          <Protegida>
-            <OAuthConsent />
-          </Protegida>
-        }
-      />
 
-      {/* Aplicação Administrativa Protegida */}
       <Route
         element={
           <Protegida>
@@ -128,44 +109,12 @@ function Rotas() {
           </Protegida>
         }
       >
-        <Route path="/" element={<ComandoPage />} />
-        <Route path="/indicadores" element={<Painel />} />
-        <Route path="/comando" element={<ComandoPage />} />
-        <Route path="/cobertura" element={<ComandoPage inicial="Cobertura" />} />
-        <Route path="/supervisao" element={<ComandoPage inicial="Supervisão" />} />
-        <Route path="/empresas" element={<ComandoPage inicial="Empresas" />} />
-        <Route path="/consumo" element={<ComandoPage inicial="Consumo" />} />
-        <Route path="/execucao" element={<ExecucaoPage />} />
-        <Route path="/entregas" element={<EntregasPage />} />
-        {import.meta.env.VITE_HELENA_V2_HABILITADA === 'true' && <Route path="/cards-v2" element={<CardV2Page />} />}
-        {import.meta.env.VITE_HELENA_V2_HABILITADA === 'true' && <Route path="/configuracoes-v2" element={<ConfiguracoesV2Page />} />}
-        <Route path="/crm" element={<CrmPage />} />
-        <Route path="/financeiro" element={<FinanceiroPage />} />
-        <Route path="/calendario" element={<CalendarioPage />} />
-        <Route path="/portfolio" element={<PortfolioPage />} />
-        <Route path="/identidade" element={<IdentidadePage />} />
-        <Route path="/equipe" element={<EquipePage />} />
-        <Route path="/inbox" element={<ComandoPage inicial="Supervisão" />} />
-        <Route path="/conversa" element={<Conversa />} />
-        <Route path="/chat" element={<Navigate to="/conversa" replace />} />
-        <Route path="/sistema" element={<SistemaPage />} />
-        <Route path="/integracoes" element={<IntegracoesPage />} />
-
-        {/* Redirecionamentos de conveniência */}
-        <Route path="/central-execucao" element={<Navigate to="/execucao" replace />} />
-        <Route path="/central-integracoes" element={<Navigate to="/integracoes" replace />} />
-        <Route path="/caixa-entrada" element={<Navigate to="/inbox" replace />} />
-        <Route path="/helena" element={<Navigate to="/" replace />} />
-        <Route path="/modulo/integracoes" element={<Navigate to="/integracoes" replace />} />
-        <Route path="/modulo/financeiro" element={<Navigate to="/financeiro" replace />} />
-        <Route path="/modulo/crm" element={<Navigate to="/crm" replace />} />
-        <Route path="/modulo/equipe" element={<Navigate to="/equipe" replace />} />
-
-        {/* Tabelas e Módulos do Sistema Helena */}
-        <Route path="/modulo/:tabela" element={<Modulo />} />
+        <Route path="/" element={<CardV2Page />} />
+        <Route path="/configuracoes" element={<ConfiguracoesV2Page />} />
+        <Route path="/cards-v2" element={<Redirecionar para="/" />} />
+        <Route path="/configuracoes-v2" element={<Redirecionar para="/configuracoes" />} />
       </Route>
 
-      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -174,11 +123,9 @@ function Rotas() {
 export default function App() {
   return (
     <AuthProvider>
-      <SessionBusinessBoundary>
-        <BrowserRouter>
-          <PageBoundary><Rotas /></PageBoundary>
-        </BrowserRouter>
-      </SessionBusinessBoundary>
+      <BrowserRouter>
+        <PageBoundary><Rotas /></PageBoundary>
+      </BrowserRouter>
     </AuthProvider>
   );
 }
