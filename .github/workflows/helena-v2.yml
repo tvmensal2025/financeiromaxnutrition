@@ -166,5 +166,16 @@ jobs:
           cache-dependency-path: motor/orquestrador/requirements.txt
       - name: Instalar dependências
         run: pip install -r requirements.txt
+      # O PostgreSQL de teste repete no log o texto inteiro de cada comando que dá erro (inclusive erros esperados dos
+      # testes). Isso enche o log do job e esconde o resumo do pytest. Aqui só se cala esse eco; os erros continuam logados.
+      - name: Calar o eco de comandos com erro no log do PostgreSQL de teste
+        run: |
+          python - <<'PY'
+          import psycopg
+          with psycopg.connect("postgresql://postgres@localhost:5432/postgres", autocommit=True) as con:
+              con.execute("alter system set log_min_error_statement = 'panic'")
+              con.execute("select pg_reload_conf()")
+          PY
+
       - name: Testes do orquestrador
-        run: python -m pytest -q
+        run: python -m pytest -q -rf --tb=short

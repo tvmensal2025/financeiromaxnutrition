@@ -220,44 +220,59 @@ def _esperar_linha(filho, texto, limite_s):
 
 @LONGO
 def test_vinte_kill_9_de_processo_de_verdade_no_meio_do_card_dao_o_mesmo_resultado(banco, url_dbos):
-    """Mata (SIGKILL) o processo do motor 20 vezes enquanto ele trabalha; o card termina igual ao de um sem mortes."""
+    """Mata (SIGKILL) o processo do motor 20 vezes ou mais enquanto ele trabalha; o card termina igual ao de um sem mortes.
+
+    O momento da morte NÃO depende da velocidade da máquina: duas em cada três mortes caem no MEIO da chamada ao agente
+    (assim que a execução aparece viva no banco); a terceira cai logo depois de uma chamada terminar e antes de o motor
+    seguir (a janela mais perigosa). Cada lançamento, então, avança no máximo uma chamada, e o card só fica pronto
+    depois de muitas mortes, em qualquer máquina."""
     referencia = _rodar_card(banco, url_dbos, 'kill9-referencia')
     parente = Motor(banco.url, url_dbos)
-    sorteio = random.Random(20261014)
-    mortes = mortes_com_agente_vivo = lancamentos = 0
+    mortes = mortes_no_meio = mortes_depois = lancamentos = 0
     try:
         card = parente.criar_card(PLANO, 'kill9-20-mortes')
-        while lancamentos < 90 and parente._card(card)['estado'] != 'PRONTO':
-            _toque_do_fundador(parente, card)
-            if parente._card(card)['estado'] == 'PRONTO':
-                break
-            lancamentos += 1
-            filho = _lancar_motor_em_processo(banco, url_dbos, card, atraso_s=0.8)
-            try:
-                assert _esperar_linha(filho, 'PRONTO_PARA_TRABALHAR', 90), 'o motor em processo não subiu'
-                # metade das mortes cai logo na partida (queda sem progresso), metade deixa o motor trabalhar o bastante
-                # (carregar a configuração leva alguns segundos num processo novo) para o card avançar de verdade
-                janela = sorteio.uniform(0.5, 2.0) if sorteio.random() < 0.5 else sorteio.uniform(5.0, 11.0)
-                fim = time.monotonic() + janela
-                while time.monotonic() < fim and filho.poll() is None:
-                    time.sleep(0.05)
-                if filho.poll() is None:
-                    with parente._con() as con:
-                        viva = con.execute("SELECT count(*) AS n FROM helena_v2.execucao WHERE card_id=%s AND estado='VIVA'",
-                                           (card,)).fetchone()['n']
-                    os.killpg(filho.pid, signal.SIGKILL)
-                    mortes += 1
-                    mortes_com_agente_vivo += 1 if viva else 0
-            finally:
-                if filho.poll() is None:
-                    os.killpg(filho.pid, signal.SIGKILL)
-                filho.wait(timeout=30)
+        with parente._con() as sonda:
+            def contar():
+                linha = sonda.execute(
+                    "SELECT count(*) FILTER (WHERE estado='VIVA') AS vivas, count(*) FILTER (WHERE estado='RESPONDIDA') AS respondidas "
+                    "FROM helena_v2.execucao WHERE card_id=%s", (card,)).fetchone()
+                return linha['vivas'], linha['respondidas']
+
+            while lancamentos < 150 and parente._card(card)['estado'] != 'PRONTO':
+                _toque_do_fundador(parente, card)
+                if parente._card(card)['estado'] == 'PRONTO':
+                    break
+                modo = 'depois' if lancamentos % 3 == 2 else 'meio'
+                lancamentos += 1
+                _vivas0, respondidas0 = contar()
+                filho = _lancar_motor_em_processo(banco, url_dbos, card, atraso_s=0.8)
+                try:
+                    assert _esperar_linha(filho, 'PRONTO_PARA_TRABALHAR', 120), 'o motor em processo não subiu'
+                    limite = time.monotonic() + 60               # sem agente para chamar (esperando o fundador): morre assim mesmo
+                    while time.monotonic() < limite and filho.poll() is None:
+                        _toque_do_fundador(parente, card)
+                        vivas, respondidas = contar()
+                        if (modo == 'meio' and vivas) or (modo == 'depois' and respondidas > respondidas0):
+                            break
+                        if parente._card(card)['estado'] == 'PRONTO':
+                            break
+                        time.sleep(0.03)
+                    if filho.poll() is None:
+                        vivas, _r = contar()
+                        os.killpg(filho.pid, signal.SIGKILL)
+                        mortes += 1
+                        mortes_no_meio += 1 if vivas else 0
+                        mortes_depois += 1 if (not vivas and modo == 'depois') else 0
+                finally:
+                    if filho.poll() is None:
+                        os.killpg(filho.pid, signal.SIGKILL)
+                    filho.wait(timeout=30)
         estado_final = parente._card(card)['estado']
         final = _impressao(parente, card)
-        print(f"\nkill -9: {mortes} mortes em {lancamentos} lançamentos ({mortes_com_agente_vivo} com agente em execução); "
-              f"estado final {estado_final}")
+        print(f"\nkill -9: {mortes} mortes em {lancamentos} lançamentos ({mortes_no_meio} no meio da chamada ao agente, "
+              f"{mortes_depois} logo depois de uma chamada); estado final {estado_final}")
         assert estado_final == 'PRONTO', (estado_final, lancamentos)
-        assert mortes >= MORTES_EXIGIDAS, mortes
+        assert mortes >= MORTES_EXIGIDAS and mortes_no_meio >= 10, (mortes, mortes_no_meio)
         assert final['etapas'] == referencia['etapas'] and final['vivas'] == 0
         assert final['entregas'] == referencia['entregas'], 'entrega perdida ou duplicada depois das mortes'
     finally:
