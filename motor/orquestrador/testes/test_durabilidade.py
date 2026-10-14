@@ -6,6 +6,7 @@ O resultado final é comparado, linha a linha, com o de um card que nunca foi in
 """
 import os
 import random
+import secrets
 import signal
 import subprocess
 import sys
@@ -15,8 +16,44 @@ from pathlib import Path
 
 import pytest
 
+import psycopg
+from psycopg import sql
+from psycopg.conninfo import conninfo_to_dict
+from sqlalchemy.engine import URL
+
 import orquestrador.motor as motor_mod
+from conftest import RAIZ, servidor, suporte  # noqa: F401  (servidor é a fixture do cluster de teste)
 from test_jornada import PLANO, Motor, _ate_execucao
+
+# BANCOS PRÓPRIOS deste arquivo. Estes testes registram a configuração técnica, deixam workflows DBOS pendentes de
+# processos mortos e criam muitos cards: se usassem o banco da sessão, quebrariam testes que vêm depois (por exemplo
+# "sem revisão ativa o motor não faz bootstrap implícito", que exige um banco virgem).
+@pytest.fixture(scope='module')
+def banco(servidor):
+    b = suporte.montar_banco(servidor, papeis_de_teste=suporte.PAPEIS_DE_TESTE)
+    try:
+        with b.conectar() as con:
+            con.execute((RAIZ / 'supabase/migrations-v2/0008_resposta_coordenacao.sql').read_text(encoding='utf-8'))
+        yield b
+    finally:
+        suporte.derrubar_banco(b)
+
+
+@pytest.fixture(scope='module')
+def url_dbos(servidor):
+    nome = 'helena_dbos_dur_' + secrets.token_hex(5)
+    with psycopg.connect(servidor, autocommit=True) as con:
+        con.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(nome)))
+    args = conninfo_to_dict(servidor)
+    url = URL.create('postgresql+psycopg', username=args.get('user'), password=args.get('password'),
+                     host=args.get('host'), port=int(args['port']) if args.get('port') else None,
+                     database=nome).render_as_string(hide_password=False)
+    try:
+        yield url
+    finally:
+        with psycopg.connect(servidor, autocommit=True) as con:
+            con.execute(sql.SQL('DROP DATABASE IF EXISTS {} WITH (FORCE)').format(sql.Identifier(nome)))
+
 
 # Estes testes são longos (minutos). Localmente dá para pular com HELENA_V2_PULAR_TESTES_LONGOS=1; o CI roda todos.
 LONGO = pytest.mark.skipif(os.environ.get('HELENA_V2_PULAR_TESTES_LONGOS') == '1', reason='teste longo pulado por pedido')
