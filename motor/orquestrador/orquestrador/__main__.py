@@ -232,26 +232,63 @@ def _relogio(args, parser):
         banco.fechar()
 
 
+def _despachar(args, parser):
+    """O despachante: escolhe por prioridade o card que o motor avança agora e segura uma de N vagas (WIP).
+
+    Usa o runtime real escolhido por HELENA_V2_EXECUTOR (Hermes por padrão) e inicia o DBOS: cada avanço pode CHAMAR O AGENTE
+    DE VERDADE e gastar cota. Só rode depois da autorização do fundador para o dia de prova. Sem vaga livre não faz nada.
+    """
+    import signal
+    import threading
+    from .despacho import Despachante
+    from .vigilancia import limpar_texto
+    if not 1 <= args.vagas <= 64:
+        parser.error('--vagas precisa estar entre 1 e 64')
+    try:
+        motor = _abrir_runtime_real(iniciar_dbos=True)
+    except Exception as erro:
+        print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
+        return 1
+    despachante = Despachante(motor, vagas=args.vagas, identidade=f'despachante-{os.getpid()}',
+                              registrar=lambda linha: print(linha, flush=True))
+    try:
+        if args.uma_rodada:
+            resultado = despachante.uma_rodada()
+            print(json.dumps({'resultado': resultado, 'card': despachante.ultimo_card, 'metricas': despachante.metricas},
+                             ensure_ascii=False))
+            return 0
+        parar = threading.Event()
+        for sinal in (signal.SIGINT, signal.SIGTERM):
+            signal.signal(sinal, lambda *_: parar.set())
+        despachante.rodar(parar, args.intervalo)
+        return 0
+    finally:
+        despachante.fechar()
+        motor.fechar()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
                                           'preparar-tarefa-real', 'consumir-pedido-real',
-                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio'])
+                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio', 'despachar'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
     parser.add_argument('--saida', help='Arquivo (ou, em gerar-instalacao, pasta) privado novo fora do checkout')
     parser.add_argument('--solicitacao', help='UUID do pedido já autenticado no banco')
     parser.add_argument('--card', help='UUID de um card real existente')
     parser.add_argument('--uma-volta', action='store_true', help='vigiar e relogio: faz uma volta e sai (padrão: roda até ser interrompido)')
-    parser.add_argument('--intervalo', type=float, default=None, help='vigiar e relogio: segundos entre voltas (padrão: 300 no vigiar, 60 no relogio)')
+    parser.add_argument('--intervalo', type=float, default=None, help='segundos entre voltas (padrão: 300 no vigiar, 60 no relogio, 5 no despachar)')
+    parser.add_argument('--uma-rodada', action='store_true', help='despachar: faz uma rodada e sai (padrão: roda até ser interrompido)')
+    parser.add_argument('--vagas', type=int, default=1, help='despachar: quantos cards o motor avança ao mesmo tempo (padrão 1)')
     parser.add_argument('--canal-webhook', action='store_true', help='vigiar: avisa também por webhook HTTPS (URL na variável HELENA_V2_ALARME_WEBHOOK_URL)')
     args = parser.parse_args(argv)
-    if args.comando in ('vigiar', 'relogio'):
+    if args.comando in ('vigiar', 'relogio', 'despachar'):
         if args.intervalo is None:
-            args.intervalo = 300.0 if args.comando == 'vigiar' else 60.0
+            args.intervalo = {'vigiar': 300.0, 'relogio': 60.0, 'despachar': 5.0}[args.comando]
         if args.intervalo <= 0:
             parser.error('--intervalo precisa ser maior que zero')
-        return _vigiar(args, parser) if args.comando == 'vigiar' else _relogio(args, parser)
+        return {'vigiar': _vigiar, 'relogio': _relogio, 'despachar': _despachar}[args.comando](args, parser)
     if args.comando == 'gerar-instalacao':
         # Só escreve arquivos SQL para REVISÃO numa pasta nova; não conecta em banco nenhum.
         from .instalacao import ErroDeInstalacao, gerar_instalacao

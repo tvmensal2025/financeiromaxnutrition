@@ -135,10 +135,20 @@ jobs:
       - name: Testes do banco (esquema, gerador, jornadas, diferencial, 13 regras, escrita direta)
         run: python -m pytest
 
+  # Dois grupos em paralelo, cada um com seu PostgreSQL: o grupo "longos" (queda de processo com kill -9, reinícios, trocas de
+  # versão e fila com vagas) leva muitos minutos e não deve esconder nem atrasar o resultado dos testes rápidos.
   orquestrador-v2:
-    name: Orquestrador v2 (DBOS e PostgreSQL de teste)
+    name: Orquestrador v2 (${{ matrix.grupo }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - grupo: rápidos
+            testes: --ignore=testes/test_durabilidade.py --ignore=testes/test_despacho.py
+          - grupo: longos (durabilidade e despacho)
+            testes: testes/test_durabilidade.py testes/test_despacho.py
     services:
       postgres:
         image: postgres:16
@@ -177,5 +187,5 @@ jobs:
               con.execute("select pg_reload_conf()")
           PY
 
-      - name: Testes do orquestrador
-        run: python -m pytest -q -rf --tb=short
+      - name: Testes do orquestrador (${{ matrix.grupo }})
+        run: python -m pytest -q -rf --tb=short ${{ matrix.testes }}

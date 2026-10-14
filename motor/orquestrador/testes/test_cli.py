@@ -447,14 +447,15 @@ def test_cli_relogio_aplica_as_mesmas_checagens_de_url_e_nao_conecta(ambiente_do
     assert _saida_json(capsys)['estado'] == 'FALHA_DE_RUNTIME' and ambiente_do_vigia.conexoes == []
 
 
-def test_cli_relogio_intervalo_padrao_e_de_60_s_e_o_do_vigiar_de_300(monkeypatch):
+def test_cli_intervalo_padrao_de_cada_comando(monkeypatch):
     import orquestrador.__main__ as cli
     vistos = {}
-    monkeypatch.setattr(cli, '_relogio', lambda args, parser: vistos.setdefault('relogio', args.intervalo) and 0)
-    monkeypatch.setattr(cli, '_vigiar', lambda args, parser: vistos.setdefault('vigiar', args.intervalo) and 0)
+    for nome in ('relogio', 'vigiar', 'despachar'):
+        monkeypatch.setattr(cli, '_' + nome, lambda args, parser, nome=nome: vistos.setdefault(nome, args.intervalo) and 0)
     cli.main(['relogio'])
     cli.main(['vigiar', '--saida', '/tmp/x'])
-    assert vistos == {'relogio': 60.0, 'vigiar': 300.0}
+    cli.main(['despachar'])
+    assert vistos == {'relogio': 60.0, 'vigiar': 300.0, 'despachar': 5.0}
 
 
 @pytest.mark.parametrize('url', [
@@ -604,3 +605,41 @@ def test_cli_vigiar_sem_a_opcao_nao_usa_o_webhook_mesmo_com_a_variavel_definida(
         monkeypatch.setenv(VARIAVEL_DO_WEBHOOK, servidor.url('/hook'))
         assert cli.main(['vigiar', '--uma-volta', '--saida', str(tmp_path / 'a.jsonl')]) == 0
     assert servidor.recebidos == []
+
+
+def test_cli_despachar_uma_rodada_usa_o_runtime_real_com_dbos_e_fecha_tudo(monkeypatch, capsys):
+    import orquestrador.__main__ as cli
+    import orquestrador.despacho as despacho
+    eventos = []
+
+    class MotorFalso:
+        def fechar(self):
+            eventos.append('motor fechado')
+
+    class DespachanteFalso:
+        def __init__(self, motor, vagas, identidade, registrar):
+            eventos.append(('criado', vagas, identidade.startswith('despachante-')))
+            self.ultimo_card, self.metricas = 'card-1', {'rodadas': 1}
+
+        def uma_rodada(self):
+            return 'AVANCOU'
+
+        def fechar(self):
+            eventos.append('despachante fechado')
+
+    monkeypatch.setattr(cli, '_abrir_runtime_real', lambda *, iniciar_dbos: (eventos.append(('runtime', iniciar_dbos)), MotorFalso())[1])
+    monkeypatch.setattr(despacho, 'Despachante', DespachanteFalso)
+    assert cli.main(['despachar', '--uma-rodada', '--vagas', '2']) == 0
+    assert json.loads(capsys.readouterr().out) == {'resultado': 'AVANCOU', 'card': 'card-1', 'metricas': {'rodadas': 1}}
+    assert eventos == [('runtime', True), ('criado', 2, True), 'despachante fechado', 'motor fechado']
+
+
+def test_cli_despachar_sem_runtime_falha_fechado_e_vagas_invalidas_sao_recusadas(monkeypatch, capsys):
+    import orquestrador.__main__ as cli
+    for nome in ('HELENA_V2_DATABASE_URL', 'HELENA_V2_DBOS_SYSTEM_DATABASE_URL', 'HELENA_V2_EXECUTOR'):
+        monkeypatch.delenv(nome, raising=False)
+    assert cli.main(['despachar', '--uma-rodada']) == 1
+    assert json.loads(capsys.readouterr().out)['estado'] == 'FALHA_DE_RUNTIME'
+    for vagas in ('0', '65', '-1'):
+        with pytest.raises(SystemExit):
+            cli.main(['despachar', '--uma-rodada', '--vagas', vagas])
