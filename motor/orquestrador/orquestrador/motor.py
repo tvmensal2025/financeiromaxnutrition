@@ -95,12 +95,16 @@ def fluxo_coordenacao(card_id: str, chave: int) -> str:
 
 
 def conferir_rubrica(spec, servico, criterios) -> bool:
+    """Portão 2 de hoje: confere só a FORMA da rubrica (todos os critérios, uma vez cada, PASSOU e com prova escrita).
+    Nunca levanta exceção por conteúdo estranho do revisor: id que não é texto, critério que não é dicionário etc. = recusa."""
     esperados = set(spec.tipo(spec.tipo_do_servico(servico))['criterio_de_pronto']['rubrica'])
     if not isinstance(criterios, list) or len(criterios) != len(esperados):
         return False
-    return ({c.get('id') for c in criterios if isinstance(c, dict)} == esperados
-            and all(c.get('resultado') == 'PASSOU' and isinstance(c.get('prova'), str)
-                    and c['prova'].strip() for c in criterios if isinstance(c, dict)))
+    if not all(isinstance(c, dict) and isinstance(c.get('id'), str) for c in criterios):
+        return False
+    return ({c['id'] for c in criterios} == esperados
+            and all(c.get('resultado') == 'PASSOU' and isinstance(c.get('prova'), str) and c['prova'].strip()
+                    for c in criterios))
 
 
 def _preflight_bancos_reais(url_banco: str, url_dbos: str):
