@@ -207,16 +207,14 @@ def banco_integral_prod_shape(servidor):
                 job_id text primary key, task_id text, business_id text, agent_id text, status text,
                 approval_status text, result_payload jsonb, result_summary text,
                 evidence_refs jsonb, updated_at timestamptz)""")
-            for numero in range(1, 18):
-                arquivos = sorted(C.MIGRACOES.glob(f"{numero:04d}_*.sql"))
-                assert len(arquivos) == 1, numero
-                con.execute(arquivos[0].read_text(encoding="utf-8"))
+            for arquivo in sorted(C.MIGRACOES.glob("[0-9][0-9][0-9][0-9]_*.sql")):  # todas, inclusive as novas
+                con.execute(arquivo.read_text(encoding="utf-8"))
         yield banco
     finally:
         C.derrubar_banco(banco)
 
 
-def test_instalacao_integral_0001_a_0017_preserva_rpcs_e_isolamento(banco_integral_prod_shape):
+def test_instalacao_integral_de_todas_as_migrations_preserva_rpcs_e_isolamento(banco_integral_prod_shape):
     banco = banco_integral_prod_shape
     with banco.conectar() as dono:
         assert dono.execute("select extnamespace::regnamespace::text from pg_extension where extname='pgcrypto'").fetchone()[0] == "extensions"
@@ -231,9 +229,11 @@ def test_instalacao_integral_0001_a_0017_preserva_rpcs_e_isolamento(banco_integr
             assert dono.execute("select has_function_privilege('service_role', %s, 'execute')",
                                 (nome,)).fetchone()[0] is True, nome
         for assinatura in ("ler_leitura_card_fundador(uuid)", "listar_acoes_card(uuid)",
-                           "pedir_publicacao()", "listar_configuracoes()"):
+                           "pedir_publicacao()", "listar_configuracoes()",
+                           "listar_ativacoes(integer)", "reverter_configuracao(uuid)"):
             assert dono.execute("select has_function_privilege('authenticated', %s, 'execute')",
                                 ("helena_v2." + assinatura,)).fetchone()[0] is True
+        assert dono.execute("select has_table_privilege('authenticated', 'helena_v2.configuracao_ativacao', 'select')").fetchone()[0] is False
     with banco.conectar("authenticated") as fundador:
         assert fundador.execute("select helena_v2.sou_fundador()").fetchone()[0] is True
         with pytest.raises(E.InsufficientPrivilege):
