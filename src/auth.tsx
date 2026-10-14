@@ -28,6 +28,7 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export const MODO_TESTE_SEM_SENHA =
   import.meta.env.DEV &&
+  import.meta.env.MODE !== "test" &&
   import.meta.env.VITE_MODO_TESTE_SEM_SENHA === "true" &&
   Boolean(import.meta.env.VITE_TESTE_EMAIL) &&
   Boolean(import.meta.env.VITE_TESTE_SENHA);
