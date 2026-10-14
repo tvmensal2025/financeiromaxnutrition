@@ -6,7 +6,9 @@ Duas partes do "teste 3 em duas partes" do plano: esta é a parte de conformidad
 
 import pytest
 
+from executor_helena.runtime_alternativo import SUPORTADAS, RuntimeAlternativoDeTeste
 from cenarios import verificador_de_acao
+from executor_helena import registro
 from executor_helena.executor import Executor
 from executor_helena.executor_falso import ExecutorFalso, Roteiro
 from executor_helena.provedor_falso import Cenario, Simulacao
@@ -17,7 +19,7 @@ from executor_helena.tipos import (COTA, DESCONHECIDA, FORMATO_ERRADO, GRANDE_DE
 class Falso:
     nome = "falso"
 
-    def __init__(self, amb):
+    def __init__(self, amb, tmp_path=None):
         self.amb = amb
 
     def rodar(self, ficha, simulacao, **kw):
@@ -27,7 +29,7 @@ class Falso:
 class ComHermes:
     nome = "hermes"
 
-    def __init__(self, amb):
+    def __init__(self, amb, tmp_path=None):
         self.amb = amb
 
     def rodar(self, ficha, simulacao, **kw):
@@ -37,9 +39,33 @@ class ComHermes:
         return self.amb.rodar(ficha, cenario, **kw)
 
 
-@pytest.fixture(params=[Falso, ComHermes], ids=["executor_falso", "executor_hermes"])
-def forma(request, amb):
-    return request.param(amb)
+class Alternativo:
+    """Um runtime diferente do Hermes (processo comum, registro próprio). Só sabe as simulações em SUPORTADAS."""
+    nome = "processo-simples"
+
+    def __init__(self, amb, tmp_path):
+        self.amb, self.raiz = amb, tmp_path / "alternativo"
+
+    def rodar(self, ficha, simulacao, **kw):
+        if simulacao not in SUPORTADAS:
+            pytest.skip(f"{simulacao.name} é uma simulação específica do Hermes; o contrato portátil não a exige")
+        kw.pop("atraso_s", None)
+        return RuntimeAlternativoDeTeste(self.raiz, simulacao).rodar(self.amb.execucao(ficha, **kw))
+
+
+@pytest.fixture(params=[Falso, ComHermes, Alternativo], ids=["executor_falso", "executor_hermes", "runtime_alternativo"])
+def forma(request, amb, tmp_path):
+    return request.param(amb, tmp_path)
+
+
+# Cada executor aprovado para produção TEM de ter uma forma aqui: adicionar ao registro sem provar a conformidade quebra.
+FORMAS_DOS_APROVADOS = {"hermes": ComHermes}
+
+
+def test_todo_executor_aprovado_tem_forma_de_conformidade():
+    registro.conferir_registro()
+    assert set(registro.nomes_aprovados()) <= set(FORMAS_DOS_APROVADOS), \
+        "executor no registro sem teste de conformidade: acrescente a forma dele em FORMAS_DOS_APROVADOS"
 
 
 def test_boa_execucao(forma, ficha_sem_ferramenta):
@@ -90,5 +116,19 @@ def test_cancelar_id_desconhecido_devolve_falso(amb):
     assert ExecutorFalso().cancelar("E-X") is False and amb.executor().cancelar("E-X") is False
 
 
-def test_os_dois_sao_executores():
-    assert issubclass(ExecutorFalso, Executor)
+def test_todos_sao_executores_com_as_garantias_declaradas():
+    for classe in (ExecutorFalso, RuntimeAlternativoDeTeste, *registro.classes_aprovadas()):
+        assert issubclass(classe, Executor)
+        assert classe.capacidades.faltando_para_producao() == (), classe
+
+
+def test_limpar_e_idempotente(forma, ficha_sem_ferramenta):
+    r = forma.rodar(ficha_sem_ferramenta, Simulacao.BOA)
+    executor = ExecutorFalso() if forma.nome == "falso" else None
+    if forma.nome == "processo-simples":
+        executor = RuntimeAlternativoDeTeste(forma.raiz)
+    elif forma.nome == "hermes":
+        executor = forma.amb.executor()
+    executor.limpar(r)
+    executor.limpar(r)                     # segunda vez não é erro
+    assert r.pasta is None or not r.pasta.exists() or forma.nome == "falso"

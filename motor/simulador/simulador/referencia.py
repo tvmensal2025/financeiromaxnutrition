@@ -23,7 +23,7 @@ from .eventos import Foto, FotoAcao, FotoEtapa, Resposta
 from .vocabulario import (
     BOTOES_COM_VERSAO, CARD_ATIVO, CARD_FINAIS, ESTADOS, ETAPA_FINAIS, EVENTOS_DO_PAPEL, FUNDADOR, TETO_EXECUCOES,
     TETO_INFRA, TETO_LEMBRETES, TETO_MUDANCAS_PRAZO, TETO_ORDENS, TETO_PERGUNTAS, TETO_REPROVACOES,
-    CLASSES_DE_FALHA,
+    CLASSES_DE_FALHA, MOTIVOS_DE_AJUSTE,
 )
 
 # Quem é o dono e qual é o prazo de cada estado aberto (passagens.yaml, bloco "estados").
@@ -287,15 +287,15 @@ class Referencia(Alvo):
             c["estado"] = "ESPERANDO_CONFIRMACAO" if self.pedido_grande else "VALIDANDO_PLANO"
             c["lembretes"] = 0
             return True
-        if ev.papel == "MOTOR" and ev.evento == "DECISAO_MUDOU" and est in CARD_ATIVO:
-            self._decisao_mudou_no_card()
-            return True
         if ev.papel == "RELOGIO":
             return self._relogio_no_card(ev.evento)
         return False
 
     def _fundador_no_card(self, ev):
         c, est, opcao = self.card, self.card["estado"], ev.params.get("opcao")
+        if ev.evento == "PEDIR_AJUSTE" and est in CARD_ATIVO and ev.params.get("motivo_ajuste") in MOTIVOS_DE_AJUSTE:
+            self._decisao_mudou_no_card()
+            return True
         if ev.evento == "CANCELAR" and est in ESTADOS["card"]["abertos"]:
             c["estado"], c["fim"] = "CANCELADO", "FUNDADOR"
             self._cancelar_etapas()

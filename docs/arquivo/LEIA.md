@@ -3,6 +3,13 @@
 Tudo aqui é **só para consulta**. Nada foi apagado: o que saiu de uso veio para cá com o motivo ao lado.
 Para saber onde está o que vale hoje, veja `docs/INDICE.md`.
 
+## Passagem e reversão visual de 13/10/2026
+
+| Agora em | Antes em | Por quê |
+|---|---|---|
+| `docs/arquivo/handoff-ate-20261013-387d1d4.md` | `HANDOFF-CLAUDE-CODE.md` | preserva integralmente os blocos históricos; o handoff ativo ficou curto e atualizado |
+| `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` | proposta preparada, nunca aplicada ao ramo | receita testada em cópia para retirar só o acabamento visual da v1, preservando as correções de sessão, as rotas v2 e o CSS original |
+
 ## Atenção
 
 - `artifacts/checkpoint-20261001/*.py` e `scripts/checkpoint-mestre-20261001.sql` citam os caminhos antigos destes documentos. Eles são o registro da publicação do checkpoint de 01/10/2026 (rodavam no PC do fundador) e **não devem ser rodados de novo**.
@@ -120,3 +127,6 @@ Classificação da auditoria `docs/auditoria/AUDITORIA-2026-10-10.md`.
 | `docs/arquivo/pacote-plano-v3/pesquisa/minha-analise-k-m.md` | `docs/planos/sistema-helena-pacote/pesquisa/minha-analise-K-M.md` | evidências que sustentam o plano DBOS (só consulta) |
 | `docs/arquivo/pacote-plano-v3/pesquisa/revisao-fichas-resumo.md` | `docs/planos/sistema-helena-pacote/pesquisa/revisao-fichas-resumo.md` | evidências que sustentam o plano DBOS (só consulta) |
 | `docs/arquivo/helena-v2-v1/entregas.yaml` | `helena-v2/deliverables/entregas.yaml` | DESCARTAR: índice antigo da v1, substituído por um arquivo por tipo em helena-v2/deliverables/ |
+| `docs/arquivo/helena-v2-v1/ravi-ficha-v2-antiga.yaml` | `helena-v2/agents/ravi.yaml` | DESCARTAR: ficha do Ravi no formato antigo (v2), substituída pela ficha v3.1 no mesmo caminho (11/10/2026) |
+| `docs/arquivo/helena-v2-v1/recrutar-10-pessoas-v1.yaml` | `helena-v2/playbooks/recrutar-10-pessoas.yaml` | DESCARTAR: roteiro das 10 pessoas no formato antigo (v1), reescrito na v3.1 no mesmo caminho (11/10/2026) |
+| `docs/arquivo/ataques-validador-20261011.tar.gz` | scripts de apoio dos 3 atacantes do validador (`/tmp` da sessão de 11/10/2026) | GUARDAR: mutações e reproduções para refazer os ataques; os achados estão em `docs/auditoria/ATAQUES-2026-10-11.md`. Descompacte fora do repositório |

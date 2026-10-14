@@ -1,0 +1,125 @@
+# Caso RUIM do SRV-ROTEIRO-TREINAMENTO (Isabela, AGT-17) para o pedido ../pedido.yaml. SINTÉTICO.
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+# Serve ao teste 5 (validador) e ao teste 9 do par revisor x roteiro_treinamento (Caio).
+id: TREINO-RUIM-07
+servico: SRV-ROTEIRO-TREINAMENTO
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01-cozinha.yaml
+defeito_plantado: 'O texto de limites diz ''Vaga de trabalho'': termo que o pacote da empresa proíbe (e que não está na lista
+  de promessas da CHK-TREINO-01).'
+deve_falhar_em: CHK-TREINO-02
+portao: 1 (código)
+motivo_esperado: vaga de trabalho
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-TREINAMENTO-ENVIAR
+  entrega:
+    objetivo: 'Você é participante da Humano Digital e lê isto no celular: ao terminar, você consegue gravar sozinho o preparo
+      de um lanche na sua cozinha, seguindo as regras de gravação da plataforma.'
+    preparacao:
+    - 'Use o seu próprio celular: você grava sozinho, dentro de casa.'
+    - Reserve o tempo de uma gravação, que dura de 5 a 15 minutos.
+    - Escolha um canto da cozinha com luz suficiente para ver as mãos com nitidez.
+    - Separe o que vai usar no lanche e guarde documentos, envelopes e telas com dados.
+    passo_a_passo:
+    - id: P1
+      o_que_fazer: Avise quem mora com você que vai gravar na cozinha.
+      sinal: Quem mora com você sabe que a gravação vai começar.
+      apoio:
+        trecho_original: O participante avisa quem mora com ele antes de gravar.
+        fonte_importada_id: FON-CONDICOES-PARTICIPANTE-01
+    - id: P2
+      o_que_fazer: Apoie o celular deitado, na horizontal, em um lugar firme da bancada.
+      sinal: O celular fica parado, sem balançar.
+      apoio:
+        trecho_original: Em atividade parada, o celular fica deitado, na horizontal, apoiado em algum lugar firme.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P3
+      o_que_fazer: Ajuste a câmera na altura do peito, de modo que as suas mãos apareçam.
+      sinal: Na tela do celular, você vê as suas mãos.
+      apoio:
+        trecho_original: A câmera fica na altura do peito e mostra as mãos durante toda a atividade.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P4
+      o_que_fazer: Toque no botão "Gravar".
+      sinal: A gravação começou.
+      apoio:
+        trecho_original: Para começar, a pessoa toca no botão "Gravar" e, para terminar, toca no botão "Parar".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P5
+      o_que_fazer: Prepare o lanche inteiro, do começo ao fim, sem trocar de atividade.
+      sinal: O lanche está pronto e a gravação tem de 5 a 15 minutos.
+      apoio:
+        trecho_original: Cada gravação mostra uma atividade só, do começo ao fim.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P6
+      o_que_fazer: Toque no botão "Parar".
+      sinal: A gravação terminou.
+      apoio:
+        trecho_original: Para começar, a pessoa toca no botão "Gravar" e, para terminar, toca no botão "Parar".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P7
+      o_que_fazer: Assista à gravação inteira antes de enviar.
+      sinal: Você viu a gravação até o fim, sem nada que não pode aparecer.
+      apoio:
+        trecho_original: Antes de enviar, a pessoa assiste à gravação inteira e apaga o que não pode aparecer.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: P8
+      o_que_fazer: Toque no botão "Enviar para avaliação".
+      sinal: A gravação segue para a avaliação da plataforma.
+      apoio:
+        trecho_original: Para enviar, a pessoa toca no botão "Enviar para avaliação".
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    erros_que_reprovam:
+    - id: E1
+      erro: Deixar o celular balançar durante a gravação.
+      o_que_acontece: Gravação tremida é reprovada.
+      como_evitar: Mantenha o celular apoiado e firme na bancada, sem mexer nele durante o lanche.
+      apoio:
+        trecho_original: Gravação tremida é reprovada.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: E2
+      erro: Gravar num canto escuro, onde as mãos não aparecem com nitidez.
+      o_que_acontece: Gravação escura, em que não dá para ver as mãos com nitidez, é reprovada.
+      como_evitar: Escolha um canto com luz e confira na tela se as suas mãos aparecem antes de tocar em "Gravar".
+      apoio:
+        trecho_original: Gravação escura, em que não dá para ver as mãos com nitidez, é reprovada.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: E3
+      erro: Deixar televisão, música ou som alto ligados ao fundo.
+      o_que_acontece: O som ao fundo atrapalha a avaliação, e a gravação pode ser reprovada.
+      como_evitar: Desligue a televisão e a música antes de começar.
+      apoio:
+        trecho_original: Música, televisão ou som alto ao fundo atrapalham a avaliação, e a gravação pode ser reprovada.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    - id: E4
+      erro: Deixar aparecer rosto ou voz de outra pessoa que não autorizou.
+      o_que_acontece: Rosto ou voz de outra pessoa na gravação, sem a autorização dela, é motivo de reprovação.
+      como_evitar: Peça a quem mora com você que fique fora da cozinha e, se alguém aparecer, apague essa parte antes de enviar.
+      apoio:
+        trecho_original: Rosto ou voz de outra pessoa na gravação, sem a autorização dela, é motivo de reprovação.
+        fonte_importada_id: FON-REGRAS-GRAVACAO-01
+    privacidade_e_terceiros:
+    - 'Mantenha na gravação só quem autorizou: quem não autorizou fica fora da cozinha enquanto você grava.'
+    - 'Crianças não podem aparecer nem falar em nenhuma gravação: peça que as crianças da casa fiquem em outro cômodo.'
+    - 'Documentos, envelopes, telas com dados e endereços não podem aparecer: guarde tudo isso antes de começar.'
+    - 'Não peça nem anote nenhum dado de quem mora com você: só avise que vai gravar.'
+    checklist_final:
+    - 'P1: você avisou quem mora com você que ia gravar?'
+    - 'P2 e E1: o celular está deitado, firme e sem balançar?'
+    - 'P3 e E2: há luz suficiente e as suas mãos aparecem com nitidez na tela?'
+    - 'E3: a televisão, a música e qualquer som alto estão desligados?'
+    - 'E4: só aparece ou fala quem autorizou, e mais ninguém está na cozinha?'
+    - 'P7: você assistiu à gravação inteira e nada que não pode aparecer ficou nela?'
+    o_que_precisa_aprovacao:
+    - 'Regras e botões: este roteiro usa só o que veio na fonte de regras de gravação. Confirme que ainda valem hoje antes de
+      enviar.'
+    - 'Canal de dúvidas: o pacote não traz um canal confirmado, então o roteiro não leva nenhum. Diga qual usar.'
+    - Enviar o roteiro às pessoas é ação sua, depois do parecer aprovado.
+    limites:
+    - 'Vaga de trabalho: fica fora deste roteiro.'
+    - 'Outras atividades do dia a dia: cada uma pede o seu roteiro; este cobre só o lanche na cozinha.'

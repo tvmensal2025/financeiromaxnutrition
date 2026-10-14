@@ -1,0 +1,162 @@
+# Pedido de teste do SRV-COPY (Isabela, AGT-17). Caso SINTÉTICO: o pedido, o pacote e as pessoas
+# convidadas foram escritos para o teste; nada aqui é dado real da Humano Digital.
+#
+# De onde vem: o texto do pedido é o primeiro exemplo de pedido do serviço em servicos.yaml
+# (SRV-COPY, exemplos_de_pedido). As regras do serviço NÃO são copiadas aqui: elas estão em
+# servicos.yaml (SRV-COPY e portao1_comum) e em deliverables/copy.yaml (seções, CHK-COPY-*, RUB-COPY-*).
+# Como mudar: para outro público ou outro canal, troque o texto de pedido_original (ou crie uma
+# variante) e confira de novo as boas e os defeitos desta pasta: toda frase da tabela "afirmacoes"
+# tem de ser trecho literal do pedido. Rode o validar.py depois.
+#
+# REGRA DE OURO (MAT-16, C-11): o convite NÃO recebe a conta do Caio nem número de ganho. Por isso o
+# pedido não tem nenhum valor, hora ou cálculo; o único número dele é o 10 (as pessoas convidadas).
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que a Isabela recebe junto com o card (grafia, voz, termos proibidos).
+#      O código guarda o texto como fonte importada FON-PACOTE-BIZ-003.
+#   2. fontes_importadas: o que o código guarda ANTES de qualquer IA. O pedido original é
+#      FON-PEDIDO-COPY-01: é contra ele que as checagens de número, contato e apoio conferem o texto.
+#   3. ordem_de_servico, leitura_de_volta e plano: como o card fica depois do seu CONFIRMO
+#      (card.schema.json). Serviço sempre julgado: a Clara (SRV-PARECER) julga o convite no mesmo card.
+#   4. variantes: os pedidos usados pelas boas 02, 03 e 04 (convite para redes sociais, mensagem de
+#      boas-vindas e convite da eLiving™, que é de OUTRA empresa, a BIZ-004, para provar a CHK-COPY-05),
+#      cada um com a sua fonte importada.
+#
+# Sem fitas: a Isabela não tem ferramenta (ferramentas: []), então não há página lida.
+# Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: PEDIDO-COPY-01
+servico: SRV-COPY
+agente: AGT-17
+card_id: CARD-TESTE-COPY-01
+empresa: BIZ-003
+criado_em: "2026-10-11T08:30:00-03:00"
+
+pacote_da_empresa:
+  empresa: BIZ-003
+  nome: "Humano Digital"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-003
+  grafia: "Humano Digital"
+  voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+  decisoes: [DEC-024, DEC-025]
+  proibicoes: "As do pacote da BIZ-003 em organograma.yaml; o convite nem recebe a conta do Caio (MAT-16, C-11)."
+  # Nenhum link, perfil ou telefone confirmado: o texto não leva canal (CHK-COPY-06) e a entrega
+  # diz em o_que_precisa_aprovacao qual canal falta.
+  canais_confirmados: []
+  # Lista fechada lida pela CHK-COPY-02. LISTA DE TESTE: até você registrar a lista oficial do pacote
+  # (FORA-PACOTE-DE-VOZ), o caso usa as quatro frases dos outros casos da Humano Digital mais os
+  # termos de vínculo de trabalho que o tipo copy pede (TEMA-VINCULO-DE-TRABALHO).
+  termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida", "emprego", "contratação", "vaga de trabalho", "carteira assinada"]
+
+fontes_importadas:
+  - {id: FON-PEDIDO-COPY-01, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+  - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+ordem_de_servico:
+  empresa: BIZ-003
+  prazo: "2026-10-14T18:00:00-03:00"
+  prioridade: 2
+  pedido_original: >-
+    Escreve o convite para as primeiras 10 pessoas, sem promessa de renda. Vou chamar as primeiras
+    10 pessoas pelo WhatsApp, todas adultas e conhecidas minhas. A Humano Digital conecta pessoas
+    adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. A pessoa grava
+    atividades do dia a dia no celular e a plataforma avalia as gravações. Quem tiver interesse
+    responde esta mensagem e eu explico os próximos passos. A pessoa pode tirar dúvidas antes de
+    decidir e pode também não responder.
+  o_que_quer: "Convite da Humano Digital para as primeiras 10 pessoas, pelo WhatsApp, sem promessa de renda."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "Convite pronto para o WhatsApp, em português simples, com uma versão final e uma alternativa curta.", quem_confere: IA, risco: BAIXO}
+    - {id: CARD-2, texto: "Nenhum termo de ganho no texto.", quem_confere: CODIGO, checagem: CHK-COPY-01, risco: ALTO}
+    - {id: CARD-3, texto: "Nenhuma frase dizendo que o convite já foi enviado.", quem_confere: CODIGO, checagem: CHK-COMUM-05, risco: ALTO}
+    - {id: CARD-4, texto: "Quem lê vê que pode tirar dúvidas ou não responder, sem pressão.", quem_confere: IA, risco: ALTO}
+    - {id: CARD-5, texto: "Parecer jurídico do convite, lido por você antes de enviar.", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+  nao_pode:
+    - "Prometer renda, ganho ou vaga no convite"
+    - "Enviar o convite em seu nome"
+
+# Leitura de volta da Helena (papel HELENA), antes do seu CONFIRMO (acao.schema.json, LER_DE_VOLTA).
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: SERVICO, id: SRV-COPY}
+  entendi_assim:
+    o_que_quer: "Convite da Humano Digital para as primeiras 10 pessoas, pelo WhatsApp, sem promessa de renda."
+    como_e_o_pronto:
+      - {texto: "Convite pronto para o WhatsApp, em português simples, com uma versão final e uma alternativa curta.", quem_confere: IA, risco: BAIXO}
+      - {texto: "Nenhum termo de ganho no texto.", quem_confere: CODIGO, checagem: CHK-COPY-01, risco: ALTO}
+      - {texto: "Nenhuma frase dizendo que o convite já foi enviado.", quem_confere: CODIGO, checagem: CHK-COMUM-05, risco: ALTO}
+      - {texto: "Quem lê vê que pode tirar dúvidas ou não responder, sem pressão.", quem_confere: IA, risco: ALTO}
+      - {texto: "Parecer jurídico do convite, lido por você antes de enviar.", quem_confere: FUNDADOR, motivo_fundador: JURIDICO, risco: ALTO}
+    nao_pode:
+      - "Prometer renda, ganho ou vaga no convite"
+      - "Enviar o convite em seu nome"
+
+# Plano montado pelo código (SERVICO_SEMPRE_JULGADO: o serviço é sempre julgado pelo parecer, MAT-22).
+# Revisores EFETIVOS (MAT-21): E1 = [CAIO (APTA em copy), FUNDADOR], porque a reserva Camila está
+# SEM_PROVA e sai; E2 = [HELENA, FUNDADOR]. O convite não depende de nenhuma entrega do Caio (MAT-16).
+plano:
+  origem: SERVICO_SEMPRE_JULGADO
+  versao_do_catalogo: "3.1.0"
+  montado_em: "2026-10-11T08:35:00-03:00"
+  etapas:
+    - {id: E1, servico: SRV-COPY, autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR}
+    - {id: E2, servico: SRV-PARECER, autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E1], julga: [E1]}
+
+# Pedidos derivados (empresa, prazo e plano iguais, mudam o canal e o que a pessoa faz) para as boas
+# 02 e 03. O pronto do card é o mesmo, trocando "WhatsApp" pelo canal da variante.
+variantes:
+  REDES:
+    usada_por: boas/boa-02-redes.yaml
+    fonte_importada_id: FON-PEDIDO-COPY-02
+    pedido_original: >-
+      Escreve o convite da Humano Digital para eu publicar nas redes sociais, sem promessa de renda.
+      Esta é a primeira rodada de convites, para 10 pessoas. A Humano Digital conecta pessoas adultas
+      a oportunidades de dados para inteligência artificial, na Mimix e no Hub. A pessoa grava
+      atividades do dia a dia no celular e a plataforma avalia as gravações. Quem tiver interesse
+      manda uma mensagem direta para a Humano Digital. A pessoa pode tirar dúvidas antes de decidir e
+      pode também não responder.
+    o_que_muda: "O canal é rede social (publicar, ação sua) e a pessoa responde por mensagem direta."
+  BOAS-VINDAS:
+    usada_por: boas/boa-03-boas-vindas.yaml
+    fonte_importada_id: FON-PEDIDO-COPY-03
+    pedido_original: >-
+      Escreve a mensagem de boas-vindas para quem aceitar o convite da Humano Digital, sem promessa
+      de renda. Ainda não vou usar: quero só ler antes. A Humano Digital conecta pessoas adultas a
+      oportunidades de dados para inteligência artificial, na Mimix e no Hub. A mensagem vai pelo
+      WhatsApp, na mesma conversa em que a pessoa respondeu ao convite. O primeiro passo é eu
+      conversar com a pessoa e explicar como funciona. A pessoa grava atividades do dia a dia no
+      celular e a plataforma avalia as gravações. Se tiver dúvidas, a pessoa pode me chamar nesta
+      mesma conversa.
+    o_que_muda: "Texto para quem já aceitou o convite; você ainda não vai usar, então a entrega não propõe ação sua (acao_externa NENHUMA)."
+  ELIVING:
+    usada_por: boas/boa-04-eliving.yaml
+    fonte_importada_id: FON-PEDIDO-COPY-04
+    empresa: BIZ-004
+    # Pacote da eLiving™ (BIZ-004), igual ao do caso do parecer (SRV-PARECER). A CHK-COPY-05 só vale para esta empresa.
+    pacote_da_empresa:
+      empresa: BIZ-004
+      nome: "eLiving™"
+      estado: CONFIRMADO
+      fonte_importada_id: FON-PACOTE-BIZ-004
+      grafia: "eLiving™ (e minúsculo, L maiúsculo, sem hífen; nunca 'E-living', 'Eliving' ou 'Iliving')."
+      slogan: "Onde sua evolução ganha direção."
+      posicionamento: "Inteligência pessoal de evolução; nunca app fitness comum nem contador de calorias."
+      pilares: "Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento) e Rafael (Hábitos): personagens do produto, não funcionários; nenhum diagnóstico, prescrição, treino clínico ou promessa de cura."
+      decisoes: [DEC-023]
+      # LISTA DE TESTE: até você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ).
+      termos_proibidos_em_todo_texto: ["app fitness", "contador de calorias", "dieta restritiva", "emagrecimento garantido", "promessa de cura"]
+    fontes_importadas:
+      - {id: FON-PEDIDO-COPY-04, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+      - {id: FON-PACOTE-BIZ-004, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+    ordem_de_servico:
+      empresa: BIZ-004
+      o_que_quer: "Convite da eLiving™ para as primeiras 10 pessoas, pelo WhatsApp, sem promessa de renda."
+    pedido_original: >-
+      Escreve o convite da eLiving™ para as primeiras 10 pessoas, sem promessa de renda. Vou chamar as
+      primeiras 10 pessoas pelo WhatsApp, todas adultas e conhecidas minhas. A eLiving™ é a inteligência
+      pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor Vital (Saúde), Alex (Movimento)
+      e Rafael (Hábitos). Os quatro pilares são personagens do produto. Quem tiver interesse responde
+      esta mensagem e eu explico os próximos passos. A pessoa pode tirar dúvidas antes de decidir e pode
+      também não responder.
+    o_que_muda: "A empresa é a eLiving™ (BIZ-004), com o pacote dela e o slogan oficial; o canal e o passo da pessoa são os da boa 01."

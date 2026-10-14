@@ -75,7 +75,7 @@ PROVA_E2_E_EJ_APROVADAS = [
     fundador("APROVAR", "EJ"),
 ]
 # E1 aprovada; E2 ainda trabalhando. Depois a decisão muda: o que usava a decisão tem que ser refeito.
-DECISAO_MUDA_COM_E1_APROVADA = PROVA_E1_APROVADA + [motor("DECISAO_MUDOU")]
+DECISAO_MUDA_COM_E1_APROVADA = PROVA_E1_APROVADA + [fundador("PEDIR_AJUSTE", motivo_ajuste="ERRO_DE_FATO")]
 # O fundador pede ajuste em E2 depois de EJ (que a julga) ter sido aprovada sobre ela.
 AJUSTE_EM_E2_COM_EJ_APROVADA = PROVA_E2_E_EJ_APROVADAS + [fundador("PEDIR_AJUSTE", "E2", motivo_ajuste="TOM")]
 

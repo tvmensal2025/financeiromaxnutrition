@@ -5,8 +5,10 @@ Heurística simples e explicável (sem IA, sem biblioteca):
   2. Contamos quantas são "palavrinhas de ligação" (o, os, uma, não, com, para, pelo...) que só existem
      em português, quantas só em inglês (the, of, and, is...) e quantas só em espanhol (el, los, y, con...).
      Palavras que existem em duas línguas (de, que, para, por, se...) NÃO contam, para não confundir.
-  3. Letras que só o português usa (ã, õ, ç) contam como ponto a favor do português.
-  4. Dizemos "não é português" só quando OUTRA língua aparece com força e o português quase não aparece.
+  3. Letras que só o português usa (ã, õ, ç, à, â, ê, ô) contam como ponto a favor do português.
+  4. Dinheiro não conta como palavra: "US$ 0,50" e "R$ 540" saem antes da conta (o "US" colado no cifrão parecia
+     a palavra inglesa "us" e fazia uma frase em português com muitos números parecer inglesa). Números já não entram.
+  5. Dizemos "não é português" só quando OUTRA língua aparece com força e o português quase não aparece.
 Texto curto (menos palavras que o mínimo da configuração) não é julgado: não dá para ter certeza.
 
 A citação ORIGINAL (trecho_original) pode estar em outra língua e não entra aqui; a tradução entra.
@@ -39,12 +41,13 @@ entonces asi solo despues ya de a e la no nos""".split())
 # Palavras que existem em mais de uma língua ficam de fora de todas as listas.
 _COMUNS = (_PT & _EN) | (_PT & _ES) | (_EN & _ES)
 PT, EN, ES = _PT - _COMUNS, _EN - _COMUNS, _ES - _COMUNS
-_ACENTOS_DO_PT = re.compile(r"[ãõç]")
+_ACENTOS_DO_PT = re.compile(r"[ãõçàâêô]")  # letras que o inglês e o espanhol não usam
+_MOEDA = re.compile(r"\b[a-z]{1,3}\$")  # "us$", "r$", "c$", "hk$": sigla colada no cifrão, não é palavra
 
 
 def pontuar(texto: str) -> dict:
     """Parte (0 a 1) das palavras que são exclusivas de cada língua. Útil para os testes e para explicar a decisão."""
-    base = T.normalizar(texto).lower()
+    base = _MOEDA.sub(" ", T.normalizar(texto).lower())
     tokens = re.findall(r"[^\W\d_]+", base)
     n = len(tokens)
     if n == 0:

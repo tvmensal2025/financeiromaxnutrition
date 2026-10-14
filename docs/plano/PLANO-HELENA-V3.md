@@ -2,13 +2,13 @@
 
 Oct 9, 2026 · @anonimus
 
-Este é o plano único, refeito do começo ao fim. Ele junta as duas análises anteriores, a revisão das fichas feita no seu PC e uma nova rodada de ataque ao plano, por três ângulos diferentes. Cada furo achado tem conserto, um teste que prova e a fase em que fecha, e não sobrou nenhum furo conhecido em aberto.
+Este é o plano único, refeito do começo ao fim. Ele junta as duas análises anteriores, a revisão das fichas feita no seu PC e uma nova rodada de ataque ao plano, por três ângulos diferentes. Cada furo achado tem conserto, um teste que prova e a fase em que fecha, e todos os furos conhecidos têm conserto planejado.
 
 Os 3 furos da segunda análise eram do plano anterior e já estavam fechados no plano corrigido; esta versão fecha também os que apareceram depois. Ninguém consegue prometer zero furo desconhecido, então o plano traz o processo que acha o próximo furo antes de você: revisão independente no fim de cada fase, vigia no ar e todo erro virando teste.
 
 ## Resposta direta
 
-**Tem furo?** Nenhum conhecido em aberto. Nas quatro rodadas de ataque foram 171 achados, e cada um está no arquivo REGISTRO-DE-FUROS.md com o conserto, o teste que prova e a fase em que fecha.
+**Tem furo?** Todos os furos conhecidos têm conserto planejado. Nas quatro rodadas de ataque foram 171 achados, e cada um está no arquivo REGISTRO-DE-FUROS.md com o conserto, o teste que prova e a fase em que fecha.
 
 **E se aparecer um furo novo?** Ele aparece no card, com dono e prazo, nunca em silêncio. Cada fase só avança depois de uma nova revisão independente, e todo furo achado vira regra no código e teste, para não voltar.
 
@@ -264,9 +264,9 @@ A v2 começa com 5 agentes e uma meta real: o plano para recrutar as 10 primeira
 | E2 · Roteiro de treinamento | Isabela | Helena (Caio) | Nada |
 | E3 · Texto do convite, sem promessa de renda | Isabela | Helena (Caio), e o código barra termos de ganho | Nada |
 | E4 · Checagem jurídica de imagem, voz e LGPD sobre E2 e E3 | Clara | Helena (você), e você lê antes de agir | E2 e E3 |
-| E5 · Relatório final, com a lista do que só você faz | Helena | Clara (Caio) | E1 a E4 |
+| E5 · Relatório final, com a lista do que só você faz | Helena | Caio (Clara) | E1 a E4 |
 
-- **Ninguém revisa o que vai julgar.** A Clara não revisa o convite, porque é ela quem julga o convite na E4, inclusive promessa de ganho escondida. E o relatório final, que é o que você lê, tem revisora: a Clara, porque a autora é a Helena.
+- **Ninguém revisa o que vai julgar.** A Clara não revisa o convite, porque é ela quem julga o convite na E4, inclusive promessa de ganho escondida. E o relatório final, que é o que você lê, tem revisor: o Caio, porque a autora é a Helena e a Clara é quem escreveu o parecer que o relatório resume (decisão do fundador de 11/10/2026).
 - **Revisor fora, reserva entra.** Se o revisor estiver pausado ou sem vaga, entra o reserva da ficha. Se a regra 4 impedir todos os reservas, a revisão vem para você, como cartão.
 - **Ajuste tem caminho de volta.** Se a Clara achar um problema no convite, a E3 volta para a Isabela, passa de novo pela revisão, e a E4 é refeita sobre o texto novo. Depois de 2 voltas, a etapa vai para em resolução com as provas.
 - **O Ravi entra quando precisar.** Pesquisa nova só entra quando o roteiro pede; a primeira meta não pede.

@@ -141,6 +141,7 @@ revisao:
   aptidao:
     - {tipo: roteiro_comercial, estado: SEM_PROVA}       # titular (autor: Victor, fase 4)
     - {tipo: rascunho_de_resposta, estado: SEM_PROVA}    # reserva (titular: Renata; autora: Joana, fase 4)
+    - {tipo: dossie, estado: SEM_PROVA}                  # titular (autor: Ravi, fase 3); a regra 4 e o teto de 3 titularidades do Caio (MAT-08) levaram o dossiê para ela
   ferramentas: []
   # Conta: 1 resposta (um veredito por critério da rubrica e por item CARD-n de IA) + 2 de folga
   # de formato = 3 (o máximo do esquema). Tempo: a revisão mais pesada dos dois tipos é a do roteiro

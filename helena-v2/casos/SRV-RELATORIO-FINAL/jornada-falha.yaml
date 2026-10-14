@@ -27,7 +27,7 @@ roteiro:
     - {id: E2, nome: "roteiro de treinamento (SRV-ROTEIRO-TREINAMENTO)", autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]}
     - {id: E3, nome: "convite (SRV-COPY)", autor: ISABELA, revisores: [CAIO, FUNDADOR], depende_de: [], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]}
     - {id: E4, nome: "parecer (SRV-PARECER)", autor: CLARA, revisores: [HELENA, FUNDADOR], depende_de: [E2, E3], julga: [E2, E3], internet: true, pulavel: false, acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]}
-    - {id: E5, nome: "relatório final (SRV-RELATORIO-FINAL)", autor: HELENA, revisores: [CLARA, CAIO, FUNDADOR], depende_de: [E1, E2, E3, E4], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]}
+    - {id: E5, nome: "relatório final (SRV-RELATORIO-FINAL)", autor: HELENA, revisores: [CAIO, CLARA, FUNDADOR], depende_de: [E1, E2, E3, E4], internet: false, pulavel: false, acoes_permitidas: [ENTREGAR, REGISTRAR_FALHA]}
 
 eventos:
   - {papel: HELENA, evento: LER_DE_VOLTA}

@@ -71,6 +71,29 @@ def test_vocabulario_e_fonte_unica_dos_nomes():
     assert not any(ln["evento"] == "PEDIR_SUBCARD" for lns in TABELA["linhas"].values() for ln in lns)
 
 
+def test_decisao_do_card_precisa_de_sinal_com_origem_do_fundador():
+    def conferir(tab):
+        rel = P.Relatorio()
+        P.conferir_estrutura(VOCAB, tab, P.montar(VOCAB, tab), rel)
+        return rel
+
+    rel = conferir(copy.deepcopy(TABELA))
+    assert rel.vazio(), rel.lista()
+    sem_destino = copy.deepcopy(TABELA)
+    for lig in sem_destino["ligacoes"].values():
+        if lig.get("entrega") == {"papel": "MOTOR", "evento": "DECISAO_MUDOU"}:
+            lig["para"] = [alvo for alvo in lig.get("para", []) if alvo != "card"]
+    rel = conferir(sem_destino)
+    assert any(x["regra"] == "LIGACAO" and "card" in x["mensagem"] and "DECISAO_MUDOU" in x["mensagem"] for x in rel.lista())
+    outro_emissor = copy.deepcopy(TABELA)
+    for linha in outro_emissor["linhas"]["card"]:
+        if linha["id"] == "C34":
+            linha["papel"] = "MOTOR"
+            linha["evento"] = "PLANO_VALIDO"
+    rel = conferir(outro_emissor)
+    assert any(x["regra"] == "R13" and "DECISAO_MUDOU" in x["mensagem"] for x in rel.lista())
+
+
 def test_os_21_agentes_e_o_dominio_do_revisor_vem_deles():
     agentes = VOCAB["identidades"]["agentes"]
     assert len(agentes) == 21 and len(set(agentes)) == 21 and agentes[0] == "HELENA"
@@ -515,6 +538,34 @@ def _jornada(eventos, esperado=None, **extra):
 
 INICIO = [{"papel": "HELENA", "evento": "LER_DE_VOLTA"},
           {"papel": "FUNDADOR", "evento": "RESPONDER", "params": {"opcao": "CONFIRMO"}}]
+DECISAO = [{"papel": "FUNDADOR", "evento": "PEDIR_AJUSTE", "params": {"motivo_ajuste": "ERRO_DE_FATO"}}]
+
+
+def test_ajuste_global_sem_motivo_nao_emite_decisao():
+    mc = P.montar(VOCAB, TABELA)["card"]
+    estado = list(mc.inicial())
+    estado[0] = "EM_ANDAMENTO"
+    assert mc.casar(tuple(estado), "FUNDADOR", "PEDIR_AJUSTE", {}) == []
+    assert [ln.bruta["id"] for ln in mc.casar(tuple(estado), "FUNDADOR", "PEDIR_AJUSTE",
+                                                {"motivo_ajuste": "ERRO_DE_FATO"})] == ["C34"]
+
+
+def test_ajuste_global_versao_velha_nao_gasta_ordem():
+    eventos = INICIO + [{"papel": "MOTOR", "evento": "PLANO_VALIDO"}] + DECISAO
+    antigo = dict(DECISAO[0], versao_vista="antiga")
+    r = P.replay(_jornada(eventos + [antigo], automatico=False))
+    assert r["final"]["card"]["ordens"] == 1
+    assert r["recusados"][-1]["evento"] == "FUNDADOR PEDIR_AJUSTE"
+    assert not r["violacoes"]
+
+
+def test_quarta_decisao_do_fundador_substitui_card_sem_chamada_do_motor():
+    eventos = INICIO + [{"papel": "MOTOR", "evento": "PLANO_VALIDO"}] + DECISAO * 4
+    r = P.replay(_jornada(eventos, automatico=False))
+    assert r["estado_card"] == "CANCELADO"
+    assert r["final"]["card"]["ordens"] == 3
+    assert r["final"]["cards_ligados"] == 1
+    assert not r["violacoes"]
 
 
 def _aprova(etapa, julgadora=False, **params):
@@ -649,7 +700,7 @@ def test_quarta_ordem_substitui_o_card_e_ele_nunca_fica_pronto():
 
 
 def test_decisao_nova_refaz_quem_dependia():
-    ev = INICIO + _aprova("E1") + _aprova("E2") + [{"papel": "MOTOR", "evento": "DECISAO_MUDOU"}]
+    ev = INICIO + _aprova("E1") + _aprova("E2") + DECISAO
     r = P.replay(_jornada(ev))
     assert r["etapas"]["E1"] == "EXECUTANDO" and r["etapas"]["E2"] == "EXECUTANDO"
     assert r["etapas"]["EJ"] == "AGUARDANDO_ANTERIORES" and not r["violacoes"]
@@ -678,7 +729,7 @@ def test_acao_de_entrega_reprovada_recusada_ou_velha_nunca_e_executada():
     ev = INICIO + [ent, {"papel": "MOTOR", "evento": "PORTAO1_OK", "alvo": "E1"}, {"papel": "REVISOR", "evento": "REPROVAR", "alvo": "E1"},
                    ent, {"papel": "MOTOR", "evento": "PORTAO1_RECUSOU", "alvo": "E1"},
                    ent, {"papel": "MOTOR", "evento": "PORTAO1_OK", "alvo": "E1"}, {"papel": "REVISOR", "evento": "APROVAR", "alvo": "E1"},
-                   {"papel": "MOTOR", "evento": "DECISAO_MUDOU"}]
+                   *DECISAO]
     for a in ("A1", "A2", "A3"):
         ev += [{"papel": "FUNDADOR", "evento": "APROVAR", "alvo": "acao:" + a}, {"papel": "MOTOR", "evento": "ACAO_CONCLUIDA", "alvo": "acao:" + a}]
     r = P.replay(_jornada(ev))
@@ -728,7 +779,7 @@ def test_nao_pode_resolvido_fecha_pronto_sem_o_seu_toque():
 
 def test_decisao_nova_sobre_nao_pode_fecha_pronto():
     # jornada H: 2 decisões novas; NAO_PODE; a 3ª decisão refaz tudo e a pergunta perde o objeto
-    dec = [{"papel": "MOTOR", "evento": "DECISAO_MUDOU"}]
+    dec = DECISAO
     ev = INICIO + dec * 2 + _aprova("E1") + _aprova("E2") + _aprova("EJ", parecer="NAO_PODE") + dec
     ev += _aprova("E1") + _aprova("E2") + _aprova("EJ") + _aprova("ER")
     r = P.replay(_jornada(ev))
@@ -840,7 +891,7 @@ def test_esperar_no_teto_de_ordens_abre_card_novo_e_nao_cai_no_padrao():
 def test_toque_sobre_versao_antiga_nao_aprova_a_entrega_nova():
     rev_fund = [{"papel": "AUTOR", "evento": "ENTREGAR", "alvo": "E2"},
                 {"papel": "MOTOR", "evento": "PORTAO1_OK", "alvo": "E2", "params": {"escolhido": "FUNDADOR"}}]
-    ev = INICIO + rev_fund + [{"papel": "MOTOR", "evento": "DECISAO_MUDOU"}] + rev_fund
+    ev = INICIO + rev_fund + DECISAO + rev_fund
     ev += [{"papel": "FUNDADOR", "evento": "APROVAR", "alvo": "E2", "versao_vista": "antiga"}]
     r = P.replay(_jornada(ev))
     assert r["etapas"]["E2"] == "ESPERANDO_FUNDADOR" and r["final"]["etapas"]["E2"]["motivo"] == "REVISAO"
@@ -858,10 +909,11 @@ def test_entradas_diretas_do_motor_sao_recusadas():
     assert r["etapas"]["EJ"] == "AGUARDANDO_ANTERIORES" and r["recusados"][-1]["evento"] == "MOTOR DEPENDENCIAS_PRONTAS"
     # F2, F3 e G2: decisão nova, card pronto e encerrar o card direto do motor
     ev = INICIO + _aprova("E1") + [{"papel": "MOTOR", "evento": "DECISAO_MUDOU", "alvo": "E1"}] * 10
-    ev += [{"papel": "MOTOR", "evento": "CARD_PRONTO", "alvo": "E1"}, {"papel": "MOTOR", "evento": "ENCERRAR_CARD"}]
+    ev += [{"papel": "MOTOR", "evento": "CARD_PRONTO", "alvo": "E1"}, {"papel": "MOTOR", "evento": "ENCERRAR_CARD"},
+           {"papel": "MOTOR", "evento": "DECISAO_MUDOU", "alvo": "card"}]
     r = P.replay(_jornada(ev))
     assert r["etapas"]["E1"] == "APROVADA" and r["estado_card"] == "EM_ANDAMENTO" and r["final"]["card"]["ordens"] == 0
-    assert len(r["recusados"]) == 12 and all("só por sinal" in x["motivo"] for x in r["recusados"])
+    assert len(r["recusados"]) == 13 and all("só por sinal" in x["motivo"] for x in r["recusados"])
     assert not r["violacoes"]
 
 

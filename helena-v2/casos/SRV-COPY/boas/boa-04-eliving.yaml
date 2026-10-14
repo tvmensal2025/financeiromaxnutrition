@@ -1,0 +1,102 @@
+# Caso BOM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante ELIVING (empresa BIZ-004). SINTÉTICO.
+# De onde vem: escrito à mão a partir do pedido; a 'resposta' é a saída da Isabela no formato de
+# schemas/acao.schema.json ($defs/saida_do_autor). Passa em todas as checagens (comuns e CHK-COPY-01 a 10)
+# e na rubrica (RUB-COPY-01 a 08). É o caso que EXERCITA a CHK-COPY-05, que só vale para a eLiving™ (BIZ-004).
+# Como mudar: se mudar o texto, mantenha cada frase de 'afirmacoes' igual a um trecho do texto e cada 'apoio' igual
+# a um trecho do pedido ou do pacote; depois rode o validar.py.
+id: COPY-BOA-04
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: ELIVING
+nota: 'Convite da eLiving™ (variante ELIVING, empresa BIZ-004): prova a CHK-COPY-05 (sem caloria, dieta nem app fitness);
+  o slogan oficial do pacote entra igual, os quatro pilares aparecem como personagens do produto.'
+deve_passar_em:
+- CHK-COMUM-01
+- CHK-COMUM-02
+- CHK-COMUM-03
+- CHK-COMUM-04
+- CHK-COMUM-05
+- CHK-COMUM-06
+- CHK-COMUM-07
+- CHK-COMUM-08
+- CHK-COMUM-09
+- CHK-COMUM-10
+- CHK-COPY-01
+- CHK-COPY-02
+- CHK-COPY-03
+- CHK-COPY-04
+- CHK-COPY-05
+- CHK-COPY-06
+- CHK-COPY-07
+- CHK-COPY-08
+- CHK-COPY-09
+- CHK-COPY-10
+- RUB-COPY-01
+- RUB-COPY-02
+- RUB-COPY-03
+- RUB-COPY-04
+- RUB-COPY-05
+- RUB-COPY-06
+- RUB-COPY-07
+- RUB-COPY-08
+- CARD-1
+- CARD-4
+veredito_esperado_do_revisor: APROVAR
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+  entrega:
+    onde_usar: Adultos que você conhece, por mensagem no WhatsApp. Quem ler pode responder a mensagem se tiver interesse,
+      tirar dúvidas antes de decidir ou não responder.
+    versao_final: 'Oi! Tudo bem? Estou convidando as primeiras 10 pessoas para conhecer a eLiving™. Onde sua evolução ganha
+      direção. A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor Vital (Saúde),
+      Alex (Movimento) e Rafael (Hábitos). Os quatro pilares são personagens do produto. Se tiver interesse, é só responder
+      esta mensagem e eu explico os próximos passos. Se quiser, tire suas dúvidas comigo antes de decidir. E, se não fizer
+      sentido para você agora, tudo bem não responder.'
+    alternativa_curta: Oi! Estou convidando as primeiras 10 pessoas para conhecer a eLiving™. Onde sua evolução ganha direção.
+      Se tiver interesse, responda esta mensagem e eu explico os próximos passos. Tudo bem não responder.
+    afirmacoes:
+    - id: A1
+      frase: Estou convidando as primeiras 10 pessoas para conhecer a eLiving™.
+      apoio:
+        trecho_original: Vou chamar as primeiras 10 pessoas pelo WhatsApp, todas adultas e conhecidas minhas.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A2
+      frase: Onde sua evolução ganha direção.
+      apoio:
+        trecho_original: Onde sua evolução ganha direção.
+        fonte_importada_id: FON-PACOTE-BIZ-004
+    - id: A3
+      frase: 'A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor Vital (Saúde),
+        Alex (Movimento) e Rafael (Hábitos).'
+      apoio:
+        trecho_original: 'A eLiving™ é a inteligência pessoal de evolução, com quatro pilares: Sirlene (Nutrição), Doutor
+          Vital (Saúde), Alex (Movimento) e Rafael (Hábitos).'
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A4
+      frase: Os quatro pilares são personagens do produto.
+      apoio:
+        trecho_original: Os quatro pilares são personagens do produto.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A5
+      frase: é só responder esta mensagem e eu explico os próximos passos
+      apoio:
+        trecho_original: Quem tiver interesse responde esta mensagem e eu explico os próximos passos.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    - id: A6
+      frase: tire suas dúvidas comigo antes de decidir
+      apoio:
+        trecho_original: A pessoa pode tirar dúvidas antes de decidir e pode também não responder.
+        fonte_importada_id: FON-PEDIDO-COPY-04
+    o_que_precisa_aprovacao:
+    - 'Quem assina a mensagem: o pedido não diz o seu nome, e o texto fala em primeira pessoa ("eu explico").'
+    - 'Canal de resposta: o pacote não tem número, perfil nem link confirmado, então o texto manda responder a própria mensagem
+      e não leva contato. Se quiser outro caminho, diga qual.'
+    - Enviar é ação sua, depois do parecer aprovado.
+    limites:
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'
+    - 'Plano de canais e de campanha: é da Camila.'
+    - 'Cadastro na Mimix e no Hub e o envio dos convites: são ações suas.'

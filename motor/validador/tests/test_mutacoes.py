@@ -13,6 +13,8 @@ from decimal import ROUND_UP, Decimal
 
 import pytest
 
+from spec_helena import prova
+
 import validador.enderecos as E
 import validador.execucao as EX
 import validador.expressao as EXPR
@@ -218,7 +220,7 @@ def test_mutacao_e_pega_pelo_banco(nome, aplicar, casos, monkeypatch):
     assert not sem_reacao, f"a mutação '{nome}' NÃO foi pega pelos casos {sem_reacao}: o banco está fraco aqui"
 
 
-@pytest.mark.parametrize("id_da_checagem", sorted(CHECAGENS))
+@pytest.mark.parametrize("id_da_checagem", sorted(set(CHECAGENS) - prova.ids_dos_tipos_registrados()))
 def test_desligar_uma_checagem_deixa_escapar_todos_os_defeitos_dela(id_da_checagem, monkeypatch):
     """Se a checagem X for desligada, TODO defeito que espera X passa a escapar (nenhuma outra checagem cobre o mesmo furo)."""
     seus = [d for d in DEFEITOS if d.esperado[0] == id_da_checagem]

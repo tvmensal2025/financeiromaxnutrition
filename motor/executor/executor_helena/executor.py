@@ -30,14 +30,27 @@ from .falha import MOTIVO_DO_SERVIDOR_PARA_LIMITE, Evidencias
 from .perfil import (ConfigDoExecutor, Perfil, gerar_perfil, montar_comando, nomes_visiveis_das_ferramentas,
                      resumo_do_comando)
 from .processo import ErroDeLancamento
-from .tipos import (DESCONHECIDA, ENCERRADO_POR_LIMITE, Conferencia, ErroDePerfil, Execucao, Falha, Problema,
-                    Resultado)
+from .tipos import (DESCONHECIDA, ENCERRADO_POR_LIMITE, Capacidades, Conferencia, ErroDePerfil, Execucao, Falha,
+                    Problema, Resultado)
 
 INTERVALO_DA_CONTAGEM_S = 1.0
 
 
 class Executor(ABC):
-    """Contrato de qualquer executor de agente."""
+    """Contrato de qualquer executor de agente (a "porta" entre o motor e o runtime).
+
+    São três métodos e uma declaração, todos obrigatórios (sem adivinhar por duck typing):
+      rodar      roda a execução e devolve SEMPRE um Resultado (falha de runtime vira Resultado, nunca exceção);
+      cancelar   encerra uma execução em andamento em até `capacidades.cancela_em_ate_s`;
+      limpar     apaga o que a execução deixou, DEPOIS de o motor guardar a conversa e as cópias das páginas;
+      capacidades  as garantias que o runtime assume (veja `Capacidades`).
+    Para entrar em produção, a classe precisa estar no registro (registro.py) e passar em testes/test_conformidade.py.
+    """
+
+    @property
+    @abstractmethod
+    def capacidades(self) -> Capacidades:
+        """As garantias que este runtime declara."""
 
     @abstractmethod
     def rodar(self, execucao: Execucao) -> Resultado:
@@ -46,6 +59,10 @@ class Executor(ABC):
     @abstractmethod
     def cancelar(self, id_da_execucao: str) -> bool:
         """Pede para encerrar uma execução em andamento. True se havia uma com esse id."""
+
+    @abstractmethod
+    def limpar(self, resultado: Resultado) -> None:
+        """Apaga as pastas e os arquivos da execução. Idempotente: chamar duas vezes não é erro."""
 
 
 class VigiaDeLimite:
@@ -81,6 +98,10 @@ def _ler_saida(caminho: Path) -> Optional[str]:
 
 
 class ExecutorHermes(Executor):
+    capacidades = Capacidades(
+        nome="hermes", cancela_em_ate_s=15.0, ferramentas_por_extenso=True, confere_modelo_e_provedor=True,
+        sem_reserva_escondida=True, limita_chamadas=True, falha_vem_do_registro=True, guarda_conversa=True)
+
     def __init__(self, config: ConfigDoExecutor):
         self.config = config
         self._cancelamentos: Dict[str, threading.Event] = {}

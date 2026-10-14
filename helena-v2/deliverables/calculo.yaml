@@ -172,7 +172,8 @@ checagens_codigo:
       constantes_aceitas: [100, 12, 30, 52, 365]
       ids_aceitos: "entrada existente ou conta de id menor"
       valor_das_contas_anteriores: "o exato calculado pelo código, nunca o arredondado escrito"
-      tolerancia: "meia unidade da última casa decimal escrita no resultado"
+      tolerancia: "o menor entre meia unidade da última casa decimal escrita e 5% do exato"
+      erro_relativo_maximo_pct: 5
       divisao_por_zero: "recusa"
       ids: "^K([1-9]|1[0-2])$"
   - id: CHK-CALCULO-05
@@ -226,7 +227,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["garantido", "garantida", "garantidos", "garantidas", "com certeza", "certamente", "sem dúvida", "sem risco", "risco zero", "é certo que", "lucro certo", "renda certa", "dinheiro certo", "já está no caixa", "não tem como dar errado"]
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garante", "garantia", "com certeza", "certamente", "sem dúvida", "sem a menor dúvida", "sem risco", "risco zero", "é certo que", "lucro certo", "renda certa", "dinheiro certo", "já está no caixa", "não tem como dar errado"]
       onde: "todo texto da entrega, menos trecho_original das citações"
   - id: CHK-CALCULO-11
     descricao: "Nenhum termo proibido pelo pacote da empresa do card (lista fechada do pacote, lida na hora; este arquivo não copia a lista), fora de trechos citados, sem diferenciar maiúscula nem acento."
@@ -246,8 +247,8 @@ checagens_codigo:
     fase: "fase 1"
     parametros:
       onde: ["entradas.o_que", "contas.o_que", "pergunta"]
-      palavras: ["imposto", "impostos", "tributo", "tributos", "tributação", "alíquota", "nota fiscal", "fechamento contábil", "Simples Nacional"]
-      siglas_maiusculas_palavra_inteira: ["DAS", "ISS", "ICMS", "IRPJ", "CSLL", "PIS", "COFINS", "INSS", "IOF"]
+      palavras: ["imposto", "impostos", "tributo", "tributos", "tributação", "tributária", "carga tributária", "alíquota", "nota fiscal", "fechamento contábil", "Simples Nacional", "Simples", "lucro presumido"]
+      siglas_maiusculas_palavra_inteira: ["DAS", "DARF", "IRPF", "ISS", "ISSQN", "NFS-e", "NF-e", "ICMS", "IRPJ", "CSLL", "PIS", "COFINS", "INSS", "IOF"]
       como_compara: "palavras sem diferenciar maiúscula nem acento; siglas só em maiúsculas e como palavra inteira ('das' minúsculo não conta)"
 
 rubrica:

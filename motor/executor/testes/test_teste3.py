@@ -23,16 +23,21 @@ def fichas_reais():
     """Toda ficha de helena-v2/agents, em todos os papéis que ela tem (alerta se a spec mudar)."""
     casos = []
     for caminho in sorted((V2 / "agents").glob("*.yaml")):
-        servicos = (yaml.safe_load(caminho.read_text(encoding="utf-8")) or {}).get("servicos")
+        ficha = yaml.safe_load(caminho.read_text(encoding="utf-8")) or {}
+        servicos = ficha.get("servicos")
+        # A fase em curso é a da ativação do agente: o Ravi liga na "fase 3" e só ali a ferramenta "buscar" (da "fase 4")
+        # ainda NÃO existe para ele; testar na "fase 4" daria à ficha uma ferramenta com orçamento de 0 buscas.
+        fase = ficha.get("fase_de_ativacao")
+        base = dict(fase_em_curso=fase) if fase else {}
         if isinstance(servicos, list) and len(servicos) > 1:          # ficha com 2+ serviços: um caso por serviço
             for item in servicos:
-                casos.append((f"{caminho.stem}-{item['servico']}", caminho, dict(papel="AUTOR", servico=item["servico"])))
+                casos.append((f"{caminho.stem}-{item['servico']}", caminho, dict(papel="AUTOR", servico=item["servico"], **base)))
         else:
-            casos.append((caminho.stem, caminho, dict(papel="AUTOR")))
+            casos.append((caminho.stem, caminho, dict(papel="AUTOR", **base)))
         if caminho.stem == "helena":
-            casos.append(("helena-revisor", caminho, dict(papel="REVISOR")))
-            casos.append(("helena-le-de-volta", caminho, dict(papel="COORDENACAO", evento="LER_DE_VOLTA")))
-            casos.append(("helena-recomenda", caminho, dict(papel="COORDENACAO", evento="RECOMENDAR")))
+            casos.append(("helena-revisor", caminho, dict(papel="REVISOR", **base)))
+            casos.append(("helena-le-de-volta", caminho, dict(papel="COORDENACAO", evento="LER_DE_VOLTA", **base)))
+            casos.append(("helena-recomenda", caminho, dict(papel="COORDENACAO", evento="RECOMENDAR", **base)))
     return casos
 
 

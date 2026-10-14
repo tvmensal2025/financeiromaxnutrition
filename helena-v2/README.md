@@ -11,10 +11,10 @@ Nunca copie uma regra para outro lugar: se mudou, muda aqui. O plano que esta pa
 | `servicos.yaml` | O catálogo: cada serviço com um dono, revisor, reserva, ações permitidas e ferramentas |
 | `organograma.yaml` | Os 21 agentes em grupos, atendendo as 4 empresas |
 | `models.yaml` | Apelidos dos modelos de IA, sem modelo reserva |
-| `agents/` | Uma ficha por agente (7 prontas na v3.1; as outras são pendência) |
+| `agents/` | Uma ficha por agente (8 prontas na v3.1: as dos 5 agentes do primeiro card mais Augusto, Laura e Marina; as outras 13 são pendência) |
 | `deliverables/` | Um formato por tipo de entrega: seções, checagens por código (CHK-...), rubrica (RUB-...), critério de pronto |
 | `casos/` | Por serviço: o pedido, casos bons, defeitos plantados e as jornadas de ponta a ponta |
-| `playbooks/` | Roteiros de metas (o das 10 pessoas ainda está no formato da v1: pendência) |
+| `playbooks/` | Roteiros de metas (o das 10 pessoas já está na v3.1) |
 | `schemas/` | Os formatos (JSON Schema) que fichas, entregas, ações, cards e roteiros precisam seguir |
 | `validar.py` | O conferente: 71 regras; cada uma tem teste de mutação em `test_validar.py` |
 | `PENDENCIAS.yaml` | Problemas reais já sabidos, com o motivo; aparecem como PENDENTE e não falham |

@@ -1,5 +1,5 @@
 # Tipo de entrega: relatorio_final (v3.1). Formato: schemas/entrega.schema.json.
-# Dono: HELENA. Serviço: SRV-RELATORIO-FINAL (servicos.yaml). Revisora titular: CLARA; reserva: CAIO;
+# Dono: HELENA. Serviço: SRV-RELATORIO-FINAL (servicos.yaml). Revisor titular: CAIO; reserva: CLARA;
 # você é sempre a última reserva (MAT-03). Substitui o bloco 'relatorio_final' de entregas.yaml.
 #
 # O relatório tem DUAS partes (MEL-30 corrigida; plano v3, "O relatório do card"):
@@ -117,9 +117,9 @@ checagens_codigo:
     fase: "fase 1"
     parametros:
       colunas: [frase, passo]
-      termos: ["tudo certo", "tudo resolvido", "tudo pronto para agir", "sem riscos", "sem nenhum risco",
-               "risco zero", "zero furo", "100% seguro", "totalmente seguro",
-               "pode agir sem ler", "sem pendências", "nada a conferir"]
+      termos: ["tudo certo", "tudo resolvido", "tudo pronto para agir", "tudo ok", "sem riscos", "sem risco", "sem nenhum risco", "nenhum risco",
+               "risco zero", "zero furo", "zero furos", "100% seguro", "cem por cento seguro", "totalmente seguro", "completamente seguro",
+               "pode agir sem ler", "sem pendências", "sem pendência", "nada a conferir", "nada para conferir"]
       sem_diferenca_de_maiusculas: true
   - id: CHK-REL-PACOTE
     descricao: >-
@@ -152,10 +152,13 @@ checagens_codigo:
   - id: CHK-REL-RISCO-ALTO-NO-RESUMO
     descricao: >-
       Para cada etapa que a parte montada pelo código traz com risco ALTO, pergunta aberta ou item
-      sem conferir, pelo menos uma linha do resumo tem essa etapa nas refs.
+      sem conferir, pelo menos uma linha com conteúdo do resumo tem essa etapa nas refs.
     fecha_furos: [C-13]
     gravidade: RECUSA
     fase: "fase 2"
+    parametros:
+      min_palavras_com_conteudo: 2
+      min_letras_palavra: 4
   - id: CHK-REL-SEM-ACAO-NOVA
     descricao: >-
       Linha com verbo de ação de fora (lista fechada) precisa ter nas refs um AF- de etapa aprovada
@@ -182,15 +185,17 @@ checagens_codigo:
         - '\bcontrat(ar|e|em|ando|ad[oa]s?)\b'
         - '\bassin(ar|e|em|ando|ad[oa]s?)\b'
         - '\brenov(ar|e|em|ad[oa]s?)\b'
-        - '\blig(ar|ue|uem) para\b'
+        - '\blig(ar|ue|uem) (?:para|pra)\b|\btelefon(ar|e|em|ando)\b'
         - '\bcontat(ar|e|em|ando|ad[oa]s?)\b'
         - '\bconvid(ar|e|em|ad[oa]s?)\b'
         - '\babord(ar|e|em|ad[oa]s?)\b'
         - '\bnegoci(ar|e|em)\b'
         - '\bcolo(car|que) no ar\b|\bdeix(ar|e) no ar\b'
         - '\brespond(er|a|am)\b (ao|à|aos|às) (cliente|participante|pessoa)'
+        - '\b(envio|publicacao|pagamento|disparo|contratacao|transferencia)\b'
+        - '\b(pix|mandado|mandada|transferido|transferida|chame|chamar|compartilhe|compartilhar|send|post)\b|^\s*manda\b'
 
-# Rubrica do portão 2 (revisora: Clara; reserva: Caio). Só julgamento que o código não confere.
+# Rubrica do portão 2 (revisor: Caio; reserva: Clara). Só julgamento que o código não confere.
 # Nenhum critério depende de lei (quem julga lei é só o parecer; MAT-22). Nenhum reavalia mérito.
 rubrica:
   - id: RUB-REL-01
@@ -248,7 +253,7 @@ revisor_confere:
   - "Revisa sem internet e sem ferramenta, com revisao-padrao; o código entrega as entregas aprovadas citadas nas refs."
 
 revisor_nao_reavalia:
-  - "O mérito de nenhuma entrega aprovada, inclusive a do próprio revisor (a Clara fez o parecer; o Caio, reserva, fez o cálculo): entrega aprovada não volta a ser julgada no relatório."
+  - "O mérito de nenhuma entrega aprovada, inclusive a do próprio revisor (o Caio fez o cálculo; a Clara, reserva, fez o parecer): entrega aprovada não volta a ser julgada no relatório."
   - "A parte montada pelo código (entregas aprovadas, números, riscos, perguntas, fontes, as ações do fundador das etapas aprovadas e os passos fixos do roteiro): ninguém a reescreve."
   - "Lei ou risco jurídico: quem julga lei é só o parecer (MAT-22)."
   - "As contas: o código já refez cada conta na etapa do cálculo; o revisor do relatório só confere que o número citado é o da entrega."

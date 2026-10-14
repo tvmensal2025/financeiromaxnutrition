@@ -82,7 +82,7 @@ def _abre_rodada_nova(p):
         return False
     if ev.papel == FUNDADOR:
         return ev.evento == "PEDIR_AJUSTE" or (ev.evento == "RESPONDER" and ev.params.get("opcao") in ORDENS_QUE_REABREM)
-    return ev.papel == "MOTOR" and ev.evento == "DECISAO_MUDOU"
+    return False
 
 
 # ----------------------------------------------------------------------------- 1. regra 5
@@ -210,7 +210,7 @@ def pronto_sem_informacao_velha(p):
                 if not _satisfaz(d.etapas[dep]):
                     msgs.append(f"etapa {e.id} em {e.estado} sobre a anterior {dep}, que está em {d.etapas[dep].estado}")
     ev = p.evento
-    if ev.papel == "MOTOR" and ev.evento == "DECISAO_MUDOU" and ev.alvo == "card" and p.resposta.aceito:
+    if ev.papel == FUNDADOR and ev.evento == "PEDIR_AJUSTE" and ev.alvo == "card" and p.resposta.aceito:
         for i, antes in p.antes.etapas.items():
             if antes.estado == "APROVADA" and p.roteiro.etapa(i).usa_decisao and d.etapas[i].estado == "APROVADA":
                 msgs.append(f"etapa {i} continuou APROVADA depois de a decisão mudar")

@@ -1,0 +1,65 @@
+# Caso RUIM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante REDES. SINTÉTICO.
+# Igual a boa-02-redes.yaml, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU). Como mudar: troque só o trecho do defeito; o resto
+# tem de continuar igual à boa de origem.
+id: COPY-RUIM-06
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: REDES
+derivado_de: ../boas/boa-02-redes.yaml
+defeito_plantado: Acrescenta na versão final 'O perfil é @exemplo_humano.' (perfil que ninguém informou).
+deve_falhar_em: CHK-COPY-06
+portao: 1 (código)
+motivo_esperado: '@usuário que não está no pedido nem no pacote.'
+passa_nas_demais: 'sim: todas as outras checagens comuns e CHK-COPY-01 a 10'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+  entrega:
+    onde_usar: Seguidores da Humano Digital nas redes sociais. Quem ler pode mandar uma mensagem direta se tiver interesse,
+      tirar dúvidas antes de decidir ou apenas não responder.
+    versao_final: 'Convite da Humano Digital. Estamos na primeira rodada de convites, para 10 pessoas. A Humano Digital conecta
+      pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. Como funciona: a pessoa grava
+      atividades do dia a dia no celular e a plataforma avalia as gravações. Ficou com vontade de saber mais? Mande uma mensagem
+      direta para a Humano Digital. O perfil é @exemplo_humano. Você pode tirar dúvidas antes de decidir, e tudo bem se preferir
+      não responder.'
+    alternativa_curta: 'Convite da Humano Digital: primeira rodada de convites, para 10 pessoas. Quem tiver interesse, mande
+      uma mensagem direta para a Humano Digital e tire suas dúvidas antes de decidir. Tudo bem não responder.'
+    afirmacoes:
+    - id: A1
+      frase: Estamos na primeira rodada de convites, para 10 pessoas.
+      apoio:
+        trecho_original: Esta é a primeira rodada de convites, para 10 pessoas.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A2
+      frase: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no
+        Hub.
+      apoio:
+        trecho_original: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na
+          Mimix e no Hub.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A3
+      frase: a pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações
+      apoio:
+        trecho_original: A pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A4
+      frase: Mande uma mensagem direta para a Humano Digital
+      apoio:
+        trecho_original: Quem tiver interesse manda uma mensagem direta para a Humano Digital.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    - id: A5
+      frase: Você pode tirar dúvidas antes de decidir
+      apoio:
+        trecho_original: A pessoa pode tirar dúvidas antes de decidir e pode também não responder.
+        fonte_importada_id: FON-PEDIDO-COPY-02
+    o_que_precisa_aprovacao:
+    - 'Qual perfil publica o convite: o pacote não traz perfil oficial confirmado, então o texto não leva nome de usuário
+      nem link e manda responder por mensagem direta.'
+    - 'Data e horário da publicação: o pedido não diz. Publicar é ação sua, depois do parecer aprovado.'
+    limites:
+    - 'Imagem do post e escolha de rede: ficam fora; plano de canais é da Camila.'
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'

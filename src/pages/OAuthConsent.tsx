@@ -164,7 +164,7 @@ export default function OAuthConsent() {
   // Usuário autenticado mas sem app_access ativo
   if (!authLoading && user && (!appAccess || !appAccess.active)) {
     return (
-      <div className="flex min-h-screen w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
+      <div className="he-oauth-shell flex min-h-[100dvh] w-full flex-col items-center justify-center p-4 bg-[#F7F8F7] dark:bg-[#101312] text-foreground">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center space-y-4 shadow-sm">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
             <ShieldAlert className="h-6 w-6" />
@@ -250,7 +250,7 @@ export default function OAuthConsent() {
   // Estado 1: Carregamento
   if (authLoading || detailsLoading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground p-4">
+      <div className="he-oauth-shell flex min-h-[100dvh] flex-col items-center justify-center space-y-3 bg-[#F7F8F7] dark:bg-[#101312] text-foreground p-4">
         <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#007A3D] text-white font-bold text-xl shadow-sm animate-pulse">
           H
         </div>
@@ -264,7 +264,7 @@ export default function OAuthConsent() {
   // Estado 2: Erro / Parâmetro inválido
   if (errorMsg && !authDetails) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
+      <div className="he-oauth-shell min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
         <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 sm:p-9 text-center space-y-5 shadow-sm">
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#f87171]">
             <ShieldAlert className="h-6 w-6" />
@@ -300,7 +300,7 @@ export default function OAuthConsent() {
   const clientLogo = authDetails?.client?.logo_uri;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
+    <div className="he-oauth-shell min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-[#F7F8F7] dark:bg-[#101312] antialiased">
       <div className="w-full max-w-[480px]">
         {/* Card Executivo de Consentimento */}
         <div

@@ -20,7 +20,7 @@ from .decisao import decidir
 from .executor import Executor
 from .falha import Evidencias
 from .provedor_falso import TEXTO_FORMATO_ERRADO, TEXTO_PADRAO, Simulacao
-from .tipos import (ENCERRADO_POR_CANCELAMENTO, ENCERRADO_POR_LIMITE, ENCERRADO_POR_TEMPO, Conferencia, Execucao,
+from .tipos import (ENCERRADO_POR_CANCELAMENTO, ENCERRADO_POR_LIMITE, ENCERRADO_POR_TEMPO, Capacidades, Conferencia, Execucao,
                     Resultado)
 from .uso import ErroDoProvedor, Sessao, ferramentas_listadas, montar_registro_de_uso
 
@@ -56,6 +56,14 @@ def _sessao(modelo: str, texto: str, *, vazia: bool = False, fim: str = "stop", 
 
 
 class ExecutorFalso(Executor):
+    """Executor de mentira: segue um Roteiro, sem processo nenhum. Só para teste; o motor de produção o recusa."""
+    capacidades = Capacidades(
+        nome="falso", cancela_em_ate_s=15.0, ferramentas_por_extenso=True, confere_modelo_e_provedor=True,
+        sem_reserva_escondida=True, limita_chamadas=True, falha_vem_do_registro=True, guarda_conversa=True)
+
+    def limpar(self, resultado: Resultado) -> None:
+        """Não há pasta nem processo para apagar."""
+
     def __init__(self, roteiros: Union[Roteiro, Sequence[Roteiro], Callable[[Execucao], Roteiro]] = Roteiro()):
         self._roteiros = [roteiros] if isinstance(roteiros, Roteiro) else roteiros
         self._posicao = 0

@@ -1,0 +1,47 @@
+# Caso BOM do SRV-DOSSIE (Ravi, AGT-11) para o pedido ../pedido.yaml.
+# O QUE É: a resposta certa do Ravi, no formato de schemas/acao.schema.json ($defs/saida_do_autor). Tem de passar em
+# todas as checagens do tipo (deliverables/dossie.yaml) e na rubrica. Caso SINTÉTICO: texto da página inventado (fitas/).
+# COMO MUDAR: se mudar o texto da página, mude a fita e todo trecho_original que a cita; 'leituras_feitas' é o registro
+# de uso da ler_pagina nesta execução (as fitas que o motor devolveu).
+id: DOSSIE-BOA-02
+servico: SRV-DOSSIE
+pedido: ../pedido.yaml
+variante: V-SO-LACUNA
+nota: 'Variante V-SO-LACUNA: a página lida inteira não trata do assunto pedido. Entrega só a lacuna, com os termos procurados,
+  em vez de inventar fato.'
+deve_passar_em:
+- CHK-DOSSIE-FORMA
+- CHK-DOSSIE-ENTIDADE
+- CHK-DOSSIE-FATOS
+- CHK-DOSSIE-SEPARACAO
+- CHK-DOSSIE-LACUNAS
+- CHK-DOSSIE-AUSENCIA
+- CHK-DOSSIE-SEM-PROMESSA-DE-RENDA
+- CHK-DOSSIE-SEM-ACAO-EXTERNA
+- RUB-DOSSIE-01
+- RUB-DOSSIE-02
+- RUB-DOSSIE-03
+- RUB-DOSSIE-04
+- RUB-DOSSIE-05
+- RUB-DOSSIE-06
+veredito_esperado_do_revisor: APROVAR
+usou_internet: SIM
+leituras_feitas:
+- fitas/01-termos-parte-1.yaml
+- fitas/02-termos-parte-2.yaml
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    entidade:
+    - nome: Mimix
+      tipo: PLATAFORMA
+      pergunta: O que os termos da Mimix dizem sobre reembolso de equipamento, como celular e microfone?
+    lacunas:
+    - id: L1
+      o_que_falta: 'Se a Mimix reembolsa equipamento, como celular ou microfone: os termos lidos não tratam desse assunto.'
+      documento_que_falta: Política de equipamentos ou de reembolso da Mimix, se houver
+      onde_procurar: Central de ajuda da Mimix, seção Equipamentos, e perguntas frequentes do aplicativo
+      termos_procurados: reembolso, equipamento, celular, microfone

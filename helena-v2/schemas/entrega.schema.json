@@ -231,6 +231,14 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 200
+              },
+              "obrigatoria": {
+                "type": "boolean",
+                "description": "Falso = a coluna pode faltar na linha (o validador não recusa a falta). Sem o campo, a coluna é obrigatória. Se vier, o formato dela continua valendo."
+              },
+              "apoiada_por_citacao": {
+                "type": "boolean",
+                "description": "Verdadeiro = o texto desta coluna é uma afirmação que a citação da mesma linha sustenta: CHK-COMUM-06 exige que os dois tenham ao menos uma palavra em comum. Tabela sem nenhuma coluna assim é só índice ou exemplo e não passa por essa conferência (a falta da citação, o trecho e o site continuam conferidos)."
               }
             }
           }

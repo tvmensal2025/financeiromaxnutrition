@@ -18,6 +18,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/decisoes/DEC-027-troca-das-chaves-no-fim-dos-testes.md` | DEC-027 — Troca das chaves de acesso ao banco: no fim dos testes | 10/10/2026 |
 | `docs/decisoes/DEC-028-desligar-a-central-da-v1.md` | DEC-028 — Desligar a central da v1 (URA de clientes e ligações por IA) | 10/10/2026 |
 | `docs/decisoes/DEC-029-codigos-das-empresas.md` | DEC-029 — Códigos oficiais das empresas | 10/10/2026 |
+| `docs/decisoes/DEC-030-revisor-do-relatorio-final-caio.md` | DEC-030 — Revisor do relatório final: o Caio | 11/10/2026 |
 | `docs/decisoes/README.md` | Decisões | 10/10/2026 |
 
 ## Manual (guias em vigor)
@@ -26,6 +27,10 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 |---|---|---|
 | `docs/manual/agentes-v1.md` | Agentes do Sistema Helena — contrato operacional | 06/10/2026 |
 | `docs/manual/comando-mestre.txt` | COMANDO MESTRE — CARREGAR, VALIDAR E AUDITAR O SISTEMA HELENA | 30/09/2026 |
+| `docs/manual/como-mudar.md` | Como mudar o Sistema Helena sem quebrar | 14/10/2026 |
+| `docs/manual/dia-de-prova.md` | Dia de prova da v2 — roteiro ainda não executado (espera a frase exata do fundador) | 14/10/2026 |
+| `docs/manual/dia-de-prova-evidencias.csv` | Planilha de evidências do dia de prova (sem token, sem dado pessoal) | 14/10/2026 |
+| `docs/manual/proximos-passos-do-primeiro-card.md` | Próximos passos do primeiro card — em detalhe | 13/10/2026 |
 | `docs/manual/design-premium.md` | 🎨 Guia de Design Premium | 30/09/2026 |
 | `docs/manual/diretriz-missao-cumprida.md` | Sistema Helena — Diretriz Operacional Suprema | 06/10/2026 |
 | `docs/manual/padrao-criativo-multiempresa.md` | Padrão criativo multiempresa — versão 2 | 30/09/2026 |
@@ -54,6 +59,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 
 | Arquivo | O que é | Data |
 |---|---|---|
+| `docs/auditoria/ATAQUES-2026-10-11.md` | Ataques independentes de 11/10/2026 (resultado parcial) | 11/10/2026 |
 | `docs/auditoria/AUDITORIA-2026-09-26.md` | Helena-HUB — validação inicial do Sistema Helena | 26/09/2026 |
 | `docs/auditoria/AUDITORIA-2026-10-10.md` | Auditoria — 10/10/2026 | 10/10/2026 |
 
@@ -167,12 +173,17 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | Arquivo | O que é | Data |
 |---|---|---|
 | `docs/arquivo/LEIA.md` | Arquivo | 10/10/2026 |
+| `docs/arquivo/handoff-ate-20261013-387d1d4.md` | Handoff integral anterior ao bloco 0 | 13/10/2026 |
+| `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` | Receita de reversão visual seletiva, preparada e ensaiada em cópia | 13/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.md` | Sistema Helena — Checkpoint Mestre de continuidade de 01/10/2026 | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261001.snapshot.json` | dados (JSON): schema_version, prepared_at, observed_at, project | 01/10/2026 |
 | `docs/arquivo/checkpoints/checkpoint-mestre-20261007.md` | Checkpoint Mestre V036 — 07/10/2026 | 07/10/2026 |
+| `docs/arquivo/ataques-validador-20261011.tar.gz` | pacote compactado (scripts de ataque ao validador) | 11/10/2026 |
 | `docs/arquivo/duplicados/continuidade-helena-20261001.zip` | pacote zip | 01/10/2026 |
 | `docs/arquivo/duplicados/kokoro-tts-documentacao-oficial.md` | 🎙️ Guia Oficial de Conexão e Vozes: Kokoro Neural TTS (Instância Canônica) | 30/09/2026 |
 | `docs/arquivo/helena-v2-v1/entregas.yaml` | dados (YAML) | 08/10/2026 |
+| `docs/arquivo/helena-v2-v1/ravi-ficha-v2-antiga.yaml` | ficha do Ravi no formato antigo (YAML) | 08/10/2026 |
+| `docs/arquivo/helena-v2-v1/recrutar-10-pessoas-v1.yaml` | roteiro das 10 pessoas no formato antigo (YAML) | 08/10/2026 |
 | `docs/arquivo/pacote-plano-v3/leia-primeiro.md` | Sistema Helena: pacote para continuar o trabalho | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/diagramas/arquitetura.jsx` | código do diagrama | 09/10/2026 |
 | `docs/arquivo/pacote-plano-v3/diagramas/card-v3.jsx` | código do diagrama | 09/10/2026 |

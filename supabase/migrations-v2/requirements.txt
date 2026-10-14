@@ -1,0 +1,7 @@
+# O que é: as peças que os testes do banco da v2 precisam (versões fixas, para o resultado ser sempre o mesmo).
+# De onde vem: pyyaml, jsonschema e pytest são as mesmas versões de helena-v2/requirements.txt; psycopg fala com o PostgreSQL.
+# Como mudar: troque o número da versão aqui e rode `python -m pytest` nesta pasta.
+pyyaml==6.0.3
+jsonschema==4.26.0
+psycopg[binary]==3.3.6
+pytest==9.1.1

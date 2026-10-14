@@ -1,5 +1,5 @@
 import { diaSaoPaulo } from "@/lib/comando";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -76,6 +76,10 @@ export default function ExecucaoPage() {
   const [erro, setErro] = useState<{ mensagem: string; isAuth: boolean; codigo?: string } | null>(null);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<string>("");
   const [atualizandoManual, setAtualizandoManual] = useState(false);
+  const [empresaConsultada, setEmpresaConsultada] = useState<string | null>(null);
+  const consultaAtual = useRef(0);
+  const empresaAtual = useRef(currentBusinessId);
+  empresaAtual.current = currentBusinessId;
 
   // Dados brutos do Supabase
   const [dadosBrutos, setDadosBrutos] = useState<{
@@ -129,15 +133,22 @@ export default function ExecucaoPage() {
 
   // Carregamento de dados com tratamento estrito de 401/403
   const buscarDados = async (ehManual = false) => {
+    const consulta = ++consultaAtual.current;
+    const empresaDaConsulta = currentBusinessId;
+    setCarregando(true);
     if (ehManual) setAtualizandoManual(true);
-    else setCarregando(true);
     setErro(null);
 
     try {
       const res = await carregarDadosCentralExecucao();
+      if (consulta !== consultaAtual.current || empresaDaConsulta !== empresaAtual.current) return;
       if (!res.sucesso) {
+        setDadosBrutos({ agentes: [], conexoes: [], projetos: [], marcos: [], tarefas: [], handoffs: [], auditorias: [], memoria: [], riscos: [], decisoes: [], portfolio: [] });
+        setTarefaSelecionada(null);
+        setAgenteSelecionado(null);
+        setHandoffSelecionado(null);
         setErro({
-          mensagem: res.erroMensagem,
+          mensagem: res.isAuthError ? "Sua sessão não tem acesso à Central de Execução. Entre novamente ou tente atualizar." : "Não foi possível consultar a Central de Execução. Tente atualizar.",
           isAuth: res.isAuthError,
           codigo: res.codigoErro,
         });
@@ -159,20 +170,33 @@ export default function ExecucaoPage() {
           new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
         );
       }
-    } catch (e: any) {
+      setEmpresaConsultada(empresaDaConsulta);
+    } catch {
+      if (consulta !== consultaAtual.current || empresaDaConsulta !== empresaAtual.current) return;
+      setDadosBrutos({ agentes: [], conexoes: [], projetos: [], marcos: [], tarefas: [], handoffs: [], auditorias: [], memoria: [], riscos: [], decisoes: [], portfolio: [] });
+      setTarefaSelecionada(null);
+      setAgenteSelecionado(null);
+      setHandoffSelecionado(null);
       setErro({
-        mensagem: e?.message || "Falha ao consultar dados do Supabase.",
+        mensagem: "Não foi possível consultar a Central de Execução. Tente atualizar.",
         isAuth: false,
       });
+      setEmpresaConsultada(empresaDaConsulta);
     } finally {
-      setCarregando(false);
-      setAtualizandoManual(false);
+      if (consulta === consultaAtual.current && empresaDaConsulta === empresaAtual.current) {
+        setCarregando(false);
+        setAtualizandoManual(false);
+      }
     }
   };
 
   useEffect(() => {
+    setTarefaSelecionada(null);
+    setAgenteSelecionado(null);
+    setHandoffSelecionado(null);
     buscarDados();
-  }, []);
+    return () => { consultaAtual.current += 1; };
+  }, [currentBusinessId]);
 
   // -------------------------------------------------------------
   // APLICAÇÃO DOS FILTROS GLOBAIS
@@ -282,7 +306,7 @@ export default function ExecucaoPage() {
       return false;
     }).length;
 
-    const totalAgentes = dadosBrutos.agentes.length || 21;
+    const totalAgentes = dadosBrutos.agentes.length;
     const agentesSemAtividade = Math.max(0, totalAgentes - agentesComAtividade);
 
     return {
@@ -453,7 +477,7 @@ export default function ExecucaoPage() {
         missao: ag.missao,
         quando_ativar: ag.quando_ativar,
         area: obterAreaAgente(ag.agent_id),
-        provider: conn?.provider || (ag.agent_id === "AGT-01" ? "CHATGPT" : "GROK"),
+        provider: conn?.provider || "OTHER",
         connection_status: conn?.connection_status || "UNKNOWN",
         capabilities: conn?.capabilities || [],
         status_visual: statusVisual,
@@ -592,21 +616,7 @@ export default function ExecucaoPage() {
       }
     });
 
-    // 2. Decisão da Helena
-    if (empresaVisivel("BIZ-002", filtros.empresaId)) lista.push({
-      id: "DEC_HELENA_WIP",
-      categoria: "DECISAO_HELENA",
-      titulo: "Governança: Enquadramento de PRJ-0002 no Foco Executivo (WIP)",
-      descricao:
-        "PRJ-0002 (ids-max) está em execução técnica; Helena deve avaliar enquadramento formal no WIP e validação de prazos propostos.",
-      responsavel: "Helena (AGT-01)",
-      projeto: "PRJ-0002",
-      empresa: "BIZ-002",
-      impacto: "MÉDIO",
-      acao_necessaria: "Validar prazos das tarefas TSK-0012 a TSK-0026.",
-    });
-
-    // 3. Bloqueios de Agentes
+    // 2. Bloqueios de Agentes
     tarefasFiltradas.forEach((t) => {
       if (
         isTarefaBloqueada(t) &&
@@ -629,7 +639,7 @@ export default function ExecucaoPage() {
       }
     });
 
-    // 4. Riscos Críticos
+    // 3. Riscos Críticos
     dadosBrutos.riscos.forEach((r) => {
       if (empresaVisivel(r.business_id, filtros.empresaId) && r.status === "ABERTO" && (r.impacto === "ALTO" || r.impacto === "CRÍTICO")) {
         lista.push({
@@ -680,6 +690,10 @@ export default function ExecucaoPage() {
   }, [tarefasFiltradas, handoffsFiltrados]);
 
   // Se houver erro de permissão / 401 / 403, renderiza explicitamente o erro sem mascarar
+  if (empresaConsultada !== currentBusinessId || carregando) {
+    return <ExecutiveLoadingState message="Consultando agentes e dados da Central de Execução…" />;
+  }
+
   if (erro) {
     return (
       <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
@@ -708,7 +722,7 @@ export default function ExecucaoPage() {
                 Sua sessão não possui autorização ou o token de acesso expirou.
               </p>
               <p className="text-[11px] font-mono text-[#B91C1C] mt-2">
-                Detalhe técnico: {erro.mensagem}
+                {erro.mensagem}
               </p>
             </div>
             <div className="pt-2 flex items-center justify-center gap-3">
@@ -739,10 +753,6 @@ export default function ExecucaoPage() {
         )}
       </div>
     );
-  }
-
-  if (carregando) {
-    return <ExecutiveLoadingState message="Conectando aos 21 agentes e sincronizando dados da Central de Execução…" />;
   }
 
   return (
@@ -878,7 +888,7 @@ export default function ExecucaoPage() {
               onChange={(e) => setFiltros((prev) => ({ ...prev, agenteId: e.target.value }))}
               className="w-full text-xs rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[#007A3D]"
             >
-              <option value="TODOS">Todos os 21 Agentes</option>
+              <option value="TODOS">Todos os agentes</option>
               {dadosBrutos.agentes.map((ag) => (
                 <option key={ag.agent_id} value={ag.agent_id}>
                   {ag.agent_id} · {ag.agente}
@@ -1047,7 +1057,7 @@ export default function ExecucaoPage() {
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {indicadores.agentes_com_atividade_hoje}
               </span>
-              <span className="text-xs text-muted-foreground font-mono">/ 21</span>
+              <span className="text-xs text-muted-foreground font-mono">/ {dadosBrutos.agentes.length}</span>
             </div>
             <span className="text-[10px] text-muted-foreground">Atividade registrada</span>
           </div>
@@ -1061,7 +1071,7 @@ export default function ExecucaoPage() {
               <span className="text-2xl font-bold tracking-tight text-foreground">
                 {indicadores.agentes_sem_atividade}
               </span>
-              <span className="text-xs text-muted-foreground font-mono">/ 21</span>
+              <span className="text-xs text-muted-foreground font-mono">/ {dadosBrutos.agentes.length}</span>
             </div>
             <span className="text-[10px] text-muted-foreground">Sem atividade registrada</span>
           </div>
@@ -1435,7 +1445,7 @@ export default function ExecucaoPage() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              4. Equipe Digital (21 Especialistas de IA)
+              4. Equipe Digital ({dadosBrutos.agentes.length} agentes cadastrados)
             </h2>
             <p className="text-xs text-muted-foreground">
               Perfis cadastrados. Clique no agente para inspecionar tarefas e passagens registradas; cadastro não comprova execução ativa.
@@ -1844,7 +1854,7 @@ export default function ExecucaoPage() {
                   Conexão
                 </span>
                 <span className="text-foreground font-mono">
-                  {agenteSelecionado.provider} · {agenteSelecionado.connection_status}
+                  {agenteSelecionado.provider === "OTHER" ? "Provedor não informado" : agenteSelecionado.provider} · {agenteSelecionado.connection_status}
                 </span>
               </div>
               <div>

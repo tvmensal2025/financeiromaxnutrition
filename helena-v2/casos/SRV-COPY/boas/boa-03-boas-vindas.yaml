@@ -1,0 +1,86 @@
+# Caso BOM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml, variante BOAS-VINDAS. SINTÉTICO.
+# De onde vem: escrito à mão a partir do pedido; a 'resposta' é a saída da Isabela no formato de
+# schemas/acao.schema.json ($defs/saida_do_autor). Passa em todas as checagens (comuns e CHK-COPY-01 a 10)
+# e na rubrica (RUB-COPY-01 a 08). Como mudar: se mudar o texto, mantenha cada frase de 'afirmacoes' igual
+# a um trecho do texto e cada 'apoio' igual a um trecho do pedido; depois rode o validar.py.
+id: COPY-BOA-03
+servico: SRV-COPY
+pedido: ../pedido.yaml
+variante: BOAS-VINDAS
+nota: 'Mensagem de boas-vindas (variante BOAS-VINDAS): o fundador ainda não vai usar, então acao_externa NENHUMA.'
+deve_passar_em:
+- CHK-COMUM-01
+- CHK-COMUM-02
+- CHK-COMUM-03
+- CHK-COMUM-04
+- CHK-COMUM-05
+- CHK-COMUM-06
+- CHK-COMUM-07
+- CHK-COMUM-08
+- CHK-COMUM-09
+- CHK-COMUM-10
+- CHK-COPY-01
+- CHK-COPY-02
+- CHK-COPY-03
+- CHK-COPY-04
+- CHK-COPY-05
+- CHK-COPY-06
+- CHK-COPY-07
+- CHK-COPY-08
+- CHK-COPY-09
+- CHK-COPY-10
+- RUB-COPY-01
+- RUB-COPY-02
+- RUB-COPY-03
+- RUB-COPY-04
+- RUB-COPY-05
+- RUB-COPY-06
+- RUB-COPY-07
+- RUB-COPY-08
+- CARD-1
+- CARD-4
+veredito_esperado_do_revisor: APROVAR
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    onde_usar: Quem aceitou o convite da Humano Digital, por mensagem no WhatsApp, na mesma conversa da resposta. Quem ler
+      pode chamar você ali se tiver dúvidas.
+    versao_final: Que bom ter você por aqui! Agradeço por ter respondido ao convite da Humano Digital. A Humano Digital conecta
+      pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. O primeiro passo é uma conversa
+      comigo, para eu explicar como funciona. Na prática, você grava atividades do dia a dia no celular e a plataforma avalia
+      as gravações. Se tiver dúvidas, pode me chamar nesta mesma conversa.
+    alternativa_curta: Que bom ter você por aqui! Agradeço por ter respondido ao convite da Humano Digital. O primeiro passo
+      é uma conversa comigo, para eu explicar como funciona. Se tiver dúvidas, pode me chamar nesta mesma conversa.
+    afirmacoes:
+    - id: A1
+      frase: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no
+        Hub.
+      apoio:
+        trecho_original: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na
+          Mimix e no Hub.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A2
+      frase: O primeiro passo é uma conversa comigo, para eu explicar como funciona.
+      apoio:
+        trecho_original: O primeiro passo é eu conversar com a pessoa e explicar como funciona.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A3
+      frase: você grava atividades do dia a dia no celular e a plataforma avalia as gravações
+      apoio:
+        trecho_original: A pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    - id: A4
+      frase: pode me chamar nesta mesma conversa
+      apoio:
+        trecho_original: Se tiver dúvidas, a pessoa pode me chamar nesta mesma conversa.
+        fonte_importada_id: FON-PEDIDO-COPY-03
+    o_que_precisa_aprovacao:
+    - 'Quem assina a mensagem: o pedido não diz o seu nome, e o texto fala em primeira pessoa ("comigo").'
+    - 'Se e quando usar: você disse que ainda não vai usar, então nenhuma ação sua foi proposta. Enviar é ação sua, depois
+      do parecer aprovado.'
+    limites:
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'
+    - 'Cadastro na Mimix e no Hub: é ação sua.'

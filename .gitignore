@@ -48,3 +48,4 @@ secrets/
 *.png
 public/audios/
 audios/
+.claude/

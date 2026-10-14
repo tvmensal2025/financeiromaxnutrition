@@ -55,9 +55,9 @@ secoes:
     descricao: "Um passo por linha, na ordem em que a pessoa faz, cada um com UMA ação. Tela, botão, prazo ou regra da plataforma só com o trecho de apoio."
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "P1, P2, P3... em ordem, sem pular nem repetir."}
-      - {id: o_que_fazer, tipo_de_campo: texto, descricao: "Uma frase de até 200 caracteres com uma só ação que a pessoa faz sozinha."}
+      - {id: o_que_fazer, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "Uma frase de até 200 caracteres com uma só ação que a pessoa faz sozinha."}
       - {id: sinal, tipo_de_campo: texto, descricao: "O que a pessoa vê ou ouve quando deu certo."}
-      - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal da fonte do pacote, quando o passo cita nome de tela, botão, prazo ou regra da plataforma."}
+      - {id: apoio, tipo_de_campo: citacao, obrigatoria: false, descricao: "Trecho literal da fonte do pacote, quando o passo cita nome de tela, botão, prazo ou regra da plataforma."}
   - id: erros_que_reprovam
     titulo: "Erros que reprovam ou atrapalham"
     tipo_de_campo: tabela
@@ -68,7 +68,7 @@ secoes:
     colunas:
       - {id: id, tipo_de_campo: texto, descricao: "E1, E2, E3... em ordem, sem pular nem repetir."}
       - {id: erro, tipo_de_campo: texto, descricao: "O que a pessoa faz de errado, observável."}
-      - {id: o_que_acontece, tipo_de_campo: texto, descricao: "O que acontece por causa do erro, dito igual à fonte, sem aumentar nem suavizar."}
+      - {id: o_que_acontece, tipo_de_campo: texto, apoiada_por_citacao: true, descricao: "O que acontece por causa do erro, dito igual à fonte, sem aumentar nem suavizar."}
       - {id: como_evitar, tipo_de_campo: texto, descricao: "Uma forma prática de evitar, que a pessoa faz sozinha."}
       - {id: apoio, tipo_de_campo: citacao, descricao: "Trecho literal (frase inteira ou 12 palavras seguidas) da fonte do pacote que diz a regra."}
   - id: privacidade_e_terceiros
@@ -109,7 +109,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "nunca será reprovado", "não será reprovado", "sempre aprovado", "sempre aprovada", "aprovação certa", "resultado certo", "sem risco", "risco zero", "milagre", "dinheiro fácil", "renda", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "lucro"]
+      termos: ["garantido", "garantida", "garantidos", "garantidas", "garantimos", "garantia", "nunca será reprovado", "não será reprovado", "sempre aprovado", "sempre aprovada", "aprovação certa", "resultado certo", "sem risco", "risco zero", "milagre", "dinheiro fácil", "renda", "ganho", "ganhos", "ganhar", "ganha", "ganhe", "lucro", "real", "reais", "dólar", "dólares", "salário", "dinheiro", "pagamento", "pix"]
       simbolos: ["R$", "US$", "€"]
       onde: "todo texto da entrega, menos trecho_original das citações"
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento; símbolo em qualquer posição"
@@ -141,8 +141,8 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      onde: ["passo_a_passo.o_que_fazer", "passo_a_passo.sinal", "erros_que_reprovam.erro", "erros_que_reprovam.como_evitar", "checklist_final"]
-      aspas: ["\"...\"", "'...'", "“...”", "‘...’"]
+      onde: ["passo_a_passo.o_que_fazer", "passo_a_passo.sinal", "erros_que_reprovam.erro", "erros_que_reprovam.o_que_acontece", "erros_que_reprovam.como_evitar", "preparacao", "objetivo", "privacidade_e_terceiros", "limites", "checklist_final"]
+      aspas: ["\"...\"", "'...'", "“...”", "‘...’", "«...»", "„...“", "`...`", "「...」"]
       fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>", "fonte importada aprovada que veio no pacote do card"]
       normaliza: ["espaços repetidos", "aspas tipográficas", "maiúscula e acento"]
   - id: CHK-TREINO-05
@@ -184,7 +184,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
+      padroes: ["endereço de site (http, https, www ou nome seguido de .com, .br, .org, .net, .app, .io, .ee, .gl, .ly, .me, .xyz, .ai, .uk)", "e-mail", "@usuário", "telefone com 8 ou 9 dígitos, com ou sem DDD", "CPF (000.000.000-00)", "CEP (00000-000)"]
       onde: "todo texto da entrega, menos trecho_original das citações"
       fontes_aceitas: ["FON-PEDIDO-<card>", "FON-PACOTE-<empresa>"]
   - id: CHK-TREINO-09
@@ -193,7 +193,7 @@ checagens_codigo:
     gravidade: RECUSA
     fase: "fase 1"
     parametros:
-      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "prescrição", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratar doenças", "cura", "curar", "cure", "emagrecer", "emagreça", "perder peso", "perca peso"]
+      termos: ["diagnóstico", "diagnósticos", "diagnosticar", "diagnostica", "diagnosticado", "prescrição", "prescrições", "prescrever", "prescreve", "receita médica", "medicamento", "medicamentos", "remédio", "remédios", "tratamento médico", "tratamento da ansiedade", "tratar doenças", "cura", "curar", "cure", "curado", "emagrecer", "emagreça", "emagrece", "emagrecimento", "perder peso", "perca peso", "perda de peso"]
       onde: "todo texto da entrega, menos trecho_original das citações"
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
       nao_confere: "conselho de saúde individual em outras palavras: é da rubrica (RUB-TREINO-06)"
@@ -204,7 +204,7 @@ checagens_codigo:
     fase: "fase 1"
     parametros:
       so_empresa: BIZ-004
-      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
+      termos: ["caloria", "calorias", "contador de calorias", "contar calorias", "app fitness", "aplicativo fitness", "plataforma fitness", "app de treino", "plano alimentar", "kcal", "macros", "app de dieta", "aplicativo de dieta", "app de academia", "aplicativo de academia", "dieta", "dietas"]
       onde: "todo texto da entrega, menos trecho_original das citações"
       como_compara: "palavra inteira ou expressão inteira, sem diferenciar maiúscula nem acento"
       nao_confere: "a eLiving™ e os quatro pilares descritos de outro jeito: é da rubrica (RUB-TREINO-08)"

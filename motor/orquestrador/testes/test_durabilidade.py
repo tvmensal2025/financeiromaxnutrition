@@ -1,0 +1,362 @@
+"""Durabilidade do motor (teste 4 do plano, versão local com executor falso).
+
+Prova, sem Hermes e sem gastar cota, que o card chega ao MESMO resultado final se o motor cair e voltar 20 vezes,
+se a versão do código trocar 5 vezes no meio, e que dois motores no mesmo card não duplicam o trabalho.
+O resultado final é comparado, linha a linha, com o de um card que nunca foi interrompido.
+"""
+import os
+import random
+import secrets
+import signal
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+import psycopg
+from psycopg import sql
+from psycopg.conninfo import conninfo_to_dict
+from sqlalchemy.engine import URL
+
+import orquestrador.motor as motor_mod
+from conftest import RAIZ, servidor, suporte  # noqa: F401  (servidor é a fixture do cluster de teste)
+from test_jornada import PLANO, Motor, _ate_execucao
+
+# BANCOS PRÓPRIOS deste arquivo. Estes testes registram a configuração técnica, deixam workflows DBOS pendentes de
+# processos mortos e criam muitos cards: se usassem o banco da sessão, quebrariam testes que vêm depois (por exemplo
+# "sem revisão ativa o motor não faz bootstrap implícito", que exige um banco virgem).
+@pytest.fixture(scope='module')
+def banco(servidor):
+    b = suporte.montar_banco(servidor, papeis_de_teste=suporte.PAPEIS_DE_TESTE)
+    try:
+        with b.conectar() as con:
+            con.execute((RAIZ / 'supabase/migrations-v2/0008_resposta_coordenacao.sql').read_text(encoding='utf-8'))
+        yield b
+    finally:
+        suporte.derrubar_banco(b)
+
+
+@pytest.fixture(scope='module')
+def url_dbos(servidor):
+    nome = 'helena_dbos_dur_' + secrets.token_hex(5)
+    with psycopg.connect(servidor, autocommit=True) as con:
+        con.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(nome)))
+    args = conninfo_to_dict(servidor)
+    url = URL.create('postgresql+psycopg', username=args.get('user'), password=args.get('password'),
+                     host=args.get('host'), port=int(args['port']) if args.get('port') else None,
+                     database=nome).render_as_string(hide_password=False)
+    try:
+        yield url
+    finally:
+        with psycopg.connect(servidor, autocommit=True) as con:
+            con.execute(sql.SQL('DROP DATABASE IF EXISTS {} WITH (FORCE)').format(sql.Identifier(nome)))
+
+
+# Estes testes são longos (minutos). Localmente dá para pular com HELENA_V2_PULAR_TESTES_LONGOS=1; o CI roda todos.
+LONGO = pytest.mark.skipif(os.environ.get('HELENA_V2_PULAR_TESTES_LONGOS') == '1', reason='teste longo pulado por pedido')
+
+REINICIOS_EXIGIDOS = 20
+TROCAS_DE_VERSAO_EXIGIDAS = 5
+
+
+def _toque_do_fundador(motor, card):
+    """Faz o toque previsto do fundador, se o card estiver esperando por ele. Devolve o nome do toque ou None."""
+    if motor._card(card)['estado'] == 'ESPERANDO_CONFIRMACAO':
+        motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
+                      toque='confirmar', nao_disparar=['PLANO_VALIDO'])
+        return 'CONFIRMO'
+    juridico = next((e for e in motor._etapas(card) if e['codigo'] == 'E4'), None)
+    if juridico and juridico['estado'] == 'ESPERANDO_FUNDADOR':
+        motor._evento('etapa', juridico['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-parecer')
+        return 'APROVAR'
+    return None
+
+
+def _um_passo(motor, card):
+    """Um único passo do card (toque previsto do fundador ou um avanço do motor). Devolve o que fez."""
+    if motor._card(card)['estado'] == 'PRONTO':
+        return 'PRONTO'
+    toque = _toque_do_fundador(motor, card)
+    if toque:
+        return toque
+    assert motor.avancar(card), [(e['codigo'], e['estado']) for e in motor._etapas(card)]
+    return 'AVANCOU'
+
+
+def _impressao(motor, card):
+    """O que resta no banco depois do card: tem de ser igual com ou sem interrupções."""
+    with motor._con() as con:
+        execucoes = con.execute(
+            "SELECT tipo, estado, count(*) AS n FROM helena_v2.execucao WHERE card_id=%s GROUP BY 1,2 ORDER BY 1,2",
+            (card,)).fetchall()
+        entregas = con.execute(
+            "SELECT etapa_codigo, versao, autor, portao1, count(*) AS n FROM helena_v2.entrega WHERE card_id=%s "
+            "GROUP BY 1,2,3,4 ORDER BY 1,2,3,4", (card,)).fetchall()
+        etapas = con.execute("SELECT codigo, estado FROM helena_v2.etapa WHERE card_id=%s AND atual ORDER BY codigo",
+                             (card,)).fetchall()
+        vivas = con.execute("SELECT count(*) AS n FROM helena_v2.execucao WHERE card_id=%s AND estado='VIVA'",
+                            (card,)).fetchone()['n']
+    return {'execucoes': execucoes, 'entregas': entregas, 'etapas': etapas, 'vivas': vivas,
+            'estado': motor._card(card)['estado']}
+
+
+def _rodar_card(banco, url_dbos, numero, *, reiniciar_a_cada=None, trocar_versao_a_cada=None, monkeypatch=None,
+                reinicios_por_parada=1):
+    """Conduz o card até PRONTO. `reiniciar_a_cada=N` derruba e recria o motor depois de cada N passos."""
+    versao = 0
+    reinicios = trocas = 0
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, numero)
+        passos = 0
+        for _ in range(400):
+            if _um_passo(motor, card) == 'PRONTO':
+                break
+            passos += 1
+            if reiniciar_a_cada and passos % reiniciar_a_cada == 0:
+                for _ in range(reinicios_por_parada):
+                    motor.fechar()                                  # "queda": o motor some; o estado fica no banco
+                    reinicios += 1
+                    if trocar_versao_a_cada and reinicios % trocar_versao_a_cada == 0 and trocas < TROCAS_DE_VERSAO_EXIGIDAS:
+                        versao += 1
+                        trocas += 1
+                        monkeypatch.setattr(motor_mod, 'VERSAO_CODIGO', f'deploy-{versao}')    # "deploy": versão nova
+                    motor = Motor(banco.url, url_dbos)
+        else:
+            raise AssertionError('o card não chegou a PRONTO em 400 passos')
+        return {**_impressao(motor, card), 'reinicios': reinicios, 'trocas': trocas}
+    finally:
+        motor.fechar()
+
+
+def _sem_numeros_de_execucao(impressao):
+    return {k: v for k, v in impressao.items() if k not in ('reinicios', 'trocas')}
+
+
+@LONGO
+def test_vinte_reinicios_no_meio_do_card_dao_o_mesmo_resultado_de_um_card_sem_quedas(banco, url_dbos):
+    referencia = _rodar_card(banco, url_dbos, 'durabilidade-sem-quedas')
+    com_quedas = _rodar_card(banco, url_dbos, 'durabilidade-20-quedas', reiniciar_a_cada=1, reinicios_por_parada=2)
+    assert referencia['estado'] == com_quedas['estado'] == 'PRONTO'
+    assert com_quedas['reinicios'] >= REINICIOS_EXIGIDOS, com_quedas['reinicios']
+    assert com_quedas['vivas'] == 0 and referencia['vivas'] == 0                       # nenhum resíduo
+    assert _sem_numeros_de_execucao(com_quedas) == _sem_numeros_de_execucao(referencia)   # zero perda, zero duplicação
+
+
+@LONGO
+def test_cinco_trocas_de_versao_do_codigo_no_meio_do_card_dao_o_mesmo_resultado(banco, url_dbos, monkeypatch):
+    referencia = _rodar_card(banco, url_dbos, 'versao-sem-troca')
+    com_deploys = _rodar_card(banco, url_dbos, 'versao-5-deploys', reiniciar_a_cada=2, trocar_versao_a_cada=1,
+                              monkeypatch=monkeypatch)
+    assert com_deploys['trocas'] == TROCAS_DE_VERSAO_EXIGIDAS, com_deploys['trocas']
+    assert com_deploys['vivas'] == 0
+    assert _sem_numeros_de_execucao(com_deploys) == _sem_numeros_de_execucao(referencia)
+
+
+@LONGO
+def test_segundo_motor_no_mesmo_card_nao_duplica_a_execucao_do_agente(banco, url_dbos):
+    """Dois motores disputam a mesma etapa ao mesmo tempo: no banco fica exatamente UMA execução do autor e UMA entrega."""
+    primeiro, segundo = Motor(banco.url, url_dbos), Motor(banco.url, url_dbos)
+    try:
+        card = primeiro.criar_card(PLANO, 'dois-motores')
+        etapa = _ate_execucao(primeiro, card)
+        erros = []
+
+        def disputar(motor):
+            try:
+                motor.executar_etapa(etapa['id'])
+            except Exception as erro:                               # o perdedor pode recusar; o que importa é o banco
+                erros.append(type(erro).__name__)
+
+        threads = [threading.Thread(target=disputar, args=(m,)) for m in (primeiro, segundo)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=120)
+        assert not any(t.is_alive() for t in threads)
+        with primeiro._con() as con:
+            autor = con.execute("SELECT count(*) AS n FROM helena_v2.execucao WHERE etapa_id=%s AND tipo='AUTOR' "
+                                "AND estado IN ('RESPONDIDA','VIVA')", (etapa['id'],)).fetchone()['n']
+            entregas = con.execute("SELECT count(*) AS n FROM helena_v2.entrega WHERE etapa_id=%s AND portao1='PASSOU'",
+                                   (etapa['id'],)).fetchone()['n']
+        print(f"\nsegundo motor: execuções do autor no banco={autor}, entregas aceitas={entregas}, "
+              f"agente chamado {len(primeiro.executor.execucoes)}+{len(segundo.executor.execucoes)} vezes, erros={erros}")
+        assert autor == 1 and entregas == 1
+    finally:
+        primeiro.fechar()
+        segundo.fechar()
+
+
+APOIO = Path(__file__).parent / 'apoio'
+MORTES_EXIGIDAS = 20
+
+
+def _eventos_aplicados(motor, etapa_id, numero, papel):
+    with motor._con() as con:
+        return con.execute("SELECT count(*) AS n FROM helena_v2.historico WHERE alvo_id=%s AND papel=%s AND chave=%s "
+                           "AND resultado IN ('APLICADO','CONVERTIDO')", (etapa_id, papel, numero)).fetchone()['n']
+
+
+def test_queda_entre_a_entrega_e_o_portao1_nao_deixa_a_etapa_presa_e_a_retomada_nao_repete(banco, url_dbos):
+    """Achado do kill -9 exato (a queda logo depois da resposta do agente): ENTREGAR e PORTAO1_OK eram eventos separados no
+    modo sintético; a queda entre eles deixava a etapa em VALIDACAO e a retomada dava 'execução antiga ou cancelada'.
+    Agora o par é atômico (como já era no modo real) e retomar um passo que já valeu não é erro nem repete o efeito."""
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'queda-entre-entrega-e-portao1')
+        etapa = _ate_execucao(motor, card)
+        numero = etapa['execucao_atual']
+        motor.executar_e_salvar(etapa['id'], numero)
+        original = motor._evento
+
+        def cai_no_portao1(maquina, alvo, papel, evento, *args, **kwargs):
+            if evento == 'PORTAO1_OK':
+                raise RuntimeError('queda simulada entre a entrega e o portão 1')
+            return original(maquina, alvo, papel, evento, *args, **kwargs)
+
+        motor._evento = cai_no_portao1
+        with pytest.raises(RuntimeError, match='queda simulada'):
+            motor.conferir_e_aplicar(etapa['id'], numero)
+        motor._evento = original
+        depois_da_queda = motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado']
+        assert depois_da_queda == 'EXECUTANDO' and _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 0   # nada pela metade
+
+        assert motor.conferir_e_aplicar(etapa['id'], numero) == 'REVISAO'                # a retomada conclui o par
+        assert _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 1
+        assert motor.conferir_e_aplicar(etapa['id'], numero) == 'REVISAO'                # repetir o passo que já valeu: sem erro
+        assert _eventos_aplicados(motor, etapa['id'], numero, 'AUTOR') == 1             # e sem repetir o efeito
+
+        # o mesmo para a aprovação do revisor
+        motor.executar_etapa(etapa['id'])
+        revisao = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        if revisao['estado'] == 'REVISAO':
+            motor._revisar(motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],)))
+        atual = motor._linha('SELECT estado, execucao_atual FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        numero_da_revisao = revisao['execucao_atual']
+        if atual['estado'] != 'REVISAO' and numero_da_revisao is not None:
+            antes = _eventos_aplicados(motor, etapa['id'], numero_da_revisao, 'REVISOR')
+            assert antes == 1
+            assert motor.conferir_e_aplicar_revisao(etapa['id'], numero_da_revisao) == atual['estado']
+            assert _eventos_aplicados(motor, etapa['id'], numero_da_revisao, 'REVISOR') == 1
+    finally:
+        motor.fechar()
+
+
+def test_vista_atrasada_do_motor_nao_vira_erro_mas_outras_recusas_continuam_erro(banco, url_dbos):
+    """Achado do CI no despacho: o motor olha as etapas, a máquina anda sozinha, e o evento que o motor ia aplicar já não
+    cabe (SEM_PASSAGEM_NESTE_ESTADO). Isso não é erro: devolve False e a próxima rodada olha o banco de novo."""
+    from orquestrador.motor import EventoRecusado
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'vista-atrasada')
+        for _ in range(12):
+            if motor._card(card)['estado'] == 'EM_ANDAMENTO':
+                break
+            _um_passo(motor, card)
+        atuais = motor._etapas(card)
+        assert atuais and atuais[0]['estado'] != 'AGUARDANDO_ANTERIORES'        # a máquina já abriu a primeira etapa sozinha
+        foto = [{**atuais[0], 'estado': 'AGUARDANDO_ANTERIORES', 'depende_de': []}, *atuais[1:]]   # a foto velha do motor
+
+        original = motor._etapas
+        motor._etapas = lambda _card: foto                         # o motor ainda enxerga a foto velha
+        try:
+            assert motor.avancar(card) is False                    # não é erro e não conta como avanço
+        finally:
+            motor._etapas = original
+
+        def outra_recusa(maquina, alvo, papel, evento, *args, **kwargs):
+            raise EventoRecusado(maquina, evento, {'resultado': 'RECUSADO', 'motivo': 'GUARDA_FALHOU'})
+
+        motor._evento = outra_recusa
+        with pytest.raises(EventoRecusado, match='GUARDA_FALHOU'):
+            motor._evento_de_vista_atrasada('etapa', foto[0]['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS')
+    finally:
+        motor.fechar()
+
+
+def _lancar_motor_em_processo(banco, url_dbos, card, atraso_s):
+    filho = subprocess.Popen(
+        [sys.executable, str(APOIO / 'motor_em_processo.py'), banco.url, url_dbos, str(card), str(atraso_s)],
+        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, start_new_session=True, env=os.environ.copy())
+    return filho
+
+
+def _esperar_linha(filho, texto, limite_s):
+    """Espera o filho imprimir `texto`. Devolve False se ele morreu ou passou do limite."""
+    achou = threading.Event()
+
+    def ler():
+        for linha in filho.stdout:
+            if texto in linha:
+                achou.set()
+                return
+
+    threading.Thread(target=ler, daemon=True).start()
+    fim = time.monotonic() + limite_s
+    while time.monotonic() < fim and filho.poll() is None and not achou.is_set():
+        time.sleep(0.05)
+    return achou.is_set()
+
+
+@LONGO
+def test_vinte_kill_9_de_processo_de_verdade_no_meio_do_card_dao_o_mesmo_resultado(banco, url_dbos):
+    """Mata (SIGKILL) o processo do motor 20 vezes ou mais enquanto ele trabalha; o card termina igual ao de um sem mortes.
+
+    O momento da morte NÃO depende da velocidade da máquina: duas em cada três mortes caem no MEIO da chamada ao agente
+    (assim que a execução aparece viva no banco); a terceira cai logo depois de uma chamada terminar e antes de o motor
+    seguir (a janela mais perigosa). Cada lançamento, então, avança no máximo uma chamada, e o card só fica pronto
+    depois de muitas mortes, em qualquer máquina."""
+    referencia = _rodar_card(banco, url_dbos, 'kill9-referencia')
+    parente = Motor(banco.url, url_dbos)
+    mortes = mortes_no_meio = mortes_depois = lancamentos = 0
+    try:
+        card = parente.criar_card(PLANO, 'kill9-20-mortes')
+        with parente._con() as sonda:
+            def contar():
+                linha = sonda.execute(
+                    "SELECT count(*) FILTER (WHERE estado='VIVA') AS vivas, count(*) FILTER (WHERE estado='RESPONDIDA') AS respondidas "
+                    "FROM helena_v2.execucao WHERE card_id=%s", (card,)).fetchone()
+                return linha['vivas'], linha['respondidas']
+
+            while lancamentos < 150 and parente._card(card)['estado'] != 'PRONTO':
+                _toque_do_fundador(parente, card)
+                if parente._card(card)['estado'] == 'PRONTO':
+                    break
+                modo = 'depois' if lancamentos % 3 == 2 else 'meio'
+                lancamentos += 1
+                _vivas0, respondidas0 = contar()
+                filho = _lancar_motor_em_processo(banco, url_dbos, card, atraso_s=0.8)
+                try:
+                    assert _esperar_linha(filho, 'PRONTO_PARA_TRABALHAR', 120), 'o motor em processo não subiu'
+                    limite = time.monotonic() + 60               # sem agente para chamar (esperando o fundador): morre assim mesmo
+                    while time.monotonic() < limite and filho.poll() is None:
+                        _toque_do_fundador(parente, card)
+                        vivas, respondidas = contar()
+                        if (modo == 'meio' and vivas) or (modo == 'depois' and respondidas > respondidas0):
+                            break
+                        if parente._card(card)['estado'] == 'PRONTO':
+                            break
+                        time.sleep(0.03)
+                    if filho.poll() is None:
+                        vivas, _r = contar()
+                        os.killpg(filho.pid, signal.SIGKILL)
+                        mortes += 1
+                        mortes_no_meio += 1 if vivas else 0
+                        mortes_depois += 1 if (not vivas and modo == 'depois') else 0
+                finally:
+                    if filho.poll() is None:
+                        os.killpg(filho.pid, signal.SIGKILL)
+                    filho.wait(timeout=30)
+        estado_final = parente._card(card)['estado']
+        final = _impressao(parente, card)
+        print(f"\nkill -9: {mortes} mortes em {lancamentos} lançamentos ({mortes_no_meio} no meio da chamada ao agente, "
+              f"{mortes_depois} logo depois de uma chamada); estado final {estado_final}")
+        assert estado_final == 'PRONTO', (estado_final, lancamentos)
+        assert mortes >= MORTES_EXIGIDAS and mortes_no_meio >= 10, (mortes, mortes_no_meio)
+        assert final['etapas'] == referencia['etapas'] and final['vivas'] == 0
+        assert final['entregas'] == referencia['entregas'], 'entrega perdida ou duplicada depois das mortes'
+    finally:
+        parente.fechar()

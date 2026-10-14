@@ -396,7 +396,7 @@ export function classificar(texto: string, ctx: Contexto, agora: string): Plano 
       memoria(plano, agora, "Intercompany bloqueado", plano.conclusao, "GRUPO", plano.proxima);
       return plano;
     }
-    if (faltando.length) {
+    if (faltando.length || !fluxo) {
       plano.conclusao = "Lançamento não gravado. Falta dado.";
       plano.decisao = `DADO A COLETAR: ${faltando.join(", ")}. Ausência não virou zero.`;
       plano.responsavel = AGENTES.caio;

@@ -33,7 +33,9 @@ import { ExecutiveLogo } from "@/components/executive/ExecutiveLogo";
 import { ExecutiveBusinessSwitcher } from "@/components/executive/ExecutiveBusinessSwitcher";
 import { ExecutiveCommandMenu } from "@/components/executive/ExecutiveCommandMenu";
 import { useBusiness } from "@/contexts/BusinessContext";
+import { useAuth } from "@/auth";
 import { MODULOS } from "@/lib/modulos";
+import { areaDoCaminho } from "@/lib/workspace-area";
 
 type NavItemConfig = {
   to: string;
@@ -45,29 +47,31 @@ type NavItemConfig = {
 
 const BLOCO_CENTRAL: NavItemConfig[] = [
   { to: "/", label: "Sala de comando", icon: LayoutDashboard, end: true },
-  { to: "/financeiro", label: "Cockpit Financeiro", icon: Receipt, badge: "8 Abas" },
   { to: "/conversa", label: "Conversa com Helena", icon: MessageSquare },
   { to: "/supervisao", label: "Supervisão da Helena", icon: Shield },
-  { to: "/empresas", label: "Operação por empresa", icon: Building2 },
-  { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
-  { to: "/execucao", label: "Central de Execução", icon: Activity },
-  { to: "/entregas", label: "Entregas da equipe", icon: FileText },
-  { to: "/identidade", label: "Identidade da empresa", icon: Package },
   { to: "/modulo/foco_executivo", label: "Foco Executivo", icon: Compass },
 ];
 
 const BLOCO_NEGOCIOS: NavItemConfig[] = [
   { to: "/portfolio", label: "Portfólio", icon: Building2 },
+  { to: "/empresas", label: "Operação por empresa", icon: Building2 },
   { to: "/indicadores", label: "Indicadores de negócio", icon: LayoutDashboard },
   { to: "/crm", label: "CRM", icon: Target },
+  { to: "/financeiro", label: "Financeiro", icon: Receipt },
+  { to: "/identidade", label: "Identidade da empresa", icon: Package },
   { to: "/modulo/marketing", label: "Marketing", icon: Zap },
   { to: "/modulo/clientes", label: "Clientes", icon: UserCheck },
   { to: "/modulo/produto", label: "Produto", icon: Package },
 ];
 
 const BLOCO_OPERACAO: NavItemConfig[] = [
-  { to: "/financeiro", label: "Financeiro", icon: Receipt },
+  { to: "/execucao", label: "Central de Execução", icon: Activity },
+  { to: "/entregas", label: "Entregas da equipe", icon: FileText },
+  ...(import.meta.env.VITE_HELENA_V2_HABILITADA === 'true'
+    ? [{ to: "/cards-v2", label: "Cards v2", icon: Layers }]
+    : []),
   { to: "/calendario", label: "Calendário", icon: CalendarClock },
+  { to: "/consumo", label: "Consumo e rotinas", icon: CircleDollarSign },
   { to: "/modulo/projetos", label: "Projetos", icon: Briefcase },
   { to: "/modulo/tarefas", label: "Tarefas", icon: CheckSquare },
   { to: "/modulo/processos", label: "Processos", icon: Layers },
@@ -126,13 +130,15 @@ export function Layout() {
   const [commandOpen, setCommandOpen] = useState(false);
   const { pathname } = useLocation();
   const { currentBusiness, isConsolidated, error: businessError } = useBusiness();
+  const { isFounder } = useAuth();
   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
 
   const fecharMobile = () => setMobileAberto(false);
+  const area = areaDoCaminho(pathname);
 
   // Calcula o breadcrumb simples e executivo
   const getBreadcrumb = () => {
-    const empresaNome = isConsolidated ? "Grupo Consolidado" : (currentBusiness?.nome || "iGreen");
+    const empresaNome = isConsolidated ? "Grupo Consolidado" : (currentBusiness?.nome || "Empresa não selecionada");
     if (pathname === "/") return `${empresaNome} / Sala de comando`;
     if (pathname === "/supervisao") return `${empresaNome} / Supervisão`;
     if (pathname === "/empresas") return `${empresaNome} / Operação por empresa`;
@@ -141,6 +147,8 @@ export function Layout() {
     if (pathname === "/comando") return `${empresaNome} / Sala de comando`;
     if (pathname === "/execucao") return `${empresaNome} / Central de Execução`;
     if (pathname === "/entregas") return `${empresaNome} / Entregas da equipe`;
+    if (pathname === "/cards-v2") return `Sistema Helena / Cards v2`;
+    if (pathname === "/configuracoes-v2") return `Sistema Helena / Configuração v2`;
     if (pathname === "/inbox") return `${empresaNome} / Inbox`;
     if (pathname === "/portfolio") return `Sistema Helena / Portfólio`;
     if (pathname === "/identidade") return `${empresaNome} / Identidade da empresa`;
@@ -183,12 +191,12 @@ export function Layout() {
           { titulo: 'Operação', itens: BLOCO_OPERACAO },
           { titulo: 'Inteligência', itens: BLOCO_INTELIGENCIA },
           { titulo: 'Governança', itens: BLOCO_GOVERNANCA },
-          { titulo: 'Administração', itens: BLOCO_ADMINISTRACAO },
+          { titulo: 'Administração', itens: [...BLOCO_ADMINISTRACAO, ...(isFounder && import.meta.env.VITE_HELENA_V2_HABILITADA === 'true' ? [{ to: '/configuracoes-v2', label: 'Configuração da Helena v2', icon: Settings }] : [])] },
         ].map(grupo => {
           const ativa = grupo.itens.some(i => pathname === i.to);
           const aberta = gruposAbertos[grupo.titulo] ?? ativa;
           return <div key={grupo.titulo} className="he-nav-group">
-            <button className="he-nav-group-toggle" aria-expanded={aberta} onClick={() => setGruposAbertos(g => ({...g, [grupo.titulo]: !aberta}))}><span>{grupo.titulo}</span><ChevronDown size={14} className={aberta ? 'rotate-180' : ''}/></button>
+            <button type="button" className="he-nav-group-toggle" aria-expanded={aberta} onClick={() => setGruposAbertos(g => ({...g, [grupo.titulo]: !aberta}))}><span>{grupo.titulo}</span><ChevronDown size={14} className={aberta ? 'rotate-180' : ''}/></button>
             {aberta && <div className="space-y-0.5">{grupo.itens.map(item => <NavItemLink key={item.to} item={item} onClick={fecharMobile}/>)}</div>}
           </div>;
         })}
@@ -198,7 +206,7 @@ export function Layout() {
   );
 
   return (
-    <div className="painel-elite he-studio flex min-h-screen bg-background text-foreground antialiased">
+    <div data-workspace={area} className="painel-elite he-studio flex min-h-[100dvh] bg-background text-foreground antialiased">
       <a className="he-skip-link" href="#conteudo-principal">Ir para o conteúdo</a>
       {/* Sidebar Desktop */}
       <aside className="pe-sidebar sticky top-0 hidden h-[100dvh] flex-col overflow-hidden md:flex">
@@ -223,7 +231,7 @@ export function Layout() {
       >
         <button
           type="button"
-          className="absolute right-3 top-4 text-[#8A9690] hover:text-white"
+          className="absolute right-3 top-4 grid h-11 w-11 place-items-center rounded-lg text-foreground hover:bg-muted"
           onClick={fecharMobile}
           aria-label="Fechar"
         >
@@ -239,7 +247,7 @@ export function Layout() {
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
-              className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card text-foreground md:hidden"
+              className="grid h-11 w-11 place-items-center rounded-lg border border-border bg-card text-foreground md:hidden"
               onClick={() => setMobileAberto(true)}
               aria-label="Abrir menu"
             >

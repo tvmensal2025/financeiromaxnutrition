@@ -15,9 +15,11 @@ ID5, ID10 = "CHK-COMUM-05", "CHK-COMUM-10"
 VERBOS = """enviei enviamos mandei mandamos cadastrei cadastramos contatei contatamos publiquei publicamos paguei
 liguei ligamos assinei assinamos comprei compramos contratei contratamos agendei agendamos postei postamos
 inscrevi inscrevemos transferi transferimos depositei depositamos divulguei divulgamos disparei disparamos telefonei
-telefonamos notifiquei notificamos""".split()
+telefonamos notifiquei notificamos lancei lancamos""".split()
+# "lançar" no infinitivo NÃO entra na lista de verbos: ele aparece em frase de plano que é correta ("o fundador precisa lançar o convite").
+# Só entra quando a frase diz que acabou de acontecer (veja "acabei de lançar" abaixo). "lançamento" não é pego: a busca é por palavra inteira.
 EXPRESSOES = [
-    r"entrei em contato", r"falei com", r"conversei com", r"abri (?:uma |a )?conta", r"criei (?:uma |a )?conta",
+    r"entrei em contato", r"acab(?:ei|amos) de lancar", r"falei com", r"conversei com", r"abri (?:uma |a )?conta", r"criei (?:uma |a )?conta",
     r"me cadastrei", r"me inscrevi", r"fiz (?:o|a|um|uma) (?:cadastro|inscricao|pagamento|compra|contrato|ligacao|publicacao|envio|disparo|transferencia|agendamento|contratacao|assinatura|divulgacao|postagem)",
     r"(?:realizei|efetuei|finalizei|conclui) (?:o|a|um|uma) (?:cadastro|inscricao|pagamento|compra|contrato|ligacao|publicacao|envio|disparo|transferencia|agendamento|contratacao|assinatura|divulgacao|postagem)",
     r"(?:enviad[oa]s?|feit[oa]s?|cadastrad[oa]s?|publicad[oa]s?|pag[oa]s?|contratad[oa]s?|assinad[oa]s?) por mim",
@@ -31,9 +33,18 @@ _RX_EXPR = re.compile(r"\b(?:" + "|".join(EXPRESSOES) + r")\b")
 _RX_TOKEN = re.compile(r"[a-z0-9]+")
 
 
+# Onde uma frase termina: ponto, exclamação, interrogação ou reticências seguidos de espaço (ou do fim do trecho), ou quebra de linha.
+# "5.40" não termina frase (o ponto está colado no número seguinte).
+_FIM_DE_FRASE = re.compile(r"[.!?…]+(?:\s|$)|\n")
+
+
 def _negado(folded: str, inicio: int) -> bool:
-    antes = _RX_TOKEN.findall(folded[max(0, inicio - 40):inicio])[-3:]
-    return any(t in NEGACOES for t in antes)
+    """Há uma negação nas 3 palavras antes do verbo, NA MESMA FRASE? ("o pedido não diz. Já publiquei": o "não" é da frase de antes.)"""
+    janela = folded[max(0, inicio - 40):inicio]
+    fins = list(_FIM_DE_FRASE.finditer(janela))
+    if fins:
+        janela = janela[fins[-1].end():]
+    return any(t in NEGACOES for t in _RX_TOKEN.findall(janela)[-3:])
 
 
 def afirma_acao_externa(texto: str):

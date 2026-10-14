@@ -62,8 +62,8 @@ servicos:
     #             No TEMPO_ESGOTADO a segunda tentativa ganha 50% (450 s): pior caso 750 s, dentro
     #             do prazo de qualquer card.
     orcamento: {buscas: 0, partes_de_pagina: 0, chamadas_total: 3, tempo_s: 300}
-    revisor: CLARA          # titular (servicos.yaml); confere só fidelidade e linguagem (regra_do_relatorio_final)
-    reserva: CAIO           # você é sempre a última reserva, mesmo sem estar escrito (MAT-03)
+    revisor: CAIO           # titular (servicos.yaml); confere só fidelidade e linguagem (regra_do_relatorio_final)
+    reserva: CLARA          # você é sempre a última reserva, mesmo sem estar escrito (MAT-03)
 
 # ---------------------------------------------------------------------------------------
 # Papel REVISOR. Igual a servicos.yaml agentes.HELENA.revisa. Sem ferramenta, com revisao-padrao.

@@ -1,0 +1,68 @@
+# Caso RUIM do SRV-COPY (Isabela, AGT-17) para o pedido ../pedido.yaml. SINTÉTICO.
+# Igual a boa-01-whatsapp.yaml, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU). Como mudar: troque só o trecho do defeito; o resto
+# tem de continuar igual à boa de origem.
+id: COPY-RUIM-11
+servico: SRV-COPY
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01-whatsapp.yaml
+defeito_plantado: 'Na tabela de afirmações, a frase A3 passa a dizer ''no telefone'' em vez de ''no celular'': ela não aparece
+  igual na versão final nem na alternativa curta.'
+deve_falhar_em: CHK-COPY-08
+portao: 1 (código)
+motivo_esperado: a frase A3 da tabela não aparece igual no texto (o apoio continua literal do pedido).
+passa_nas_demais: 'sim: todas as outras checagens comuns e CHK-COPY-01 a 10'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: SO_FUNDADOR
+    acao_do_fundador: AF-COPY-ENVIAR-OU-PUBLICAR
+  entrega:
+    onde_usar: Adultos que você conhece, por mensagem no WhatsApp. Quem ler pode responder a mensagem se tiver interesse,
+      tirar dúvidas antes de decidir ou não responder.
+    versao_final: Oi! Tudo bem? Estou convidando as primeiras 10 pessoas para conhecer a Humano Digital. A Humano Digital
+      conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no Hub. Na prática, você grava
+      atividades do dia a dia no celular e a plataforma avalia as gravações. Se tiver interesse, é só responder esta mensagem
+      e eu explico os próximos passos. Se quiser, tire suas dúvidas comigo antes de decidir. E, se não fizer sentido para
+      você agora, tudo bem não responder.
+    alternativa_curta: Oi! Estou convidando as primeiras 10 pessoas para conhecer a Humano Digital, que conecta pessoas adultas
+      a oportunidades de dados para inteligência artificial. Se tiver interesse, responda esta mensagem e eu explico os próximos
+      passos. Tudo bem não responder.
+    afirmacoes:
+    - id: A1
+      frase: Estou convidando as primeiras 10 pessoas para conhecer a Humano Digital.
+      apoio:
+        trecho_original: Vou chamar as primeiras 10 pessoas pelo WhatsApp, todas adultas e conhecidas minhas.
+        fonte_importada_id: FON-PEDIDO-COPY-01
+    - id: A2
+      frase: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na Mimix e no
+        Hub.
+      apoio:
+        trecho_original: A Humano Digital conecta pessoas adultas a oportunidades de dados para inteligência artificial, na
+          Mimix e no Hub.
+        fonte_importada_id: FON-PEDIDO-COPY-01
+    - id: A3
+      frase: você grava atividades do dia a dia no telefone e a plataforma avalia as gravações
+      apoio:
+        trecho_original: A pessoa grava atividades do dia a dia no celular e a plataforma avalia as gravações.
+        fonte_importada_id: FON-PEDIDO-COPY-01
+    - id: A4
+      frase: é só responder esta mensagem e eu explico os próximos passos
+      apoio:
+        trecho_original: Quem tiver interesse responde esta mensagem e eu explico os próximos passos.
+        fonte_importada_id: FON-PEDIDO-COPY-01
+    - id: A5
+      frase: tire suas dúvidas comigo antes de decidir
+      apoio:
+        trecho_original: A pessoa pode tirar dúvidas antes de decidir e pode também não responder.
+        fonte_importada_id: FON-PEDIDO-COPY-01
+    o_que_precisa_aprovacao:
+    - 'Quem assina a mensagem: o pedido não diz o seu nome, e o texto fala em primeira pessoa ("eu explico").'
+    - 'Canal de resposta: o pacote não tem número, perfil nem link confirmado, então o texto manda responder a própria mensagem
+      e não leva contato. Se quiser outro caminho, diga qual.'
+    - Enviar é ação sua, depois do parecer aprovado.
+    limites:
+    - 'Condições e valores: ficam fora, porque o pedido não traz nenhum.'
+    - 'Plano de canais e de campanha: é da Camila.'
+    - 'Cadastro na Mimix e no Hub e o envio dos convites: são ações suas.'

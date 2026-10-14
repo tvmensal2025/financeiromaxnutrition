@@ -30,7 +30,7 @@ def _forma_citacao(v) -> bool:
     return isinstance(v, dict) and isinstance(v.get("trecho_original"), str) and v["trecho_original"].strip() != ""
 
 
-def _forma_da_secao(secao: dict, v, caminho: str) -> list:
+def _forma_da_secao(secao: dict, v, caminho: str, tipo_entrega="") -> list:
     """Confere se o valor tem a forma do tipo_de_campo da seção. Devolve falhas."""
     sid, tipo = secao["id"], secao.get("tipo_de_campo", "texto")
     if tipo not in TIPOS_DE_CAMPO:
@@ -57,15 +57,21 @@ def _forma_da_secao(secao: dict, v, caminho: str) -> list:
             if tipo == "lista":
                 if not (isinstance(item, str) or (isinstance(item, dict) and isinstance(item.get("texto"), str))):
                     erro("FORMATO_DO_ITEM", "Cada item da lista deve ser um texto ou um objeto com 'texto' (e 'citacoes').", cam)
+                elif tipo_entrega in ("copy", "roteiro_treinamento") and isinstance(item, str) and _vazio(item):
+                    erro("ITEM_VAZIO", "O item da lista precisa ter conteúdo.", cam)
+                elif tipo_entrega in ("copy", "roteiro_treinamento") and isinstance(item, dict) and _vazio(item.get("texto")):
+                    erro("ITEM_VAZIO", "O texto do item da lista precisa ter conteúdo.", cam)
                 elif isinstance(item, dict) and "citacoes" in item and not (isinstance(item["citacoes"], list) and all(_forma_citacao(c) for c in item["citacoes"])):
                     erro("FORMATO_DO_ITEM", "'citacoes' deve ser uma lista de citações, cada uma com 'trecho_original'.", cam)
             else:
                 colunas = {c["id"]: c.get("tipo_de_campo", "texto") for c in secao.get("colunas", [])}
+                # coluna com `obrigatoria: false` no modelo pode faltar na linha; sem o campo, falta é erro
+                facultativas = {c["id"] for c in secao.get("colunas", []) if c.get("obrigatoria", True) is False}
                 if not isinstance(item, dict):
                     erro("FORMATO_DO_ITEM", "Cada linha da tabela deve ser um objeto com as colunas do modelo.", cam)
                     continue
                 for c in colunas:
-                    if c not in item:
+                    if c not in item and c not in facultativas:
                         erro("COLUNA_FALTANDO", f"A linha da tabela não tem a coluna '{c}'.", cam, c)
                 for c in item:
                     if c not in colunas:
@@ -73,9 +79,16 @@ def _forma_da_secao(secao: dict, v, caminho: str) -> list:
                 for c, tc in colunas.items():
                     if c in item:
                         cel = item[c]
+                        if cel is None and c in facultativas:
+                            continue
                         bom = isinstance(cel, str) if tc == "texto" else (_forma_numero(cel) or para_decimal(cel) is not None) if tc == "numero" else _forma_citacao(cel)
                         if not bom:
                             erro("FORMATO_DA_CELULA", f"A coluna '{c}' deve ser do tipo {tc}.", f"{cam}.{c}")
+                        elif tipo_entrega in ("copy", "roteiro_treinamento") and tc == "texto" and _vazio(cel):
+                            erro("CELULA_VAZIA", f"A coluna '{c}' precisa ter conteúdo.", f"{cam}.{c}")
+                        elif (tc == "citacao" and tipo_entrega in ("copy", "roteiro_treinamento")
+                              and set(cel) - {"trecho_original", "fonte_importada_id", "leitura_id"}):
+                            erro("CITACAO_COM_CAMPO_EXTRA", "A citação tem campo fora do modelo.", f"{cam}.{c}")
     elif tipo == "numero":
         if not _forma_numero(v):
             erro("FORMATO_DA_SECAO", f"A seção '{sid}' deve ser um número com 'valor', 'unidade' e 'origem'.")
@@ -113,7 +126,7 @@ def secoes_do_modelo(exe):
             if s.get("obrigatoria", True):
                 falhas.append(Falha(ID1, "SECAO_VAZIA", cam, f"A seção obrigatória '{sid}' está vazia ou só tem um preenchimento de enfeite.", T.cortar(str(v))))
             continue
-        falhas += _forma_da_secao(s, v, cam)
+        falhas += _forma_da_secao(s, v, cam, exe.modelo.get("tipo", ""))
     return falhas
 
 

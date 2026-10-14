@@ -3,6 +3,7 @@ import re
 
 import pytest
 
+from spec_helena import prova
 from validador import CHECAGENS, validar
 
 from .banco import montar
@@ -56,8 +57,11 @@ def test_cada_checagem_tem_caso_ruim_e_caso_bom():
         for chk in validar(r, c).checagens:
             if chk.status == "PASSOU":
                 passou_em_honesta.add(chk.id)
-    assert set(CHECAGENS) - com_defeito == set(), f"sem caso ruim: {sorted(set(CHECAGENS) - com_defeito)}"
-    assert set(CHECAGENS) - passou_em_honesta == set(), f"sem caso bom: {sorted(set(CHECAGENS) - passou_em_honesta)}"
+    # As CHK de tipo da especificação (CHK-CALCULO-01, CHK-PARECER-...) têm a prova nos casos de helena-v2/casos:
+    # tests/test_prova_na_especificacao.py. Aqui ficam as checagens do banco antigo.
+    antigas = set(CHECAGENS) - prova.ids_dos_tipos_registrados()
+    assert antigas - com_defeito == set(), f"sem caso ruim: {sorted(antigas - com_defeito)}"
+    assert antigas - passou_em_honesta == set(), f"sem caso bom: {sorted(antigas - passou_em_honesta)}"
 
 
 def test_o_readme_fala_de_todas_as_checagens():
@@ -65,7 +69,8 @@ def test_o_readme_fala_de_todas_as_checagens():
     from pathlib import Path
 
     texto = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
-    assert [i for i in CHECAGENS if i not in texto] == []
+    # As CHK de tipo da especificação aparecem no quadro de cobertura (em faixas, "CHK-CALCULO-01 a 12"); as antigas, uma a uma.
+    assert [i for i in CHECAGENS if i not in texto and i not in prova.ids_dos_tipos_registrados()] == []
 
 
 def test_cada_checagem_declara_o_furo_que_fecha():

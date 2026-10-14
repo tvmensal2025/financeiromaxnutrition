@@ -6,13 +6,8 @@
 id: REL-DEF-13
 caso: CASO-REL-001
 defeito_plantado: Passo que pede contato com pessoas de fora com outras palavras ('chamar no WhatsApp').
-deve_falhar_em: RUB-REL-04
-camada: RUBRICA
-veredito_esperado_do_revisor:
-  criterio: RUB-REL-04
-  veredito: FALHOU
-  secao: proximos_passos
-  trecho: Chamar no WhatsApp os vizinhos que se interessarem pelo grupo.
+deve_falhar_em: CHK-REL-SEM-ACAO-NOVA
+camada: CODIGO
 resposta:
   acao: ENTREGAR
   parecer: OK

@@ -7,9 +7,9 @@
 # nem agenda de vencimentos (Felipe), nem indicador que não é dinheiro (Daniel). Nunca paga,
 # transfere, lança no financeiro nem autoriza gasto: isso é seu.
 # Como revisor: titular do convite (copy) e do roteiro de treinamento, APTA, porque a regra 4 tira
-# a Helena dessas peças (ela revisa o parecer que as julga); titular do dossiê (SEM_PROVA até o
-# Ravi ser ligado); reserva do relatório final (APTA), da análise estratégica e da análise de dados
-# (SEM_PROVA). São 3 titularidades, que é o teto (MAT-08).
+# a Helena dessas peças (ela revisa o parecer que as julga); titular do relatório final (APTA; decisão
+# do fundador de 11/10/2026: a Clara faria o parecer E revisaria o relatório); reserva da análise
+# estratégica e da análise de dados (SEM_PROVA). São 3 titularidades, que é o teto (MAT-08).
 #
 # Fonte única: serviço, ações, ferramentas, revisor, reserva, aptidões, empresas, fase e estado são
 # ESPELHO de servicos.yaml (SRV-CALCULO e agentes.CAIO) e de organograma.yaml (AGT-05); o
@@ -109,10 +109,9 @@ servicos:
 # aptidões (MAT-13).
 revisao:
   aptidao:
-    - {tipo: relatorio_final, estado: APTA}           # reserva (titular: Clara); só fidelidade e linguagem
+    - {tipo: relatorio_final, estado: APTA}           # titular (Helena); só fidelidade e linguagem (regra_do_relatorio_final)
     - {tipo: analise_estrategica, estado: SEM_PROVA}  # reserva (titular: Ravi); Augusto é fase 4
     - {tipo: analise_de_dados, estado: SEM_PROVA}     # reserva (titular: Ravi); Daniel é fase 4
-    - {tipo: dossie, estado: SEM_PROVA}               # titular; fica SEM_PROVA até o Ravi ser ligado
     - {tipo: copy, estado: APTA}                      # titular (a regra 4 tira a Helena)
     - {tipo: roteiro_treinamento, estado: APTA}       # titular (a regra 4 tira a Helena)
   ferramentas: []

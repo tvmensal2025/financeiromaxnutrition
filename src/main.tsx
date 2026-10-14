@@ -10,5 +10,5 @@ createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 
-import "./styles/helena-premium.css";
 import "./styles/helena-studio.css";
+import "./styles/helena-premium.css";

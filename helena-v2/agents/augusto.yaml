@@ -96,7 +96,7 @@ revisao:
   aptidao:
     - {tipo: plano_de_projeto, estado: SEM_PROVA}     # titular (Marina)
     - {tipo: perfil_de_funcao, estado: SEM_PROVA}     # reserva (Bianca; titular Olívia)
-    - {tipo: dossie, estado: SEM_PROVA}               # reserva (Ravi; titular Caio)
+    - {tipo: dossie, estado: SEM_PROVA}               # reserva (Ravi; titular Isabela)
     - {tipo: plano_de_campanha, estado: SEM_PROVA}    # reserva (Camila; titular Daniel)
     - {tipo: tese_de_parceria, estado: SEM_PROVA}     # titular (Pedro)
   ferramentas: []

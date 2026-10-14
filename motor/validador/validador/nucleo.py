@@ -25,9 +25,14 @@ def validar(resposta, contexto: dict) -> Relatorio:
     pode_seguir = exe.formato_ok and exe.acao in ACOES_LIBERADAS
     # Texto absurdamente grande: já será recusado pelo tamanho; não gastamos tempo nas checagens pesadas.
     enorme = sum(len(i.texto) for i in exe.itens) > CONFIG["tamanho"]["maximo_analisavel"]
+    # Com modelo.checagens_a_rodar, o serviço roda só as checagens do seu tipo (as CHK-ACAO-* rodam sempre);
+    # sem a lista, roda todas, como antes.
+    a_rodar = (contexto.get("modelo") or {}).get("checagens_a_rodar")
+    a_rodar = None if a_rodar is None else set(a_rodar)
     resultados = []
     for ch in (CHECAGENS[i] for i in sorted(CHECAGENS)):
-        if (not pode_seguir and not ch.id.startswith("CHK-ACAO-")) or (enorme and ch.id not in CHECAGENS_DO_TAMANHO):
+        fora_da_lista = a_rodar is not None and ch.id not in a_rodar and not ch.id.startswith("CHK-ACAO-")
+        if fora_da_lista or (not pode_seguir and not ch.id.startswith("CHK-ACAO-")) or (enorme and ch.id not in CHECAGENS_DO_TAMANHO):
             falhas = None
         else:
             try:

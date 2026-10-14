@@ -53,6 +53,30 @@ def test_sem_papel_no_vocabulario_o_evento_e_recusado():
     assert alvo.aplicar(Evento("DEUS", "APROVAR", "card")).aceito is False
 
 
+def test_decisao_global_exige_toque_com_motivo_e_versao_atual():
+    alvo = Referencia()
+    alvo.iniciar(ROTEIRO_UNICA, pedido_grande=False)
+    alvo.aplicar(helena("LER_DE_VOLTA"))
+    inicial = alvo.foto()
+    for evento in (motor("DECISAO_MUDOU"), fundador("PEDIR_AJUSTE"),
+                   fundador("PEDIR_AJUSTE", chave="antiga", motivo_ajuste="TOM")):
+        assert not alvo.aplicar(evento).aceito
+        assert alvo.foto().mesmo_estado_que(inicial)
+    assert alvo.aplicar(fundador("PEDIR_AJUSTE", motivo_ajuste="TOM")).aceito
+    assert alvo.foto().card["ordens"] == 1
+
+
+def test_quarto_ajuste_global_substitui_card():
+    alvo = Referencia()
+    alvo.iniciar(ROTEIRO_UNICA, pedido_grande=False)
+    alvo.aplicar(helena("LER_DE_VOLTA"))
+    for _ in range(4):
+        assert alvo.aplicar(fundador("PEDIR_AJUSTE", motivo_ajuste="ERRO_DE_FATO")).aceito
+    assert alvo.foto().card["estado"] == "CANCELADO"
+    assert alvo.foto().card["ordens"] == 3
+    assert alvo.cards_ligados == 1
+
+
 def test_pedir_subcard_do_autor_vivo_ainda_conta_como_formato_errado():
     """PEDIR_SUBCARD existe no vocabulário mas está desligado na v2.0: 'se chegar, conta como FORMATO_ERRADO'."""
     x = rodar_lista([helena("LER_DE_VOLTA"), autor("PEDIR_SUBCARD", "U1", "CAIO", usou_internet="NAO")])

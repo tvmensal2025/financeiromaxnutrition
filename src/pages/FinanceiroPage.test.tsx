@@ -195,7 +195,7 @@ describe("FinanceiroPage", () => {
     renderPage();
 
     expect(await screen.findByText("Financeiro")).toBeInTheDocument();
-    expect(screen.getByText("Caixa realizado")).toBeInTheDocument();
+    expect(await screen.findByText("Caixa realizado")).toBeInTheDocument();
     expect(screen.getByText("Entradas")).toBeInTheDocument();
     expect(screen.getByText("Saídas")).toBeInTheDocument();
     expect(screen.getByText("Resultado")).toBeInTheDocument();

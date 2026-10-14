@@ -186,7 +186,7 @@ estados:
 entradas:
   etapa: [DEPENDENCIA_MUDOU, DECISAO_MUDOU, AJUSTE_DO_JULGADOR, REABRIR_POR_ORDEM, CANCELADO_PAI, CARD_PRONTO]
   acao_externa: [CANCELADO_PAI]
-  card: [ENCERRAR_CARD, SUBSTITUIR_CARD]
+  card: [DECISAO_MUDOU, ENCERRAR_CARD, SUBSTITUIR_CARD]
 
 
 linhas:
@@ -212,6 +212,7 @@ linhas:
     - {id: C27, de: ESPERANDO_FUNDADOR, evento: MOTIVO_RESOLVIDO, papel: MOTOR, guarda: "(motivo == 'NAO_PODE' and not nao_pode_sem_decisao) or (motivo == 'DEPENDENCIA' and not falha_sem_decisao)", efeito: {motivo: NENHUM, lembretes: 0}, para: EM_ANDAMENTO, nota: "A pergunta perdeu o objeto (a etapa que a causou foi reaberta ou refeita): o card volta a andar sozinho, sem gastar ordem sua, e o app avisa que a pergunta foi retirada. Sem esta linha, um card com tudo aprovado ficaria preso e o padrão o cancelaria."}
     - {id: C15, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: ENCERRAR_CARD, papel: MOTOR, efeito: {fim: FUNDADOR}, para: ENCERRADO_COM_FALHA, sinais: [CANCELAR_ETAPAS], nota: "Entrada só por sinal, e o único emissor é a E87 (o seu Encerrar numa etapa): por isso o fim fica registrado como seu."}
     - {id: C28, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: SUBSTITUIR_CARD, papel: MOTOR, efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Entrada só por sinal de uma ordem sua acima do teto numa etapa (E96, E97, E98, E117): card novo ligado, com as entregas e o seu pedido."}
+    - {id: C34, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: PEDIR_AJUSTE, papel: FUNDADOR, efeito: {}, para: MESMO, sinais: [DECISAO_DO_FUNDADOR], nota: "Seu ajuste global no card aberto, com motivo e versão vista, emite o sinal que chega ao card como DECISAO_MUDOU. C16/C17 contam a ordem e a propagam às etapas. No card fechado, Pedir ajuste continua abrindo card ligado."}
     - {id: C16, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: DECISAO_MUDOU, papel: MOTOR, guarda: "ordens < TETO_ORDENS", efeito: {ordens: "+1"}, para: MESMO, sinais: [DECISAO_MUDOU], nota: "Regra 10: o que usava a decisão é refeito."}
     - {id: C17, de: [EM_ANDAMENTO, ESPERANDO_FUNDADOR], evento: DECISAO_MUDOU, papel: MOTOR, guarda: "ordens >= TETO_ORDENS", efeito: {fim: SUBSTITUIDO}, para: CANCELADO, sinais: [CANCELAR_ETAPAS, CARD_LIGADO], nota: "Acima do teto de ordens, o card não pode terminar com informação velha: é substituído por um card novo ligado, com as entregas e a decisão nova."}
     - {id: C18, de: ESPERANDO_FUNDADOR, evento: RESPONDER, papel: FUNDADOR, guarda: "motivo == 'DEPENDENCIA' and opcao == 'PULAR' and falhas_pulaveis", efeito: {motivo: NENHUM, lembretes: 0}, para: EM_ANDAMENTO, sinais: [PULAR_FALHAS]}
@@ -365,6 +366,7 @@ linhas:
 ligacoes:
   CANCELAR_ETAPAS:    {entrega: {papel: MOTOR, evento: CANCELADO_PAI}, para: [etapas_abertas, acoes_abertas], nota: "Cascata: sub-etapas e ações ainda não executadas são canceladas junto."}
   CARD_PRONTO:        {entrega: {papel: MOTOR, evento: CARD_PRONTO}, para: [etapas_aprovadas]}
+  DECISAO_DO_FUNDADOR: {entrega: {papel: MOTOR, evento: DECISAO_MUDOU}, para: [card], nota: "Só PEDIR_AJUSTE do fundador no card aberto emite; o histórico de C16/C17 aponta para esse toque."}
   DECISAO_MUDOU:      {entrega: {papel: MOTOR, evento: DECISAO_MUDOU}, para: [etapas_abertas_que_usam_decisao]}
   DEPENDENTES_MUDOU:  {entrega: {papel: MOTOR, evento: DEPENDENCIA_MUDOU}, para: [dependentes_diretos_abertos]}
   AJUSTE_DO_JULGADOR: {entrega: {papel: MOTOR, evento: AJUSTE_DO_JULGADOR}, para: [julgadas_abertas]}
