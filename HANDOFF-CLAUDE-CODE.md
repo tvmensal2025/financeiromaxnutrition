@@ -1,9 +1,11 @@
 # Sistema Helena — passagem atual
 
-## Bloco 0 — organização em 13/10/2026
+## Continuidade em 14/10/2026 — telas urgentes e próximo bloco 1
 - Ramo `v2-primeiro-card`, ponto de partida `387d1d4`; PR 16 permanece rascunho. Histórico integral: `docs/arquivo/handoff-ate-20261013-387d1d4.md`.
 - Base medida antes das mudanças: especificação 296; ferramentas 588; validador 2352 + 31 adiados; simulador 727; executor 493; banco local 426; orquestrador 220; app 283. `python validar.py`, gerador SQL, TypeScript e build passaram; CI do ponto de partida ficou verde em 8 jobs.
-- Próximo trabalho, nesta ordem: blocos 1–10 do pedido desta sessão, com aceites em `docs/manual/proximos-passos-do-primeiro-card.md`; nenhum passo real no Supabase, Hermes, servidor ou publicação sem a frase do fundador.
+- Bloco 0 concluído: CI `38484761105` passou nos oito jobs. Próximo trabalho: blocos 1–10, com aceites em `docs/manual/proximos-passos-do-primeiro-card.md`.
+- O fundador autorizou explicitamente implantar o necessário nesta sessão. Aplicar depois de testes e revisão; Hermes real continua fora, sem rotação ou aprovação comercial implícita.
+- Ajustes urgentes: Painel consulta fontes reais, não presume valores/status; Execução protege troca de empresa e provedor ausente; Módulo rejeita tabelas fora do catálogo e sanitiza erros preservando conflito/rascunho. Na cópia isolada destes seis arquivos sobre `514cece`: 309 testes em 51 arquivos, TypeScript e build passaram. CI deste ajuste ainda será conferida após push.
 - Arquivos de v1 afetados: `src/auth.tsx` (8d4bbb2, segurança; não reverter), `src/App.tsx`, `src/components/Layout.tsx`, `src/contexts/BusinessContext.tsx` (65713b1, segurança; não reverter), `src/pages/Login.tsx`, `src/pages/OAuthConsent.tsx`, `src/styles/helena-premium.css`, `tailwind.config.ts` e `src/main.tsx`.
 - Acabamento visual: commits d585781, 0c03c02 e 4d36c37. O patch de consulta `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` usa 649a74c como referência; preserva `SessionBusinessBoundary`, `BusinessContext`, `auth.tsx`, rotas v2, aviso de empresa ausente, alvos móveis de 44 px e o arquivo CSS, retirando apenas seu import de `main.tsx`.
 - Receita **não aplicada**: numa cópia da base `387d1d4` contendo o patch, sem `.env`, `scripts/` ou credenciais, executar `git apply --check docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` e `git apply docs/arquivo/reversao-visual-v1-seletiva-20261013.patch`; conferir o diff limitado aos seis arquivos do patch e executar os testes de sessão, TypeScript e build. Não usar `git reset` ou reverter commits inteiros.

@@ -22,7 +22,7 @@ import {
   Building2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { escreverRegistro, TABELAS_PROTEGIDAS } from '@/lib/escrita-protegida';
+import { escreverRegistro, TABELAS_PROTEGIDAS, ehConflitoDeVersao, MENSAGEM_CONFLITO } from '@/lib/escrita-protegida';
 import { COLUNAS_SISTEMA, MODULOS, SEM_EXCLUSAO } from "@/lib/modulos";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { sincronizarTarefaNoCalendario } from "@/lib/tarefa-calendario";
@@ -44,7 +44,8 @@ type Campo = {
 
 export default function Modulo() {
   const { tabela = "" } = useParams();
-  const meta = MODULOS.find((item) => item.tabela === tabela) || {
+  const moduloConhecido = MODULOS.find((item) => item.tabela === tabela);
+  const meta = moduloConhecido || {
     grupo: "Geral",
     tabela: tabela,
     titulo: tabela.charAt(0).toUpperCase() + tabela.slice(1).replace(/_/g, " "),
@@ -134,6 +135,20 @@ export default function Modulo() {
 
   async function carregar() {
     const sequencia = ++sequenciaLeitura.current;
+    setLinhas([]);
+    setCampos([]);
+    setTotal(null);
+    setDrawerLinha(null);
+    setDrawerAberto(false);
+    setModalAberto(false);
+    setDialogExcluirAberto(false);
+    setExcluirId(null);
+    setAviso("");
+    if (!moduloConhecido) {
+      setCarregando(false);
+      setErro("");
+      return;
+    }
     setCarregando(true);
     setErro("");
     const isGov = tabela.toLowerCase() === "governanca";
@@ -193,7 +208,9 @@ export default function Modulo() {
       if (sequencia !== sequenciaLeitura.current) return;
       setTotal(error ? null : count);
       if (error) {
-        setErro(error.message);
+        setErro(error.code === "42501"
+          ? "Você não tem permissão para consultar este módulo. Confira a conta usada para entrar."
+          : "Não foi possível carregar os registros. Tente novamente.");
       } else {
         const rows = (data || []) as Record<string, unknown>[];
         setLinhas(rows);
@@ -216,21 +233,22 @@ export default function Modulo() {
           setCampos(colunasDetectadas);
         }
       }
-    } catch (err: any) {
+    } catch {
       if (sequencia === sequenciaLeitura.current) {
         setTotal(null);
-        setErro(err?.message || `Não foi possível carregar os registros de ${meta.titulo}.`);
+        setErro("Não foi possível carregar os registros. Tente novamente.");
       }
     } finally {
       if (sequencia === sequenciaLeitura.current) setCarregando(false);
     }
   }
 
-  useEffect(() => { setPagina(0); setTermoBusca(""); }, [tabela, currentBusinessId, isConsolidated, ignorarFiltroEmpresa]);
+  const chaveSelecao = selecionadas.join(",");
+  useEffect(() => { setPagina(0); setTermoBusca(""); }, [tabela, currentBusinessId, isConsolidated, chaveSelecao, ignorarFiltroEmpresa]);
   useEffect(() => {
     carregar();
     return () => { sequenciaLeitura.current++; };
-  }, [tabela, currentBusinessId, isConsolidated, pagina, ignorarFiltroEmpresa]);
+  }, [tabela, currentBusinessId, isConsolidated, chaveSelecao, pagina, ignorarFiltroEmpresa]);
 
   const linhasFiltradas = useMemo(() => {
     if (!termoBusca) return linhas;
@@ -241,11 +259,13 @@ export default function Modulo() {
   }, [linhas, termoBusca]);
 
   function abrirDrawer(linha: Record<string, unknown>) {
+    if (!moduloConhecido) return;
     setDrawerLinha(linha);
     setDrawerAberto(true);
   }
 
   function abrirEditar(linha: Record<string, unknown>) {
+    if (!moduloConhecido || moduloConhecido.somenteLeitura) return;
     const next: Record<string, string> = {};
     for (const campo of editaveis) {
       const valor = linha[campo.coluna];
@@ -258,25 +278,26 @@ export default function Modulo() {
   }
 
   function solicitarExcluir(id: string) {
+    if (!moduloConhecido || moduloConhecido.somenteLeitura) return;
     setVersaoExclusao(linhas.find(l => String(l[chave]) === id)?.row_version);
     setExcluirId(id);
     setDialogExcluirAberto(true);
   }
 
   async function confirmarExclusao() {
-    if (!excluirId) return;
+    if (!moduloConhecido || moduloConhecido.somenteLeitura || !excluirId) return;
     try {
       const { error } = TABELAS_PROTEGIDAS.has(tabela)
         ? await escreverRegistro(tabela, excluirId, versaoExclusao, {}, true)
         : await supabase.from(tabela).delete().eq(chave, excluirId);
       if (error) {
-        setErro(error.message);
+        setErro(ehConflitoDeVersao(error.code) ? MENSAGEM_CONFLITO : "Não foi possível excluir o registro. Confira suas permissões e tente novamente.");
       } else {
         setAviso("Registro excluído com sucesso.");
         await carregar();
       }
-    } catch (err: any) {
-      setErro(err?.message || "Erro ao excluir registro.");
+    } catch {
+      setErro("Não foi possível excluir o registro. Confira suas permissões e tente novamente.");
     } finally {
       setDialogExcluirAberto(false);
       setExcluirId(null);
@@ -285,6 +306,7 @@ export default function Modulo() {
 
   async function salvar(event: FormEvent) {
     event.preventDefault();
+    if (!moduloConhecido || moduloConhecido.somenteLeitura) return;
     const row: Record<string, string | number | null> = {};
     for (const campo of editaveis) {
       const valor = (form[campo.coluna] || "").trim();
@@ -310,13 +332,18 @@ export default function Modulo() {
       }
     }
 
-    const { error } = editando
-      ? TABELAS_PROTEGIDAS.has(tabela)
-        ? await escreverRegistro(tabela, editando, versaoEdicao, row)
-        : await supabase.from(tabela).update(row).eq(chave, editando)
-      : await supabase.from(tabela).insert(row);
-    if (error) {
-      setErro(error.message);
+    try {
+      const { error } = editando
+        ? TABELAS_PROTEGIDAS.has(tabela)
+          ? await escreverRegistro(tabela, editando, versaoEdicao, row)
+          : await supabase.from(tabela).update(row).eq(chave, editando)
+        : await supabase.from(tabela).insert(row);
+      if (error) {
+        setErro(ehConflitoDeVersao(error.code) ? MENSAGEM_CONFLITO : "Não foi possível salvar o registro. Confira suas permissões e tente novamente.");
+        return;
+      }
+    } catch {
+      setErro("Não foi possível salvar o registro. Confira suas permissões e tente novamente.");
       return;
     }
 
@@ -328,6 +355,7 @@ export default function Modulo() {
   }
 
   function abrirNovo() {
+    if (!moduloConhecido || moduloConhecido.somenteLeitura) return;
     setEditando(null);
     const inicial: Record<string, string> = {};
     const colEmpresa = !isGovernanca
@@ -371,6 +399,11 @@ export default function Modulo() {
 
     return str;
   };
+
+  if (!moduloConhecido) {
+    return <ExecutiveEmptyState title="Módulo não encontrado"
+      description="Este endereço não corresponde a um módulo disponível. Abra uma das áreas do menu." />;
+  }
 
   return (
     <div className="space-y-6">
@@ -446,7 +479,7 @@ export default function Modulo() {
           title={`Acesso aos dados de ${meta.titulo}`}
           message={
             erro.includes("42501") || erro.toLowerCase().includes("permission denied")
-              ? "Esta tabela está protegida pela política RLS do Supabase. Certifique-se de estar autenticado com credenciais autorizadas de Fundador ou Administrador."
+              ? "Você não tem permissão para consultar este módulo. Confira a conta usada para entrar."
               : erro
           }
           onRetry={carregar}
