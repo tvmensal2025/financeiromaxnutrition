@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, CheckCircle2, ChevronRight, FileJson2, History, Plus, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronRight, FileJson2, History, Plus, RefreshCw, RotateCcw, Save, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/auth';
 import { DocumentEditor } from '@/integrations/config-v2/DocumentEditor';
 import { repositorioConfigV2DoApp } from '@/integrations/config-v2/runtime';
-import type { ConfigBundle, ConfigDetail, ConfigRevision, JsonValue, RepositorioConfigV2 } from '@/integrations/config-v2/repository';
+import type { AtivacaoConfig, ConfigBundle, ConfigDetail, ConfigRevision, JsonValue, RepositorioConfigV2 } from '@/integrations/config-v2/repository';
 
 const grupos = [
   { id: 'agents', titulo: 'Agentes', testa: (p: string) => p.startsWith('helena-v2/agents/') || p === 'helena-v2/organograma.yaml' },
@@ -23,6 +23,18 @@ function caminhoNovoValido(path: string) {
   return /^helena-v2\/(?:agents|deliverables|playbooks)\/[a-z0-9_-]{1,250}\.yaml$/.test(path) || path === 'helena-v2/servicos.yaml' || path === 'helena-v2/models.yaml';
 }
 function formatoDocumento(valor: JsonValue) { return JSON.stringify(valor, null, 2); }
+function quando(valor: string) {
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? 'data indisponível' : data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' });
+}
+// Por que a reversão não está disponível (null = está). O banco continua sendo quem decide; isto só evita um clique inútil.
+function motivoSemReversao(ativo: ConfigRevision | null, ultima: AtivacaoConfig | null): string | null {
+  if (!ativo) return 'Ainda não há revisão ativa.';
+  if (!ultima || ultima.configuracao_id !== ativo.id) return 'O histórico não confere com a revisão ativa. Atualize o estado.';
+  if (!ultima.anterior_id) return 'A revisão ativa foi a primeira ativação: não há revisão anterior para voltar.';
+  if (ultima.anterior_estado !== 'VALIDADA') return `A revisão anterior (${ultima.anterior_nome ?? 'sem nome'}) foi inativada e não pode voltar.`;
+  return null;
+}
 
 export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: RepositorioConfigV2 }) {
   const { isFounder, user } = useAuth();
@@ -39,7 +51,10 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [ativacoes, setAtivacoes] = useState<AtivacaoConfig[] | null>(null);
+  const [erroAtivacoes, setErroAtivacoes] = useState<string | null>(null);
   const requisicao = useRef(0);
+  const requisicaoAtivacoes = useRef(0);
   const operacao = useRef(false);
   const importando = useRef(false);
   const identidadeAnterior = useRef<string | null | undefined>(undefined);
@@ -49,6 +64,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
   useEffect(() => {
     if (identidadeAnterior.current !== undefined && identidadeAnterior.current !== identidade) {
       ++requisicao.current;
+      ++requisicaoAtivacoes.current; setAtivacoes(null); setErroAtivacoes(null);
       setRepo(repositorio ?? null); setLista(null); setDetalhe(null); setConteudo(null);
       setNome(''); setCaminho(null); setTextoAvancado(null); setErro(null); setAviso(null);
       operacao.current = false; importando.current = false; setOcupado(false);
@@ -69,8 +85,16 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
     setCarregando(true);
     repo.listar().then(rows => { if (vivo) setLista(rows); }).catch(e => { if (vivo) setErro(erroTexto(e)); })
       .finally(() => { if (vivo) setCarregando(false); });
+    carregarAtivacoes(repo);
     return () => { vivo = false; };
   }, [identidade, isFounder, repo]);
+
+  // A lista de ativações é um complemento: se falhar, o resto da tela continua funcionando.
+  function carregarAtivacoes(r: RepositorioConfigV2) {
+    const atual = ++requisicaoAtivacoes.current;
+    r.listarAtivacoes(10).then(rows => { if (atual === requisicaoAtivacoes.current) { setAtivacoes(rows); setErroAtivacoes(null); } })
+      .catch(e => { if (atual === requisicaoAtivacoes.current) setErroAtivacoes(erroTexto(e)); });
+  }
 
   async function atualizarLista() {
     if (!repo || ocupado || carregando || importando.current) return;
@@ -81,7 +105,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
       if (atual !== requisicao.current) return;
       setLista(rows);
       if (dado) { setDetalhe(dado); setConteudo(dado.conteudo); setNome(dado.nome); }
-      setErro(null);
+      setErro(null); carregarAtivacoes(repo);
     } catch (e) { if (atual === requisicao.current) setErro(erroTexto(e)); }
     finally { if (atual === requisicao.current) setCarregando(false); }
   }
@@ -104,6 +128,8 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
   const alterado = useMemo(() => Boolean(detalhe && conteudo && (nome !== detalhe.nome || JSON.stringify(conteudo) !== JSON.stringify(detalhe.conteudo))), [conteudo, detalhe, nome]);
   const jsonPendente = textoAvancado !== null && caminho !== null && conteudo?.[caminho] !== undefined && textoAvancado !== formatoDocumento(conteudo[caminho]);
   const ativo = lista?.find(r => r.ativa) ?? null;
+  const ultimaAtivacao = ativacoes?.[0] ?? null;
+  const semReversao = motivoSemReversao(ativo, ultimaAtivacao);
   const documentos = useMemo(() => Object.keys(conteudo ?? {}).filter(p => grupos.find(g => g.id === grupo)?.testa(p)).sort(), [conteudo, grupo]);
 
   function iniciarOperacao() {
@@ -162,6 +188,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
     const [rows, dado] = await Promise.all([repo.listar(), repo.ler(id)]);
     if (atual !== requisicao.current) return;
     setLista(rows); setDetalhe(dado); setConteudo(dado.conteudo); setNome(dado.nome);
+    carregarAtivacoes(repo);
   }
 
   async function ativar() {
@@ -172,6 +199,24 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
       await repo.ativar(detalhe.id, ativo?.id ?? null);
       await abrirDepoisDaOperacao(detalhe.id, atual);
       if (atual === requisicao.current) setAviso('Revisão ativada para novos cards. Cards existentes conservam sua revisão.');
+    } catch (e) { if (atual === requisicao.current) setErro(erroTexto(e)); }
+    finally { terminarOperacao(atual); }
+  }
+
+  async function reverter() {
+    if (!repo || !ativo || !ultimaAtivacao || semReversao || ocupado || carregando) return;
+    if (!window.confirm(`Reverter a revisão ativa para "${ultimaAtivacao.anterior_nome}" (versão ${ultimaAtivacao.anterior_versao})? Novos cards passarão a usar essa revisão. Cards em andamento conservam a revisão em que nasceram.`)) return;
+    if (!iniciarOperacao()) return;
+    const atual = requisicao.current;
+    setErro(null); setAviso(null);
+    try {
+      await repo.reverter(ativo.id);
+      const [rows, dado] = await Promise.all([repo.listar(), detalhe && !alterado && !jsonPendente ? repo.ler(detalhe.id) : Promise.resolve(null)]);
+      if (atual !== requisicao.current) return;
+      setLista(rows);
+      if (dado) { setDetalhe(dado); setConteudo(dado.conteudo); setNome(dado.nome); }
+      carregarAtivacoes(repo);
+      setAviso('Configuração revertida para a revisão anterior. Cards em andamento conservam a revisão em que nasceram.');
     } catch (e) { if (atual === requisicao.current) setErro(erroTexto(e)); }
     finally { terminarOperacao(atual); }
   }
@@ -224,6 +269,18 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
     {aviso && <div role="status" className="rounded-xl border border-emerald-700/20 bg-emerald-700/5 p-4 text-sm text-emerald-900 dark:text-emerald-300">{aviso}</div>}
     {carregando && <p role="status" className="text-sm text-muted-foreground">Consultando configurações…</p>}
     {!carregando && lista?.length === 0 && <section className="rounded-xl border border-dashed border-border bg-card p-6"><FileJson2 className="mb-3 text-primary" size={24}/><h2 className="text-lg font-semibold">Nenhuma configuração cadastrada</h2><p className="mt-2 max-w-xl text-sm text-muted-foreground">Carregue um arquivo JSON com a configuração existente para criar um rascunho. Nenhum conteúdo é gerado automaticamente.</p><input ref={arquivoRef} type="file" accept=".json,application/json" aria-label="Importar configuração existente em JSON" className="mt-4 block max-w-full text-sm" onChange={e => void importarArquivo(e.target.files?.[0])}/></section>}
+    {lista && lista.length > 0 && (ativacoes || erroAtivacoes) && <section aria-labelledby="ativacoes-titulo" className="rounded-xl border border-border bg-card p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Quem ativou e quando</p><h2 id="ativacoes-titulo" className="mt-1 text-lg font-semibold">Ativações recentes</h2></div>
+        {ativacoes && <button type="button" className={botao} onClick={() => void reverter()} disabled={Boolean(semReversao) || ocupado || carregando}><RotateCcw size={16}/>Reverter para a revisão anterior</button>}</div>
+      {erroAtivacoes && <p role="alert" className="mt-3 text-sm text-destructive">Não foi possível consultar as ativações. {erroAtivacoes}</p>}
+      {ativacoes && semReversao && <p className="mt-3 text-xs text-muted-foreground">{semReversao}</p>}
+      {ativacoes && ativacoes.length === 0 && <p className="mt-3 text-sm text-muted-foreground">Nenhuma ativação registrada ainda.</p>}
+      {ativacoes && ativacoes.length > 0 && <ul className="mt-4 max-h-64 space-y-2 overflow-y-auto">{ativacoes.map(a => <li key={a.id} className="rounded-lg border border-border p-3 text-sm">
+        <span className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold">{a.tipo === 'REVERSAO' ? 'Reversão' : 'Ativação'}</span><strong className="min-w-0 break-words">{a.configuracao_nome} · versão {a.configuracao_versao}</strong></span>
+        <span className="mt-1 block text-xs text-muted-foreground">{a.anterior_id ? `Estava ativa: ${a.anterior_nome ?? 'sem nome'} · versão ${a.anterior_versao ?? '?'}` : 'Primeira ativação'}</span>
+        <span className="mt-1 block text-xs text-muted-foreground">Por {a.ativada_por === user?.id ? 'você' : `fundador ${a.ativada_por.slice(0, 8)}`} · {quando(a.ativada_em)}</span>
+      </li>)}</ul>}
+    </section>}
     {lista && lista.length > 0 && <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="min-w-0 rounded-xl border border-border bg-card p-4"><div className="flex items-center gap-2 border-b border-border pb-3"><History size={17} className="text-primary"/><h2 className="font-semibold">Histórico</h2></div>
         <ul className="mt-2 max-h-[30rem] space-y-1 overflow-y-auto">{lista.map(r => <li key={r.id}><button type="button" disabled={carregando || ocupado} onClick={() => void abrir(r.id)} className={`min-h-11 w-full rounded-lg p-3 text-left hover:bg-muted disabled:opacity-50 ${detalhe?.id === r.id ? 'bg-primary/10' : ''}`} aria-current={detalhe?.id === r.id ? 'true' : undefined}><span className="flex items-center justify-between gap-2"><strong className="min-w-0 truncate text-sm">{r.nome}</strong>{r.ativa && <span className="shrink-0 rounded-full bg-emerald-700/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Ativa</span>}</span><span className="mt-1 block text-xs text-muted-foreground">Versão {r.versao} · {r.estado.toLowerCase()}</span></button></li>)}</ul>

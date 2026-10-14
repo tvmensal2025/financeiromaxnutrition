@@ -57,6 +57,33 @@ describe('contrato de configuração v2', () => {
     }
   });
 
+  it('lista ativações e reverte pelas RPCs da 0019, com argumentos iguais aos da migração SQL', async () => {
+    const local = resolve(process.cwd(), 'supabase/migrations-v2/0019_auditoria_de_ativacoes.sql');
+    const migracao = existsSync(local) ? local : resolve(process.cwd(), '../helena-v2/supabase/migrations-v2/0019_auditoria_de_ativacoes.sql');
+    const sql = readFileSync(migracao, 'utf8');
+    const { chamadas, repo } = cliente([]);
+    await repo.listarAtivacoes();
+    await repo.listarAtivacoes(5);
+    await repo.reverter('uuid-ativa');
+    await repo.reverter(null);
+    expect(chamadas.map(c => [c.schema, c.nome, c.args])).toEqual([
+      ['helena_v2', 'listar_ativacoes', { p_limite: 20 }], ['helena_v2', 'listar_ativacoes', { p_limite: 5 }],
+      ['helena_v2', 'reverter_configuracao', { p_ativa_esperada: 'uuid-ativa' }], ['helena_v2', 'reverter_configuracao', { p_ativa_esperada: null }],
+    ]);
+    for (const chamada of chamadas) {
+      const assinatura = sql.match(new RegExp(`create or replace function helena_v2\\.${chamada.nome}\\(([^)]*)\\)`, 'i'));
+      expect(assinatura, `assinatura SQL de ${chamada.nome}`).not.toBeNull();
+      const parametros = [...assinatura![1].matchAll(/\b(p_\w+)\s+(?:uuid|text|jsonb|integer)\b/gi)].map(match => match[1]);
+      expect(Object.keys(chamada.args ?? {}).sort(), chamada.nome).toEqual(parametros.sort());
+    }
+  });
+
+  it('traduz as recusas da reversão para frases que o fundador entende', async () => {
+    await expect(cliente(null, { code: '23514', message: 'CONFIG_SEM_ANTERIOR' }).repo.reverter('a')).rejects.toThrow(/Não há revisão anterior/);
+    await expect(cliente(null, { code: '23514', message: 'CONFIG_ANTERIOR_NAO_VALIDADA' }).repo.reverter('a')).rejects.toThrow(/anterior foi inativada/);
+    await expect(cliente(null, { code: '40001', message: 'CONFIG_ATIVA_DESATUALIZADA' }).repo.reverter('a')).rejects.toThrow(/revisão ativa mudou/);
+  });
+
   it('explica conflito de versão e propaga erro de regra do banco', async () => {
     await expect(cliente(null, { code: '40001', message: 'concorrência' }).repo.listar()).rejects.toThrow(/mudou durante a edição/);
     await expect(cliente(null, { code: '23514', message: 'Máquina exige prova' }).repo.ativar('r', null)).rejects.toThrow('Máquina exige prova');

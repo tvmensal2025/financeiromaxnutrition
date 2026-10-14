@@ -1,7 +1,7 @@
-import { beforeEach, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { ConfigDetail, ConfigRevision, RepositorioConfigV2 } from '@/integrations/config-v2/repository';
+import type { AtivacaoConfig, ConfigDetail, ConfigRevision, RepositorioConfigV2 } from '@/integrations/config-v2/repository';
 import ConfiguracoesV2Page from './ConfiguracoesV2Page';
 
 const auth = vi.hoisted(() => ({ isFounder: false, userId: 'fundador-a' }));
@@ -20,11 +20,14 @@ function repositorio(revisao: ConfigDetail = base): RepositorioConfigV2 {
     solicitarValidacao: vi.fn().mockResolvedValue({ ...revisao, validacao_pendente: true }),
     ativar: vi.fn().mockResolvedValue({ ...revisao, ativa: true }),
     aposentar: vi.fn().mockResolvedValue({ ...revisao, estado: 'APOSENTADA' }),
+    listarAtivacoes: vi.fn().mockResolvedValue([]),
+    reverter: vi.fn().mockResolvedValue({ ...revisao, ativa: true }),
   };
 }
 function mostrar(repo: RepositorioConfigV2) { return render(<MemoryRouter><ConfiguracoesV2Page repositorio={repo}/></MemoryRouter>); }
 
 beforeEach(() => { auth.isFounder = false; auth.userId = 'fundador-a'; });
+afterEach(() => { vi.restoreAllMocks(); });
 
 it('não consulta nem mostra o editor para quem não é fundador', () => {
   const repo = repositorio();
@@ -166,4 +169,101 @@ it('limita o nome do arquivo a 255 caracteres incluindo .yaml', async () => {
   expect(adicionar.disabled).toBe(false);
   fireEvent.change(nome, { target: { value: `helena-v2/agents/${'a'.repeat(251)}.yaml` } });
   expect(adicionar.disabled).toBe(true);
+});
+
+// --- histórico de ativações e reversão (0019) ---
+const ativa: ConfigDetail = { ...base, id: 'uuid-ativa', nome: 'Revisão ativa', versao: 5, estado: 'VALIDADA', ativa: true };
+const anterior: ConfigDetail = { ...base, id: 'uuid-anterior', nome: 'Revisão anterior', versao: 4, estado: 'VALIDADA', ativa: false };
+const ativacao = (parcial: Partial<AtivacaoConfig> = {}): AtivacaoConfig => ({
+  id: 2, tipo: 'ATIVACAO', ativada_por: 'fundador-a', ativada_em: '2026-10-13T15:30:00Z',
+  configuracao_id: 'uuid-ativa', configuracao_nome: 'Revisão ativa', configuracao_versao: 5,
+  anterior_id: 'uuid-anterior', anterior_nome: 'Revisão anterior', anterior_versao: 4, anterior_estado: 'VALIDADA', ...parcial,
+});
+function repoComAtivacoes(ativacoes: AtivacaoConfig[], lista: ConfigRevision[] = [ativa, anterior]) {
+  const repo = repositorio(ativa);
+  vi.mocked(repo.listar).mockResolvedValue(lista);
+  vi.mocked(repo.listarAtivacoes).mockResolvedValue(ativacoes);
+  return repo;
+}
+const botaoReverter = () => screen.getByRole('button', { name: 'Reverter para a revisão anterior' }) as HTMLButtonElement;
+
+it('lista as últimas ativações com quem e quando, e distingue reversão e primeira ativação', async () => {
+  auth.isFounder = true;
+  const repo = repoComAtivacoes([
+    ativacao({ id: 3, tipo: 'REVERSAO', configuracao_id: 'uuid-anterior', configuracao_nome: 'Revisão anterior', configuracao_versao: 4, anterior_id: 'uuid-ativa', anterior_nome: 'Revisão ativa', anterior_versao: 5 }),
+    ativacao({ id: 2, ativada_por: '11111111-2222-3333-4444-555555555555' }),
+    ativacao({ id: 1, configuracao_id: 'uuid-anterior', configuracao_nome: 'Revisão anterior', configuracao_versao: 4, anterior_id: null, anterior_nome: null, anterior_versao: null, anterior_estado: null }),
+  ]);
+  mostrar(repo);
+  const secao = await screen.findByRole('region', { name: 'Ativações recentes' });
+  expect(repo.listarAtivacoes).toHaveBeenCalledWith(10);
+  const itens = within(secao).getAllByRole('listitem');
+  expect(itens).toHaveLength(3);
+  expect(itens[0].textContent).toMatch(/Reversão.*Revisão anterior · versão 4.*Estava ativa: Revisão ativa · versão 5.*Por você · 13\/10\/2026.*12:30/);
+  expect(itens[1].textContent).toMatch(/Ativação.*Revisão ativa · versão 5.*Por fundador 11111111 · 13\/10\/2026/);
+  expect(itens[2].textContent).toMatch(/Primeira ativação/);
+});
+
+it('reverte só depois de confirmar, com a ativa esperada, e atualiza a tela', async () => {
+  auth.isFounder = true;
+  const repo = repoComAtivacoes([ativacao()]);
+  vi.mocked(repo.listar).mockResolvedValueOnce([ativa, anterior]).mockResolvedValue([{ ...ativa, ativa: false }, { ...anterior, ativa: true }]);
+  vi.mocked(repo.listarAtivacoes).mockResolvedValueOnce([ativacao()]).mockResolvedValue([
+    ativacao({ id: 3, tipo: 'REVERSAO', configuracao_id: 'uuid-anterior', configuracao_nome: 'Revisão anterior', configuracao_versao: 4, anterior_id: 'uuid-ativa', anterior_nome: 'Revisão ativa', anterior_versao: 5 }), ativacao()]);
+  const confirmar = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  mostrar(repo);
+  await screen.findByRole('region', { name: 'Ativações recentes' });
+  await waitFor(() => expect(botaoReverter().disabled).toBe(false));
+  fireEvent.click(botaoReverter());
+  expect(repo.reverter).not.toHaveBeenCalled();           // "Cancelar" na confirmação não faz nada
+  fireEvent.click(botaoReverter());
+  expect(confirmar).toHaveBeenLastCalledWith(expect.stringContaining('"Revisão anterior" (versão 4)'));
+  await waitFor(() => expect(repo.reverter).toHaveBeenCalledWith('uuid-ativa'));
+  expect(await screen.findByText(/Configuração revertida para a revisão anterior/)).toBeTruthy();
+  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Ativações recentes' })).getAllByRole('listitem')).toHaveLength(2));
+  expect(repo.reverter).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ['a ativa foi a primeira ativação', ativacao({ anterior_id: null, anterior_nome: null, anterior_versao: null, anterior_estado: null }), /primeira ativação: não há revisão anterior/],
+  ['a anterior foi inativada', ativacao({ anterior_estado: 'APOSENTADA' }), /Revisão anterior\) foi inativada e não pode voltar/],
+  ['o histórico não confere com a ativa', ativacao({ configuracao_id: 'outra' }), /não confere com a revisão ativa/],
+])('desabilita a reversão quando %s', async (_caso, linha, motivo) => {
+  auth.isFounder = true;
+  const repo = repoComAtivacoes([linha]);
+  mostrar(repo);
+  await screen.findByRole('region', { name: 'Ativações recentes' });
+  expect(botaoReverter().disabled).toBe(true);
+  expect(screen.getByText(motivo)).toBeTruthy();
+  fireEvent.click(botaoReverter());
+  expect(repo.reverter).not.toHaveBeenCalled();
+});
+
+it('mostra o erro do banco quando a reversão é recusada e não finge que deu certo', async () => {
+  auth.isFounder = true;
+  const repo = repoComAtivacoes([ativacao()]);
+  vi.mocked(repo.reverter).mockRejectedValue(new Error('A revisão ativa mudou enquanto você olhava. Atualize o estado e confira antes de tentar de novo.'));
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  mostrar(repo);
+  await screen.findByRole('region', { name: 'Ativações recentes' });
+  fireEvent.click(botaoReverter());
+  expect((await screen.findByRole('alert')).textContent).toMatch(/revisão ativa mudou/);
+  expect(screen.queryByText(/Configuração revertida/)).toBeNull();
+});
+
+it('falha ao consultar as ativações não derruba a lista de revisões', async () => {
+  auth.isFounder = true;
+  const repo = repoComAtivacoes([]);
+  vi.mocked(repo.listarAtivacoes).mockRejectedValue(new Error('rede'));
+  mostrar(repo);
+  expect((await screen.findByText(/Não foi possível consultar as ativações\. rede/))).toBeTruthy();
+  expect(screen.getByRole('button', { name: /Revisão ativa/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Reverter para a revisão anterior' })).toBeNull();
+});
+
+it('quem não é fundador não consulta ativações nem vê o botão de reverter', () => {
+  const repo = repoComAtivacoes([ativacao()]);
+  mostrar(repo);
+  expect(repo.listarAtivacoes).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Reverter para a revisão anterior' })).toBeNull();
 });

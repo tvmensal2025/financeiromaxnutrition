@@ -68,6 +68,7 @@ function repoConfig(revisao: ConfigDetail = base): RepositorioConfigV2 {
   return {
     listar: vi.fn().mockResolvedValue([revisao]), ler: vi.fn().mockResolvedValue(revisao),
     salvar: vi.fn(), solicitarValidacao: vi.fn(), ativar: vi.fn(), aposentar: vi.fn(),
+    listarAtivacoes: vi.fn().mockResolvedValue([]), reverter: vi.fn(),
   };
 }
 const config = (repo: RepositorioConfigV2) => render(<MemoryRouter><ConfiguracoesV2Page repositorio={repo} /></MemoryRouter>);
@@ -148,6 +149,20 @@ describe('ConfiguracoesV2Page (fundador): botões, abas e links', () => {
     await screen.findByRole('button', { name: 'Ativar revisão' });
     expect(semAlvo()).toEqual([]);
     expect(comAlvo()).toEqual(expect.arrayContaining(['button "Ativar revisão"']));
+  });
+
+  it('histórico de ativações com o botão "Reverter para a revisão anterior": todo controle declara alvo de toque', async () => {
+    const ativa = { ...base, id: 'uuid-ativa', estado: 'VALIDADA' as const, ativa: true };
+    const repo = repoConfig(ativa);
+    vi.mocked(repo.listarAtivacoes).mockResolvedValue([{
+      id: 2, tipo: 'ATIVACAO', ativada_por: 'fundador-1', ativada_em: '2026-10-13T15:30:00Z',
+      configuracao_id: 'uuid-ativa', configuracao_nome: 'Configuração existente', configuracao_versao: 3,
+      anterior_id: 'uuid-anterior', anterior_nome: 'Revisão anterior', anterior_versao: 2, anterior_estado: 'VALIDADA',
+    }]);
+    config(repo);
+    await screen.findByRole('region', { name: 'Ativações recentes' });
+    expect(semAlvo()).toEqual([]);
+    expect(comAlvo()).toEqual(expect.arrayContaining(['button "Reverter para a revisão anterior"']));
   });
 
   it('membro vê só o link "Voltar ao sistema", que também declara alvo de toque', async () => {
