@@ -135,6 +135,14 @@ def _preflight_bancos_reais(url_banco: str, url_dbos: str):
     return dbos_config
 
 
+class EventoRecusado(RuntimeError):
+    """A função única do banco recusou o evento. `resposta` é a resposta dela (motivo, resultado...)."""
+
+    def __init__(self, maquina, evento, resposta):
+        super().__init__(f'{maquina} {evento}: {resposta}')
+        self.resposta = resposta
+
+
 class Motor:
     def __init__(self, url_banco: str, url_dbos: str, casos: dict[str, str] | None = None, executor=None,
                  *, permitir_configuracao_tecnica=False, permitir_servico_rascunho=False,
@@ -426,8 +434,22 @@ class Motor:
                 raise RuntimeError('evento do fundador exige sessão autenticada própria')
             resposta = aplicar(con)
         if resposta['resultado'] not in ('APLICADO', 'CONVERTIDO'):
-            raise RuntimeError(f'{maquina} {evento}: {resposta}')
+            raise EventoRecusado(maquina, evento, resposta)
         return resposta
+
+    def _evento_de_vista_atrasada(self, *args, **kwargs):
+        """Aplica um evento que o motor decidiu olhando uma FOTO do banco (a lista de etapas, o estado do card).
+
+        Se, entre a foto e o evento, a máquina andou sozinha ou outro processo agiu, o banco responde
+        SEM_PASSAGEM_NESTE_ESTADO: o evento já não cabe. Isso não é erro nem progresso: devolve False e a próxima rodada
+        olha o banco de novo. Qualquer outra recusa continua sendo erro. Devolve True quando o evento valeu."""
+        try:
+            self._evento(*args, **kwargs)
+        except EventoRecusado as erro:
+            if isinstance(erro.resposta, dict) and erro.resposta.get('motivo') == 'SEM_PASSAGEM_NESTE_ESTADO':
+                return False
+            raise
+        return True
 
     def _etapas(self, card_id):
         with self._con() as con:
@@ -977,10 +999,9 @@ class Motor:
             _revisao, spec, raiz = self._ambiente_card(card_id)
             erro = validar_plano(card['ordem_de_servico'], spec, raiz,
                                  permitir_rascunho=self.permitir_servico_rascunho)
-            self._evento('card', card_id, 'MOTOR', 'PLANO_INVALIDO' if erro else 'PLANO_VALIDO',
-                         conteudo={'motivo': erro} if erro else None,
-                         card_id_real=card_id if modo == 'real' else None)
-            return True
+            return self._evento_de_vista_atrasada(
+                'card', card_id, 'MOTOR', 'PLANO_INVALIDO' if erro else 'PLANO_VALIDO',
+                conteudo={'motivo': erro} if erro else None, card_id_real=card_id if modo == 'real' else None)
         if card['estado'] != 'EM_ANDAMENTO':
             return False
         for etapa in self._etapas(card_id):
@@ -990,13 +1011,11 @@ class Motor:
                     deps = con.execute('SELECT bool_and(estado IN (%s,%s)) AS pronto FROM helena_v2.etapa WHERE card_id=%s AND atual AND codigo=ANY(%s)',
                                        ('APROVADA', 'PRONTA', card_id, etapa['depende_de'])).fetchone()['pronto']
                 if not etapa['depende_de'] or deps:
-                    self._evento('etapa', etapa['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS',
-                                 card_id_real=card_id if modo == 'real' else None)
-                    return True
+                    return self._evento_de_vista_atrasada(
+                        'etapa', etapa['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS', card_id_real=card_id if modo == 'real' else None)
             elif estado == 'NA_FILA':
-                self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_EXECUCAO',
-                             card_id_real=card_id if modo == 'real' else None)
-                return True
+                return self._evento_de_vista_atrasada(
+                    'etapa', etapa['id'], 'MOTOR', 'INICIAR_EXECUCAO', card_id_real=card_id if modo == 'real' else None)
             elif estado == 'EXECUTANDO':
                 self.executar_etapa(etapa['id'])
                 return True
@@ -1011,8 +1030,9 @@ class Motor:
         if etapa['estado'] != 'REVISAO':
             return etapa['estado']
         if etapa['execucao_atual'] is None:
-            self._evento('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO',
-                         card_id_real=etapa['card_id'] if modo == 'real' else None)
+            if not self._evento_de_vista_atrasada('etapa', etapa['id'], 'MOTOR', 'INICIAR_REVISAO',
+                                                  card_id_real=etapa['card_id'] if modo == 'real' else None):
+                return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado']
             etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
         revisao_id = self._ambiente_card(etapa['card_id'])[0]['id']
         with SetWorkflowID(f'{self.versao_codigo}-{revisao_id}-{etapa["id"]}-{etapa["execucao_atual"]}'):

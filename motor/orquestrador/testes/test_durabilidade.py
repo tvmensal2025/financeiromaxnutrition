@@ -245,6 +245,38 @@ def test_queda_entre_a_entrega_e_o_portao1_nao_deixa_a_etapa_presa_e_a_retomada_
         motor.fechar()
 
 
+def test_vista_atrasada_do_motor_nao_vira_erro_mas_outras_recusas_continuam_erro(banco, url_dbos):
+    """Achado do CI no despacho: o motor olha as etapas, a máquina anda sozinha, e o evento que o motor ia aplicar já não
+    cabe (SEM_PASSAGEM_NESTE_ESTADO). Isso não é erro: devolve False e a próxima rodada olha o banco de novo."""
+    from orquestrador.motor import EventoRecusado
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'vista-atrasada')
+        for _ in range(12):
+            if motor._card(card)['estado'] == 'EM_ANDAMENTO':
+                break
+            _um_passo(motor, card)
+        atuais = motor._etapas(card)
+        assert atuais and atuais[0]['estado'] != 'AGUARDANDO_ANTERIORES'        # a máquina já abriu a primeira etapa sozinha
+        foto = [{**atuais[0], 'estado': 'AGUARDANDO_ANTERIORES', 'depende_de': []}, *atuais[1:]]   # a foto velha do motor
+
+        original = motor._etapas
+        motor._etapas = lambda _card: foto                         # o motor ainda enxerga a foto velha
+        try:
+            assert motor.avancar(card) is False                    # não é erro e não conta como avanço
+        finally:
+            motor._etapas = original
+
+        def outra_recusa(maquina, alvo, papel, evento, *args, **kwargs):
+            raise EventoRecusado(maquina, evento, {'resultado': 'RECUSADO', 'motivo': 'GUARDA_FALHOU'})
+
+        motor._evento = outra_recusa
+        with pytest.raises(EventoRecusado, match='GUARDA_FALHOU'):
+            motor._evento_de_vista_atrasada('etapa', foto[0]['id'], 'MOTOR', 'DEPENDENCIAS_PRONTAS')
+    finally:
+        motor.fechar()
+
+
 def _lancar_motor_em_processo(banco, url_dbos, card, atraso_s):
     filho = subprocess.Popen(
         [sys.executable, str(APOIO / 'motor_em_processo.py'), banco.url, url_dbos, str(card), str(atraso_s)],
