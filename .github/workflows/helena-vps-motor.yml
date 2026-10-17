@@ -35,33 +35,64 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Preparar acesso SSH (chave ou senha)
+      # Opcional: UM segredo só, HELENA_OFICIAL, com uma linha por valor (NOME=VALOR ou NOME: VALOR). Os segredos
+      # separados, quando existem, têm prioridade. Só nomes conhecidos entram; cada valor é mascarado no registro.
+      - name: Ler o segredo único HELENA_OFICIAL (se existir)
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          HELENA_OFICIAL: ${{ secrets.HELENA_OFICIAL }}
+          S_VPS_HOST: ${{ secrets.VPS_HOST }}
+          S_VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+          S_HELENA_SENHA_MOTOR: ${{ secrets.HELENA_SENHA_MOTOR }}
+          S_HELENA_SENHA_DBOS: ${{ secrets.HELENA_SENHA_DBOS }}
+          S_HELENA_DB_HOST: ${{ vars.HELENA_DB_HOST }}
         run: |
           set -euo pipefail
-          [ -n "$VPS_HOST" ] || { echo "::error::segredo VPS_HOST ausente"; exit 1; }
+          declare -A v=()
+          while IFS= read -r linha || [ -n "$linha" ]; do
+            linha="${linha%$'\r'}"
+            [ -z "${linha// }" ] && continue
+            if [[ "$linha" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*[:=][[:space:]]*(.*)$ ]]; then
+              nome="${BASH_REMATCH[1]^^}"; valor="${BASH_REMATCH[2]}"
+              valor="${valor%"${valor##*[![:space:]]}"}"
+              case "$nome" in VPS_HOST|VPS_PASSWORD|HELENA_SENHA_MOTOR|HELENA_SENHA_DBOS|HELENA_DB_HOST) v[$nome]="$valor" ;; *) echo "linha ignorada: nome desconhecido '$nome'" ;; esac
+            else
+              echo "linha ignorada: sem NOME=VALOR"
+            fi
+          done <<< "$HELENA_OFICIAL"
+          for nome in VPS_HOST VPS_PASSWORD HELENA_SENHA_MOTOR HELENA_SENHA_DBOS HELENA_DB_HOST; do
+            separado="S_$nome"; valor="${!separado:-}"
+            [ -n "$valor" ] || valor="${v[$nome]:-}"
+            if [ -n "$valor" ]; then
+              [ "$nome" = VPS_HOST ] || [ "$nome" = HELENA_DB_HOST ] || echo "::add-mask::$valor"
+              printf '%s<<__FIM__\n%s\n__FIM__\n' "$nome" "$valor" >> "$GITHUB_ENV"
+              echo "$nome: definido"
+            else
+              echo "$nome: vazio"
+            fi
+          done
+
+      - name: Preparar acesso SSH (chave ou senha)
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "${VPS_HOST:-}" ] || { echo "::error::VPS_HOST ausente (segredo VPS_HOST ou linha VPS_HOST=... em HELENA_OFICIAL)"; exit 1; }
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           ssh-keyscan -T 15 -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || { echo "::error::a VPS nao respondeu na porta 22"; exit 1; }
           if [ -n "$VPS_SSH_KEY" ]; then
             printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/vps; chmod 600 ~/.ssh/vps
             echo "SSH_CMD=ssh -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
             echo "SCP_CMD=scp -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
-          elif [ -n "$VPS_PASSWORD" ]; then
+          elif [ -n "${VPS_PASSWORD:-}" ]; then
             sudo apt-get install -y -qq sshpass >/dev/null
-            echo "SSH_CMD=sshpass -e ssh" >> "$GITHUB_ENV"
-            echo "SCP_CMD=sshpass -e scp" >> "$GITHUB_ENV"
-            echo "SSHPASS=$VPS_PASSWORD" >> "$GITHUB_ENV"
-            echo "::add-mask::$VPS_PASSWORD"
+            echo "SSH_CMD=sshpass -e ssh -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
+            echo "SCP_CMD=sshpass -e scp -o StrictHostKeyChecking=yes" >> "$GITHUB_ENV"
+            printf 'SSHPASS<<__FIM__\n%s\n__FIM__\n' "$VPS_PASSWORD" >> "$GITHUB_ENV"
           else
             echo "::error::defina VPS_SSH_KEY (recomendado) ou VPS_PASSWORD"; exit 1
           fi
 
       - name: Enviar o código e o instalador para a VPS
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
         run: |
           set -euo pipefail
           git bundle create /tmp/helena.bundle HEAD >/dev/null
@@ -70,19 +101,15 @@ jobs:
 
       - name: "Rodar: ${{ inputs.etapa }}"
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          HELENA_SENHA_MOTOR: ${{ secrets.HELENA_SENHA_MOTOR }}
-          HELENA_SENHA_DBOS: ${{ secrets.HELENA_SENHA_DBOS }}
-          HELENA_DB_HOST: ${{ vars.HELENA_DB_HOST }}
           ETAPA: ${{ inputs.etapa }}
         run: |
           set -euo pipefail
           # Segredos vao num arquivo 0600 pela entrada do SSH (nunca na linha de comando) e sao apagados antes de rodar.
           {
             printf 'export HELENA_REPO_URL=%q HELENA_REF=%q HELENA_REPO_TOKEN=local\n' /root/helena-src HEAD
-            [ -n "$HELENA_SENHA_MOTOR" ] && printf 'export HELENA_SENHA_MOTOR=%q\n' "$HELENA_SENHA_MOTOR"
-            [ -n "$HELENA_SENHA_DBOS" ]  && printf 'export HELENA_SENHA_DBOS=%q\n'  "$HELENA_SENHA_DBOS"
-            [ -n "$HELENA_DB_HOST" ]     && printf 'export HELENA_DB_HOST=%q\n'     "$HELENA_DB_HOST"
+            [ -n "${HELENA_SENHA_MOTOR:-}" ] && printf 'export HELENA_SENHA_MOTOR=%q\n' "$HELENA_SENHA_MOTOR"
+            [ -n "${HELENA_SENHA_DBOS:-}" ]  && printf 'export HELENA_SENHA_DBOS=%q\n'  "$HELENA_SENHA_DBOS"
+            [ -n "${HELENA_DB_HOST:-}" ]     && printf 'export HELENA_DB_HOST=%q\n'     "$HELENA_DB_HOST"
             true
           } > /tmp/ambiente.sh
           $SSH_CMD "root@$VPS_HOST" 'umask 077; cat > /root/.helena-ambiente.sh' < /tmp/ambiente.sh
@@ -91,7 +118,5 @@ jobs:
           $SSH_CMD -tt "root@$VPS_HOST" 'set -a; . /root/.helena-ambiente.sh; set +a; rm -f /root/.helena-ambiente.sh; bash /root/instalar-motor.sh '"$ETAPA"'; echo "SAIDA=$?"; exit' | sed -E 's#(postgresql://[^:]+:)[^@]+@#\1<senha>@#g'
 
       - name: Estado final dos serviços
-        if: always()
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+        if: always() && env.SSH_CMD != ''
         run: $SSH_CMD "root@$VPS_HOST" 'bash /root/instalar-motor.sh estado' || true
