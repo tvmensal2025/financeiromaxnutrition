@@ -35,7 +35,8 @@ Estas orientações valem para todo o projeto. Responder em português e seguir 
 - Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
 - Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.
 - Esta pasta é a base local de colaboração. Não reconstruir nem duplicar aplicativos existentes sem verificar o código e o escopo solicitado.
-- A v1 está parada (DEC-032): o app em `src/` é só a v2 (login, cards e configuração). O código da v1 do app fica em `docs/arquivo/app-v1/`, só consulta; não religar, não copiar de volta e não recriar telas da v1. `services/`, `scripts/` e `supabase/migrations/` são da v1 e só mudam com a frase exata do fundador (DEC-028).
+- A v1 está parada (DEC-032). Em 17/10/2026, o fundador pediu preservar a construção existente, conectar suas partes e documentar o encaminhamento para a IA. Essa instrução autoriza reaproveitar a interface preservada como referência e adaptar componentes ao fluxo e às permissões da v2. A visão geral da v2 fica em `/`; os cards ficam em `/cards`, conservando links antigos `/?card=...`. Não restaurar em bloco a aplicação v1 nem ligar seus serviços por inferência. `services/`, `scripts/` e `supabase/migrations/` mantêm a proteção da DEC-028.
+- Ao retomar, leia `docs/manual/mapa-do-sistema.md` e `docs/manual/mapa-de-reaproveitamento.md`, além de `onde-estamos.md`. Eles indicam destinos, contratos e trabalho preservado; não substituem a consulta atual ao banco nem comprovam implantação. A orientação incluída no contexto da triagem fica em `motor/orquestrador/orquestrador/mapa_operacional.py` e usa a revisão realmente capturada pelo motor.
 
 ## TypeSafe / Jev
 

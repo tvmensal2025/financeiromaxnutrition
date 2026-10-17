@@ -5,7 +5,7 @@ import { ErroEntradaPedidos, LIMITE_TEXTO_PEDIDO, uuidValido, type DetalhePedido
 import { apagarPedidoPendente, guardarUltimoPedido, lerPedidoPendente, lerUltimoPedido, salvarPedidoPendente } from '@/integrations/pedidos-v2/pendente';
 import { PropostaPedidoV2 } from './PropostaPedidoV2';
 
-type Props = { identidade: string; repositorio?: RepositorioPedidosV2 };
+type Props = { identidade: string; repositorio?: RepositorioPedidosV2; pedidoInicial?: string | null };
 export function EntradaPedidosV2(props: Props) { return <Entrada key={props.identidade} {...props} />; }
 
 function AndamentoPedido({ pedido }: { pedido: PedidoEntrada }) {
@@ -16,11 +16,11 @@ function AndamentoPedido({ pedido }: { pedido: PedidoEntrada }) {
   return <div className="space-y-1">
     <p className="font-semibold">{titulo}</p>
     {pedido.estado !== 'RECEBIDO' && <p className="text-muted-foreground">Empresa: {pedido.empresa_id || 'Não informada'} · Plano: {pedido.titulo_confirmado || 'Não informado'}</p>}
-    {cardCriado && <a href={`/?card=${pedido.card_id}`} className="min-h-11 inline-flex items-center font-semibold text-emerald-800 underline dark:text-emerald-400">Abrir card no Kanban</a>}
+    {cardCriado && <a href={`/cards?card=${pedido.card_id}`} className="min-h-11 inline-flex items-center font-semibold text-emerald-800 underline dark:text-emerald-400">Abrir card no Kanban</a>}
   </div>;
 }
 
-function Entrada({ identidade, repositorio }: Props) {
+function Entrada({ identidade, repositorio, pedidoInicial }: Props) {
   const [repo, setRepo] = useState<RepositorioPedidosV2 | null>(repositorio ?? null);
   const [texto, setTexto] = useState('');
   const [pendente, setPendente] = useState<EnvioPedido | null>(null);
@@ -40,6 +40,8 @@ function Entrada({ identidade, repositorio }: Props) {
   const [erroConsulta, setErroConsulta] = useState<string | null>(null);
   const trava = useRef(false);
   const travaConsulta = useRef(false);
+  const consultaVersao = useRef(0);
+  const linkAnterior = useRef<string | null | undefined>(undefined);
   const vivo = useRef(true);
 
   useEffect(() => { vivo.current = true; return () => { vivo.current = false; }; }, []);
@@ -75,6 +77,50 @@ function Entrada({ identidade, repositorio }: Props) {
     }).finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; };
   }, [repo, tentativaLista]);
+
+  useEffect(() => {
+    const haviaLink = linkAnterior.current !== undefined;
+    linkAnterior.current = pedidoInicial;
+    if (pedidoInicial === undefined) {
+      if (haviaLink) {
+        ++consultaVersao.current;
+        setConsultado(null);
+        setPedidoSelecionado(null);
+        setErroConsulta(null);
+        setConsultando(false);
+      }
+      return;
+    }
+    const id = typeof pedidoInicial === 'string' ? pedidoInicial.trim().toLowerCase() : '';
+    const versao = ++consultaVersao.current;
+    let ativo = true;
+    setConsultado(null);
+    setPedidoSelecionado(null);
+    setErroConsulta(null);
+    setConsultaId(id);
+    if (!uuidValido(id)) {
+      setConsultando(false);
+      setErroConsulta('O link do pedido é inválido. Informe um número completo de acompanhamento.');
+      return;
+    }
+    if (!repo) return;
+    setConsultando(true);
+    void repo.ler(id).then(valor => {
+      if (!ativo || versao !== consultaVersao.current) return;
+      if (!valor || valor.request_id.toLowerCase() !== id) {
+        setErroConsulta('Pedido não encontrado para esta conta.');
+        return;
+      }
+      setConsultado(valor);
+      setPedidoSelecionado(valor.request_id);
+    }).catch(falha => {
+      if (ativo && versao === consultaVersao.current) setErroConsulta(
+        falha instanceof ErroEntradaPedidos ? falha.message : 'Não foi possível consultar o pedido indicado neste link.');
+    }).finally(() => {
+      if (ativo && versao === consultaVersao.current) setConsultando(false);
+    });
+    return () => { ativo = false; };
+  }, [pedidoInicial, repo]);
 
   function confirmar(valor: PedidoEntrada) {
     setRecibo(valor);
@@ -129,6 +175,7 @@ function Entrada({ identidade, repositorio }: Props) {
   }
   async function consultarPedido() {
     if (!repo || travaConsulta.current) return;
+    const versao = ++consultaVersao.current;
     const id = consultaId.trim().toLowerCase();
     setConsultado(null);
     setErroConsulta(null);
@@ -137,15 +184,16 @@ function Entrada({ identidade, repositorio }: Props) {
     setConsultando(true);
     try {
       const valor = await repo.ler(id);
-      if (vivo.current) {
+      if (vivo.current && versao === consultaVersao.current) {
         setConsultado(valor);
         setPedidoSelecionado(valor?.request_id ?? null);
         if (!valor) setErroConsulta('Pedido não encontrado para esta conta.');
       }
     } catch (falha) {
-      if (vivo.current) setErroConsulta(falha instanceof ErroEntradaPedidos ? falha.message : 'Não foi possível consultar este acompanhamento.');
+      if (vivo.current && versao === consultaVersao.current) setErroConsulta(falha instanceof ErroEntradaPedidos ? falha.message : 'Não foi possível consultar este acompanhamento.');
     } finally {
-      if (vivo.current) { travaConsulta.current = false; setConsultando(false); }
+      travaConsulta.current = false;
+      if (vivo.current && versao === consultaVersao.current) setConsultando(false);
     }
   }
 

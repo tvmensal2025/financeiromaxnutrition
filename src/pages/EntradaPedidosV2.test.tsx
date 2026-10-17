@@ -164,8 +164,73 @@ it('distingue plano confirmado de card criado e só liga UUID válido ao Kanban'
   expect(screen.getByText('Card criado · acompanhe no Kanban')).toBeTruthy();
   const links = screen.getAllByRole('link', { name: 'Abrir card no Kanban' }) as HTMLAnchorElement[];
   expect(links).toHaveLength(1);
-  expect(links[0].getAttribute('href')).toBe(`/?card=${criado.card_id}`);
+  expect(links[0].getAttribute('href')).toBe(`/cards?card=${criado.card_id}`);
   expect(screen.queryByText(/No ar|Publicado|Trabalho concluído/i)).toBeNull();
+});
+
+it('abre pedido do link somente após a leitura autorizada e carrega sua proposta', async () => {
+  const repo = repositorio({ ler: vi.fn().mockResolvedValue(detalhe),
+    lerProposta: vi.fn().mockResolvedValue({ ...pedido, proposta_helena: null, perguntas: [] }) });
+  render(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={requestId} />);
+  expect(await screen.findByRole('article', { name: 'Histórico do pedido' })).toBeTruthy();
+  expect(repo.ler).toHaveBeenCalledWith(requestId);
+  await waitFor(() => expect(repo.lerProposta).toHaveBeenCalledWith(requestId));
+  expect(screen.queryByText('Pedido não encontrado para esta conta.')).toBeNull();
+  expect(repo.receber).not.toHaveBeenCalled();
+});
+
+it('link inválido ou ausente para a conta mostra erro sem escolher outro pedido', async () => {
+  const repo = repositorio({ listar: vi.fn().mockResolvedValue({ limite: 50, itens: [pedido] }) });
+  const tela = render(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial="invalido" />);
+  expect(await screen.findByText(/O link do pedido é inválido/)).toBeTruthy();
+  expect(repo.ler).not.toHaveBeenCalled();
+  expect(repo.lerProposta).not.toHaveBeenCalled();
+  tela.rerender(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={requestId} />);
+  expect(await screen.findByText('Pedido não encontrado para esta conta.')).toBeTruthy();
+  expect(repo.ler).toHaveBeenCalledWith(requestId);
+  expect(repo.lerProposta).not.toHaveBeenCalled();
+  expect(screen.queryByRole('article', { name: 'Histórico do pedido' })).toBeNull();
+  expect(repo.receber).not.toHaveBeenCalled();
+});
+
+it('recusa IDs duplicados no link e resposta de outro pedido mesmo se o repositório a devolver', async () => {
+  const outroId = '11111111-1111-4111-8111-111111111111';
+  const repo = repositorio({ ler: vi.fn().mockResolvedValue({ ...detalhe, request_id: outroId }) });
+  const tela = render(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={null} />);
+  expect(await screen.findByText(/O link do pedido é inválido/)).toBeTruthy();
+  expect(repo.ler).not.toHaveBeenCalled();
+  tela.rerender(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={requestId} />);
+  expect(await screen.findByText('Pedido não encontrado para esta conta.')).toBeTruthy();
+  expect(repo.lerProposta).not.toHaveBeenCalled();
+  expect(screen.queryByRole('article', { name: 'Histórico do pedido' })).toBeNull();
+});
+
+it('troca de link descarta resposta antiga e não seleciona pedido de outra conta', async () => {
+  const outroId = '11111111-1111-4111-8111-111111111111';
+  let resolverAntigo!: (valor: typeof detalhe) => void;
+  const antigo = new Promise<typeof detalhe>(resolve => { resolverAntigo = resolve; });
+  const atual = { ...detalhe, request_id: outroId, texto_inicial: 'Pedido atual autorizado',
+    eventos: [{ ...detalhe.eventos[0], texto: 'Mensagem do pedido atual' }] };
+  const repo = repositorio({ ler: vi.fn().mockImplementation((id: string) => id === requestId ? antigo : Promise.resolve(atual)),
+    lerProposta: vi.fn().mockResolvedValue({ ...atual, proposta_helena: null, perguntas: [] }) });
+  const tela = render(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={requestId} />);
+  tela.rerender(<EntradaPedidosV2 identidade="fundador" repositorio={repo} pedidoInicial={outroId} />);
+  expect(await screen.findByText('Mensagem do pedido atual')).toBeTruthy();
+  await act(async () => resolverAntigo(detalhe));
+  expect(screen.queryByText(pedido.texto_inicial)).toBeNull();
+  expect(screen.queryByText(requestId)).toBeNull();
+  expect(repo.lerProposta).not.toHaveBeenCalledWith(requestId);
+});
+
+it('troca de identidade desmonta leitura pendente e limpa o pedido do link anterior', async () => {
+  let resolverAntigo!: (valor: typeof detalhe) => void;
+  const antigo = new Promise<typeof detalhe>(resolve => { resolverAntigo = resolve; });
+  const repo = repositorio({ ler: vi.fn().mockReturnValue(antigo) });
+  const tela = render(<EntradaPedidosV2 identidade="conta-a" repositorio={repo} pedidoInicial={requestId} />);
+  tela.rerender(<EntradaPedidosV2 identidade="conta-b" repositorio={repo} />);
+  await act(async () => resolverAntigo(detalhe));
+  expect(screen.queryByRole('article', { name: 'Histórico do pedido' })).toBeNull();
+  expect(repo.lerProposta).not.toHaveBeenCalled();
 });
 
 it('não cria link quando um repositório injetado devolve card_id inválido', async () => {

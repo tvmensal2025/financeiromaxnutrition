@@ -1,5 +1,7 @@
 # Pedido único pelo Codex, site e Telegram
 
+A visão geral da v2 em `/` se liga aos cards em `/cards` e aos acompanhamentos `/cards?pedido=<requestID>`. A consulta do pedido confere a conta antes de abrir sua proposta. O [mapa do sistema](mapa-do-sistema.md) e o [inventário de reaproveitamento](mapa-de-reaproveitamento.md) explicam como conectar a construção preservada a esta mesma esteira. O mapa curto já é incluído na triagem do motor; a conversa comum do Hermes ainda precisa de integração de contexto, conforme a [retomada na VPS](retomada-hermes-vps.md).
+
 Contrato e estado de implementação de 17/10/2026. No readback de 17:12 UTC, `CP-20261017-V038` estava ativo, com V037 como predecessor e 37 versões históricas superadas; consulte `public.checkpoint_mestre_atual` ao retomar. As migrations 0020–0026 foram aplicadas e verificadas no projeto oficial. O código foi enviado à branch de trabalho; o novo site/Lovable, a Edge, o webhook e o trabalhador na VPS não foram implantados nesta rodada. Receber ou parear não comprova que o bot, esta conversa ou o motor estejam conectados.
 
 ## Estado das peças

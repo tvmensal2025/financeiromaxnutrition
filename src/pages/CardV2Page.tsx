@@ -143,6 +143,8 @@ function ConteudoCardV2({ repositorio }: PageProps) {
   const cardNaUrl = busca.get('card');
   const temCardNaUrl = busca.has('card');
   const cardUnicoNaUrl = busca.getAll('card').length === 1;
+  const pedidosNaUrl = busca.getAll('pedido');
+  const pedidoInicial = pedidosNaUrl.length === 0 ? undefined : pedidosNaUrl.length === 1 ? pedidosNaUrl[0] : null;
   const [repo, setRepo] = useState<RepositorioCardsV2 | null>(repositorio ?? null);
   const [erroInicial, setErroInicial] = useState<string | null>(null);
   const [tentativaConexao, setTentativaConexao] = useState(0);
@@ -286,7 +288,8 @@ function ConteudoCardV2({ repositorio }: PageProps) {
       </button>}
     </section>}
 
-    {isFounder && user?.id && <EntradaPedidosV2 identidade={user.id} />}
+    {!isFounder && pedidoInicial !== undefined && <p role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">O acompanhamento por link está disponível apenas para a conta do fundador.</p>}
+    {isFounder && user?.id && <EntradaPedidosV2 identidade={user.id} pedidoInicial={pedidoInicial} />}
     {isFounder && user?.id && <PareamentoTelegramV2 identidade={user.id} />}
     {isFounder && <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />}
 

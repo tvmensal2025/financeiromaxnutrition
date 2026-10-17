@@ -4,8 +4,10 @@ A empresa operada por agentes de IA do fundador. Ele faz um pedido, o pedido vir
 
 **Para retomar sem misturar relatos antigos com o estado atual, comece por [Ponto único de retomada](docs/manual/onde-estamos.md).**
 
+Para conectar o trabalho preservado, consulte o [mapa do sistema para a IA](docs/manual/mapa-do-sistema.md) e o [inventário de reaproveitamento](docs/manual/mapa-de-reaproveitamento.md). A orientação enviada ao Hermes na triagem é gerada a partir da configuração e do contexto capturados pelo motor; seu contrato está no [guia da triagem](docs/manual/guia-da-triagem.md). Um documento salvo não comprova que o serviço remoto já o esteja usando.
+
 - **v2 (o app atual):** o app (esta pasta, só a v2 desde a DEC-032), a especificação em `helena-v2/`, as peças do motor em `motor/` e o esquema `helena_v2` em `supabase/migrations-v2/`. O plano é `docs/plano/PLANO-HELENA-V3.md` (motor DBOS). O HANDOFF relata a instalação do motor e conexões TLS em 17/10/2026; no mesmo bloco, um relato inicial diz que o despachante estava desligado e uma atualização posterior diz que os três serviços ficaram ativos. Há também relatos divergentes sobre a revisão ativa. São registros históricos, não confirmação do estado atual. O dia de prova e o primeiro card ponta a ponta continuam sem comprovação nos documentos.
-- **v1 (parada):** a interface antiga está em `docs/arquivo/app-v1/`, só para consulta. O gateway e os serviços de voz (`services/`), os scripts (`scripts/`) e as migrations antigas (`supabase/migrations/`) continuam no repositório porque ainda existem no servidor e no banco; desligar a central é a DEC-028 e só acontece com a frase exata do fundador.
+- **v1 (preservada):** a interface antiga está em `docs/arquivo/app-v1/`. A orientação do fundador de 17/10 autoriza adaptar seu trabalho visual à v2; o arquivo original permanece preservado. Gateway, serviços de voz (`services/`), scripts (`scripts/`) e migrations antigas (`supabase/migrations/`) têm contratos próprios e não são religados pela inclusão do painel.
 
 Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-estamos.md`](docs/manual/onde-estamos.md). Relatos técnicos datados: `HANDOFF-CLAUDE-CODE.md`. Lista de documentos: `docs/INDICE.md`.
 
@@ -14,10 +16,11 @@ Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-e
 | Rota | O que é | Quem vê |
 |---|---|---|
 | `/login` | Entrada com e-mail e senha (Supabase Auth) e `app_access` ativo | todos |
-| `/` | **Cards**: Kanban, detalhe, etapas, entregas, ações, perguntas e publicação; fundador também recebe texto livre para triagem (migration 0021) e solicita card real | membros |
+| `/` | **Visão geral**: cards consultados, decisões pendentes, pedidos recentes e empresas/agentes da revisão ativa | fundador; membros veem a indicação de acesso reservado |
+| `/cards` | **Cards**: Kanban, detalhe, etapas, entregas, ações, perguntas e publicação; fundador também registra pedidos em texto livre e confirma propostas | membros, com dados sujeitos às permissões do banco |
 | `/configuracoes` | **Configuração e revisões** dos documentos da Helena (fichas, organograma, serviços, modelos, roteiros, entregas), ativação e reversão | só o fundador |
 
-`/cards-v2` e `/configuracoes-v2` redirecionam para as rotas novas. Qualquer rota da v1 cai em `/`. Não existe flag: a v2 está sempre ligada.
+`/painel`, `/cards-v2` e `/configuracoes-v2` redirecionam para as rotas correspondentes. Links antigos `/?card=...` continuam abrindo o card em `/cards`; o banco e a tela conferem acesso ao destino. A inclusão de visão geral não reativa as rotas financeiras/CRM da v1. Não existe flag: a v2 está sempre ligada.
 
 ## Onde está cada coisa
 

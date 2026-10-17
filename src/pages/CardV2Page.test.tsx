@@ -7,8 +7,8 @@ import type { PedidoPublicacao, RepositorioCardsV2 } from '@/integrations/cards-
 
 const auth = vi.hoisted(() => ({ isFounder: false, userId: 'usuario-a' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
-vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: ({ identidade }: { identidade: string }) =>
-  <section data-testid="entrada-pedidos" data-identidade={identidade}>Entrada unificada</section> }));
+vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: ({ identidade, pedidoInicial }: { identidade: string; pedidoInicial?: string | null }) =>
+  <section data-testid="entrada-pedidos" data-identidade={identidade} data-pedido={pedidoInicial ?? ''}>Entrada unificada</section> }));
 vi.mock('./PareamentoTelegramV2', () => ({ PareamentoTelegramV2: ({ identidade }: { identidade: string }) =>
   <section data-testid="pareamento-telegram" data-identidade={identidade}>Telegram</section> }));
 
@@ -85,6 +85,22 @@ it('mostra entrada unificada ao fundador antes da importação avançada de card
   expect(telegram.getAttribute('data-identidade')).toBe(auth.userId);
   expect(entrada.compareDocumentPosition(telegram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(telegram.compareDocumentPosition(importacao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('encaminha ?pedido= ao módulo de pedidos só para o fundador, sem interpretar o ID como card', async () => {
+  auth.isFounder = true;
+  const pedidoId = '11111111-1111-4111-8111-111111111111';
+  renderPage(<CardV2Page repositorio={repositorio()} />, `/?pedido=${pedidoId}`);
+  await screen.findByText('Nenhum card disponível.');
+  expect(screen.getByTestId('entrada-pedidos').getAttribute('data-pedido')).toBe(pedidoId);
+  expect(screen.queryByText(/O card indicado na URL/)).toBeNull();
+  expect(screen.getByTestId('rota-atual').textContent).toBe(`?pedido=${pedidoId}`);
+});
+
+it('membro com ?pedido= recebe restrição explícita e não monta a entrada', async () => {
+  renderPage(<CardV2Page repositorio={repositorio()} />, '/?pedido=invalido');
+  expect(await screen.findByText(/O acompanhamento por link está disponível apenas para a conta do fundador/)).toBeTruthy();
+  expect(screen.queryByTestId('entrada-pedidos')).toBeNull();
 });
 
 it('mostra decisão do fundador com versão real apenas para card selecionado em estado permitido', async () => {

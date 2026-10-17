@@ -5,11 +5,12 @@ import { AuthProvider, useAuth } from "@/auth";
 import { Layout } from "@/components/Layout";
 import { ShieldAlert, LogOut } from "lucide-react";
 const Login = lazy(() => import("@/pages/Login"));
+const PainelV2Page = lazy(() => import("@/pages/PainelV2Page"));
 const CardV2Page = lazy(() => import("@/pages/CardV2Page"));
 const ConfiguracoesV2Page = lazy(() => import("@/pages/ConfiguracoesV2Page"));
 
 /**
- * O app roda só a v2 (DEC-032): cards, ações do fundador e configuração da Helena.
+ * O app roda só a v2 (DEC-032): painel, cards, ações do fundador e configuração da Helena.
  * A v1 está parada; o código dela ficou em docs/arquivo/app-v1, só para consulta.
  *
  * CONTROLE DE ACESSO: autenticação real via Supabase Auth e app_access ativo.
@@ -96,6 +97,15 @@ function Redirecionar({ para }: { para: string }) {
   return <Navigate to={`${para}${search}`} replace />;
 }
 
+/** Links antigos `/?card=...` e `/?pedido=...` continuam abrindo o módulo correto. */
+function EntradaRaiz() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  return params.has("card") || params.has("pedido")
+    ? <Redirecionar para="/cards" />
+    : <PainelV2Page />;
+}
+
 function Rotas() {
   return (
     <Routes>
@@ -109,9 +119,11 @@ function Rotas() {
           </Protegida>
         }
       >
-        <Route path="/" element={<CardV2Page />} />
+        <Route path="/" element={<EntradaRaiz />} />
+        <Route path="/painel" element={<Redirecionar para="/" />} />
+        <Route path="/cards" element={<CardV2Page />} />
         <Route path="/configuracoes" element={<ConfiguracoesV2Page />} />
-        <Route path="/cards-v2" element={<Redirecionar para="/" />} />
+        <Route path="/cards-v2" element={<Redirecionar para="/cards" />} />
         <Route path="/configuracoes-v2" element={<Redirecionar para="/configuracoes" />} />
       </Route>
 

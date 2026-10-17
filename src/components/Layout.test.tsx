@@ -1,5 +1,4 @@
-// Prova a casca do app da v2 (Layout): "Cards" para todo membro, "Configuração" só para o
-// fundador, Sair encerra a sessão e todo controle declara alvo de toque (min-h-11).
+// Prova a navegação v2 para membro/fundador, alvo de toque e saída.
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -18,7 +17,8 @@ function abrir(fundador: boolean, caminho = '/') {
   render(<MemoryRouter initialEntries={[caminho]}>
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<p>conteúdo dos cards</p>} />
+        <Route path="/" element={<p>conteúdo da visão geral</p>} />
+        <Route path="/cards" element={<p>conteúdo dos cards</p>} />
         <Route path="/configuracoes" element={<p>conteúdo da configuração</p>} />
       </Route>
     </Routes>
@@ -29,19 +29,22 @@ const links = (nome: string) => screen.queryAllByRole('link', { name: nome });
 afterEach(() => cleanup());
 
 describe('menu da v2', () => {
-  it('membro vê Cards, não vê Configuração, e o conteúdo abre dentro da casca', () => {
+  it('membro vê Visão geral e Cards, sem Configuração, e o conteúdo abre dentro da casca', () => {
     abrir(false);
+    expect(links('Visão geral')).toHaveLength(1);
+    expect(links('Visão geral')[0]).toHaveAttribute('href', '/');
     expect(links('Cards')).toHaveLength(1);
-    expect(links('Cards')[0]).toHaveAttribute('href', '/');
+    expect(links('Cards')[0]).toHaveAttribute('href', '/cards');
     expect(links('Configuração')).toHaveLength(0);
     expect(document.querySelector('a[href="/configuracoes"]')).toBeNull();
-    expect(screen.getByText('conteúdo dos cards')).toBeInTheDocument();
+    expect(screen.getByText('conteúdo da visão geral')).toBeInTheDocument();
     expect(screen.getByText('pessoa@exemplo.com')).toBeInTheDocument();
   });
 
-  it('fundador vê Cards e Configuração', () => {
+  it('fundador vê Visão geral, Cards e Configuração', () => {
     abrir(true);
-    expect(links('Cards')[0]).toHaveAttribute('href', '/');
+    expect(links('Visão geral')[0]).toHaveAttribute('href', '/');
+    expect(links('Cards')[0]).toHaveAttribute('href', '/cards');
     expect(links('Configuração')).toHaveLength(1);
     expect(links('Configuração')[0]).toHaveAttribute('href', '/configuracoes');
   });
@@ -49,14 +52,27 @@ describe('menu da v2', () => {
   it('nenhum link da v1 sobrou no menu', () => {
     abrir(true);
     const destinos = Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href'));
-    expect(destinos.sort()).toEqual(['#conteudo-principal', '/', '/configuracoes']);
+    expect(destinos.sort()).toEqual(['#conteudo-principal', '/', '/cards', '/configuracoes']);
   });
 
   it('o link ativo é marcado conforme a rota', () => {
     abrir(true, '/configuracoes');
     expect(links('Configuração')[0]).toHaveAttribute('aria-current', 'page');
     expect(links('Cards')[0]).not.toHaveAttribute('aria-current');
+    expect(links('Visão geral')[0]).not.toHaveAttribute('aria-current');
     expect(screen.getByText('conteúdo da configuração')).toBeInTheDocument();
+  });
+
+  it('destaca Cards em /cards e mantém as três opções alcançáveis no menu compacto', () => {
+    abrir(true, '/cards');
+    expect(links('Cards')[0]).toHaveAttribute('aria-current', 'page');
+    expect(links('Visão geral')[0]).not.toHaveAttribute('aria-current');
+    expect(screen.getByText('conteúdo dos cards')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Seções do Sistema Helena' });
+    expect(nav).toHaveClass('w-full', 'min-w-0');
+    for (const nome of ['Visão geral', 'Cards', 'Configuração']) {
+      expect(links(nome)[0]).toHaveClass('min-w-0', 'flex-1');
+    }
   });
 
   it('Sair chama a saída da sessão uma vez', () => {

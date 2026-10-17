@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from psycopg.types.json import Jsonb
 
 from executor_helena.tipos import Execucao
+from .mapa_operacional import MapaInvalido, montar_mapa_operacional
 from .plano import validar_plano
 
 BRASILIA = ZoneInfo('America/Sao_Paulo')
@@ -283,12 +284,17 @@ def _autor_plano(motor, captura, spec, raiz):
     portfolio = contexto['portfolio']
     if any(not isinstance(p, dict) for p in portfolio):
         raise TriagemInvalida('portfolio canônico inválido')
+    try:
+        mapa_operacional = montar_mapa_operacional(captura)
+    except MapaInvalido as erro:
+        raise TriagemInvalida(str(erro)) from erro
     pacote = {'instrucao': ('Responda apenas JSON com tipo PERGUNTAR ou PROPOR, resumo até 500 caracteres, '
              'perguntas até 4; em PROPOR inclua empresa_id, servico_id e evidencia '
              'com trechos literais empresa, servico, prazo e insumos. Peça esclarecimento se empresa, '
              'serviço, data/hora do prazo ou insumos estiverem ambíguos. Não invente dados. '
              'Prazo exige data e hora explícitas. Nenhuma proposta autoriza execução.'),
-              'eventos': eventos, 'empresas': {k: v.get('nome') for k, v in empresas.items()},
+              'eventos': eventos, 'mapa_operacional': mapa_operacional,
+              'empresas': {k: v.get('nome') for k, v in empresas.items()},
               'servicos_elegiveis': escolhas,
               'checkpoint': {k: (str(checkpoint.get(k)) if checkpoint.get(k) is not None else None)
                              for k in ('checkpoint_id', 'versao', 'resumo_executivo', 'validado_em')},

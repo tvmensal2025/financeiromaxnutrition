@@ -2,6 +2,12 @@
 
 > Para retomar, use o [ponto único de retomada](docs/manual/onde-estamos.md). Os blocos abaixo preservam relatos históricos com suas datas e não confirmam o estado atual da VPS ou do Supabase. A auditoria e as correções locais são a frente em andamento.
 
+## Adendo posterior de 17/10/2026 — painel e mapa para a IA
+
+O fundador pediu reaproveitar a construção e conectar suas partes. Implementados localmente: visão geral v2 em `/`, cards em `/cards`, acompanhamento por `/cards?pedido=...`, compatibilidade dos links antigos e mapa operacional incluído no contexto da triagem. Arquivos originais da v1 permanecem preservados; financeiro/CRM/calendário/voz ainda exigem validação de contratos e dados antes de integração. Começar pelo [mapa do sistema](docs/manual/mapa-do-sistema.md) e pelo [inventário](docs/manual/mapa-de-reaproveitamento.md), sem reconstruir módulos por falta de consulta.
+
+Testes locais passaram: frontend completo 278; após novos casos de navegação, 111 focados; TypeScript, lint focal e build; 19 de mapa/triagem/PostgreSQL com provedor falso; Chromium desktop/celular com backend sintético. Não houve escrita no banco nem implantação remota nesta etapa. A última consulta administrativa documentada continua sendo V038, datada no ponto de retomada; os adendos antigos abaixo não são estado atual. Falta acesso técnico à VPS para inventariar a instalação real e executar o corte/prova. A conversa comum do Hermes não recebe automaticamente o mapa da triagem; consultar a [retomada Hermes/VPS](docs/manual/retomada-hermes-vps.md).
+
 ## Adendo de 17/10/2026 — Supabase conectado; integração dos canais pendente
 
 - O fundador disponibilizou explicitamente um PAT e autorizou seu uso apenas em memória; o binding seguro do ambiente não foi configurado. O projeto oficial foi confirmado `ACTIVE_HEALTHY`. O checkpoint `CP-20261017-V037` está ativo, sucedendo `CP-20261007-V036`: 37 versões, uma ativa e 36 históricas superadas preservadas. Os registros 1, 14 e 21 do Estado Mestre foram corrigidos com controle de concorrência; o registro 22 documenta a entrada Helena v2. A grafia `eLiving™` do portfólio BIZ-004 foi mantida.

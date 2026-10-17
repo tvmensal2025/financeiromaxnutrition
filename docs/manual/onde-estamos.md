@@ -1,5 +1,15 @@
 # Onde estamos — Sistema Helena v2
 
+## Reaproveitamento do painel e orientação da IA — 17/10/2026
+
+O fundador pediu preservar a construção existente e ligar suas partes. A visão geral da v2 foi implementada em `/`, ligada aos cards em `/cards` e aos acompanhamentos `/cards?pedido=<requestID>`. Links antigos `/?card=...` e `/?pedido=...` continuam encaminhando ao módulo correto. O painel lê os repositórios v2 com a sessão do usuário: mostra cards consultados, esperas pelo fundador, pedidos recentes e empresas/agentes da revisão ativa. As contagens são amostras de até 200 cards e 50 pedidos; falha de leitura não vira zero e membro não consulta fontes reservadas ao fundador. A v1 original continua preservada; financeiro, CRM, calendário e voz ainda têm contratos a validar antes de integração, conforme o inventário.
+
+O [mapa do sistema para a IA](mapa-do-sistema.md) indica fontes, responsáveis e destinos; o [mapa de reaproveitamento](mapa-de-reaproveitamento.md) registra o estado de cada módulo. A orientação curta também entra de fato no pacote de triagem, por `mapa_operacional.py`, derivada da configuração e do contexto capturados. Essa orientação não dá permissões ao modelo nem consulta o banco por conta própria. A conversa comum do Hermes ainda não recebe esse contexto automaticamente; ver [guia da triagem](guia-da-triagem.md) e [retomada na VPS](retomada-hermes-vps.md).
+
+Validação desta etapa: suíte completa do frontend com 278 testes; após dois novos casos de navegação, 111 testes focados passaram. TypeScript, lint focal e build passaram. A suíte de mapa/triagem e integração PostgreSQL passou com 19 testes, incluindo pedido → proposta → confirmação → card → revisão → `PRONTO` com provedor falso. O Chromium exercitou fundador e membro em desktop/celular, com backend sintético, sem erro JavaScript ou rolagem horizontal. Nenhuma consulta administrativa nova, escrita no Supabase, chamada real do Hermes ou implantação remota foi feita nesta etapa; o retrato do banco abaixo conserva sua data.
+
+## Última conferência administrativa do banco
+
 Atualizado em 17/10/2026 após as verificações de 17:12 UTC. Esta é a página de retomada do fundador. O banco foi conferido; o novo código não foi implantado no site/Lovable, na Edge ou na VPS nesta rodada, nem esses destinos foram verificados operacionalmente.
 
 O projeto oficial `ecosistemadossonhos` foi confirmado como `ACTIVE_HEALTHY` na consulta desta sessão. Às 17:12 UTC, `CP-20261017-V038` foi aplicado e lido de volta: 38 versões, uma ativa, 37 históricas superadas, predecessor `CP-20261017-V037`; os registros 1 e 22 do Estado Mestre ficaram nas versões 5070 e 5071. Este é um retrato datado: consulte `public.checkpoint_mestre_atual` ao retomar. As migrations 0020–0026 foram aplicadas no Supabase real com guardas e verificações posteriores de DDL, RLS e ACL. Às 17:09 UTC havia 45 tabelas `helena_v2`, 21 com RLS, e zero pedidos, propostas, planos, cards, vínculos, itens de inbox ou saídas duráveis. Os smokes usaram `ROLLBACK`; nenhum valor de credencial, código de pareamento ou identificador pessoal pertence a este documento.

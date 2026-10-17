@@ -26,3 +26,7 @@ O fundador já operava sem a v1. Manter duas interfaces no mesmo app escondia a 
 
 ## Fonte
 Esta conversa. Continuidade em `HANDOFF-CLAUDE-CODE.md`.
+
+## Orientação posterior do fundador — 17/10/2026
+
+O fundador pediu preservar o trabalho construído, conectar suas partes e documentar o encaminhamento para a IA. A v2 passa a receber uma visão geral em `/`, ligada aos pedidos, pendências e cards em `/cards`; a interface arquivada serve de referência para adaptação, sem restaurar em bloco o runtime v1. Esta nota registra a orientação desta conversa, sem atribuir novo número de decisão no Supabase. A implantação real e o reaproveitamento dos demais módulos exigem os contratos e evidências do [mapa do sistema](../manual/mapa-do-sistema.md).

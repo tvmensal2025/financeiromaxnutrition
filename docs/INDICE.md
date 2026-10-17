@@ -31,6 +31,10 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/manual/comando-mestre.txt` | COMANDO MESTRE — CARREGAR, VALIDAR E AUDITAR O SISTEMA HELENA | 30/09/2026 |
 | `docs/manual/como-mudar.md` | Como mudar o Sistema Helena sem quebrar | 14/10/2026 |
 | `docs/manual/onde-estamos.md` | Ponto único de retomada do Sistema Helena v2 | 17/10/2026 |
+| `docs/manual/mapa-do-sistema.md` | Guia para a IA localizar fontes, responsáveis e a esteira comum | 17/10/2026 |
+| `docs/manual/mapa-de-reaproveitamento.md` | Inventário do trabalho preservado e contratos de integração à v2 | 17/10/2026 |
+| `docs/manual/guia-da-triagem.md` | Contrato do mapa operacional incluído no contexto da coordenação | 17/10/2026 |
+| `docs/manual/retomada-hermes-vps.md` | Inventário somente leitura e roteiro de ligação do Hermes na VPS | 17/10/2026 |
 | `docs/manual/entrada-unificada.md` | Contrato do fluxo comum e estado da recepção local | 17/10/2026 |
 | `docs/manual/briefing-para-chatgpt.md` | Briefing datado para outro assistente | 17/10/2026 |
 | `docs/manual/como-a-fabrica-funciona.md` | Fluxo da fábrica v2 e limites relatados | 17/10/2026 |

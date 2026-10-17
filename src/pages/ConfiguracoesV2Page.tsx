@@ -260,7 +260,7 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
     finally { if (atual === requisicao.current) { importando.current = false; setOcupado(false); if (arquivoRef.current) arquivoRef.current.value = ''; } }
   }
 
-  if (!isFounder) return <div role="alert" className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6"><h1 className="text-xl font-semibold">Acesso restrito</h1><p className="mt-2 text-sm text-muted-foreground">Somente o fundador pode gerenciar a configuração da Helena v2.</p><Link className="mt-4 inline-flex min-h-11 items-center text-sm text-primary underline" to="/">Voltar aos cards</Link></div>;
+  if (!isFounder) return <div role="alert" className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6"><h1 className="text-xl font-semibold">Acesso restrito</h1><p className="mt-2 text-sm text-muted-foreground">Somente o fundador pode gerenciar a configuração da Helena v2.</p><Link className="mt-4 inline-flex min-h-11 items-center text-sm text-primary underline" to="/cards">Voltar aos cards</Link></div>;
 
   return <div className="he-v2-config-page mx-auto max-w-7xl space-y-6 px-1 py-2 sm:px-4">
     <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
