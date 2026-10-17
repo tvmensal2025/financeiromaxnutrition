@@ -1,6 +1,6 @@
 /**
  * O que é: quadro do Processo. Uma coluna por estado de ETAPA (aguardando, na fila, executando, validação, revisão,
- * esperando você, aprovada, pronta) com a contagem e a lista das etapas, cada uma com o card, autor, revisor e prazo.
+ * esperando você, em resolução, aprovada, pronta) com a contagem e a lista das etapas, cada uma com o card, autor, revisor e prazo.
  * Como mudar: as colunas vêm de ESTADOS_ETAPA_PROCESSO (derivar-cards.ts). Não reaproveita o KanbanV2 porque ele agrupa
  * por estado do CARD; aqui o agrupamento é por estado da ETAPA.
  * Layout: colunas empilhadas no celular (sem rolagem horizontal), 2 colunas no tablet e 4 no computador.

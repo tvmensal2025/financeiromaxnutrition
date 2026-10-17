@@ -21,7 +21,7 @@ export type OrdemCards = 'prioridade' | 'prazo' | 'recentes';
 
 /** Colunas do quadro de Processo, na ordem do ciclo de vida de uma etapa. */
 export const ESTADOS_ETAPA_PROCESSO = [
-  'AGUARDANDO_ANTERIORES', 'NA_FILA', 'EXECUTANDO', 'VALIDACAO', 'REVISAO', 'ESPERANDO_FUNDADOR', 'APROVADA', 'PRONTA',
+  'AGUARDANDO_ANTERIORES', 'NA_FILA', 'EXECUTANDO', 'VALIDACAO', 'REVISAO', 'ESPERANDO_FUNDADOR', 'EM_RESOLUCAO', 'APROVADA', 'PRONTA',
 ] as const;
 export const ESTADOS_ETAPA_FINAIS = ['PRONTA', 'CANCELADA', 'ENCERRADA_COM_FALHA'] as const;
 
