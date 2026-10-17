@@ -80,7 +80,19 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           ssh-keyscan -T 15 -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || { echo "::error::a VPS nao respondeu na porta 22"; exit 1; }
           if [ -n "$VPS_SSH_KEY" ]; then
-            printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/vps; chmod 600 ~/.ssh/vps
+            # A chave costuma chegar com quebras de linha perdidas ou trocadas (copiada de um terminal no navegador).
+            # Remonta: so o miolo entre BEGIN e END, sem espacos, em linhas de 70, e confere com ssh-keygen antes de usar.
+            bruto="$(printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r')"
+            miolo="$(printf '%s\n' "$bruto" | sed -n '/BEGIN OPENSSH PRIVATE KEY/,/END OPENSSH PRIVATE KEY/p' | { grep -v -- '-----' || true; } | tr -d ' \t\n')"
+            if [ -z "$miolo" ]; then   # tudo numa linha so: os marcadores e o miolo juntos
+              miolo="$(printf '%s' "$bruto" | tr -d ' \t\n' | sed -e 's/.*-----BEGINOPENSSHPRIVATEKEY-----//' -e 's/-----ENDOPENSSHPRIVATEKEY-----.*//' || true)"
+              printf '%s' "$bruto" | tr -d ' \t\n' | grep -q -- '-----BEGINOPENSSHPRIVATEKEY-----' || miolo=""
+            fi
+            [ -n "$miolo" ] || { echo "::error::VPS_SSH_KEY nao contem uma chave OpenSSH (BEGIN/END)"; exit 1; }
+            { echo '-----BEGIN OPENSSH PRIVATE KEY-----'; printf '%s\n' "$miolo" | fold -w 70; echo '-----END OPENSSH PRIVATE KEY-----'; } > ~/.ssh/vps
+            chmod 600 ~/.ssh/vps
+            ssh-keygen -y -f ~/.ssh/vps >/dev/null 2>&1 || { echo "::error::VPS_SSH_KEY invalida mesmo depois de remontar: copie de novo do BEGIN ao END"; exit 1; }
+            echo "chave SSH valida (tipo: $(ssh-keygen -y -f ~/.ssh/vps | cut -d' ' -f1))"
             echo "SSH_CMD=ssh -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
             echo "SCP_CMD=scp -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
           elif [ -n "${VPS_PASSWORD:-}" ]; then
