@@ -41,7 +41,7 @@ describe('derivarExecucao', () => {
     expect(chaves(e.esperando)).toEqual(['card:c1:esperando', 'card:c2:esperando']);
     expect(chaves(e.trabalho)).toEqual(['etapa:e1', 'etapa:e3']);
     expect(chaves(e.revisao)).toEqual(['etapa:e2']);
-    expect(chaves(e.falhas)).toEqual(['card:c4:falha', 'card:c5:falha', 'etapa:e4']);
+    expect(chaves(e.falhas)).toEqual(['card:c4:falha', 'card:c5:falha']);
     expect(chaves(e.atrasados)).toEqual(['card:c3:atrasado']);
     expect(chaves(e.pedidos)).toEqual(['pedido:p1', 'pedido:p2']);
     expect(e.pedidosSemEmpresa).toBe(0);
@@ -55,11 +55,25 @@ describe('derivarExecucao', () => {
     expect(chaves(e.falhas)).not.toContain('etapa:e9');
   });
 
+  it('"Não passou no portão 1" só lista etapa depois da validação e de card ainda vivo', () => {
+    const dados = dadosDeTeste();
+    dados.etapas.push(
+      etapa('e10', 'c3', { estado: 'REVISAO', portao1_ok: false }),
+      etapa('e11', 'c6', { estado: 'REVISAO', portao1_ok: false }), // card PRONTO
+      etapa('e12', 'c4', { estado: 'ENCERRADA_COM_FALHA', portao1_ok: false }), // card ENCERRADO_COM_FALHA
+    );
+    const falhas = derivarExecucao(dados, 'GRUPO').falhas;
+    expect(chaves(falhas)).toContain('etapa:e10');
+    expect(chaves(falhas)).not.toContain('etapa:e4'); // VALIDACAO: o portão ainda está sendo julgado
+    expect(chaves(falhas)).not.toContain('etapa:e11');
+    expect(chaves(falhas)).not.toContain('etapa:e12');
+  });
+
   it('respeita o filtro de empresa e avisa dos pedidos sem empresa', () => {
     const e = derivarExecucao(dadosDeTeste(), 'BIZ-003');
     expect(chaves(e.esperando)).toEqual(['card:c1:esperando']);
     expect(chaves(e.trabalho)).toEqual(['etapa:e1']);
-    expect(chaves(e.falhas)).toEqual(['card:c4:falha', 'etapa:e4']);
+    expect(chaves(e.falhas)).toEqual(['card:c4:falha']);
     expect(chaves(e.pedidos)).toEqual(['pedido:p2']);
     expect(e.pedidosSemEmpresa).toBe(1);
     expect(e.pedidos.itens[0].titulo).toBe('E-mails de lançamento');
@@ -103,7 +117,7 @@ describe('derivarExecucao', () => {
   it('card cancelado ou pronto com motivo antigo não é trava', () => {
     const dados = dadosDeTeste();
     dados.cards.push(card('c7', { estado: 'CANCELADO', motivo: 'INFRA' }), card('c8', { estado: 'PRONTO', motivo: 'INFRA' }));
-    expect(chaves(derivarExecucao(dados, 'GRUPO').falhas)).toEqual(['card:c4:falha', 'card:c5:falha', 'etapa:e4']);
+    expect(chaves(derivarExecucao(dados, 'GRUPO').falhas)).toEqual(['card:c4:falha', 'card:c5:falha']);
   });
 });
 
@@ -116,7 +130,7 @@ describe('entregas e consumo', () => {
 
   it('separa por empresa pelo card e conta as que não puderam ser ligadas', () => {
     const dados = dadosDeTeste();
-    dados.entregas.push(entrega('9', 'fantasma'));
+    dados.entregas.push(entrega('9', 'fantasma', { etapa_id: 'a1' }));
     const max = entregasAprovadas(dados, 'BIZ-001');
     expect(max.itens.map(e => e.id)).toEqual(['3']);
     expect(max.ocultas).toBe(1);
@@ -143,7 +157,7 @@ describe('entregas e consumo', () => {
     expect(r.abertas).toBe(4);
     expect(r.totalExecucoes).toBe(6);
     expect(r.grupos).toEqual([{ nome: 'Redigir', execucoes: 5, etapas: 2 }, { nome: 'Revisar', execucoes: 1, etapas: 1 }]);
-    expect(r.semLeitura).toBe(2);
+    expect(r.semLeitura).toBe(6); // e4, e5 e as quatro etapas prontas que sustentam as entregas
     expect(execucoesPorEtapa(dadosDeTeste(), 'BIZ-001').totalExecucoes).toBe(3);
   });
 

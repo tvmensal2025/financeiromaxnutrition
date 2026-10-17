@@ -53,7 +53,7 @@ it('alerta quando o pacote de voz não está confirmado e não alerta quando est
 
 it('leva para a aba Cards', () => {
   montar(dados());
-  expect(within(cartao('iGreen')).getByRole('link', { name: /Ver cards/ }).getAttribute('href')).toBe('/comando?aba=cards');
+  expect(within(cartao('iGreen')).getByRole('link', { name: /Ver cards/ }).getAttribute('href')).toBe('/comando?aba=cards&empresa=BIZ-001');
 });
 
 it('respeita o filtro de empresa', () => {

@@ -111,3 +111,21 @@ it('vazio verdadeiro, carregando e amostra', () => {
   render(<AcompanhamentoAba dados={montarDados({ estado: { ...montarDados().estado, etapas: 'carregando' } })} empresa="GRUPO" abrirCard={vi.fn()} />);
   expect(screen.getByRole('status', { name: 'Carregando execuções' })).toBeTruthy();
 });
+
+it('corte só nos pedidos avisa "amostra" aqui (a aba usa pedidos), mas corte só nas entregas não', () => {
+  const zeros = { cards: false, etapas: false, entregas: false, pedidos: false };
+  const { unmount } = render(<AcompanhamentoAba dados={montarDados({ amostras: { ...zeros, pedidos: true } })} empresa="GRUPO" abrirCard={vi.fn()} />);
+  expect(screen.getByText(/só uma amostra/)).toBeTruthy();
+  unmount();
+  render(<AcompanhamentoAba dados={montarDados({ amostras: { ...zeros, entregas: true } })} empresa="GRUPO" abrirCard={vi.fn()} />);
+  expect(screen.queryByText(/só uma amostra/)).toBeNull();
+});
+
+it('pedido com texto enorme: o título sai truncado em 120 caracteres', () => {
+  const texto = `Preciso de ${'um texto muito longo '.repeat(40)}`;
+  render(<AcompanhamentoAba dados={montarDados({ pedidos: [pedido('p9', 'PLANO_CONFIRMADO', { texto_inicial: texto })] })} empresa="GRUPO" abrirCard={vi.fn()} />);
+  fireEvent.click(screen.getByRole('tab', { name: /Decisões/ }));
+  const titulo = screen.getByText(/^Preciso de um texto muito longo/);
+  expect(titulo.textContent).toHaveLength(120);
+  expect(titulo.textContent!.endsWith('...')).toBe(true);
+});

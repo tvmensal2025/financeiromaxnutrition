@@ -5,6 +5,7 @@
  * Lê SÓ o que `useDadosComando` entrega (esquema helena_v2). Não usa o BusinessContext nem dados da v1.
  * Como mudar: para uma nova aba, acrescente-a em ABAS (src/integrations/comando-v2/tipos.ts) e crie o arquivo dela.
  * A empresa escolhida fica no navegador (localStorage `helena_v2_comando_empresa`); sem localStorage a tela funciona igual.
+ * `/comando?aba=<id>&empresa=<código>` abre a aba já filtrada pela empresa (usado por "Ver cards" na aba Empresas).
  */
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, KeyboardEvent, LazyExoticComponent, ReactNode } from 'react';
@@ -105,6 +106,13 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
   const empresaForaDaLista = empresa !== GRUPO && !empresasDoCatalogo.some(item => item.id === empresa);
 
   const escolherEmpresa = (valor: string) => { setEmpresaEscolhida(valor); salvarEmpresa(valor); };
+  // Link de outra aba (ex.: "Ver cards" de uma empresa): `?empresa=<código>` fixa a empresa e sai da URL para não grudar nela.
+  const empresaDaUrl = params.get('empresa');
+  useEffect(() => {
+    if (!empresaDaUrl) return;
+    if (empresaDaUrl.length <= 60) { setEmpresaEscolhida(empresaDaUrl); salvarEmpresa(empresaDaUrl); }
+    setParams(anterior => { const novo = new URLSearchParams(anterior); novo.delete('empresa'); return novo; }, { replace: true });
+  }, [empresaDaUrl, setParams]);
   const escolherAba = useCallback((id: AbaId) => {
     setParams(anterior => { const novo = new URLSearchParams(anterior); novo.set('aba', id); return novo; });
   }, [setParams]);
@@ -134,7 +142,7 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
     return () => { parar(); document.removeEventListener('visibilitychange', aoMudarVisibilidade); };
   }, []);
 
-  const atualizarAgora = () => { ultimaRef.current = Date.now(); recarregar(); };
+  const atualizarAgora = () => { if (carregandoRef.current) return; ultimaRef.current = Date.now(); recarregar(); };
 
   const aoTeclarNaAba = (evento: KeyboardEvent<HTMLButtonElement>, indice: number) => {
     const total = ABAS_VISIVEIS.length;
@@ -202,14 +210,24 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
         >
           <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle aria-hidden="true" className={`mt-0.5 h-5 w-5 shrink-0 ${falhaPrincipal ? 'text-destructive' : 'text-warning'}`} />
-            <p className="text-sm text-foreground">
-              Não foi possível ler {falhas.map(chave => NOMES_DAS_LEITURAS[chave]).join(', ')}. Os números dessas partes não são zero: estão indisponíveis.
-            </p>
+            <div className="min-w-0 space-y-1 text-sm text-foreground">
+              <p>
+                Não foi possível ler {falhas.map(chave => NOMES_DAS_LEITURAS[chave]).join(', ')}. Os números dessas partes não são zero: estão indisponíveis.
+              </p>
+              {falhas.some(chave => dados.erros?.[chave]) && (
+                <ul className="list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+                  {falhas.filter(chave => dados.erros?.[chave]).map(chave => (
+                    <li key={chave} className="break-words">{NOMES_DAS_LEITURAS[chave]}: {dados.erros?.[chave]}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={atualizarAgora}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={carregando}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" className="h-4 w-4" />
             Tentar de novo

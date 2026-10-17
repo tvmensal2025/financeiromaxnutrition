@@ -100,19 +100,32 @@ describe('useDadosComando', () => {
     expect(result.current.atualizadoEm).toBeNull();
   });
 
-  it('marca amostra quando qualquer leitura é cortada pelo limite, inclusive pedidos', async () => {
+  it('marca amostra quando cards, etapas ou entregas são cortados; pedidos só marcam o corte próprio', async () => {
     const corte = montar({ cards: async () => ({ itens: [card('c1')], amostra: true }) });
     const a = renderHook(() => corte.useHook());
     await waitFor(() => expect(a.result.current.carregando).toBe(false));
     expect(a.result.current.dados.amostra).toBe(true);
+    expect(a.result.current.dados.amostras).toEqual({ cards: true, etapas: false, entregas: false, pedidos: false });
 
     const pedidosCortados = montar({ pedidosLimite: 1 });
     const b = renderHook(() => pedidosCortados.useHook());
     await waitFor(() => expect(b.result.current.carregando).toBe(false));
-    expect(b.result.current.dados.amostra).toBe(true);
+    expect(b.result.current.dados.amostra).toBe(false);
+    expect(b.result.current.dados.amostras).toEqual({ cards: false, etapas: false, entregas: false, pedidos: true });
   });
 
-  it('recarregar mantém os dados anteriores e não volta ao carregamento total', async () => {
+  it('guarda a causa da falha de cada fonte e a limpa quando a fonte volta', async () => {
+    const { useHook, falsos } = montar({ falharEntregas: true });
+    const { result } = renderHook(() => useHook());
+    await waitFor(() => expect(result.current.carregando).toBe(false));
+    expect(result.current.dados.erros).toEqual({ entregas: 'x' });
+    falsos.falharEntregas = false;
+    act(() => result.current.recarregar());
+    await waitFor(() => expect(result.current.dados.estado.entregas).toBe('pronta'));
+    expect(result.current.dados.erros).toEqual({});
+  });
+
+  it('recarregar marca carregando (Atualizar fica desabilitado), mantém os dados anteriores e termina desmarcando', async () => {
     const { useHook, falsos } = montar();
     const { result } = renderHook(() => useHook());
     await waitFor(() => expect(result.current.carregando).toBe(false));
@@ -121,11 +134,12 @@ describe('useDadosComando', () => {
     falsos.cards = () => new Promise(resolve => { liberar = resolve; });
     act(() => result.current.recarregar());
     await waitFor(() => expect(falsos.chamadasCards).toBe(2));
-    expect(result.current.carregando).toBe(false);
+    expect(result.current.carregando).toBe(true);
     expect(result.current.dados.estado.cards).toBe('pronta');
     expect(result.current.dados.cards.map(c => c.id)).toEqual(['c1']);
     await act(async () => { liberar({ itens: [card('c2')], amostra: false }); });
     await waitFor(() => expect(result.current.dados.cards.map(c => c.id)).toEqual(['c2']));
+    await waitFor(() => expect(result.current.carregando).toBe(false));
     await waitFor(() => expect(result.current.atualizadoEm).not.toBe(primeira));
   });
 

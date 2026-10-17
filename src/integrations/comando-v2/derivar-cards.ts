@@ -21,7 +21,7 @@ export type OrdemCards = 'prioridade' | 'prazo' | 'recentes';
 
 /** Colunas do quadro de Processo, na ordem do ciclo de vida de uma etapa. */
 export const ESTADOS_ETAPA_PROCESSO = [
-  'AGUARDANDO_ANTERIORES', 'NA_FILA', 'EXECUTANDO', 'VALIDACAO', 'REVISAO', 'ESPERANDO_FUNDADOR', 'APROVADA', 'PRONTA',
+  'AGUARDANDO_ANTERIORES', 'NA_FILA', 'EXECUTANDO', 'VALIDACAO', 'REVISAO', 'ESPERANDO_FUNDADOR', 'EM_RESOLUCAO', 'APROVADA', 'PRONTA',
 ] as const;
 export const ESTADOS_ETAPA_FINAIS = ['PRONTA', 'CANCELADA', 'ENCERRADA_COM_FALHA'] as const;
 
@@ -46,6 +46,8 @@ const ROTULOS_MOTIVO: Record<string, string> = {
   RESOLUCAO: 'A etapa está sendo resolvida de outro jeito.',
   INFRA: 'Problema técnico no ambiente; a etapa será retomada.',
   CAPACIDADE: 'Sem capacidade agora (cota, login ou agente pausado).',
+  PRAZO_INVALIDO: 'O prazo informado não era válido.',
+  FALHOU: 'A execução falhou.',
 };
 
 const textoOuNulo = (valor: unknown): string | null => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
@@ -138,6 +140,14 @@ export function pedidosSemCard(pedidos: PedidoEntrada[]): PedidoEntrada[] {
     .sort((a, b) => (lerData(a.criado_em)?.getTime() ?? 0) - (lerData(b.criado_em)?.getTime() ?? 0));
 }
 
+/** Título curto do pedido para listas e rótulos de acessibilidade: título confirmado ou o início do texto, em até 120 caracteres. */
+export const LIMITE_TITULO_PEDIDO = 120;
+export function tituloDoPedido(pedido: Pick<PedidoEntrada, 'titulo_confirmado' | 'texto_inicial'>): string {
+  const texto = (textoOuNulo(pedido.titulo_confirmado) ?? pedido.texto_inicial ?? '').replace(/\s+/g, ' ').trim();
+  if (!texto) return 'Pedido sem texto';
+  return texto.length > LIMITE_TITULO_PEDIDO ? `${texto.slice(0, LIMITE_TITULO_PEDIDO - 3)}...` : texto;
+}
+
 // ---------- cards ----------
 
 export const prazoDoCard = (card: CardComando): string | null => textoOuNulo(card.prazo_ate) ?? textoOuNulo(card.prazo);
@@ -179,10 +189,10 @@ export function ordenarCards(cards: CardComando[], ordem: OrdemCards, agora: Dat
   const comparar = (a: CardComando, b: CardComando): number => {
     if (ordem === 'recentes') return comNuloNoFim(recente(a), recente(b), -1);
     if (ordem === 'prazo') return comNuloNoFim(prazoDe(a), prazoDe(b), 1) || comNuloNoFim(recente(a), recente(b), -1);
-    // prioridade: o que espera você, depois o vencido, depois o número de prioridade (menor = mais urgente), depois o prazo.
+    // prioridade: o que espera você, depois o vencido, depois o número de prioridade (MAIOR = mais urgente, como o motor: ORDER BY prioridade DESC), depois o prazo.
     const peso = (card: CardComando) => (cardEhFinal(card) ? 3 : cardPrecisaDeVoce(card) ? 0 : cardPrazoVencido(card, agora) ? 1 : 2);
     return peso(a) - peso(b)
-      || comNuloNoFim(a.prioridade, b.prioridade, 1)
+      || comNuloNoFim(a.prioridade, b.prioridade, -1)
       || comNuloNoFim(prazoDe(a), prazoDe(b), 1)
       || comNuloNoFim(recente(a), recente(b), -1);
   };
@@ -216,8 +226,18 @@ export function etapaParada(etapa: EtapaComando, agora: Date): boolean {
   const atualizado = lerData(etapa.atualizado_em);
   return !!atualizado && agora.getTime() - atualizado.getTime() > LIMITE_PARADA_MS;
 }
+const semRevisor = (valor: string | null | undefined): boolean => !valor || !valor.trim() || valor.trim().toUpperCase() === 'NENHUM';
+/**
+ * Quem revisa a etapa. `revisor` = 'NENHUM' é o banco dizendo que não há revisor (nada a listar, nem o `revisores` antigo);
+ * sem `revisor` informado, vale a lista `revisores`.
+ */
+export function revisoresReaisDaEtapa(etapa: EtapaComando): string[] {
+  if (!semRevisor(etapa.revisor)) return [etapa.revisor!.trim()];
+  if (etapa.revisor && etapa.revisor.trim()) return [];
+  return (etapa.revisores ?? []).filter(nome => !semRevisor(nome));
+}
 export function revisoresDaEtapa(etapa: EtapaComando): string {
-  const lista = etapa.revisor ? [etapa.revisor] : (etapa.revisores ?? []);
+  const lista = revisoresReaisDaEtapa(etapa);
   return lista.length ? lista.join(', ') : 'Sem revisor';
 }
 export function etapasDoCard(etapas: EtapaComando[], cardId: string): EtapaComando[] {
@@ -237,6 +257,12 @@ export function ordenarEtapas(etapas: EtapaComando[], agora: Date): EtapaComando
 }
 
 // ---------- leituras ----------
+
+export type FonteAmostra = 'cards' | 'etapas' | 'entregas' | 'pedidos';
+/** A leitura de ALGUMA das fontes que a aba usa foi cortada por limite? Sem corte por fonte, vale `dados.amostra`. */
+export function amostraDe(dados: Pick<DadosComando, 'amostra' | 'amostras'>, fontes: FonteAmostra[]): boolean {
+  return dados.amostras ? fontes.some(fonte => dados.amostras?.[fonte] === true) : dados.amostra;
+}
 
 export type FonteDados = keyof DadosComando['estado'];
 const NOME_FONTE: Record<FonteDados, string> = {

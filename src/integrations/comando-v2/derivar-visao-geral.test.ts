@@ -45,7 +45,7 @@ describe('filtro de empresa', () => {
     expect(cardsDaEmpresa(d.cards, 'GRUPO')).toHaveLength(8);
     expect(cardsDaEmpresa(d.cards, 'BIZ-001').map(c => c.id)).toEqual(['c3', 'c4', 'c5', 'c7']);
     const r = recortarPorEmpresa(d, 'BIZ-001');
-    expect(r.etapas.map(e => e.id)).toEqual(['e1', 'e2', 'e4', 'e5']);
+    expect(r.etapas.map(e => e.id)).toEqual(['e1', 'e2', 'e4', 'e5', 'x1', 'x2']);
     expect(r.entregas.map(e => e.id)).toEqual(['d1', 'd2', 'd3']);
     expect(r.pedidos.map(p => p.pedido_id)).toEqual(['p3']);
     expect(recortarPorEmpresa(d, 'BIZ-003').pedidos.map(p => p.pedido_id)).toEqual(['p2']);

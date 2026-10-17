@@ -20,9 +20,9 @@ function dadosBase(): DadosComando {
 const coluna = (nome: RegExp) => screen.getByRole('region', { name: nome });
 const montar = (dados = dadosBase(), empresa = 'GRUPO', abrirCard = vi.fn()) => { render(<ProcessoAba dados={dados} empresa={empresa} abrirCard={abrirCard} />); return abrirCard; };
 
-it('mostra as oito colunas com contagem e as etapas em cada uma', () => {
+it('mostra as nove colunas com contagem e as etapas em cada uma', () => {
   montar();
-  for (const nome of ['Aguardando etapas anteriores', 'Na fila', 'Em execução', 'Em validação', 'Em revisão', 'Esperando você', 'Aprovada', 'Pronta']) {
+  for (const nome of ['Aguardando etapas anteriores', 'Na fila', 'Em execução', 'Em validação', 'Em revisão', 'Esperando você', 'Em resolução', 'Aprovada', 'Pronta']) {
     expect(coluna(new RegExp(`^${nome}: `))).toBeTruthy();
   }
   expect(coluna(/^Em execução: 1 etapa$/)).toBeTruthy();
@@ -34,6 +34,24 @@ it('mostra as oito colunas com contagem e as etapas em cada uma', () => {
   expect(within(execucao).getByText('Atrasada')).toBeTruthy();
   expect(within(execucao).getByText('venceu há 2 h')).toBeTruthy();
   expect(within(coluna(/^Esperando você/)).getByText(/Plano eLiving · eLiving/)).toBeTruthy();
+});
+
+it('etapa em resolução tem coluna e canceladas/encerradas aparecem no rodapé fora do quadro', () => {
+  montar(montarDados({
+    cards: [card('a')],
+    etapas: [
+      etapa('1', 'a', { estado: 'EM_RESOLUCAO' }), etapa('2', 'a', { estado: 'CANCELADA' }),
+      etapa('3', 'a', { estado: 'ENCERRADA_COM_FALHA' }), etapa('4', 'a', { estado: 'NA_FILA' }),
+    ],
+  }));
+  expect(coluna(/^Em resolução: 1 etapa$/)).toBeTruthy();
+  expect(screen.getByText('2 etapas fora do quadro (canceladas/encerradas).')).toBeTruthy();
+  expect(screen.getByText(/2 etapas no quadro/)).toBeTruthy();
+});
+
+it('sem etapas fora do quadro não mostra o rodapé', () => {
+  montar();
+  expect(screen.queryByText(/fora do quadro/)).toBeNull();
 });
 
 it('explica o ciclo da v2 com texto fixo', () => {

@@ -65,7 +65,9 @@ describe('leitura em lote da Sala de comando', () => {
     }]);
     expect(COLUNAS_ENTREGA).not.toContain('conteudo');
     expect(chamadas.find(c => c.tabela === 'entrega')?.colunas).not.toContain('conteudo');
-    expect(chamadas.map(c => c.tabela).sort()).toEqual(['card', 'entrega', 'etapa']);
+    // cada tabela: uma página com dados e uma vazia que confirma o fim
+    expect(chamadas.map(c => c.tabela).sort()).toEqual(['card', 'card', 'entrega', 'entrega', 'etapa', 'etapa']);
+    expect(new Set(chamadas.map(c => c.tabela))).toEqual(new Set(['card', 'entrega', 'etapa']));
   });
 
   it('devolve null para o que o banco não informa', async () => {
@@ -94,8 +96,47 @@ describe('leitura em lote da Sala de comando', () => {
     expect(etapas.amostra).toBe(true);
     expect(entregas.itens).toHaveLength(LIMITE_ENTREGAS - 1);
     expect(entregas.amostra).toBe(false);
-    expect(chamadas.filter(c => c.tabela === 'etapa')).toHaveLength(Math.ceil(LIMITE_ETAPAS / TAMANHO_PAGINA));
-    expect(chamadas.filter(c => c.tabela === 'card')[0].intervalos).toEqual([[0, LIMITE_CARDS - 1]]);
+    // páginas até o limite, mais uma consulta de 1 linha que confirma que há mais
+    expect(chamadas.filter(c => c.tabela === 'etapa')).toHaveLength(Math.ceil(LIMITE_ETAPAS / TAMANHO_PAGINA) + 1);
+    expect(chamadas.filter(c => c.tabela === 'card').flatMap(c => c.intervalos)).toEqual([[0, LIMITE_CARDS - 1], [LIMITE_CARDS, LIMITE_CARDS]]);
+  });
+
+  it('exatamente o limite, sem mais nada no banco, não é amostra', async () => {
+    const { banco } = cliente({ card: gerar(LIMITE_CARDS, i => ({ id: `c${i}`, titulo: 'T', estado: 'PRONTO' })) });
+    const cards = await criarRepositorioComandoV2(banco).lerCards();
+    expect(cards.itens).toHaveLength(LIMITE_CARDS);
+    expect(cards.amostra).toBe(false);
+  });
+
+  it('só uma página vazia encerra a leitura, mesmo que o servidor devolva menos que o pedido', async () => {
+    const linhas = gerar(300, i => ({ id: `c${i}`, titulo: 'T', estado: 'PRONTO' }));
+    // servidor que corta cada resposta em 100 linhas, mesmo pedindo 1000
+    const banco: ClienteComandoV2 = { schema: () => ({ from: () => ({ select: () => {
+      let de = 0; let ate = 0;
+      const consulta: ConsultaComandoV2 = {
+        eq: () => consulta, order: () => consulta, range: (a, b) => { de = a; ate = b; return consulta; },
+        then: (resolve, reject) => Promise.resolve({ data: linhas.slice(de, Math.min(ate, de + 99) + 1), error: null }).then(resolve, reject),
+      };
+      return consulta;
+    } }) }) };
+    const cards = await criarRepositorioComandoV2(banco).lerCards();
+    expect(cards.itens).toHaveLength(300);
+    expect(cards.amostra).toBe(false);
+  });
+
+  it('linha repetida entre páginas conta uma vez só', async () => {
+    const repetida = { id: 'c1', titulo: 'T', estado: 'PRONTO' };
+    let n = 0;
+    const banco: ClienteComandoV2 = { schema: () => ({ from: () => ({ select: () => {
+      const consulta: ConsultaComandoV2 = {
+        eq: () => consulta, order: () => consulta, range: () => consulta,
+        then: (resolve, reject) => Promise.resolve({ data: n++ < 2 ? [repetida, { id: `c${n + 1}`, titulo: 'T', estado: 'PRONTO' }] : [], error: null }).then(resolve, reject),
+      };
+      return consulta;
+    } }) }) };
+    const cards = await criarRepositorioComandoV2(banco).lerCards();
+    expect(cards.itens.map(c => c.id)).toEqual(['c1', 'c2', 'c3']); // 'c1' veio nas duas páginas e vale uma vez
+    expect(cards.amostra).toBe(false);
   });
 
   it('informa falha em vez de lista vazia', async () => {

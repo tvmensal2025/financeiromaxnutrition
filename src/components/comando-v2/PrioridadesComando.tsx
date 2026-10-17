@@ -12,6 +12,7 @@ import {
 } from '@/integrations/comando-v2/derivar-visao-geral';
 import type { PropsAba } from '@/integrations/comando-v2/tipos';
 import { PorLeitura } from './KpisComando';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export const LIMITE_PRIORIDADES = 8;
 const ROTULO_GRUPO: Record<GrupoPrioridade, { texto: string; variante: 'warning' | 'danger' }> = {
@@ -39,7 +40,7 @@ function Lista({ dados, empresa, abrirCard, nomeEmpresa }: PropsAba & { nomeEmpr
   const todas = prioridades(cardsDaEmpresa(dados.cards, empresa), dados.agora);
   if (todas.length === 0) {
     return <ExecutiveEmptyState title="Nada para decidir agora"
-      description={dados.amostra ? 'Nada esperando você nesta amostra de cards. Pode haver mais registros fora dela.'
+      description={amostraDe(dados, ['cards']) ? 'Nada esperando você nesta amostra de cards. Pode haver mais registros fora dela.'
         : 'Nenhum card espera você, está com prazo vencido ou terminou com falha.'} />;
   }
   const mostradas = todas.slice(0, LIMITE_PRIORIDADES);
@@ -71,7 +72,7 @@ function Lista({ dados, empresa, abrirCard, nomeEmpresa }: PropsAba & { nomeEmpr
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
       <p className="text-xs text-muted-foreground">
         {todas.length > LIMITE_PRIORIDADES ? `Mostrando ${LIMITE_PRIORIDADES} de ${todas.length}.` : `${todas.length} no total.`}
-        {dados.amostra ? ' Amostra, não o total.' : ''}
+        {amostraDe(dados, ['cards']) ? ' Amostra, não o total.' : ''}
       </p>
       <Link to="/comando?aba=cards" aria-label="Ver todos os cards"
         className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

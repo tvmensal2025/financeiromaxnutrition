@@ -3,7 +3,7 @@
  * que explica o ciclo de um pedido na v2.
  * Como mudar: o agrupamento e os rótulos ficam em derivar-cards.ts; o quadro em components/comando-v2/ProcessoBoard.tsx.
  * Honestidade: precisa de cards e etapas; se uma das leituras falhou mostra erro (nunca zero), e `dados.amostra` avisa.
- * Etapas "em resolução", canceladas ou encerradas com falha não têm coluna no quadro e ficam fora da contagem das colunas.
+ * Etapas canceladas ou encerradas com falha não têm coluna: aparecem só como "N etapas fora do quadro" no rodapé.
  */
 import { ExecutiveEmptyState } from '@/components/executive/ExecutiveEmptyState';
 import { ExecutiveErrorState } from '@/components/executive/ExecutiveErrorState';
@@ -14,6 +14,7 @@ import type { PropsAba } from '@/integrations/comando-v2/tipos';
 import {
   combinarLeituras, EMPRESA_GRUPO, ESTADOS_ETAPA_PROCESSO, etapasDaEmpresa, mensagemFalha, nomeEmpresa,
 } from '@/integrations/comando-v2/derivar-cards';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const CICLO = [
   { titulo: 'Pedido', texto: 'Você escreve o que quer, do seu jeito.' },
@@ -51,6 +52,7 @@ export default function ProcessoAba({ dados, empresa, abrirCard }: PropsAba) {
   } else {
     const etapas = etapasDaEmpresa(dados.etapas, dados.cards, empresa);
     const noQuadro = etapas.filter(etapa => (ESTADOS_ETAPA_PROCESSO as readonly string[]).includes(etapa.estado)).length;
+    const foraDoQuadro = etapas.length - noQuadro;
     corpo = etapas.length === 0 ? (
       <ExecutiveEmptyState
         title="Nenhuma etapa por enquanto"
@@ -61,16 +63,21 @@ export default function ProcessoAba({ dados, empresa, abrirCard }: PropsAba) {
     ) : (
       <>
         <p className="text-xs text-muted-foreground">
-          {noQuadro} {noQuadro === 1 ? 'etapa no quadro' : 'etapas no quadro'}{dados.amostra ? ' (na amostra lida)' : ''}. Toque em uma etapa para abrir o card.
+          {noQuadro} {noQuadro === 1 ? 'etapa no quadro' : 'etapas no quadro'}{amostraDe(dados, ['cards', 'etapas']) ? ' (na amostra lida)' : ''}. Toque em uma etapa para abrir o card.
         </p>
         <ProcessoBoard etapas={etapas} cards={dados.cards} catalogo={dados.catalogo} agora={dados.agora} onAbrirCard={abrirCard} />
+        {foraDoQuadro > 0 && (
+          <p role="note" className="text-xs text-muted-foreground">
+            {foraDoQuadro} {foraDoQuadro === 1 ? 'etapa fora do quadro' : 'etapas fora do quadro'} (canceladas/encerradas).
+          </p>
+        )}
       </>
     );
   }
 
   return (
     <div className="min-w-0 space-y-4">
-      {dados.amostra && <AvisoAmostra />}
+      {amostraDe(dados, ['cards', 'etapas']) && <AvisoAmostra />}
       {ciclo}
       {corpo}
     </div>

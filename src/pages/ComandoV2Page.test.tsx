@@ -162,6 +162,13 @@ describe('empresa', () => {
     expect(window.localStorage.getItem(CHAVE)).toBe('BIZ-003');
   });
 
+  it('?empresa= na URL fixa a empresa, guarda no navegador e sai da URL (mantendo a aba)', async () => {
+    montar(resultado(), carregadores('CardsAba'), '/comando?aba=cards&empresa=BIZ-003');
+    expect(await screen.findByText('empresa=BIZ-003')).toBeInTheDocument();
+    expect(window.localStorage.getItem(CHAVE)).toBe('BIZ-003');
+    expect(local()).toBe('/comando?aba=cards');
+  });
+
   it('lembra a empresa salva e volta ao grupo se ela não existe mais no catálogo', async () => {
     window.localStorage.setItem(CHAVE, 'BIZ-003');
     const primeiro = montar(resultado());
@@ -199,6 +206,20 @@ describe('avisos', () => {
     expect(screen.getAllByRole('tab').length).toBeGreaterThan(3);
     fireEvent.click(within(aviso).getByRole('button', { name: 'Tentar de novo' }));
     expect(r.recarregar).toHaveBeenCalledTimes(1);
+  });
+
+  it('mostra a causa de cada fonte em erro e desabilita "Tentar de novo" enquanto relê', () => {
+    const dados = dadosProntos({
+      estado: { cards: 'erro', etapas: 'pronta', entregas: 'pronta', pedidos: 'erro', catalogo: 'pronta' },
+      erros: { cards: 'Não foi possível ler os cards. Tente novamente.', pedidos: 'O banco não devolveu a lista de pedidos.' },
+    });
+    const { unmount } = montar(resultado({ dados }), {});
+    const aviso = screen.getByRole('alert');
+    expect(aviso).toHaveTextContent('os cards: Não foi possível ler os cards. Tente novamente.');
+    expect(aviso).toHaveTextContent('os pedidos: O banco não devolveu a lista de pedidos.');
+    unmount();
+    montar(resultado({ dados, carregando: true }), {});
+    expect(within(screen.getByRole('alert')).getByRole('button', { name: 'Tentar de novo' })).toBeDisabled();
   });
 
   it('sem erro não mostra o aviso; com amostra avisa que os números podem estar abaixo do total', () => {

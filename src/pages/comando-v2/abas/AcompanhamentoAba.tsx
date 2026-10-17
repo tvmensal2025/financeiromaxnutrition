@@ -17,8 +17,9 @@ import type { CardComando, EtapaComando, PropsAba } from '@/integrations/comando
 import {
   cardPrecisaDeVoce, cardsDaEmpresa, combinarLeituras, EMPRESA_GRUPO, etapaAtrasada, etapaParada, etapasDaEmpresa, formatarDataHora,
   haQuanto, lerData, mensagemFalha, nomeEmpresa, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoDoCard, prazoRelativo,
-  revisoresDaEtapa, rotuloEstadoCard, rotuloEstadoEtapa, rotuloMotivo, varianteEstado,
+  revisoresDaEtapa, tituloDoPedido, rotuloEstadoCard, rotuloEstadoEtapa, rotuloMotivo, varianteEstado,
 } from '@/integrations/comando-v2/derivar-cards';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 type SubAba = 'execucoes' | 'decisoes';
 
@@ -80,7 +81,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
       Number(etapaAtrasada(b, agora)) - Number(etapaAtrasada(a, agora))
       || Number(etapaParada(b, agora)) - Number(etapaParada(a, agora))
       || (lerData(a.prazo_ate)?.getTime() ?? Infinity) - (lerData(b.prazo_ate)?.getTime() ?? Infinity));
-  const cardsEsperando = ordenarCards(cards.filter(cardPrecisaDeVoce), 'prioridade', agora);
+  const cardsEsperando = ordenarCards(cards.filter(cardPrecisaDeVoce), 'prioridade', agora); // maior prioridade = mais urgente (igual ao motor)
   const etapasEsperando = etapas.filter(etapa => etapa.estado === 'ESPERANDO_FUNDADOR');
   const pedidos = pedidosSemCard(pedidosDaEmpresa(dados.pedidos, empresa));
 
@@ -186,7 +187,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
               {pedidos.map(pedido => (
                 <Linha
                   key={pedido.pedido_id}
-                  titulo={pedido.titulo_confirmado || pedido.texto_inicial}
+                  titulo={tituloDoPedido(pedido)}
                   cardId={pedido.card_id ?? null}
                   abrirCard={abrirCard}
                   semCard="Ainda não virou card"
@@ -208,7 +209,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
 
   return (
     <div className="min-w-0 space-y-4">
-      {dados.amostra && <AvisoAmostra />}
+      {amostraDe(dados, ['cards', 'etapas', 'pedidos']) && <AvisoAmostra />}
       <div role="tablist" aria-label="Acompanhamento" className="flex gap-2">
         {abas.map(aba => {
           const ativo = sub === aba.id;

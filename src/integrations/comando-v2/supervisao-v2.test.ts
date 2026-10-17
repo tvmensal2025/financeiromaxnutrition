@@ -87,7 +87,7 @@ describe('analisarCardsV2: cada regra tem caso positivo e negativo', () => {
     const achados = regras(r, 'ENCERRADO_COM_FALHA');
     expect(achados).toHaveLength(1);
     expect(achados[0].severidade).toBe('ALTA');
-    expect(achados[0].detalhe).toContain('uma etapa de que outras dependiam falhou');
+    expect(achados[0].detalhe).toContain('Uma etapa da qual esta depende falhou.');
     expect(achados[0].detalhe).not.toContain('DEPENDENCIA');
     // card finalizado sem dono/prazo não vira "sem dono" nem "sem prazo"
     expect(regras(r, 'SEM_DONO')).toHaveLength(0);
@@ -105,6 +105,38 @@ describe('analisarCardsV2: cada regra tem caso positivo e negativo', () => {
     const achados = regras(r, 'PORTAO_OU_ENTREGA');
     expect(Object.fromEntries(achados.map(e => [e.etapaId, e.severidade]))).toEqual({ 'sem-portao': 'ALTA', velha: 'MEDIA' });
     expect(achados.find(e => e.etapaId === 'velha')?.cardId).toBe('a');
+  });
+
+  it('PORTAO_OU_ENTREGA: entrega velha é a causa (MEDIA, mesmo com portão falso); portão falso com entrega em dia é ALTA', () => {
+    const r = analisar({ cards: [card('a')], etapas: [
+      etapa('velha-e-portao', 'a', { estado: 'REVISAO', portao1_ok: false, entrega_fresca: false }),
+      etapa('so-portao', 'a', { estado: 'APROVADA', portao1_ok: false, entrega_fresca: true }),
+    ] });
+    const achados = regras(r, 'PORTAO_OU_ENTREGA');
+    const velha = achados.find(e => e.etapaId === 'velha-e-portao')!;
+    expect(velha.severidade).toBe('MEDIA');
+    expect(velha.detalhe).toContain('a entrega ficou velha');
+    expect(velha.detalhe).not.toContain('portão');
+    const portao = achados.find(e => e.etapaId === 'so-portao')!;
+    expect(portao.severidade).toBe('ALTA');
+    expect(portao.detalhe).toContain('portão 1');
+  });
+
+  it('etapa cujo card não está na leitura vira exceção rebaixada (BAIXA) e diz isso, sem inventar empresa', () => {
+    const r = analisar({ cards: [], etapas: [
+      etapa('solta', 'fantasma', { estado: 'EXECUTANDO', atualizado_em: horasAtras(3) }),
+      etapa('solta2', 'fantasma', { estado: 'REVISAO', portao1_ok: false, entrega_fresca: true }),
+    ] });
+    expect(r.map(e => e.severidade)).toEqual(['BAIXA', 'BAIXA']); // uma parada e um portão
+    expect(r.every(e => e.detalhe.includes('o card dela não está na leitura') && e.empresa === undefined)).toBe(true);
+  });
+
+  it('EXECUCAO_PARADA: cards finais (PRONTO, ENCERRADO_COM_FALHA, CANCELADO) não geram etapa parada', () => {
+    const r = analisar({
+      cards: [card('p', { estado: 'PRONTO' }), card('f', { estado: 'ENCERRADO_COM_FALHA' }), card('c', { estado: 'CANCELADO' }), card('v')],
+      etapas: ['p', 'f', 'c', 'v'].map(id => etapa(`e-${id}`, id, { estado: 'EXECUTANDO', atualizado_em: horasAtras(5) })),
+    });
+    expect(regras(r, 'EXECUCAO_PARADA').map(e => e.cardId)).toEqual(['v']);
   });
 
   it('EXECUCAO_PARADA: executando/revisão sem atualização há mais de 1 h aponta; recente, outro estado ou sem data não', () => {
@@ -145,6 +177,20 @@ describe('analisarCardsV2: cada regra tem caso positivo e negativo', () => {
     expect(achados[0].cardId).toBeUndefined();
   });
 
+  it('PEDIDO_SEM_CARD: plano confirmado sem card há mais de 1 h (desde a confirmação) também aponta, com texto próprio', () => {
+    const r = analisar({ pedidos: [
+      pedido('plano-velho', { estado: 'PLANO_CONFIRMADO', criado_em: horasAtras(30), atualizado_em: horasAtras(3), titulo_confirmado: 'Campanha de e-mails' }),
+      pedido('plano-novo', { estado: 'PLANO_CONFIRMADO', criado_em: horasAtras(30), atualizado_em: horasAtras(0.5) }),
+      pedido('plano-com-card', { estado: 'PLANO_CONFIRMADO', criado_em: horasAtras(30), atualizado_em: horasAtras(9), card_id: 'x' }),
+      pedido('card-criado', { estado: 'CARD_CRIADO', criado_em: horasAtras(30), atualizado_em: horasAtras(9) }),
+    ] });
+    const achados = regras(r, 'PEDIDO_SEM_CARD');
+    expect(achados.map(e => e.id)).toEqual(['PEDIDO_SEM_CARD:plano-velho']);
+    expect(achados[0].titulo).toBe('Campanha de e-mails');
+    expect(achados[0].detalhe).toContain('Você confirmou o plano');
+    expect(achados[0].desde).toBe(horasAtras(3));
+  });
+
   it('ordena por severidade e, dentro dela, pelo mais antigo', () => {
     const r = analisar({ cards: [
       card('baixa', { empresa: null, criado_em: horasAtras(100) }),
@@ -158,8 +204,11 @@ describe('analisarCardsV2: cada regra tem caso positivo e negativo', () => {
 
 describe('auxiliares', () => {
   it('traduzirMotivo nunca devolve vazio nem código cru de um motivo novo', () => {
-    expect(traduzirMotivo(undefined)).toBe('sem motivo registrado');
-    expect(traduzirMotivo('MOTIVO_NOVO_QUALQUER')).toBe('motivo novo qualquer');
+    expect(traduzirMotivo(undefined)).toBe('Sem motivo registrado.');
+    expect(traduzirMotivo('NENHUM')).toBe('Sem motivo registrado.');
+    expect(traduzirMotivo('MOTIVO_NOVO_QUALQUER')).toBe('Motivo novo qualquer');
+    // mesmo dicionário das abas de cards, com acentos
+    expect(traduzirMotivo('HELENA_FALHOU')).toBe('A Helena não conseguiu montar o plano.');
   });
 
   it('haQuantoTempo escreve em português simples', () => {
@@ -221,5 +270,20 @@ describe('auxiliares', () => {
     expect(cargaPorAgente(dados, 'GRUPO').get('BIANCA')).toEqual({ etapasAbertas: 3, revisoesPendentes: 1 });
     expect(cargaPorAgente(dados, 'BIZ-001').get('BIANCA')).toEqual({ etapasAbertas: 1, revisoesPendentes: 0 });
     expect(cargaPorAgente(dados, 'GRUPO').get('HELENA')).toEqual({ etapasAbertas: 2, revisoesPendentes: 0 });
+  });
+
+  it('cargaPorAgente conta revisão pelo revisor da etapa (NENHUM não conta) e ignora cards finais', () => {
+    const dados = montar({
+      cards: [card('a'), card('fim', { estado: 'PRONTO' })],
+      etapas: [
+        etapa('1', 'a', { autor: 'HELENA', estado: 'REVISAO', revisor: 'BIANCA', revisores: [] }),
+        etapa('2', 'a', { autor: 'HELENA', estado: 'REVISAO', revisor: 'NENHUM', revisores: ['BIANCA'] }),
+        etapa('3', 'fim', { autor: 'BIANCA', estado: 'EXECUTANDO' }),
+        etapa('4', 'fim', { autor: 'HELENA', estado: 'REVISAO', revisor: 'BIANCA' }),
+      ],
+    });
+    const carga = cargaPorAgente(dados, 'GRUPO');
+    expect(carga.get('BIANCA')).toEqual({ etapasAbertas: 0, revisoesPendentes: 1 });
+    expect(carga.get('HELENA')).toEqual({ etapasAbertas: 2, revisoesPendentes: 0 });
   });
 });

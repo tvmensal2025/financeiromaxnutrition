@@ -20,7 +20,7 @@ it('mostra cada bloco da central com a contagem e os itens', () => {
   expect(contagem('Em trabalho')).toBe('2');
   expect(contagem('Em revisão')).toBe('1');
   expect(contagem('Pedidos em preparo')).toBe('2');
-  expect(contagem('Falhas e travas')).toBe('3');
+  expect(contagem('Falhas e travas')).toBe('2');
   expect(contagem('Atrasados')).toBe('1');
   const espera = within(bloco('Esperando você'));
   expect(espera.getByText('Campanha de outubro')).toBeTruthy();

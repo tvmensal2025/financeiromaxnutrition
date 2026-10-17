@@ -13,6 +13,7 @@ import { ExecutiveLoadingState } from '@/components/executive/ExecutiveLoadingSt
 import { ExecutiveMetricCard } from '@/components/executive/ExecutiveMetricCard';
 import { entregasPorSemana, estadoCombinado, execucoesPorEtapa, nomeEmpresa } from '@/integrations/comando-v2/derivar-execucao';
 import type { EstadoLeitura, PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const EIXO = { fontSize: 11, fill: 'hsl(var(--muted-foreground))' };
 const DICA = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--foreground))', fontSize: 12 };
@@ -74,9 +75,10 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
   const { estado, catalogo } = dados;
   const semanal = useMemo(() => entregasPorSemana(dados, empresa), [dados, empresa]);
   const etapas = useMemo(() => execucoesPorEtapa(dados, empresa), [dados, empresa]);
-  const fonteEntregas = empresa === 'GRUPO' ? estado.entregas : estadoCombinado(estado.entregas, estado.cards);
+  // Entrega aprovada depende também das etapas (etapa aprovada, entrega fresca, versão atual).
+  const fonteEntregas = empresa === 'GRUPO' ? estadoCombinado(estado.entregas, estado.etapas) : estadoCombinado(estado.entregas, estado.etapas, estado.cards);
   const fonteEtapas = empresa === 'GRUPO' ? estado.etapas : estadoCombinado(estado.etapas, estado.cards);
-  const amostra = dados.amostra ? ' (amostra recente)' : '';
+  const amostra = amostraDe(dados, ['entregas', 'etapas']) ? ' (amostra recente)' : '';
 
   return (
     <div className="space-y-5" data-aba="consumo">
@@ -88,7 +90,7 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
         </p>
       </header>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['entregas', 'etapas']) && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Amostra: a leitura foi cortada por limite. Os números valem para o que foi lido, não para o banco inteiro.
         </p>
@@ -103,7 +105,7 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
           value={etapas.totalExecucoes} subtext={fonteEtapas === 'pronta' && etapas.totalExecucoes === null ? 'O banco ainda não informou este número' : `Soma das tentativas por etapa${amostra}`} />
       </div>
 
-      <Painel titulo="Entregas aprovadas por semana" descricao="Entregas que passaram no portão 1, por semana (segunda a domingo, horário de Brasília). Últimas 8 semanas.">
+      <Painel titulo="Entregas aprovadas por semana" descricao="Entregas aprovadas (etapa aprovada ou pronta, portão 1 passou, entrega atual), por semana (segunda a domingo, horário de Brasília). Últimas 8 semanas.">
         <Leitura estado={fonteEntregas} titulo="Entregas aprovadas por semana">
           {semanal.total === 0
             ? <ExecutiveEmptyState icon={CheckCircle2} title="Nenhuma entrega aprovada nas últimas 8 semanas"

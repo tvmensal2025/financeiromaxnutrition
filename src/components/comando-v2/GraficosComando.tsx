@@ -11,6 +11,7 @@ import {
   cardsDaEmpresa, ESTILO_TOOLTIP, etapasPorAgente, porEmpresa, porEstado, recortarPorEmpresa, TIQUE_EIXO,
 } from '@/integrations/comando-v2/derivar-visao-geral';
 import { PorLeitura, type PropsVisao } from './KpisComando';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const COR_PRIMARIA = 'hsl(var(--primary))';
 const COR_ESPERA = 'hsl(var(--warning))';
@@ -62,7 +63,7 @@ function Estados({ dados, empresa }: PropsVisao) {
       </ResponsiveContainer>
       <div className="pointer-events-none absolute inset-0 grid place-items-center" aria-hidden="true">
         <div className="text-center"><div className="text-3xl font-semibold text-foreground">{cards.length}</div>
-          <div className="text-[11px] text-muted-foreground">{dados.amostra ? 'na amostra' : 'cards'}</div></div>
+          <div className="text-[11px] text-muted-foreground">{amostraDe(dados, ['cards']) ? 'na amostra' : 'cards'}</div></div>
       </div>
     </div>
     <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2" aria-label="Legenda">

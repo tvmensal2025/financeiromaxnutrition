@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
-  mensagemFalha, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca,
+  amostraDe, cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
+  mensagemFalha, ordenarCards, revisoresDaEtapa, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca, tituloDoPedido,
 } from './derivar-cards';
 import { AGORA, card, etapa, montarDados, pedido } from './derivar-cards.fixtures';
 
@@ -58,7 +58,10 @@ describe('filtros e ordem de cards', () => {
     expect(normalizarBusca('  Ação ')).toBe('acao');
   });
   it('ordena por prioridade (espera você, vencido, número), prazo e recentes', () => {
-    expect(ordenarCards(cards, 'prioridade', AGORA).map(c => c.id)).toEqual(['d', 'a', 'b', 'e', 'c']);
+    expect(ordenarCards(cards, 'prioridade', AGORA).map(c => c.id)).toEqual(['a', 'd', 'b', 'e', 'c']);
+    // o motor despacha ORDER BY prioridade DESC: maior número = mais urgente; sem prioridade vai ao fim do grupo
+    const iguais = [card('p1', { prioridade: 1 }), card('p3', { prioridade: 3 }), card('pn', { prioridade: null }), card('p2', { prioridade: 2 })];
+    expect(ordenarCards(iguais, 'prioridade', AGORA).map(c => c.id)).toEqual(['p3', 'p2', 'p1', 'pn']);
     expect(ordenarCards(cards, 'prazo', AGORA).map(c => c.id).slice(0, 2)).toEqual(['c', 'b']);
     const recentes = [card('x', { atualizado_em: h(-10) }), card('y', { atualizado_em: h(-1) })];
     expect(ordenarCards(recentes, 'recentes', AGORA).map(c => c.id)).toEqual(['y', 'x']);
@@ -95,4 +98,29 @@ it('combina leituras: erro vence carregando e nunca vira pronta', () => {
   expect(combinarLeituras(estado, ['cards']).estado).toBe('carregando');
   expect(combinarLeituras(estado, ['entregas']).estado).toBe('pronta');
   expect(mensagemFalha(['os cards', 'as etapas'])).toContain('os cards e as etapas');
+});
+
+it('amostra: cada aba olha só as fontes que usa; sem corte por fonte vale a amostra global', () => {
+  const base = montarDados();
+  const soPedidos = { ...base, amostra: false, amostras: { cards: false, etapas: false, entregas: false, pedidos: true } };
+  expect(amostraDe(soPedidos, ['cards', 'etapas'])).toBe(false);
+  expect(amostraDe(soPedidos, ['cards', 'pedidos'])).toBe(true);
+  expect(amostraDe({ ...base, amostra: true }, ['cards'])).toBe(true);
+  expect(amostraDe({ ...base, amostra: false }, ['pedidos'])).toBe(false);
+});
+
+it('revisor NENHUM vira "Sem revisor" (e não esconde nem inventa nomes)', () => {
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'NENHUM', revisores: ['CLARA'] }))).toBe('Sem revisor');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'MAYA', revisores: ['CLARA'] }))).toBe('MAYA');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: '', revisores: ['CLARA', 'NENHUM'] }))).toBe('CLARA');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: undefined, revisores: [] }))).toBe('Sem revisor');
+});
+
+it('título do pedido: confirmado primeiro, espaços colapsados e no máximo 120 caracteres', () => {
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { titulo_confirmado: 'E-mails de lançamento' }))).toBe('E-mails de lançamento');
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: 'Quero\n  um   post' }))).toBe('Quero um post');
+  const longo = tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: 'x'.repeat(500) }));
+  expect(longo).toHaveLength(120);
+  expect(longo.endsWith('...')).toBe(true);
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: '   ' }))).toBe('Pedido sem texto');
 });

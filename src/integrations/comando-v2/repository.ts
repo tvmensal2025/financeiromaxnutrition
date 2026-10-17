@@ -43,20 +43,30 @@ type Linha = Record<string, unknown>;
 const texto = (v: unknown): string | null => (typeof v === 'string' ? v : null);
 const numero = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
+/**
+ * Lê em páginas até o limite. Cada linha vale uma vez só (por `id`): se o banco mudar entre duas páginas, uma linha pode
+ * aparecer em ambas. Só uma página VAZIA encerra a leitura (um servidor que devolve menos que o pedido não prova o fim).
+ * Ao chegar no limite, uma consulta de 1 linha diz se há mais: só então a leitura é amostra.
+ */
 async function lerPaginado(
   nome: string, consulta: (de: number, ate: number) => ConsultaComandoV2, limite: number,
 ): Promise<LeituraComando<Linha>> {
-  const linhas: Linha[] = [];
-  while (linhas.length < limite) {
-    const de = linhas.length;
-    const ate = Math.min(de + TAMANHO_PAGINA, limite) - 1;
+  const ler = async (de: number, ate: number): Promise<Linha[]> => {
     const { data, error } = await consulta(de, ate);
     if (error) throw new Error(`Não foi possível ler ${nome}. Tente novamente.`);
     if (!Array.isArray(data)) throw new Error(`O banco não devolveu a lista de ${nome}.`);
-    linhas.push(...(data as Linha[]));
-    if (data.length < ate - de + 1) break; // página curta: acabou
+    return data as Linha[];
+  };
+  const porId = new Map<string, Linha>();
+  let lidas = 0; // posição no banco (linhas já recebidas), contando repetidas
+  while (lidas < limite) {
+    const pagina = await ler(lidas, Math.min(lidas + TAMANHO_PAGINA, limite) - 1);
+    if (pagina.length === 0) return { itens: [...porId.values()], amostra: false };
+    lidas += pagina.length;
+    for (const linha of pagina) porId.set(String(linha.id), linha);
   }
-  return { itens: linhas.slice(0, limite), amostra: linhas.length >= limite };
+  const maisUma = await ler(lidas, lidas);
+  return { itens: [...porId.values()].slice(0, limite), amostra: maisUma.length > 0 };
 }
 
 export function criarRepositorioComandoV2(cliente: ClienteComandoV2): RepositorioComandoV2 {

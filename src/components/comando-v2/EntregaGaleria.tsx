@@ -1,5 +1,5 @@
 /**
- * O que é: galeria das entregas aprovadas (portão 1 = PASSOU) da Sala de comando v2. Lista, busca e agrupa; ao abrir uma
+ * O que é: galeria das entregas aprovadas (mesma regra do card: etapa aprovada, portão 1 passou, entrega fresca, versão atual) da Sala de comando v2. Lista, busca e agrupa; ao abrir uma
  * entrega, carrega o texto SOB DEMANDA do card dela, mostra em linhas legíveis e oferece "Copiar texto" e "Abrir card".
  * Como mudar: `carregarDetalhe` (opcional) troca a fonte do texto, útil em testes; sem ela usa o repositório de cards da v2
  * (import dinâmico de '@/integrations/cards-v2/runtime'). Só leitura: nada aqui altera o banco.
@@ -14,6 +14,7 @@ import { dataHoraSP, entregasAprovadas, nomeAgente, nomeEmpresa } from '@/integr
 import { copiarTexto, linhasDaEntrega, textoParaCopiar, type LinhaEntrega } from '@/integrations/comando-v2/linhas-da-entrega';
 import type { CardComando, CatalogoComando, DadosComando, EntregaResumo, EtapaComando } from '@/integrations/comando-v2/tipos';
 import type { DetalheCardV2 } from '@/integrations/cards-v2/repository';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 type Agrupar = 'empresa' | 'agente' | 'etapa' | 'nenhum';
 type Detalhe = { fase: 'carregando' } | { fase: 'pronto'; linhas: LinhaEntrega[] } | { fase: 'erro'; mensagem: string };
@@ -97,12 +98,19 @@ export function EntregaGaleria({ dados, empresa, abrirCard, carregarDetalhe }: P
     try {
       const detalhe = await promessa;
       const entregas = Array.isArray(detalhe?.entregas) ? detalhe.entregas : [];
-      const achada = entregas.find(x => x.etapa_id === e.etapa_id && x.versao === e.versao) ?? entregas.find(x => String(x.id) === e.id);
-      if (!achada) throw new Error('entrega ausente no detalhe');
+      // Casa primeiro pelo id da entrega; só na falta dele usa etapa + versão.
+      const achada = entregas.find(x => String(x.id) === e.id) ?? entregas.find(x => x.etapa_id === e.etapa_id && x.versao === e.versao);
+      if (!achada) {
+        // Não é falha de rede: o card não devolveu esta entrega (já não vale como aprovada). Guardar o detalhe não ajuda.
+        cache.current.delete(e.card_id);
+        setDetalhes(d => ({ ...d, [e.id]: { fase: 'erro', mensagem: 'Esta entrega não consta mais como aprovada no card (pode ter sido substituída por uma versão mais nova). Atualize a página para ver a lista corrente.' } }));
+        return;
+      }
       setDetalhes(d => ({ ...d, [e.id]: { fase: 'pronto', linhas: linhasDaEntrega(achada.conteudo) } }));
-    } catch {
+    } catch (erro) {
       cache.current.delete(e.card_id);
-      setDetalhes(d => ({ ...d, [e.id]: { fase: 'erro', mensagem: 'Não foi possível carregar o texto desta entrega.' } }));
+      const causa = erro instanceof Error && erro.message.trim() ? ` Motivo: ${erro.message.trim()}` : '';
+      setDetalhes(d => ({ ...d, [e.id]: { fase: 'erro', mensagem: `Não foi possível carregar o texto desta entrega.${causa}` } }));
     }
   }
 
@@ -117,10 +125,14 @@ export function EntregaGaleria({ dados, empresa, abrirCard, carregarDetalhe }: P
     setAviso({ id: e.id, ok });
   }
 
-  if (estado.entregas === 'carregando') return <ExecutiveLoadingState message="Carregando entregas aprovadas" rows={4} />;
+  if (estado.entregas === 'carregando' || estado.etapas === 'carregando') return <ExecutiveLoadingState message="Carregando entregas aprovadas" rows={4} />;
   if (estado.entregas === 'erro') {
     return <ExecutiveErrorState title="Não foi possível ler as entregas"
       message="A leitura das entregas falhou, então nenhum número é mostrado. Isto não significa que não há entregas." />;
+  }
+  if (estado.etapas === 'erro') {
+    return <ExecutiveErrorState title="Não foi possível confirmar as entregas aprovadas"
+      message="Uma entrega só vale como aprovada quando a etapa dela está aprovada, e a leitura das etapas falhou. Nenhum número é mostrado; isto não significa que não há entregas." />;
   }
   if (empresa !== 'GRUPO' && estado.cards === 'erro') {
     return <ExecutiveErrorState title="Não foi possível separar as entregas por empresa"
@@ -152,7 +164,7 @@ export function EntregaGaleria({ dados, empresa, abrirCard, carregarDetalhe }: P
         </div>
       </div>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['entregas', 'etapas']) && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Amostra: a leitura foi cortada por limite, então entregas mais antigas podem não aparecer.
         </p>

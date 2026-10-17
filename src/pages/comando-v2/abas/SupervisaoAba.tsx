@@ -15,6 +15,7 @@ import {
   ROTULO_REGRA, ROTULO_SEVERIDADE, situacaoDasLeituras, type RegraSupervisao, type Severidade,
 } from '@/integrations/comando-v2/supervisao-v2';
 import type { PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const PAGINA = 20;
 const SEVERIDADES: Severidade[] = ['ALTA', 'MEDIA', 'BAIXA'];
@@ -65,7 +66,7 @@ export default function SupervisaoAba({ dados, empresa, abrirCard }: PropsAba) {
         </p>
       </header>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['cards', 'etapas', 'pedidos']) && (
         <p role="note" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
           <span>Amostra: a leitura foi cortada por limite. Podem existir outras exceções que não aparecem aqui.</span>

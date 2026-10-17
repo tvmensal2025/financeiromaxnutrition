@@ -13,6 +13,7 @@ import {
   listaDeFontes, resumirEmpresas, situacaoDasLeituras, type ResumoEmpresa,
 } from '@/integrations/comando-v2/supervisao-v2';
 import type { PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 type Numero = { rotulo: string; valor: number | null; destaque?: 'alerta' | 'atencao'; dica?: string };
 
@@ -71,7 +72,7 @@ function CartaoEmpresa({ resumo }: { resumo: ResumoEmpresa }) {
 
       <div className="mt-4">
         <Link
-          to="/comando?aba=cards"
+          to={`/comando?aba=cards&empresa=${encodeURIComponent(resumo.id)}`}
           aria-label={`Ver cards (${resumo.nome}): abre a aba Cards`}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
@@ -109,7 +110,7 @@ export default function EmpresasAba({ dados, empresa }: PropsAba) {
         </p>
       </header>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['cards', 'etapas', 'entregas']) && (
         <p role="note" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
           <span>Amostra: a leitura foi cortada por limite. Os números descrevem só o que foi lido, não o total da empresa.</span>

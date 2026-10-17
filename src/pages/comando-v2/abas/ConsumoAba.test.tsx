@@ -23,7 +23,7 @@ it('mostra volume medido: entregas por semana, execuções por etapa e etapas ab
   const tabela = painel('Entregas aprovadas por semana').getByRole('table', { name: 'Entregas aprovadas por semana' });
   expect(within(tabela).getByRole('row', { name: /12\/10/ }).textContent).toContain('2');
   expect(screen.getByRole('img', { name: /Execuções por etapa\. Redigir: 5; Revisar: 1\./ })).toBeTruthy();
-  expect(painel('Execuções por etapa').getByText(/2 etapas estão sem número de execuções/)).toBeTruthy();
+  expect(painel('Execuções por etapa').getByText(/6 etapas estão sem número de execuções/)).toBeTruthy();
 });
 
 it('diz com todas as letras que tokens e custo não são medidos, sem inventar número', () => {

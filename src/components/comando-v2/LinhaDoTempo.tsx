@@ -9,8 +9,11 @@ import { ExecutiveEmptyState } from '@/components/executive/ExecutiveEmptyState'
 import { ExecutiveLoadingState } from '@/components/executive/ExecutiveLoadingState';
 import { PorLeitura, type PropsVisao } from './KpisComando';
 import { CartaoGrafico, ValoresEmTexto } from './GraficosComando';
+import { entregasAprovadas } from '@/integrations/comando-v2/supervisao-v2';
+import { combinarLeituras } from '@/integrations/comando-v2/derivar-cards';
 import { ESTILO_TOOLTIP, recortarPorEmpresa, serieDiaria, TIQUE_EIXO } from '@/integrations/comando-v2/derivar-visao-geral';
 import type { DadosComando } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export const DIAS_LINHA_DO_TEMPO = 14;
 type Campo = 'cards' | 'pedidos' | 'entregas';
@@ -28,23 +31,25 @@ export default function LinhaDoTempo({ dados, empresa }: PropsVisao) {
 }
 
 function Corpo({ dados, empresa }: PropsVisao) {
-  const estados = SERIES.map(s => dados.estado[s.fonte]);
+  // Entrega aprovada = etapa aprovada + entrega fresca + versão atual: depende também da leitura das etapas.
+  const leitura = (s: (typeof SERIES)[number]) => s.campo === 'entregas' ? combinarLeituras(dados.estado, ['entregas', 'etapas']).estado : dados.estado[s.fonte];
+  const estados = SERIES.map(leitura);
   // Com filtro de empresa, tudo depende dos cards: sem eles, não dá para recortar nada.
   if (empresa !== 'GRUPO' && dados.estado.cards !== 'pronta') {
     return <PorLeitura estados={[dados.estado.cards]} oQue="a linha do tempo"><span /></PorLeitura>;
   }
   if (estados.every(e => e === 'erro')) return <PorLeitura estados={['erro']} oQue="a linha do tempo"><span /></PorLeitura>;
   if (estados.some(e => e === 'carregando')) return <ExecutiveLoadingState message="Carregando a linha do tempo" rows={3} />;
-  const visiveis = SERIES.filter(s => dados.estado[s.fonte] === 'pronta');
-  const faltando = SERIES.filter(s => dados.estado[s.fonte] === 'erro');
-  const recorte = recortarPorEmpresa(dados, empresa);
+  const visiveis = SERIES.filter(s => leitura(s) === 'pronta');
+  const faltando = SERIES.filter(s => leitura(s) === 'erro');
+  const recorte = recortarPorEmpresa({ ...dados, entregas: entregasAprovadas(dados) ?? [] }, empresa);
   const serie = serieDiaria(recorte, dados.agora, DIAS_LINHA_DO_TEMPO);
   const total = serie.reduce((s, p) => s + visiveis.reduce((x, v) => x + p[v.campo], 0), 0);
   const aviso = <>
     {faltando.length > 0 && <p role="status" className="mb-2 text-xs text-warning">
       Não foi possível ler: {faltando.map(f => f.nome.toLowerCase()).join(', ')}. Essa linha não aparece (não é zero).
     </p>}
-    {dados.amostra && <p className="mb-2 text-xs text-muted-foreground">Amostra, não o total: dias mais antigos podem estar incompletos.</p>}
+    {amostraDe(dados, ['cards', 'pedidos', 'entregas']) && <p className="mb-2 text-xs text-muted-foreground">Amostra, não o total: dias mais antigos podem estar incompletos.</p>}
   </>;
   if (total === 0) {
     return <>{aviso}<ExecutiveEmptyState title="Nada nos últimos 14 dias"
