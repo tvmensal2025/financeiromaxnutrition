@@ -365,47 +365,8 @@ class Motor:
         return self._carregar_revisao(revisao_id)
 
     def processar_configuracoes_pendentes(self):
-        """Trabalho local explícito: confere dados e registra veredito, sem ativar revisão."""
-        pendentes = self._linha('SELECT helena_v2.listar_validacoes_pendentes() AS fila')['fila']
-        resultados = []
-        for item in pendentes:
-            revisao_id, versao, hash_sql = item['id'], item['versao'], item['hash_sha256']
-            try:
-                bundle = item['conteudo']
-                calculado = self._linha("SELECT encode(sha256(convert_to(%s::jsonb::text, 'UTF8')), 'hex') AS hash",
-                                        (Jsonb(bundle),))['hash']
-                if calculado != hash_sql:
-                    raise ValueError('hash SQL do rascunho não confere')
-                if not self._linha('SELECT helena_v2.tabela_confere() AS confere')['confere']:
-                    raise ValueError('tabela da máquina SQL divergente')
-                try:
-                    validar_bundle(bundle, raiz_maquina=RAIZ / 'helena-v2')
-                except OSError as invalida:
-                    if invalida.errno != errno.ENAMETOOLONG:
-                        raise  # falha de recursos/ambiente: manter pedido pendente
-                    raise ValueError('caminho da configuração excede o limite do sistema') from invalida
-                except MemoryError:
-                    raise  # falha de recursos/ambiente: manter pedido pendente
-                except Exception as invalida:
-                    raise ValueError(f'{type(invalida).__name__}: {str(invalida)[:240]}') from invalida
-                impressao = self._linha('SELECT impressao_digital FROM helena_v2.meta_tabela LIMIT 1')['impressao_digital']
-                resultado = self._linha('SELECT helena_v2.registrar_validacao_config(%s::uuid,%s,%s,%s) AS resultado',
-                                        (str(revisao_id), versao, hash_sql, impressao))['resultado']
-            except (ValueError, TypeError, KeyError) as erro:
-                try:
-                    resultado = self._linha('SELECT helena_v2.registrar_resultado_validacao(%s::uuid,%s,%s,%s) AS resultado',
-                                            (str(revisao_id), versao, hash_sql,
-                                             Jsonb({'ok': False, 'erros': [str(erro)]})))['resultado']
-                except psycopg.Error as concorrencia:
-                    if concorrencia.sqlstate != '40001':
-                        raise
-                    resultado = {'id': str(revisao_id), 'ignorada': 'versão alterada durante validação'}
-            except psycopg.Error as concorrencia:
-                if concorrencia.sqlstate != '40001':
-                    raise
-                resultado = {'id': str(revisao_id), 'ignorada': 'versão alterada durante validação'}
-            resultados.append(resultado)
-        return resultados
+        """Trabalho explícito do motor: confere dados e registra veredito, sem ativar revisão."""
+        return processar_configuracoes_pendentes(self._linha)
 
     def _evento(self, maquina, alvo, papel, evento, params=None, ator=None, chave=None, conteudo=None,
                 *, automaticos=True, nao_disparar=None, toque=None, con=None, card_id_real=None):
@@ -1126,3 +1087,53 @@ class Motor:
         self._evento('etapa', etapa['id'], 'REVISOR', 'APROVAR', ator=etapa['revisor'], chave=numero,
                      conteudo={'criterios': rubrica})
         return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']
+
+
+def processar_configuracoes_pendentes(linha):
+    """Confere cada rascunho que o fundador mandou validar e registra o veredito no banco. Nunca ativa nada.
+
+    `linha(sql, args=())` devolve UMA linha (dict) executando como service_role. É a mesma função para o motor local
+    (`Motor._linha`) e para o comando de produção (`validar-configuracoes` com HELENA_V2_DATABASE_URL), que só
+    muda a forma de abrir a conexão: checagens de produção de bancos.py, preflight do papel e SET ROLE service_role.
+    O veredito é o mesmo nos dois lugares: hash do SQL, tabela da máquina, `validar_bundle` contra o checkout.
+    """
+    pendentes = linha('SELECT helena_v2.listar_validacoes_pendentes() AS fila')['fila']
+    resultados = []
+    for item in pendentes:
+        revisao_id, versao, hash_sql = item['id'], item['versao'], item['hash_sha256']
+        try:
+            bundle = item['conteudo']
+            calculado = linha("SELECT encode(sha256(convert_to(%s::jsonb::text, 'UTF8')), 'hex') AS hash",
+                              (Jsonb(bundle),))['hash']
+            if calculado != hash_sql:
+                raise ValueError('hash SQL do rascunho não confere')
+            if not linha('SELECT helena_v2.tabela_confere() AS confere')['confere']:
+                raise ValueError('tabela da máquina SQL divergente')
+            try:
+                validar_bundle(bundle, raiz_maquina=RAIZ / 'helena-v2')
+            except OSError as invalida:
+                if invalida.errno != errno.ENAMETOOLONG:
+                    raise  # falha de recursos/ambiente: manter pedido pendente
+                raise ValueError('caminho da configuração excede o limite do sistema') from invalida
+            except MemoryError:
+                raise  # falha de recursos/ambiente: manter pedido pendente
+            except Exception as invalida:
+                raise ValueError(f'{type(invalida).__name__}: {str(invalida)[:240]}') from invalida
+            impressao = linha('SELECT impressao_digital FROM helena_v2.meta_tabela LIMIT 1')['impressao_digital']
+            resultado = linha('SELECT helena_v2.registrar_validacao_config(%s::uuid,%s,%s,%s) AS resultado',
+                              (str(revisao_id), versao, hash_sql, impressao))['resultado']
+        except (ValueError, TypeError, KeyError) as erro:
+            try:
+                resultado = linha('SELECT helena_v2.registrar_resultado_validacao(%s::uuid,%s,%s,%s) AS resultado',
+                                  (str(revisao_id), versao, hash_sql,
+                                   Jsonb({'ok': False, 'erros': [str(erro)]})))['resultado']
+            except psycopg.Error as concorrencia:
+                if concorrencia.sqlstate != '40001':
+                    raise
+                resultado = {'id': str(revisao_id), 'ignorada': 'versão alterada durante validação'}
+        except psycopg.Error as concorrencia:
+            if concorrencia.sqlstate != '40001':
+                raise
+            resultado = {'id': str(revisao_id), 'ignorada': 'versão alterada durante validação'}
+        resultados.append(resultado)
+    return resultados

@@ -43,6 +43,18 @@ Para conferir uma configuração solicitada pelo fundador, use o comando local e
 
 Uma resposta já gravada no SQL pode ser retomada sem repetir a chamada. Uma queda entre o retorno do provedor e essa gravação ainda pode repetir uma chamada externa; unicidade absoluta exige idempotência também no provedor. Não confundir a prova de recuperação após gravação com garantia de execução externa única.
 
-### Primeiro cadastro em produção ainda pendente
+### Primeiro cadastro em produção
 
-Os comandos de validação e cadastro técnico acima aceitam somente bancos locais. O motor de produção exige uma revisão ativa já validada. A implantação deve fornecer e revisar um procedimento de cadastro/validação inicial para o banco canônico antes de iniciar esse motor; o CLI atual não automatiza esse primeiro cadastro em produção. Não contornar essa exigência ativando uma revisão sem atestação.
+O motor de produção exige uma revisão de configuração **ativa e validada**. No banco real ela nasce assim, sem atalho:
+
+1. **Base técnica:** entra pelo roteiro de instalação (`02_base_tecnica.sql`, já aplicado no projeto canônico em 17/10/2026). `registrar-base-tecnica` continua só para banco local.
+2. **Rascunho do fundador (tela `/configuracoes`):** o fundador clona a revisão técnica (botão Clonar) ou importa um JSON, ajusta se quiser e pede a validação. Isso grava um `RASCUNHO` e um pedido em `configuracao_validacao`.
+3. **Veredito do motor (na VPS, com a conta `helena_motor`):**
+   ```sh
+   HELENA_V2_DATABASE_URL='postgresql://helena_motor.<ref>:SENHA@<pooler>:5432/postgres?sslmode=verify-full' \
+     python -m orquestrador validar-configuracoes
+   ```
+   Só essa variável; nada do Hermes nem do DBOS. O comando usa as mesmas checagens de produção do vigia (URL canônica com TLS verificado, sem override `PG*`, conta sem privilégio administrativo conferida antes de cada `SET ROLE service_role`) e o mesmo veredito do motor local (hash do SQL, tabela da máquina, `validar_bundle` contra este checkout). Rascunho inválido recebe o motivo e continua `RASCUNHO`; válido vira `VALIDADA`. **Nunca ativa.** A saída traz ids e estados, nunca a URL.
+4. **Ativação (tela):** o fundador ativa a revisão validada. Só então o motor de produção pode partir.
+
+Contas e esquema do DBOS: `supabase/migrations-v2/producao/`. Teste do caminho real com a conta real: `testes/test_validacao_real.py`.

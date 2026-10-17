@@ -125,6 +125,39 @@ def _abrir_banco_somente_leitura():
     return _abrir_banco_service_role(somente_leitura=True)
 
 
+def _validar_configuracoes_real():
+    """`validar-configuracoes` contra o banco REAL: o que o fundador mandou validar pela tela ganha o veredito do motor.
+
+    Mesmo veredito do motor local (motor.processar_configuracoes_pendentes), com a abertura de conexão de produção
+    (`_abrir_banco_service_role`: URL canônica com TLS verificado, conta sem privilégio administrativo, SET ROLE
+    service_role). Precisa só de HELENA_V2_DATABASE_URL (a conta `helena_motor`), não do Hermes nem do DBOS.
+    Nunca ativa revisão: ativar é toque do fundador, na tela. A saída traz ids e estados, nunca a URL.
+    """
+    from .motor import processar_configuracoes_pendentes
+    from .vigilancia import limpar_texto
+    try:
+        banco = _abrir_banco_service_role(somente_leitura=False)
+    except Exception as erro:
+        print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
+        return 1
+
+    def linha(sql, args=()):
+        with banco._con('service_role') as con:
+            return con.execute(sql, args).fetchone()
+
+    try:
+        resultados = processar_configuracoes_pendentes(linha)
+    except Exception as erro:
+        print(json.dumps({'estado': 'FALHA_DE_RUNTIME', 'motivo': limpar_texto(f'{type(erro).__name__}')}, ensure_ascii=False))
+        return 1
+    finally:
+        banco.fechar()
+    print(json.dumps({'processadas': len(resultados), 'resultados': [
+        {'id': r.get('id'), 'estado': r.get('estado'), 'ignorada': r.get('ignorada')} for r in resultados]},
+        ensure_ascii=False))
+    return 0
+
+
 def _abrir_banco_service_role(*, somente_leitura):
     """Abre o banco da v2 pelo papel service_role, exigindo apenas HELENA_V2_DATABASE_URL (nem Hermes nem DBOS).
     `somente_leitura=False` é só do relógio, que precisa gravar o evento de prazo; o vigia lê.
@@ -139,7 +172,7 @@ def _abrir_banco_service_role(*, somente_leitura):
     from .bancos import parametros_conexao_real, preflight_papel_runtime, validar_destinos_reais
     url = os.environ.get('HELENA_V2_DATABASE_URL')
     if not url:
-        raise ValueError('exige HELENA_V2_DATABASE_URL (vigiar e relogio só falam com o banco; não precisam do Hermes)')
+        raise ValueError('exige HELENA_V2_DATABASE_URL (vigiar, relogio e validar-configuracoes só falam com o banco; não precisam do Hermes)')
     validar_destinos_reais(url, url)    # só o banco do card existe aqui: a mesma URL nos dois lugares é aceita pela função
     dsn = url.replace('postgresql+psycopg://', 'postgresql://', 1)
     parametros = dict(parametros_conexao_real())
@@ -361,8 +394,12 @@ def main(argv=None):
     if args.comando in ('validar-configuracoes', 'registrar-base-tecnica'):
         url_banco = os.environ.get('HELENA_V2_CONFIG_DATABASE_URL')
         url_dbos = os.environ.get('HELENA_V2_DBOS_SYSTEM_DATABASE_URL')
+        if args.comando == 'validar-configuracoes' and not url_banco and os.environ.get('HELENA_V2_DATABASE_URL'):
+            return _validar_configuracoes_real()
         if not url_banco or not url_dbos:
-            parser.error('defina HELENA_V2_CONFIG_DATABASE_URL e HELENA_V2_DBOS_SYSTEM_DATABASE_URL para bancos locais separados')
+            parser.error('validar-configuracoes no banco REAL: defina só HELENA_V2_DATABASE_URL (conta helena_motor). '
+                         'Em banco local: defina HELENA_V2_CONFIG_DATABASE_URL e HELENA_V2_DBOS_SYSTEM_DATABASE_URL. '
+                         'registrar-base-tecnica é só local (no real, a base técnica entra pelo roteiro de instalação).')
         motor = Motor(url_banco, url_dbos, permitir_executor_falso=True, iniciar_dbos=False,
                       permitir_configuracao_tecnica=args.comando == 'registrar-base-tecnica')
         try:
