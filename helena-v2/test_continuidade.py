@@ -1,4 +1,7 @@
-"""Protege a receita visual preparada para a v1 contra reversões de segurança."""
+"""Protege a receita visual preparada para a v1 contra reversões de segurança.
+
+A v1 está parada (DEC-032): o código dela vive em docs/arquivo/app-v1 (só consulta). A receita é conferida contra essas
+cópias arquivadas, não contra src/, que agora é só a v2."""
 
 from pathlib import Path
 import re
@@ -9,6 +12,7 @@ import pytest
 
 
 RAIZ = Path(__file__).resolve().parent.parent
+V1 = RAIZ / "docs/arquivo/app-v1"   # cópia arquivada do app da v1: os caminhos abaixo são relativos a ela
 PATCH = RAIZ / "docs/arquivo/reversao-visual-v1-seletiva-20261013.patch"
 PROTEGIDOS = (
     "src/auth.tsx",
@@ -46,7 +50,7 @@ def test_patch_visual_preserva_seguranca_e_rotas_v2(tmp_path: Path) -> None:
     for nome in ALVOS | set(PROTEGIDOS):
         destino = tmp_path / nome
         destino.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(RAIZ / nome, destino)
+        shutil.copyfile(V1 / nome, destino)
     antes = {nome: (tmp_path / nome).read_bytes() for nome in PROTEGIDOS}
 
     subprocess.run(["git", "apply", "--check", str(PATCH)], cwd=tmp_path, check=True)
@@ -64,7 +68,7 @@ def test_defeito_plantado_em_auth_e_detectado(tmp_path: Path) -> None:
     nome = "src/auth.tsx"
     destino = tmp_path / nome
     destino.parent.mkdir(parents=True)
-    shutil.copyfile(RAIZ / nome, destino)
+    shutil.copyfile(V1 / nome, destino)
     antes = {nome: destino.read_bytes()}
     destino.write_bytes(antes[nome] + b"\n// alteracao indevida de seguranca\n")
     with pytest.raises(AssertionError, match="reversão alterou src/auth.tsx"):
@@ -79,7 +83,7 @@ def test_defeito_plantado_em_auth_e_detectado(tmp_path: Path) -> None:
 def test_defeitos_plantados_no_layout_sao_detectados(tmp_path: Path, original: str, defeito: str) -> None:
     destino = tmp_path / "src/components/Layout.tsx"
     destino.parent.mkdir(parents=True)
-    layout = (RAIZ / "src/components/Layout.tsx").read_text()
+    layout = (V1 / "src/components/Layout.tsx").read_text()
     assert original in layout
     destino.write_text(layout.replace(original, defeito, 1))
     with pytest.raises(AssertionError):
