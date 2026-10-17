@@ -423,7 +423,7 @@ export default function FinanceiroPage() {
           {/* TAB 1: VISÃO GERAL */}
           {aba === "visao_geral" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <ExecutiveMetricCard
                   label="Caixa realizado"
                   value={cockpit.caixaRealizado !== null ? moeda(cockpit.caixaRealizado) : null}

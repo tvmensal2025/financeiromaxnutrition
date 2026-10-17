@@ -50,7 +50,7 @@ export function ExecutiveMetricCard({
       </div>
 
       <div className="mt-3 flex items-baseline gap-2">
-        <span className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+        <span className="min-w-0 break-words text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
           {isAbsent ? "—" : value}
         </span>
         {trend && hasData && (
