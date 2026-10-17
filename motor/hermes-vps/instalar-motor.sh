@@ -275,8 +275,9 @@ from psycopg.rows import dict_row
 from orquestrador.bancos import parametros_conexao_real
 with psycopg.connect(os.environ['HELENA_V2_DATABASE_URL'], autocommit=True, row_factory=dict_row, **parametros_conexao_real()) as con:
     con.execute('SET ROLE service_role')
-    r = con.execute('SELECT ativa_id FROM helena_v2.configuracao_ponteiro').fetchone()
-    print(r['ativa_id'] or '')
+    # As tabelas so abrem por funcao (nem o service_role le configuracao_ponteiro): usa a mesma funcao do motor.
+    r = con.execute('SELECT helena_v2.configuracao_ativa() AS revisao').fetchone()['revisao']
+    print(r['id'] if r else '')
 PY")" || fail "nao consegui ler o ponteiro de configuracao."
   [ -n "$ativa" ] || fail "nenhuma revisao de configuracao ATIVA: pela tela, Clonar -> Pedir validacao; aqui: validar-config; tela: Ativar."
   systemctl enable --now helena-despachante.service || fail "nao consegui ligar o despachante."

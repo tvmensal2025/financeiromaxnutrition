@@ -115,6 +115,33 @@ def test_primeiro_cadastro_em_producao_de_ponta_a_ponta(producao, capsys):
     assert _saida(capsys)['processadas'] == 0
 
 
+def test_motor_le_a_revisao_ativa_pela_funcao_e_nao_pela_tabela(producao):
+    """Regressão de 17/10/2026 na VPS: `ligar-motor` lia configuracao_ponteiro direto e o banco recusou (a tabela só abre por
+    função, nem o service_role a lê). O instalador agora usa configuracao_ativa(), a mesma função do motor."""
+    b, banco, tecnica, _ = producao
+    rascunho = _rascunho_do_fundador(b, 'Revisão ativa', base_id=tecnica['id'])
+    assert cli.main(['validar-configuracoes']) == 0
+    with b.conectar('authenticated') as con:
+        con.execute('SELECT helena_v2.ativar_configuracao(%s,%s)', (rascunho['id'], None))
+    con = banco._con()                                             # helena_motor + SET ROLE service_role, como na VPS
+    try:
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            con.execute('SELECT ativa_id FROM helena_v2.configuracao_ponteiro')
+        r = con.execute('SELECT helena_v2.configuracao_ativa() AS revisao').fetchone()['revisao']
+        assert r['id'] == rascunho['id']                           # o que o instalador imprime
+    finally:
+        con.close()
+
+
+def test_sem_revisao_ativa_a_funcao_devolve_vazio(producao):
+    b, banco, tecnica, _ = producao
+    con = banco._con()
+    try:
+        assert con.execute('SELECT helena_v2.configuracao_ativa() AS revisao').fetchone()['revisao'] is None
+    finally:
+        con.close()
+
+
 def test_rascunho_invalido_recebe_o_veredito_e_fica_rascunho(producao, capsys):
     import copy
     from orquestrador.configuracao import capturar_bundle
