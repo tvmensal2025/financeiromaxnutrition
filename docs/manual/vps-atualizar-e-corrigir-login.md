@@ -12,7 +12,7 @@ Escrito em 17/10/2026, sem acesso à VPS: as saídas abaixo vêm da leitura de `
 - **Não é** o caminho de [atualizar-v2.sh](../../motor/hermes-vps/atualizar-v2.sh) / [ATUALIZAR-V2.md](../../motor/hermes-vps/ATUALIZAR-V2.md) (staging por bundle, comparação das migrations, cutover ensaiado). Este é o caminho **no mesmo lugar**, em etapas isoladas: não use `instalar-motor.sh tudo` (ele reescreve a configuração). Em troca, ele não faz o dry run de migrations nem tem backup do venv; por isso o despachante fica parado durante todo o roteiro.
 - Pré-condição, **NÃO REVALIDADA agora**: as migrations 0020–0026 já estão aplicadas no Supabase oficial (a retomada de 17/10 diz que sim). O código novo depende delas. Este roteiro não aplica migrations.
 
-Troque `<SHA_DA_MAIN>` pelo **SHA completo (40 caracteres)** do commit da `main` depois do merge: *a ser preenchido depois do merge*. SHA curto não funciona na etapa `codigo` (testado offline: "couldn't find remote ref"). Use o mesmo SHA nos passos 2 e 3.
+O SHA completo (40 caracteres) já está preenchido nos comandos abaixo: é o commit da `main` logo após o merge do PR #20 (`49476c93420c6d0592ed0ada43aad480c3b47895`). Se a `main` avançar, troque pelos 40 caracteres do commit que você quer instalar. SHA curto não funciona na etapa `codigo` (testado offline: "couldn't find remote ref"). Use o mesmo SHA nos passos 2 e 3.
 
 ## Passo 0 — antes de mexer (só leitura)
 
@@ -43,16 +43,16 @@ Esperado: `inactive`. Vigia e relógio continuam ligados (não gastam cota). Nã
 ## Passo 2 (b) — baixar o instalador do commit fixo
 
 ```
-clear && cp -p /root/instalar-motor.sh /root/instalar-motor.sh.anterior; curl -fsSL -o /root/instalar-motor.sh https://raw.githubusercontent.com/tvmensal2025/financeiromaxnutrition/<SHA_DA_MAIN>/motor/hermes-vps/instalar-motor.sh && bash -n /root/instalar-motor.sh && grep -n '^HELENA_REF=' /root/instalar-motor.sh
+clear && cp -p /root/instalar-motor.sh /root/instalar-motor.sh.anterior; curl -fsSL -o /root/instalar-motor.sh https://raw.githubusercontent.com/tvmensal2025/financeiromaxnutrition/49476c93420c6d0592ed0ada43aad480c3b47895/motor/hermes-vps/instalar-motor.sh && bash -n /root/instalar-motor.sh && grep -n '^HELENA_REF=' /root/instalar-motor.sh
 ```
 Esperado: uma linha parecida com `17:HELENA_REF="${HELENA_REF:-main}" …`. O `cp` guarda o instalador antigo (se não existir, ele só reclama; ignore). Se o `curl` der `404`, o SHA está errado (nada é gravado). Se a linha mostrar `claude/fervent-pasteur-g821nu`, o SHA é anterior à correção do padrão; não é grave porque o passo 3 passa o SHA explícito, mas confira se é o commit certo.
 
 ## Passo 3 (c) — baixar o código
 
 ```
-clear && HELENA_REF=<SHA_DA_MAIN> bash /root/instalar-motor.sh codigo
+clear && HELENA_REF=49476c93420c6d0592ed0ada43aad480c3b47895 bash /root/instalar-motor.sh codigo
 ```
-Esperado: `OK: codigo em /opt/helena-v2/repo no commit xxxxxxx (<SHA_DA_MAIN>)`, com `xxxxxxx` igual ao início do SHA. Só troca o checkout (destacado) e o dono dos arquivos. Os serviços vigia/relógio seguem rodando o código antigo, já carregado na memória. Se pedir "Token de LEITURA do GitHub", o repositório voltou a ser privado: cancele com Ctrl+C (nada foi alterado) e avise a Claude. `ERRO: falhou atualizar o codigo` = rede ou SHA incompleto.
+Esperado: `OK: codigo em /opt/helena-v2/repo no commit xxxxxxx (49476c93420c6d0592ed0ada43aad480c3b47895)`, com `xxxxxxx` igual ao início do SHA. Só troca o checkout (destacado) e o dono dos arquivos. Os serviços vigia/relógio seguem rodando o código antigo, já carregado na memória. Se pedir "Token de LEITURA do GitHub", o repositório voltou a ser privado: cancele com Ctrl+C (nada foi alterado) e avise a Claude. `ERRO: falhou atualizar o codigo` = rede ou SHA incompleto.
 
 ## Passo 4 (d) — recriar o venv do Hermes com a correção
 
@@ -98,7 +98,7 @@ helena-vigia         active
 helena-relogio       active
 helena-despachante   active
 sem alarmes gravados        (ou "ultimos alarmes:" e até 5 linhas)
-codigo: xxxxxxx             (início do <SHA_DA_MAIN>)
+codigo: xxxxxxx             (início do 49476c93420c6d0592ed0ada43aad480c3b47895)
 ```
 Opcional, para o código novo valer também no vigia e no relógio (que ainda rodam o antigo): `clear && systemctl restart helena-vigia helena-relogio`. Não é parte do roteiro pedido; faça só se a Claude indicar.
 

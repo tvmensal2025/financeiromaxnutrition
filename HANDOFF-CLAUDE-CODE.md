@@ -32,7 +32,7 @@ Kanban e entrada de texto livre com recibo e histórico preparados; migration 00
 - **Theo engenheiro**: ficha `helena-v2/agents/theo.yaml` e serviço `SRV-ENGENHARIA` em RASCUNHO (nada ativo; ativar exige DB e o "sim" do fundador). Modelo "Constrói, você aprova"; agente não grava no GitHub.
 - **Memória dos agentes**: desenho em `docs/manual/memoria-dos-agentes.md`, rascunho `docs/propostas/0027_memoria_agentes.sql` (NÃO APLICADO) e `motor/orquestrador/orquestrador/memoria.py` desligado por padrão.
 - **Virada do Telegram**: `motor/hermes-vps/telegram-v2/virada.sh` + `docs/manual/virada-telegram-passo-a-passo.md` (nada executado; precisa do token digitado pelo fundador).
-- **Pendente (só o fundador)**: publicar no Lovable; atualizar a VPS pelo roteiro (preencher `<SHA_DA_MAIN>`); decisões D1–D14 da memória; autorizar a 0027; ativar a configuração com o Theo; virada do Telegram; segurança (repo privado, rotação de chaves, revogar PATs).
+- **Pendente (só o fundador)**: publicar no Lovable; atualizar a VPS pelo roteiro (SHA já preenchido: `49476c93420c6d0592ed0ada43aad480c3b47895`); decisões D1–D14 da memória; autorizar a 0027; ativar a configuração com o Theo; virada do Telegram; segurança (repo privado, rotação de chaves, revogar PATs).
 
 ## Bloco E-9 (17/10/2026, noite) — SALA DE COMANDO v2 (dashboard como o da v1, só com dados da v2)
 - **Decisão do fundador:** o app é SEMPRE a v2; nada da v1 volta como sistema. O que se aproveita da v1 é o desenho e a utilidade do dashboard.
