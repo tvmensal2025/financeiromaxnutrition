@@ -1,4 +1,4 @@
--- Telegram entra só por um vínculo criado pelo fundador no site e consumido pelo backend.
+-- O que é: Telegram entra só por um vínculo criado pelo fundador no site e consumido pelo backend.
 -- O código é aleatório (192 bits), vence em 10 minutos e só seu SHA-256 fica no banco.
 -- Origem, chat privado e autenticidade do webhook também são conferidos pela Edge Function.
 

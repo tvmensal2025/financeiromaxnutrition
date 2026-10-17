@@ -1,4 +1,4 @@
--- Proposta da Helena: interpretação versionada antes de qualquer confirmação.
+-- O que é: Proposta da Helena: interpretação versionada antes de qualquer confirmação.
 -- O motor só registra uma interpretação; somente o fundador confirma o plano.
 
 create table helena_v2.pedido_entrada_reserva (

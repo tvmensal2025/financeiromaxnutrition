@@ -1,4 +1,4 @@
--- Um plano confirmado pelo fundador converte a entrada v2 em card, sem criar tarefa v1.
+-- O que é: Um plano confirmado pelo fundador converte a entrada v2 em card, sem criar tarefa v1.
 -- O texto e os eventos são fontes do pedido; o pacote vem da revisão v2 fixada.
 
 alter table helena_v2.pedido_entrada drop constraint pedido_entrada_estado_check;

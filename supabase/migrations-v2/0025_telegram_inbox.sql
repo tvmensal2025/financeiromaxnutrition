@@ -1,4 +1,4 @@
--- Transporte Telegram v2. Aplicar depois de 0022; nenhum poller é ativado aqui.
+-- O que é: Transporte Telegram v2. Aplicar depois de 0022; nenhum poller é ativado aqui.
 -- Somente a Edge (service_role) chama estas RPCs. A credencial administrativa
 -- e o token Telegram ficam na Edge; a capability entregue ao worker autoriza
 -- somente um subconjunto fixo das operações HTTP da Edge.

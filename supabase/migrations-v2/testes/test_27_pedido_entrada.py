@@ -1,4 +1,6 @@
-"""Recebimento comum: um pedido de triagem, eventos idempotentes e isolamento por fundador."""
+"""O que é: Recebimento comum: um pedido de triagem, eventos idempotentes e isolamento por fundador.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier

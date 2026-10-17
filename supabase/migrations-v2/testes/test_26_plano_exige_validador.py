@@ -1,4 +1,6 @@
-"""A confirmação do fundador não atesta o plano; o validador do motor emite o evento explicitamente."""
+"""O que é: A confirmação do fundador não atesta o plano; o validador do motor emite o evento explicitamente.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 
 import pytest
 from psycopg import errors as E

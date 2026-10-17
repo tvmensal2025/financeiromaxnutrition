@@ -1,4 +1,4 @@
--- Recebimento durável da entrada comum. Ainda não cria card, tarefa, job ou proposta de IA.
+-- O que é: Recebimento durável da entrada comum. Ainda não cria card, tarefa, job ou proposta de IA.
 -- A origem é uma declaração do cliente autenticado, não prova de pareamento de canal.
 
 create table helena_v2.pedido_entrada (

@@ -1,4 +1,6 @@
-"""Proposta tipada: snapshot, retomada de lease, autorização e confirmação explícita."""
+"""O que é: Proposta tipada: snapshot, retomada de lease, autorização e confirmação explícita.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

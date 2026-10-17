@@ -1,4 +1,4 @@
--- O plano só recebe PLANO_VALIDO quando o motor o emite explicitamente depois de validar_plano.
+-- O que é: trava de runtime para que o plano só receba PLANO_VALIDO quando o motor o emite explicitamente depois de validar_plano.
 -- _cabe é usada apenas pelo despachante de eventos automáticos de 0003. Esta trava de runtime
 -- não executa nem substitui o validador externo, nem altera as passagens geradas do YAML.
 -- Cards que já avançaram sem essa validação exigem conferência separada antes de continuar.

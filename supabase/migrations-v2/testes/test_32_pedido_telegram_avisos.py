@@ -1,4 +1,6 @@
-"""Avisos do pedido v2 saem só pelo chat privado que originou o protocolo."""
+"""O que é: Avisos do pedido v2 saem só pelo chat privado que originou o protocolo.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 from uuid import uuid4
 
 import pytest

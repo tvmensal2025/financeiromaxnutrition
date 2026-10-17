@@ -1,4 +1,6 @@
-"""Pedido v2 confirmado: fonte nativa, autenticação, consumo único e guarda do card."""
+"""O que é: Pedido v2 confirmado: fonte nativa, autenticação, consumo único e guarda do card.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

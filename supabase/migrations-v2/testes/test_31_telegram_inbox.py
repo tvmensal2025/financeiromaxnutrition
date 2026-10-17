@@ -1,4 +1,6 @@
-"""Transporte Telegram v2 no PostgreSQL descartável, sem Bot API nem Supabase real."""
+"""O que é: Transporte Telegram v2 no PostgreSQL descartável, sem Bot API nem Supabase real.
+Como mudar: roda num banco local descartável com todas as migrations (conftest.py); nada toca em banco remoto.
+"""
 
 import asyncio
 import importlib.util
