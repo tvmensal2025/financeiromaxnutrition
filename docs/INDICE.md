@@ -35,6 +35,8 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/manual/mapa-de-reaproveitamento.md` | Inventário do trabalho preservado e contratos de integração à v2 | 17/10/2026 |
 | `docs/manual/guia-da-triagem.md` | Contrato do mapa operacional incluído no contexto da coordenação | 17/10/2026 |
 | `docs/manual/retomada-hermes-vps.md` | Inventário somente leitura e roteiro de ligação do Hermes na VPS | 17/10/2026 |
+| `docs/manual/vps-atualizar-e-corrigir-login.md` | Roteiro do fundador: atualizar o motor e corrigir a renovação do login do Hermes na VPS | 17/10/2026 |
+| `docs/manual/publicar-no-lovable.md` | Roteiro do fundador: publicar o site a partir da main no Lovable | 17/10/2026 |
 | `docs/manual/entrada-unificada.md` | Contrato do fluxo comum e estado da recepção local | 17/10/2026 |
 | `docs/manual/briefing-para-chatgpt.md` | Briefing datado para outro assistente | 17/10/2026 |
 | `docs/manual/como-a-fabrica-funciona.md` | Fluxo da fábrica v2 e limites relatados | 17/10/2026 |

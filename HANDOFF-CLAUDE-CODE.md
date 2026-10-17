@@ -2,6 +2,10 @@
 
 > Para retomar, use o [ponto único de retomada](docs/manual/onde-estamos.md). Os blocos abaixo preservam relatos históricos com suas datas e não confirmam o estado atual da VPS ou do Supabase. A auditoria e as correções locais são a frente em andamento.
 
+## Roteiros do fundador — 17/10/2026
+
+Dois roteiros curtos, ainda NÃO executados: [atualizar o motor e corrigir a renovação do login na VPS](docs/manual/vps-atualizar-e-corrigir-login.md) (SHA da `main` a preencher depois do merge) e [publicar o site no Lovable a partir da `main`](docs/manual/publicar-no-lovable.md) (domínio de produção NÃO CONFIRMADO). Ajuste feito: o `HELENA_REF` padrão do `instalar-motor.sh` passou de um ramo de trabalho para `main`; o código do motor na VPS (`27fd143`) já ficou atrás do repositório.
+
 ## Adendo posterior de 17/10/2026 — painel e mapa para a IA
 
 O fundador pediu reaproveitar a construção e conectar suas partes. Implementados localmente: visão geral v2 em `/`, cards em `/cards`, acompanhamento por `/cards?pedido=...`, compatibilidade dos links antigos e mapa operacional incluído no contexto da triagem. Arquivos originais da v1 permanecem preservados; financeiro/CRM/calendário/voz ainda exigem validação de contratos e dados antes de integração. Começar pelo [mapa do sistema](docs/manual/mapa-do-sistema.md) e pelo [inventário](docs/manual/mapa-de-reaproveitamento.md), sem reconstruir módulos por falta de consulta.

@@ -38,7 +38,7 @@ Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-e
 | `.env.example` | Nomes das variáveis de ambiente, sem valores |
 | `docs/plano/` | O plano único (`PLANO-HELENA-V3.md`) e o registro de furos |
 | `docs/decisoes/` | Uma decisão por arquivo (DEC-NNN) |
-| `docs/manual/` | Guias em vigor: como mudar, dia de prova, conectar runtimes, eLiving, voz, troca de chaves, comando mestre |
+| `docs/manual/` | Guias em vigor: como mudar, dia de prova, conectar runtimes, eLiving, voz, troca de chaves, comando mestre; roteiros do fundador [`vps-atualizar-e-corrigir-login.md`](docs/manual/vps-atualizar-e-corrigir-login.md) (motor na VPS) e [`publicar-no-lovable.md`](docs/manual/publicar-no-lovable.md) (site a partir da `main`) |
 | `docs/ideias/` | Ideias e anotações de aulas ainda não aprovadas, com data |
 | `docs/auditoria/` | As auditorias e os ataques independentes |
 | `docs/arquivo/` | Planos, relatórios, registros antigos e o app da v1 (`app-v1/`), só consulta (`LEIA.md` diz o porquê de cada um) |
