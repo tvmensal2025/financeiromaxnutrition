@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "business_id": "BIZ-003",
+  "name": "Humano Digital",
+  "status": "DRAFT",
+  "logo_url": "/brand/humano-digital/logo.svg",
+  "logo_approved": false,
+  "reference_image": "/brand/humano-digital/referencia-verde.png",
+  "colors": [
+    {"name":"Verde principal","hex":"#075E47","use":"Marca, títulos e chamadas para ação"},
+    {"name":"Verde profundo","hex":"#163D32","use":"Texto e fundos de destaque"},
+    {"name":"Marfim","hex":"#F4F5EB","use":"Fundo e áreas de respiro"},
+    {"name":"Sálvia","hex":"#BCD2B5","use":"Apoio e detalhes; evitar texto pequeno sobre branco"}
+  ],
+  "heading_font":"Manrope — títulos com peso 700 ou 800",
+  "body_font":"Manrope — textos com peso 400 ou 500",
+  "description":"Projeto que conecta pessoas ao trabalho com inteligência artificial. O fundador descreve a proposta como uma agência de emprego de IA. A atuação deve ser explicada de forma humana, clara e responsável.",
+  "audience":"Pessoas interessadas em conhecer possibilidades de trabalhar com tecnologia e inteligência artificial. Não pressupor experiência, contratação ou remuneração confirmadas.",
+  "offer":"Apresentação do projeto e captação de interessados. Vagas, serviços, critérios de participação, condições comerciais e remuneração precisam de confirmação antes de divulgação.",
+  "positioning":"Pessoas no centro, com a inteligência artificial como apoio. Comunicação acolhedora, profissional e acessível, sem aparência de promessa de dinheiro fácil.",
+  "voice":"Copy comercial em português brasileiro, humana, direta e persuasiva. Gancho ligado a um desejo real, atividade concreta, benefício sustentado, mecanismo simples e chamada para ação. Comunicar oportunidade, ganhar dinheiro, renda extra e trabalho em casa quando coerentes com a oferta confirmada. Não inserir encerramentos defensivos ou ressalvas genéricas automaticamente. Explicar condições materiais específicas sem deixar que substituam a proposta.",
+  "imagery":"Pessoas adultas em situações reais de trabalho, luz natural, ambientes organizados e expressão espontânea. Um robô amigável pode representar a IA como apoio, sem parecer um produto real oferecido. Preferir fotografia editorial ou imagem gerada de alta qualidade; conferir mãos, rostos e telas. Nunca entregar apenas molduras vazias.",
+  "logo_rules":"Usar o logo aprovado sem redesenhar, distorcer ou recolorir. Preservar respiro equivalente à altura do símbolo; posicionar sobre área limpa e de bom contraste. Esta assinatura tipográfica é uma proposta inicial e precisa de aprovação antes de uso em campanha.",
+  "layout_rules":"Post vertical 1080×1350 e story 1080×1920 quando solicitados. Uma ideia principal por peça, imagem protagonista, título curto e CTA legível. Manter textos longe das bordas e dos controles do aplicativo. Conferir a peça final no tamanho de um celular. Não copiar logos ou textos de referências de terceiros.",
+  "cta":"Escolher um convite comercial coerente: QUERO PARTICIPAR, QUERO TRABALHAR COM IA ou VER OPORTUNIDADES. A revisão interna pode conter CTA textual sem URL; registrar o destino pendente somente no briefing. Confirmar canal, destino funcional e autorização antes de publicação ou captação. Não inventar contato ou cadastro disponível.",
+  "channels":"Nome citado pelo fundador: Humano Digital.pro. Domínio, perfil oficial do Instagram e número de WhatsApp ainda precisam ser confirmados; não assumir que estão ativos.",
+  "restrictions":"É permitido vender oportunidades reais e comunicar remuneração confirmada. Não existe proibição genérica de falar de dinheiro ou oportunidade. Não inventar vaga aberta, valor, pagamento, parceria, prova, urgência ou resultado garantido. Condições materiais devem ser específicas e proporcionais; não adicionar avisos genéricos como fórmula obrigatória. Dúvidas sobre a oferta são resolvidas no briefing interno. Nenhuma publicação ou contato externo sem autorização.",
+  "sources":"Decisão do fundador nesta conversa: adotar o verde da arte de referência. Descrição do negócio dada pelo fundador: agência de emprego de IA. A imagem de referência foi gerada no Codex; não é evidência de execução da equipe Hermes. Outras referências precisam ter origem e direito de uso registrados.",
+  "review":"Conferir gancho, atividade concreta, benefício sustentado, mecanismo, CTA e fatos. Reprovar texto vago, repetitivo ou burocrático com apontamento objetivo. Abrir cada arquivo e conferir logo, cores, imagem, contraste e leitura no celular. Falta de URL não reprova um rascunho interno com CTA textual; destino e autorização são exigidos antes da publicação. Helena supervisiona e o fundador recebe artes e legendas limpas. Dimensões ou presença de arquivo não bastam para aprovar."
+}

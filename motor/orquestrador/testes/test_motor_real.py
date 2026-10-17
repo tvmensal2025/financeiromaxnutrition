@@ -141,17 +141,24 @@ def test_parecer_recebe_somente_dependencias_aprovadas(monkeypatch):
             return self
 
         def fetchone(self):
-            return {'conteudo': {'resposta': {'codigo': consultas[-1]}}}
+            return {'conteudo': {'resposta': {'codigo': consultas[-1], 'versao_final': 'Peça aprovada'}},
+                    'versao': 2, 'autor': 'ISABELA', 'revisor': 'CAIO',
+                    'criada_em': datetime(2026, 10, 13, 11, tzinfo=timezone.utc)}
 
     @contextmanager
     def conectar():
         yield Consulta()
 
     monkeypatch.setattr(motor, '_con', conectar)
-    pedido, fontes, _ = motor._entradas_da_etapa({'card_id': uuid4(), 'codigo': 'E4'}, 'SRV-PARECER')
+    pedido, fontes, _ = motor._entradas_da_etapa(
+        {'card_id': uuid4(), 'codigo': 'E4', 'julga': ['E2', 'E3']}, 'SRV-PARECER')
     assert set(consultas) == {'E2', 'E3'}
     assert set(pedido['entradas']) == {'E2', 'E3', 'condicoes'}
     assert pedido['entradas']['E2']['codigo'] == 'E2'
+    assert pedido['pacote_do_parecer']['pecas_julgadas']['E3']['versoes']['2']['versao_final'] == 'Peça aprovada'
+    assert pedido['etapa_do_parecer'] == 'E4'
+    assert pedido['pacote_do_parecer']['tabela_de_leis'] is None
+    assert set(e['id'] for e in pedido['plano']['etapas']) == {'E2', 'E3', 'E4'}
     assert 'FON-JOB-CONTA' not in fontes
 
 
@@ -545,12 +552,96 @@ def test_autor_real_sem_insumo_registra_falha_antes_de_chamar_hermes(monkeypatch
     monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
     monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': uuid4()}, None, None))
     monkeypatch.setattr(motor, '_servico', lambda _etapa: servico)
+    monkeypatch.setattr(motor, '_entradas_da_etapa', lambda *_args: (
+        {'ordem_de_servico': {'pedido_original': 'Pedido sem números nem fontes'},
+         'pacote_da_empresa': {}, 'entradas': {}, 'plano': {'etapas': []}}, {}, []))
     monkeypatch.setattr(motor, '_evento',
                         lambda *args, **kwargs: eventos.append((args, kwargs)))
     assert motor.executar_e_salvar(etapa['id'], 44) is None
     assert eventos[0][0][:4] == ('etapa', etapa['id'], 'AUTOR', 'REGISTRAR_FALHA')
     assert eventos[0][0][4] == {'motivo_falha': 'FALTAM_DADOS', 'usou_internet': 'NAO'}
     assert eventos[0][1]['conteudo']['motivo'] == 'INSUMOS_INSUFICIENTES'
+
+
+def test_calculo_real_com_valores_periodo_e_fontes_chega_ao_executor_local(monkeypatch):
+    """Dublê determinístico: testa o preflight do modo real, sem alegar dados de produção."""
+    motor = object.__new__(Motor)
+    card_id, etapa_id, revisao_id = uuid4(), uuid4(), uuid4()
+    etapa = {'id': etapa_id, 'card_id': card_id, 'codigo': 'E1', 'estado': 'EXECUTANDO',
+             'execucao_atual': 44, 'autor': 'CAIO'}
+    original = ('Quanto a empresa recebe por mês com 10 pessoas, 5 horas por semana, '
+                'US$ 0,50 por hora? Converter com a cotação R$ 5,40 por dólar.')
+    pedido = {'ordem_de_servico': {'pedido_original': original, 'fontes_que_pode_ler': []},
+              'pacote_da_empresa': {'estado': 'CONFIRMADO', 'fonte_importada_id': 'FON-PACOTE-BIZ-003'},
+              'entradas': {}, 'plano': {'etapas': [{'id': 'E1', 'servico': 'SRV-CALCULO'}]}}
+    fontes = {'FON-PEDIDO-TSK-1': original, 'FON-PACOTE-BIZ-003': 'pacote confirmado de teste'}
+    chamadas = []
+    salvo = None
+
+    def linha(sql, args=()):
+        nonlocal salvo
+        if 'FROM helena_v2.etapa' in sql:
+            return etapa
+        if 'ler_resposta_execucao' in sql:
+            return {'resposta': salvo}
+        if 'registrar_resposta_execucao' in sql:
+            salvo = args[1].obj
+            chamadas.append('persistiu')
+            return {'resposta': salvo}
+        raise AssertionError(sql)
+
+    class ExecutorLocal:
+        def rodar(self, execucao):
+            chamadas.append(('executou', json.loads(execucao.pacote)['pedido']['ordem_de_servico']['pedido_original']))
+            return SimpleNamespace(ok=True, texto='{"acao":"REGISTRAR_FALHA","motivo_falha":"FALTAM_DADOS"}')
+
+        def limpar(self, _resultado):
+            chamadas.append('limpou')
+
+    motor.executor = ExecutorLocal()
+    motor.fonte_contexto = lambda _spec, _servico, **kw: {
+        'pedido': kw['pedido'], 'modelo': {'tipo': 'calculo'},
+        'fontes_importadas': [{'fonte_importada_id': k, 'texto': v} for k, v in kw['fontes_importadas'].items()],
+        'decisoes_vigentes': kw['decisoes'], 'paginas_lidas': kw['paginas_lidas'],
+        'usou_internet': 'SIM' if kw['usou_internet'] else 'NAO'}
+    monkeypatch.setattr(motor, '_linha', linha)
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': revisao_id}, object(), None))
+    monkeypatch.setattr(motor, '_servico', lambda _etapa: 'SRV-CALCULO')
+    monkeypatch.setattr(motor, '_ficha', lambda *_args: object())
+    monkeypatch.setattr(motor, '_entradas_da_etapa', lambda *_args: (pedido, fontes, []))
+    monkeypatch.setattr(motor, '_rodar_vigiado', lambda exe, *_args: motor.executor.rodar(exe))
+    monkeypatch.setattr(motor_mod, 'coletar_evidencias', lambda *_args: {
+        'paginas_lidas': [], 'usou_internet': False, 'conversa': [], 'uso': {'tokens': 0}})
+
+    assert motor.executar_e_salvar(etapa_id, 44) == 44
+    assert chamadas == [('executou', original), 'persistiu', 'limpou']
+    assert salvo['contexto']['pedido']['ordem_de_servico']['pedido_original'] == original
+
+
+def test_calculo_real_sem_periodo_ou_cotacao_ausente_falha_fechado():
+    original = 'Calcule R$ 100 e US$ 20 para a empresa.'
+    pedido = {'ordem_de_servico': {'pedido_original': original},
+              'pacote_da_empresa': {'estado': 'CONFIRMADO', 'fonte_importada_id': 'FON-PACOTE-BIZ-003'},
+              'entradas': {}}
+    fontes = {'FON-PEDIDO-TSK-1': original, 'FON-PACOTE-BIZ-003': 'pacote confirmado de teste'}
+    faltas = Motor._faltas_do_autor_real('SRV-CALCULO', pedido, fontes)
+    assert any('período' in f for f in faltas)
+    assert any('cotação' in f for f in faltas)
+
+
+def test_parecer_real_recusa_tabela_de_teste_e_snapshot_sem_publicacao():
+    original = 'Revisar a peça de teste.'
+    pedido = {'ordem_de_servico': {'pedido_original': original},
+              'pacote_da_empresa': {'estado': 'CONFIRMADO', 'fonte_importada_id': 'FON-PACOTE-BIZ-003'},
+              'plano': {'etapas': [{'id': 'E2', 'servico': 'SRV-PARECER', 'julga': ['E1']}]},
+              'etapa_do_parecer': 'E2',
+              'pacote_do_parecer': {'pecas_julgadas': {'E1': {'versoes': {'1': {'versao_final': 'Peça'}}}},
+                                   'tabela_de_leis': {'fonte_importada_id': 'FON-LEIS-TESTE-v0',
+                                                     'linhas': [{'referencia': 'LEI-TESTE', 'texto': 'teste'}]}}}
+    fontes = {'FON-PEDIDO-TSK-1': original, 'FON-PACOTE-BIZ-003': 'pacote confirmado de teste'}
+    assert Motor._faltas_do_autor_real('SRV-PARECER', pedido, fontes) == [
+        'tabela de leis publicada pelo fundador, com versão e fonte verificável']
 
 
 @pytest.mark.parametrize('uso', ['invalid', None])
@@ -748,6 +839,49 @@ def test_revisor_real_recebe_entrega_contexto_e_rubrica_e_guarda_evidencias(monk
     assert gravado[1] == 'limpo'
 
 
+@pytest.mark.parametrize('texto', [
+    '{', '{}', '[]', '{"criterios":{}}',
+    '{"criterios":[{"id":"CRIT-1","resultado":"TALVEZ","prova":"li"}]}',
+])
+def test_resposta_malformada_do_revisor_vira_falha_de_formato_sem_nova_chamada(monkeypatch, texto):
+    motor = object.__new__(Motor)
+    etapa = {'id': uuid4(), 'card_id': uuid4(), 'estado': 'REVISAO', 'execucao_atual': 43}
+    revisao_id = uuid4()
+    salvo = {'texto': texto, 'servico': 'SRV-COPY', 'config_revision_id': str(revisao_id)}
+
+    class Spec:
+        def tipo_do_servico(self, _servico):
+            return 'copy'
+
+        def tipo(self, _tipo):
+            return {'criterio_de_pronto': {'rubrica': ['CRIT-1']}}
+
+    def linha(sql, args=()):
+        if 'SELECT * FROM helena_v2.etapa' in sql:
+            return etapa
+        if 'ler_resposta_execucao' in sql:
+            return {'resposta': salvo}
+        if 'SELECT estado FROM helena_v2.etapa' in sql:
+            return {'estado': etapa['estado']}
+        raise AssertionError(sql)
+
+    eventos = []
+    monkeypatch.setattr(motor, '_linha', linha)
+    monkeypatch.setattr(motor, '_modo_card', lambda _id: 'real')
+    monkeypatch.setattr(motor, '_ambiente_card', lambda _id: ({'id': revisao_id}, Spec(), None))
+    monkeypatch.setattr(motor, '_evento', lambda *args, **kw: eventos.append((args, kw)))
+    assert motor.executar_e_salvar_revisao(etapa['id'], 43) == 43  # resposta persistida: não chama o agente de novo
+    assert motor.conferir_e_aplicar_revisao(etapa['id'], 43) == 'REVISAO'
+    assert eventos == [
+        (('etapa', etapa['id'], 'MOTOR', 'FALHA', {'classe': 'FORMATO_ERRADO'}),
+         {'chave': 43, 'conteudo': {'motivo': 'RUBRICA_INVALIDA'}, 'card_id_real': etapa['card_id']})]
+    etapa['execucao_atual'] = 44
+    monkeypatch.setattr(motor, '_ja_aplicado', lambda _id, _numero, papel, evento=None:
+                        papel == 'MOTOR' and evento == 'FALHA')
+    assert motor.conferir_e_aplicar_revisao(etapa['id'], 43) == 'REVISAO'
+    assert len(eventos) == 1  # queda antes do checkpoint DBOS não reaplica a falha
+
+
 @pytest.fixture()
 def banco_do_pedido(servidor):
     """Banco PRÓPRIO: este teste cria tabelas public.*, roda as migrations 0007 e 0009 e registra configuração. No banco da
@@ -829,7 +963,9 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
                  'decisoes': ['DEC-024'], 'entradas_externas': {'condicoes': 'JOB-REAL-01'},
                  'orcamento_meta': {'execucoes': 4, 'chamadas_total': 200},
                  'etapas': [{'id': 'E1', 'servico': 'SRV-COPY', 'objetivo': 'Convite sem promessa',
-                             'entradas': ['condicoes'], 'depende_de': []}]}
+                             'entradas': ['condicoes'], 'depende_de': []},
+                            {'id': 'E2', 'servico': 'SRV-PARECER', 'objetivo': 'Julgar o convite',
+                             'entradas': ['E1'], 'depende_de': ['E1'], 'julga': ['E1']}]}
         captura = {'fonte': 'management_read_only',
                    'projeto': {'ref': 'wxkgrykduqtsgmjkzlou'},
                    'observado_em': '2026-10-13T19:00:00+00:00', 'checkpoint': checkpoint,
@@ -862,6 +998,10 @@ def test_solicitacao_fundador_cria_card_real_com_fontes_e_decisao_confirmadas(ba
             plano, origem='supabase', chave_origem='TASK-REAL-01', titulo=tarefa['tarefa'],
             pedido_original=tarefa['tarefa'], business_id='BIZ-003', prazo=prazo,
             dados_reais=dados, solicitacao_id=solicitacao['id'])
+        # A captura real desta porta só traz pedido, pacote e jobs: o Parecer
+        # não pode usar como publicada a tabela sintética dos casos do repo.
+        assert not any(i.startswith('FON-LEIS-') for i in dados['fontes_importadas'])
+        assert 'pacote_do_parecer' not in dados['pedido']
         assert motor._modo_card(card_id) == 'real'
         assert motor._card(card_id)['ordem_de_servico']['config_revision_id'] == str(revisao['id'])
         etapa = motor._etapas(card_id)[0]

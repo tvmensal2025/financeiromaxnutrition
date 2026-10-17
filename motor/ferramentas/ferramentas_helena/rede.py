@@ -234,11 +234,14 @@ class ClienteHttp:
         self.contexto_ssl = contexto_ssl
 
     # --- API ---------------------------------------------------------------------------
-    def baixar(self, endereco: Endereco) -> Pagina:
+    def baixar(self, endereco: Endereco, permitir_destino: Optional[Callable[[str], bool]] = None) -> Pagina:
         fim = time.monotonic() + self.params.tempo_leitura_s
         atual = endereco
         saltos = [endereco.url]
         for numero in range(self.params.max_redirecionamentos + 1):
+            # A lista do pedido vale para cada salto, antes até da consulta DNS.
+            if permitir_destino is not None and not permitir_destino(atual.url):
+                raise ErroFerramenta("fonte_insuficiente", "O redirecionamento saiu da lista de fontes liberadas.")
             ips = self._ips_publicos(atual, fim)
             status, cabecalhos, corpo = self._requisitar(atual, ips, fim)
             if status in STATUS_DE_REDIRECIONAMENTO:

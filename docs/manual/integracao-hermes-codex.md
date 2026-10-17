@@ -1,0 +1,33 @@
+# Integração Hermes, Codex e Helena v2
+
+Atualizado em 17/10/2026. Esta nota distingue o transporte Telegram preparado no código e no banco da operação do bot, e distingue uma sessão Codex de um trabalhador contínuo.
+
+O código da nova esteira foi enviado à branch `codex/helena-v2-kanban-triagem-20261017` até o commit `2ea5286`. As migrations 0020–0026 foram aplicadas no Supabase oficial com preflight e verificações de DDL, RLS e ACL. Os smokes de 0024–0026 passaram com dados sintéticos e `ROLLBACK`; o de 0026 não chamou a Bot API. Na última conferência havia 45 tabelas `helena_v2`, 21 com RLS e nenhum pedido, proposta, plano, card, vínculo, item da inbox ou saída durável. `CP-20261017-V038` estava ativo: 38 versões, uma ativa e 37 históricas superadas. São observações datadas; ao retomar, consultar `public.checkpoint_mestre_atual` e o banco real.
+
+**Telegram ainda não está ligado à v2.** Na última leitura, o projeto não tinha Edge Functions implantadas (`functions=[]`) nem os novos segredos de bot, webhook e worker configurados; a lista de segredos continha apenas os antigos de Evolution, KW e Deepseek. Não houve deploy da Edge, configuração de webhook, instalação do adapter na VPS, pareamento real ou mensagem enviada pela Bot API. O site publicado também não foi verificado nesta rodada. Código enviado ao GitHub e migrations aplicadas não provam entrega operacional.
+
+## Transporte Telegram preparado
+
+O ingresso previsto é `Telegram → webhook da Edge → telegram_inbox`. A Edge confere o cabeçalho secreto do webhook, registra o Update e só então responde 2xx. O banco deduplica `update_id`; se o mesmo identificador voltar com conteúdo diferente, rejeita o replay. O hash usa o Update original. Tokens válidos de `/vincular` são redigidos antes de guardar o JSON, inclusive em mensagens citadas, callbacks e campos aninhados, e antes de encaminhar texto de `/pedido` ao registro de pedidos.
+
+`/vincular <código>` usa o pareamento temporário da migration 0022 e só vincula um chat privado à conta do fundador autorizada. `/pedido <texto>` cria entrada recebida na fila, com recibo e protocolo; o modelo não decide a identidade, o destino, o plano aprovado ou a criação de card. A triagem e a confirmação da proposta seguem as regras das migrations 0021–0024. A 0026 prepara avisos de proposta e card na saída vinculada ao mesmo pedido. Texto comum vai ao dispatcher original do Hermes, preservando a chave de sessão da conversa Telegram. Mídias ficam registradas, mas o conteúdo do anexo ainda não é lido pelo adapter; callbacks ficam registrados, sem executar aprovação.
+
+O adapter do Hermes 0.15.1 fixado no commit oficial `e71a2bd11b733f3be7cf99deafde0066c343d462` trabalha apenas sobre jobs já criados pela Edge e pelo banco. Ele reivindica o item com lease, renova o lease e anexa resposta ao item existente. A saída fica em outbox durável; a Edge, dona do token do bot, envia e registra o comprovante. O loop do worker também chama `/drain` quando não chegam mensagens novas, para tentar saídas pendentes. O modo antigo `hermes-poller` e o helper de broker não fazem parte desse caminho e não devem ser ativados em paralelo ao webhook.
+
+Token do bot, chave `service_role` e segredo de ingresso do webhook ficam somente na Edge. A capability do worker fica no processo Hermes e autoriza apenas claim, renovação, conclusão de jobs existentes e drenagem. Ferramentas do modelo sob o mesmo UID podem lê-la e alterar a resposta de um job real; esse limite foi aceito para o transporte inicial. A capability não cria Updates nem escolhe `from.id`, chat ou destinatário. Isolamento adicional de processo/UID seria necessário para proteger também a integridade do texto produzido pelo worker.
+
+O envio ao Telegram tem retry e pode duplicar uma resposta se a Bot API aceitá-la, mas a confirmação HTTP ou a gravação do comprovante falhar. Uma revogação entre claim e envio externo deixa uma pequena janela de corrida; o vínculo exato impede que um pareamento posterior do mesmo chat reative itens antigos. Esses limites precisam entrar na observação do corte.
+
+Testes locais passaram: 6 da Edge, 5 do Hermes contra a fonte fixada e 43 dos arquivos de teste PostgreSQL 26–32. O teste Hermes cobre o início do `GatewayRunner` sem `TELEGRAM_BOT_TOKEN`, dispatcher e sessão originais com modelo sintético. Os testes SQL incluem ingresso, redação, replay, ACL e avisos. Eles não substituem a instalação e a prova na VPS. Antes de trocar o bot real, completar o relay server-side de anexos se esse uso precisa ser preservado, verificar a configuração instalada, parar o poller anterior com backup de estado/offset e só então configurar um único webhook com `drop_pending_updates=false`. Nenhum desses passos de corte foi executado.
+
+O contrato técnico e o teste local do adapter estão em [telegram-v2/LEIA-ME.md](../../motor/hermes-vps/telegram-v2/LEIA-ME.md). A situação operacional consolidada está em [onde-estamos.md](onde-estamos.md).
+
+## Codex e tarefas de desenvolvimento
+
+Codex nesta conversa usa uma sessão cloud iniciada para uma tarefa; não é daemon, não fica ouvindo Telegram e não deixa um worker automático ativo depois da sessão. O checkout está em `/workspace/financeiromaxnutrition` e o repositório é `tvmensal2025/financeiromaxnutrition`. O acesso ao Supabase autorizado nesta sessão não é uma credencial do Hermes nem do modelo. Uma tarefa de código começa por uma instrução explícita ao Codex ou, no futuro, por um despacho próprio com identidade, escopo e revisão definidos. Hoje um pedido no Telegram não inicia automaticamente uma sessão Codex.
+
+O Supabase pode guardar pedido, autorização, estado e recibo; o GitHub guarda código e revisão. Conectar ambos a uma execução Codex contínua exigiria outro serviço, autenticação restrita e prova operacional. Confirmar um pedido ou um plano não autoriza por si só publicar, pagar, enviar mensagens externas ou fazer merge.
+
+## Resposta curta para Rafael encaminhar ao Hermes
+
+> Codex trabalha por sessões iniciadas para tarefas, no repositório `tvmensal2025/financeiromaxnutrition`; não é um worker permanente acionado pelo Telegram. A Helena v2 já tem migrations 0020–0026 aplicadas e transporte webhook/inbox/worker testado localmente, mas Edge, bot, webhook, site publicado e adapter da VPS ainda não foram ligados e verificados. No transporte preparado, somente a Edge registra Updates reais; o Hermes lê jobs existentes e anexa a resposta vinculada, sem token do bot ou `service_role`. `/pedido` entra na triagem; texto comum conserva a conversa Hermes; anexos ainda não são interpretados. Um pedido Telegram não cria automaticamente uma tarefa Codex nem comprova um card pronto.

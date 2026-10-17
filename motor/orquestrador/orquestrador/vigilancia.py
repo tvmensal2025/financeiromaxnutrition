@@ -241,13 +241,17 @@ def coletar_metricas(con) -> Dict[str, object]:
     cards = {estado: int(n) for estado, n in linhas('SELECT estado, count(*) FROM helena_v2.card GROUP BY 1 ORDER BY 1')}
     tokens = 0
     contadas = 0
-    for (numero,) in linhas("""SELECT numero FROM helena_v2.execucao WHERE iniciada_em > now() - interval '24 hours'
-                               ORDER BY numero DESC LIMIT 500"""):
-        resposta = con.execute('SELECT helena_v2.ler_resposta_execucao(%s) AS r', (numero,)).fetchone()
+    for numero, tipo in linhas("""SELECT numero, tipo FROM helena_v2.execucao WHERE iniciada_em > now() - interval '24 hours'
+                                    ORDER BY numero DESC LIMIT 500"""):
+        funcao = ('ler_resposta_coordenacao' if tipo == 'HELENA' else 'ler_resposta_execucao')
+        resposta = con.execute(f'SELECT helena_v2.{funcao}(%s) AS r', (numero,)).fetchone()
         resposta = resposta['r'] if isinstance(resposta, dict) else resposta[0]
-        uso = (resposta or {}).get('uso') if isinstance(resposta, dict) else None
+        uso = resposta.get('uso') if isinstance(resposta, dict) else None
+        evidencias = resposta.get('evidencias') if isinstance(resposta, dict) else None
+        if not isinstance(uso, dict) and isinstance(evidencias, dict):
+            uso = evidencias.get('uso')
         total = getattr(uso, 'get', lambda *_: None)('tokens_total') if uso else None
-        if isinstance(total, int):
+        if type(total) is int:
             tokens += total
             contadas += 1
     return {'execucoes_por_tipo_e_estado': execucoes,

@@ -76,6 +76,8 @@ class Despachante:
         self._conexao = None                            # conexão DEDICADA: é a sessão que segura o advisory lock
         self._vaga: Optional[int] = None                # a vaga que esta sessão segura agora
         self._em_espera: Dict[str, float] = {}          # card -> instante até o qual fica de lado depois de um erro
+        self._entrada_v2_disponivel: Optional[bool] = None
+        self._vez_entrada_v2 = True
 
     # --- a conexão dedicada e a vaga -------------------------------------------------------------------------------
     @property
@@ -174,8 +176,23 @@ class Despachante:
     def _avancar_o_proximo(self) -> str:
         agora = self.relogio()
         self._em_espera = {c: ate for c, ate in self._em_espera.items() if ate > agora}
-        teto = erro_visto = False
         candidatos = self.fila()
+        # A mesma vaga limita triagem, consumo e execução. A reserva e a resposta
+        # bruta do pedido sobrevivem à queda do processo; o card nasce só após o
+        # fundador confirmar o plano na RPC autenticada.
+        if (not any(c['em_voo'] for c in candidatos)
+                and (self._vez_entrada_v2 or not candidatos)
+                and self._em_espera.get('entrada-v2', 0) <= agora):
+            try:
+                if self._rodar_entrada_v2():
+                    self.metricas['avancos'] += 1
+                    self._vez_entrada_v2 = False
+                    return AVANCOU
+            except Exception as erro:
+                self.metricas['erros'] += 1
+                self._em_espera['entrada-v2'] = agora + self.espera_apos_erro_s
+                self.registrar(limpar_texto(f'ERRO NA ENTRADA V2: {type(erro).__name__}', 200))
+        teto = erro_visto = False
         if self._vaga is None:                          # a conexão caiu entre pegar a vaga e escolher: não é mais nossa
             self.metricas['esperando_vaga'] += 1
             return ESPERANDO_VAGA
@@ -203,7 +220,9 @@ class Despachante:
                 self._conferir_que_a_vaga_continua_minha()
                 self.metricas['avancos'] += 1
                 self.ultimo_card = card_id
+                self._vez_entrada_v2 = True
                 return AVANCOU
+        self._vez_entrada_v2 = True
         if erro_visto:
             return COM_ERRO
         if teto:
@@ -211,6 +230,56 @@ class Despachante:
             return TETO_DE_VIVAS
         self.metricas['rodadas_ociosas'] += 1
         return OCIOSO
+
+    def _rodar_entrada_v2(self) -> bool:
+        if self._entrada_v2_disponivel is None:
+            linha = self._conexao_viva().execute(
+                "SELECT to_regprocedure('helena_v2.listar_trabalho_proposta_pedido(integer)') IS NOT NULL AS ok"
+            ).fetchone()
+            self._entrada_v2_disponivel = bool(_primeiro(linha))
+            if not self._entrada_v2_disponivel and getattr(self.motor, 'modo_producao', False):
+                raise RuntimeError('migração de triagem v2 ausente')
+        if not self._entrada_v2_disponivel:
+            return False
+        from .triagem_pedido import processar_proposta_pedido
+        # Primeiro materializa planos já autorizados. Cada conversão é idempotente
+        # em 0023 e a fila reaparece se uma rodada cair antes de concluir.
+        planos = self._conexao_viva().execute(
+            'SELECT helena_v2.listar_planos_pedido_pendentes(%s) AS itens', (20,)
+        ).fetchone()['itens']
+        pendentes = planos.get('itens', []) if isinstance(planos, dict) else planos or []
+        for item in pendentes:
+            pedido_id = item['pedido_id'] if isinstance(item, dict) else item
+            chave = 'plano:' + str(pedido_id)
+            if self._em_espera.get(chave, 0) > self.relogio():
+                continue
+            try:
+                card_id = self.motor.criar_card_pedido(pedido_id)
+            except Exception as erro:
+                self.metricas['erros'] += 1
+                self._em_espera[chave] = self.relogio() + self.espera_apos_erro_s
+                self.registrar(limpar_texto(f'ERRO AO CONSUMIR plano={pedido_id}: {type(erro).__name__}', 200))
+                continue
+            self.ultimo_card = str(card_id)
+            return True
+        trabalho = self._conexao_viva().execute(
+            'SELECT helena_v2.listar_trabalho_proposta_pedido(%s) AS itens', (20,)
+        ).fetchone()['itens']
+        itens = trabalho.get('itens', []) if isinstance(trabalho, dict) else trabalho or []
+        for item in itens:
+            request_id = str(item['request_id'])
+            chave = 'triagem:' + request_id
+            if self._em_espera.get(chave, 0) > self.relogio():
+                continue
+            try:
+                if processar_proposta_pedido(self.motor, request_id):
+                    return True
+            except Exception as erro:
+                self.metricas['erros'] += 1
+                self._em_espera[chave] = self.relogio() + self.espera_apos_erro_s
+                self.registrar(limpar_texto(f'ERRO NA TRIAGEM pedido={request_id}: {type(erro).__name__}', 200))
+                continue
+        return False
 
     def _conferir_que_a_vaga_continua_minha(self) -> None:
         """Depois do avanço: se a conexão dedicada caiu no meio, a vaga foi perdida (fica registrado, não escondido)."""

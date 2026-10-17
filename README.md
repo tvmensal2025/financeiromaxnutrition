@@ -2,20 +2,32 @@
 
 A empresa operada por agentes de IA do fundador. Ele faz um pedido, o pedido vira um **card**, especialistas fazem o trabalho, um revisor confere, e o resultado volta ao card. Atende 4 empresas: iGreen (BIZ-001), Ecossistema de Saúde (BIZ-002), Humano Digital (BIZ-003) e eLiving™ (BIZ-004).
 
-- **v2 (a que roda):** o app (esta pasta, só a v2 desde a DEC-032), a especificação em `helena-v2/`, as peças do motor em `motor/` e o esquema `helena_v2` em `supabase/migrations-v2/`. O plano é `docs/plano/PLANO-HELENA-V3.md` (motor DBOS). O motor está **instalado na VPS** desde 17/10/2026 (serviços vigia e relógio ligados, despachante desligado) e as duas contas do banco conectam com TLS verificado. Ainda **não houve** dia de prova com Hermes real nem configuração ativa: ver `docs/manual/dia-de-prova.md` e o bloco E-8 do HANDOFF.
-- **v1 (parada):** a interface antiga está em `docs/arquivo/app-v1/`, só para consulta. O gateway e os serviços de voz (`services/`), os scripts (`scripts/`) e as migrations antigas (`supabase/migrations/`) continuam no repositório porque ainda existem no servidor e no banco; desligar a central é a DEC-028 e só acontece com a frase exata do fundador.
+**Para retomar sem misturar relatos antigos com o estado atual, comece por [Ponto único de retomada](docs/manual/onde-estamos.md).**
 
-Regras do projeto: `AGENTS.md`. Estado atual e próximos passos: `HANDOFF-CLAUDE-CODE.md`. Lista de todos os documentos: `docs/INDICE.md`.
+Para conectar o trabalho preservado, consulte o [mapa do sistema para a IA](docs/manual/mapa-do-sistema.md) e o [inventário de reaproveitamento](docs/manual/mapa-de-reaproveitamento.md). A orientação enviada ao Hermes na triagem é gerada a partir da configuração e do contexto capturados pelo motor; seu contrato está no [guia da triagem](docs/manual/guia-da-triagem.md). Um documento salvo não comprova que o serviço remoto já o esteja usando.
+
+- **v2 (o app atual):** o app (esta pasta, só a v2 desde a DEC-032), a especificação em `helena-v2/`, as peças do motor em `motor/` e o esquema `helena_v2` em `supabase/migrations-v2/`. O plano é `docs/plano/PLANO-HELENA-V3.md` (motor DBOS). O HANDOFF relata a instalação do motor e conexões TLS em 17/10/2026; no mesmo bloco, um relato inicial diz que o despachante estava desligado e uma atualização posterior diz que os três serviços ficaram ativos. Há também relatos divergentes sobre a revisão ativa. São registros históricos, não confirmação do estado atual. O dia de prova e o primeiro card ponta a ponta continuam sem comprovação nos documentos.
+- **v1 (preservada):** a interface antiga está em `docs/arquivo/app-v1/`. A orientação do fundador de 17/10 autoriza adaptar seu trabalho visual à v2; o arquivo original permanece preservado. Gateway, serviços de voz (`services/`), scripts (`scripts/`) e migrations antigas (`supabase/migrations/`) têm contratos próprios e não são religados pela inclusão do painel.
+
+Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-estamos.md`](docs/manual/onde-estamos.md). Relatos técnicos datados: `HANDOFF-CLAUDE-CODE.md`. Lista de documentos: `docs/INDICE.md`.
 
 ## O app da v2
 
 | Rota | O que é | Quem vê |
 |---|---|---|
 | `/login` | Entrada com e-mail e senha (Supabase Auth) e `app_access` ativo | todos |
-| `/` | **Cards**: lista, detalhe, etapas, entregas, pedido de card real, ações do fundador, perguntas, leitura de volta e situação da publicação | membros |
+| `/` | **Visão geral**: cards consultados, decisões pendentes, pedidos recentes e empresas/agentes da revisão ativa | fundador; membros veem a indicação de acesso reservado |
+| `/cards` | **Cards**: Kanban, detalhe, etapas, entregas, ações, perguntas e publicação; fundador também registra pedidos em texto livre e confirma propostas | membros, com dados sujeitos às permissões do banco |
 | `/configuracoes` | **Configuração e revisões** dos documentos da Helena (fichas, organograma, serviços, modelos, roteiros, entregas), ativação e reversão | só o fundador |
+| `/financeiro`, `/crm`, `/calendario` | Financeiro com oito abas, CRM e agenda/tarefas, adaptados à sessão e ao filtro de empresa da v2 | só o fundador |
+| `/portfolio`, `/empresas`, `/identidade`, `/indicadores` | Empresas, identidade de marca e indicadores de negócio | só o fundador |
+| `/modulo/:tabela` | Catálogo de 56 módulos; 55 têm contrato explícito de leitura, com edição limitada por contrato | só o fundador |
+| `/comando`, `/sistema`, `/equipe` | Governança e catálogo da configuração ativa | só o fundador |
+| `/conversa`, `/integracoes` | Registro de pedidos e pareamento do Telegram; as telas não comprovam execução do Hermes ou conexão operacional do bot | só o fundador |
+| `/execucao`, `/entregas`, `/consumo`, `/cobertura`, `/supervisao` | Visões da operação v2; consumo real ainda não é medido nessa interface | só o fundador |
+| `/oauth/consent` | Consentimento OAuth, sujeito à configuração e validação reais do provedor | só o fundador |
 
-`/cards-v2` e `/configuracoes-v2` redirecionam para as rotas novas. Qualquer rota da v1 cai em `/`. Não existe flag: a v2 está sempre ligada.
+`/painel`, `/cards-v2` e `/configuracoes-v2` redirecionam para as rotas correspondentes. Links antigos `/?card=...` continuam abrindo o card em `/cards`; o banco e a tela conferem acesso ao destino. As páginas de negócio recuperadas estão ativas no código da v2; o [inventário de recuperação](docs/manual/restauracao-funcionalidades.md) detalha funcionalidades, limites e validações pendentes. Essa adaptação não ativou serviços legados de execução, Gateway ou voz, nem comprova publicação ou funcionamento em produção. Não existe flag: a v2 está sempre ligada.
 
 ## Onde está cada coisa
 

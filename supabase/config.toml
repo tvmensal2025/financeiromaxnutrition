@@ -2,3 +2,6 @@ project_id = "wxkgrykduqtsgmjkzlou"
 
 [functions.receive-leads]
 verify_jwt = false
+
+[functions.helena-v2-telegram]
+verify_jwt = false

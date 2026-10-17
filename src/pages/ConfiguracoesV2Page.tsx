@@ -39,6 +39,7 @@ function motivoSemReversao(ativo: ConfigRevision | null, ultima: AtivacaoConfig 
 export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: RepositorioConfigV2 }) {
   const { isFounder, user } = useAuth();
   const [repo, setRepo] = useState<RepositorioConfigV2 | null>(repositorio ?? null);
+  const [tentativaConexao, setTentativaConexao] = useState(0);
   const [lista, setLista] = useState<ConfigRevision[] | null>(null);
   const [detalhe, setDetalhe] = useState<ConfigDetail | null>(null);
   const [conteudo, setConteudo] = useState<ConfigBundle | null>(null);
@@ -75,9 +76,10 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
   useEffect(() => {
     if (!isFounder || repositorio) return;
     let vivo = true;
+    setErro(null);
     repositorioConfigV2DoApp().then(r => { if (vivo) setRepo(r); }).catch(e => { if (vivo) setErro(erroTexto(e)); });
     return () => { vivo = false; };
-  }, [isFounder, repositorio]);
+  }, [identidade, isFounder, repositorio, tentativaConexao]);
 
   useEffect(() => {
     if (!isFounder || !repo) return;
@@ -258,14 +260,16 @@ export default function ConfiguracoesV2Page({ repositorio }: { repositorio?: Rep
     finally { if (atual === requisicao.current) { importando.current = false; setOcupado(false); if (arquivoRef.current) arquivoRef.current.value = ''; } }
   }
 
-  if (!isFounder) return <div role="alert" className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6"><h1 className="text-xl font-semibold">Acesso restrito</h1><p className="mt-2 text-sm text-muted-foreground">Somente o fundador pode gerenciar a configuração da Helena v2.</p><Link className="mt-4 inline-flex min-h-11 items-center text-sm text-primary underline" to="/">Voltar aos cards</Link></div>;
+  if (!isFounder) return <div role="alert" className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6"><h1 className="text-xl font-semibold">Acesso restrito</h1><p className="mt-2 text-sm text-muted-foreground">Somente o fundador pode gerenciar a configuração da Helena v2.</p><Link className="mt-4 inline-flex min-h-11 items-center text-sm text-primary underline" to="/cards">Voltar aos cards</Link></div>;
 
   return <div className="he-v2-config-page mx-auto max-w-7xl space-y-6 px-1 py-2 sm:px-4">
     <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
       <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Sistema Helena / v2</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Configuração e revisões</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Edite uma revisão em rascunho, peça a validação técnica e ative quando estiver aprovada. O histórico e os cards em andamento permanecem vinculados às versões anteriores.</p></div>
       <button type="button" className={botao} onClick={atualizarLista} disabled={!repo || carregando || ocupado}><RefreshCw size={16}/>Atualizar estado</button>
     </header>
-    {erro && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{erro}</div>}
+    {erro && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{erro}
+      {!repo && <button type="button" className={`${botao} mt-3 block`} onClick={() => setTentativaConexao(n => n + 1)}>Tentar conectar novamente</button>}
+    </div>}
     {aviso && <div role="status" className="rounded-xl border border-emerald-700/20 bg-emerald-700/5 p-4 text-sm text-emerald-900 dark:text-emerald-300">{aviso}</div>}
     {carregando && <p role="status" className="text-sm text-muted-foreground">Consultando configurações…</p>}
     {!carregando && lista?.length === 0 && <section className="rounded-xl border border-dashed border-border bg-card p-6"><FileJson2 className="mb-3 text-primary" size={24}/><h2 className="text-lg font-semibold">Nenhuma configuração cadastrada</h2><p className="mt-2 max-w-xl text-sm text-muted-foreground">Carregue um arquivo JSON com a configuração existente para criar um rascunho. Nenhum conteúdo é gerado automaticamente.</p><input ref={arquivoRef} type="file" accept=".json,application/json" aria-label="Importar configuração existente em JSON" className="mt-4 block max-w-full text-sm" onChange={e => void importarArquivo(e.target.files?.[0])}/></section>}

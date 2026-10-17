@@ -5,6 +5,7 @@
 //  - TODO botão, link e aba renderizado por essas páginas precisa declarar a classe;
 //  - controle novo sem ela faz o teste falhar (não há mais lista de exceções).
 import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import CardV2Page from './CardV2Page';
@@ -16,6 +17,8 @@ configure({ asyncUtilTimeout: 15_000 });
 
 const auth = vi.hoisted(() => ({ isFounder: true, userId: 'fundador-1' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
+vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: () => null }));
+vi.mock('./PareamentoTelegramV2', () => ({ PareamentoTelegramV2: () => null }));
 
 const ALVO_DE_TOQUE = /(?:^|\s)(?:min-h|h|size)-(?:11|12|14)(?:\s|$)/;
 const CONTROLES = 'button, a[href], [role="tab"], [role="button"]';
@@ -72,6 +75,7 @@ function repoConfig(revisao: ConfigDetail = base): RepositorioConfigV2 {
   };
 }
 const config = (repo: RepositorioConfigV2) => render(<MemoryRouter><ConfiguracoesV2Page repositorio={repo} /></MemoryRouter>);
+const renderCards = (page: ReactElement) => render(<MemoryRouter>{page}</MemoryRouter>);
 
 beforeEach(() => { auth.isFounder = true; auth.userId = 'fundador-1'; });
 afterEach(cleanup);
@@ -89,7 +93,7 @@ describe('CardV2Page (fundador): botões e links', () => {
   it('com pedido de publicação em qualquer estado, o botão "Atualizar situação" declara alvo de toque', async () => {
     for (const estado of ['PEDIDA', 'EM_EXECUCAO', 'PUBLICADA', 'FALHOU', 'REVERTIDA']) {
       const pedido = { id: 1, pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13', estado, erro: estado === 'FALHOU' ? 'erro' : null, versao_publicada: 'v1' };
-      render(<CardV2Page repositorio={repoCards({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido }) })} />);
+      renderCards(<CardV2Page repositorio={repoCards({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido }) })} />);
       await screen.findByRole('button', { name: 'Atualizar situação' });
       expect(semAlvo(), estado).toEqual([]);
       expect(comAlvo(), estado).toEqual(expect.arrayContaining(['button "Atualizar situação"']));
@@ -98,7 +102,7 @@ describe('CardV2Page (fundador): botões e links', () => {
   });
 
   it('todo controle do fundador (inclusive os 4 "Revisar decisão") declara alvo de toque', async () => {
-    render(<CardV2Page repositorio={repoCards()} />);
+    renderCards(<CardV2Page repositorio={repoCards()} />);
     fireEvent.click(await screen.findByRole('button', { name: /Card em andamento/ }));
     await screen.findByText('Pergunta atual da etapa');
     await screen.findByRole('button', { name: 'Pedir publicação' });
@@ -109,7 +113,7 @@ describe('CardV2Page (fundador): botões e links', () => {
   });
 
   it('nos estados de erro, todo botão declara alvo de toque', async () => {
-    render(<CardV2Page repositorio={repoCards({ listar: vi.fn().mockRejectedValue(new Error('x')), situacaoPublicacao: vi.fn().mockRejectedValue(new Error('x')) })} />);
+    renderCards(<CardV2Page repositorio={repoCards({ listar: vi.fn().mockRejectedValue(new Error('x')), situacaoPublicacao: vi.fn().mockRejectedValue(new Error('x')) })} />);
     await screen.findByText('Não foi possível carregar os cards.');
     await screen.findByText('Não foi possível consultar a publicação.');
     expect(semAlvo()).toEqual([]);
@@ -118,7 +122,7 @@ describe('CardV2Page (fundador): botões e links', () => {
 
   it('botões das áreas do fundador que tratam falhas de leitura declaram alvo de toque', async () => {
     const falha = vi.fn().mockRejectedValue(new Error('x'));
-    render(<CardV2Page repositorio={repoCards({
+    renderCards(<CardV2Page repositorio={repoCards({
       listar: vi.fn().mockResolvedValue([{ ...card, estado: 'ESPERANDO_CONFIRMACAO', motivo: 'NENHUM' }]),
       detalhar: vi.fn().mockResolvedValue({ etapas: [etapa('e2', 'E2', 'PERGUNTA')], entregas: [], acoes: [], ordem: null }),
       lerLeituraCardFundador: falha, lerPerguntaEtapaFundador: falha,

@@ -94,17 +94,23 @@ def fluxo_coordenacao(card_id: str, chave: int) -> str:
     return conferir_e_aplicar_coordenacao(card_id, chave)
 
 
-def conferir_rubrica(spec, servico, criterios) -> bool:
-    """Portão 2 de hoje: confere só a FORMA da rubrica (todos os critérios, uma vez cada, PASSOU e com prova escrita).
-    Nunca levanta exceção por conteúdo estranho do revisor: id que não é texto, critério que não é dicionário etc. = recusa."""
+def _rubrica_bem_formada(spec, servico, criterios) -> bool:
+    """Distingue resposta fora do contrato de um veredito negativo válido."""
     esperados = set(spec.tipo(spec.tipo_do_servico(servico))['criterio_de_pronto']['rubrica'])
     if not isinstance(criterios, list) or len(criterios) != len(esperados):
         return False
     if not all(isinstance(c, dict) and isinstance(c.get('id'), str) for c in criterios):
         return False
     return ({c['id'] for c in criterios} == esperados
-            and all(c.get('resultado') == 'PASSOU' and isinstance(c.get('prova'), str) and c['prova'].strip()
+            and all(c.get('resultado') in ('PASSOU', 'FALHOU', 'NAO_CONSIGO_CONFERIR')
+                    and isinstance(c.get('prova'), str) and c['prova'].strip()
                     for c in criterios))
+
+
+def conferir_rubrica(spec, servico, criterios) -> bool:
+    """Portão 2: todos os critérios, uma vez cada, PASSOU e com prova escrita."""
+    return _rubrica_bem_formada(spec, servico, criterios) and all(
+        c['resultado'] == 'PASSOU' for c in criterios)
 
 
 def _preflight_bancos_reais(url_banco: str, url_dbos: str):
@@ -426,7 +432,8 @@ class Motor:
         revisao_id = str(revisao['id'])
         _, spec, raiz = self._carregar_revisao(revisao_id)
         plano = {**plano, 'config_revision_id': revisao_id}
-        erro = validar_plano(plano, spec, raiz, permitir_rascunho=self.permitir_servico_rascunho)
+        erro = validar_plano(plano, spec, raiz, permitir_rascunho=self.permitir_servico_rascunho,
+                             exigir_parecer=False)  # corpus sintético testa etapas isoladas
         if erro:
             raise ValueError(f'plano inválido: {erro}')
         roteiro = self._roteiro_do_banco(plano, spec, raiz)
@@ -552,6 +559,64 @@ class Motor:
             raise RuntimeError('despacho exige adaptador de contexto real')
         return 'sintetico'
 
+    def criar_card_pedido(self, pedido_id):
+        """Consome apenas um plano v2 já confirmado pelo fundador autenticado."""
+        if not callable(self.fonte_contexto) or isinstance(self.executor, ExecutorFalso):
+            raise RuntimeError('card de pedido v2 exige fonte de contexto e executor reais')
+        try:
+            pedido_id = str(UUID(str(pedido_id)))
+        except (ValueError, TypeError, AttributeError) as erro:
+            raise ValueError('identificador de pedido v2 inválido') from erro
+        p = self._linha('SELECT helena_v2.ler_plano_pedido(%s::uuid) AS pedido',
+                        (pedido_id,))['pedido']
+        if not p:
+            raise ValueError('plano do pedido v2 não confirmado')
+        plano, dados = p['plano'], p['dados_reais']
+        if not isinstance(plano, dict) or not isinstance(dados, dict):
+            raise ValueError('pedido v2 sem plano e fontes canônicas')
+        if dados.get('proveniencia', {}).get('pedido_id') != pedido_id:
+            raise ValueError('proveniência do pedido v2 diverge')
+        if p.get('card_id'):
+            revisao = self._carregar_revisao(p['config_revision_id'])[0]
+        else:
+            revisao = self._escolher_revisao(p['config_revision_id'])
+        _, spec, raiz = self._carregar_revisao(revisao['id'])
+        empresa = p['empresa_id']
+        from spec_helena.leitura import ler_yaml
+        empresas = ler_yaml(raiz / 'organograma.yaml')['empresas']
+        if empresa not in empresas or empresas[empresa].get('pacote', {}).get('estado') != 'CONFIRMADO':
+            raise ValueError('pacote da empresa não confirmado na revisão')
+        if empresa not in (plano.get('empresas') or []):
+            raise ValueError('empresa fora do plano confirmado')
+        if plano.get('decisoes') != [] or plano.get('entradas_externas') != {}:
+            raise ValueError('pedido v2 inicial exige fontes nativas já conferidas')
+        for etapa in plano.get('etapas') or []:
+            servico = spec.servicos.get(etapa.get('servico'))
+            if servico is None or empresa not in servico.get('empresas', []):
+                raise ValueError(f"serviço não atende a empresa: {etapa.get('servico')}")
+        ordem = {**plano, 'config_revision_id': str(revisao['id']), 'modo_contexto': 'real',
+                 'origem': 'pedido_entrada', 'chave_origem': pedido_id,
+                 'pedido_original': p['eventos'][0]['texto'],
+                 'business_id': empresa, 'dados_reais': dados}
+        erro = validar_plano(ordem, spec, raiz)
+        if erro:
+            raise ValueError(f'plano do pedido v2 inválido: {erro}')
+        if any(etapa['servico'] == 'SRV-PARECER' for etapa in plano['etapas']):
+            # A entrada 0023 não transporta publicação de tabela de leis.
+            # Criar o card agora o deixaria preso no portão do autor.
+            raise ValueError('pedido v2 sem tabela de leis publicada e rastreável para SRV-PARECER')
+        roteiro = self._roteiro_do_banco(ordem, spec, raiz)
+        with self._con() as con:
+            with con.transaction():
+                resposta = con.execute('SELECT helena_v2.consumir_plano_pedido(%s::uuid,%s) AS resposta',
+                                       (pedido_id, Jsonb(roteiro))).fetchone()['resposta']
+                card_id = resposta['card_id']
+                card = con.execute('SELECT * FROM helena_v2.card WHERE id=%s', (card_id,)).fetchone()
+                if (card is None or card['ordem_de_servico'] != ordem or
+                        card['empresa'] != empresa or card['titulo'] != p['titulo']):
+                    raise RuntimeError('card v2 diverge do plano confirmado')
+        return card_id
+
     def _conferir_fontes_real(self, card_id, con=None):
         sql_verificar = 'SELECT helena_v2.conferir_fontes_card_real(%s::uuid) AS confere'
         if con is None:
@@ -574,8 +639,15 @@ class Motor:
         plano_etapa = {**plano_etapa, **({'acao_do_fundador': acoes_etapa[0]} if acoes_etapa else {})}
         nomes = set(plano_etapa.get('entradas') or [])
         externas = dados['entradas_externas']
-        ids_fontes = {'FON-PEDIDO-' + dados['proveniencia']['tarefa_id'],
+        origem_id = (dados['proveniencia'].get('pedido_id') if ordem.get('origem') == 'pedido_entrada'
+                     else dados['proveniencia']['tarefa_id'])
+        ids_fontes = {'FON-PEDIDO-' + origem_id,
                       'FON-PACOTE-' + ordem['business_id']}
+        if ordem.get('origem') == 'pedido_entrada':
+            eventos = dados.get('captura', {}).get('eventos') or []
+            if not isinstance(eventos, list) or not eventos:
+                raise ValueError('pedido v2 sem eventos observados')
+            ids_fontes.update('FON-PEDIDO-EVENTO-' + str(e['id']) for e in eventos[1:])
         entradas = {}
         for nome in sorted(nomes & externas.keys()):
             insumo = externas[nome]
@@ -584,19 +656,24 @@ class Motor:
             ids_fontes.update(insumo['fonte_ids'])
             entradas[nome] = insumo
         codigos = {e['id'] for e in ordem['etapas']}
+        entregas_aprovadas = {}
         for codigo in sorted(nomes & codigos):
             if codigo not in plano_etapa.get('depende_de', []):
                 raise ValueError(f'entrada {codigo} sem dependência declarada')
             with self._con() as con:
                 linha = con.execute(
-                    """SELECT e.conteudo FROM helena_v2.entrega e
+                    """SELECT e.versao, e.criada_em, e.autor, e.conteudo, t.revisor
+                       FROM helena_v2.entrega e
                        JOIN helena_v2.etapa t ON t.id=e.etapa_id
                       WHERE t.card_id=%s AND t.codigo=%s AND t.atual
-                        AND t.estado IN ('APROVADA','PRONTA') AND e.portao1='PASSOU'
+                        AND t.estado IN ('APROVADA','PRONTA')
+                        AND t.portao1_ok AND t.entrega_fresca
+                        AND e.portao1='PASSOU' AND e.versao=t.versao
                       ORDER BY e.id DESC LIMIT 1""", (etapa['card_id'], codigo)).fetchone()
             if not linha:
                 raise RuntimeError(f'entrega aprovada da dependência {codigo} ausente')
             entradas[codigo] = linha['conteudo']['resposta']
+            entregas_aprovadas[codigo] = linha
         fontes = dados['fontes_importadas']
         if not ids_fontes <= fontes.keys() or any(not isinstance(fontes[i], str) for i in ids_fontes):
             raise ValueError('fontes reais obrigatórias ausentes')
@@ -620,6 +697,34 @@ class Motor:
                   'plano': plano_filtrado, 'entradas': entradas}
         if 'pacote_da_empresa' in dados['pedido']:
             pedido['pacote_da_empresa'] = dados['pedido']['pacote_da_empresa']
+        if servico == 'SRV-PARECER':
+            julgadas = set(etapa.get('julga') or [])
+            if not julgadas or not julgadas <= set(plano_etapa.get('depende_de') or []):
+                raise ValueError('parecer sem etapas julgadas declaradas pelo banco')
+            plano_filtrado['etapas'] = [e for e in ordem['etapas'] if e['id'] in julgadas] + [
+                {**plano_etapa, 'julga': sorted(julgadas)}]
+            pecas = {}
+            for codigo in sorted(julgadas):
+                linha = entregas_aprovadas.get(codigo)
+                resposta = linha.get('conteudo', {}).get('resposta') if linha else None
+                if (not linha or not isinstance(resposta, dict) or not isinstance(linha.get('versao'), int)
+                        or linha['versao'] < 1 or not isinstance(linha.get('autor'), str)):
+                    raise ValueError(f'peça julgada aprovada e versionada ausente: {codigo}')
+                peca = next(e for e in ordem['etapas'] if e['id'] == codigo)
+                peca = {'servico': peca['servico'], 'autor': linha['autor'],
+                        'revisor': linha.get('revisor'),
+                        'versoes': {str(linha['versao']): resposta}}
+                acao = next((a['acao_do_fundador'] for a in ordem.get('acoes_do_fundador', [])
+                             if a.get('etapa') == codigo), None)
+                if acao:
+                    peca['acao_do_fundador'] = acao
+                pecas[codigo] = peca
+            pedido['etapa_do_parecer'] = etapa['codigo']
+            pedido['pacote_do_parecer'] = {
+                'pecas_julgadas': pecas,
+                'passos_fixos': [p for p in plano_filtrado.get('passos_fixos_do_fundador', [])
+                                 if p.get('coberto_pelo_parecer') == etapa['codigo']],
+                'tabela_de_leis': (dados['pedido'].get('pacote_do_parecer') or {}).get('tabela_de_leis')}
         decisoes_necessarias = set(ordem.get('decisoes') or [])
         decisoes = [d for d in dados['decisoes'] if isinstance(d, dict) and d.get('id') in decisoes_necessarias]
         if {d['id'] for d in decisoes} != decisoes_necessarias:
@@ -684,15 +789,57 @@ class Motor:
         return next(e['servico'] for e in plano['etapas'] if e['id'] == etapa['codigo'])
 
     @staticmethod
-    def _faltas_do_autor_real(servico):
-        # O contrato confirmado atual não traz números tipados para cálculo nem
-        # tabela de leis publicada para parecer. Texto de job não preenche lacunas.
+    def _faltas_do_autor_real(servico, pedido, fontes):
+        """Exige provas presentes no pacote, sem deduzir fatos de casos ou da memória do agente."""
+        if servico not in ('SRV-CALCULO', 'SRV-PARECER'):
+            return []
+        faltas = []
+        ordem = pedido['ordem_de_servico']
+        original = ordem.get('pedido_original') or ''
+        pacote = pedido.get('pacote_da_empresa') or {}
+        if pacote.get('estado') != 'CONFIRMADO' or pacote.get('fonte_importada_id') not in fontes:
+            faltas.append('pacote da empresa confirmado e rastreável')
+        if not original.strip() or not any(original == texto for texto in fontes.values()):
+            faltas.append('pedido original preservado como fonte')
         if servico == 'SRV-CALCULO':
-            return ['taxa efetiva, horas, pagador, beneficiário, período e moeda com fonte aprovada']
-        if servico == 'SRV-PARECER':
-            return ['tabela de leis publicada com versão e data',
-                    'peças julgadas integrais e versionadas, passos fixos e termos autorizados']
-        return []
+            continuacoes = [v for k, v in fontes.items() if k.startswith('FON-PEDIDO-EVENTO-')]
+            texto = original + ' ' + ' '.join(continuacoes) + ' ' + ' '.join(
+                str(v) for v in pedido.get('entradas', {}).values())
+            if not re.search(r'(?:R\$|US\$)\s*\d[\d.,]*|\b\d[\d.,]*\s*(?:reais|dólares|dolares)\b',
+                             texto, re.I):
+                faltas.append('valores monetários observados no pedido ou entrada aprovada')
+            if not re.search(r'\b(?:dia|dias|semana|semanas|mês|mes|meses|ano|anos|mensal|semanal|diário|diario)\b', texto, re.I):
+                faltas.append('período da conta observado no pedido ou entrada aprovada')
+            if re.search(r'(?:R\$|reais|BRL)', texto, re.I) and re.search(r'(?:US\$|USD|dólares|dolares)', texto, re.I):
+                if not re.search(r'(?:cota[çc][ãa]o|câmbio|cambio)\W*(?:R\$\s*)?\d[\d,.]*'
+                                 r'|R\$\s*\d[\d,.]*\s*por\s*d[oó]lar', texto, re.I):
+                    faltas.append('cotação observada para conversão de moeda')
+        else:
+            parecer = pedido.get('pacote_do_parecer') or {}
+            julgadas = next((e.get('julga') or [] for e in pedido['plano']['etapas']
+                             if e.get('id') == pedido.get('etapa_do_parecer')), [])
+            pecas = parecer.get('pecas_julgadas') or {}
+            if not julgadas or any(not isinstance(pecas.get(e, {}).get('versoes'), dict)
+                                  or not pecas[e]['versoes'] for e in julgadas):
+                faltas.append('peças julgadas integrais e versionadas')
+            tabela = parecer.get('tabela_de_leis')
+            fonte_id = tabela.get('fonte_importada_id') if isinstance(tabela, dict) else None
+            try:
+                fonte_tabela = json.loads(fontes[fonte_id]) if fonte_id in fontes else None
+            except (TypeError, ValueError):
+                fonte_tabela = None
+            linhas = tabela.get('linhas') if isinstance(tabela, dict) else None
+            # A captura autenticada ainda precisa provar a publicação pelo fundador.
+            # O adaptador atual só fornece FON-PEDIDO, FON-PACOTE e FON-JOB; por isso
+            # um card atual não atravessa este portão com uma tabela de teste do repo.
+            if (not isinstance(fonte_id, str) or not re.fullmatch(r'FON-LEIS-v[1-9]\d*', fonte_id)
+                    or fonte_tabela != tabela or not isinstance(linhas, list) or not linhas
+                    or any(not isinstance(linha, dict)
+                           or not all(isinstance(linha.get(c), str) and linha[c].strip()
+                                      for c in ('referencia', 'texto_oficial', 'data_do_texto'))
+                           for linha in linhas)):
+                faltas.append('tabela de leis publicada pelo fundador, com versão e fonte verificável')
+        return faltas
 
     def executar_e_salvar(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
@@ -711,7 +858,9 @@ class Motor:
             return numero
         revisao, spec, raiz = self._ambiente_card(etapa['card_id'])
         servico = self._servico(etapa)
-        if modo == 'real' and (faltas := self._faltas_do_autor_real(servico)):
+        if modo == 'real':
+            pedido, fontes, decisoes = self._entradas_da_etapa(etapa, servico)
+        if modo == 'real' and (faltas := self._faltas_do_autor_real(servico, pedido, fontes)):
             self._evento('etapa', etapa_id, 'AUTOR', 'REGISTRAR_FALHA',
                          {'motivo_falha': 'FALTAM_DADOS', 'usou_internet': 'NAO'},
                          ator=etapa['autor'], chave=numero,
@@ -719,7 +868,6 @@ class Motor:
             return None
         ficha = self._ficha(etapa['autor'], 'AUTOR', servico, raiz)
         if modo == 'real':
-            pedido, fontes, decisoes = self._entradas_da_etapa(etapa, servico)
             execucao_id = f'{etapa["codigo"]}-{numero}'
             hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date().isoformat()
             contexto = self.fonte_contexto(spec, servico, pedido=pedido, fontes_importadas=fontes,
@@ -772,14 +920,18 @@ class Motor:
             self.executor.limpar(resultado)
         return numero
 
-    def _ja_aplicado(self, etapa_id, numero, papel):
+    def _ja_aplicado(self, etapa_id, numero, papel, evento=None):
         """True se um evento deste `papel` com a chave `numero` já foi aplicado nesta etapa.
 
         É a queda que acontece DEPOIS de o banco confirmar o evento e ANTES de o DBOS anotar o passo: ao retomar, o passo
         roda de novo, encontra a etapa já adiante e não pode virar erro nem repetir o efeito."""
-        return self._linha(
-            "SELECT EXISTS (SELECT 1 FROM helena_v2.historico WHERE alvo_id=%s AND papel=%s AND chave=%s "
-            "AND resultado IN ('APLICADO','CONVERTIDO')) AS ja", (etapa_id, papel, numero))['ja']
+        consulta = ("SELECT EXISTS (SELECT 1 FROM helena_v2.historico WHERE alvo_id=%s AND papel=%s AND chave=%s "
+                    "AND resultado IN ('APLICADO','CONVERTIDO')")
+        args = (etapa_id, papel, numero)
+        if evento is not None:
+            consulta += " AND evento=%s"
+            args += (evento,)
+        return self._linha(consulta + ") AS ja", args)['ja']
 
     def conferir_e_aplicar(self, etapa_id, numero):
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
@@ -959,7 +1111,8 @@ class Motor:
         if card['estado'] == 'VALIDANDO_PLANO':
             _revisao, spec, raiz = self._ambiente_card(card_id)
             erro = validar_plano(card['ordem_de_servico'], spec, raiz,
-                                 permitir_rascunho=self.permitir_servico_rascunho)
+                                 permitir_rascunho=self.permitir_servico_rascunho,
+                                 exigir_parecer=modo == 'real')
             return self._evento_de_vista_atrasada(
                 'card', card_id, 'MOTOR', 'PLANO_INVALIDO' if erro else 'PLANO_VALIDO',
                 conteudo={'motivo': erro} if erro else None, card_id_real=card_id if modo == 'real' else None)
@@ -1063,16 +1216,27 @@ class Motor:
         etapa = self._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa_id,))
         modo = self._modo_card(etapa['card_id'])
         if etapa['estado'] != 'REVISAO' or etapa['execucao_atual'] != numero:
-            if self._ja_aplicado(etapa_id, numero, 'REVISOR'):
-                return etapa['estado']                  # retomada depois da queda: a aprovação do revisor já valeu
+            if (self._ja_aplicado(etapa_id, numero, 'REVISOR')
+                    or self._ja_aplicado(etapa_id, numero, 'MOTOR', 'FALHA')):
+                return etapa['estado']                  # retomada: aprovação ou falha de formato já aplicada
             raise RuntimeError('revisão antiga ou cancelada')
         salva = self._linha('SELECT helena_v2.ler_resposta_execucao(%s) AS resposta', (numero,))['resposta']
         if not salva:
             raise RuntimeError('revisão não persistida')
         if salva.get('config_revision_id') != str(self._ambiente_card(etapa['card_id'])[0]['id']):
             raise RuntimeError('revisão de agente pertence a outra configuração')
-        rubrica = json.loads(salva['texto'])['criterios']
         spec = self._ambiente_card(etapa['card_id'])[1]
+        try:
+            resposta = json.loads(salva['texto'])
+        except (TypeError, ValueError):
+            resposta = None
+        rubrica = resposta.get('criterios') if isinstance(resposta, dict) else None
+        if not _rubrica_bem_formada(spec, salva['servico'], rubrica):
+            self._evento('etapa', etapa_id, 'MOTOR', 'FALHA', {'classe': 'FORMATO_ERRADO'},
+                         chave=numero,
+                         conteudo={'motivo': 'RUBRICA_INVALIDA'},
+                         card_id_real=etapa['card_id'] if modo == 'real' else None)
+            return self._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa_id,))['estado']
         if not conferir_rubrica(spec, salva['servico'], rubrica):
             raise RuntimeError('revisor não aprovou todos os critérios com prova')
         if modo == 'real':

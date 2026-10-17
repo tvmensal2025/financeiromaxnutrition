@@ -14,6 +14,7 @@ sys.path.insert(0, str(RAIZ / 'motor' / 'orquestrador'))
 from orquestrador.motor import Motor as MotorBase
 from orquestrador.configuracao import capturar_bundle
 from spec_helena.leitura import ler_yaml
+from conftest import banco_proprio, url_dbos_propria
 
 PLANO = ler_yaml(RAIZ / 'helena-v2' / 'playbooks' / 'recrutar-10-pessoas.yaml')
 PLANO_DOSSIE = {
@@ -30,6 +31,16 @@ PLANO_COPY_AVULSO = {
     'etapas': [{'id': 'E1', 'servico': 'SRV-COPY',
                'objetivo': 'Escrever convite claro com aprovação do fundador',
                'entradas': [], 'depende_de': []}],
+}
+PLANO_COPY_PARECER = {
+    'id': 'copy-parecer-sintetico', 'nome': 'Copy com parecer de teste',
+    'orcamento_meta': {'execucoes': 8, 'chamadas_total': 200},
+    'etapas': [
+        {'id': 'E1', 'servico': 'SRV-COPY', 'objetivo': 'Escrever peça de teste',
+         'entradas': [], 'depende_de': []},
+        {'id': 'E2', 'servico': 'SRV-PARECER', 'objetivo': 'Julgar a peça aprovada',
+         'entradas': ['E1'], 'depende_de': ['E1']},
+    ],
 }
 FUNDADOR_TESTE = '00000000-0000-4000-8000-000000000001'
 
@@ -73,7 +84,7 @@ def test_executor_injetado_nao_habilita_casos_sinteticos(banco, url_dbos):
         motor.fechar()
 
 
-def _levar_ate_pronto(motor, card):
+def _levar_ate_pronto(motor, card, codigo_parecer='E4'):
     """Conduz o card pelos únicos toques previstos (confirmar e aprovar o parecer) até PRONTO. Devolve os toques."""
     toques = []
     for _ in range(100):
@@ -84,7 +95,7 @@ def _levar_ate_pronto(motor, card):
             motor._evento('card', card, 'FUNDADOR', 'RESPONDER', {'opcao': 'CONFIRMO'},
                           toque='confirmar', nao_disparar=['PLANO_VALIDO'])
             toques.append('CONFIRMO')
-        elif (juridico := next((e for e in motor._etapas(card) if e['codigo'] == 'E4'), None)) and juridico['estado'] == 'ESPERANDO_FUNDADOR':
+        elif (juridico := next((e for e in motor._etapas(card) if e['codigo'] == codigo_parecer), None)) and juridico['estado'] == 'ESPERANDO_FUNDADOR':
             motor._evento('etapa', juridico['id'], 'FUNDADOR', 'APROVAR', toque='aprovar-parecer')
             toques.append('APROVAR')
         else:
@@ -108,6 +119,72 @@ def test_primeiro_card_vai_ate_pronto_com_so_toques_previstos(banco, url_dbos):
         assert isinstance(entrega['conteudo']['resposta'], dict)
     finally:
         motor.fechar()
+
+
+def test_copy_com_parecer_sintetico_percorre_a_maquina_sem_executar_acao_externa(servidor, monkeypatch):
+    """Ensaio sintético isolado; depois corrompe só a versão no banco descartável para provar recusa de peça velha."""
+    with banco_proprio(servidor) as banco, url_dbos_propria(servidor) as url_dbos:
+        motor = Motor(banco.url, url_dbos)
+        try:
+            card = motor.criar_card(PLANO_COPY_PARECER, 'copy-parecer-sintetico')
+            assert _levar_ate_pronto(motor, card, 'E2') == ['CONFIRMO', 'APROVAR']
+            card_atual = motor._card(card)
+            assert card_atual['estado'] == 'PRONTO'
+            etapas = motor._etapas(card)
+            assert [e['estado'] for e in etapas] == ['PRONTA', 'PRONTA']
+            with motor._con() as con:
+                entregas = con.execute('SELECT etapa_codigo, portao1 FROM helena_v2.entrega '
+                                       'WHERE card_id=%s ORDER BY id', (card,)).fetchall()
+                externas = con.execute('SELECT estado FROM helena_v2.acao_externa WHERE card_id=%s',
+                                       (card,)).fetchall()
+            assert [(e['etapa_codigo'], e['portao1']) for e in entregas] == [('E1', 'PASSOU'), ('E2', 'PASSOU')]
+            assert [a['estado'] for a in externas] == ['PROPOSTA']  # ainda sem autorização para agir
+
+            # A porta real usa o mesmo SELECT; o corpus aqui só fornece linhas aprovadas
+            # para exercitar a seleção, sem fingir captura ou tabela jurídica publicada.
+            original = 'Pedido sintético para testar a versão da peça.'
+            ordem = {'business_id': 'BIZ-003', 'pedido_original': original, 'decisoes': [],
+                     'etapas': [{'id': 'E1', 'servico': 'SRV-COPY', 'entradas': [], 'depende_de': []},
+                                {'id': 'E2', 'servico': 'SRV-PARECER', 'entradas': ['E1'],
+                                 'depende_de': ['E1']}],
+                     'dados_reais': {'proveniencia': {'tarefa_id': 'TSK-SINTETICA'},
+                                    'entradas_externas': {}, 'decisoes': [],
+                                    'fontes_importadas': {'FON-PEDIDO-TSK-SINTETICA': original,
+                                                         'FON-PACOTE-BIZ-003': 'pacote sintético'},
+                                    'pedido': {'ordem_de_servico': {'pedido_original': original},
+                                               'plano': {}, 'pacote_da_empresa': {'estado': 'CONFIRMADO'}}}}
+            monkeypatch.setattr(motor, '_card', lambda _id: {**card_atual, 'ordem_de_servico': ordem})
+            assert motor._entradas_da_etapa(etapas[1], 'SRV-PARECER')[0]['pacote_do_parecer']['pecas_julgadas']['E1']
+
+            # O banco normalmente protege a versão da entrega; corrompemos apenas
+            # este banco descartável para provar que o SELECT não pega a antiga.
+            with banco.conectar() as con:
+                con.execute('ALTER TABLE helena_v2.entrega DISABLE TRIGGER a_so_pela_funcao')
+                con.execute('ALTER TABLE helena_v2.entrega DISABLE TRIGGER b_entrega_so_o_relatorio')
+                con.execute("UPDATE helena_v2.entrega SET versao=versao-1 WHERE card_id=%s AND etapa_codigo='E1'", (card,))
+                con.execute('ALTER TABLE helena_v2.entrega ENABLE TRIGGER b_entrega_so_o_relatorio')
+                con.execute('ALTER TABLE helena_v2.entrega ENABLE TRIGGER a_so_pela_funcao')
+            with pytest.raises(RuntimeError, match='entrega aprovada da dependência E1 ausente'):
+                motor._entradas_da_etapa(etapas[1], 'SRV-PARECER')
+
+            # Segundo cenário de corrupção isolada: versão volta a coincidir,
+            # mas a peça deixa de estar fresca. O banco normal já proíbe isso
+            # em PRONTA; o filtro do motor é uma defesa adicional.
+            with banco.conectar() as con:
+                con.execute('ALTER TABLE helena_v2.entrega DISABLE TRIGGER a_so_pela_funcao')
+                con.execute('ALTER TABLE helena_v2.entrega DISABLE TRIGGER b_entrega_so_o_relatorio')
+                con.execute("UPDATE helena_v2.entrega e SET versao=t.versao FROM helena_v2.etapa t "
+                            "WHERE t.id=e.etapa_id AND e.card_id=%s AND e.etapa_codigo='E1'", (card,))
+                con.execute('ALTER TABLE helena_v2.entrega ENABLE TRIGGER b_entrega_so_o_relatorio')
+                con.execute('ALTER TABLE helena_v2.entrega ENABLE TRIGGER a_so_pela_funcao')
+                con.execute('ALTER TABLE helena_v2.etapa DROP CONSTRAINT ck_etapa_regra10_pronta_fresca')
+                con.execute('ALTER TABLE helena_v2.etapa DISABLE TRIGGER USER')
+                con.execute('UPDATE helena_v2.etapa SET entrega_fresca=false WHERE id=%s', (etapas[0]['id'],))
+                con.execute('ALTER TABLE helena_v2.etapa ENABLE TRIGGER USER')
+            with pytest.raises(RuntimeError, match='entrega aprovada da dependência E1 ausente'):
+                motor._entradas_da_etapa(etapas[1], 'SRV-PARECER')
+        finally:
+            motor.fechar()
 
 
 def test_o_mesmo_card_chega_a_pronto_com_outro_runtime_que_nao_e_o_hermes(banco, url_dbos, tmp_path):
@@ -516,6 +593,29 @@ def test_revisao_repetida_nao_refaz_revisor(banco, url_dbos):
             qtd = con.execute("SELECT count(*) AS n FROM helena_v2.historico WHERE alvo_id=%s AND evento='APROVAR' AND resultado='APLICADO'",
                               (etapa['id'],)).fetchone()['n']
         assert qtd == 1
+    finally:
+        motor.fechar()
+
+
+def test_revisor_com_json_invalido_avanca_para_falha_de_formato_sem_repetir_execucao(banco, url_dbos):
+    from executor_helena.executor_falso import ExecutorFalso, Roteiro
+    motor = Motor(banco.url, url_dbos)
+    try:
+        card = motor.criar_card(PLANO, 'revisor-json-invalido')
+        etapa = _ate_execucao(motor, card)
+        motor.executar_etapa(etapa['id'])
+        em_revisao = motor._linha('SELECT * FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))
+        assert em_revisao['estado'] == 'REVISAO'
+        motor.executor = ExecutorFalso(lambda _exec: Roteiro(texto='{'))
+        assert motor._revisar(em_revisao) == 'REVISAO'
+        with motor._con() as con:
+            falhas = con.execute(
+                "SELECT chave FROM helena_v2.historico WHERE alvo_id=%s AND papel='MOTOR' "
+                "AND evento='FALHA' AND parametros->>'classe'='FORMATO_ERRADO'",
+                (etapa['id'],)).fetchall()
+        assert len(falhas) == 1 and isinstance(falhas[0]['chave'], int)
+        assert motor.conferir_e_aplicar_revisao(etapa['id'], falhas[0]['chave']) == 'REVISAO'
+        assert motor._linha('SELECT estado FROM helena_v2.etapa WHERE id=%s', (etapa['id'],))['estado'] == 'REVISAO'
     finally:
         motor.fechar()
 

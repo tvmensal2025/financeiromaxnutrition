@@ -8,7 +8,7 @@ import pytest
 
 import falsos
 from conftest import chamar, texto_de
-from ferramentas_helena.busca import AdaptadorFalso, ResultadoBusca
+from ferramentas_helena.busca import AdaptadorDesligado, AdaptadorFalso, ResultadoBusca
 from ferramentas_helena.erros import ErroDeConfiguracao
 from ferramentas_helena.registro import ler_estado, ler_registro
 from ferramentas_helena.servidor import CODIGO_DE_SAIDA_LIMITE, executar_stdio
@@ -282,6 +282,25 @@ def test_usou_internet_so_vira_verdadeiro_quando_uma_ferramenta_executa(mundo):
     assert ler_estado(servidor.params.diretorio)["usou_internet"] is False
     chamar(servidor, "buscar", {"consulta": "x"})
     assert ler_estado(servidor.params.diretorio)["usou_internet"] is True
+
+
+def test_recusa_local_de_fonte_nao_registra_uso_de_internet(mundo):
+    servidor = mundo.servidor(ferramentas=("ler_pagina",), max_buscas=0,
+                             lista_de_enderecos=())
+    resposta = chamar(servidor, "ler_pagina", {"url": "http://site.exemplo/fora"})
+
+    assert resposta["result"]["isError"] is True
+    assert ler_estado(servidor.params.diretorio)["usou_internet"] is False
+    assert mundo.dns.consultas == [] and mundo.paginas.requisicoes == []
+
+
+def test_busca_desligada_nao_registra_uso_de_internet(mundo):
+    servidor = mundo.servidor(ferramentas=("buscar",), max_partes=0,
+                             adaptador=AdaptadorDesligado())
+    resposta = chamar(servidor, "buscar", {"consulta": "exemplo"})
+
+    assert resposta["result"]["isError"] is True
+    assert ler_estado(servidor.params.diretorio)["usou_internet"] is False
 
 
 # --- queda e volta do servidor na mesma execução ---------------------------------------------------------------------------

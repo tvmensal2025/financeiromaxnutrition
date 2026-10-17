@@ -125,8 +125,22 @@ def _sem_constantes(nome):
     raise ValueError(f"constante não permitida: {nome}")
 
 
+class ChaveRepetida(ValueError):
+    """Uma chave repetida torna ambígua a ação recebida em JSON."""
+
+
+def _sem_chaves_repetidas(pares):
+    obj = {}
+    for chave, valor in pares:
+        if chave in obj:
+            raise ChaveRepetida(chave)
+        obj[chave] = valor
+    return obj
+
+
 def _decodificador():
-    return json.JSONDecoder(parse_float=Decimal, parse_constant=_sem_constantes)
+    return json.JSONDecoder(parse_float=Decimal, parse_constant=_sem_constantes,
+                            object_pairs_hook=_sem_chaves_repetidas)
 
 
 MAX_PROFUNDIDADE = 40
@@ -170,6 +184,8 @@ def interpretar_resposta(resposta):
                 break
             try:
                 doc, pos = dec.raw_decode(s, pos)
+            except ChaveRepetida as erro:
+                return None, [("CHAVE_REPETIDA", "O JSON repete uma chave. Devolva cada campo uma vez só.", T.cortar(str(erro)))]
             except (ValueError, RecursionError):
                 if not docs:
                     return None, [("TEXTO_FORA_DO_FORMATO", "A resposta não é um JSON válido. Devolva só o objeto JSON da ação, sem texto em volta.", T.cortar(s[pos:]))]
@@ -242,11 +258,16 @@ def _conferir_campos(acao: str, obj: dict) -> list:
     if acao == "PERGUNTAR" and "opcoes" in obj:
         op = obj["opcoes"]
         ok = isinstance(op, list) and 2 <= len(op) <= 3 and all(
-            isinstance(o, dict) and {"letra", "texto", "consequencia"} <= set(o) and o.get("letra") == "ABC"[i]
+            isinstance(o, dict) and set(o) == {"letra", "texto", "consequencia"} and o["letra"] == "ABC"[i]
+            and isinstance(o["texto"], str) and 2 <= len(o["texto"]) <= 160
+            and isinstance(o["consequencia"], str) and 2 <= len(o["consequencia"]) <= 200
             for i, o in enumerate(op)
         )
         if not ok:
-            erros.append(("OPCOES_INVALIDAS", "As opções devem ser 2 ou 3 itens (A, B e C, nessa ordem), cada um com letra, texto e consequencia.", ""))
+            erros.append(("OPCOES_INVALIDAS", "As opções devem ser 2 ou 3 itens (A, B e C, nessa ordem), cada um só com letra, texto de 2 a 160 caracteres e consequencia de 2 a 200 caracteres.", ""))
+        letras = {o.get("letra") for o in op if isinstance(o, dict)} if isinstance(op, list) else set()
+        if obj.get("recomendacao") in ("A", "B", "C") and obj["recomendacao"] not in letras:
+            erros.append(("RECOMENDACAO_SEM_OPCAO", "A recomendação deve apontar para uma das opções apresentadas.", obj["recomendacao"]))
     return erros
 
 

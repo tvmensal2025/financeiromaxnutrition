@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ExecutiveConfirmDialog } from '@/components/executive/ExecutiveConfirmDialog';
 import { ErroBancoCardsV2, type EventoFundadorV2, type RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
 import { impressaoDoToque, opcoesFundador, type AlvoFundadorV2 } from '@/integrations/cards-v2/acoes-fundador';
-import { lerToquePendente, limparToquePendente, salvarToquePendente, type ToquePendente } from '@/integrations/cards-v2/toque-pendente';
+import { lerIdentificadorDeToqueInvalido, lerToquePendente, limparToquePendente, salvarToquePendente, type ToquePendente } from '@/integrations/cards-v2/toque-pendente';
 
 type Props = { alvo: AlvoFundadorV2; identidade: string; cardId: string; repositorio: RepositorioCardsV2;
   onAtualizar: () => Promise<void>; opcoesPermitidas?: string[]; bloquearConfirmo?: boolean };
@@ -19,6 +19,8 @@ export function AcoesFundadorV2({ alvo, identidade, cardId, repositorio, onAtual
   const [pendenciaSalva, setPendenciaSalva] = useState<ToquePendente | 'INVALIDA' | null>(() => {
     try { return lerToquePendente(identidade, alvo.maquina, alvo.id, cardId); } catch { return 'INVALIDA'; }
   });
+  const [toqueInvalidoRecuperavel] = useState(() => lerIdentificadorDeToqueInvalido(identidade, alvo.maquina, alvo.id, cardId));
+  const [toqueInvalidoConfirmado, setToqueInvalidoConfirmado] = useState<string | null>(null);
   const [consultaConcluida, setConsultaConcluida] = useState(!pendenciaSalva);
   const [tentativaConsulta, setTentativaConsulta] = useState(0);
   const recuperadaNoInicio = useRef(!!pendenciaSalva);
@@ -46,6 +48,35 @@ export function AcoesFundadorV2({ alvo, identidade, cardId, repositorio, onAtual
   }, [repositorio, cardId, identidade, alvo.maquina, alvo.id, pendenciaSalva, tentativaConsulta]);
 
   if (!opcoes.length && !pendenciaSalva) return null;
+
+  async function conferirToqueInvalido() {
+    if (pendenciaSalva !== 'INVALIDA' || !toqueInvalidoRecuperavel || enviando) return;
+    setEnviando(true);
+    setErro(null);
+    setToqueInvalidoConfirmado(null);
+    try {
+      const registro = await repositorio.consultarToqueFundador(cardId, toqueInvalidoRecuperavel);
+      if (!registro || registro.maquina !== alvo.maquina || registro.alvo_id !== alvo.id) {
+        setErro('O banco não confirmou este toque para a decisão atual. A pendência continua bloqueada para evitar outra ação incerta.');
+        return;
+      }
+      await onAtualizar();
+      setToqueInvalidoConfirmado(`Toque ${registro.resultado} registrado em ${registro.momento}. O card foi relido do banco.`);
+    } catch {
+      setErro('Não foi possível confirmar o toque e reler o card. A pendência continua bloqueada.');
+    } finally { setEnviando(false); }
+  }
+
+  function descartarToqueInvalidoConfirmado() {
+    if (pendenciaSalva !== 'INVALIDA' || !toqueInvalidoConfirmado) return;
+    try {
+      limparToquePendente(identidade, alvo.maquina, alvo.id);
+      setPendenciaSalva(null);
+      setConsultaConcluida(true);
+      setEstado('Metadados locais do toque já registrado foram descartados. Confira o estado atual antes de outra decisão.');
+      setErro(null);
+    } catch { setErro('Não foi possível retirar os metadados locais; a decisão continua bloqueada.'); }
+  }
 
   async function enviar() {
     if (envioEmCurso.current || pendenciaSalva === 'INVALIDA' || !consultaConcluida || (!pendente && !escolhida)) return;
@@ -120,13 +151,20 @@ export function AcoesFundadorV2({ alvo, identidade, cardId, repositorio, onAtual
     </label>
     {escolhida?.cautela && <p className="mt-2 text-xs text-muted-foreground">{escolhida.cautela}</p>}
     {erro && <p role="alert" className="mt-3 text-sm text-destructive">{erro}</p>}
-    {pendenciaSalva === 'INVALIDA' && <p role="alert" className="mt-3 text-sm text-destructive">Metadados do toque anterior inválidos. Confirme a situação no banco antes de outra decisão.</p>}
+    {pendenciaSalva === 'INVALIDA' && <div role="alert" className="mt-3 space-y-2 text-sm text-destructive">
+      <p>Metadados do toque anterior inválidos. Outra decisão fica bloqueada até conferir o registro no banco.</p>
+      {toqueInvalidoRecuperavel ? <>
+        <button type="button" disabled={enviando} onClick={() => void conferirToqueInvalido()} className="min-h-11 font-semibold underline disabled:opacity-50">Consultar toque anterior no banco</button>
+        {toqueInvalidoConfirmado && <><p>{toqueInvalidoConfirmado} Descarte apenas os metadados locais deste toque já registrado.</p>
+          <button type="button" onClick={descartarToqueInvalidoConfirmado} className="min-h-11 font-semibold underline">Descartar pendência local confirmada</button></>}
+      </> : <p>O identificador do toque também está inválido. Não é possível reconciliar a decisão com segurança nesta sessão.</p>}
+    </div>}
     {pendenciaSalva && pendenciaSalva !== 'INVALIDA' && !consultaConcluida && <button type="button" onClick={() => setTentativaConsulta(n => n + 1)}
       className="mt-3 min-h-11 font-semibold underline">Consultar toque anterior novamente</button>}
     {estado && <p role="status" className="mt-3 text-sm text-emerald-800 dark:text-emerald-300">{estado}</p>}
     <button type="button" disabled={enviando || pendenciaSalva === 'INVALIDA' || !consultaConcluida || (!pendente && !escolhida)} onClick={() => pendente ? void enviar() : setConfirmando(true)}
       className="mt-3 min-h-11 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white disabled:opacity-50">
-      {enviando ? 'Consultando o banco…' : pendente ? 'Tentar novamente o mesmo toque' : pendenciaSalva ? 'Revisar retomada do mesmo toque' : 'Revisar decisão'}
+      {enviando ? 'Consultando o banco…' : pendenciaSalva === 'INVALIDA' ? 'Decisão bloqueada' : pendente ? 'Tentar novamente o mesmo toque' : pendenciaSalva ? 'Revisar retomada do mesmo toque' : 'Revisar decisão'}
     </button>
     <ExecutiveConfirmDialog open={confirmando} onOpenChange={setConfirmando}
       title="Confirmar decisão no card" description={`Você escolheu: ${escolhida?.rotulo ?? ''}. ${pendenciaSalva ? 'Esta retomada usa o toque anterior somente se a decisão for idêntica. ' : ''}O banco verifica permissão, estado e versão antes de aplicar.`}

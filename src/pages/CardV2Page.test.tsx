@@ -1,10 +1,24 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, expect, it, vi } from 'vitest';
 import CardV2Page from './CardV2Page';
 import type { PedidoPublicacao, RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
 
 const auth = vi.hoisted(() => ({ isFounder: false, userId: 'usuario-a' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
+vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: ({ identidade, pedidoInicial }: { identidade: string; pedidoInicial?: string | null }) =>
+  <section data-testid="entrada-pedidos" data-identidade={identidade} data-pedido={pedidoInicial ?? ''}>Entrada unificada</section> }));
+vi.mock('./PareamentoTelegramV2', () => ({ PareamentoTelegramV2: ({ identidade }: { identidade: string }) =>
+  <section data-testid="pareamento-telegram" data-identidade={identidade}>Telegram</section> }));
+
+function RotaAtual() { const { search } = useLocation(); return <span data-testid="rota-atual" hidden>{search}</span>; }
+function renderPage(page: ReactElement, entrada = '/') {
+  const tela = render(<MemoryRouter initialEntries={[entrada]}><RotaAtual />{page}</MemoryRouter>);
+  return { ...tela, rerender(proxima: ReactElement) {
+    tela.rerender(<MemoryRouter initialEntries={[entrada]}><RotaAtual />{proxima}</MemoryRouter>);
+  } };
+}
 
 const card = (id: string, titulo: string) => ({ id, titulo, empresa: null, estado: 'EM_ANDAMENTO', dono: 'Helena', prazo: '2026-10-13', criado_em: '2026-10-12T12:00:00Z' });
 function repositorio(parcial: Partial<RepositorioCardsV2> = {}): RepositorioCardsV2 {
@@ -32,7 +46,7 @@ it('remove cards da conta anterior imediatamente ao trocar a identidade', async 
   const antigo = new Promise<Awaited<ReturnType<RepositorioCardsV2['listar']>>>(resolve => { resolverAntigo = resolve; });
   const listar = vi.fn().mockImplementationOnce(() => antigo).mockResolvedValueOnce([]);
   const repo = repositorio({ listar });
-  const tela = render(<CardV2Page repositorio={repo} />);
+  const tela = renderPage(<CardV2Page repositorio={repo} />);
   auth.userId = 'usuario-b';
   tela.rerender(<CardV2Page repositorio={repo} />);
   await act(async () => resolverAntigo([card('a', 'Card privado A')]));
@@ -45,21 +59,54 @@ it('descarta estado de fundador ao perder a permissão na mesma conta', async ()
   sessionStorage.setItem('helena-v2-toque:usuario-a:card:privado', '{"cardId":"privado"}');
   const listar = vi.fn().mockResolvedValueOnce([card('privado', 'Card antes do downgrade')]).mockResolvedValueOnce([]);
   const repo = repositorio({ listar });
-  const tela = render(<CardV2Page repositorio={repo} />);
+  const tela = renderPage(<CardV2Page repositorio={repo} />);
   expect(await screen.findByText('Card antes do downgrade')).toBeTruthy();
+  expect(screen.getByTestId('entrada-pedidos')).toBeTruthy();
+  expect(screen.getByTestId('pareamento-telegram')).toBeTruthy();
   expect(screen.getByLabelText('Solicitar card real')).toBeTruthy();
   auth.isFounder = false;
   tela.rerender(<CardV2Page repositorio={repo} />);
   expect(screen.queryByText('Card antes do downgrade')).toBeNull();
+  expect(screen.queryByTestId('entrada-pedidos')).toBeNull();
+  expect(screen.queryByTestId('pareamento-telegram')).toBeNull();
   expect(screen.queryByLabelText('Solicitar card real')).toBeNull();
   await waitFor(() => expect(sessionStorage.getItem('helena-v2-toque:usuario-a:card:privado')).toBeNull());
   expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
 });
 
+it('mostra entrada unificada ao fundador antes da importação avançada de card', async () => {
+  auth.isFounder = true;
+  renderPage(<CardV2Page repositorio={repositorio()} />);
+  await screen.findByText('Nenhum card disponível.');
+  const entrada = screen.getByTestId('entrada-pedidos');
+  const telegram = screen.getByTestId('pareamento-telegram');
+  const importacao = screen.getByLabelText('Solicitar card real');
+  expect(entrada.getAttribute('data-identidade')).toBe(auth.userId);
+  expect(telegram.getAttribute('data-identidade')).toBe(auth.userId);
+  expect(entrada.compareDocumentPosition(telegram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(telegram.compareDocumentPosition(importacao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+it('encaminha ?pedido= ao módulo de pedidos só para o fundador, sem interpretar o ID como card', async () => {
+  auth.isFounder = true;
+  const pedidoId = '11111111-1111-4111-8111-111111111111';
+  renderPage(<CardV2Page repositorio={repositorio()} />, `/?pedido=${pedidoId}`);
+  await screen.findByText('Nenhum card disponível.');
+  expect(screen.getByTestId('entrada-pedidos').getAttribute('data-pedido')).toBe(pedidoId);
+  expect(screen.queryByText(/O card indicado na URL/)).toBeNull();
+  expect(screen.getByTestId('rota-atual').textContent).toBe(`?pedido=${pedidoId}`);
+});
+
+it('membro com ?pedido= recebe restrição explícita e não monta a entrada', async () => {
+  renderPage(<CardV2Page repositorio={repositorio()} />, '/?pedido=invalido');
+  expect(await screen.findByText(/O acompanhamento por link está disponível apenas para a conta do fundador/)).toBeTruthy();
+  expect(screen.queryByTestId('entrada-pedidos')).toBeNull();
+});
+
 it('mostra decisão do fundador com versão real apenas para card selecionado em estado permitido', async () => {
   auth.isFounder = true;
   const esperando = { ...card('card-real', 'Pedido sob revisão'), estado: 'ESPERANDO_CONFIRMACAO', motivo: 'NENHUM', versao: 4 };
-  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([esperando]),
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([esperando]),
     detalhar: vi.fn().mockResolvedValue({ etapas: [], entregas: [], acoes: [], ordem: { pedido_original: 'Pedido real carregado do banco.',
       como_e_o_pronto: [], nao_pode: [], fontes_que_pode_ler: [] } }) })} />);
   fireEvent.click(await screen.findByRole('button', { name: /Pedido sob revisão/ }));
@@ -70,7 +117,7 @@ it('mostra decisão do fundador com versão real apenas para card selecionado em
 
 it('mostra vazio, erro e permite tentar novamente', async () => {
   const listar = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce([]);
-  render(<CardV2Page repositorio={repositorio({ listar })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ listar })} />);
   expect((await screen.findByRole('alert')).textContent).toContain('Não foi possível carregar');
   fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
   expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
@@ -86,7 +133,7 @@ it('descarta detalhe antigo após troca de card e mostra só entrega aprovada co
       entregas: [{ id: 4, etapa_id: 'e2', versao: 2, portao1: 'PASSOU', conteudo: { resumo: '<img src=x onerror=alert(1)> Aprovado' }, criada_em: '2026-10-13T12:00:00Z' }],
     })),
   });
-  render(<CardV2Page repositorio={repo} />);
+  renderPage(<CardV2Page repositorio={repo} />);
   fireEvent.click(await screen.findByRole('button', { name: /Card A/ }));
   fireEvent.click(screen.getByRole('button', { name: /Card B/ }));
   expect(await screen.findByText(/Aprovado/)).toBeTruthy();
@@ -102,7 +149,7 @@ it('mostra pedido de publicação só ao fundador confirmado pelo banco e atuali
     .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: null })
     .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: { pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13' } });
   const pedirPublicacao = vi.fn().mockResolvedValue(undefined);
-  render(<CardV2Page repositorio={repositorio({ situacaoPublicacao, pedirPublicacao })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ situacaoPublicacao, pedirPublicacao })} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Pedir publicação' }));
   await waitFor(() => expect(pedirPublicacao).toHaveBeenCalledTimes(1));
   const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
@@ -113,13 +160,13 @@ it('mostra pedido de publicação só ao fundador confirmado pelo banco e atuali
 
 it('não oferece publicação a membro ou se o banco falhar', async () => {
   auth.isFounder = false;
-  const view = render(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido: null }) })} />);
+  const view = renderPage(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido: null }) })} />);
   await waitFor(() => expect(screen.queryByText('Carregando situação de publicação…')).toBeNull());
   expect(screen.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
   expect(screen.queryByLabelText('Arquivo de preparação privada')).toBeNull();
   view.unmount();
   auth.isFounder = true;
-  render(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockRejectedValue(new Error('offline')) })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ situacaoPublicacao: vi.fn().mockRejectedValue(new Error('offline')) })} />);
   expect(await screen.findByText(/Não foi possível consultar a publicação/)).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
 });
@@ -131,7 +178,7 @@ it('permite repetir consulta de publicação e não anuncia sucesso sem confirma
     .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: null })
     .mockRejectedValueOnce(new Error('offline'));
   const repo = repositorio({ situacaoPublicacao, pedirPublicacao: vi.fn().mockResolvedValue(undefined) });
-  render(<CardV2Page repositorio={repo} />);
+  renderPage(<CardV2Page repositorio={repo} />);
   expect(await screen.findByText(/Não foi possível consultar a publicação/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Consultar novamente' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Pedir publicação' }));
@@ -143,7 +190,7 @@ it('recarrega o detalhe quando o card selecionado é clicado novamente', async (
   const detalhar = vi.fn()
     .mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Primeira versão', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }], entregas: [] })
     .mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Versão atualizada', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 2, portao1_ok: true, entrega_fresca: true }], entregas: [] });
-  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar })} />);
   const botao = await screen.findByRole('button', { name: /Card A/ });
   fireEvent.click(botao);
   expect(await screen.findByText(/Primeira versão/)).toBeTruthy();
@@ -157,7 +204,7 @@ it('permite ver todas as linhas e níveis profundos de uma entrega aprovada como
   const profundo = { a: { b: { c: { d: { e: { f: { g: { h: '<script>alert(1)</script> texto profundo' } } } } } } } };
   const detalhe = { etapas: [{ id: 'e1', codigo: 'E1', nome: 'Pesquisa', estado: 'PRONTA', autor: 'Ravi', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }],
     entregas: [{ id: 1, etapa_id: 'e1', versao: 1, portao1: 'PASSOU', conteudo: { ...campos, profundo }, criada_em: '2026-10-13T12:00:00Z' }] };
-  render(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar: vi.fn().mockResolvedValue(detalhe) })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card A')]), detalhar: vi.fn().mockResolvedValue(detalhe) })} />);
   fireEvent.click(await screen.findByRole('button', { name: /Card A/ }));
   expect(await screen.findByText('valor 0')).toBeTruthy();
   expect(screen.getByRole('button', { name: /Mostrar todas/ })).toBeTruthy();
@@ -170,7 +217,7 @@ it('permite ver todas as linhas e níveis profundos de uma entrega aprovada como
 it('atualiza lista e detalhe do card selecionado sem recarregar a página', async () => {
   const listar = vi.fn().mockResolvedValueOnce([card('a', 'Card A')]).mockResolvedValueOnce([card('a', 'Card atualizado')]);
   const detalhar = vi.fn().mockResolvedValueOnce({ etapas: [], entregas: [] }).mockResolvedValueOnce({ etapas: [{ id: 'e1', codigo: 'E1', nome: 'Etapa atual', estado: 'PRONTA', autor: 'Clara', dono: null, prazo_ate: null, revisores: [], versao: 1, portao1_ok: true, entrega_fresca: true }], entregas: [] });
-  render(<CardV2Page repositorio={repositorio({ listar, detalhar })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ listar, detalhar })} />);
   fireEvent.click(await screen.findByRole('button', { name: /Card A/ }));
   expect(await screen.findByText('Este card ainda não tem etapas.')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Atualizar cards' }));
@@ -180,12 +227,75 @@ it('atualiza lista e detalhe do card selecionado sem recarregar a página', asyn
   expect(detalhar).toHaveBeenCalledTimes(2);
 });
 
+it('agrupa todos os estados do card em colunas e mantém finais distintos de publicação', async () => {
+  const estados = [
+    ['a', 'RASCUNHO', 'Preparar'], ['b', 'VALIDANDO_PLANO', 'Validar'],
+    ['c', 'ESPERANDO_CONFIRMACAO', 'Confirmar'], ['d', 'ESPERANDO_FUNDADOR', 'Decidir'],
+    ['e', 'EM_ANDAMENTO', 'Executar'], ['f', 'PRONTO', 'Entrega pronta'],
+    ['g', 'CANCELADO', 'Cancelado'], ['h', 'ENCERRADO_COM_FALHA', 'Falhou'],
+  ] as const;
+  const cards = estados.map(([id, estado, titulo]) => ({ ...card(id, titulo), estado, motivo: estado === 'ESPERANDO_FUNDADOR' ? 'DEPENDENCIA' : 'NENHUM' }));
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue(cards) })} />);
+  const quadro = within(await screen.findByRole('region', { name: 'Quadro Kanban dos cards' }));
+  const esperar = within(quadro.getByRole('region', { name: 'Aguardando você: 2 cards' }));
+  expect(esperar.getByRole('button', { name: /Confirmar/ })).toBeTruthy();
+  expect(esperar.getByRole('button', { name: /Decidir/ }).textContent).toContain('DEPENDENCIA');
+  expect(within(quadro.getByRole('region', { name: 'Preparação: 2 cards' })).getByRole('button', { name: /Validar/ })).toBeTruthy();
+  expect(within(quadro.getByRole('region', { name: 'Pronto: 1 card' })).getByRole('button', { name: /Entrega pronta/ }).textContent).toContain('PRONTO');
+  expect(within(quadro.getByRole('region', { name: 'Encerrado: 2 cards' })).getByRole('button', { name: /Falhou/ }).textContent).toContain('ENCERRADO_COM_FALHA');
+  expect(quadro.queryByText(/No ar/)).toBeNull();
+});
+
+it('abre apenas UUID visível pela URL e atualiza a URL ao selecionar outro card', async () => {
+  const primeiro = '11111111-1111-4111-8111-111111111111';
+  const segundo = '22222222-2222-4222-8222-222222222222';
+  const detalhar = vi.fn().mockResolvedValue({ etapas: [], entregas: [] });
+  const repo = repositorio({ listar: vi.fn().mockResolvedValue([card(primeiro, 'Card da URL'), card(segundo, 'Outro card')]), detalhar });
+  renderPage(<CardV2Page repositorio={repo} />, `/?card=${primeiro}&origem=telegram`);
+  expect(await screen.findByText('Este card ainda não tem etapas.')).toBeTruthy();
+  expect(detalhar).toHaveBeenCalledWith(primeiro);
+  fireEvent.click(screen.getByRole('button', { name: /Outro card/ }));
+  await waitFor(() => expect(detalhar).toHaveBeenCalledWith(segundo));
+  expect(screen.getByTestId('rota-atual').textContent).toContain(`card=${segundo}`);
+  expect(screen.getByTestId('rota-atual').textContent).toContain('origem=telegram');
+});
+
+it.each(['invalido', '33333333-3333-4333-8333-333333333333'])('não abre card ausente ou URL inválida: %s', async id => {
+  const detalhar = vi.fn();
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('11111111-1111-4111-8111-111111111111', 'Visível')]), detalhar })} />, `/?card=${id}&origem=telegram`);
+  expect(await screen.findByText(/O card indicado na URL não está disponível/)).toBeTruthy();
+  expect(detalhar).not.toHaveBeenCalled();
+  expect(screen.getByTestId('rota-atual').textContent).toBe('?origem=telegram');
+});
+
+it('recusa parâmetro card duplicado mesmo quando o primeiro UUID está visível', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const detalhar = vi.fn();
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card(id, 'Visível')]), detalhar })} />,
+    `/?card=${id}&card=outro&origem=telegram`);
+  expect(await screen.findByText(/O card indicado na URL não está disponível/)).toBeTruthy();
+  expect(detalhar).not.toHaveBeenCalled();
+  expect(screen.getByTestId('rota-atual').textContent).toBe('?origem=telegram');
+});
+
+it('destaca espera da etapa sem tirar o card da coluna Em trabalho', async () => {
+  const esperando = { ...card('a', 'Trabalho com pergunta'), estado: 'EM_ANDAMENTO' };
+  const repo = repositorio({ listar: vi.fn().mockResolvedValue([esperando]), detalhar: vi.fn().mockResolvedValue({
+    etapas: [{ id: 'etapa-a', codigo: 'E1', nome: 'Pesquisa', estado: 'ESPERANDO_FUNDADOR', motivo: 'PERGUNTA', autor: 'Ravi', dono: 'FUNDADOR', prazo_ate: null, revisores: [], versao: 2, portao1_ok: false, entrega_fresca: false }],
+    entregas: [], acoes: [],
+  }) });
+  renderPage(<CardV2Page repositorio={repo} />);
+  fireEvent.click(await screen.findByRole('button', { name: /Trabalho com pergunta/ }));
+  expect((await screen.findByRole('region', { name: 'Decisões pendentes do fundador' })).textContent).toContain('Etapa E1: ESPERANDO_FUNDADOR · motivo PERGUNTA');
+  expect(within(screen.getByRole('region', { name: 'Em trabalho: 1 card' })).getByRole('button', { name: /Trabalho com pergunta/ })).toBeTruthy();
+});
+
 // --- Texto verdadeiro por estado do pedido de publicação (migration 0018) ---------------------------------------------
 const pedidoHoje = (extra: Partial<PedidoPublicacao> = {}): PedidoPublicacao =>
   ({ id: 7, pedido_em: '2026-10-13T12:00:00Z', dia_brasilia: '2026-10-13', ...extra });
 async function mostrarPublicacao(pedido: PedidoPublicacao | null, extra: Partial<RepositorioCardsV2> = {}) {
   auth.isFounder = true;
-  render(<CardV2Page repositorio={repositorio({
+  renderPage(<CardV2Page repositorio={repositorio({
     situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido }), ...extra })} />);
   const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
   await waitFor(() => expect(regiao.queryByText('Carregando situação de publicação…')).toBeNull());
@@ -271,7 +381,7 @@ it('"Atualizar situação" relê o banco e troca "Publicando…" pelo estado ver
   const situacaoPublicacao = vi.fn()
     .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'EM_EXECUCAO' }) })
     .mockResolvedValueOnce({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'FALHOU', erro: 'ConnectionError: fora do ar' }) });
-  render(<CardV2Page repositorio={repositorio({ situacaoPublicacao })} />);
+  renderPage(<CardV2Page repositorio={repositorio({ situacaoPublicacao })} />);
   const regiao = within(await screen.findByRole('region', { name: 'Publicação' }));
   expect(await regiao.findByText('Publicando…')).toBeTruthy();
   fireEvent.click(regiao.getByRole('button', { name: 'Atualizar situação' }));
@@ -282,7 +392,7 @@ it('"Atualizar situação" relê o banco e troca "Publicando…" pelo estado ver
 
 it('membro não vê a área de publicação, nem com pedido no banco', async () => {
   auth.isFounder = false;
-  render(<CardV2Page repositorio={repositorio({
+  renderPage(<CardV2Page repositorio={repositorio({
     situacaoPublicacao: vi.fn().mockResolvedValue({ fundador: true, dia_brasilia: '2026-10-13', pedido: pedidoHoje({ estado: 'PUBLICADA', versao_publicada: 'v-1' }) }) })} />);
   await screen.findByText('Nenhum card disponível.');
   expect(screen.queryByRole('region', { name: 'Publicação' })).toBeNull();

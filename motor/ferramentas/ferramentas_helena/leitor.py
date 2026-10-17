@@ -13,7 +13,7 @@ import codecs
 import hashlib
 import re
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
 from .copias import Copia, Copias
 from .enderecos import analisar_url
@@ -50,10 +50,12 @@ def decodificar(corpo: bytes, charset: str) -> str:
 
 
 class Leitor:
-    def __init__(self, params: Parametros, cliente: ClienteHttp, copias: Copias):
+    def __init__(self, params: Parametros, cliente: ClienteHttp, copias: Copias,
+                 ao_tentar_rede: Optional[Callable[[], None]] = None):
         self.params = params
         self.cliente = cliente
         self.copias = copias
+        self.ao_tentar_rede = ao_tentar_rede
         self.lista: Optional[frozenset] = None
         if params.lista_de_enderecos is not None:
             try:
@@ -86,7 +88,10 @@ class Leitor:
             )
         copia = self.copias.por_url(endereco.url)
         if copia is None:
-            copia = self._baixar_e_guardar(endereco.url, self.cliente.baixar(endereco))
+            if self.ao_tentar_rede is not None:
+                self.ao_tentar_rede()
+            copia = self._baixar_e_guardar(
+                endereco.url, self.cliente.baixar(endereco, permitir_destino=self._na_lista))
         if parte > copia.total_partes:
             raise ErroFerramenta(
                 "parte_inexistente",

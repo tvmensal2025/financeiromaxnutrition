@@ -5,7 +5,9 @@ from executor_helena.ficha import ler_ficha
 RAIZ = Path(__file__).resolve().parents[3]
 
 
-def validar_plano(plano: dict, spec, raiz: Path | None = None, *, permitir_rascunho=False) -> str | None:
+def validar_plano(plano: dict, spec, raiz: Path | None = None, *, permitir_rascunho=False,
+                 exigir_parecer=True) -> str | None:
+    """Confere também o parecer obrigatório; a dispensa é só para ensaios sintéticos isolados."""
     raiz = Path(raiz) if raiz else spec.raiz
     etapas = plano.get('etapas') or []
     codigos = [e.get('id') for e in etapas]
@@ -54,4 +56,16 @@ def validar_plano(plano: dict, spec, raiz: Path | None = None, *, permitir_rascu
     orcamento = plano.get('orcamento_meta') or {}
     if orcamento.get('execucoes', 0) < len(etapas) * 2 or orcamento.get('chamadas_total', 0) < chamadas:
         return 'orçamento insuficiente para autores e revisores'
+    if exigir_parecer:
+        parecer = servicos.get('SRV-PARECER') or {}
+        tipos_julgados = set(parecer.get('julga_tipos') or [])
+        for etapa in etapas:
+            servico = servicos[etapa['servico']]
+            if servico.get('julgado_pelo_parecer') != 'SEMPRE':
+                continue
+            tipo = spec.tipo_do_servico(etapa['servico'])
+            if tipo not in tipos_julgados or not any(
+                    julgadora['servico'] == 'SRV-PARECER' and etapa['id'] in julgadora.get('depende_de', [])
+                    for julgadora in etapas):
+                return f"etapa {etapa['id']} ({etapa['servico']}) exige SRV-PARECER dependente para julgamento"
     return None

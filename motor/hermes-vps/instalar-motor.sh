@@ -99,13 +99,28 @@ etapa_hermes_venv() {
   uv venv --quiet --clear --python "$PYTHON_VERSAO" "$VENV_HERMES" || fail "falhou criar o venv do Hermes 0.19.0."
   uv pip install --quiet --python "$VENV_HERMES/bin/python" -r "$REPO/motor/executor/requirements-hermes-real.txt" \
     || fail "falhou instalar o hermes-agent 0.19.0."
+  site_packages="$("$VENV_HERMES/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" \
+    || fail "nao achei o site-packages do Hermes."
+  "$VENV_HERMES/bin/python" "$REPO/motor/hermes-vps/patch-hermes-auth.py" "$site_packages" \
+    || fail "correcao de autenticacao do Hermes nao aplicada; login e motor bloqueados."
+  "$VENV_HERMES/bin/python" "$REPO/motor/hermes-vps/testar-patch-hermes-auth.py" \
+    || fail "testes locais da autenticacao do Hermes falharam; login e motor bloqueados."
   "$VENV_HERMES/bin/hermes" --version 2>/dev/null | grep -q "v0.19.0" || fail "o Hermes do motor nao e a 0.19.0."
   chown -R "$HELENA_USUARIO:$HELENA_USUARIO" "$VENV_HERMES"
   ok "Hermes 0.19.0 do motor em $VENV_HERMES (separado do Hermes do Telegram)"
 }
 
+conferir_patch_hermes() {
+  [ -x "$VENV_HERMES/bin/python" ] || fail "rode a etapa hermes-venv antes."
+  site_packages="$("$VENV_HERMES/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" \
+    || fail "nao achei o site-packages do Hermes."
+  "$VENV_HERMES/bin/python" "$REPO/motor/hermes-vps/patch-hermes-auth.py" --check "$site_packages" \
+    || fail "correcao de autenticacao do Hermes ausente ou incompleta; rode hermes-venv antes."
+}
+
 # Login PROPRIO da v2 (plano v3: um login so da v2, separado), na pasta que o motor usa como HELENA_V2_HERMES_HOME.
 etapa_login() {
+  conferir_patch_hermes
   [ -x "$VENV_HERMES/bin/hermes" ] || fail "rode a etapa hermes-venv antes."
   if como_helena env HERMES_HOME="$HERMES_HOME_V2" "$VENV_HERMES/bin/hermes" auth status openai-codex 2>/dev/null | grep -q "logged in"; then
     ok "login da v2 ja feito em $HERMES_HOME_V2"; return
@@ -209,6 +224,7 @@ PY" || fail "a conexao com o banco falhou (senha, host do pooler, TLS ou papel).
 }
 
 etapa_conferir() {
+  conferir_patch_hermes
   [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
   saida="$(como_helena env -i PATH="$PATH" HOME="$HELENA_VAR" bash -c "set -a; . '$ENV_ARQ'; set +a; cd '$REPO/motor/orquestrador' && exec '$VENV_MOTOR/bin/python' -m orquestrador conferir-runtime")" \
     || fail "conferir-runtime falhou."
@@ -268,6 +284,7 @@ etapa_servicos() {
 }
 
 etapa_ligar_motor() {
+  conferir_patch_hermes
   [ -f "$SYSTEMD_DIR/helena-despachante.service" ] || fail "rode a etapa servicos antes."
   ativa="$(como_helena env -i PATH="$PATH" HOME="$HELENA_VAR" bash -c "set -a; . '$ENV_ARQ'; set +a; exec '$VENV_MOTOR/bin/python' - <<'PY'
 import os, psycopg
@@ -275,8 +292,9 @@ from psycopg.rows import dict_row
 from orquestrador.bancos import parametros_conexao_real
 with psycopg.connect(os.environ['HELENA_V2_DATABASE_URL'], autocommit=True, row_factory=dict_row, **parametros_conexao_real()) as con:
     con.execute('SET ROLE service_role')
-    r = con.execute('SELECT ativa_id FROM helena_v2.configuracao_ponteiro').fetchone()
-    print(r['ativa_id'] or '')
+    # As tabelas so abrem por funcao (nem o service_role le configuracao_ponteiro): usa a mesma funcao do motor.
+    r = con.execute('SELECT helena_v2.configuracao_ativa() AS revisao').fetchone()['revisao']
+    print(r['id'] if r else '')
 PY")" || fail "nao consegui ler o ponteiro de configuracao."
   [ -n "$ativa" ] || fail "nenhuma revisao de configuracao ATIVA: pela tela, Clonar -> Pedir validacao; aqui: validar-config; tela: Ativar."
   systemctl enable --now helena-despachante.service || fail "nao consegui ligar o despachante."

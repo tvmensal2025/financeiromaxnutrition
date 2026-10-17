@@ -1,16 +1,33 @@
 import React, { lazy } from "react";
 import { PageBoundary } from "@/components/executive/PageBoundary";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, Link, Outlet, useLocation } from "react-router-dom";
+import { SessionBusinessBoundary } from "@/contexts/SessionBusinessBoundary";
+import { useBusiness } from "@/contexts/BusinessContext";
 import { AuthProvider, useAuth } from "@/auth";
 import { Layout } from "@/components/Layout";
 import { ShieldAlert, LogOut } from "lucide-react";
 const Login = lazy(() => import("@/pages/Login"));
+const PainelV2Page = lazy(() => import("@/pages/PainelV2Page"));
 const CardV2Page = lazy(() => import("@/pages/CardV2Page"));
 const ConfiguracoesV2Page = lazy(() => import("@/pages/ConfiguracoesV2Page"));
 
+const FinanceiroPage = lazy(() => import("@/pages/FinanceiroPage"));
+const CrmPage = lazy(() => import("@/pages/CrmPage"));
+const CalendarioPage = lazy(() => import("@/pages/CalendarioPage"));
+const PortfolioPage = lazy(() => import("@/pages/PortfolioPage"));
+const IdentidadePage = lazy(() => import("@/pages/IdentidadePage"));
+const IndicadoresPage = lazy(() => import("@/pages/IndicadoresPage"));
+const Modulo = lazy(() => import("@/pages/Modulo"));
+const EquipeV2Page = lazy(() => import("@/pages/EquipeV2Page"));
+const OperacaoV2Page = lazy(() => import("@/pages/OperacaoV2Page"));
+const IntegracoesV2Page = lazy(() => import("@/pages/IntegracoesV2Page"));
+const ConversaV2Page = lazy(() => import("@/pages/ConversaV2Page"));
+const GovernancaV2Page = lazy(() => import("@/pages/GovernancaV2Page"));
+const OAuthConsent = lazy(() => import("@/pages/OAuthConsent"));
+
 /**
- * O app roda só a v2 (DEC-032): cards, ações do fundador e configuração da Helena.
- * A v1 está parada; o código dela ficou em docs/arquivo/app-v1, só para consulta.
+ * O app mantém a esteira v2 e reaproveita os módulos canônicos de negócio.
+ * A execução legada continua parada; as páginas adaptadas usam a sessão atual.
  *
  * CONTROLE DE ACESSO: autenticação real via Supabase Auth e app_access ativo.
  */
@@ -96,6 +113,30 @@ function Redirecionar({ para }: { para: string }) {
   return <Navigate to={`${para}${search}`} replace />;
 }
 
+/** Links antigos `/?card=...` e `/?pedido=...` continuam abrindo o módulo correto. */
+function EntradaRaiz() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  return params.has("card") || params.has("pedido")
+    ? <Redirecionar para="/cards" />
+    : <PainelV2Page />;
+}
+
+/** Troca de identidade desmonta todo estado sensível antes de montar outro fundador. */
+function SomenteFundador() {
+  const { isFounder, user, role } = useAuth();
+  if (!isFounder || !user) return <section role="alert" className="space-y-3 p-6"><h1 className="text-xl">Acesso restrito</h1><p>Esta área está disponível para a conta do fundador.</p><Link className="he-nav-link" to="/cards">Voltar aos cards</Link></section>;
+  return <React.Fragment key={`${user.id}:${role}`}><Outlet /></React.Fragment>;
+}
+
+/** Impede consultas consolidadas antes de resolver o portfólio autorizado. */
+function AreaNegocios() {
+  const { loading, error, currentBusinessId, empresas } = useBusiness();
+  if (loading) return <p role="status" className="p-6">Carregando empresas…</p>;
+  if (error) return <section role="alert" className="p-6"><h1 className="text-xl">Empresas indisponíveis</h1><p>{error}</p><button className="he-nav-link" onClick={() => window.location.reload()}>Tentar novamente</button></section>;
+  return <React.Fragment key={`${currentBusinessId}:${empresas.map(e => e.id).join(',')}`}><Outlet /></React.Fragment>;
+}
+
 function Rotas() {
   return (
     <Routes>
@@ -105,17 +146,39 @@ function Rotas() {
       <Route
         element={
           <Protegida>
-            <Layout />
+            <SessionBusinessBoundary><Layout /></SessionBusinessBoundary>
           </Protegida>
         }
       >
-        <Route path="/" element={<CardV2Page />} />
+        <Route path="/" element={<EntradaRaiz />} />
+        <Route path="/painel" element={<Redirecionar para="/" />} />
+        <Route path="/cards" element={<CardV2Page />} />
         <Route path="/configuracoes" element={<ConfiguracoesV2Page />} />
-        <Route path="/cards-v2" element={<Redirecionar para="/" />} />
+        <Route element={<SomenteFundador />}>
+          <Route path="/comando" element={<GovernancaV2Page />} />
+          <Route path="/sistema" element={<GovernancaV2Page />} />
+          <Route path="/conversa" element={<ConversaV2Page />} />
+          <Route path="/equipe" element={<EquipeV2Page />} />
+          <Route path="/integracoes" element={<IntegracoesV2Page />} />
+          {['execucao', 'entregas', 'consumo', 'cobertura', 'supervisao'].map(secao => <Route key={secao} path={`/${secao}`} element={<OperacaoV2Page />} />)}
+          <Route path="/oauth/consent" element={<OAuthConsent />} />
+          <Route element={<AreaNegocios />}>
+            <Route path="/financeiro" element={<FinanceiroPage />} />
+            <Route path="/crm" element={<CrmPage />} />
+            <Route path="/calendario" element={<CalendarioPage />} />
+            <Route path="/portfolio" element={<PortfolioPage />} />
+            <Route path="/empresas" element={<PortfolioPage />} />
+            <Route path="/identidade" element={<IdentidadePage />} />
+            <Route path="/indicadores" element={<IndicadoresPage />} />
+            <Route path="/modulo/:tabela" element={<Modulo />} />
+          </Route>
+        </Route>
+        {Object.entries({ '/chat': '/conversa', '/inbox': '/supervisao', '/caixa-entrada': '/supervisao', '/central-execucao': '/execucao', '/central-integracoes': '/integracoes', '/helena': '/', '/modulo/integracoes': '/integracoes', '/modulo/financeiro': '/financeiro', '/modulo/crm': '/crm', '/modulo/equipe': '/equipe' }).map(([de, para]) => <Route key={de} path={de} element={<Redirecionar para={para} />} />)}
+        <Route path="/cards-v2" element={<Redirecionar para="/cards" />} />
         <Route path="/configuracoes-v2" element={<Redirecionar para="/configuracoes" />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Protegida><section className="p-8 space-y-3"><h1 className="text-xl">Página não encontrada</h1><p>Este endereço não corresponde a uma página do sistema.</p><Link to="/">Abrir visão geral</Link></section></Protegida>} />
     </Routes>
   );
 }

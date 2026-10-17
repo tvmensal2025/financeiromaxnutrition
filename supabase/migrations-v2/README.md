@@ -1,8 +1,8 @@
-# Banco da v2 (só local)
+# Banco da v2
 
 **O banco manda, o motor executa, o agente só escreve conteúdo.** Aqui mora o banco do Sistema Helena v2: uma única função muda o estado do card, e as 13 regras de ferro valem mesmo que um programa erre.
 
-> Nesta revisão, as migrations foram aplicadas apenas em PostgreSQL local. A implantação exige conferir os pré-requisitos técnicos abaixo. O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
+> O briefing de 17/10/2026 relata 0001–0019 aplicadas em produção, mas esta sessão não consultou o Supabase real. A 0020 foi preparada e testada somente em PostgreSQL local: **não foi aplicada em produção**. O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
 
 ## O que tem
 
@@ -23,10 +23,15 @@
 | `0013_interacoes_fundador.sql` | Consulta do toque do próprio fundador e pergunta atual da etapa | à mão |
 | `0014_leitura_card_fundador.sql` | Leitura de volta realmente persistida pela Helena | à mão |
 | `0015_card_real_ligado.sql` | Confere a origem autenticada e as fontes de cards ligados | à mão |
+| `0016_manutencao_so_servico.sql` | Fecha as portas de manutenção para a sessão do fundador | à mão |
+| `0017_relogio.sql` | Lista eventos de prazo devidos para o relógio do motor | à mão |
+| `0018_publicacao_execucao.sql` | Estados, reivindicação e registro durável da publicação; destino real ainda ausente | à mão |
+| `0019_auditoria_de_ativacoes.sql` | Histórico de ativações e reversão da configuração ativa | à mão |
+| `0020_plano_exige_validador.sql` | Impede PLANO_VALIDO automático; o motor deve emiti-lo após validar o plano | à mão |
 | `gerar_passagens.py` | Lê `helena-v2/maquina/*.yaml` e escreve o 0002 | à mão |
 | `testes/` | Os testes (pytest + psycopg) | à mão |
 
-A fonte das regras é só `helena-v2/maquina/passagens.yaml` (com `vocabulario.yaml`). Nenhuma regra fica escrita em dois lugares: o 0003 não conhece guarda, teto nem passagem; lê tudo das tabelas do 0002.
+A fonte das passagens é `helena-v2/maquina/passagens.yaml` (com `vocabulario.yaml`); o 0003 lê guardas, tetos e passagens das tabelas geradas no 0002. A 0020 acrescenta uma trava de execução: embora o YAML histórico liste `PLANO_VALIDO` entre os automáticos, o banco só aceita esse evento como chamada explícita do motor. O banco não executa nem comprova o validador externo por si só.
 
 ## Como rodar os testes
 
@@ -35,7 +40,7 @@ pip install -r requirements.txt     # nesta pasta
 python -m pytest                    # sobe o próprio PostgreSQL em /tmp/pg-helena-v2-*, porta 54329, só 127.0.0.1
 ```
 
-Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. Papéis globais de teste permanecem no servidor compartilhado para evitar corrida entre suítes; o cluster temporário cai inteiro ao fim. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`. Com `HELENA_V2_COBERTURA=1 python -m pytest -s` o fim da saída diz quantas linhas da tabela os testes exercitaram e quais faltaram.
+Com a variável `HELENA_V2_TESTE_DATABASE_URL` (é o que o CI usa, com um service container `postgres:16`) o teste usa esse servidor e cria nele um banco descartável. Papéis globais de teste permanecem no servidor compartilhado para evitar corrida entre suítes; o cluster temporário cai inteiro ao fim. `HELENA_V2_PG_BIN` aponta a pasta `bin` do PostgreSQL, se ele estiver fora do lugar comum. Mais sequências aleatórias: `HELENA_V2_DIF_SEMENTES=30 python -m pytest testes/test_04_diferencial.py`. Com `HELENA_V2_COBERTURA=1 python -m pytest -s` o fim da saída diz quantas linhas da tabela os testes exercitaram e quais faltaram. As provas da máquina em `testes/conftest.py` usam a base histórica 0001–0006; os testes de integração em `testes/integral.py` aplicam todas as migrations em ordem, incluindo a 0020.
 
 ## Como regenerar quando o YAML mudar
 
@@ -67,22 +72,32 @@ Depois da 0006, reaplicar a 0004 isoladamente revoga as permissões dos RPCs nov
 
 ## O que ainda não está aqui
 
-Relógio dos prazos e vigia de 5 minutos (o banco só aplica o evento que chegar), fila e vagas (motor), troca de tabela com cards abertos, plano que muda no meio, efeitos de fora das reações (pausar tudo, exemplo de ouro).
+Fila e vagas (motor), troca de tabela com cards abertos, plano que muda no meio e efeitos de fora das reações (pausar tudo, exemplo de ouro). O relógio da 0017 lista os eventos devidos, mas o motor ainda os aplica um por um.
 
 ## Pedidos reais — migration 0007
 
 Aplicar `0007_pedidos_reais.sql` depois de 0001–0006. O fundador autenticado registra a solicitação; o worker lê e consome de forma idempotente. A criação antiga de card deixa de ser RPC pública do worker. Fontes canônicas são comparadas na solicitação, consumo e promoção; alterações recusam aprovação ou PRONTO, preservando cancelamento. Não reaplicar migrations anteriores isoladamente para restaurar grants.
 
-Antes da implantação, conferir privilégios do dono das funções SECURITY DEFINER sobre as fontes públicas (leitura e locks), RLS, papéis dedicados, exposição da API e backup/retorno. Testes locais não comprovam esses privilégios em produção. Nenhuma migration desta revisão foi aplicada remotamente.
+Antes de qualquer aplicação futura, conferir privilégios do dono das funções SECURITY DEFINER sobre as fontes públicas (leitura e locks), RLS, papéis dedicados, exposição da API e backup/retorno. Testes locais não comprovam esses privilégios em produção. A 0020 ainda exige autorização do fundador antes de aplicação remota.
 
 `service_role` é uma identidade privilegiada de backend; sua credencial pertence apenas ao worker, nunca ao cliente. Ela não representa a autorização do fundador: a solicitação exige sua sessão autenticada. O modelo não protege de um worker comprometido que consiga alterar as próprias fontes; verificar grants efetivos na instalação.
 
 ## Sequência atual e confirmação
 
-Aplicar 0001–0015 em ordem. A 0009 resolve a revisão ativa quando o fundador não fornece ID, confere prazo futuro na criação e preserva o replay de solicitações já gravadas. Toda restrição corresponde a um critério de risco ALTO. Cards reais antigos sem confirmação completa não avançam; histórico permanece e um novo pedido autenticado deve substituir a entrada incompleta. O instante do prazo é preservado com fuso explícito; a interface o apresenta em Brasília.
+Numa instalação nova, aplicar 0001–0020 em ordem. Para um banco que já tenha 0001–0019, revisar e aplicar apenas a 0020 depois de aprovação explícita; não reaplicar migrations históricas. A 0009 resolve a revisão ativa quando o fundador não fornece ID, confere prazo futuro na criação e preserva o replay de solicitações já gravadas. Cards reais antigos sem confirmação completa não avançam; histórico permanece e um novo pedido autenticado deve substituir a entrada incompleta. O instante do prazo é preservado com fuso explícito; a interface o apresenta em Brasília.
 
 A interface importa a captura privada gerada pelo CLI, mostra metadados e envia as escolhas pela sessão do fundador. Ela consulta solicitações próprias por RLS para reconciliar falhas. A mesma carga usa chave determinística entre abas; confirmações diferentes não têm unicidade global por tarefa. URLs confirmadas continuam sendo dados não confiáveis, e a ferramenta revalida resolução, IP e redirecionamento a cada leitura.
 
 A autorização de ação externa na 0010 não habilita o efeito externo. Antes de implementar X10/EXECUTAR_ACAO, conferir fontes novamente no despacho e imediatamente antes do efeito, com idempotência e prova de cancelamento.
 
 Cards ligados são conferidos até a solicitação autenticada de origem, com limite de 16 ancestrais e recusa de ciclos. Ao atingir esse limite, é necessário tratar explicitamente a continuidade ou criar novo pedido autenticado; não remover a guarda.
+
+## Validação explícita do plano — migration 0020
+
+Antes da 0020, `RESPONDER/CONFIRMO` do fundador podia levar o card a `VALIDANDO_PLANO` e o automático `PLANO_VALIDO` levá-lo imediatamente a `EM_ANDAMENTO`, sem passar pelo `validar_plano` do motor. A 0020 bloqueia só essa escolha automática. O card permanece em `VALIDANDO_PLANO` até o motor emitir `PLANO_VALIDO` ou `PLANO_INVALIDO` explicitamente após validar o plano. Os demais automáticos continuam funcionando. A migration não verifica retrospectivamente cards que já avançaram e não prova que o motor executou o validador; esses pontos exigem conferência separada antes de operar cards afetados.
+
+## Recebimento de pedidos — migration 0021
+
+Cria `pedido_entrada` e eventos imutáveis, separados dos cards executáveis. As RPCs `receber_pedido_entrada`, `ler_pedido_entrada` e `listar_pedidos_entrada` exigem a sessão autenticada do fundador; tabelas e helper não recebem acesso direto dos papéis da API. RLS também isola os pedidos. A mesma chave de origem/evento com o mesmo texto e `request_id` retorna o pedido existente; qualquer divergência falha. Um evento novo com o mesmo `request_id` é continuação explícita, preservando as mensagens anteriores.
+
+Texto limitado a 10.000 caracteres, chave do evento a 160 e lista a 100 pedidos (padrão 50). O site consulta pedidos mais antigos por `request_id`. Origem informada pelo cliente não comprova pareamento de Telegram/Codex. Esta migration não atribui empresa, não cria proposta de IA, não confirma plano, não agenda trabalho e não toca na v1. Foi testada apenas em PostgreSQL 16 descartável; não aplicada em produção nesta sessão.

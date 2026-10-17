@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Base dos testes do banco da v2: sobe (e derruba) um PostgreSQL LOCAL só para o teste.
+"""Base histórica 0001–0006 da máquina: sobe e derruba um PostgreSQL LOCAL só para o teste.
 
-O QUE É: a fixture `banco`. Ela cria um banco novo, aplica os quatro arquivos SQL em ordem
-(0001 esquema, 0002 gerado do YAML, 0003 função única, 0004 travas) e entrega ao teste.
+O QUE É: a fixture `banco`. Ela cria um banco novo e aplica 0001–0006 para as provas de
+equivalência com o YAML original. Para o estado atual, use `integral.banco_integral`,
+que descobre e aplica todas as migrations, inclusive 0020.
 
 DE ONDE VEM O BANCO:
   - Se existir a variável HELENA_V2_TESTE_DATABASE_URL (é o que o CI usa, com um service container
@@ -161,7 +162,7 @@ def ler_sql(nome, substituicoes=None):
 
 
 def montar_banco(url_admin, substituicoes=None, papeis_de_teste=()):
-    """Cria um banco novo no servidor e aplica os quatro SQL (com `substituicoes` = {arquivo: texto} para plantar defeitos)."""
+    """Cria um banco de teste 0001–0006; `substituicoes` permite plantar defeitos em SQL histórico."""
     url_admin = exigir_banco_local(url_admin)
     nome = "helena_v2_t_" + secrets.token_hex(5)
     with psycopg.connect(url_admin, autocommit=True) as adm:

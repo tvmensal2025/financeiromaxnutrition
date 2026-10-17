@@ -45,6 +45,19 @@ def test_entrada_de_etapa_exige_dependencia():
     assert 'dependência' in validar_plano(plano, Spec()).lower()
 
 
+def test_texto_pronto_real_exige_parecer_que_depende_da_entrega():
+    from spec_helena import Spec
+    spec = Spec()
+    plano = {'etapas': [{'id': 'E1', 'servico': 'SRV-COPY', 'depende_de': []}],
+             'orcamento_meta': {'execucoes': 4, 'chamadas_total': 200}}
+    assert spec.servicos['SRV-COPY']['julgado_pelo_parecer'] == 'SEMPRE'
+    assert 'exige SRV-PARECER' in validar_plano(plano, spec)
+    plano['etapas'].append({'id': 'E2', 'servico': 'SRV-PARECER', 'depende_de': []})
+    assert 'exige SRV-PARECER' in validar_plano(plano, spec)
+    plano['etapas'][1]['depende_de'] = ['E1']
+    assert validar_plano(plano, spec) is None
+
+
 def test_novo_plano_recusa_servico_aposentado():
     from spec_helena import Spec
     spec = Spec()
