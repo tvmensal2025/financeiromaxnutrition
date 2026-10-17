@@ -88,7 +88,12 @@ jobs:
               miolo="$(printf '%s' "$bruto" | tr -d ' \t\n' | sed -e 's/.*-----BEGINOPENSSHPRIVATEKEY-----//' -e 's/-----ENDOPENSSHPRIVATEKEY-----.*//' || true)"
               printf '%s' "$bruto" | tr -d ' \t\n' | grep -q -- '-----BEGINOPENSSHPRIVATEKEY-----' || miolo=""
             fi
-            [ -n "$miolo" ] || { echo "::error::VPS_SSH_KEY nao contem uma chave OpenSSH (BEGIN/END)"; exit 1; }
+            if [ -z "$miolo" ]; then   # so o miolo, sem BEGIN/END: o corpo de toda chave OpenSSH comeca com "openssh-key-v1" em base64
+              candidato="$(printf '%s' "$bruto" | tr -d ' \t\n')"
+              case "$candidato" in b3BlbnNzaC1rZXktdjE*) miolo="$candidato" ;; esac
+            fi
+            case "$(printf '%s' "$bruto" | tr -d ' \t\n')" in ssh-ed25519*|ssh-rsa*|ecdsa-*) echo "::error::VPS_SSH_KEY recebeu a chave PUBLICA (.pub); cole a PRIVADA (cat /root/.ssh/github-actions)"; exit 1 ;; esac
+            [ -n "$miolo" ] || { echo "::error::VPS_SSH_KEY nao contem uma chave OpenSSH (BEGIN/END ou corpo b3Blbn...)"; exit 1; }
             { echo '-----BEGIN OPENSSH PRIVATE KEY-----'; printf '%s\n' "$miolo" | fold -w 70; echo '-----END OPENSSH PRIVATE KEY-----'; } > ~/.ssh/vps
             chmod 600 ~/.ssh/vps
             ssh-keygen -y -f ~/.ssh/vps >/dev/null 2>&1 || { echo "::error::VPS_SSH_KEY invalida mesmo depois de remontar: copie de novo do BEGIN ao END"; exit 1; }
