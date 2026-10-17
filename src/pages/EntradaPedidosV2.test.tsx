@@ -102,9 +102,9 @@ it('recusa texto vazio e mostra falha de listagem sem fingir fila vazia', async 
   const repo = repositorio({ listar: vi.fn().mockRejectedValueOnce(new Error('Consulta indisponível')).mockResolvedValueOnce({ limite: 50, itens: [] }) });
   render(<EntradaPedidosV2 identidade="fundador" repositorio={repo} />);
   expect(await screen.findByText('Não foi possível consultar os pedidos.')).toBeTruthy();
-  expect(screen.queryByText('Nenhum pedido em triagem.')).toBeNull();
+  expect(screen.queryByText('Nenhum pedido registrado.')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Atualizar pedidos' }));
-  expect(await screen.findByText('Nenhum pedido em triagem.')).toBeTruthy();
+  expect(await screen.findByText('Nenhum pedido registrado.')).toBeTruthy();
   expect((screen.getByRole('button', { name: 'Registrar pedido' }) as HTMLButtonElement).disabled).toBe(true);
   expect(repo.receber).not.toHaveBeenCalled();
 });
@@ -148,4 +148,42 @@ it('consulta ausente ou com erro não apaga um envio pendente e não expõe mens
   expect(screen.queryByText('senha-interna-sintética')).toBeNull();
   expect(sessionStorage.getItem('helena-v2-entrada:fundador')).toBeTruthy();
   expect(repo.receber).not.toHaveBeenCalled();
+});
+
+it('distingue plano confirmado de card criado e só liga UUID válido ao Kanban', async () => {
+  const metadados = { empresa_id: 'BIZ-003', empresa_confirmada: true,
+    config_revision_id: '33333333-3333-4333-8333-333333333333', titulo_confirmado: 'Campanha da eLiving™',
+    prazo_confirmado: '2026-10-30T12:00:00Z', plano_hash: 'a'.repeat(64) };
+  const aguardando: PedidoEntrada = { ...pedido, ...metadados, pedido_id: '44444444-4444-4444-8444-444444444444',
+    request_id: '55555555-5555-4555-8555-555555555555', estado: 'PLANO_CONFIRMADO', card_id: null };
+  const criado: PedidoEntrada = { ...pedido, ...metadados, pedido_id: '66666666-6666-4666-8666-666666666666',
+    request_id: '77777777-7777-4777-8777-777777777777', estado: 'CARD_CRIADO', card_id: '88888888-8888-4888-8888-888888888888' };
+  render(<EntradaPedidosV2 identidade="fundador" repositorio={repositorio({ listar: vi.fn().mockResolvedValue({ limite: 50, itens: [aguardando, criado] }) })} />);
+  expect(await screen.findByText('Plano confirmado · aguardando criação do card')).toBeTruthy();
+  expect(screen.getByText('Card criado · acompanhe no Kanban')).toBeTruthy();
+  const links = screen.getAllByRole('link', { name: 'Abrir card no Kanban' }) as HTMLAnchorElement[];
+  expect(links).toHaveLength(1);
+  expect(links[0].getAttribute('href')).toBe(`/?card=${criado.card_id}`);
+  expect(screen.queryByText(/No ar|Publicado|Trabalho concluído/i)).toBeNull();
+});
+
+it('não cria link quando um repositório injetado devolve card_id inválido', async () => {
+  const estranho: PedidoEntrada = { ...pedido, estado: 'CARD_CRIADO', card_id: 'javascript:alert(1)' };
+  render(<EntradaPedidosV2 identidade="fundador" repositorio={repositorio({ listar: vi.fn().mockResolvedValue({ limite: 50, itens: [estranho] }) })} />);
+  expect(await screen.findByText('Card criado · vínculo do card indisponível')).toBeTruthy();
+  expect(screen.queryByRole('link', { name: 'Abrir card no Kanban' })).toBeNull();
+});
+
+it('atualiza o recibo aberto quando a listagem confirma a criação posterior do card', async () => {
+  const criado: PedidoEntrada = { ...pedido, estado: 'CARD_CRIADO', empresa_id: 'BIZ-003', empresa_confirmada: true,
+    config_revision_id: '33333333-3333-4333-8333-333333333333', card_id: '88888888-8888-4888-8888-888888888888',
+    titulo_confirmado: 'Campanha', prazo_confirmado: '2026-10-30T12:00:00Z', plano_hash: 'a'.repeat(64) };
+  const listar = vi.fn().mockResolvedValueOnce({ limite: 50, itens: [] })
+    .mockResolvedValueOnce({ limite: 50, itens: [criado] });
+  render(<EntradaPedidosV2 identidade="fundador" repositorio={repositorio({ listar })} />);
+  fireEvent.change(screen.getByLabelText('Seu pedido'), { target: { value: pedido.texto_inicial } });
+  fireEvent.click(screen.getByRole('button', { name: 'Registrar pedido' }));
+  expect(await screen.findByText('Pedido identificado no banco')).toBeTruthy();
+  expect(screen.getAllByRole('link', { name: 'Abrir card no Kanban' })).toHaveLength(2);
+  expect(screen.queryByText(/Nenhum trabalho foi executado/)).toBeNull();
 });

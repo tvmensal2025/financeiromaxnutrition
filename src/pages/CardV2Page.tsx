@@ -7,6 +7,7 @@ import { estadoDoPedido } from '@/integrations/cards-v2/repository';
 import type { CardV2, DetalheCardV2, PedidoPublicacao, RepositorioCardsV2, ResumoOrdemCardV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
 import { EntradaPedidosV2 } from './EntradaPedidosV2';
+import { PareamentoTelegramV2 } from './PareamentoTelegramV2';
 import { SolicitarCardReal } from './SolicitarCardReal';
 import { AcoesFundadorV2 } from './AcoesFundadorV2';
 import { PerguntaFundadorV2 } from './PerguntaFundadorV2';
@@ -286,6 +287,7 @@ function ConteudoCardV2({ repositorio }: PageProps) {
     </section>}
 
     {isFounder && user?.id && <EntradaPedidosV2 identidade={user.id} />}
+    {isFounder && user?.id && <PareamentoTelegramV2 identidade={user.id} />}
     {isFounder && <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />}
 
     <div className="space-y-8">

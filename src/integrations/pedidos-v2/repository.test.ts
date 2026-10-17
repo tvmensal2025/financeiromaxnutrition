@@ -6,6 +6,10 @@ export const recibo = { pedido_id: '00000000-0000-4000-8000-000000000020', reque
   estado: 'RECEBIDO' as const, texto_inicial: 'Preparar campanha', total_eventos: 1,
   criado_em: '2026-10-17T12:00:00Z', atualizado_em: '2026-10-17T12:00:00Z', origem_inicial: 'SITE' as const };
 const envio = { requestId, eventoId: 'site:uuid', texto: 'Preparar campanha' };
+const plano = { ...recibo, estado: 'PLANO_CONFIRMADO' as const, empresa_id: 'BIZ-003', empresa_confirmada: true,
+  config_revision_id: '33333333-3333-4333-8333-333333333333', card_id: null,
+  titulo_confirmado: 'Campanha da eLiving™', prazo_confirmado: '2026-10-30T12:00:00Z', plano_hash: 'a'.repeat(64) };
+const cardCriado = { ...plano, estado: 'CARD_CRIADO' as const, card_id: '44444444-4444-4444-8444-444444444444' };
 function banco(data: unknown, code?: string) {
   const rpc = vi.fn().mockResolvedValue({ data, error: code ? { code, message: 'detalhe interno não deve sair' } : null });
   const schema = vi.fn().mockReturnValue({ rpc });
@@ -27,6 +31,21 @@ describe('entrada autenticada de pedidos', () => {
     rpc.mockResolvedValueOnce({ data: { limite: 50, itens: [recibo] }, error: null });
     expect(await repo.listar()).toEqual({ limite: 50, itens: [recibo] });
     expect(rpc).toHaveBeenLastCalledWith('listar_pedidos_entrada', { p_limite: 50 });
+  });
+  it('aceita recibo 0021 e estados 0023 sem confundir plano confirmado com card criado', async () => {
+    const { cliente, rpc } = banco({ limite: 50, itens: [recibo, plano, cardCriado] });
+    const repo = criarRepositorioPedidosV2(cliente);
+    expect((await repo.listar()).itens.map(item => item.estado)).toEqual(['RECEBIDO', 'PLANO_CONFIRMADO', 'CARD_CRIADO']);
+    rpc.mockResolvedValueOnce({ data: plano, error: null });
+    expect((await repo.receber(envio)).card_id).toBeNull();
+    rpc.mockResolvedValueOnce({ data: { ...cardCriado, eventos: [{ origem: 'SITE', evento_id: envio.eventoId,
+      texto: envio.texto, recebido_em: recibo.criado_em }] }, error: null });
+    expect((await repo.ler(requestId))?.card_id).toBe(cardCriado.card_id);
+  });
+  it.each([{ ...plano, empresa_confirmada: false }, { ...plano, card_id: cardCriado.card_id },
+    { ...cardCriado, card_id: 'javascript:alert(1)' }, { ...cardCriado, plano_hash: 'incorreto' },
+    { ...recibo, estado: 'CARD_CRIADO' }])('rejeita estado e vínculo inconsistentes: %j', async data => {
+    await expect(criarRepositorioPedidosV2(banco(data).cliente).receber(envio)).rejects.toThrow();
   });
   it.each([null, {}, { ...recibo, estado: 'PRONTO' }, { ...recibo, request_id: 'inválido' },
     { ...recibo, total_eventos: 0 }, { ...recibo, origem_inicial: 'DESCONHECIDA' },

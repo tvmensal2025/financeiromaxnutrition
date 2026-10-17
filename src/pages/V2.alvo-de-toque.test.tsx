@@ -18,6 +18,7 @@ configure({ asyncUtilTimeout: 15_000 });
 const auth = vi.hoisted(() => ({ isFounder: true, userId: 'fundador-1' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
 vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: () => null }));
+vi.mock('./PareamentoTelegramV2', () => ({ PareamentoTelegramV2: () => null }));
 
 const ALVO_DE_TOQUE = /(?:^|\s)(?:min-h|h|size)-(?:11|12|14)(?:\s|$)/;
 const CONTROLES = 'button, a[href], [role="tab"], [role="button"]';

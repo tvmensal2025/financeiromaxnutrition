@@ -37,6 +37,15 @@ def _abrir_runtime_real(*, iniciar_dbos):
 
 def _executar_comando_real(args):
     """Consome uma solicitação existente ou avança um card; nunca confirma pelo fundador."""
+    if args.comando == 'consumir-entrada-v2':
+        identificador = str(UUID(args.pedido))
+        motor = _abrir_runtime_real(iniciar_dbos=False)
+        try:
+            card_id = motor.criar_card_pedido(identificador)
+            return {'card_id': str(card_id), 'estado': motor._card(card_id)['estado'],
+                    'pedido_id': identificador, 'agentes_chamados': 0}
+        finally:
+            motor.fechar()
     avancar = args.comando == 'avancar-card-real'
     valor = args.card if avancar else args.solicitacao
     identificador = str(UUID(valor))
@@ -316,12 +325,13 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog='python -m orquestrador')
     parser.add_argument('comando', choices=['validar-configuracoes', 'registrar-base-tecnica',
                                           'preparar-tarefa-real', 'consumir-pedido-real',
-                                          'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio', 'despachar',
+                                          'consumir-entrada-v2', 'avancar-card-real', 'gerar-instalacao', 'vigiar', 'relogio', 'despachar',
                                           'conferir-runtime'])
     parser.add_argument('--tarefa', help='ID canônico da tarefa, sem dados exemplificativos')
     parser.add_argument('--roteiro', help='Nome do roteiro operacional da revisão local')
     parser.add_argument('--saida', help='Arquivo (ou, em gerar-instalacao, pasta) privado novo fora do checkout')
     parser.add_argument('--solicitacao', help='UUID do pedido já autenticado no banco')
+    parser.add_argument('--pedido', help='UUID do pedido v2 com plano confirmado pelo fundador')
     parser.add_argument('--card', help='UUID de um card real existente')
     parser.add_argument('--uma-volta', action='store_true', help='vigiar e relogio: faz uma volta e sai (padrão: roda até ser interrompido)')
     parser.add_argument('--intervalo', type=float, default=None, help='segundos entre voltas (padrão: 300 no vigiar, 60 no relogio, 5 no despachar)')
@@ -351,10 +361,11 @@ def main(argv=None):
                           'arquivos': sorted(manifesto['arquivos']), 'frase_exata': manifesto['frase_exata']},
                          ensure_ascii=False))
         return 0
-    if args.comando in ('consumir-pedido-real', 'avancar-card-real'):
-        valor = args.card if args.comando == 'avancar-card-real' else args.solicitacao
+    if args.comando in ('consumir-pedido-real', 'consumir-entrada-v2', 'avancar-card-real'):
+        valor = (args.card if args.comando == 'avancar-card-real' else
+                 args.pedido if args.comando == 'consumir-entrada-v2' else args.solicitacao)
         if not valor:
-            parser.error('informe --card ou --solicitacao conforme o comando')
+            parser.error('informe --card, --pedido ou --solicitacao conforme o comando')
         try:
             resultado = _executar_comando_real(args)
         except Exception:

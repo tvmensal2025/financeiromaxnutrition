@@ -7,6 +7,18 @@ import { apagarPedidoPendente, guardarUltimoPedido, lerPedidoPendente, lerUltimo
 type Props = { identidade: string; repositorio?: RepositorioPedidosV2 };
 export function EntradaPedidosV2(props: Props) { return <Entrada key={props.identidade} {...props} />; }
 
+function AndamentoPedido({ pedido }: { pedido: PedidoEntrada }) {
+  const cardCriado = pedido.estado === 'CARD_CRIADO' && typeof pedido.card_id === 'string' && uuidValido(pedido.card_id);
+  const titulo = pedido.estado === 'RECEBIDO' ? 'Recebido · aguardando preparo do plano'
+    : pedido.estado === 'PLANO_CONFIRMADO' ? 'Plano confirmado · aguardando criação do card'
+      : cardCriado ? 'Card criado · acompanhe no Kanban' : 'Card criado · vínculo do card indisponível';
+  return <div className="space-y-1">
+    <p className="font-semibold">{titulo}</p>
+    {pedido.estado !== 'RECEBIDO' && <p className="text-muted-foreground">Empresa: {pedido.empresa_id || 'Não informada'} · Plano: {pedido.titulo_confirmado || 'Não informado'}</p>}
+    {cardCriado && <a href={`/?card=${pedido.card_id}`} className="min-h-11 inline-flex items-center font-semibold text-emerald-800 underline dark:text-emerald-400">Abrir card no Kanban</a>}
+  </div>;
+}
+
 function Entrada({ identidade, repositorio }: Props) {
   const [repo, setRepo] = useState<RepositorioPedidosV2 | null>(repositorio ?? null);
   const [texto, setTexto] = useState('');
@@ -53,7 +65,10 @@ function Entrada({ identidade, repositorio }: Props) {
     let ativo = true;
     setCarregando(true);
     setErroLista(null);
-    repo.listar().then(valor => { if (ativo) setLista(valor); }).catch(erroRecebido => {
+    repo.listar().then(valor => { if (ativo) {
+      setLista(valor);
+      setRecibo(atual => atual ? valor.itens.find(item => item.request_id === atual.request_id) ?? atual : null);
+    } }).catch(erroRecebido => {
       if (ativo) setErroLista(erroRecebido instanceof ErroEntradaPedidos ? erroRecebido.message : 'Não foi possível consultar os pedidos.');
     }).finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; };
@@ -137,10 +152,11 @@ function Entrada({ identidade, repositorio }: Props) {
     {erro && <p role="alert" className="mt-3 text-sm text-destructive">{erro}</p>}
     {!repo && <button type="button" onClick={() => setTentativa(n => n + 1)} className="min-h-11 mt-2 text-sm font-semibold underline">Tentar conectar pedidos</button>}
     {recibo ? <div role="status" className="mt-4 rounded-lg border border-emerald-700/30 bg-emerald-50 p-4 text-sm dark:bg-emerald-950/30">
-      <p className="font-semibold">Pedido registrado para triagem</p>
+      <p className="font-semibold">{recibo.estado === 'RECEBIDO' ? 'Pedido registrado para triagem' : 'Pedido identificado no banco'}</p>
+      <AndamentoPedido pedido={recibo} />
       <p className="mt-2 break-all">Acompanhamento: {recibo.request_id}</p>
       <p className="mt-2 whitespace-pre-wrap break-words">{recibo.texto_inicial}</p>
-      <p className="mt-2 text-muted-foreground">Aguardando preparar o plano. Nenhum trabalho foi executado por este recebimento.</p>
+      {recibo.estado === 'RECEBIDO' && <p className="mt-2 text-muted-foreground">Aguardando preparar o plano. Nenhum trabalho foi executado por este recebimento.</p>}
       <button type="button" disabled={!!erroLocal} onClick={() => { setRecibo(null); setTexto(''); }} className="min-h-11 mt-2 font-semibold underline disabled:opacity-50">Escrever outro pedido</button>
     </div> : <form className="mt-4" onSubmit={evento => { evento.preventDefault(); void enviar(); }}>
       <label htmlFor="pedido-livre-helena" className="block text-sm font-medium">Seu pedido</label>
@@ -158,16 +174,16 @@ function Entrada({ identidade, repositorio }: Props) {
     </form>}
     <div className="mt-6 border-t border-border pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">Pedidos em triagem</h3>
+        <h3 className="text-sm font-semibold">Seus pedidos</h3>
         <button type="button" disabled={!repo || carregando} onClick={() => setTentativaLista(n => n + 1)} className="min-h-11 text-sm font-semibold underline disabled:opacity-50">Atualizar pedidos</button>
       </div>
       {carregando && <p className="mt-2 text-sm text-muted-foreground">Consultando pedidos…</p>}
       {erroLista && <p role="alert" className="mt-2 text-sm text-destructive">{erroLista}</p>}
-      {!carregando && !erroLista && lista?.itens.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum pedido em triagem.</p>}
+      {!carregando && !erroLista && lista?.itens.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nenhum pedido registrado.</p>}
       {!erroLista && !!lista?.itens.length && <>
         <p className="mt-1 text-xs text-muted-foreground">Até {lista.limite} pedidos mais recentes.</p>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.itens.map(pedido => <li key={pedido.pedido_id} className="min-w-0 rounded-lg border border-border p-3 text-sm">
-          <p className="font-semibold">Recebido · aguardando plano</p>
+          <AndamentoPedido pedido={pedido} />
           <p className="mt-2 whitespace-pre-wrap break-words">{pedido.texto_inicial}</p>
           <p className="mt-3 break-all text-xs text-muted-foreground">Acompanhamento: {pedido.request_id}</p>
           <p className="mt-1 text-xs text-muted-foreground">{pedido.total_eventos} {pedido.total_eventos === 1 ? 'mensagem' : 'mensagens'} · Canal informado: {{ SITE: 'Site', CODEX: 'Codex', TELEGRAM: 'Telegram' }[pedido.origem_inicial]}</p>
@@ -188,7 +204,7 @@ function Entrada({ identidade, repositorio }: Props) {
       </form>
       {erroConsulta && <p role="alert" className="mt-2 text-sm text-destructive">{erroConsulta}</p>}
       {consultado && <article aria-label="Histórico do pedido" className="mt-3 rounded-lg border border-border p-4 text-sm">
-        <p className="font-semibold">Recebido · aguardando plano</p>
+        <AndamentoPedido pedido={consultado} />
         <p className="mt-2 break-all">Acompanhamento: {consultado.request_id}</p>
         <ol className="mt-3 space-y-3">{consultado.eventos.map((evento, indice) => <li key={`${evento.origem}:${evento.evento_id}`}>
           <p className="text-xs font-semibold text-muted-foreground">Mensagem {indice + 1} · Canal informado: {{ SITE: 'Site', CODEX: 'Codex', TELEGRAM: 'Telegram' }[evento.origem]}</p>

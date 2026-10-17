@@ -559,6 +559,64 @@ class Motor:
             raise RuntimeError('despacho exige adaptador de contexto real')
         return 'sintetico'
 
+    def criar_card_pedido(self, pedido_id):
+        """Consome apenas um plano v2 já confirmado pelo fundador autenticado."""
+        if not callable(self.fonte_contexto) or isinstance(self.executor, ExecutorFalso):
+            raise RuntimeError('card de pedido v2 exige fonte de contexto e executor reais')
+        try:
+            pedido_id = str(UUID(str(pedido_id)))
+        except (ValueError, TypeError, AttributeError) as erro:
+            raise ValueError('identificador de pedido v2 inválido') from erro
+        p = self._linha('SELECT helena_v2.ler_plano_pedido(%s::uuid) AS pedido',
+                        (pedido_id,))['pedido']
+        if not p:
+            raise ValueError('plano do pedido v2 não confirmado')
+        plano, dados = p['plano'], p['dados_reais']
+        if not isinstance(plano, dict) or not isinstance(dados, dict):
+            raise ValueError('pedido v2 sem plano e fontes canônicas')
+        if dados.get('proveniencia', {}).get('pedido_id') != pedido_id:
+            raise ValueError('proveniência do pedido v2 diverge')
+        if p.get('card_id'):
+            revisao = self._carregar_revisao(p['config_revision_id'])[0]
+        else:
+            revisao = self._escolher_revisao(p['config_revision_id'])
+        _, spec, raiz = self._carregar_revisao(revisao['id'])
+        empresa = p['empresa_id']
+        from spec_helena.leitura import ler_yaml
+        empresas = ler_yaml(raiz / 'organograma.yaml')['empresas']
+        if empresa not in empresas or empresas[empresa].get('pacote', {}).get('estado') != 'CONFIRMADO':
+            raise ValueError('pacote da empresa não confirmado na revisão')
+        if empresa not in (plano.get('empresas') or []):
+            raise ValueError('empresa fora do plano confirmado')
+        if plano.get('decisoes') != [] or plano.get('entradas_externas') != {}:
+            raise ValueError('pedido v2 inicial exige fontes nativas já conferidas')
+        for etapa in plano.get('etapas') or []:
+            servico = spec.servicos.get(etapa.get('servico'))
+            if servico is None or empresa not in servico.get('empresas', []):
+                raise ValueError(f"serviço não atende a empresa: {etapa.get('servico')}")
+        ordem = {**plano, 'config_revision_id': str(revisao['id']), 'modo_contexto': 'real',
+                 'origem': 'pedido_entrada', 'chave_origem': pedido_id,
+                 'pedido_original': p['eventos'][0]['texto'],
+                 'business_id': empresa, 'dados_reais': dados}
+        erro = validar_plano(ordem, spec, raiz)
+        if erro:
+            raise ValueError(f'plano do pedido v2 inválido: {erro}')
+        if any(etapa['servico'] == 'SRV-PARECER' for etapa in plano['etapas']):
+            # A entrada 0023 não transporta publicação de tabela de leis.
+            # Criar o card agora o deixaria preso no portão do autor.
+            raise ValueError('pedido v2 sem tabela de leis publicada e rastreável para SRV-PARECER')
+        roteiro = self._roteiro_do_banco(ordem, spec, raiz)
+        with self._con() as con:
+            with con.transaction():
+                resposta = con.execute('SELECT helena_v2.consumir_plano_pedido(%s::uuid,%s) AS resposta',
+                                       (pedido_id, Jsonb(roteiro))).fetchone()['resposta']
+                card_id = resposta['card_id']
+                card = con.execute('SELECT * FROM helena_v2.card WHERE id=%s', (card_id,)).fetchone()
+                if (card is None or card['ordem_de_servico'] != ordem or
+                        card['empresa'] != empresa or card['titulo'] != p['titulo']):
+                    raise RuntimeError('card v2 diverge do plano confirmado')
+        return card_id
+
     def _conferir_fontes_real(self, card_id, con=None):
         sql_verificar = 'SELECT helena_v2.conferir_fontes_card_real(%s::uuid) AS confere'
         if con is None:
@@ -581,8 +639,15 @@ class Motor:
         plano_etapa = {**plano_etapa, **({'acao_do_fundador': acoes_etapa[0]} if acoes_etapa else {})}
         nomes = set(plano_etapa.get('entradas') or [])
         externas = dados['entradas_externas']
-        ids_fontes = {'FON-PEDIDO-' + dados['proveniencia']['tarefa_id'],
+        origem_id = (dados['proveniencia'].get('pedido_id') if ordem.get('origem') == 'pedido_entrada'
+                     else dados['proveniencia']['tarefa_id'])
+        ids_fontes = {'FON-PEDIDO-' + origem_id,
                       'FON-PACOTE-' + ordem['business_id']}
+        if ordem.get('origem') == 'pedido_entrada':
+            eventos = dados.get('captura', {}).get('eventos') or []
+            if not isinstance(eventos, list) or not eventos:
+                raise ValueError('pedido v2 sem eventos observados')
+            ids_fontes.update('FON-PEDIDO-EVENTO-' + str(e['id']) for e in eventos[1:])
         entradas = {}
         for nome in sorted(nomes & externas.keys()):
             insumo = externas[nome]
@@ -737,13 +802,15 @@ class Motor:
         if not original.strip() or not any(original == texto for texto in fontes.values()):
             faltas.append('pedido original preservado como fonte')
         if servico == 'SRV-CALCULO':
-            texto = original + ' ' + ' '.join(str(v) for v in pedido.get('entradas', {}).values())
+            continuacoes = [v for k, v in fontes.items() if k.startswith('FON-PEDIDO-EVENTO-')]
+            texto = original + ' ' + ' '.join(continuacoes) + ' ' + ' '.join(
+                str(v) for v in pedido.get('entradas', {}).values())
             if not re.search(r'(?:R\$|US\$)\s*\d[\d.,]*|\b\d[\d.,]*\s*(?:reais|dólares|dolares)\b',
                              texto, re.I):
                 faltas.append('valores monetários observados no pedido ou entrada aprovada')
             if not re.search(r'\b(?:dia|dias|semana|semanas|mês|mes|meses|ano|anos|mensal|semanal|diário|diario)\b', texto, re.I):
                 faltas.append('período da conta observado no pedido ou entrada aprovada')
-            if re.search(r'(?:R\$|reais|BRL)', original, re.I) and re.search(r'(?:US\$|USD|dólares|dolares)', original, re.I):
+            if re.search(r'(?:R\$|reais|BRL)', texto, re.I) and re.search(r'(?:US\$|USD|dólares|dolares)', texto, re.I):
                 if not re.search(r'(?:cota[çc][ãa]o|câmbio|cambio)\W*(?:R\$\s*)?\d[\d,.]*'
                                  r'|R\$\s*\d[\d,.]*\s*por\s*d[oó]lar', texto, re.I):
                     faltas.append('cotação observada para conversão de moeda')

@@ -51,8 +51,11 @@ def _aplicar(banco, arquivo: Path):
 def test_roteiro_gerado_instala_e_confere_num_banco_com_a_forma_canonica(banco_vazio_forma_canonica, tmp_path):
     pasta = tmp_path / 'roteiro'
     manifesto = gerar_instalacao(pasta)
-    assert manifesto['executado'] is False and manifesto['ultima_migration'] >= 16
+    assert manifesto['executado'] is False and manifesto['ultima_migration'] >= 23
     assert sorted(manifesto['arquivos']) == ['01_instalar_v2.sql', '02_base_tecnica.sql', '03_conferir_depois.sql', 'LEIA-ANTES.md']
+    instalar = (pasta / '01_instalar_v2.sql').read_text(encoding='utf-8')
+    assert instalar.index('-- ===== 0022_pareamento_telegram.sql =====') < instalar.index(
+        '-- ===== 0023_pedido_card_v2.sql =====')
     for nome, hash_esperado in manifesto['arquivos'].items():
         import hashlib
         assert hashlib.sha256((pasta / nome).read_bytes()).hexdigest() == hash_esperado

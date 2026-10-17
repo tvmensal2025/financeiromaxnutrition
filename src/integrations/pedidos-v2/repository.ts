@@ -2,10 +2,15 @@
 export const LIMITE_TEXTO_PEDIDO = 10_000;
 export const uuidValido = (valor: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valor);
 export type EnvioPedido = { requestId: string; eventoId: string; texto: string };
+export type EstadoPedidoEntrada = 'RECEBIDO' | 'PLANO_CONFIRMADO' | 'CARD_CRIADO';
 export type PedidoEntrada = {
-  pedido_id: string; request_id: string; estado: 'RECEBIDO'; texto_inicial: string;
+  pedido_id: string; request_id: string; estado: EstadoPedidoEntrada; texto_inicial: string;
   total_eventos: number; criado_em: string; atualizado_em: string;
   origem_inicial: 'SITE' | 'CODEX' | 'TELEGRAM';
+  /** 0021 não fornece os três últimos campos; 0023 preenche tudo após a confirmação. */
+  empresa_id?: string | null; empresa_confirmada?: boolean; config_revision_id?: string | null;
+  card_id?: string | null; titulo_confirmado?: string | null; prazo_confirmado?: string | null;
+  plano_hash?: string | null;
 };
 export type ListaPedidos = { limite: number; itens: PedidoEntrada[] };
 export type EventoPedido = { origem: 'SITE' | 'CODEX' | 'TELEGRAM'; evento_id: string; texto: string; recebido_em: string };
@@ -33,13 +38,35 @@ function objeto(valor: unknown): valor is Record<string, unknown> {
 }
 function lerRecibo(valor: unknown): PedidoEntrada {
   if (!objeto(valor) || typeof valor.pedido_id !== 'string' || !uuidValido(valor.pedido_id)
-      || typeof valor.request_id !== 'string' || !uuidValido(valor.request_id) || valor.estado !== 'RECEBIDO'
+      || typeof valor.request_id !== 'string' || !uuidValido(valor.request_id)
+      || typeof valor.estado !== 'string' || !['RECEBIDO', 'PLANO_CONFIRMADO', 'CARD_CRIADO'].includes(valor.estado)
       || typeof valor.texto_inicial !== 'string' || !valor.texto_inicial.trim()
       || typeof valor.total_eventos !== 'number' || !Number.isSafeInteger(valor.total_eventos) || valor.total_eventos < 1
       || typeof valor.criado_em !== 'string' || !Number.isFinite(Date.parse(valor.criado_em))
       || typeof valor.atualizado_em !== 'string' || !Number.isFinite(Date.parse(valor.atualizado_em))
       || typeof valor.origem_inicial !== 'string' || !['SITE', 'CODEX', 'TELEGRAM'].includes(valor.origem_inicial)) {
     throw new Error('O banco não confirmou um recibo válido.');
+  }
+  const confirmado = valor.estado !== 'RECEBIDO';
+  if (confirmado && (typeof valor.empresa_id !== 'string' || !valor.empresa_id.trim()
+      || valor.empresa_confirmada !== true
+      || typeof valor.config_revision_id !== 'string' || !uuidValido(valor.config_revision_id)
+      || typeof valor.titulo_confirmado !== 'string' || !valor.titulo_confirmado.trim()
+      || valor.titulo_confirmado.length > 160
+      || typeof valor.prazo_confirmado !== 'string' || !Number.isFinite(Date.parse(valor.prazo_confirmado))
+      || typeof valor.plano_hash !== 'string' || !/^[0-9a-f]{64}$/.test(valor.plano_hash)
+      || (valor.estado === 'PLANO_CONFIRMADO' && valor.card_id !== null)
+      || (valor.estado === 'CARD_CRIADO' && (typeof valor.card_id !== 'string' || !uuidValido(valor.card_id))))) {
+    throw new Error('O banco não confirmou a etapa de preparação deste pedido.');
+  }
+  if (!confirmado && ((valor.empresa_id !== undefined && valor.empresa_id !== null)
+      || (valor.empresa_confirmada !== undefined && valor.empresa_confirmada !== false)
+      || (valor.config_revision_id !== undefined && valor.config_revision_id !== null)
+      || (valor.card_id !== undefined && valor.card_id !== null)
+      || (valor.titulo_confirmado !== undefined && valor.titulo_confirmado !== null)
+      || (valor.prazo_confirmado !== undefined && valor.prazo_confirmado !== null)
+      || (valor.plano_hash !== undefined && valor.plano_hash !== null))) {
+    throw new Error('O banco não confirmou a etapa de preparação deste pedido.');
   }
   return valor as PedidoEntrada;
 }

@@ -9,6 +9,8 @@ const auth = vi.hoisted(() => ({ isFounder: false, userId: 'usuario-a' }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
 vi.mock('./EntradaPedidosV2', () => ({ EntradaPedidosV2: ({ identidade }: { identidade: string }) =>
   <section data-testid="entrada-pedidos" data-identidade={identidade}>Entrada unificada</section> }));
+vi.mock('./PareamentoTelegramV2', () => ({ PareamentoTelegramV2: ({ identidade }: { identidade: string }) =>
+  <section data-testid="pareamento-telegram" data-identidade={identidade}>Telegram</section> }));
 
 function RotaAtual() { const { search } = useLocation(); return <span data-testid="rota-atual" hidden>{search}</span>; }
 function renderPage(page: ReactElement, entrada = '/') {
@@ -60,11 +62,13 @@ it('descarta estado de fundador ao perder a permissão na mesma conta', async ()
   const tela = renderPage(<CardV2Page repositorio={repo} />);
   expect(await screen.findByText('Card antes do downgrade')).toBeTruthy();
   expect(screen.getByTestId('entrada-pedidos')).toBeTruthy();
+  expect(screen.getByTestId('pareamento-telegram')).toBeTruthy();
   expect(screen.getByLabelText('Solicitar card real')).toBeTruthy();
   auth.isFounder = false;
   tela.rerender(<CardV2Page repositorio={repo} />);
   expect(screen.queryByText('Card antes do downgrade')).toBeNull();
   expect(screen.queryByTestId('entrada-pedidos')).toBeNull();
+  expect(screen.queryByTestId('pareamento-telegram')).toBeNull();
   expect(screen.queryByLabelText('Solicitar card real')).toBeNull();
   await waitFor(() => expect(sessionStorage.getItem('helena-v2-toque:usuario-a:card:privado')).toBeNull());
   expect(await screen.findByText('Nenhum card disponível.')).toBeTruthy();
@@ -75,9 +79,12 @@ it('mostra entrada unificada ao fundador antes da importação avançada de card
   renderPage(<CardV2Page repositorio={repositorio()} />);
   await screen.findByText('Nenhum card disponível.');
   const entrada = screen.getByTestId('entrada-pedidos');
+  const telegram = screen.getByTestId('pareamento-telegram');
   const importacao = screen.getByLabelText('Solicitar card real');
   expect(entrada.getAttribute('data-identidade')).toBe(auth.userId);
-  expect(entrada.compareDocumentPosition(importacao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(telegram.getAttribute('data-identidade')).toBe(auth.userId);
+  expect(entrada.compareDocumentPosition(telegram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(telegram.compareDocumentPosition(importacao) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it('mostra decisão do fundador com versão real apenas para card selecionado em estado permitido', async () => {
