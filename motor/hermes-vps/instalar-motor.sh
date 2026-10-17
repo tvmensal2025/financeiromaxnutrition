@@ -16,6 +16,8 @@ HELENA_LOG="${HELENA_LOG:-/var/log/helena-v2}"
 HELENA_REPO_URL="${HELENA_REPO_URL:-https://github.com/tvmensal2025/financeiromaxnutrition.git}"
 HELENA_REF="${HELENA_REF:-claude/fervent-pasteur-g821nu}"    # ramo ou commit do código do motor
 PYTHON_VERSAO="${PYTHON_VERSAO:-3.13}"
+# O Python dos venvs precisa ficar onde o usuario helena le (nao em /root/.local): senao os executaveis dao "Permission denied".
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-${HELENA_BASE:-/opt/helena-v2}/python}" UV_PYTHON_PREFERENCE=only-managed
 PROJETO_REF="wxkgrykduqtsgmjkzlou"
 POOLER_PADRAO="aws-0-us-east-1.pooler.supabase.com"          # Session pooler (porta 5432) do projeto; confira em Connect no painel
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
@@ -38,7 +40,9 @@ etapa_preparar() {
     rm -f /tmp/uv-install.sh
   fi
   command -v uv >/dev/null || fail "uv nao ficou disponivel no PATH."
+  install -d -m 0755 "$HELENA_BASE"
   uv python install "$PYTHON_VERSAO" >/dev/null 2>&1 || fail "falhou instalar o Python $PYTHON_VERSAO pelo uv."
+  chmod -R a+rX "$UV_PYTHON_INSTALL_DIR" "$HELENA_BASE" 2>/dev/null || true
   id "$HELENA_USUARIO" >/dev/null 2>&1 || useradd --system --home-dir "$HELENA_VAR" --shell /usr/sbin/nologin "$HELENA_USUARIO" \
     || fail "falhou criar o usuario $HELENA_USUARIO."
   install -d -m 0755 "$HELENA_BASE"
@@ -53,6 +57,7 @@ etapa_preparar() {
 etapa_codigo() {
   # Repositorio publico: clona sem token. Privado: pede o token de leitura (HELENA_REPO_TOKEN ou digitado).
   askpass=""
+  git config --global --get-all safe.directory 2>/dev/null | grep -qx "$REPO" || git config --global --add safe.directory "$REPO"
   if [ -z "${HELENA_REPO_TOKEN:-}" ] && ! GIT_TERMINAL_PROMPT=0 git ls-remote -q "$HELENA_REPO_URL" HEAD >/dev/null 2>&1; then
     [ -r /dev/tty ] || fail "repositorio privado e sem terminal para pedir o token. Defina HELENA_REPO_TOKEN."
     read -rs -p "Token de LEITURA do GitHub para o repositorio (nao aparece na tela): " HELENA_REPO_TOKEN </dev/tty \
@@ -81,7 +86,7 @@ etapa_codigo() {
 
 etapa_motor_venv() {
   [ -f "$REPO/motor/orquestrador/requirements.txt" ] || fail "codigo ausente: rode a etapa codigo."
-  uv venv --quiet --python "$PYTHON_VERSAO" "$VENV_MOTOR" || fail "falhou criar o venv do motor."
+  uv venv --quiet --clear --python "$PYTHON_VERSAO" "$VENV_MOTOR" || fail "falhou criar o venv do motor."
   uv pip install --quiet --python "$VENV_MOTOR/bin/python" -r "$REPO/motor/orquestrador/requirements.txt" \
     || fail "falhou instalar as dependencias do motor."
   "$VENV_MOTOR/bin/python" -c 'import dbos, psycopg, yaml, jsonschema' || fail "dependencias do motor nao importam."
@@ -91,7 +96,7 @@ etapa_motor_venv() {
 
 etapa_hermes_venv() {
   [ -f "$REPO/motor/executor/requirements-hermes-real.txt" ] || fail "codigo ausente: rode a etapa codigo."
-  uv venv --quiet --python "$PYTHON_VERSAO" "$VENV_HERMES" || fail "falhou criar o venv do Hermes 0.19.0."
+  uv venv --quiet --clear --python "$PYTHON_VERSAO" "$VENV_HERMES" || fail "falhou criar o venv do Hermes 0.19.0."
   uv pip install --quiet --python "$VENV_HERMES/bin/python" -r "$REPO/motor/executor/requirements-hermes-real.txt" \
     || fail "falhou instalar o hermes-agent 0.19.0."
   "$VENV_HERMES/bin/hermes" --version 2>/dev/null | grep -q "v0.19.0" || fail "o Hermes do motor nao e a 0.19.0."
