@@ -56,6 +56,17 @@ it('exige confirmação explícita de prazo, critério, risco, restrições e fo
   expect((solicitacao.dadosReais.captura as { tarefa: { tarefa: string } }).tarefa.tarefa).toBe('Pedido de teste obtido da tarefa.');
 });
 
+it('recusa datas calendáricas impossíveis sem alterar o prazo digitado', () => {
+  const preparacao = lerPreparacaoCardReal(JSON.stringify(arquivoDeTeste()));
+  const agora = Date.parse('2026-10-17T00:00:00Z');
+  const base = { prazo: '2028-02-29T12:00:00-03:00', criterios: [{ texto: 'Entrega verificável em teste', quem_confere: 'IA' as const, risco: 'BAIXO' as const }],
+    restricoes: '', semRestricoes: true, fontes: '', semFontes: true, conferido: true };
+  expect(validarRevisaoPedidoReal(preparacao, base, agora)).toEqual([]);
+  for (const prazo of ['2027-02-30T12:00:00-03:00', '2027-04-31T12:00:00-03:00', '2027-01-01T24:00:00-03:00', '2027-02-29T12:00:00-03:00']) {
+    expect(validarRevisaoPedidoReal(preparacao, { ...base, prazo }, agora)).toContain('Informe prazo futuro em ISO 8601 no horário de Brasília (UTC−03:00), dentro de dez anos.');
+  }
+});
+
 it('aceita somente URL HTTPS pública sem credenciais, consulta ou fragmento', () => {
   expect(fonteHttpsPublica('https://www.gov.br/assunto')).toBe(true);
   for (const fonte of ['http://www.gov.br', 'https://localhost/arquivo', 'https://192.168.1.1/fato',

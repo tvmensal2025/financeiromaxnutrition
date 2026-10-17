@@ -106,11 +106,28 @@ function maximoDezAnos(agora: number): number {
   return data.getTime();
 }
 
+function prazoBrasiliaCalendarioValido(valor: string): boolean {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?-03:00$/.exec(valor);
+  if (!partes) return false;
+  const instante = Date.parse(valor);
+  if (!Number.isFinite(instante)) return false;
+  // Recompõe a data/hora escrita em UTC−03:00. Date.parse normaliza 30/02 e 24:00;
+  // comparar os campos impede que o navegador confirme uma data diferente da digitada.
+  const local = new Date(instante - 3 * 60 * 60 * 1000);
+  const [, ano, mes, dia, hora, minuto, segundo = '00', fracao = ''] = partes;
+  return local.getUTCFullYear() === Number(ano)
+    && local.getUTCMonth() + 1 === Number(mes)
+    && local.getUTCDate() === Number(dia)
+    && local.getUTCHours() === Number(hora)
+    && local.getUTCMinutes() === Number(minuto)
+    && local.getUTCSeconds() === Number(segundo)
+    && local.getUTCMilliseconds() === Number(fracao.padEnd(3, '0').slice(0, 3));
+}
+
 export function validarRevisaoPedidoReal(preparacao: PreparacaoCardReal, revisao: RevisaoPedidoReal, agora = Date.now()): string[] {
   const erros: string[] = [];
   if (!preparacao.pacoteConfirmado) erros.push('A identidade da empresa ainda não está confirmada. Atualize a origem e gere outra preparação.');
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?-03:00$/.test(revisao.prazo)
-      || !Number.isFinite(Date.parse(revisao.prazo)) || Date.parse(revisao.prazo) <= agora
+  if (!prazoBrasiliaCalendarioValido(revisao.prazo) || Date.parse(revisao.prazo) <= agora
       || Date.parse(revisao.prazo) > maximoDezAnos(agora)) {
     erros.push('Informe prazo futuro em ISO 8601 no horário de Brasília (UTC−03:00), dentro de dez anos.');
   }

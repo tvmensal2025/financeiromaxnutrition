@@ -30,6 +30,7 @@ class ResultadoBusca:
 
 class AdaptadorBusca:
     nome = "base"
+    acessa_internet = True
 
     def buscar(self, consulta: str, limite: int) -> List[ResultadoBusca]:
         raise NotImplementedError
@@ -37,6 +38,7 @@ class AdaptadorBusca:
 
 class AdaptadorDesligado(AdaptadorBusca):
     nome = "desligada"
+    acessa_internet = False
 
     def buscar(self, consulta: str, limite: int) -> List[ResultadoBusca]:
         raise ErroFerramenta(

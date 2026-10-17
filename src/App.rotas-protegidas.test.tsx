@@ -74,7 +74,7 @@ const entrar = (id: string, acesso: { role: string; active: boolean; user_id?: s
   sb.acesso = { data: acesso && { user_id: id, ...acesso }, error: null };
 };
 const abrir = (caminho: string) => { window.history.replaceState({}, '', caminho); return render(<App />); };
-const conteudoV2 = () => [screen.queryByText('Cards em andamento'), screen.queryByText('Configuração e revisões'),
+const conteudoV2 = () => [screen.queryByRole('heading', { name: 'Quadro de cards' }), screen.queryByText('Configuração e revisões'),
   screen.queryByTestId('layout')].filter(Boolean);
 
 beforeEach(() => {
@@ -139,7 +139,7 @@ describe('retorno do login (destino vindo da URL)', () => {
     const origem = window.location.origin;
     entrar('membro-1', { role: 'member', active: true });
     abrir(`/login?redirect=${encodeURIComponent(externo)}`);
-    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Quadro de cards' })).toBeInTheDocument();
     expect(window.location.origin).toBe(origem);
     expect(window.location.pathname).toBe('/');
   });
@@ -225,7 +225,7 @@ describe('membro autorizado nas rotas da v2', () => {
   it('controle positivo: a raiz é a tela dos cards; o membro a vê sem as áreas exclusivas do fundador', async () => {
     entrar('membro-1', { role: 'member', active: true });
     abrir('/');
-    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Quadro de cards' })).toBeInTheDocument();
     expect(await screen.findByText('Nenhum card disponível.')).toBeInTheDocument();
     expect(screen.getByTestId('layout')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
@@ -239,10 +239,15 @@ describe('membro autorizado nas rotas da v2', () => {
 describe('endereços antigos e rotas da v1', () => {
   it('/cards-v2 redireciona para a raiz preservando a busca', async () => {
     entrar('membro-1', { role: 'member', active: true });
-    abrir('/cards-v2?card=abc&aba=etapas');
-    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+    const id = '11111111-1111-4111-8111-111111111111';
+    const repo = repoCards();
+    repo.listar.mockResolvedValue([{ id, titulo: 'Card visível', empresa: null, estado: 'EM_ANDAMENTO',
+      dono: 'Helena', prazo: '2026-10-20', criado_em: '2026-10-17T12:00:00Z' }]);
+    runtime.cards.mockResolvedValue(repo);
+    abrir(`/cards-v2?card=${id}&aba=etapas`);
+    expect(await screen.findByRole('heading', { name: 'Quadro de cards' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
-    expect(window.location.search).toBe('?card=abc&aba=etapas');
+    expect(window.location.search).toBe(`?card=${id}&aba=etapas`);
   });
 
   it('/configuracoes-v2 redireciona para /configuracoes', async () => {
@@ -256,7 +261,7 @@ describe('endereços antigos e rotas da v1', () => {
     'a rota da v1 %s não existe mais: cai na raiz, que é a tela dos cards', async caminho => {
       entrar('membro-1', { role: 'member', active: true });
       abrir(caminho);
-      expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Quadro de cards' })).toBeInTheDocument();
       expect(window.location.pathname).toBe('/');
     });
 });

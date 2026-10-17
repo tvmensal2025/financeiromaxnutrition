@@ -5,7 +5,9 @@ import type { AtivacaoConfig, ConfigDetail, ConfigRevision, RepositorioConfigV2 
 import ConfiguracoesV2Page from './ConfiguracoesV2Page';
 
 const auth = vi.hoisted(() => ({ isFounder: false, userId: 'fundador-a' }));
+const runtime = vi.hoisted(() => ({ abrir: vi.fn() }));
 vi.mock('@/auth', () => ({ useAuth: () => ({ isFounder: auth.isFounder, user: { id: auth.userId } }) }));
+vi.mock('@/integrations/config-v2/runtime', () => ({ repositorioConfigV2DoApp: runtime.abrir }));
 
 const base: ConfigDetail = {
   id: 'uuid-a', nome: 'Configuração existente', versao: 3, estado: 'RASCUNHO', ativa: false, tecnica: false,
@@ -26,7 +28,7 @@ function repositorio(revisao: ConfigDetail = base): RepositorioConfigV2 {
 }
 function mostrar(repo: RepositorioConfigV2) { return render(<MemoryRouter><ConfiguracoesV2Page repositorio={repo}/></MemoryRouter>); }
 
-beforeEach(() => { auth.isFounder = false; auth.userId = 'fundador-a'; });
+beforeEach(() => { auth.isFounder = false; auth.userId = 'fundador-a'; runtime.abrir.mockReset(); });
 afterEach(() => { vi.restoreAllMocks(); });
 
 it('não consulta nem mostra o editor para quem não é fundador', () => {
@@ -45,6 +47,31 @@ it('mostra ausência real de revisões sem inventar conteúdo', async () => {
   expect(await screen.findByText('Nenhuma configuração cadastrada')).toBeTruthy();
   expect(screen.getByLabelText('Importar configuração existente em JSON')).toBeTruthy();
   expect(screen.queryByText('Configuração existente')).toBeNull();
+});
+
+it('permite tentar abrir a configuração novamente após falha inicial da conexão', async () => {
+  auth.isFounder = true;
+  const repo = repositorio();
+  runtime.abrir.mockRejectedValueOnce(new Error('Falha local de conexão')).mockResolvedValueOnce(repo);
+  render(<MemoryRouter><ConfiguracoesV2Page /></MemoryRouter>);
+  expect(await screen.findByText('Falha local de conexão')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar conectar novamente' }));
+  expect(await screen.findByRole('button', { name: /Configuração existente/ })).toBeTruthy();
+  expect(runtime.abrir).toHaveBeenCalledTimes(2);
+});
+
+it('reabre o repositório depois de trocar a identidade do fundador', async () => {
+  auth.isFounder = true;
+  const primeira = repositorio({ ...base, nome: 'Revisão da conta A' });
+  const segunda = repositorio({ ...base, id: 'uuid-b', nome: 'Revisão da conta B' });
+  runtime.abrir.mockResolvedValueOnce(primeira).mockResolvedValueOnce(segunda);
+  const tela = render(<MemoryRouter><ConfiguracoesV2Page /></MemoryRouter>);
+  expect(await screen.findByRole('button', { name: /Revisão da conta A/ })).toBeTruthy();
+  auth.userId = 'fundador-b';
+  tela.rerender(<MemoryRouter><ConfiguracoesV2Page /></MemoryRouter>);
+  expect(await screen.findByRole('button', { name: /Revisão da conta B/ })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /Revisão da conta A/ })).toBeNull();
+  expect(runtime.abrir).toHaveBeenCalledTimes(2);
 });
 
 it('edita campos do rascunho e salva com UUID e versão esperada', async () => {

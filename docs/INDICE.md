@@ -30,7 +30,11 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/manual/agentes-v1.md` | Agentes do Sistema Helena — contrato operacional | 06/10/2026 |
 | `docs/manual/comando-mestre.txt` | COMANDO MESTRE — CARREGAR, VALIDAR E AUDITAR O SISTEMA HELENA | 30/09/2026 |
 | `docs/manual/como-mudar.md` | Como mudar o Sistema Helena sem quebrar | 14/10/2026 |
-| `docs/manual/dia-de-prova.md` | Dia de prova da v2 — roteiro ainda não executado (espera a frase exata do fundador) | 14/10/2026 |
+| `docs/manual/onde-estamos.md` | Ponto único de retomada do Sistema Helena v2 | 17/10/2026 |
+| `docs/manual/entrada-unificada.md` | Contrato do fluxo comum e estado da recepção local | 17/10/2026 |
+| `docs/manual/briefing-para-chatgpt.md` | Briefing datado para outro assistente | 17/10/2026 |
+| `docs/manual/como-a-fabrica-funciona.md` | Fluxo da fábrica v2 e limites relatados | 17/10/2026 |
+| `docs/manual/dia-de-prova.md` | Dia de prova da v2 — roteiro ainda não executado | 14/10/2026 |
 | `docs/manual/dia-de-prova-evidencias.csv` | Planilha de evidências do dia de prova (sem token, sem dado pessoal) | 14/10/2026 |
 | `docs/manual/proximos-passos-do-primeiro-card.md` | Próximos passos do primeiro card — em detalhe | 13/10/2026 |
 | `docs/manual/design-premium.md` | 🎨 Guia de Design Premium | 30/09/2026 |
@@ -64,6 +68,9 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/auditoria/ATAQUES-2026-10-11.md` | Ataques independentes de 11/10/2026 (resultado parcial) | 11/10/2026 |
 | `docs/auditoria/AUDITORIA-2026-09-26.md` | Helena-HUB — validação inicial do Sistema Helena | 26/09/2026 |
 | `docs/auditoria/AUDITORIA-2026-10-10.md` | Auditoria — 10/10/2026 | 10/10/2026 |
+| `docs/auditoria/AUDITORIA-2026-10-17.md` | Auditoria local da v2, correções e limites | 17/10/2026 |
+| `docs/auditoria/HERMES-AUTH-2026-10-17.md` | Diagnóstico offline da renovação do Hermes 0.19.0 | 17/10/2026 |
+| `docs/auditoria/repro-hermes-auth-2026-10-17.py` | Reprodução offline com credenciais sintéticas | 17/10/2026 |
 
 ## Dados lidos pelo código (não mover)
 

@@ -62,6 +62,44 @@ def _vigia(respostas, canais, **kw):
     return Vigia(lambda: ConexaoDeMentira(respostas), canais, **kw)
 
 
+def test_metricas_contam_tokens_da_coordenacao_autor_e_revisor():
+    class Cursor:
+        def __init__(self, linhas):
+            self.linhas = linhas
+
+        def fetchall(self):
+            return self.linhas
+
+        def fetchone(self):
+            return self.linhas[0]
+
+    class Banco:
+        def __init__(self):
+            self.leituras = []
+
+        def execute(self, consulta, args=()):
+            if 'SELECT tipo, estado, count(*)' in consulta:
+                return Cursor([])
+            if 'SELECT avg(extract' in consulta:
+                return Cursor([(None,)])
+            if 'SELECT motivo, count(*)' in consulta or 'SELECT estado, count(*)' in consulta:
+                return Cursor([])
+            if 'SELECT numero, tipo FROM helena_v2.execucao' in consulta:
+                return Cursor([(1, 'HELENA'), (2, 'AUTOR'), (3, 'REVISOR')])
+            self.leituras.append((consulta, args[0]))
+            if 'ler_resposta_coordenacao' in consulta:
+                return Cursor([{'r': {'evidencias': {'uso': {'tokens_total': 30}}}}])
+            uso = ({'uso': {'tokens_total': 10}} if args[0] == 2
+                   else {'evidencias': {'uso': {'tokens_total': 20}}})
+            return Cursor([{'r': uso}])
+
+    banco = Banco()
+    metricas = coletar_metricas(banco)
+    assert metricas['tokens_nas_ultimas_24h'] == 60
+    assert metricas['execucoes_com_uso_registrado'] == 3
+    assert banco.leituras[0][0] == 'SELECT helena_v2.ler_resposta_coordenacao(%s) AS r'
+
+
 UM_PROBLEMA = {'helena_v2.vigia()': [('13', 'aaaaaaaa-0000-4000-8000-000000000001', 'campo formato diferente')]}
 
 

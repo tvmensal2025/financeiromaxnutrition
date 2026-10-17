@@ -138,17 +138,19 @@ jobs:
         run: |
           set -euo pipefail
           # Segredos vao num arquivo 0600 pela entrada do SSH (nunca na linha de comando) e sao apagados antes de rodar.
+          ambiente_local="$(mktemp "${RUNNER_TEMP:-/tmp}/helena-vps-ambiente.XXXXXX")"
+          trap 'rm -f "$ambiente_local"' EXIT
           {
             printf 'export HELENA_REPO_URL=%q HELENA_REF=%q HELENA_REPO_TOKEN=local\n' /root/helena-src HEAD
             [ -n "${HELENA_SENHA_MOTOR:-}" ] && printf 'export HELENA_SENHA_MOTOR=%q\n' "$HELENA_SENHA_MOTOR"
             [ -n "${HELENA_SENHA_DBOS:-}" ]  && printf 'export HELENA_SENHA_DBOS=%q\n'  "$HELENA_SENHA_DBOS"
             [ -n "${HELENA_DB_HOST:-}" ]     && printf 'export HELENA_DB_HOST=%q\n'     "$HELENA_DB_HOST"
             true
-          } > /tmp/ambiente.sh
-          $SSH_CMD "root@$VPS_HOST" 'umask 077; cat > /root/.helena-ambiente.sh' < /tmp/ambiente.sh
-          rm -f /tmp/ambiente.sh
+          } > "$ambiente_local"
+          $SSH_CMD "root@$VPS_HOST" 'umask 077; cat > /root/.helena-ambiente.sh' < "$ambiente_local"
+          rm -f "$ambiente_local"
           # -tt: terminal remoto para a etapa login (o Hermes le o codigo do /dev/tty e mostra o link aqui no registro).
-          $SSH_CMD -tt "root@$VPS_HOST" 'set -a; . /root/.helena-ambiente.sh; set +a; rm -f /root/.helena-ambiente.sh; bash /root/instalar-motor.sh '"$ETAPA"'; echo "SAIDA=$?"; exit' | sed -E 's#(postgresql://[^:]+:)[^@]+@#\1<senha>@#g'
+          $SSH_CMD -tt "root@$VPS_HOST" 'set -a; . /root/.helena-ambiente.sh; set +a; rm -f /root/.helena-ambiente.sh; bash /root/instalar-motor.sh '"$ETAPA"'; resultado=$?; echo "SAIDA=$resultado"; exit "$resultado"' | sed -E 's#(postgresql://[^:]+:)[^@]+@#\1<senha>@#g'
 
       - name: Estado final dos serviços
         if: always() && env.SSH_CMD != ''

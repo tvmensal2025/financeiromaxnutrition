@@ -1,19 +1,21 @@
 # BRIEFING PARA O CHATGPT — Sistema Helena v2 (17/10/2026)
 
+> **Retomada:** comece por [`docs/manual/onde-estamos.md`](onde-estamos.md), que tem a próxima ação e separa estado local de relatos históricos de produção. Este briefing é contexto datado; instruções atuais do fundador prevalecem.
+
 ## 0. Como você (ChatGPT) deve trabalhar comigo
 - Responda sempre em português do Brasil, em linguagem simples. Eu sou o fundador e não sou técnico.
-- Dê UM comando por vez para eu colar no terminal e peça só as últimas linhas da resposta.
-- NUNCA peça nem aceite que eu cole senha, token, chave ou código de login no chat. Se eu colar por engano, mande eu revogar na hora.
+- Execute autonomamente os comandos locais que forem necessários e autorizados nesta sessão. Peça ao fundador apenas ações que dependam dele ou autorização para efeitos remotos; não solicite que cole comandos locais que o Codex possa executar.
+- Nunca peça nem aceite que eu cole senha, token, chave ou código de login no chat. Se houver compartilhamento acidental, não repita o valor e registre a pendência para o encerramento dos ajustes, conforme a instrução do fundador.
 - Antes de qualquer mudança no banco, no servidor ou na publicação, mostre o que muda e espere o meu "sim".
 - Diga a verdade: separe sempre FEITO / PARCIAL / NÃO FEITO / NÃO CONFIRMADO. Conectado não é funcionando.
-- Você não acessa a minha VPS nem o Supabase por conta própria. Quem roda os comandos sou eu.
+- Não presuma acesso atual à VPS ou ao Supabase. O fundador autorizou os ajustes do sistema nesta sessão; não peça novamente a mesma autorização. Confira conexão, contexto vigente e alvo antes de agir. Nunca peça valores de credenciais nem sua cópia no chat. Abas autenticadas não ficam automaticamente disponíveis ao executor de nuvem.
 
 ## 1. O que é o projeto
 Uma empresa operada por agentes de IA. Eu faço um pedido, o pedido vira um CARD, agentes especialistas fazem o trabalho em etapas, outro agente revisa, e o resultado volta ao card. Atende 4 empresas: iGreen, Ecossistema de Saúde, Humano Digital e eLiving™ (escrita sempre assim; slogan "Onde sua evolução ganha direção."; inteligência pessoal de evolução, nunca app fitness comum nem contador de calorias; pilares Sirlene/Nutrição, Doutor Vital/Saúde, Alex/Movimento, Rafael/Hábitos).
 Princípio: o BANCO manda, o MOTOR executa, o AGENTE só escreve conteúdo. Agente nunca age fora do sistema; qualquer ação externa (enviar, publicar, contatar, pagar) só com o meu OK.
 
 ## 2. Onde está cada coisa (sem segredos)
-- Código: GitHub `tvmensal2025/financeiromaxnutrition`. Branch de trabalho `claude/fervent-pasteur-g821nu`. O `main` tem quase tudo; o pedido de merge #18 leva as últimas 4 mudanças.
+- Código: GitHub `tvmensal2025/financeiromaxnutrition`. Branches, PR e estado de merge devem ser conferidos no checkout/fonte atual; não assumir que este retrato histórico descreve o estado remoto.
 - Banco: Supabase projeto `ecosistemadossonhos`, ref `wxkgrykduqtsgmjkzlou` (o único válido; o `imvfmjgmacrulhztrqlh` é histórico). Esquema da v2: `helena_v2` (33 tabelas, 115 funções) e `dbos_helena_v2` (13 tabelas do DBOS).
 - Site (app v2): React/Vite na pasta `src/`, só login, cards e `/configuracoes`. Vai ser publicado no Lovable a partir do `main`. Precisa de `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (chave pública) nas variáveis do Lovable.
 - VPS (Hostinger, Ubuntu): IP 72.60.159.48. Tem também o EasyPanel (v1, desligada em grande parte).
@@ -34,51 +36,45 @@ Helena (coordenação, leitura de volta, relatório final), Laura (prática de c
 Só 5 serviços em ESTÁGIO: coordenação/relatório final (Helena), cálculo (Caio), parecer (Clara), texto pronto e roteiro de treinamento (Isabela). Os outros 17 são RASCUNHO (não recebem card). Só 8 agentes têm ficha completa. Nenhum serviço está publicado. Único roteiro pronto: `recrutar-10-pessoas` (5 etapas: Caio, Isabela, Isabela, Clara, Helena). Modelo: `gpt-6-sol` (coordenação `gpt-6.1-sol`), provedor `openai-codex`.
 O "post rápido" já está previsto: serviço Texto pronto (Isabela escreve, Clara julga, eu sou o segundo revisor), só para Humano Digital e eLiving™.
 
-## 5. Estado real hoje (FEITO / NÃO FEITO)
-FEITO e verificado:
+## 5. Relato de estado registrado em 17/10/2026 (FEITO / NÃO FEITO)
+Relatado como FEITO e conferido no contexto de 17/10:
 - Esquema `helena_v2` instalado no Supabase real; API exposta; auditoria somente leitura confere com o repositório (33 tabelas, 115 funções, contas do motor, DBOS com 13 tabelas).
 - Contas `helena_motor` e `dbos_motor` criadas, com senhas definidas por mim; conexões da VPS OK com TLS verificado (usa a CA raiz do Supabase com impressão digital fixa).
-- Configuração: a revisão técnica `2a37fb92…` está VALIDADA e ATIVA. Existe um rascunho clonado `c953847f…` sem pedido de validação. Nenhum card existe ainda.
+- O HANDOFF relata a revisão técnica como ativada em 17/10; a auditoria do mesmo dia também diz que não havia revisão ativa. Tratar como divergência documental, não como estado atual.
 - Motor instalado na VPS; vigia, relógio e despachante ATIVOS (despachante ocioso, sem cards).
 - Hermes 0.19.0 do motor respondeu `ok` pelo ChatGPT real, chamado direto no terminal (custo incluído no plano; ~10,7 mil tokens de entrada por pergunta mínima).
-- Site v2 no `main`, com testes (171 do app, 480 do gateway) e CI verde.
+- Testes e CI relatados naquele contexto. Para a revisão local `d0d8e1e`, a evidência registrada é 171 testes do app, 7 testes do motor, TypeScript e build; conferir o resultado consolidado da revisão atual em `docs/manual/onde-estamos.md`.
 NÃO FEITO / NÃO COMPROVADO:
-- Nenhum card real rodou de ponta a ponta. NÃO CONFIRMADO se o perfil isolado de cada execução enxerga o login do ChatGPT (o código não copia o `auth.json`): o primeiro card real pode falhar por login.
+- Nenhum card real rodou de ponta a ponta nesta sessão. O defeito de renovação do Hermes 0.19.0 recebeu patch local com hashes e 17 testes offline, sem implantação; ver `docs/auditoria/HERMES-AUTH-2026-10-17.md`. Login no motor real e 48 horas continuam sem homologação.
 - Site ainda não publicado no Lovable.
-- Entrada em texto livre ("faça um post") NÃO existe. Hoje o site só cria card a partir de um arquivo de preparação de uma tarefa já cadastrada, e gerar esse arquivo exige um token de leitura do Supabase na minha máquina.
+- Recebimento de texto livre, recibo, histórico e Kanban foram implementados e testados localmente; a migration 0021 ainda não foi aplicada. A triagem automática e a conversão confirmada para card continuam pendentes. Correções locais não equivalem à publicação ou aplicação no Supabase real.
 - Telegram → v2 NÃO existe (o bot atual é o Hermes 0.15.1, que só conversa).
-- Em modo real, Cálculo e Parecer registram "faltam dados" sem chamar agente; o roteiro de recrutamento depende dos dois.
+- Em modo real, Cálculo exige insumos rastreáveis; Parecer monta peças aprovadas com autoria e versão, mas permanece bloqueado sem tabela de leis publicada e rastreável. A captura atual não a fornece; o roteiro de recrutamento depende desse serviço.
 - O revisor só aprova ou trava: não devolve ao autor (o motor não emite REPROVAR). Não há contador de cota. Alarmes só em arquivo local. Não existe destino real de publicação nem execução de ações externas. Busca na internet desligada.
-- Cota de 20 tarefas/dia e login estável por 48 h: NÃO COMPROVADOS (dia de prova ainda não executado). Eu já dei a frase de autorização do dia de prova: "AUTORIZO O DIA DE PROVA DA V2 COM HERMES REAL E CHATGPT".
+- Cota de 20 tarefas/dia e login estável por 48 h: NÃO COMPROVADOS (dia de prova ainda não executado). A autorização do fundador não significa que o teste ocorreu.
 
-## 6. Segurança — pendente (fazer antes de qualquer outra coisa)
-1. O repositório está PÚBLICO temporariamente e o HISTÓRICO tem 4 segredos reais (chave `service_role` do Supabase, chave da Evolution API, tokens `helena_*` do MCP/Meowcaller/gateway, chave do Kokoro TTS). Ordem: (a) tornar o repositório PRIVADO agora; (b) trocar as 4 chaves e atualizar quem as usa na v1; (c) depois reescrever o histórico (git filter-repo) e apagar branches antigas. O Lovable lê repositório privado.
-2. Chave SSH `github-actions-helena` e senha root da VPS passaram pelo chat: remover a chave de `/root/.ssh/authorized_keys` e trocar a senha (`passwd`).
-3. Um token do GitHub foi colado no chat: revogar.
-4. Tabela temporária `public.helena_v2_instalacao_pedacos` ainda no banco (vazia, efetivamente fechada): apagar pelo SQL Editor.
-5. Marcar `helena_v2` em Exposed schemas no painel do Supabase e depois `alter role authenticator reset pgrst.db_schemas`; ligar a proteção contra senha vazada no Auth.
-6. Chaves `service_role` e token `sbp_` colados em 14/10: rotação NÃO CONFIRMADA.
-7. Hermes antigo do EasyPanel: serviço parado (0/1). Há backup de 1,2 GB em `/root/backup-hermes-easypanel` (contém login antigo; nunca vai para chat nem GitHub). Falta conferir o backup e apagar o serviço no EasyPanel.
+## 6. Segurança — pendências registradas (tratar no encerramento dos ajustes)
+1. A verificação do GitHub em 17/10 registrou o repositório público e o PR #18 aberto. O estado posterior não foi revalidado. O fundador pediu deixar revogação e rotação para o encerramento dos ajustes; manter a pendência explícita e não executar agora.
+2–3. O histórico menciona chave SSH, senha root e token GitHub expostos anteriormente. O estado atual não foi revalidado; revogação e rotação ficam para o encerramento dos ajustes, conforme instrução atual do fundador.
+4–5. Tabela temporária, exposição do esquema e proteção contra senha vazada são pendências documentadas em 17/10. Estado atual não confirmado; conferir antes de aplicar os ajustes autorizados.
+6. Outras credenciais mencionadas em 14/10: estado atual e rotação não confirmados; tratar no encerramento dos ajustes.
+7. O relato de 17/10 menciona serviço Hermes antigo parado e backup pendente de conferência. Estado atual não confirmado; identificar a instalação e comprovar backup recuperável antes de remover.
 
 ## 7. PONTO FINAL — como saberemos que terminou (critérios de pronto)
 O sistema está "pronto" quando TODOS estes itens estiverem verdadeiros e registrados no HANDOFF:
-A. Segurança fechada: repositório privado, as 4 chaves do histórico trocadas, credenciais da VPS trocadas, token revogado, tabela temporária apagada, schemas expostos alinhados.
+A–G são critérios de aceite, não afirmações de conclusão. Os estados e a próxima ação estão no ponto único de retomada.
+A. Segurança fechada: critério ainda pendente, incluindo revogação e rotação, que devem ficar para o encerramento dos ajustes conforme instrução atual.
 B. Site publicado no Lovable, eu entro como fundador em `/login` e vejo `/configuracoes` com a revisão ativa.
 C. Primeiro card real de ponta a ponta com o Hermes real DENTRO do motor: card criado, etapas executadas, revisor aprovou, card PRONTO, resultado visível no site. Medir o consumo real de tokens.
-D. Entrada em texto livre no site: eu escrevo "faça um post…" e o card nasce pela função oficial (exige migration nova `0020` no banco, só com o meu sim).
+D. Entrada em texto livre no site: recebimento preparado na migration 0021 e interface local; ainda falta implantar, interpretar e converter o pedido confirmado para card.
 E. Telegram → v2: eu falo no Telegram com um bot só e o pedido vira card (o Hermes 0.15.1 deixa só de ouvir o Telegram).
 F. Dia de prova registrado com PASSOU / FALHOU / NÃO COMPROVADO: cota (20 tarefas no mesmo dia) e login (48 h com tarefas paralelas), com evidências em `docs/manual/dia-de-prova-evidencias.csv`.
-G. Documentação sincronizada: `main` = branch, HANDOFF atualizado, pedido de merge #18 juntado.
+G. Documentação sincronizada: critério pendente; conferir merge no main por evidência datada, sem assumir estado do PR.
 FORA do "final" (decisões futuras minhas): destino real de "publicar", outros roteiros além do recrutamento, as 13 fichas de agentes faltantes, busca na internet, desligar a central da v1 (DEC-028, só com a minha frase exata).
 
-## 8. Próximos passos, nesta ordem
-1. Segurança (item 6.1 a 6.3) — comigo, no GitHub, na VPS e no Supabase.
-2. Juntar o pedido #18 e publicar no Lovable (com as 2 variáveis).
-3. Resolver o risco do login do Hermes dentro do motor e rodar o primeiro card real simples (que não dependa de Cálculo nem Parecer).
-4. Construir a entrada em texto livre (código e testes locais primeiro; o banco real só com o meu sim).
-5. Construir a ponte do Telegram.
-6. Reabrir o revisor (devolver ao autor) e criar o contador de cota.
-7. Dia de prova completo e fechamento no HANDOFF.
+## 8. Próximo passo
+
+Terminar as verificações locais, obter conexão segura e carregar o checkpoint vigente; depois aplicar e testar os ajustes autorizados, com um primeiro card delimitado. A ordem e os estados A–G estão em [`docs/manual/onde-estamos.md`](onde-estamos.md). Não reativar a v1 como requisito do dia de prova. Revogação e rotação continuam pendentes para o encerramento, conforme a instrução mais recente do fundador.
 
 ## 9. Regras do projeto que você deve respeitar
 - A v1 está parada (DEC-032): `src/` é só a v2; o código da v1 fica em `docs/arquivo/app-v1/` só para consulta. `services/`, `scripts/` e `supabase/migrations/` são da v1 e só mudam com a minha frase exata (DEC-028).

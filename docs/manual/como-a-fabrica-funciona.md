@@ -1,10 +1,12 @@
 # Como a fábrica da Helena v2 funciona (17/10/2026)
 
-Documento para o fundador. Escrito a partir da leitura da especificação (`helena-v2/`), do banco (`supabase/migrations-v2/`), do motor (`motor/`) e do app (`src/`), com o estado real da VPS e do Supabase de 17/10/2026. Onde não deu para confirmar, está escrito **NÃO CONFIRMADO**. Precedência do projeto: o estado real do Supabase e da produção vence qualquer texto daqui.
+Documento para o fundador, baseado em código e em relatos de VPS/Supabase registrados em 17/10/2026. É uma fotografia datada, não consulta atual de produção; onde não há confirmação, leia **NÃO CONFIRMADO**. Para retomar, estados e próxima ação estão em [`onde-estamos.md`](onde-estamos.md).
 
 ## 1. A ideia em uma frase
 
 Você faz um pedido, o pedido vira um **card**, especialistas (agentes de IA) fazem o trabalho em **etapas**, um **revisor** confere, e o resultado volta ao card. **O banco manda, o motor executa, o agente só escreve conteúdo.** O agente nunca age fora do sistema: ele sugere, e quem decide ações externas é você.
+
+Atualização local de 17/10: Kanban e recebimento de texto livre com recibo e histórico estão preparados. A migration 0021 registra triagem sem executar trabalho. Interpretação, conversão para card e pareamento Telegram/Codex ainda faltam; nenhuma destas mudanças foi implantada. Confira o estado consolidado em [onde estamos](onde-estamos.md).
 
 ## 2. As cinco peças e onde cada uma mora
 
@@ -22,7 +24,7 @@ Existe ainda, **fora desta fábrica**, o Hermes 0.15.1 do Telegram (em `/root/.h
 
 São **identidades** guardadas na configuração, não programas separados. Quando uma etapa precisa do Caio, o motor chama o Hermes com a ficha do Caio, e o ChatGPT responde como ele. Todos usam o mesmo Hermes e o mesmo login, **um agente por vez**. Não existe hierarquia "reporta a": você manda em todos, a Helena é dona de todo card mas **não move card** (quem move é o motor).
 
-Estados de serviço: **ESTÁGIO** recebe card real, com você como revisor extra. **RASCUNHO** não recebe card. Hoje **nenhum serviço está publicado** e a v2 ainda não rodou um card real.
+Estados de serviço descritos na fotografia de 17/10: **ESTÁGIO** recebe card real, com você como revisor extra. **RASCUNHO** não recebe card. O documento registra que nenhum serviço estava publicado e a v2 não havia rodado card real; isso não confirma o estado atual.
 
 | Agente | Função | Serviço (estado) | Quem revisa / reserva |
 |---|---|---|---|
@@ -98,20 +100,20 @@ Só você: empresa, prioridade e prazo de cada card; o OK de qualquer ação ext
 
 ## 8. Segurança e limites de custo
 
-- O consumo vem do arquivo de uso do Hermes. Teste real de 17/10: uma pergunta mínima custou cerca de 10,7 mil tokens de entrada, com custo "incluído" no plano.
+- O arquivo de uso do Hermes registra consumo de chamadas. A chamada mínima direta relatada em 17/10 custou cerca de 10,7 mil tokens de entrada; medição reconciliada por tarefa, incluindo autor, revisor e coordenação, ainda NÃO COMPROVADA.
 - Falha de cota (HTTP 402/429) não gasta tentativa: avisa em 1 hora e, em 6 horas, você escolhe esperar ou cancelar.
 - Tetos por etapa: 6 execuções no total, 1 refação de formato, 1 de tempo, 2 voltas por reprovação, 3 falhas de infraestrutura seguidas chamam você.
 
-## 9. O que existe e o que NÃO existe
+## 9. Relato de estado registrado em 17/10/2026
 
 | Peça | Estado em 17/10/2026 |
 |---|---|
-| Banco v2, contas do motor, configuração ativa | **Funcionando** (revisão técnica `2a37fb92…` ativa) |
-| Motor na VPS (3 serviços) | **Funcionando** |
-| Hermes 0.19.0 + ChatGPT real | **Funcionando** (teste direto: respondeu `ok`) |
-| Site no `main` | Pronto; falta publicar no Lovable |
+| Banco v2, contas do motor, configuração ativa | A revisão técnica foi relatada como ativada; outra linha da auditoria de 17/10 diz que não havia revisão ativa. Divergência sem resolução documental. |
+| Motor na VPS (3 serviços) | Atualização de 17/10 relata os três ativos; estado atual NÃO CONFIRMADO. |
+| Hermes 0.19.0 + ChatGPT real | Chamada direta mínima respondeu `ok` em teste relatado em 17/10; não prova execução dentro de um card. |
+| Site no `main` | Código descrito como pronto naquele contexto; publicação e acesso atual no Lovable NÃO CONFIRMADOS. |
 | Telegram falando com a v2 | **Não existe** (nenhum código do motor fala com Telegram ou WhatsApp) |
-| Pedido em texto livre ("faça um post") | **Não existe**: exige migration nova no banco, função nova e ajuste no motor |
+| Pedido em texto livre (faça um post) | Não existe ainda; exige implementação de entrada, função e ajuste no motor. A migration para essa entrada será definida ao implementar. |
 | Primeiro card real de ponta a ponta | **Não rodou** |
 | Publicar/enviar de verdade (ação externa) | **Não existe** destino real; o código do motor também não emite as ações externas |
 | Busca na internet | Desligada |
@@ -129,16 +131,16 @@ Só você: empresa, prioridade e prazo de cada card; o OK de qualquer ação ext
 
 ## 11. O que existe para um "post rápido"
 
-A especificação já prevê o serviço de **Texto pronto** (Isabela escreve, Clara julga, você é o segundo revisor), só para Humano Digital e eLiving™. O código monta sozinho um plano fixo de 2 etapas. Falta a **porta de entrada** (texto livre) e confirmar que o app oferece esse serviço.
+A especificação prevê o serviço Texto pronto (Isabela escreve, Clara julga, fundador é segundo revisor), mas isso não garante um primeiro card viável. A auditoria identificou dependência de Parecer e falta de insumos no caminho real; serviço e dados necessários precisam ser definidos sem contornar as regras.
 
 ## 12. Ordem proposta para construir o que falta
 
-1. Rodar o **primeiro card real** com um serviço que não dependa de Cálculo nem de Parecer, para resolver o risco do login (item 1 da seção 10).
-2. **Entrada em texto livre** no site (migration `0020` com tabela e função novas, só com o seu sim; ajuste no motor para o novo modo de card).
+1. Definir um serviço e insumos reais que passem pelas regras e validadores; o candidato de primeiro card ainda não está definido. Depois comprovar um card real sem contornar Parecer ou outro requisito.
+2. **Entrada em texto livre** no site, depois da auditoria e aprovação do desenho. Definir a migration adequada ao implementar; não reservar número antecipadamente.
 3. **Telegram → v2**, usando a mesma função de pedido.
 4. Reabrir o revisor (`REPROVAR`) e o contador de cota.
 5. Destino real de publicação, definido por você.
 
 ## 13. Pendências de segurança e limpeza (registradas no HANDOFF)
 
-Repositório público com 4 segredos reais no histórico (trocar as chaves e tornar privado); chave SSH e senha root da VPS que passaram pelo chat; token do GitHub colado no chat; tabela temporária de instalação ainda no banco; backup do Hermes antigo do EasyPanel feito na VPS, falta conferir e apagar o serviço antigo.
+O HANDOFF registra pendências de segurança observadas em 17/10. A situação atual não foi revalidada. Revogação e rotação ficam para o encerramento dos ajustes, conforme instrução do fundador; consulte onde-estamos.md.

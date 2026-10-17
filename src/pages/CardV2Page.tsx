@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, ArrowRight, CheckCircle2, Clock3, FileText, Loader2, RotateCcw } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock3, FileText, Loader2, RotateCcw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth';
+import { KanbanV2 } from '@/components/cards-v2/KanbanV2';
 import { estadoDoPedido } from '@/integrations/cards-v2/repository';
 import type { CardV2, DetalheCardV2, PedidoPublicacao, RepositorioCardsV2, ResumoOrdemCardV2, SituacaoPublicacao } from '@/integrations/cards-v2/repository';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
+import { EntradaPedidosV2 } from './EntradaPedidosV2';
 import { SolicitarCardReal } from './SolicitarCardReal';
 import { AcoesFundadorV2 } from './AcoesFundadorV2';
 import { PerguntaFundadorV2 } from './PerguntaFundadorV2';
@@ -14,6 +17,7 @@ import { limparToquesDaIdentidade } from '@/integrations/cards-v2/toque-pendente
 type PageProps = { repositorio?: RepositorioCardsV2 };
 type Estado<T> = { carregando: boolean; dado: T | null; erro: string | null };
 const inicio = <T,>(): Estado<T> => ({ carregando: true, dado: null, erro: null });
+const uuidValido = (valor: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(valor);
 
 function dataBrasilia(valor: string | null): string {
   if (!valor) return 'Sem prazo';
@@ -134,6 +138,10 @@ export default function CardV2Page({ repositorio }: PageProps) {
 
 function ConteudoCardV2({ repositorio }: PageProps) {
   const { isFounder, user } = useAuth();
+  const [busca, setBusca] = useSearchParams();
+  const cardNaUrl = busca.get('card');
+  const temCardNaUrl = busca.has('card');
+  const cardUnicoNaUrl = busca.getAll('card').length === 1;
   const [repo, setRepo] = useState<RepositorioCardsV2 | null>(repositorio ?? null);
   const [erroInicial, setErroInicial] = useState<string | null>(null);
   const [tentativaConexao, setTentativaConexao] = useState(0);
@@ -141,6 +149,7 @@ function ConteudoCardV2({ repositorio }: PageProps) {
   const [detalhe, setDetalhe] = useState<Estado<DetalheCardV2>>(inicio);
   const [idDoDetalhe, setIdDoDetalhe] = useState<string | null>(null);
   const [cardId, setCardId] = useState<string | null>(null);
+  const [erroSelecao, setErroSelecao] = useState<string | null>(null);
   const [tentativaLista, setTentativaLista] = useState(0);
   const [tentativaDetalhe, setTentativaDetalhe] = useState(0);
   const [publicacao, setPublicacao] = useState<Estado<SituacaoPublicacao>>(inicio);
@@ -166,6 +175,26 @@ function ConteudoCardV2({ repositorio }: PageProps) {
       .catch(() => { if (ativo) setLista({ carregando: false, dado: null, erro: 'Não foi possível carregar os cards.' }); });
     return () => { ativo = false; };
   }, [repo, tentativaLista]);
+
+  useEffect(() => {
+    if (lista.carregando || !lista.dado) return;
+    if (temCardNaUrl) {
+      const encontrado = cardUnicoNaUrl && cardNaUrl && uuidValido(cardNaUrl.toLowerCase())
+        ? lista.dado.find(card => card.id.toLowerCase() === cardNaUrl.toLowerCase()) : null;
+      if (encontrado) {
+        setCardId(encontrado.id);
+        setErroSelecao(null);
+      } else {
+        setCardId(null);
+        setErroSelecao('O card indicado na URL não está disponível para esta conta. Escolha um card do quadro.');
+        const proxima = new URLSearchParams(busca);
+        proxima.delete('card');
+        setBusca(proxima, { replace: true });
+      }
+    } else {
+      setCardId(atual => atual && uuidValido(atual.toLowerCase()) ? null : atual);
+    }
+  }, [cardNaUrl, cardUnicoNaUrl, temCardNaUrl, lista.carregando, lista.dado, busca, setBusca]);
 
   useEffect(() => {
     if (!repo || !cardId) return;
@@ -203,6 +232,8 @@ function ConteudoCardV2({ repositorio }: PageProps) {
   const selecionado = lista.dado?.find(c => c.id === cardId);
   const detalheVisivel = idDoDetalhe === cardId ? detalhe.dado : null;
   const ordemVisivel = resumoDaOrdem(detalheVisivel?.ordem);
+  const etapasPendentes = detalheVisivel?.etapas.filter(etapa => etapa.estado === 'ESPERANDO_FUNDADOR') ?? [];
+  const acoesPendentes = detalheVisivel?.acoes?.filter(acao => ['PROPOSTA', 'INCERTA'].includes(acao.estado)) ?? [];
   function atualizarCards() {
     setTentativaLista(n => n + 1);
     if (cardId) {
@@ -223,14 +254,19 @@ function ConteudoCardV2({ repositorio }: PageProps) {
   function escolherCard(id: string) {
     setIdDoDetalhe(null);
     setDetalhe(inicio());
+    setErroSelecao(null);
     if (id === cardId) setTentativaDetalhe(n => n + 1);
     else setCardId(id);
+    const proxima = new URLSearchParams(busca);
+    if (uuidValido(id.toLowerCase())) proxima.set('card', id);
+    else proxima.delete('card');
+    if (proxima.toString() !== busca.toString()) setBusca(proxima);
   }
   return <div className="he-v2-card-page mx-auto max-w-7xl space-y-8 px-4 py-7 sm:px-8">
     <header className="border-b border-border pb-6">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Sistema Helena / operação v2</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Cards em andamento</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Acompanhe etapas, responsáveis e entregas aprovadas. Os dados vêm do estado atual do card.</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">Quadro de cards</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Acompanhe pedidos, esperas, etapas e entregas aprovadas. As colunas refletem o estado atual de cada card no banco.</p>
     </header>
 
     {isFounder && <section aria-label="Publicação" className="border-l-2 border-emerald-700 bg-muted/30 px-5 py-4">
@@ -249,11 +285,12 @@ function ConteudoCardV2({ repositorio }: PageProps) {
       </button>}
     </section>}
 
+    {isFounder && user?.id && <EntradaPedidosV2 identidade={user.id} />}
     {isFounder && <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />}
 
-    <div className="grid gap-8 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.6fr)]">
-      <section aria-label="Lista de cards" className="space-y-3">
-        <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cards</h2>
+    <div className="space-y-8">
+      <section aria-label="Cards" className="space-y-3">
+        <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Kanban</h2>
           <button type="button" onClick={atualizarCards} className="min-h-11 text-sm font-semibold text-emerald-800 underline dark:text-emerald-400">Atualizar cards</button></div>
         {(erroInicial || lista.erro) && <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">
           <AlertCircle className="mb-2 h-4 w-4" />{erroInicial || lista.erro}
@@ -262,13 +299,8 @@ function ConteudoCardV2({ repositorio }: PageProps) {
         </div>}
         {lista.carregando && !erroInicial && <p className="animate-pulse border-b border-border py-5 text-sm text-muted-foreground">Carregando cards…</p>}
         {!lista.carregando && lista.dado?.length === 0 && <p className="border-t border-border py-6 text-sm text-muted-foreground">Nenhum card disponível.</p>}
-        <div className="divide-y divide-border border-y border-border">
-          {lista.dado?.map(card => <button key={card.id} type="button" onClick={() => escolherCard(card.id)} aria-current={cardId === card.id ? 'true' : undefined}
-            className="min-h-11 group flex w-full items-center justify-between gap-3 px-2 py-4 text-left transition hover:bg-muted/50 active:scale-[0.99]">
-            <span className="min-w-0"><strong className="block truncate text-sm">{card.titulo}</strong><span className="mt-1 block text-xs text-muted-foreground">{card.estado.replace(/_/g, ' ')} · {card.dono || 'Dono não informado'}</span></span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-          </button>)}
-        </div>
+        {erroSelecao && <p role="alert" className="text-sm text-destructive">{erroSelecao}</p>}
+        {lista.dado && lista.dado.length > 0 && <KanbanV2 cards={lista.dado} selecionado={cardId} onSelecionar={escolherCard} formatarPrazo={dataBrasilia} />}
       </section>
 
       <section aria-label="Detalhes do card" className="min-w-0 space-y-5">
@@ -278,6 +310,11 @@ function ConteudoCardV2({ repositorio }: PageProps) {
             <h2 className="mt-2 text-xl font-semibold">{selecionado?.titulo || 'Card'}</h2>
             {selecionado && <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground"><span>Dono: {selecionado.dono || 'Não informado'}</span><span>Prazo: {dataBrasilia(selecionado.prazo)}</span></p>}
           </header>
+          {(etapasPendentes.length > 0 || acoesPendentes.length > 0) && <section aria-label="Decisões pendentes do fundador" className="rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+            <h3 className="font-semibold">Sua decisão é necessária neste card</h3>
+            {etapasPendentes.map(etapa => <p key={etapa.id} className="mt-2">Etapa {etapa.codigo}: ESPERANDO_FUNDADOR{etapa.motivo ? ` · motivo ${etapa.motivo}` : ''}</p>)}
+            {acoesPendentes.map(acao => <p key={acao.id} className="mt-2">Ação externa {acao.codigo}: {acao.estado}</p>)}
+          </section>}
           {selecionado && (ordemVisivel.pedido || ordemVisivel.criterios.length > 0 || ordemVisivel.restricoes.length > 0 || ordemVisivel.fontes.length > 0) && <section aria-label="Pedido confirmado do card" className="rounded-lg border border-border bg-muted/20 p-4 text-sm">
             <h3 className="font-semibold">Pedido registrado</h3>
             {ordemVisivel.pedido && <p className="mt-2 whitespace-pre-wrap break-words">{ordemVisivel.pedido}</p>}

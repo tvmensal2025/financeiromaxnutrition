@@ -70,7 +70,8 @@ class Servidor:
         self.copias = Copias(params.diretorio, relogio)
         self.contador = Contador(params.max_total, params.max_buscas, params.max_partes,
                                  params.insistencias_para_encerrar)
-        self.leitor = Leitor(params, cliente or ClienteHttp(params), self.copias)
+        self.leitor = Leitor(params, cliente or ClienteHttp(params), self.copias,
+                            ao_tentar_rede=self._marcar_internet)
         self.adaptador = adaptador or ADAPTADORES["desligada"]()
         self.usou_internet = False
         self.listou_ferramentas = False   # o cliente chegou a pedir a lista (o motor confere isto)
@@ -184,7 +185,6 @@ class Servidor:
             self.registro.registrar(nome, argumentos, "nao_liberada", mensagem, codigo="ferramenta_nao_liberada")
             raise _ErroRpc(-32602, mensagem)
 
-        self.usou_internet = True  # as duas ferramentas existentes vão à internet
         try:
             leitura_texto, extra = self._executar(nome, argumentos)
         except ErroFerramenta as erro:
@@ -204,6 +204,9 @@ class Servidor:
         """A lista da ficha é por extenso: só passa o que está escrito nela."""
         return nome in self.params.ferramentas
 
+    def _marcar_internet(self) -> None:
+        self.usou_internet = True
+
     def _executar(self, nome: str, argumentos: dict):
         if nome == "ler_pagina":
             if set(argumentos) - {"url", "parte"} or "url" not in argumentos:
@@ -215,6 +218,8 @@ class Servidor:
             if set(argumentos) - {"consulta"}:
                 raise ErroFerramenta("argumentos_invalidos", "buscar aceita só consulta.")
             consulta = validar_consulta(argumentos.get("consulta"))
+            if self.adaptador.acessa_internet:
+                self._marcar_internet()
             resultados = self.adaptador.buscar(consulta, MAXIMO_DE_RESULTADOS)
             texto, mostrados, descartados = formatar_resultados(
                 consulta, resultados, self.leitor.endereco_aceito)

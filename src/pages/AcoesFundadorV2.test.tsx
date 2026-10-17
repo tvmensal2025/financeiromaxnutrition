@@ -121,6 +121,30 @@ it('após recarga mostra resultado e momento do histórico sem reenviar ação j
   expect(aplicar).not.toHaveBeenCalled();
 });
 
+it('só libera descartar toque inválido após histórico do mesmo alvo e releitura do card', async () => {
+  const toque = '12345678-1234-1234-1234-123456789abc';
+  const chave = 'helena-v2-toque:fundador-local:card:card-local';
+  sessionStorage.setItem(chave, JSON.stringify({ cardId: 'card-local', toque, impressao: 'corrompida' }));
+  const aplicar = vi.fn();
+  const consultar = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ historico_id: 4, resultado: 'APLICADO', momento: '2026-10-13T12:00:00Z', maquina: 'card', alvo_id: 'card-local', evento: 'APROVAR' });
+  const reler = vi.fn().mockResolvedValue(undefined);
+  render(<AcoesFundadorV2 alvo={alvo} identidade="fundador-local" cardId="card-local" repositorio={{
+    aplicarEventoFundador: aplicar, consultarToqueFundador: consultar,
+  } as unknown as RepositorioCardsV2} onAtualizar={reler} />);
+  expect(screen.getByRole('button', { name: 'Decisão bloqueada' })).toHaveProperty('disabled', true);
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar toque anterior no banco' }));
+  expect(await screen.findByText(/O banco não confirmou este toque/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Descartar pendência local confirmada' })).toBeNull();
+  expect(sessionStorage.getItem(chave)).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Consultar toque anterior no banco' }));
+  expect(await screen.findByRole('button', { name: 'Descartar pendência local confirmada' })).toBeTruthy();
+  expect(reler).toHaveBeenCalledTimes(1);
+  expect(sessionStorage.getItem(chave)).not.toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Descartar pendência local confirmada' }));
+  expect(sessionStorage.getItem(chave)).toBeNull();
+  expect(aplicar).not.toHaveBeenCalled();
+});
+
 it('bloqueia envio quando o navegador não consegue guardar o identificador para retry', async () => {
   vi.stubGlobal('crypto', webcrypto);
   vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Armazenamento indisponível'); });
