@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
+  amostraDe, cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
   mensagemFalha, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca,
 } from './derivar-cards';
 import { AGORA, card, etapa, montarDados, pedido } from './derivar-cards.fixtures';
@@ -98,4 +98,13 @@ it('combina leituras: erro vence carregando e nunca vira pronta', () => {
   expect(combinarLeituras(estado, ['cards']).estado).toBe('carregando');
   expect(combinarLeituras(estado, ['entregas']).estado).toBe('pronta');
   expect(mensagemFalha(['os cards', 'as etapas'])).toContain('os cards e as etapas');
+});
+
+it('amostra: cada aba olha só as fontes que usa; sem corte por fonte vale a amostra global', () => {
+  const base = montarDados();
+  const soPedidos = { ...base, amostra: false, amostras: { cards: false, etapas: false, entregas: false, pedidos: true } };
+  expect(amostraDe(soPedidos, ['cards', 'etapas'])).toBe(false);
+  expect(amostraDe(soPedidos, ['cards', 'pedidos'])).toBe(true);
+  expect(amostraDe({ ...base, amostra: true }, ['cards'])).toBe(true);
+  expect(amostraDe({ ...base, amostra: false }, ['pedidos'])).toBe(false);
 });

@@ -144,3 +144,8 @@ it('erro nas etapas aparece dentro do painel, sem virar "sem etapas"', () => {
   expect(within(painel).getByText('Não foi possível ler as entregas')).toBeTruthy();
   expect(within(painel).queryByText(/ainda não tem etapas/)).toBeNull();
 });
+
+it('corte só nos pedidos não faz a aba de cards avisar "amostra"', () => {
+  montar(montarDados({ amostra: false, amostras: { cards: false, etapas: false, entregas: false, pedidos: true } }), 'BIZ-005');
+  expect(screen.queryByText(/só uma amostra/)).toBeNull();
+});

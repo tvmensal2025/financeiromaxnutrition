@@ -13,6 +13,7 @@ import { ExecutiveLoadingState } from '@/components/executive/ExecutiveLoadingSt
 import { ExecutiveMetricCard } from '@/components/executive/ExecutiveMetricCard';
 import { entregasPorSemana, estadoCombinado, execucoesPorEtapa, nomeEmpresa } from '@/integrations/comando-v2/derivar-execucao';
 import type { EstadoLeitura, PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const EIXO = { fontSize: 11, fill: 'hsl(var(--muted-foreground))' };
 const DICA = { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, color: 'hsl(var(--foreground))', fontSize: 12 };
@@ -77,7 +78,7 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
   // Entrega aprovada depende também das etapas (etapa aprovada, entrega fresca, versão atual).
   const fonteEntregas = empresa === 'GRUPO' ? estadoCombinado(estado.entregas, estado.etapas) : estadoCombinado(estado.entregas, estado.etapas, estado.cards);
   const fonteEtapas = empresa === 'GRUPO' ? estado.etapas : estadoCombinado(estado.etapas, estado.cards);
-  const amostra = dados.amostra ? ' (amostra recente)' : '';
+  const amostra = amostraDe(dados, ['entregas', 'etapas']) ? ' (amostra recente)' : '';
 
   return (
     <div className="space-y-5" data-aba="consumo">
@@ -89,7 +90,7 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
         </p>
       </header>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['entregas', 'etapas']) && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Amostra: a leitura foi cortada por limite. Os números valem para o que foi lido, não para o banco inteiro.
         </p>

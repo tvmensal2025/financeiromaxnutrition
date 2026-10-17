@@ -14,10 +14,11 @@ import ProcessoCompacto from '@/components/comando-v2/ProcessoCompacto';
 import GraficosComando from '@/components/comando-v2/GraficosComando';
 import LinhaDoTempo from '@/components/comando-v2/LinhaDoTempo';
 import EntregasPorEmpresa from '@/components/comando-v2/EntregasPorEmpresa';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export default function VisaoGeralAba({ dados, empresa, abrirCard }: PropsAba) {
   return <div className="min-w-0 space-y-4" data-testid="visao-geral-aba">
-    <AvisoAmostra amostra={dados.amostra} />
+    <AvisoAmostra amostra={amostraDe(dados, ['cards'])} />
     <BoasVindas dados={dados} empresa={empresa} />
     <KpisComando dados={dados} empresa={empresa} />
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

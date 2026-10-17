@@ -54,7 +54,9 @@ function aplicar<K extends Chave>(
     const cortes = { ...anterior.cortes };
     if (resultado?.itens !== undefined) (dados as Record<string, unknown>)[chave] = resultado.itens;
     if (resultado && chave !== 'catalogo') cortes[chave as keyof Cortes] = resultado.corte === true;
-    dados.amostra = Object.values(cortes).some(Boolean);
+    // Pedidos têm limite próprio (50) e só marcam `amostras.pedidos`: não fazem as abas de cards avisarem "amostra".
+    dados.amostra = cortes.cards || cortes.etapas || cortes.entregas;
+    dados.amostras = { ...cortes };
     return { ...anterior, dados, cortes };
   };
 }

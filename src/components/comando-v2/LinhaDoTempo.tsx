@@ -13,6 +13,7 @@ import { entregasAprovadas } from '@/integrations/comando-v2/supervisao-v2';
 import { combinarLeituras } from '@/integrations/comando-v2/derivar-cards';
 import { ESTILO_TOOLTIP, recortarPorEmpresa, serieDiaria, TIQUE_EIXO } from '@/integrations/comando-v2/derivar-visao-geral';
 import type { DadosComando } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export const DIAS_LINHA_DO_TEMPO = 14;
 type Campo = 'cards' | 'pedidos' | 'entregas';
@@ -48,7 +49,7 @@ function Corpo({ dados, empresa }: PropsVisao) {
     {faltando.length > 0 && <p role="status" className="mb-2 text-xs text-warning">
       Não foi possível ler: {faltando.map(f => f.nome.toLowerCase()).join(', ')}. Essa linha não aparece (não é zero).
     </p>}
-    {dados.amostra && <p className="mb-2 text-xs text-muted-foreground">Amostra, não o total: dias mais antigos podem estar incompletos.</p>}
+    {amostraDe(dados, ['cards', 'pedidos', 'entregas']) && <p className="mb-2 text-xs text-muted-foreground">Amostra, não o total: dias mais antigos podem estar incompletos.</p>}
   </>;
   if (total === 0) {
     return <>{aviso}<ExecutiveEmptyState title="Nada nos últimos 14 dias"

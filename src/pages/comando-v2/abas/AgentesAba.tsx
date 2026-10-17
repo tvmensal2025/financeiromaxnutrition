@@ -14,6 +14,7 @@ import {
   cargaPorAgente, chaveAgente, mesmaIdentidade, nomeDaEmpresa, rotuloEstadoConfig, situacaoDasLeituras,
 } from '@/integrations/comando-v2/supervisao-v2';
 import type { AgenteComando, PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const CHIP = 'inline-flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 const normaliza = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -80,7 +81,7 @@ export default function AgentesAba({ dados, empresa }: PropsAba) {
         <p className="text-xs text-muted-foreground">
           Carga: etapas abertas em que o agente é autor e revisões pendentes (etapa em revisão com o agente entre os revisores)
           {empresa !== 'GRUPO' ? `, só de ${nomeDaEmpresa(dados, empresa)}` : ''}.
-          {dados.amostra ? ' Amostra: a leitura foi cortada por limite, a carga pode ser maior.' : ''}
+          {amostraDe(dados, ['etapas', 'cards']) ? ' Amostra: a leitura foi cortada por limite, a carga pode ser maior.' : ''}
         </p>
       )}
 

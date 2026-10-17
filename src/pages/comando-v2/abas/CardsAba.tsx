@@ -17,6 +17,7 @@ import {
   cardsDaEmpresa, combinarLeituras, contarPorFiltro, EMPRESA_GRUPO, etapasDoCard, filtrarCards, mensagemFalha, nomeEmpresa,
   type FiltroCards, type OrdemCards,
 } from '@/integrations/comando-v2/derivar-cards';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const PASSO = 25;
 const FILTROS: { id: FiltroCards; rotulo: string }[] = [
@@ -60,7 +61,7 @@ export default function CardsAba({ dados, empresa, abrirCard }: PropsAba) {
 
   return (
     <div className="min-w-0 space-y-4">
-      {dados.amostra && <AvisoAmostra />}
+      {amostraDe(dados, ['cards']) && <AvisoAmostra />}
 
       <div className="flex flex-col gap-3 md:flex-row md:items-end">
         <label className="relative block min-w-0 flex-1">
@@ -108,7 +109,7 @@ export default function CardsAba({ dados, empresa, abrirCard }: PropsAba) {
 
       <p className="text-xs text-muted-foreground" aria-live="polite">
         {filtrados.length} {filtrados.length === 1 ? 'card encontrado' : 'cards encontrados'}
-        {dados.amostra ? ' (na amostra lida)' : ''}.
+        {amostraDe(dados, ['cards']) ? ' (na amostra lida)' : ''}.
       </p>
 
       {daEmpresa.length === 0 && (

@@ -14,6 +14,7 @@ import { dataHoraSP, entregasAprovadas, nomeAgente, nomeEmpresa } from '@/integr
 import { copiarTexto, linhasDaEntrega, textoParaCopiar, type LinhaEntrega } from '@/integrations/comando-v2/linhas-da-entrega';
 import type { CardComando, CatalogoComando, DadosComando, EntregaResumo, EtapaComando } from '@/integrations/comando-v2/tipos';
 import type { DetalheCardV2 } from '@/integrations/cards-v2/repository';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 type Agrupar = 'empresa' | 'agente' | 'etapa' | 'nenhum';
 type Detalhe = { fase: 'carregando' } | { fase: 'pronto'; linhas: LinhaEntrega[] } | { fase: 'erro'; mensagem: string };
@@ -163,7 +164,7 @@ export function EntregaGaleria({ dados, empresa, abrirCard, carregarDetalhe }: P
         </div>
       </div>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['entregas', 'etapas']) && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Amostra: a leitura foi cortada por limite, então entregas mais antigas podem não aparecer.
         </p>

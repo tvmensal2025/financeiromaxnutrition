@@ -100,16 +100,18 @@ describe('useDadosComando', () => {
     expect(result.current.atualizadoEm).toBeNull();
   });
 
-  it('marca amostra quando qualquer leitura é cortada pelo limite, inclusive pedidos', async () => {
+  it('marca amostra quando cards, etapas ou entregas são cortados; pedidos só marcam o corte próprio', async () => {
     const corte = montar({ cards: async () => ({ itens: [card('c1')], amostra: true }) });
     const a = renderHook(() => corte.useHook());
     await waitFor(() => expect(a.result.current.carregando).toBe(false));
     expect(a.result.current.dados.amostra).toBe(true);
+    expect(a.result.current.dados.amostras).toEqual({ cards: true, etapas: false, entregas: false, pedidos: false });
 
     const pedidosCortados = montar({ pedidosLimite: 1 });
     const b = renderHook(() => pedidosCortados.useHook());
     await waitFor(() => expect(b.result.current.carregando).toBe(false));
-    expect(b.result.current.dados.amostra).toBe(true);
+    expect(b.result.current.dados.amostra).toBe(false);
+    expect(b.result.current.dados.amostras).toEqual({ cards: false, etapas: false, entregas: false, pedidos: true });
   });
 
   it('guarda a causa da falha de cada fonte e a limpa quando a fonte volta', async () => {

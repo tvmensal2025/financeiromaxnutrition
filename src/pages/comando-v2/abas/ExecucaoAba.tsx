@@ -11,6 +11,7 @@ import { BlocoExecucao } from '@/components/comando-v2/BlocoExecucao';
 import { ExecutiveMetricCard } from '@/components/executive/ExecutiveMetricCard';
 import { derivarExecucao, estadoCombinado, nomeEmpresa } from '@/integrations/comando-v2/derivar-execucao';
 import type { PropsAba } from '@/integrations/comando-v2/tipos';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export default function ExecucaoAba({ dados, empresa, abrirCard }: PropsAba) {
   const [agente, setAgente] = useState('');
@@ -23,7 +24,7 @@ export default function ExecucaoAba({ dados, empresa, abrirCard }: PropsAba) {
   const fonteFalhas = estadoCombinado(estado.cards, estado.etapas);
   const agentes = [...catalogo.agentes].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   const agenteExiste = agentes.some(a => a.identidade === agente);
-  const aviso = dados.amostra ? 'Leitura limitada a uma amostra recente: pode haver mais itens no banco.' : undefined;
+  const aviso = amostraDe(dados, ['cards', 'etapas', 'pedidos']) ? 'Leitura limitada a uma amostra recente: pode haver mais itens no banco.' : undefined;
   const notaPedidos = [
     agente ? 'Pedidos ainda não têm agente: o filtro de agente não muda este bloco.' : null,
     exec.pedidosSemEmpresa > 0 ? `${exec.pedidosSemEmpresa} ${exec.pedidosSemEmpresa === 1 ? 'pedido ainda sem empresa fica' : 'pedidos ainda sem empresa ficam'} fora do filtro de empresa.` : null,
@@ -54,7 +55,7 @@ export default function ExecucaoAba({ dados, empresa, abrirCard }: PropsAba) {
         </div>
       </header>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['cards', 'etapas', 'pedidos']) && (
         <p role="note" className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Amostra: a leitura foi cortada por limite. As contagens abaixo valem para o que foi lido, não para o banco inteiro.
         </p>

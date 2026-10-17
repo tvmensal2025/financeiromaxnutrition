@@ -10,6 +10,7 @@ import { ExecutiveErrorState } from '@/components/executive/ExecutiveErrorState'
 import { ExecutiveLoadingState } from '@/components/executive/ExecutiveLoadingState';
 import type { EstadoLeitura, PropsAba } from '@/integrations/comando-v2/tipos';
 import { cardsDaEmpresa, kpis } from '@/integrations/comando-v2/derivar-visao-geral';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export type PropsVisao = Pick<PropsAba, 'dados' | 'empresa'>;
 
@@ -44,7 +45,7 @@ export default function KpisComando({ dados, empresa }: PropsVisao) {
 function Quatro({ dados, empresa }: PropsVisao) {
   const cards = cardsDaEmpresa(dados.cards, empresa);
   const k = kpis(cards, dados.agora);
-  const nota = dados.amostra ? ' (amostra, não o total)' : '';
+  const nota = amostraDe(dados, ['cards']) ? ' (amostra, não o total)' : '';
   return <div className="grid grid-cols-1 gap-3 min-[460px]:grid-cols-2 lg:grid-cols-4">
     <ExecutiveMetricCard label="Cards abertos" value={k.abertos} icon={Layers}
       subtext={`Ainda não terminaram${nota}`} />

@@ -7,6 +7,7 @@ import { ArrowDown } from 'lucide-react';
 import { useAuth } from '@/auth';
 import { cardsDaEmpresa, fraseBoasVindas, ID_PRIORIDADES, kpis, nomeDeExibicao, saudacaoPorHora } from '@/integrations/comando-v2/derivar-visao-geral';
 import type { PropsVisao } from './KpisComando';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export default function BoasVindas({ dados, empresa }: PropsVisao) {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ export default function BoasVindas({ dados, empresa }: PropsVisao) {
       {saudacao}{nome ? `, ${nome}` : ''}.
     </h2>
     <p className="mt-1 text-sm text-muted-foreground">
-      {fraseBoasVindas(dados.estado.cards, k?.esperando ?? 0, k?.atrasados ?? 0, dados.amostra)}
+      {fraseBoasVindas(dados.estado.cards, k?.esperando ?? 0, k?.atrasados ?? 0, amostraDe(dados, ['cards']))}
     </p>
     {pronto && k && (k.esperando > 0 || k.atrasados > 0) && (
       <button type="button" onClick={irParaPrioridades}

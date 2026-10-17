@@ -238,6 +238,12 @@ export function ordenarEtapas(etapas: EtapaComando[], agora: Date): EtapaComando
 
 // ---------- leituras ----------
 
+export type FonteAmostra = 'cards' | 'etapas' | 'entregas' | 'pedidos';
+/** A leitura de ALGUMA das fontes que a aba usa foi cortada por limite? Sem corte por fonte, vale `dados.amostra`. */
+export function amostraDe(dados: Pick<DadosComando, 'amostra' | 'amostras'>, fontes: FonteAmostra[]): boolean {
+  return dados.amostras ? fontes.some(fonte => dados.amostras?.[fonte] === true) : dados.amostra;
+}
+
 export type FonteDados = keyof DadosComando['estado'];
 const NOME_FONTE: Record<FonteDados, string> = {
   cards: 'os cards', etapas: 'as etapas', entregas: 'as entregas', pedidos: 'os pedidos', catalogo: 'o catálogo de empresas',

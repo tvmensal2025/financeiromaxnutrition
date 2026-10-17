@@ -19,6 +19,7 @@ import {
   haQuanto, lerData, mensagemFalha, nomeEmpresa, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoDoCard, prazoRelativo,
   revisoresDaEtapa, rotuloEstadoCard, rotuloEstadoEtapa, rotuloMotivo, varianteEstado,
 } from '@/integrations/comando-v2/derivar-cards';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 type SubAba = 'execucoes' | 'decisoes';
 
@@ -208,7 +209,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
 
   return (
     <div className="min-w-0 space-y-4">
-      {dados.amostra && <AvisoAmostra />}
+      {amostraDe(dados, ['cards', 'etapas', 'pedidos']) && <AvisoAmostra />}
       <div role="tablist" aria-label="Acompanhamento" className="flex gap-2">
         {abas.map(aba => {
           const ativo = sub === aba.id;

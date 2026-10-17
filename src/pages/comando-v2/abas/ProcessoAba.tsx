@@ -14,6 +14,7 @@ import type { PropsAba } from '@/integrations/comando-v2/tipos';
 import {
   combinarLeituras, EMPRESA_GRUPO, ESTADOS_ETAPA_PROCESSO, etapasDaEmpresa, mensagemFalha, nomeEmpresa,
 } from '@/integrations/comando-v2/derivar-cards';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 const CICLO = [
   { titulo: 'Pedido', texto: 'Você escreve o que quer, do seu jeito.' },
@@ -61,7 +62,7 @@ export default function ProcessoAba({ dados, empresa, abrirCard }: PropsAba) {
     ) : (
       <>
         <p className="text-xs text-muted-foreground">
-          {noQuadro} {noQuadro === 1 ? 'etapa no quadro' : 'etapas no quadro'}{dados.amostra ? ' (na amostra lida)' : ''}. Toque em uma etapa para abrir o card.
+          {noQuadro} {noQuadro === 1 ? 'etapa no quadro' : 'etapas no quadro'}{amostraDe(dados, ['cards', 'etapas']) ? ' (na amostra lida)' : ''}. Toque em uma etapa para abrir o card.
         </p>
         <ProcessoBoard etapas={etapas} cards={dados.cards} catalogo={dados.catalogo} agora={dados.agora} onAbrirCard={abrirCard} />
       </>
@@ -70,7 +71,7 @@ export default function ProcessoAba({ dados, empresa, abrirCard }: PropsAba) {
 
   return (
     <div className="min-w-0 space-y-4">
-      {dados.amostra && <AvisoAmostra />}
+      {amostraDe(dados, ['cards', 'etapas']) && <AvisoAmostra />}
       {ciclo}
       {corpo}
     </div>

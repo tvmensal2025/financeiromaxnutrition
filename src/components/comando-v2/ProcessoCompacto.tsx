@@ -5,6 +5,7 @@
 import { Link } from 'react-router-dom';
 import { cardsDaEmpresa, contagemPorColuna } from '@/integrations/comando-v2/derivar-visao-geral';
 import { PorLeitura, type PropsVisao } from './KpisComando';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export default function ProcessoCompacto({ dados, empresa }: PropsVisao) {
   return <section aria-labelledby="processo-titulo" className="rounded-xl border border-border bg-card p-4 sm:p-5">
@@ -15,7 +16,7 @@ export default function ProcessoCompacto({ dados, empresa }: PropsVisao) {
         <ul className="grid grid-cols-2 gap-2">
           {contagemPorColuna(cardsDaEmpresa(dados.cards, empresa)).map(col => (
             <li key={col.id} className={col.id === 'encerrado' ? 'col-span-2' : ''}>
-              <Link to="/comando?aba=cards" aria-label={`${col.titulo}: ${col.quantidade} ${col.quantidade === 1 ? 'card' : 'cards'}${dados.amostra ? ' na amostra' : ''}. Abrir a aba Cards`}
+              <Link to="/comando?aba=cards" aria-label={`${col.titulo}: ${col.quantidade} ${col.quantidade === 1 ? 'card' : 'cards'}${amostraDe(dados, ['cards']) ? ' na amostra' : ''}. Abrir a aba Cards`}
                 className={`flex min-h-11 flex-col rounded-lg border p-3 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${col.id === 'fundador' && col.quantidade > 0 ? 'border-warning/50 bg-warning/10' : 'border-border bg-background/50'}`}>
                 <span className="break-words text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{col.titulo}</span>
                 <span className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{col.quantidade}</span>

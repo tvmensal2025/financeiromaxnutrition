@@ -6,12 +6,13 @@ import { ExecutiveEmptyState } from '@/components/executive/ExecutiveEmptyState'
 import { Building2 } from 'lucide-react';
 import { porEmpresa } from '@/integrations/comando-v2/derivar-visao-geral';
 import { PorLeitura, type PropsVisao } from './KpisComando';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 export default function EntregasPorEmpresa({ dados, empresa }: PropsVisao) {
   return <section aria-labelledby="entregas-empresa-titulo" className="rounded-xl border border-border bg-card p-4 sm:p-5">
     <h2 id="entregas-empresa-titulo" className="text-base font-semibold tracking-tight text-foreground">Entregas por empresa</h2>
     <p className="mt-0.5 text-xs text-muted-foreground">
-      Cards e entregas aprovadas (que passaram no primeiro portão) de cada empresa.{dados.amostra ? ' Amostra, não o total.' : ''}
+      Cards e entregas aprovadas (que passaram no primeiro portão) de cada empresa.{amostraDe(dados, ['cards', 'entregas']) ? ' Amostra, não o total.' : ''}
     </p>
     <div className="mt-4">
       <PorLeitura estados={[dados.estado.cards]} oQue="as empresas" linhas={2}>

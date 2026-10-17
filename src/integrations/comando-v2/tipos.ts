@@ -72,8 +72,14 @@ export type DadosComando = {
     pedidos: EstadoLeitura;
     catalogo: EstadoLeitura;
   };
-  /** true quando a leitura foi cortada por limite: a tela deve avisar "amostra". */
+  /**
+   * true quando a leitura de cards, etapas ou entregas foi cortada por limite: a tela deve avisar "amostra".
+   * Pedidos (limite próprio, 50) NÃO entram aqui; veja `amostras.pedidos`. Cada aba deve olhar só as fontes que usa
+   * (`amostraDe` em derivar-cards.ts); sem `amostras` (dados montados à mão), vale este campo.
+   */
   amostra: boolean;
+  /** Corte por fonte. Opcional: quem monta `DadosComando` à mão pode omitir. */
+  amostras?: Partial<Record<'cards' | 'etapas' | 'entregas' | 'pedidos', boolean>>;
   /** Causa da falha de cada fonte em erro (texto já pronto para o fundador ler, sem segredos). Opcional. */
   erros?: Partial<Record<keyof DadosComando['estado'], string>>;
 };

@@ -15,6 +15,7 @@ import {
 } from '@/integrations/comando-v2/supervisao-v2';
 import type { PropsAba } from '@/integrations/comando-v2/tipos';
 import type { ServicoCatalogo } from '@/integrations/operacao-v2/catalogo';
+import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
 /** Estados de serviço que recebem card real na v2 (helena-v2/servicos.yaml: recebem_card). */
 const RECEBEM_CARD = ['ESTAGIO', 'ATIVO'];
@@ -99,7 +100,7 @@ export default function CoberturaAba({ dados, empresa }: PropsAba) {
         <span>Cobertura da configuração, não prova de operação do motor, do Telegram ou da VPS.</span>
       </p>
 
-      {dados.amostra && (
+      {amostraDe(dados, ['cards', 'etapas', 'entregas']) && (
         <p role="note" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
           <span>Amostra: a leitura foi cortada por limite. O indicador de entrega pode estar incompleto.</span>
