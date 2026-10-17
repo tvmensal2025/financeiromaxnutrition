@@ -1,0 +1,97 @@
+# Opera a VPS da Helena v2 a partir do GitHub (a sessão de nuvem da Claude não alcança a VPS; os runners do GitHub alcançam).
+# Disparo manual. Leva o código deste checkout para a VPS por SCP (sem token do GitHub na VPS) e roda
+# motor/hermes-vps/instalar-motor.sh com a etapa escolhida. O login do ChatGPT (etapa login) mostra o link e o código
+# no registro desta execução: o fundador abre o link, entra e digita o código enquanto a etapa espera (até 15 min).
+#
+# Segredos do repositório (Settings → Secrets and variables → Actions):
+#   VPS_HOST            IP ou nome da VPS
+#   VPS_SSH_KEY         chave privada SSH do root (recomendado)  OU  VPS_PASSWORD  senha do root (sshpass)
+#   HELENA_SENHA_MOTOR  senha da conta helena_motor (a mesma definida no SQL Editor do Supabase)
+#   HELENA_SENHA_DBOS   senha da conta dbos_motor
+# Variável opcional: HELENA_DB_HOST (padrão aws-0-us-east-1.pooler.supabase.com). Nada disso aparece no registro.
+name: Helena VPS (motor)
+
+on:
+  workflow_dispatch:
+    inputs:
+      etapa:
+        description: "Etapa de instalar-motor.sh"
+        required: true
+        default: tudo
+        type: choice
+        options: [tudo, preparar, codigo, motor-venv, hermes-venv, login, banco, testar-banco, conferir, validar-config, servicos, ligar-motor, estado]
+
+concurrency:
+  group: helena-vps
+  cancel-in-progress: false
+
+jobs:
+  vps:
+    name: "VPS: ${{ inputs.etapa }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar acesso SSH (chave ou senha)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "$VPS_HOST" ] || { echo "::error::segredo VPS_HOST ausente"; exit 1; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -T 15 -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || { echo "::error::a VPS nao respondeu na porta 22"; exit 1; }
+          if [ -n "$VPS_SSH_KEY" ]; then
+            printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/vps; chmod 600 ~/.ssh/vps
+            echo "SSH_CMD=ssh -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
+            echo "SCP_CMD=scp -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
+          elif [ -n "$VPS_PASSWORD" ]; then
+            sudo apt-get install -y -qq sshpass >/dev/null
+            echo "SSH_CMD=sshpass -e ssh" >> "$GITHUB_ENV"
+            echo "SCP_CMD=sshpass -e scp" >> "$GITHUB_ENV"
+            echo "SSHPASS=$VPS_PASSWORD" >> "$GITHUB_ENV"
+            echo "::add-mask::$VPS_PASSWORD"
+          else
+            echo "::error::defina VPS_SSH_KEY (recomendado) ou VPS_PASSWORD"; exit 1
+          fi
+
+      - name: Enviar o código e o instalador para a VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          set -euo pipefail
+          git bundle create /tmp/helena.bundle HEAD >/dev/null
+          $SCP_CMD -q /tmp/helena.bundle motor/hermes-vps/instalar-motor.sh "root@$VPS_HOST:/root/"
+          $SSH_CMD "root@$VPS_HOST" 'set -e; rm -rf /root/helena-src; git clone -q /root/helena.bundle /root/helena-src; chmod 700 /root/instalar-motor.sh; echo "codigo na VPS: $(git -C /root/helena-src rev-parse --short HEAD)"'
+
+      - name: "Rodar: ${{ inputs.etapa }}"
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          HELENA_SENHA_MOTOR: ${{ secrets.HELENA_SENHA_MOTOR }}
+          HELENA_SENHA_DBOS: ${{ secrets.HELENA_SENHA_DBOS }}
+          HELENA_DB_HOST: ${{ vars.HELENA_DB_HOST }}
+          ETAPA: ${{ inputs.etapa }}
+        run: |
+          set -euo pipefail
+          # Segredos vao num arquivo 0600 pela entrada do SSH (nunca na linha de comando) e sao apagados antes de rodar.
+          {
+            printf 'export HELENA_REPO_URL=%q HELENA_REF=%q HELENA_REPO_TOKEN=local\n' /root/helena-src HEAD
+            [ -n "$HELENA_SENHA_MOTOR" ] && printf 'export HELENA_SENHA_MOTOR=%q\n' "$HELENA_SENHA_MOTOR"
+            [ -n "$HELENA_SENHA_DBOS" ]  && printf 'export HELENA_SENHA_DBOS=%q\n'  "$HELENA_SENHA_DBOS"
+            [ -n "$HELENA_DB_HOST" ]     && printf 'export HELENA_DB_HOST=%q\n'     "$HELENA_DB_HOST"
+            true
+          } > /tmp/ambiente.sh
+          $SSH_CMD "root@$VPS_HOST" 'umask 077; cat > /root/.helena-ambiente.sh' < /tmp/ambiente.sh
+          rm -f /tmp/ambiente.sh
+          # -tt: terminal remoto para a etapa login (o Hermes le o codigo do /dev/tty e mostra o link aqui no registro).
+          $SSH_CMD -tt "root@$VPS_HOST" 'set -a; . /root/.helena-ambiente.sh; set +a; rm -f /root/.helena-ambiente.sh; bash /root/instalar-motor.sh '"$ETAPA"'; echo "SAIDA=$?"; exit' | sed -E 's#(postgresql://[^:]+:)[^@]+@#\1<senha>@#g'
+
+      - name: Estado final dos serviços
+        if: always()
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: $SSH_CMD "root@$VPS_HOST" 'bash /root/instalar-motor.sh estado' || true
