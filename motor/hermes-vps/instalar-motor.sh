@@ -51,22 +51,27 @@ etapa_preparar() {
 # O repositório é PRIVADO: pede um token de leitura do GitHub (fine-grained, só Contents: read), usa-o uma vez pelo
 # GIT_ASKPASS e nao o grava em lugar nenhum (a URL do remoto fica limpa).
 etapa_codigo() {
-  if [ -z "${HELENA_REPO_TOKEN:-}" ]; then
-    [ -r /dev/tty ] || fail "sem terminal para pedir o token do GitHub. Defina HELENA_REPO_TOKEN."
+  # Repositorio publico: clona sem token. Privado: pede o token de leitura (HELENA_REPO_TOKEN ou digitado).
+  askpass=""
+  if [ -z "${HELENA_REPO_TOKEN:-}" ] && ! GIT_TERMINAL_PROMPT=0 git ls-remote -q "$HELENA_REPO_URL" HEAD >/dev/null 2>&1; then
+    [ -r /dev/tty ] || fail "repositorio privado e sem terminal para pedir o token. Defina HELENA_REPO_TOKEN."
     read -rs -p "Token de LEITURA do GitHub para o repositorio (nao aparece na tela): " HELENA_REPO_TOKEN </dev/tty \
       || fail "nao consegui ler o token."; echo
+    [ -n "$HELENA_REPO_TOKEN" ] || fail "token vazio."
   fi
-  [ -n "$HELENA_REPO_TOKEN" ] || fail "token vazio."
-  askpass="$(mktemp)"; chmod 700 "$askpass"
-  printf '#!/bin/sh\ncase "$1" in *sername*) echo x-access-token;; *) echo "$HELENA_REPO_TOKEN";; esac\n' > "$askpass"
-  export GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 HELENA_REPO_TOKEN
+  export GIT_TERMINAL_PROMPT=0
+  if [ -n "${HELENA_REPO_TOKEN:-}" ]; then
+    askpass="$(mktemp)"; chmod 700 "$askpass"
+    printf '#!/bin/sh\ncase "$1" in *sername*) echo x-access-token;; *) echo "$HELENA_REPO_TOKEN";; esac\n' > "$askpass"
+    export GIT_ASKPASS="$askpass" HELENA_REPO_TOKEN
+  fi
   if [ -d "$REPO/.git" ]; then
-    git -C "$REPO" fetch --quiet origin "$HELENA_REF" || { rm -f "$askpass"; fail "falhou atualizar o codigo (token, rede ou ramo $HELENA_REF)."; }
+    git -C "$REPO" fetch --quiet origin "$HELENA_REF" || { rm -f "$askpass"; fail "falhou atualizar o codigo (rede ou ramo $HELENA_REF)."; }
   else
     rm -rf "$REPO"
-    git clone --quiet --no-single-branch "$HELENA_REPO_URL" "$REPO" || { rm -f "$askpass"; fail "falhou clonar o repositorio (token ou rede)."; }
+    git clone --quiet --no-single-branch "$HELENA_REPO_URL" "$REPO" || { rm -f "$askpass"; fail "falhou clonar o repositorio (rede ou token)."; }
   fi
-  rm -f "$askpass"; unset GIT_ASKPASS HELENA_REPO_TOKEN
+  [ -n "$askpass" ] && rm -f "$askpass"; unset GIT_ASKPASS HELENA_REPO_TOKEN
   git -C "$REPO" checkout --quiet --detach "origin/$HELENA_REF" 2>/dev/null || git -C "$REPO" checkout --quiet --detach "$HELENA_REF" \
     || fail "ramo ou commit $HELENA_REF nao encontrado."
   grep -q "x-access-token\|@github.com" "$REPO/.git/config" && fail "a URL do remoto ficou com credencial; apague $REPO e repita."
