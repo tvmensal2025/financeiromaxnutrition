@@ -156,6 +156,7 @@ HELENA_V2_HERMES_HOME=$HERMES_HOME_V2
 HELENA_V2_EXECUCOES_DIR=$EXECUCOES
 PYTHONPATH=$PYTHONPATH_MOTOR
 PYTHONDONTWRITEBYTECODE=1
+SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 # HELENA_V2_EXECUTOR vazio = hermes (unico aprovado). HELENA_V2_ALARME_WEBHOOK_URL: opcional, canal de alarme do vigia.
 # SUPABASE_ACCESS_TOKEN: so para preparar-tarefa-real (captura pela API de gestao); o despachante nao precisa. NAO CONFIRMADO.
 EOF
@@ -168,6 +169,9 @@ EOF
 # Conecta como as duas contas com o PROPRIO codigo do motor: formato da URL, TLS verificado e preflight do papel.
 testar_banco() {
   [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
+  # O Python gerenciado pelo uv nao conhece a CA do sistema: sem isto a validacao recusa o TLS ("arquivo de CA indisponivel").
+  [ -r /etc/ssl/certs/ca-certificates.crt ] || { apt-get install -y ca-certificates >/dev/null 2>&1; update-ca-certificates >/dev/null 2>&1; }
+  grep -q '^SSL_CERT_FILE=' "$ENV_ARQ" || echo 'SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt' >> "$ENV_ARQ"
   como_helena env -i PATH="$PATH" HOME="$HELENA_VAR" bash -c "set -a; . '$ENV_ARQ'; set +a; exec '$VENV_MOTOR/bin/python' - <<'PY'
 import os, psycopg
 from psycopg.rows import dict_row
