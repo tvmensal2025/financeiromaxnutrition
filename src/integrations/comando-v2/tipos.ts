@@ -107,3 +107,21 @@ export const ABAS: { id: AbaId; rotulo: string; arquivo: string; visivel: boolea
 export const ESTADOS_ESPERA_FUNDADOR = ['ESPERANDO_FUNDADOR', 'ESPERANDO_CONFIRMACAO'] as const;
 /** Estados finais (o card já terminou). */
 export const ESTADOS_FINAIS = ['PRONTO', 'CANCELADO', 'ENCERRADO_COM_FALHA'] as const;
+
+/** O que o gancho de dados devolve. A implementação real fica em `useDadosComando.ts` (pedaço 2). */
+export type ResultadoDadosComando = {
+  dados: DadosComando;
+  carregando: boolean;
+  atualizadoEm: Date | null;
+  recarregar: () => void;
+};
+export type UsarDadosComando = () => ResultadoDadosComando;
+
+export function dadosVazios(agora: Date = new Date()): DadosComando {
+  return {
+    agora, cards: [], etapas: [], entregas: [], pedidos: [],
+    catalogo: { revisao: '', empresas: [], agentes: [], servicos: [] },
+    estado: { cards: 'carregando', etapas: 'carregando', entregas: 'carregando', pedidos: 'carregando', catalogo: 'carregando' },
+    amostra: false,
+  };
+}
