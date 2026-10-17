@@ -1,0 +1,99 @@
+# Caso BOM do SRV-ENGENHARIA (Theo, AGT-09) para o pedido ../pedido.yaml, variante TESTE-DE-IDS. SINTÉTICO.
+# De onde vem: escrito à mão a partir do pedido; a 'resposta' é a saída do Theo no formato de
+# schemas/acao.schema.json ($defs/saida_do_autor). O diff foi gerado com difflib e conferido com
+# 'git apply --check'. Passa nas checagens comuns e nas CHK-ENGENHARIA-* e na rubrica (RUB-ENGENHARIA-01 a 08).
+# Como mudar: se mudar o diff, mantenha os caminhos da tabela arquivos, o trecho da base igual a um
+# trecho da fonte do pedido e os comandos da tabela testes iguais aos do texto do PR; rode o validar.py.
+id: ENGENHARIA-BOA-03
+servico: SRV-ENGENHARIA
+pedido: ../pedido.yaml
+variante: TESTE-DE-IDS
+nota: 'Só arquivo novo (um teste que já passa): não há tabela base e o teste ''ja_passava'' é aceito porque nenhum código
+  de produção muda.'
+deve_passar_em:
+- CHK-COMUM-01
+- CHK-COMUM-02
+- CHK-COMUM-03
+- CHK-COMUM-04
+- CHK-COMUM-05
+- CHK-COMUM-06
+- CHK-COMUM-07
+- CHK-COMUM-08
+- CHK-COMUM-09
+- CHK-COMUM-10
+- CHK-ENGENHARIA-DIFF
+- CHK-ENGENHARIA-BASE
+- CHK-ENGENHARIA-ZONA
+- CHK-ENGENHARIA-MIGRATION
+- CHK-ENGENHARIA-SEGREDO
+- CHK-ENGENHARIA-TESTE
+- CHK-ENGENHARIA-MINIMA
+- CHK-ENGENHARIA-SEM-EXECUCAO
+- CHK-ENGENHARIA-PR
+- CHK-ENGENHARIA-PACOTE
+- RUB-ENGENHARIA-01
+- RUB-ENGENHARIA-02
+- RUB-ENGENHARIA-03
+- RUB-ENGENHARIA-04
+- RUB-ENGENHARIA-05
+- RUB-ENGENHARIA-06
+- RUB-ENGENHARIA-07
+- RUB-ENGENHARIA-08
+- CARD-1
+- CARD-2
+- CARD-4
+veredito_esperado_do_revisor: APROVAR
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Garantir por teste que nenhum id de serviço do catálogo se repete.
+    arquivos:
+    - caminho: helena-v2/test_ids_de_servico.py
+      acao: criar
+      motivo: Travar por teste que dois serviços nunca tenham o mesmo id.
+      zona: livre
+    diff: |
+      --- /dev/null
+      +++ b/helena-v2/test_ids_de_servico.py
+      @@ -0,0 +1,12 @@
+      +"""Garante que nenhum id de serviço se repete em servicos.yaml (MAT-02)."""
+      +from pathlib import Path
+      +
+      +import yaml
+      +
+      +RAIZ = Path(__file__).resolve().parent
+      +
+      +
+      +def test_ids_de_servico_nao_se_repetem():
+      +    catalogo = yaml.safe_load((RAIZ / "servicos.yaml").read_text(encoding="utf-8"))
+      +    ids = [s["id"] for s in catalogo["servicos"]]
+      +    assert len(ids) == len(set(ids))
+    testes:
+    - caminho: helena-v2/test_ids_de_servico.py
+      o_que_prova: Nenhum id de serviço se repete em servicos.yaml.
+      como_rodar: cd helena-v2 && python -m pytest test_ids_de_servico.py
+      antes_da_mudanca: ja_passava
+    riscos:
+    - risco: O teste lê o servicos.yaml inteiro e quebra se o formato do arquivo mudar.
+      onde_aparece: Testes da pasta helena-v2 no CI.
+      o_que_fazer: Ajustar o teste junto com qualquer mudança no formato do catálogo.
+    reversao: Reverter o PR, ou apagar o arquivo de teste. Nada mais muda.
+    nao_verificado:
+    - 'O teste não foi rodado e o patch não foi aplicado: quem escreveu esta mudança não executa nada. Quem aplicar roda
+      o comando da seção testes e traz o resultado.'
+    pr_titulo: Acrescenta teste de ids de serviço únicos
+    pr_corpo: |-
+      O que muda
+      Um teste novo confere que nenhum id de serviço se repete no catálogo. Nenhum arquivo existente muda.
+
+      Como testar
+      cd helena-v2 && python -m pytest test_ids_de_servico.py
+
+      Riscos
+      O teste só lê o catálogo; se o formato do servicos.yaml mudar, o teste precisa mudar junto. Não foi rodado por quem o escreveu.
+
+      Como reverter
+      Reverter este PR ou apagar o arquivo de teste.

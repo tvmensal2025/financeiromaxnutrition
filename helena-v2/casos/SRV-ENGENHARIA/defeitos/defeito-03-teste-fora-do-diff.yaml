@@ -1,0 +1,106 @@
+# Caso RUIM do SRV-ENGENHARIA (Theo, AGT-09) para o pedido ../pedido.yaml. SINTÉTICO.
+# Igual à boa-01, com UM defeito plantado. 'deve_falhar_em' diz o ID que tem de pegá-lo:
+# CHK-... = portão 1 (código, PORTAO1_RECUSOU); RUB-... = portão 2 (revisor, REPROVAR).
+# Como mudar: troque só o trecho do defeito; o resto tem de continuar igual à boa de origem.
+id: ENGENHARIA-RUIM-03
+servico: SRV-ENGENHARIA
+pedido: ../pedido.yaml
+derivado_de: ../boas/boa-01-prazo-em-brasilia.yaml
+defeito_plantado: A tabela testes aponta para src/integrations/cards-v2/prazo-noturno.test.ts, que não está no diff nem
+  na tabela arquivos.
+deve_falhar_em: CHK-ENGENHARIA-TESTE
+portao: 1 (código)
+motivo_esperado: teste que não é arquivo do diff
+passa_nas_demais: 'sim: todas as outras checagens comuns e CHK-ENGENHARIA-*'
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Mostrar o prazo do card no dia de Brasília na lista, inclusive quando o prazo é à noite.
+    base:
+    - caminho: src/integrations/cards-v2/formatar-prazo.ts
+      trecho:
+        trecho_original: 'export function formatarPrazo(iso: string): string { const data = new Date(iso); const dia = data.toISOString().slice(0,
+          10);'
+        fonte_importada_id: FON-ARQ-ENGENHARIA-01-1
+    arquivos:
+    - caminho: src/integrations/cards-v2/formatar-prazo.ts
+      acao: alterar
+      motivo: Trocar o corte em UTC pelo formato no fuso de Brasília.
+      zona: livre
+    - caminho: src/integrations/cards-v2/formatar-prazo.test.ts
+      acao: criar
+      motivo: Provar o prazo à noite e o prazo de manhã.
+      zona: livre
+    diff: |
+      --- a/src/integrations/cards-v2/formatar-prazo.ts
+      +++ b/src/integrations/cards-v2/formatar-prazo.ts
+      @@ -1,7 +1,11 @@
+      -// Formata o prazo de um card para a lista (dia/mês/ano).
+      +// Formata o prazo de um card para a lista (dia/mês/ano), sempre no horário de Brasília.
+      +const formato = new Intl.DateTimeFormat("pt-BR", {
+      +  timeZone: "America/Sao_Paulo",
+      +  day: "2-digit",
+      +  month: "2-digit",
+      +  year: "numeric",
+      +});
+      +
+       export function formatarPrazo(iso: string): string {
+      -  const data = new Date(iso);
+      -  const dia = data.toISOString().slice(0, 10);
+      -  const [ano, mes, d] = dia.split("-");
+      -  return `${d}/${mes}/${ano}`;
+      +  return formato.format(new Date(iso));
+       }
+      --- /dev/null
+      +++ b/src/integrations/cards-v2/formatar-prazo.test.ts
+      @@ -0,0 +1,12 @@
+      +import { describe, expect, it } from "vitest";
+      +import { formatarPrazo } from "./formatar-prazo";
+      +
+      +describe("formatarPrazo", () => {
+      +  it("mostra o dia de Brasília quando o prazo é à noite", () => {
+      +    expect(formatarPrazo("2026-10-14T22:00:00-03:00")).toBe("14/10/2026");
+      +  });
+      +
+      +  it("mostra o mesmo dia quando o prazo é de manhã", () => {
+      +    expect(formatarPrazo("2026-10-14T09:00:00-03:00")).toBe("14/10/2026");
+      +  });
+      +});
+    testes:
+    - caminho: src/integrations/cards-v2/prazo-noturno.test.ts
+      o_que_prova: Um prazo às 22h de Brasília continua no mesmo dia, 14/10/2026, na lista.
+      como_rodar: npx vitest run --pool=threads src/integrations/cards-v2/formatar-prazo.test.ts
+      antes_da_mudanca: falha
+    - caminho: src/integrations/cards-v2/prazo-noturno.test.ts
+      o_que_prova: Um prazo às 9h de Brasília continua no mesmo dia.
+      como_rodar: npx vitest run --pool=threads src/integrations/cards-v2/formatar-prazo.test.ts
+      antes_da_mudanca: ja_passava
+    riscos:
+    - risco: Outra tela que usa formatarPrazo passa a mostrar o dia de Brasília, e não o de UTC.
+      onde_aparece: Lista de cards e qualquer tela que mostre prazo.
+      o_que_fazer: Procurar os chamadores de formatarPrazo antes de aprovar; todos devem esperar o dia de Brasília.
+    - risco: O formato com fuso depende dos dados de fuso do navegador e do Node.
+      onde_aparece: Testes no ambiente de CI.
+      o_que_fazer: Conferir que o teste passa no CI; o Node atual traz os dados completos.
+    reversao: 'Reverter o PR depois do merge. Nenhum dado, banco ou configuração muda: o arquivo volta a ser o de hoje e
+      o teste novo some junto.'
+    nao_verificado:
+    - 'Os testes não foram rodados e o patch não foi aplicado: quem escreveu esta mudança não executa nada. Quem aplicar
+      roda o comando da seção testes e traz o resultado.'
+    - Os outros chamadores de formatarPrazo no site não vieram no card; falta conferi-los antes de aprovar.
+    pr_titulo: Mostra o prazo do card no dia de Brasília
+    pr_corpo: |-
+      O que muda
+      O prazo na lista de cards passa a ser formatado no fuso de Brasília. Antes, um prazo às 22h do dia 14 de outubro aparecia como dia 15.
+
+      Como testar
+      npx vitest run --pool=threads src/integrations/cards-v2/formatar-prazo.test.ts
+
+      Riscos
+      Outras telas que usam formatarPrazo passam a mostrar o dia de Brasília. Não há mudança de banco nem biblioteca nova. Os testes não foram rodados por quem escreveu esta mudança.
+
+      Como reverter
+      Reverter este PR; nenhum dado muda.
