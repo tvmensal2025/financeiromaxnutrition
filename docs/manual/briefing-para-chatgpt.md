@@ -2,11 +2,13 @@
 
 > **Retomada:** comece por [`docs/manual/onde-estamos.md`](onde-estamos.md), que tem a próxima ação e separa estado local de relatos históricos de produção. Este briefing é contexto datado; instruções atuais do fundador prevalecem.
 
+> **Atualização posterior de 17/10, verificada no Supabase:** checkpoint `CP-20261017-V037` publicado, com 36 versões anteriores preservadas. Migrations 0020–0023 aplicadas: 39 tabelas e 136 funções v2; 15 tabelas com RLS, mantendo as outras privadas por concessões restritas. Os testes de entrada, pareamento e pedido→plano→card foram revertidos com `ROLLBACK`, sem executar agentes nem deixar pedidos/cards/vínculos. Frontend local: 244 testes, tipos, build e smoke de login aprovados. A ligação automática do Telegram, a proposta/confirmar plano na interface e a prova real do motor ainda faltam. O protótipo de polling não deve ser ativado; a recomendação é transporte confiável com inbox durável. Consulte [integração Hermes/Codex](integracao-hermes-codex.md). Código salvo na branch `codex/helena-v2-kanban-triagem-20261017`, commit `aeb2394`; `main` e o PR #18 não incorporam automaticamente estas correções. Sempre consulte a view do checkpoint atual ao retomar, pois uma versão posterior pode existir.
+
 ## 0. Como você (ChatGPT) deve trabalhar comigo
 - Responda sempre em português do Brasil, em linguagem simples. Eu sou o fundador e não sou técnico.
 - Execute autonomamente os comandos locais que forem necessários e autorizados nesta sessão. Peça ao fundador apenas ações que dependam dele ou autorização para efeitos remotos; não solicite que cole comandos locais que o Codex possa executar.
 - Nunca peça nem aceite que eu cole senha, token, chave ou código de login no chat. Se houver compartilhamento acidental, não repita o valor e registre a pendência para o encerramento dos ajustes, conforme a instrução do fundador.
-- Antes de qualquer mudança no banco, no servidor ou na publicação, mostre o que muda e espere o meu "sim".
+- Explique o que muda no banco, servidor ou publicação. Reutilize a autorização já concedida para o mesmo escopo; só peça nova confirmação quando faltar autorização para a ação concreta.
 - Diga a verdade: separe sempre FEITO / PARCIAL / NÃO FEITO / NÃO CONFIRMADO. Conectado não é funcionando.
 - Não presuma acesso atual à VPS ou ao Supabase. O fundador autorizou os ajustes do sistema nesta sessão; não peça novamente a mesma autorização. Confira conexão, contexto vigente e alvo antes de agir. Nunca peça valores de credenciais nem sua cópia no chat. Abas autenticadas não ficam automaticamente disponíveis ao executor de nuvem.
 
@@ -16,7 +18,7 @@ Princípio: o BANCO manda, o MOTOR executa, o AGENTE só escreve conteúdo. Agen
 
 ## 2. Onde está cada coisa (sem segredos)
 - Código: GitHub `tvmensal2025/financeiromaxnutrition`. Branches, PR e estado de merge devem ser conferidos no checkout/fonte atual; não assumir que este retrato histórico descreve o estado remoto.
-- Banco: Supabase projeto `ecosistemadossonhos`, ref `wxkgrykduqtsgmjkzlou` (o único válido; o `imvfmjgmacrulhztrqlh` é histórico). Esquema da v2: `helena_v2` (33 tabelas, 115 funções) e `dbos_helena_v2` (13 tabelas do DBOS).
+- Banco: Supabase projeto `ecosistemadossonhos`, ref `wxkgrykduqtsgmjkzlou` (o único válido; o `imvfmjgmacrulhztrqlh` é histórico). Esquema da v2: `helena_v2` (39 tabelas, 136 funções após 0023); o registro anterior do `dbos_helena_v2` descreve 13 tabelas do DBOS, sem alterações nesta sessão.
 - Site (app v2): React/Vite na pasta `src/`, só login, cards e `/configuracoes`. Vai ser publicado no Lovable a partir do `main`. Precisa de `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (chave pública) nas variáveis do Lovable.
 - VPS (Hostinger, Ubuntu): IP 72.60.159.48. Tem também o EasyPanel (v1, desligada em grande parte).
   - Motor da v2: código em `/opt/helena-v2/repo`, ambientes `/opt/helena-v2/venv-motor` e `venv-hermes`, Python em `/opt/helena-v2/python`, conexões em `/etc/helena-v2/motor.env`, certificados em `/etc/helena-v2/ca-bundle.crt`, login do ChatGPT em `/var/lib/helena-v2/hermes-home`, alarmes em `/var/log/helena-v2/alarmes.log`. Serviços systemd: helena-vigia, helena-relogio, helena-despachante. Rodam com o usuário `helena`, sem privilégio.
@@ -29,7 +31,7 @@ Peças: Site (minha janela) → Supabase (memória e regras) ← Motor na VPS (m
 Motor = 3 serviços: VIGIA (a cada 5 min, só lê, procura problemas), RELÓGIO (a cada 60 s, aplica o que o banco diz que venceu; nunca aprova por tempo), DESPACHANTE (a cada 5 s, único que chama agente e gasta cota; 1 agente por vez).
 Ciclo do card: pedido autenticado → card RASCUNHO (revisão de configuração fixada) → Helena faz a "leitura de volta" → eu confirmo → código valida o plano → despachante pega o card por prioridade → etapa do autor (Hermes isolado, só as ferramentas da ficha) → resposta gravada no banco ANTES de seguir → portão 1 (código, sem IA: formato, português, texto puro, citações, cálculos, sem "enviei/paguei") → revisor (outro agente, com rubrica e prova) → etapas seguintes → card PRONTO → relatório final da Helena. Ações externas só depois, só com o meu OK, uma vez.
 Configuração: revisões RASCUNHO → VALIDADA (o código do motor valida, nunca a IA) → ATIVA (eu ativo no site). Só uma ativa. Cards em andamento mantêm a revisão em que nasceram.
-Banco fechado: o site não escreve em tabelas; tudo passa por funções que conferem quem chama. Histórico só acrescenta. Estados finais não voltam. Só 9 das 33 tabelas têm RLS (as outras 24 não dão acesso a usuários comuns).
+Banco fechado: o site não escreve diretamente nas tabelas; tudo passa por funções que conferem quem chama. Histórico só acrescenta. Estados finais não voltam. Após 0023, 15 das 39 tabelas têm RLS (as outras 24 não dão acesso a usuários comuns).
 
 ## 4. Os 21 agentes (identidades na configuração, não programas)
 Helena (coordenação, leitura de volta, relatório final), Laura (prática de comunicação, pessoal), Augusto (estratégia), Marina (planos de projeto), Caio (finanças/cálculo), Clara (jurídico/parecer), Bianca (pessoas), Daniel (dados), Theo (tecnologia), Nina (produto), Ravi (pesquisa), Maya (design), Bruno (testes), Olívia (operações), Victor (vendas), Camila (marketing), Isabela (texto/conteúdo), Pedro (parcerias), Renata (sucesso do cliente), Joana (atendimento), Felipe (administração). O fundador (eu) é a 22ª identidade.
