@@ -112,6 +112,6 @@ it('amostra: cada aba olha só as fontes que usa; sem corte por fonte vale a amo
 it('revisor NENHUM vira "Sem revisor" (e não esconde nem inventa nomes)', () => {
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'NENHUM', revisores: ['CLARA'] }))).toBe('Sem revisor');
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'MAYA', revisores: ['CLARA'] }))).toBe('MAYA');
-  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: null, revisores: ['CLARA', 'NENHUM'] }))).toBe('CLARA');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: '', revisores: ['CLARA', 'NENHUM'] }))).toBe('CLARA');
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: undefined, revisores: [] }))).toBe('Sem revisor');
 });
