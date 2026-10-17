@@ -176,13 +176,14 @@ def test_aplica_como_admin_sem_superusuario_igual_ao_supabase():
         with psycopg.connect(cluster.url, autocommit=True) as adm:
             for papel in suporte.PAPEIS_DO_SUPABASE:
                 adm.execute(sql.SQL('create role {} nologin').format(sql.Identifier(papel)))
-            adm.execute('create role admin_supabase login createrole nosuperuser nocreatedb password \'x\'')
+            senha_admin = secrets.token_hex(12)   # conta descartavel do banco de teste; nunca uma senha escrita no codigo
+            adm.execute(sql.SQL('create role admin_supabase login createrole nosuperuser nocreatedb password {}').format(sql.Literal(senha_admin)))
             adm.execute('grant service_role to admin_supabase with admin true, set true, inherit true')
             adm.execute('create database prod')
         with psycopg.connect(base + '/prod', autocommit=True) as adm:
             adm.execute('grant create on database prod to admin_supabase')
         info = conninfo_to_dict(base + '/prod')
-        info.update(user='admin_supabase', password='x')
+        info.update(user='admin_supabase', password=senha_admin)
         with psycopg.connect(make_conninfo(**info), autocommit=True) as con:
             assert not con.execute('select rolsuper from pg_roles where rolname = current_user').fetchone()[0]
             con.execute(_ler('01_contas_do_motor.sql'))
