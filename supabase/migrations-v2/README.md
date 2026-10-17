@@ -2,7 +2,7 @@
 
 **O banco manda, o motor executa, o agente só escreve conteúdo.** Aqui mora o banco do Sistema Helena v2: uma única função muda o estado do card, e as 13 regras de ferro valem mesmo que um programa erre.
 
-> O briefing de 17/10/2026 relata 0001–0019 aplicadas em produção, mas esta sessão não consultou o Supabase real. A 0020 foi preparada e testada somente em PostgreSQL local: **não foi aplicada em produção**. O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
+> O briefing de 17/10/2026 relata 0001–0019 aplicadas em produção, mas esta sessão não consultou o Supabase real. A 0020 foi preparada e testada somente em PostgreSQL local: **não foi aplicada em produção** (nota de 17/10/2026, fim do dia: `onde-estamos.md` relata 0020–0026 aplicadas pelo fundador/conector; consulta de leitura em 17/10 confirmou a função da 0025 e o esquema ativo, mas confirme o estado atual antes de afirmar). O Supabase CLI da v1 só olha `supabase/migrations/`; esta pasta é separada de propósito.
 
 ## O que tem
 
