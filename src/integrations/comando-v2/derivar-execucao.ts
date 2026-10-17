@@ -16,8 +16,11 @@ export const FUSO = 'America/Sao_Paulo';
 export const LIMITE_ITENS_BLOCO = 5;
 /** Etapas que já terminaram (não contam como abertas). */
 const ETAPAS_FINAIS = ['PRONTA', 'CANCELADA', 'ENCERRADA_COM_FALHA'];
-/** Etapas que já passaram da fila e do trabalho e deveriam ter passado pelo portão 1 (ver passagens.yaml). */
-const ETAPAS_COM_PORTAO = ['VALIDACAO', 'REVISAO', 'ESPERANDO_FUNDADOR', 'EM_RESOLUCAO', 'ENCERRADA_COM_FALHA'];
+/**
+ * Etapas que já passaram do portão 1 e, se `portao1_ok` é falso, ele não passou (ver passagens.yaml). VALIDACAO fica de fora:
+ * é nela que o portão está sendo julgado, então `portao1_ok` falso ali ainda não é falha.
+ */
+const ETAPAS_COM_PORTAO = ['REVISAO', 'ESPERANDO_FUNDADOR', 'EM_RESOLUCAO', 'ENCERRADA_COM_FALHA'];
 
 /* ---------- datas (America/Sao_Paulo) ---------- */
 
@@ -173,8 +176,7 @@ export function derivarExecucao(dados: DadosComando, empresa: string, agente = '
     for (const e of etapasPorCard.get(card.id) ?? []) {
       if (ETAPAS_FINAIS.includes(e.estado) || e.estado === 'AGUARDANDO_ANTERIORES') continue;
       if (e.autor) ids.add(e.autor);
-      if (e.revisor) ids.add(e.revisor);
-      for (const r of e.revisores ?? []) ids.add(r);
+      for (const r of revisoresReaisDaEtapa(e)) ids.add(r);
     }
     return [...ids];
   };
@@ -229,7 +231,9 @@ export function derivarExecucao(dados: DadosComando, empresa: string, agente = '
         : `Travado · motivo: ${textoSimples(c.motivo ?? '')}`,
     }));
   const falhasDeEtapa = dados.etapas
-    .filter(e => e.portao1_ok === false && ETAPAS_COM_PORTAO.includes(e.estado))
+    .filter(e => e.portao1_ok === false && ETAPAS_COM_PORTAO.includes(e.estado)
+      // etapa de card já terminado (PRONTO, CANCELADO, ENCERRADO_COM_FALHA) ficou para trás: a falha é do card, não dela
+      && !(cardsPorId.get(e.card_id) && ehFinalCard(cardsPorId.get(e.card_id)!.estado)))
     .map(e => doEtapa(e, 'Autor', e.autor, 'Não passou no portão 1')).filter((i): i is ItemExecucao => i !== null);
 
   const atrasados = cardsEmpresa
