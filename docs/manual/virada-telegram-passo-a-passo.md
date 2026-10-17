@@ -1,7 +1,7 @@
 # Virada do Telegram para a Helena v2: passo a passo
 
 O que é: roteiro para o **fundador** colar, **um comando por vez**, na virada do bot `@hermes_helena_oficial_bot` do Hermes 0.15.1 (poller antigo) para a Edge `helena-v2-telegram` (webhook) com o adapter `inbox-worker`. Usa o pacote [virada.sh](../../motor/hermes-vps/telegram-v2/virada.sh) na VPS e blocos de `curl` no **seu computador** para o que exige o token do bot. Escrito em 17/10/2026, com o fundador tendo autorizado a virada nessa data.
-Como mudar: se o `virada.sh` ou o patch mudarem, atualize o passo 4 (hashes e `<SHA_DA_MAIN>`, gerados com `sha256sum motor/hermes-vps/telegram-v2/{virada.sh,patch-hermes-telegram.py,helena_v2_inbox.py,test_telegram_v2.py}`) e as saídas esperadas; nunca escreva aqui valor de token, segredo, `.env` ou `auth.json`. A fotografia do que falta continua em [telegram-virada-para-v2.md](telegram-virada-para-v2.md).
+Como mudar: se o `virada.sh` ou o patch mudarem, atualize o passo 4 (hashes e `49476c93420c6d0592ed0ada43aad480c3b47895`, gerados com `sha256sum motor/hermes-vps/telegram-v2/{virada.sh,patch-hermes-telegram.py,helena_v2_inbox.py,test_telegram_v2.py}`) e as saídas esperadas; nunca escreva aqui valor de token, segredo, `.env` ou `auth.json`. A fotografia do que falta continua em [telegram-virada-para-v2.md](telegram-virada-para-v2.md).
 
 **Estado desta preparação (honesto):** as saídas abaixo vêm da execução do `virada.sh` contra uma instalação **simulada** (repositório temporário, `systemctl`/`ps`/`curl` falsos) e, para o patch, contra o checkout **real** do commit fixado `e71a2bd1…` (v2026.5.29) numa pasta temporária. Nada foi executado na VPS, no Telegram, na Edge nem no banco. O estado da VPS é **NÃO CONFIRMADO**: é por isso que o passo 5 é só leitura e o passo 7 ensaia numa cópia antes de tocar em qualquer coisa. Se uma saída real não bater com o "Esperado", **pare e mande a saída à Claude** (as saídas do `virada.sh` não trazem token, segredo nem conteúdo de `.env`).
 
@@ -62,10 +62,10 @@ Esperado: `401`.
 
 ## Passo 4 [VPS] — baixar o pacote de virada e conferir
 
-Troque `<SHA_DA_MAIN>` pelo SHA completo (40 caracteres) do commit da `main` depois do merge: *a ser preenchido depois do merge*. O pacote vai para uma pasta própria; **não mexe** no checkout do motor em `/opt/helena-v2/repo`.
+O SHA completo (40 caracteres) já está preenchido nos comandos abaixo: é o commit da `main` logo após o merge do PR #20 (`49476c93420c6d0592ed0ada43aad480c3b47895`). Se a `main` avançar, troque pelos 40 caracteres do commit que você quer instalar. O pacote vai para uma pasta própria; **não mexe** no checkout do motor em `/opt/helena-v2/repo`.
 
 ```
-clear && umask 077 && mkdir -p /root/virada-telegram && cd /root/virada-telegram && for f in virada.sh patch-hermes-telegram.py helena_v2_inbox.py test_telegram_v2.py; do curl -fsSL -o "$f" "https://raw.githubusercontent.com/tvmensal2025/financeiromaxnutrition/<SHA_DA_MAIN>/motor/hermes-vps/telegram-v2/$f" || echo "FALHOU: $f"; done; ls -l
+clear && umask 077 && mkdir -p /root/virada-telegram && cd /root/virada-telegram && for f in virada.sh patch-hermes-telegram.py helena_v2_inbox.py test_telegram_v2.py; do curl -fsSL -o "$f" "https://raw.githubusercontent.com/tvmensal2025/financeiromaxnutrition/49476c93420c6d0592ed0ada43aad480c3b47895/motor/hermes-vps/telegram-v2/$f" || echo "FALHOU: $f"; done; ls -l
 ```
 Esperado: quatro arquivos e nenhuma linha `FALHOU`. (`404` = SHA errado.)
 
