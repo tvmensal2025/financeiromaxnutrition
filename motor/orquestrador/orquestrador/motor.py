@@ -28,6 +28,8 @@ from validador import validar
 from .configuracao import (capturar_bundle, carregar_revisao, hash_bundle, impressao_maquina,
                           validar_bundle, verificar_revisao)
 from .contexto_real import montar_contexto_real
+from .memoria import (ContextoDeEscopo, agora_utc, anexar_memoria, montar_bloco_memoria,
+                      orcamento_disponivel)
 from .evidencias import EvidenciaInvalida, coletar_evidencias
 from .plano import RAIZ, validar_plano
 
@@ -150,12 +152,16 @@ class EventoRecusado(RuntimeError):
 
 
 class Motor:
+    fonte_memoria = None   # memória compactada: desligada por padrão (ver memoria.py); dublês com __new__ herdam o padrão
+
     def __init__(self, url_banco: str, url_dbos: str, casos: dict[str, str] | None = None, executor=None,
                  *, permitir_configuracao_tecnica=False, permitir_servico_rascunho=False,
                  permitir_executor_falso=False, permitir_casos_sinteticos=False, iniciar_dbos=True,
-                 fonte_contexto=None, modo_producao=False):
+                 fonte_contexto=None, modo_producao=False, fonte_memoria=None):
         if not url_banco or not url_dbos:
             raise ValueError('motor exige banco do card e banco DBOS separados')
+        if modo_producao and fonte_memoria is not None:
+            raise ValueError('modo de produção ainda não aceita memória compactada (exige autorização do fundador)')
         if modo_producao:
             if (permitir_configuracao_tecnica or permitir_servico_rascunho or
                     permitir_executor_falso or permitir_casos_sinteticos or casos):
@@ -191,6 +197,9 @@ class Motor:
         self.modo_producao = modo_producao
         self.versao_codigo = VERSAO_CODIGO_REAL if modo_producao else VERSAO_CODIGO
         self.fonte_contexto = fonte_contexto
+        # Memória compactada (docs/manual/memoria-dos-agentes.md): DESLIGADA por padrão. Quando injetada, é uma
+        # função (ContextoDeEscopo) -> lista de Resumo, e só vale em card real fora do modo de produção.
+        self.fonte_memoria = fonte_memoria
         if executor is None and not permitir_executor_falso:
             raise ValueError('executor deve ser injetado; ExecutorFalso exige opt-in local explícito')
         self.executor = executor if executor is not None else ExecutorFalso(
@@ -885,6 +894,9 @@ class Motor:
             carga.update({'fontes_importadas': contexto['fontes_importadas'],
                           'decisoes_vigentes': contexto['decisoes_vigentes'],
                           'pacote_da_empresa': contexto.get('pacote_da_empresa')})
+        relatorio_memoria = None
+        if modo == 'real' and self.fonte_memoria is not None:
+            carga, relatorio_memoria = self._anexar_memoria(carga, etapa, servico, pedido)
         pacote = json.dumps(carga, ensure_ascii=False)
         resultado = self._rodar_vigiado(Execucao(
             id=f'{etapa["codigo"]}-{numero}', ficha=ficha, pacote=pacote,
@@ -915,10 +927,25 @@ class Motor:
         self._linha('SELECT helena_v2.registrar_resposta_execucao(%s,%s) AS resposta',
                     (numero, Jsonb({'texto': resultado.texto, 'servico': servico, 'contexto': contexto,
                                     'config_revision_id': str(revisao['id']),
-                                    **({'conversa': provas['conversa'], 'uso': provas['uso']} if provas else {})})))
+                                    **({'conversa': provas['conversa'], 'uso': provas['uso']} if provas else {}),
+                                    **({'memoria': relatorio_memoria['manifesto']}
+                                       if relatorio_memoria and relatorio_memoria.get('anexada') else {})})))
         if modo == 'real' and callable(getattr(self.executor, 'limpar', None)):
             self.executor.limpar(resultado)
         return numero
+
+    def _anexar_memoria(self, carga, etapa, servico, pedido):
+        """Só o AUTOR recebe memória (o revisor julga pela rubrica e pelas fontes, sem ela). Falha = sem memória."""
+        agora = agora_utc()
+        try:
+            ctx = ContextoDeEscopo('EMPRESA', agente=etapa['autor'], business_id=pedido['empresa'],
+                                   servico=servico, card_id=str(etapa['card_id']))
+            resumos = list(self.fonte_memoria(ctx))
+            bloco = montar_bloco_memoria(resumos, ctx, agora,
+                                         orcamento_caracteres=orcamento_disponivel(carga))
+            return anexar_memoria(carga, bloco, ligado=True)
+        except Exception as erro:   # memória é opcional: nunca derruba a execução
+            return carga, {'anexada': False, 'motivo': 'ERRO:' + type(erro).__name__}
 
     def _ja_aplicado(self, etapa_id, numero, papel, evento=None):
         """True se um evento deste `papel` com a chave `numero` já foi aplicado nesta etapa.
