@@ -1,6 +1,6 @@
 # Contas e esquema do motor da v2 no Supabase real
 
-**Estado: preparado e testado localmente. NÃO aplicado no Supabase real.** Só entra com a frase exata abaixo.
+**Estado: APLICADO no Supabase real em 17/10/2026**, pelo conector, com o fundador autorizando ("pode criar") e o SHA-256 de cada arquivo conferido dentro da própria transação antes de executar. Conferido depois: as duas contas com os atributos exatos, vínculo `set=true inherit=false admin=false`, 13 tabelas e 3 funções de `dbos_motor`, migração 123, nenhum outro papel enxerga `dbos_helena_v2`, v1 e `helena_v2` intactas. **As senhas ainda NÃO foram definidas** (passo do fundador, abaixo). Para rodar de novo em outro projeto, a frase exata é:
 
 > **AUTORIZO CRIAR AS CONTAS helena_motor E dbos_motor E O ESQUEMA dbos_helena_v2 NO SUPABASE wxkgrykduqtsgmjkzlou**
 
