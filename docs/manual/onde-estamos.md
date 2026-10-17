@@ -15,12 +15,13 @@ Se faltar informação, Helena pergunta. A interpretação da IA passa pela vali
 ## O que foi feito nesta sessão
 
 - GitHub sincronizado: 38 branches buscadas; base local `d0d8e1e`, com as mudanças do PR #18. O PR estava aberto e o repositório público na verificação de 17/10.
+- Correções desta sessão salvas no GitHub na branch [`codex/helena-v2-kanban-triagem-20261017`](https://github.com/tvmensal2025/financeiromaxnutrition/tree/codex/helena-v2-kanban-triagem-20261017), commit de implementação `d3ac6f9`. O envio da branch funcionou; a API recusou a criação de um novo PR com `Forbidden`. Nenhum merge em `main` foi feito.
 - Auditoria do código ativo: app, especificação, banco v2, executor, ferramentas, validador, simulador, orquestrador e instaladores. A v1 arquivada permanece parada.
 - Correções locais preparadas para validação do plano, parecer obrigatório, resposta do revisor, métricas, fontes, perguntas e recuperação de erros na interface.
 - A nova [migration 0020](../../supabase/migrations-v2/0020_plano_exige_validador.sql) impede que a confirmação do fundador pule a validação do plano. **Não foi aplicada no Supabase.**
 - A [migration 0021](../../supabase/migrations-v2/0021_pedido_entrada.sql) recebe pedidos apenas do fundador autenticado. Testes PostgreSQL locais cobrem concorrência, conflito, continuação e isolamento. A página oferece texto livre, recuperação de envio e consulta do histórico por acompanhamento. **Não foi aplicada no Supabase.**
 - O Kanban local mostra os estados reais do card, abre links de cards disponíveis para a conta e conserva detalhes, perguntas e decisões. Recebido, pronto e publicado permanecem estados distintos.
-- Resultados e limites dos testes: [auditoria técnica](../auditoria/AUDITORIA-2026-10-17.md). As alterações desta sessão estão no checkout local; não foram publicadas nem juntadas ao GitHub.
+- Resultados e limites dos testes: [auditoria técnica](../auditoria/AUDITORIA-2026-10-17.md). O código foi salvo na branch acima, sem implantação no site, banco ou servidor.
 
 ## O que impede a primeira tarefa completa
 
@@ -39,7 +40,7 @@ Se faltar informação, Helena pergunta. A interpretação da IA passa pela vali
 | D — Pedido em texto livre | Recebimento e histórico implementados e testados localmente | Implantar após conferir o banco; concluir interpretação, esclarecimentos e conversão para card. |
 | E — Telegram ligado à v2 | Não implementado | Parear a identidade do fundador e ligar o Hermes do Telegram à mesma entrada. |
 | F — Cota e login por 48 horas | Não comprovado | Corrigir a renovação e executar a prova com evidências; testes locais não substituem a prova. |
-| G — Documentação e GitHub | Parcial | Revisar as correções e o PR #18, integrar e publicar após conferir o estado real. |
+| G — Documentação e GitHub | Código e documentação salvos em branch; `main` sem integração | API de criação de PR recusada. Revisar as correções e o PR #18, integrar e publicar após conferir o estado real. |
 
 ## Qual Hermes pode sair
 

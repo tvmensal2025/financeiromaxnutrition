@@ -58,6 +58,7 @@ Não somar suítes sobrepostas nem tratar testes ignorados ou comandos não exec
 | TypeScript do app e build de produção | Passaram. |
 | Smoke do app em Chromium | Rota `/configuracoes` redireciona ao login; formulário renderiza sem erros JavaScript, com chamadas externas bloqueadas para a prova local. |
 | Especificação, continuidade e workflow (`test_validar.py`, `test_continuidade.py`, `test_operacao_vps.py`) | 182 passaram. |
+| Continuidade e workflow após o Kanban/entrada | 8 passaram novamente. |
 | Máquina de estados (`maquina/test_maquina.py`) | 122 passaram. |
 | Ferramentas | 592 passaram; após ajuste final do indicador de busca, 81 afetados passaram novamente. |
 | Validador | 2.362 passaram, 31 ignorados e um benchmark falhou sob carga (89 ms para limite de 50 ms). Reexecução final do arquivo de desempenho: 23 passaram; limiar preservado. |
