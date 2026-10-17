@@ -52,7 +52,7 @@ def test_mapa_deriva_roles_servicos_e_empresas_sem_autorizar_rascunhos(captura):
 def test_rotas_do_mapa_sao_as_rotas_reais_do_app(captura):
     app = (RAIZ / 'src/App.tsx').read_text(encoding='utf-8')
     rotas_declaradas = set(re.findall(r'<Route\s+path=["\']([^"\']+)["\']', app))
-    dinamicas = re.search(r'\{\[([^]]+)\]\.map\(secao => <Route key=\{secao\} path=\{`/\$\{secao\}`\}', app)
+    dinamicas = re.search(r'\{\[([^]]+)\]\.map\((\w+) => <Route key=\{\2\} path=\{`/\$\{\2\}`\}', app)
     if dinamicas:
         rotas_declaradas.update('/' + nome for nome in re.findall(r"'([^']+)'", dinamicas.group(1)))
     assert set(ROTAS).issubset(rotas_declaradas)

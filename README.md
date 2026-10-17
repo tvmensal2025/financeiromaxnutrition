@@ -22,9 +22,10 @@ Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-e
 | `/financeiro`, `/crm`, `/calendario` | Financeiro com oito abas, CRM e agenda/tarefas, adaptados à sessão e ao filtro de empresa da v2 | só o fundador |
 | `/portfolio`, `/empresas`, `/identidade`, `/indicadores` | Empresas, identidade de marca e indicadores de negócio | só o fundador |
 | `/modulo/:tabela` | Catálogo de 56 módulos; 55 têm contrato explícito de leitura, com edição limitada por contrato | só o fundador |
-| `/comando`, `/sistema`, `/equipe` | Governança e catálogo da configuração ativa | só o fundador |
+| `/comando` | **Sala de comando v2**, 12 abas sobre dados da v2 (cards, etapas, entregas, pedidos e a configuração ativa): Visão geral com gráficos e linha do tempo, Cards com filtros e painel lateral, Processo, Acompanhamento, Empresas, Agentes, Supervisão por regras, e em "Mais": Execução, Entregas, Cobertura, Consumo e Plano de evolução. Atualiza a cada 30 s. Abas: `?aba=<id>` | só o fundador |
+| `/sistema`, `/equipe` | Governança e catálogo da configuração ativa | só o fundador |
 | `/conversa`, `/integracoes` | Registro de pedidos e pareamento do Telegram; as telas não comprovam execução do Hermes ou conexão operacional do bot | só o fundador |
-| `/execucao`, `/entregas`, `/consumo`, `/cobertura`, `/supervisao` | Visões da operação v2; consumo real ainda não é medido nessa interface | só o fundador |
+| `/execucao`, `/entregas`, `/consumo`, `/cobertura`, `/supervisao`, `/inbox` | Atalhos que redirecionam para a aba correspondente de `/comando`. Consumo de tokens e custo ainda NÃO é medido: exige uma função nova no banco, que só o fundador autoriza | só o fundador |
 | `/oauth/consent` | Consentimento OAuth, sujeito à configuração e validação reais do provedor | só o fundador |
 
 `/painel`, `/cards-v2` e `/configuracoes-v2` redirecionam para as rotas correspondentes. Links antigos `/?card=...` continuam abrindo o card em `/cards`; o banco e a tela conferem acesso ao destino. As páginas de negócio recuperadas estão ativas no código da v2; o [inventário de recuperação](docs/manual/restauracao-funcionalidades.md) detalha funcionalidades, limites e validações pendentes. Essa adaptação não ativou serviços legados de execução, Gateway ou voz, nem comprova publicação ou funcionamento em produção. Não existe flag: a v2 está sempre ligada.
@@ -38,7 +39,7 @@ Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-e
 | `.env.example` | Nomes das variáveis de ambiente, sem valores |
 | `docs/plano/` | O plano único (`PLANO-HELENA-V3.md`) e o registro de furos |
 | `docs/decisoes/` | Uma decisão por arquivo (DEC-NNN) |
-| `docs/manual/` | Guias em vigor: como mudar, dia de prova, conectar runtimes, eLiving, voz, troca de chaves, comando mestre |
+| `docs/manual/` | Guias em vigor: como mudar, dia de prova, conectar runtimes, eLiving, voz, troca de chaves, comando mestre; guia de entrada para agentes [`guia-da-helena-telegram.md`](docs/manual/guia-da-helena-telegram.md) e Manual do Programador em [`docs/manual/programador/`](docs/manual/programador/); roteiros do fundador [`vps-atualizar-e-corrigir-login.md`](docs/manual/vps-atualizar-e-corrigir-login.md) (motor na VPS) e [`publicar-no-lovable.md`](docs/manual/publicar-no-lovable.md) (site a partir da `main`) |
 | `docs/ideias/` | Ideias e anotações de aulas ainda não aprovadas, com data |
 | `docs/auditoria/` | As auditorias e os ataques independentes |
 | `docs/arquivo/` | Planos, relatórios, registros antigos e o app da v1 (`app-v1/`), só consulta (`LEIA.md` diz o porquê de cada um) |

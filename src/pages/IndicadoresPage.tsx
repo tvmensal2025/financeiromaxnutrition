@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Building2, Compass, ExternalLink, Receipt, Shield, Target } from "lucide-react";
+import { ArrowRight, Building2, CalendarClock, Compass, ExternalLink, Receipt, RefreshCw, Shield, Target, Users, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
@@ -8,6 +8,7 @@ import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState"
 import { ExecutiveMetricCard } from "@/components/executive/ExecutiveMetricCard";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
+import { SeloOrigemDados } from "@/components/executive/SeloOrigemDados";
 import { lerPaginas } from "@/lib/leitura-paginada";
 const diaSaoPaulo = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
@@ -43,13 +44,21 @@ function valorFinanceiroBrl(item: Lancamento): number | null {
 function valorCrmBrl(item: Oportunidade): number | null {
   return numero(item.valor_potencial_brl) ?? (item.moeda?.toUpperCase() === "BRL" ? numero(item.valor_potencial) : null);
 }
+const PESO_IMPACTO: Record<string, number> = { CRITICO: 0, CRÍTICO: 0, ALTO: 1, MEDIO: 2, MÉDIO: 2, BAIXO: 3 };
+const pesoImpacto = (impacto: string | null) => PESO_IMPACTO[(impacto ?? "").trim().toUpperCase()] ?? 4;
+const ATALHOS = [
+  { to: "/crm", label: "CRM e pipeline", icon: Users },
+  { to: "/financeiro", label: "Financeiro", icon: Wallet },
+  { to: "/calendario", label: "Calendário", icon: CalendarClock },
+  { to: "/portfolio", label: "Portfólio", icon: Building2 },
+];
 const ETAPAS_ABERTAS = new Set(["PROSPECCAO", "PROSPECÇÃO", "QUALIFICACAO", "QUALIFICAÇÃO", "APRESENTACAO", "APRESENTAÇÃO", "PROPOSTA", "NEGOCIACAO", "NEGOCIAÇÃO"]);
 const STATUS_ABERTOS = new Set(["ATIVO", "ABERTO", "EM ANDAMENTO"]);
 const oportunidadeAberta = (item: Oportunidade) =>
   ETAPAS_ABERTAS.has((item.etapa ?? "").trim().toUpperCase()) && STATUS_ABERTOS.has((item.status ?? "").trim().toUpperCase());
 
 export default function IndicadoresPage() {
-  const { currentBusinessId, isConsolidated, selecionadas } = useBusiness();
+  const { currentBusinessId, isConsolidated, selecionadas, setCurrentBusiness } = useBusiness();
   const idsSelecionados = isConsolidated ? [...selecionadas].sort().join("|") : currentBusinessId;
   const chave = isConsolidated ? `consolidado:${idsSelecionados}` : currentBusinessId;
   const [revisao, setRevisao] = useState(0);
@@ -103,7 +112,9 @@ export default function IndicadoresPage() {
   const focoAtivo = dados?.focos.find((item) => item.status?.toUpperCase() === "EM EXECUÇÃO");
   const proximoFoco = dados?.focos.find((item) => /PLANEJADO|AGUARDANDO/i.test(item.status ?? ""));
   const negocio = isConsolidated ? null : dados?.portfolio.find((item) => item.business_id === currentBusinessId);
-  const riscosAbertos = dados?.riscos.filter((item) => item.status?.trim().toUpperCase() === "ABERTO") ?? [];
+  const riscosAbertos = (dados?.riscos.filter((item) => item.status?.trim().toUpperCase() === "ABERTO") ?? [])
+    .sort((a, b) => pesoImpacto(a.impacto) - pesoImpacto(b.impacto));
+  const totalRegistros = dados ? dados.focos.length + dados.portfolio.length + dados.oportunidades.length + dados.lancamentos.length + dados.riscos.length : null;
   const escopo = isConsolidated ? "Grupo consolidado" : negocio?.negocio || currentBusinessId || "Empresa não selecionada";
 
   const metricas = useMemo(() => {
@@ -127,7 +138,7 @@ export default function IndicadoresPage() {
     const entradas = liquidados.filter((item) => fluxoDe(item.fluxo) === "ENTRADA" && item.liquidacao?.startsWith(mesAtual));
     const receita = entradas.length > 0 && entradas.every((item) => valorFinanceiroBrl(item) !== null)
       ? moeda(entradas.reduce((total, item) => total + valorFinanceiroBrl(item)!, 0)) : null;
-    return { caixa, pipeline, previsao, receita, abertas: abertas.length };
+    return { caixa, pipeline, previsao, receita, abertas: abertas.length, liquidados: liquidados.length, entradasMes: entradas.length };
   }, [dados]);
 
   if (carregando) return <ExecutiveLoadingState type="cards" rows={4} />;
@@ -135,7 +146,13 @@ export default function IndicadoresPage() {
 
   return (
     <div className="he-business-indicators space-y-6 pb-8">
-      <ExecutivePageHeader title="Indicadores do negócio" icon={Target} description={`Prioridades e resultados · ${escopo}`} />
+      <ExecutivePageHeader
+        title="Indicadores do negócio"
+        icon={Target}
+        description={`Prioridades e resultados · ${escopo}`}
+        actions={<button type="button" onClick={() => setRevisao((valor) => valor + 1)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"><RefreshCw aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />Atualizar</button>}
+      />
+      <SeloOrigemDados fontes={["foco_executivo", "portfolio", "crm", "financeiro", "riscos"]} escopo={escopo} registros={totalRegistros} />
       <section className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]" aria-label="Foco executivo do grupo">
         <div className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Foco executivo do grupo</p>
@@ -144,31 +161,34 @@ export default function IndicadoresPage() {
             <div className="flex flex-wrap items-center gap-2"><ExecutiveBadge variant="success" size="sm">{focoAtivo.status}</ExecutiveBadge><span className="text-xs text-muted-foreground">{focoAtivo.id}</span></div>
             {focoAtivo.criterio_de_saida && <p className="text-sm leading-relaxed text-muted-foreground">Critério de saída: {focoAtivo.criterio_de_saida}</p>}
             {focoAtivo.responsavel && <p className="text-xs text-muted-foreground">Responsável: {focoAtivo.responsavel}</p>}
-          </div> : <p className="mt-4 text-sm text-muted-foreground">Nenhum foco em execução foi encontrado na consulta.</p>}
+          </div> : <p className="mt-4 text-sm text-muted-foreground">{dados?.focos.length ? `${dados.focos.length} ${dados.focos.length === 1 ? "foco cadastrado" : "focos cadastrados"}, nenhum com status EM EXECUÇÃO. Abra a lista para ver o estado de cada um.` : "Nenhum foco executivo cadastrado. O foco é registrado na tabela foco_executivo; esta tela só consulta."}</p>}
           <Link className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-primary hover:underline" to="/modulo/foco_executivo">Consultar focos <ArrowRight size={16} /></Link>
         </div>
         <div className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-7">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Próxima prioridade do grupo</p>
-          {proximoFoco ? <div className="mt-4 space-y-2"><h3 className="break-words text-base font-semibold text-foreground">{proximoFoco.frente || "Prioridade sem título"}</h3><p className="text-xs text-muted-foreground">{proximoFoco.id} · {proximoFoco.status}</p>{proximoFoco.responsavel && <p className="text-xs text-muted-foreground">Responsável: {proximoFoco.responsavel}</p>}</div> : <p className="mt-4 text-sm text-muted-foreground">Nenhuma próxima prioridade foi encontrada.</p>}
+          {proximoFoco ? <div className="mt-4 space-y-2"><h3 className="break-words text-base font-semibold text-foreground">{proximoFoco.frente || "Prioridade sem título"}</h3><p className="text-xs text-muted-foreground">{proximoFoco.id} · {proximoFoco.status}</p>{proximoFoco.responsavel && <p className="text-xs text-muted-foreground">Responsável: {proximoFoco.responsavel}</p>}</div> : <p className="mt-4 text-sm text-muted-foreground">Nenhum foco com status PLANEJADO ou AGUARDANDO foi encontrado.</p>}
         </div>
       </section>
       <section className="space-y-3" aria-label="Números essenciais">
         <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">Números essenciais · {escopo}</h2><p className="text-xs text-muted-foreground">Dados consultados em CRM e financeiro</p></div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <ExecutiveMetricCard label="Caixa realizado" value={metricas.caixa} hasData={metricas.caixa !== null} subtext="Saldo dos lançamentos liquidados consultados." icon={Receipt} />
+          <ExecutiveMetricCard label="Caixa realizado" value={metricas.caixa} hasData={metricas.caixa !== null} subtext={metricas.caixa !== null ? "Saldo dos lançamentos liquidados consultados." : metricas.liquidados === 0 ? "Nenhum lançamento liquidado encontrado." : "Há liquidados sem valor em BRL ou fluxo reconhecido."} icon={Receipt} />
           <ExecutiveMetricCard label="Pipeline comercial" value={metricas.pipeline} hasData={metricas.pipeline !== null} subtext={metricas.abertas ? `${metricas.abertas} ${metricas.abertas === 1 ? "oportunidade" : "oportunidades"} com etapa e status abertos reconhecidos.` : "Nenhuma oportunidade com etapa e status abertos reconhecidos."} icon={Target} />
-          <ExecutiveMetricCard label="Previsão ponderada" value={metricas.previsao} hasData={metricas.previsao !== null} subtext="Exige valor e probabilidade registrados." icon={Compass} />
-          <ExecutiveMetricCard label="Receita do mês" value={metricas.receita} hasData={metricas.receita !== null} subtext="Entradas com liquidação registrada no mês." icon={Building2} />
+          <ExecutiveMetricCard label="Previsão ponderada" value={metricas.previsao} hasData={metricas.previsao !== null} subtext={metricas.previsao !== null || metricas.abertas > 0 ? "Exige valor e probabilidade registrados." : "Sem oportunidades abertas para ponderar."} icon={Compass} />
+          <ExecutiveMetricCard label="Receita do mês" value={metricas.receita} hasData={metricas.receita !== null} subtext={metricas.receita !== null ? "Entradas com liquidação registrada no mês." : metricas.entradasMes === 0 ? "Nenhuma entrada liquidada neste mês." : "Há entradas do mês sem valor em BRL confirmado."} icon={Building2} />
         </div>
+        <nav aria-label="Atalhos" className="flex flex-wrap gap-2">
+          {ATALHOS.map(({ to, label, icon: Icone }) => <Link key={to} to={to} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"><Icone aria-hidden="true" className="h-3.5 w-3.5 text-muted-foreground" />{label}</Link>)}
+        </nav>
       </section>
       <section className="grid gap-4 lg:grid-cols-2" aria-label="Acompanhamento">
         <div className="min-w-0 rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">Riscos registrados · {escopo}</h2><Link className="inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline" to="/modulo/riscos">Ver riscos <ExternalLink size={14} className="ml-1" /></Link></div>
-          {riscosAbertos.length ? <div className="mt-3 space-y-2">{riscosAbertos.slice(0, 3).map((item) => <div key={item.risk_id} className="rounded-lg border border-border bg-muted/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words text-sm font-medium text-foreground">{item.risco || "Risco sem descrição"}</p>{item.impacto && <ExecutiveBadge variant="default" size="sm">{item.impacto}</ExecutiveBadge>}</div><p className="mt-1 text-xs text-muted-foreground">{[isConsolidated && item.business_id, item.status].filter(Boolean).join(" · ")}</p></div>)}</div> : <p className="mt-3 text-sm text-muted-foreground">Nenhum risco em aberto foi encontrado na consulta.</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">Riscos registrados · {escopo}{riscosAbertos.length ? ` · ${riscosAbertos.length} em aberto` : ""}</h2><Link className="inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline" to="/modulo/riscos">Ver riscos <ExternalLink size={14} className="ml-1" /></Link></div>
+          {riscosAbertos.length ? <div className="mt-3 space-y-2">{riscosAbertos.slice(0, 5).map((item) => <div key={item.risk_id} className="rounded-lg border border-border bg-muted/20 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="break-words text-sm font-medium text-foreground">{item.risco || "Risco sem descrição"}</p>{item.impacto && <ExecutiveBadge variant="default" size="sm">{item.impacto}</ExecutiveBadge>}</div><p className="mt-1 text-xs text-muted-foreground">{[isConsolidated && item.business_id, item.status].filter(Boolean).join(" · ")}</p></div>)}{riscosAbertos.length > 5 && <Link className="inline-flex min-h-9 items-center text-xs font-semibold text-primary hover:underline" to="/modulo/riscos">+{riscosAbertos.length - 5} {riscosAbertos.length - 5 === 1 ? "risco em aberto" : "riscos em aberto"}, do maior impacto para o menor</Link>}</div> : <p className="mt-3 text-sm text-muted-foreground">Nenhum risco com status ABERTO neste escopo. Riscos tratados ou sem status aparecem apenas na lista completa.</p>}
         </div>
         <div className="min-w-0 rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-semibold text-foreground">Contexto do portfólio · {escopo}</h2><Link className="inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline" to="/portfolio">Abrir portfólio <ExternalLink size={14} className="ml-1" /></Link></div>
-          {isConsolidated ? <p className="mt-3 text-sm text-muted-foreground">{dados?.portfolio.length ? `${dados.portfolio.length} ${dados.portfolio.length === 1 ? "empresa retornada" : "empresas retornadas"} na consulta. Selecione uma empresa para ver seus objetivos e indicadores.` : "Nenhuma empresa foi encontrada no portfólio consultado."}</p> : negocio ? <dl className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><div><dt className="text-xs font-semibold text-muted-foreground">Principal gargalo</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.principal_gargalo || "Sem registro"}</dd></div><div><dt className="text-xs font-semibold text-muted-foreground">Objetivo atual</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.objetivo_atual || "Sem registro"}</dd></div><div><dt className="text-xs font-semibold text-muted-foreground">KPI principal</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.kpi_principal || "Sem registro"}</dd></div></dl> : <p className="mt-3 text-sm text-muted-foreground">Nenhum registro desta empresa foi encontrado no portfólio consultado.</p>}
+          {isConsolidated ? <><p className="mt-3 text-sm text-muted-foreground">{dados?.portfolio.length ? `${dados.portfolio.length} ${dados.portfolio.length === 1 ? "empresa retornada" : "empresas retornadas"} na consulta. Selecione uma empresa para ver seus objetivos e indicadores.` : "Nenhuma empresa foi encontrada no portfólio consultado."}</p>{!!dados?.portfolio.length && <ul className="mt-3 space-y-2">{dados.portfolio.map((item) => <li key={item.business_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 p-3"><div className="min-w-0"><p className="break-words text-sm font-medium text-foreground">{item.negocio || item.business_id}</p><p className="break-words text-xs text-muted-foreground">KPI: {item.kpi_principal || "sem registro"}</p></div><button type="button" onClick={() => setCurrentBusiness(item.business_id)} className="inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-primary hover:underline">Ver empresa <ArrowRight size={14} /></button></li>)}</ul>}</> : negocio ? <dl className="mt-3 grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><div><dt className="text-xs font-semibold text-muted-foreground">Principal gargalo</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.principal_gargalo || "Sem registro"}</dd></div><div><dt className="text-xs font-semibold text-muted-foreground">Objetivo atual</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.objetivo_atual || "Sem registro"}</dd></div><div><dt className="text-xs font-semibold text-muted-foreground">KPI principal</dt><dd className="mt-1 break-words text-sm text-foreground">{negocio.kpi_principal || "Sem registro"}</dd></div></dl> : <p className="mt-3 text-sm text-muted-foreground">Nenhum registro desta empresa foi encontrado no portfólio consultado.</p>}
         </div>
       </section>
       <p className="flex items-center gap-2 text-xs text-muted-foreground"><Shield size={14} /> Os números exibidos refletem apenas os registros retornados para o escopo selecionado.</p>

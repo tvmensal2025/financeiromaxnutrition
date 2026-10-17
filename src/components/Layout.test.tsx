@@ -23,6 +23,7 @@ function abrir(fundador: boolean, caminho = '/') {
         <Route path="/" element={<p>conteúdo da visão geral</p>} />
         <Route path="/cards" element={<p>conteúdo dos cards</p>} />
         <Route path="/configuracoes" element={<p>conteúdo da configuração</p>} />
+        <Route path="/comando" element={<p>conteúdo da sala de comando</p>} />
       </Route>
     </Routes>
   </MemoryRouter>);
@@ -97,6 +98,28 @@ describe('menu da v2', () => {
     for (const nome of ['Visão geral', 'Cards', 'Configuração']) {
       expect(links(nome)[0]).toHaveClass('min-w-0', 'min-h-11');
     }
+  });
+
+  it('Sala de comando, Supervisão, Execução e Entregas apontam para as abas e só a aba aberta fica ativa', () => {
+    abrir(true, '/comando?aba=execucao');
+    expect(links('Sala de comando')[0]).toHaveAttribute('href', '/comando');
+    expect(links('Supervisão')[0]).toHaveAttribute('href', '/comando?aba=supervisao');
+    expect(links('Execução')[0]).toHaveAttribute('href', '/comando?aba=execucao');
+    expect(links('Entregas')[0]).toHaveAttribute('href', '/comando?aba=entregas');
+    expect(links('Execução')[0]).toHaveAttribute('aria-current', 'page');
+    for (const nome of ['Sala de comando', 'Supervisão', 'Entregas']) expect(links(nome)[0]).not.toHaveAttribute('aria-current');
+    for (const nome of ['Sala de comando', 'Supervisão', 'Execução', 'Entregas']) expect(links(nome)[0]).toHaveClass('min-w-0', 'min-h-11');
+  });
+
+  it('em /comando sem aba, a Sala de comando fica ativa (visão geral)', () => {
+    abrir(true, '/comando');
+    expect(links('Sala de comando')[0]).toHaveAttribute('aria-current', 'page');
+    expect(links('Supervisão')[0]).not.toHaveAttribute('aria-current');
+  });
+
+  it('o seletor de empresa do negócio não aparece na Sala de comando', () => {
+    abrir(true, '/comando');
+    expect(screen.queryByText('Empresa selecionada')).toBeNull();
   });
 
   it('Sair chama a saída da sessão uma vez', () => {

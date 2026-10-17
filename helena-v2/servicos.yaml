@@ -115,8 +115,12 @@ ordem_de_ativacao:
     - {passo: 13, agente: JOANA,   fase: "fase 4"}
     - {passo: 14, agente: NINA,    fase: "fase 4"}
     - {passo: 15, agente: MAYA,    fase: "fase 4"}
+    # THEO e BRUNO ligam JUNTOS no passo 16: cada um é o revisor titular do outro (Theo revisa o plano de
+    # testes do Bruno; o Bruno revisa a mudança de código do Theo, SRV-ENGENHARIA). Pela MAT-12 o titular
+    # liga no passo do dono ou antes, então os dois só podem ter o mesmo passo. Antes de a SRV-ENGENHARIA
+    # existir, o Bruno era o passo 17 sozinho.
     - {passo: 16, agente: THEO,    fase: "fase 4"}
-    - {passo: 17, agente: BRUNO,   fase: "fase 4"}
+    - {passo: 16, agente: BRUNO,   fase: "fase 4", quando: "Junto com o Theo: um constrói e o outro revisa (MAT-12). Nenhum dos dois liga sozinho."}
   ligar_um_passo: >-
     No passo, o agente passa a 'ligado': os serviços dele podem ser publicados e as aptidões de
     revisão dele podem ser ligadas (teste 9 + seu toque). O revisor titular de cada serviço do
@@ -178,7 +182,8 @@ mapa_de_areas:
   - {area: "Pessoas: funções, vagas, desempenho",           atende: SRV-PERFIL-DE-FUNCAO}
   - {area: "Produto: problema e requisitos",                 atende: SRV-REQUISITOS-DE-PRODUTO}
   - {area: "Design de telas",                                atende: SRV-ESPECIFICACAO-DE-INTERFACE}
-  - {area: "Tecnologia",                                     atende: SRV-PROPOSTA-TECNICA}
+  - {area: "Tecnologia: proposta, alternativas e riscos",    atende: SRV-PROPOSTA-TECNICA}
+  - {area: "Engenharia: mudança de código pronta para aprovar", atende: SRV-ENGENHARIA}
   - {area: "Testes de produto e software",                   atende: SRV-PLANO-DE-TESTES}
   - {area: "Marketing: campanhas e experimentos",            atende: SRV-PLANO-DE-CAMPANHA}
   - {area: "Texto pronto: convite, anúncio, mensagem",       atende: SRV-COPY}
@@ -207,6 +212,8 @@ pedidos_de_fronteira:
   - {pedido: "O que eu faço em cada semana até o lançamento?",                                    certo: SRV-PLANO-DE-PROJETO}
   - {pedido: "Vale mais vender para residências ou para empresas?",                               certo: SRV-ANALISE-ESTRATEGICA}
   - {pedido: "O que construir primeiro no app?",                                                  certo: SRV-REQUISITOS-DE-PRODUTO}
+  - {pedido: "Troca a cor do botão de pagar e deixa o teste pronto para eu aprovar.",             certo: SRV-ENGENHARIA}
+  - {pedido: "Quais são as formas de guardar os vídeos e qual delas é mais segura?",              certo: SRV-PROPOSTA-TECNICA}
   - {pedido: "O que a página de termos da Mimix diz sobre indicação?",                            certo: SRV-DOSSIE}
   - {pedido: "Quais clientes estão em risco de cancelar?",                                        certo: SRV-PLANO-DE-SUCESSO}
   - {pedido: "Quero treinar falar em público sem travar.",                                        certo: SRV-PLANO-DE-PRATICA}
@@ -401,11 +408,11 @@ agentes:
   CLARA:   {id: AGT-06, ficha: agents/clara.yaml,   possui: {parecer: deliverables/parecer.yaml}, revisa: {relatorio_final: APTA, calculo: APTA}}
   BIANCA:  {id: AGT-07, ficha: agents/bianca.yaml,  possui: {perfil_de_funcao: deliverables/perfil_de_funcao.yaml}, revisa: {}}
   DANIEL:  {id: AGT-08, ficha: agents/daniel.yaml,  possui: {analise_de_dados: deliverables/analise_de_dados.yaml}, revisa: {plano_de_campanha: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
-  THEO:    {id: AGT-09, ficha: agents/theo.yaml,    possui: {proposta_tecnica: deliverables/proposta_tecnica.yaml}, revisa: {plano_de_testes: SEM_PROVA}}
-  NINA:    {id: AGT-10, ficha: agents/nina.yaml,    possui: {requisitos_de_produto: deliverables/requisitos_de_produto.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA, plano_de_testes: SEM_PROVA}}
+  THEO:    {id: AGT-09, ficha: agents/theo.yaml,    possui: {proposta_tecnica: deliverables/proposta_tecnica.yaml, mudanca_de_codigo: deliverables/mudanca_de_codigo.yaml}, revisa: {plano_de_testes: SEM_PROVA}}
+  NINA:    {id: AGT-10, ficha: agents/nina.yaml,    possui: {requisitos_de_produto: deliverables/requisitos_de_produto.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA, plano_de_testes: SEM_PROVA, mudanca_de_codigo: SEM_PROVA}}
   RAVI:    {id: AGT-11, ficha: agents/ravi.yaml,    possui: {dossie: deliverables/dossie.yaml}, revisa: {analise_estrategica: SEM_PROVA, analise_de_dados: SEM_PROVA, requisitos_de_produto: SEM_PROVA}}
   MAYA:    {id: AGT-12, ficha: agents/maya.yaml,    possui: {especificacao_de_interface: deliverables/especificacao_de_interface.yaml}, revisa: {requisitos_de_produto: SEM_PROVA}}
-  BRUNO:   {id: AGT-13, ficha: agents/bruno.yaml,   possui: {plano_de_testes: deliverables/plano_de_testes.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA}}
+  BRUNO:   {id: AGT-13, ficha: agents/bruno.yaml,   possui: {plano_de_testes: deliverables/plano_de_testes.yaml}, revisa: {especificacao_de_interface: SEM_PROVA, proposta_tecnica: SEM_PROVA, mudanca_de_codigo: SEM_PROVA}}
   OLIVIA:  {id: AGT-14, ficha: agents/olivia.yaml,  possui: {procedimento_operacional: deliverables/procedimento_operacional.yaml}, revisa: {controle_administrativo: SEM_PROVA, perfil_de_funcao: SEM_PROVA, roteiro_treinamento: SEM_PROVA}}
   VICTOR:  {id: AGT-15, ficha: agents/victor.yaml,  possui: {roteiro_comercial: deliverables/roteiro_comercial.yaml}, revisa: {tese_de_parceria: SEM_PROVA, plano_de_sucesso: SEM_PROVA}}
   CAMILA:  {id: AGT-16, ficha: agents/camila.yaml,  possui: {plano_de_campanha: deliverables/plano_de_campanha.yaml}, revisa: {copy: SEM_PROVA, roteiro_comercial: SEM_PROVA}}
@@ -629,7 +636,7 @@ servicos:
       - "Conta de dinheiro: SRV-CALCULO (Caio)."
       - "Responder uma solicitação de cliente: SRV-RASCUNHO-DE-RESPOSTA (Joana)."
       - "Coletar dado de pessoa ou de sistema: você fornece os dados."
-      - "Mudar o app para medir: SRV-PROPOSTA-TECNICA (Theo)."
+      - "Mudar o app para medir: SRV-PROPOSTA-TECNICA (Theo) para decidir como, depois SRV-ENGENHARIA (Theo) para escrever a mudança."
 
   - id: SRV-CONTROLE-ADMINISTRATIVO
     nome: "Controle de documentos, fornecedores e vencimentos"
@@ -802,7 +809,7 @@ servicos:
       - "Como mostrar a economia na conta de energia no app da iGreen de um jeito simples?"
     nao_atende:
       - "Gerar imagem ou arquivo de design: não há ferramenta para isso na v2."
-      - "Implementar: SRV-PROPOSTA-TECNICA (Theo) e depois você."
+      - "Implementar a tela: SRV-ENGENHARIA (Theo escreve a mudança pronta; você aprova e publica)."
       - "Mudar regra de negócio ou a voz da marca (FORA-PACOTE-DE-VOZ)."
 
   - id: SRV-PROPOSTA-TECNICA
@@ -834,9 +841,64 @@ servicos:
       - "Qual a forma mais barata e segura de guardar os vídeos dos participantes da Humano Digital?"
       - "Por que o painel financeiro demora a abrir? Proponha o conserto."
     nao_atende:
+      - "Implementar a proposta (escrever o código, os testes e o texto do PR): SRV-ENGENHARIA (Theo)."
       - "Mexer em produção, publicar, fazer commit, instalar ou criar conta: ação sua ou do fluxo de publicação."
       - "Plano de testes: SRV-PLANO-DE-TESTES (Bruno)."
       - "Desenho de tela: SRV-ESPECIFICACAO-DE-INTERFACE (Maya)."
+
+  # ---------------------------------------------------------------------------------------
+  # SRV-ENGENHARIA (decisão do fundador de 17/10/2026, modelo "Constrói, você aprova"): o Theo
+  # escreve a mudança PRONTA (diff completo, testes e texto do PR); você aprova; quem aplica o patch
+  # em branch/PR é um humano ou uma IA de código FORA da esteira. O agente nunca grava tabela, nunca
+  # faz commit, nunca publica e nunca aplica migration (princípio da v2: o agente só escreve conteúdo).
+  #
+  # Duas escolhas que fogem do pedido original, porque o validador as impõe (ver docs/manual/programador/
+  # 00-theo-engenheiro.md, seção "O que a regra do catálogo mudou"):
+  #  - SEM ação do fundador no catálogo. A AF-ENGENHARIA-APROVAR-MERGE (categoria PUBLICACAO) não pode
+  #    coexistir com julgado_pelo_parecer NUNCA: MAT-22 liga toda ação do fundador a "sempre julgado
+  #    pelo parecer da Clara" (e a um tipo em julga_tipos), e MAT-11 só deixa SO_FUNDADOR com ação.
+  #    Aprovar o merge e a publicação continua sendo SEU, mas fora do catálogo: é o seu toque como
+  #    revisor a mais enquanto o serviço estiver em ESTAGIO (não promova a ATIVO) e, depois, o merge
+  #    feito por você sobre o PR de quem aplica o patch.
+  #    Se um dia quiser a ação formal: tipo mudanca_de_codigo em julga_tipos do SRV-PARECER,
+  #    julgado_pelo_parecer SEMPRE, AF-ENGENHARIA-APROVAR-MERGE [PUBLICACAO], SO_FUNDADOR, e a AF nas
+  #    listas de ids de schemas/ (acao, card, playbook). Cada card passaria a ter parecer da Clara.
+  #  - O Bruno (titular) liga no MESMO passo do Theo (MAT-12): ver ordem_de_ativacao.
+  # ---------------------------------------------------------------------------------------
+  - id: SRV-ENGENHARIA
+    nome: "Mudança de código pronta para você aprovar"
+    dono: THEO
+    tipo_de_entrega: mudanca_de_codigo
+    entrega: deliverables/mudanca_de_codigo.yaml
+    revisor: BRUNO
+    reserva: NINA
+    acoes_permitidas: [ENTREGAR, PERGUNTAR, DEVOLVER_A_QUEM_PEDIU, REGISTRAR_FALHA]
+    ferramentas: []
+    usa_internet: false
+    efeito: interno
+    acao_externa_permitida: [NENHUMA]
+    acoes_do_fundador: []
+    julgado_pelo_parecer: NUNCA
+    modelo_menor: NUNCA
+    fase_de_ativacao: "fase 4"
+    estado: RASCUNHO
+    empresas: [BIZ-001, BIZ-002, BIZ-003, BIZ-004]
+    escolhivel: true
+    avulso: true
+    pode_entrar_em_roteiro: true
+    pode_ser_pulada: true
+    pronto_padrao: "Objetivo, arquivos tocados, diff completo, testes novos ou alterados e como rodá-los, riscos, como reverter e o texto do PR, sem nenhum segredo; nada commitado, aplicado ou publicado: você aprova e outra pessoa aplica."
+    exemplos_de_pedido:
+      - "Troca o texto do botão Enviar por Mandar pedido na tela de novo pedido e ajusta o teste que o confere."
+      - "A lista de cards mostra o prazo um dia depois do certo quando é à noite: corrige e escreve o teste que falha antes e passa depois."
+      - "Acrescenta o campo observação no formulário de proposta, com teste e sem mexer no banco."
+      - "Escreve o teste que garante que dois serviços do catálogo nunca tenham o mesmo id."
+    nao_atende:
+      - "Fazer commit, abrir PR, publicar, fazer deploy ou mexer em produção: ação sua; o Theo só escreve a mudança."
+      - "Aplicar migration ou mexer em services/, scripts/ e supabase/migrations/: só com a sua frase exata (DEC-028), e nunca aplicada por agente."
+      - "Decidir o que construir: SRV-REQUISITOS-DE-PRODUTO (Nina); decidir como: SRV-PROPOSTA-TECNICA (Theo)."
+      - "Desenho de tela: SRV-ESPECIFICACAO-DE-INTERFACE (Maya)."
+      - "Plano e leitura de testes de produto: SRV-PLANO-DE-TESTES (Bruno)."
 
   - id: SRV-PLANO-DE-TESTES
     nome: "Plano e leitura de testes de produto e software"

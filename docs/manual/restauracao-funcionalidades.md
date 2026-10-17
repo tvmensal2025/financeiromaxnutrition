@@ -8,7 +8,7 @@ O arquivo v1 declara **35 padrões de `Route path`**: 31 fixos não condicionais
 |---|---|---|
 | `/login`, `/entrar` | Login por senha, alias. | **Implementado**: Auth Supabase e alias; exige `app_access.active`. |
 | `/oauth/consent` | Detalhes e decisão OAuth via `supabase.auth.oauth`. | **Implementado no código e na rota protegida**: exige fundador e contexto da autorização atual; depende de OAuth Server/cliente configurados. Não há prova de servidor ou cliente ativo. |
-| `/`, `/comando` | Sala de comando e visão geral. | **Parcial**: `/` é painel v2; `/comando` é governança v2, sem equivalência das 10 abas antigas. |
+| `/`, `/comando` | Sala de comando e visão geral. | **Parcial**: `/` é painel v2; `/comando` é a Sala de comando v2 com 12 abas (visão geral, cards, processo, acompanhamento, empresas, agentes, supervisão, execução, entregas, cobertura, consumo e plano de evolução), lendo só `card`, `etapa` e `entrega`; a governança ficou em `/sistema`. Consumo de tokens e linha do tempo real de eventos dependem de funções novas no banco (NÃO feitas). |
 | `/indicadores` | Indicadores de CRM/financeiro/risco/portfólio. | **Parcial, leitura**: tela de métricas reintroduzida com escopo de empresa e paginação; fonte e disponibilidade dependem do banco atual. |
 | `/cobertura`, `/supervisao`, `/empresas`, `/consumo`, `/inbox` | Atalhos para abas de comando. | **Parcial, leitura**: projeções v2 de cards e portfólio; `consumo` informa ausência de medição real e `/inbox` redireciona para supervisão, sem equivalência da inbox v1. |
 | `/execucao`, `/entregas` | Fila de tarefas/agent_jobs, evidências e material final. | **Parcial, leitura**: projeção de cards v2 e etapas revisadas. Jobs e galeria v1 não foram conectados como equivalentes. |

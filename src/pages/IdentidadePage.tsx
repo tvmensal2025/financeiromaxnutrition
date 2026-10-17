@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Palette, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Building2, Check, Palette, Save, Upload } from 'lucide-react';
 import { useAuth } from '@/auth';
+import { ExecutivePageHeader } from '@/components/executive/ExecutivePageHeader';
+import { SeloOrigemDados } from '@/components/executive/SeloOrigemDados';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { supabase } from '@/lib/supabase';
 import { brandPreview, uploadBrand } from '@/lib/media-client';
@@ -24,7 +26,7 @@ function BrandImage({ path, alt, className }: { path: string; alt: string; class
     } else setUrl(path);
     return () => { active = false; };
   }, [path]);
-  return url ? <img src={url} alt={alt} className={className} referrerPolicy="no-referrer" onError={() => setUrl('')} /> : <p className="text-sm text-muted-foreground">Imagem ainda não disponível.</p>;
+  return url ? <img src={url} alt={alt} className={className} referrerPolicy="no-referrer" onError={() => setUrl('')} /> : <p className="text-sm text-muted-foreground">{path ? 'Imagem ainda não disponível. Confira o arquivo ou o endereço informado.' : 'Nenhuma imagem informada ainda.'}</p>;
 }
 
 export default function IdentidadePage() {
@@ -100,19 +102,29 @@ export default function IdentidadePage() {
     finally { if (run === generation.current) setBusy(false); }
   }
   const missing = brand ? brandMissing(brand) : [];
+  const companies = businesses.filter(b => /^BIZ-\d{3}$/.test(b.business_id));
+  const selectedName = companies.find(b => b.business_id === selected)?.nome || (/^BIZ-\d{3}$/.test(selected) ? selected : '');
   return <div className="he-brandbook mx-auto max-w-6xl space-y-6 pb-16">
     <Link to="/portfolio" className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft size={16} /> Empresas</Link>
-    <header className="flex flex-wrap items-end justify-between gap-5">
-      <div><p className="text-xs font-semibold uppercase tracking-[.22em] text-primary">A essência de cada negócio</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Identidade da empresa</h1><p className="mt-2 max-w-xl text-muted-foreground">Tudo o que a equipe precisa para criar com a sua marca, a sua voz e o seu propósito.</p></div>
-      <label className="min-w-52 text-sm">Empresa<select aria-label="Empresa da identidade" className={`${control} mt-1`} value={selected} disabled={busy} onChange={event => {
+    <ExecutivePageHeader
+      icon={Palette}
+      breadcrumb="A ESSÊNCIA DE CADA NEGÓCIO"
+      title="Identidade da empresa"
+      description="Tudo o que a equipe precisa para criar com a sua marca, a sua voz e o seu propósito."
+      actions={<label className="w-full min-w-52 text-sm sm:w-auto">Empresa<select aria-label="Empresa da identidade" className={`${control} mt-1`} value={selected} disabled={busy} onChange={event => {
         if (dirty && !window.confirm('Há alterações não salvas. Deseja trocar de empresa e descartar este rascunho?')) return;
         setParams({ empresa: event.target.value });
-      }}><option value="GRUPO">Selecione uma empresa</option>{businesses.filter(b => /^BIZ-\d{3}$/.test(b.business_id)).map(b => <option key={b.business_id} value={b.business_id}>{b.nome}</option>)}</select></label>
-    </header>
+      }}><option value="GRUPO">Selecione uma empresa</option>{companies.map(b => <option key={b.business_id} value={b.business_id}>{b.nome}</option>)}</select></label>}
+    />
+    <SeloOrigemDados fontes={['portfolio (brand_identity)']} escopo={selectedName || 'nenhuma empresa selecionada'} />
     {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
     {message && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">{message}</div>}
     {loading && <p>Carregando a marca…</p>}
-    {!loading && !brand && !error && <div className="rounded-2xl border bg-card p-8">Escolha uma empresa para conhecer ou preparar sua identidade.</div>}
+    {!loading && !brand && !error && <section aria-label="Escolher empresa" className="rounded-2xl border bg-card p-5 sm:p-8">
+      <p className="font-medium">Escolha uma empresa para conhecer ou preparar sua identidade.</p>
+      {companies.length ? <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{companies.map(b => <li key={b.business_id}><button type="button" onClick={() => setParams({ empresa: b.business_id })} className="flex min-h-14 w-full items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted/60"><Building2 size={18} aria-hidden="true" className="shrink-0 text-muted-foreground" /><span className="min-w-0"><span className="block break-words font-medium">{b.nome}</span><span className="block text-xs text-muted-foreground">{b.business_id}</span></span></button></li>)}</ul>
+        : <p className="mt-3 text-sm text-muted-foreground">Nenhuma empresa do portfólio está disponível para o seu acesso. Confira o <Link className="text-primary underline" to="/portfolio">portfólio</Link>.</p>}
+    </section>}
     {brand && <>
       <section className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
         <div className="overflow-hidden rounded-3xl border bg-card">

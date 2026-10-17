@@ -1,5 +1,5 @@
 import { lerPaginas } from "@/lib/leitura-paginada";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Briefcase,
@@ -10,6 +10,7 @@ import {
   UserCheck,
   CheckCircle2,
   TableProperties,
+  Search,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useBusiness } from "@/contexts/BusinessContext";
@@ -18,6 +19,7 @@ import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
 import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
+import { SeloOrigemDados } from "@/components/executive/SeloOrigemDados";
 
 export type PortfolioItem = {
   business_id: string;
@@ -37,6 +39,22 @@ export type PortfolioItem = {
   modelo_de_receita?: string | null;
 };
 
+type OrdemPortfolio = "id" | "nome" | "estagio";
+const SEM_ESTAGIO = "__SEM_ESTAGIO__";
+const estagioDe = (item: PortfolioItem) => {
+  const valor = (item.estagio ?? "").trim();
+  return !valor || valor === "DADO A COLETAR" ? SEM_ESTAGIO : valor;
+};
+const ehAtiva = (item: PortfolioItem) => !item.ativo || ["SIM", "TRUE", "ATIVO"].includes(String(item.ativo).toUpperCase());
+const normalizar = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** Valor lido do banco; "DADO A COLETAR" é um marcador de lacuna, mostrado de forma discreta. */
+function Dado({ valor, vazio = "Sem registro" }: { valor?: string | null; vazio?: string }) {
+  if (!valor) return <span className="text-muted-foreground">{vazio}</span>;
+  if (valor === "DADO A COLETAR") return <span className="font-normal italic text-muted-foreground">A coletar</span>;
+  return <>{valor}</>;
+}
+
 export default function PortfolioPage() {
   const navigate = useNavigate();
   const { currentBusinessId, setCurrentBusiness } = useBusiness();
@@ -44,6 +62,30 @@ export default function PortfolioPage() {
   const [empresas, setEmpresas] = useState<PortfolioItem[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [filtroEstagio, setFiltroEstagio] = useState("TODOS");
+  const [ordem, setOrdem] = useState<OrdemPortfolio>("id");
+  const [soAtivas, setSoAtivas] = useState(false);
+
+  const estagios = useMemo(() => [...new Set(empresas.map(estagioDe))].sort((a, b) => a.localeCompare(b, "pt-BR")), [empresas]);
+  const inativas = useMemo(() => empresas.filter((item) => !ehAtiva(item)).length, [empresas]);
+  const visiveis = useMemo(() => {
+    const termo = normalizar(busca.trim());
+    const lista = empresas.filter((item) => {
+      if (soAtivas && !ehAtiva(item)) return false;
+      if (filtroEstagio !== "TODOS" && estagioDe(item) !== filtroEstagio) return false;
+      if (!termo) return true;
+      return [item.business_id, item.negocio, item.estagio, item.principal_gargalo, item.objetivo_atual, item.kpi_principal, item.responsavel_executivo, item.modelo_de_receita]
+        .some((campo) => normalizar(campo ?? "").includes(termo));
+    });
+    return [...lista].sort((a, b) => {
+      if (ordem === "nome") return a.negocio.localeCompare(b.negocio, "pt-BR");
+      if (ordem === "estagio") return estagioDe(a).localeCompare(estagioDe(b), "pt-BR") || a.business_id.localeCompare(b.business_id);
+      return a.business_id.localeCompare(b.business_id);
+    });
+  }, [empresas, busca, filtroEstagio, ordem, soAtivas]);
+  const filtrando = Boolean(busca.trim()) || filtroEstagio !== "TODOS" || soAtivas;
+  const limparFiltros = () => { setBusca(""); setFiltroEstagio("TODOS"); setSoAtivas(false); };
 
   async function carregar() {
     const atual = ++request.current;
@@ -119,6 +161,13 @@ export default function PortfolioPage() {
         }
       />
 
+      <SeloOrigemDados
+        fontes={["portfolio"]}
+        escopo="Todas as empresas visíveis ao seu acesso"
+        registros={carregando || erro ? null : empresas.length}
+        unidade={empresas.length === 1 ? "empresa" : "empresas"}
+      />
+
       {erro && (
         <ExecutiveErrorState
           title="Erro ao carregar o portfólio"
@@ -133,11 +182,65 @@ export default function PortfolioPage() {
         <ExecutiveEmptyState
           icon={Briefcase}
           title="Nenhum negócio no portfólio"
-          description="Nenhum registro de empresa foi encontrado no banco de dados."
+          description="Nenhum registro de empresa foi encontrado na tabela portfolio para o seu acesso. Se esperava ver empresas aqui, confira a permissão com o fundador; a tela só lê, não cadastra."
         />
       ) : (
         <div className="space-y-4">
-          {empresas.map((emp) => {
+          <div role="search" aria-label="Filtrar e ordenar empresas" className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="relative w-full min-w-0 sm:max-w-xs sm:flex-1">
+              <Search aria-hidden="true" className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                type="search"
+                aria-label="Buscar empresa"
+                placeholder="Buscar por nome, ID, gargalo, KPI…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="w-full rounded-lg border border-border/60 bg-background py-1.5 pl-8 pr-3 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <select
+              aria-label="Filtrar por estágio"
+              value={filtroEstagio}
+              onChange={(e) => setFiltroEstagio(e.target.value)}
+              className="min-h-9 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="TODOS">Todos os estágios</option>
+              {estagios.map((estagio) => (
+                <option key={estagio} value={estagio}>{estagio === SEM_ESTAGIO ? "Sem estágio informado" : estagio}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Ordenar empresas"
+              value={ordem}
+              onChange={(e) => setOrdem(e.target.value as OrdemPortfolio)}
+              className="min-h-9 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="id">Ordem: ID da empresa</option>
+              <option value="nome">Ordem: nome (A–Z)</option>
+              <option value="estagio">Ordem: estágio</option>
+            </select>
+            {inativas > 0 && (
+              <label className="inline-flex min-h-9 items-center gap-2 text-xs text-muted-foreground">
+                <input type="checkbox" checked={soAtivas} onChange={(e) => setSoAtivas(e.target.checked)} />
+                Ocultar inativas ({inativas})
+              </label>
+            )}
+            <span className="text-xs text-muted-foreground sm:ml-auto" aria-live="polite">
+              {filtrando ? `${visiveis.length} de ${empresas.length} empresas` : `${empresas.length} ${empresas.length === 1 ? "empresa" : "empresas"}`}
+            </span>
+          </div>
+
+          {visiveis.length === 0 && (
+            <ExecutiveEmptyState
+              icon={Search}
+              title="Nenhuma empresa corresponde aos filtros"
+              description="Ajuste a busca ou o estágio para ver as empresas do portfólio."
+              actionLabel="Limpar filtros"
+              onAction={limparFiltros}
+            />
+          )}
+
+          {visiveis.map((emp) => {
             const isAtiva = currentBusinessId === emp.business_id;
 
             return (
@@ -167,7 +270,7 @@ export default function PortfolioPage() {
                       }
                       dot
                     >
-                      {emp.estagio}
+                      {estagioDe(emp) === SEM_ESTAGIO ? "Sem estágio" : emp.estagio}
                     </ExecutiveBadge>
                     {emp.ativo && !["SIM", "TRUE", "ATIVO"].includes(String(emp.ativo).toUpperCase()) && <span className="rounded border px-2 py-0.5 text-xs text-muted-foreground">Inativa</span>}
                     {isAtiva && (
@@ -178,7 +281,7 @@ export default function PortfolioPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Link to={`/identidade?empresa=${encodeURIComponent(emp.business_id)}`} className="rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted">Identidade da marca</Link>
                     <button
                       type="button"
@@ -199,7 +302,7 @@ export default function PortfolioPage() {
                 <div className="pt-3 pb-2 text-xs text-muted-foreground flex items-center gap-2">
                   <span className="font-medium text-foreground/80">Modelo de receita:</span>
                   <span className="font-mono text-xs bg-muted/40 px-2 py-0.5 rounded border border-border/40">
-                    {emp.modelo_de_receita}
+                    <Dado valor={emp.modelo_de_receita} />
                   </span>
                 </div>
 
@@ -211,7 +314,7 @@ export default function PortfolioPage() {
                       <span className="font-medium">Principal Gargalo</span>
                     </div>
                     <p className="text-xs text-foreground font-medium line-clamp-3">
-                      {emp.principal_gargalo}
+                      <Dado valor={emp.principal_gargalo} />
                     </p>
                   </div>
 
@@ -221,7 +324,7 @@ export default function PortfolioPage() {
                       <span className="font-medium">Objetivo Atual</span>
                     </div>
                     <p className="text-xs text-foreground font-medium line-clamp-3">
-                      {emp.objetivo_atual}
+                      <Dado valor={emp.objetivo_atual} />
                     </p>
                   </div>
 
@@ -231,7 +334,7 @@ export default function PortfolioPage() {
                       <span className="font-medium">KPI Principal</span>
                     </div>
                     <p className="text-xs text-foreground font-medium line-clamp-3">
-                      {emp.kpi_principal}
+                      <Dado valor={emp.kpi_principal} />
                     </p>
                   </div>
 
@@ -241,7 +344,7 @@ export default function PortfolioPage() {
                       <span className="font-medium">Responsável</span>
                     </div>
                     <p className="text-xs text-foreground font-medium">
-                      {emp.responsavel_executivo}
+                      <Dado valor={emp.responsavel_executivo} />
                     </p>
                   </div>
 
@@ -251,7 +354,7 @@ export default function PortfolioPage() {
                       <span className="font-medium">Risco Mapeado</span>
                     </div>
                     <p className="text-xs text-foreground font-medium line-clamp-3">
-                      {emp.riscos || "Nenhum risco crítico associado"}
+                      {emp.riscos || <span className="font-normal text-muted-foreground">Nenhum risco registrado no portfólio</span>}
                     </p>
                   </div>
                 </div>

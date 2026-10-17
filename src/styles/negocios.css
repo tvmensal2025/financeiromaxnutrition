@@ -37,6 +37,26 @@
   background: #e8f6ee;
 }
 
+/* Calendário: marca o dia de hoje e dá respiro ao resumo das tarefas sem data. */
+.he-app .pe-cal-dia.is-hoje {
+  box-shadow: inset 0 0 0 2px var(--pe-emerald);
+}
+
+.he-app .he-undated-tasks > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.he-app .he-undated-tasks > summary small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--pe-text-muted);
+}
+
 .he-app .pe-cal-badge {
   position: absolute;
   bottom: 4px;

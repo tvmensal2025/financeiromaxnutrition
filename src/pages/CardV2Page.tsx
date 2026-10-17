@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AlertCircle, CheckCircle2, Clock3, FileText, Loader2, RotateCcw } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/auth';
@@ -14,6 +14,7 @@ import { PerguntaFundadorV2 } from './PerguntaFundadorV2';
 import { LeituraCardFundadorV2 } from './LeituraCardFundadorV2';
 import { alvoAcao, alvoEtapa } from '@/integrations/cards-v2/acoes-fundador';
 import { limparToquesDaIdentidade } from '@/integrations/cards-v2/toque-pendente';
+import { rotuloEstado, rotuloMotivo } from '@/integrations/cards-v2/rotulos';
 
 type PageProps = { repositorio?: RepositorioCardsV2 };
 type Estado<T> = { carregando: boolean; dado: T | null; erro: string | null };
@@ -122,6 +123,20 @@ function SituacaoDoPedido({ pedido }: { pedido: PedidoPublicacao }) {
     <p className="flex items-start gap-2 font-medium">{marca}<span className="min-w-0 break-words">{titulo}</span></p>
     {detalhes.filter((linha): linha is string => !!linha).map((linha, i) => <p key={i} className="mt-1 break-words pl-6 text-muted-foreground">{linha}</p>)}
   </div>;
+}
+
+// Seção recolhível: o conteúdo continua montado (e o estado digitado preservado) mesmo fechada.
+function Recolhivel({ titulo, dica, abertoInicial = false, abrirQuando = false, children }: {
+  titulo: string; dica: string; abertoInicial?: boolean; abrirQuando?: boolean; children: ReactNode;
+}) {
+  const [aberto, setAberto] = useState(abertoInicial);
+  useEffect(() => { if (abrirQuando) setAberto(true); }, [abrirQuando]);
+  return <details open={aberto} onToggle={evento => setAberto(evento.currentTarget.open)} className="rounded-xl border border-border bg-card">
+    <summary className="flex min-h-11 cursor-pointer flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-3 text-sm font-semibold">
+      {titulo}<span className="text-xs font-normal text-muted-foreground">{dica}</span>
+    </summary>
+    <div className="border-t border-border p-3 sm:p-4">{children}</div>
+  </details>;
 }
 
 export default function CardV2Page({ repositorio }: PageProps) {
@@ -289,9 +304,6 @@ function ConteudoCardV2({ repositorio }: PageProps) {
     </section>}
 
     {!isFounder && pedidoInicial !== undefined && <p role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">O acompanhamento por link está disponível apenas para a conta do fundador.</p>}
-    {isFounder && user?.id && <EntradaPedidosV2 identidade={user.id} pedidoInicial={pedidoInicial} />}
-    {isFounder && user?.id && <PareamentoTelegramV2 identidade={user.id} />}
-    {isFounder && <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />}
 
     <div className="space-y-8">
       <section aria-label="Cards" className="space-y-3">
@@ -317,8 +329,8 @@ function ConteudoCardV2({ repositorio }: PageProps) {
           </header>
           {(etapasPendentes.length > 0 || acoesPendentes.length > 0) && <section aria-label="Decisões pendentes do fundador" className="rounded-lg border border-amber-400/50 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
             <h3 className="font-semibold">Sua decisão é necessária neste card</h3>
-            {etapasPendentes.map(etapa => <p key={etapa.id} className="mt-2">Etapa {etapa.codigo}: ESPERANDO_FUNDADOR{etapa.motivo ? ` · motivo ${etapa.motivo}` : ''}</p>)}
-            {acoesPendentes.map(acao => <p key={acao.id} className="mt-2">Ação externa {acao.codigo}: {acao.estado}</p>)}
+            {etapasPendentes.map(etapa => <p key={etapa.id} className="mt-2">Etapa {etapa.codigo}: {rotuloEstado(etapa.estado)}{etapa.motivo ? ` · motivo ${rotuloMotivo(etapa.motivo)}` : ''}</p>)}
+            {acoesPendentes.map(acao => <p key={acao.id} className="mt-2">Ação externa {acao.codigo}: {rotuloEstado(acao.estado)}</p>)}
           </section>}
           {selecionado && (ordemVisivel.pedido || ordemVisivel.criterios.length > 0 || ordemVisivel.restricoes.length > 0 || ordemVisivel.fontes.length > 0) && <section aria-label="Pedido confirmado do card" className="rounded-lg border border-border bg-muted/20 p-4 text-sm">
             <h3 className="font-semibold">Pedido registrado</h3>
@@ -332,7 +344,7 @@ function ConteudoCardV2({ repositorio }: PageProps) {
           {detalhe.erro && <div role="alert" className="text-sm text-destructive">{detalhe.erro}<button type="button" onClick={() => setTentativaDetalhe(n => n + 1)} className="min-h-11 ml-3 font-semibold underline">Tentar novamente</button></div>}
           {!detalhe.carregando && detalheVisivel?.etapas.length === 0 && <p className="text-sm text-muted-foreground">Este card ainda não tem etapas.</p>}
           {detalheVisivel?.etapas.map(etapa => <article key={etapa.id} className="border-b border-border pb-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{etapa.codigo} · {etapa.nome}</h3><span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">{etapa.estado.replace(/_/g, ' ')}</span></div>
+            <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">{etapa.codigo} · {etapa.nome}</h3><span className="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400" title={etapa.estado}>{rotuloEstado(etapa.estado)}</span></div>
             <div className="mt-3 grid gap-1 text-sm text-muted-foreground sm:grid-cols-2"><p>Autor: {etapa.autor}</p><p>Revisor: {etapa.revisores.join(', ') || 'Não informado'}</p><p>Dono: {etapa.dono || 'Não informado'}</p><p className="flex items-center gap-1"><Clock3 className="h-3.5 w-3.5" />Prazo: {dataBrasilia(etapa.prazo_ate)}</p></div>
             {detalheVisivel.entregas.filter(entrega => entrega.etapa_id === etapa.id).map(entrega => <div key={entrega.id} className="mt-5 rounded-xl border border-border bg-card p-4">
               <h4 className="mb-3 flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4" />Entrega aprovada · versão {entrega.versao}</h4><Entrega conteudo={entrega.conteudo} />
@@ -344,12 +356,26 @@ function ConteudoCardV2({ repositorio }: PageProps) {
             <h3 className="font-semibold">Ações externas</h3>
             {detalheVisivel.acoes.map(acao => <article key={acao.id} className="rounded-lg border border-border p-4 text-sm">
               <h4 className="font-semibold">{acao.codigo} · {acao.etapa_codigo}</h4>
-              <p className="mt-1 text-muted-foreground">Estado: {acao.estado.replace(/_/g, ' ')} · Tipo: {acao.tipo.replace(/_/g, ' ')}</p>
+              <p className="mt-1 text-muted-foreground">Estado: {rotuloEstado(acao.estado)} · Tipo: {rotuloEstado(acao.tipo)}</p>
               {isFounder && user?.id && repo && <AcoesFundadorV2 key={`acao-${acao.id}-${acao.versao}`} alvo={alvoAcao(acao)} identidade={user.id} cardId={cardId} repositorio={repo} onAtualizar={() => relerDepoisEvento(cardId)} />}
             </article>)}
           </section>}
         </>}
       </section>
     </div>
+
+    {isFounder && <section aria-label="Pedidos e solicitações" className="space-y-3 border-t border-border pt-6">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Pedidos e solicitações</h2>
+      <p className="text-sm text-muted-foreground">Abra uma seção para fazer um pedido à Helena, conectar o Telegram ou solicitar um card de tarefa real. Elas ficam recolhidas para o quadro aparecer primeiro.</p>
+      {user?.id && <Recolhivel titulo="Fazer um pedido à Helena" dica="Texto livre; acompanhe o histórico do pedido" abertoInicial={pedidoInicial !== undefined} abrirQuando={pedidoInicial !== undefined}>
+        <EntradaPedidosV2 identidade={user.id} pedidoInicial={pedidoInicial} />
+      </Recolhivel>}
+      {user?.id && <Recolhivel titulo="Conectar o Telegram" dica="Pareamento da conta com a Helena">
+        <PareamentoTelegramV2 identidade={user.id} />
+      </Recolhivel>}
+      <Recolhivel titulo="Solicitar card de uma tarefa real" dica="Revise o pedido antes de criar o card">
+        <SolicitarCardReal repositorio={repo} identidade={user?.id ?? null} onCardCriado={atualizarCards} />
+      </Recolhivel>
+    </section>}
   </div>;
 }

@@ -31,6 +31,7 @@ import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
 import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
+import { SeloOrigemDados } from "@/components/executive/SeloOrigemDados";
 import { LancamentoModal, type LancamentoEditavel } from "@/components/financeiro/LancamentoModal";
 import { OrcamentoModal } from "@/components/financeiro/OrcamentoModal";
 
@@ -130,6 +131,19 @@ const TABS: { id: TabFinanceiro; label: string; icon: LucideIcon }[] = [
   { id: "contas_bancarias", label: "Contas Bancárias", icon: Landmark },
 ];
 
+type OrdemLancamentos = "vencimento_desc" | "vencimento_asc" | "valor_desc" | "valor_asc" | "descricao";
+const ORDENS_LANCAMENTOS: { id: OrdemLancamentos; label: string }[] = [
+  { id: "vencimento_desc", label: "Ordem: data mais recente" },
+  { id: "vencimento_asc", label: "Ordem: data mais antiga" },
+  { id: "valor_desc", label: "Ordem: maior valor" },
+  { id: "valor_asc", label: "Ordem: menor valor" },
+  { id: "descricao", label: "Ordem: descrição (A–Z)" },
+];
+const dataDoLancamento = (l: { vencimento?: string | null; liquidacao?: string | null }) => {
+  const valor = l.vencimento || l.liquidacao || "";
+  return /^\d{4}-\d{2}-\d{2}/.test(valor) ? valor.slice(0, 10) : null;
+};
+
 export default function FinanceiroPage() {
   const { user, isFounder } = useAuth();
   const { currentBusinessId, isConsolidated, selecionadas, todasLigadas, nomeDe } = useBusiness();
@@ -154,6 +168,8 @@ export default function FinanceiroPage() {
   const [buscaTexto, setBuscaTexto] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("TODOS");
   const [filtroFluxo, setFiltroFluxo] = useState<string>("TODOS");
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string>("TODAS");
+  const [ordemLancamentos, setOrdemLancamentos] = useState<OrdemLancamentos>("vencimento_desc");
 
   const filtro = todasLigadas ? undefined : selecionadas;
 
@@ -264,6 +280,7 @@ export default function FinanceiroPage() {
   const lancamentosFiltrados = useMemo(() => {
     return lancamentos.filter((l) => {
       if (filtro && l.business_id && !filtro.includes(l.business_id)) return false;
+      if (filtroEmpresa !== "TODAS" && l.business_id !== filtroEmpresa) return false;
 
       // Busca texto
       if (buscaTexto.trim()) {
@@ -298,8 +315,58 @@ export default function FinanceiroPage() {
       }
 
       return true;
+    }).sort((a, b) => {
+      if (ordemLancamentos === "descricao") return (a.descricao || "").localeCompare(b.descricao || "", "pt-BR");
+      if (ordemLancamentos === "valor_desc" || ordemLancamentos === "valor_asc") {
+        const va = valorEmBrl(a);
+        const vb = valorEmBrl(b);
+        if (va === null || vb === null) return va === vb ? 0 : va === null ? 1 : -1;
+        return ordemLancamentos === "valor_desc" ? vb - va : va - vb;
+      }
+      const da = dataDoLancamento(a);
+      const db = dataDoLancamento(b);
+      if (da === null || db === null) return da === db ? 0 : da === null ? 1 : -1;
+      return ordemLancamentos === "vencimento_desc" ? db.localeCompare(da) : da.localeCompare(db);
     });
-  }, [lancamentos, filtro, buscaTexto, filtroFluxo, filtroStatus]);
+  }, [lancamentos, filtro, buscaTexto, filtroFluxo, filtroStatus, filtroEmpresa, ordemLancamentos]);
+
+  const empresasNosLancamentos = useMemo(
+    () => [...new Set(lancamentos.map((l) => l.business_id).filter((id): id is string => Boolean(id)))].sort(),
+    [lancamentos],
+  );
+  const filtrandoLancamentos = Boolean(buscaTexto.trim()) || filtroFluxo !== "TODOS" || filtroStatus !== "TODOS" || filtroEmpresa !== "TODAS";
+  const limparFiltrosLancamentos = () => { setBuscaTexto(""); setFiltroFluxo("TODOS"); setFiltroStatus("TODOS"); setFiltroEmpresa("TODAS"); };
+  const abrirLancamentos = (fluxo: string, status: string) => {
+    setBuscaTexto(""); setFiltroEmpresa("TODAS"); setFiltroFluxo(fluxo); setFiltroStatus(status); setAba("lancamentos");
+  };
+  const totaisFiltrados = useMemo(() => {
+    let entradas = 0;
+    let saidas = 0;
+    let incompleto = false;
+    for (const l of lancamentosFiltrados) {
+      const fl = (l.fluxo || "").toUpperCase();
+      const entrada = fl.startsWith("ENTRADA") || fl.includes("RECEITA");
+      const saida = fl.startsWith("SA") || fl.includes("DESPESA");
+      if (!entrada && !saida) continue;
+      const v = valorEmBrl(l);
+      if (v === null || !Number.isFinite(v)) { incompleto = true; continue; }
+      if (entrada) entradas += v; else saidas += v;
+    }
+    return { entradas, saidas, incompleto };
+  }, [lancamentosFiltrados]);
+  const contagemAbertos = useMemo(() => {
+    let receber = 0;
+    let pagar = 0;
+    for (const l of lancamentos) {
+      if (filtro && l.business_id && !filtro.includes(l.business_id)) continue;
+      const st = (l.status || "").toUpperCase();
+      if (!st.includes("ABERT") && !st.includes("PEND")) continue;
+      const fl = (l.fluxo || "").toUpperCase();
+      if (fl.startsWith("ENTRADA") || fl.includes("RECEITA")) receber += 1;
+      else if (fl.startsWith("SA") || fl.includes("DESPESA")) pagar += 1;
+    }
+    return { receber, pagar };
+  }, [lancamentos, filtro]);
 
   // Função para dar baixa rápida / liquidar um lançamento aberto
   async function liquidarRapido(l: LancamentoCompleto) {
@@ -355,7 +422,7 @@ export default function FinanceiroPage() {
         title="Financeiro"
         description="Cockpit de caixa, competência, fluxo e gestão orçamentária"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isFounder && (
             <button
               type="button"
@@ -379,6 +446,13 @@ export default function FinanceiroPage() {
             </button>
           </div>
         }
+      />
+
+      <SeloOrigemDados
+        fontes={["financeiro", "fluxo_caixa", "recorrencias", "plano_contas", "contas_financeiras", "orcamento"]}
+        escopo={isConsolidated ? (todasLigadas ? "Todas as empresas" : `${selecionadas.length} empresas selecionadas`) : nomeDe(currentBusinessId)}
+        registros={carregando || erro ? null : lancamentos.length}
+        unidade={lancamentos.length === 1 ? "lançamento" : "lançamentos"}
       />
 
       {/* Tabs Oficiais */}
@@ -423,7 +497,7 @@ export default function FinanceiroPage() {
           {/* TAB 1: VISÃO GERAL */}
           {aba === "visao_geral" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                 <ExecutiveMetricCard
                   label="Caixa realizado"
                   value={cockpit.caixaRealizado !== null ? moeda(cockpit.caixaRealizado) : null}
@@ -461,6 +535,23 @@ export default function FinanceiroPage() {
                   icon={Clock}
                 />
               </div>
+
+              {lancamentos.length > 0 && (
+                <nav aria-label="Atalhos dos lançamentos" className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => abrirLancamentos("ENTRADA", "ABERTO")} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70">
+                    <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Ver a receber em aberto ({contagemAbertos.receber})
+                  </button>
+                  <button type="button" onClick={() => abrirLancamentos("SAIDA", "ABERTO")} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Ver a pagar em aberto ({contagemAbertos.pagar})
+                  </button>
+                  <button type="button" onClick={() => abrirLancamentos("TODOS", "LIQUIDADO")} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70">
+                    <CheckCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    Ver liquidados
+                  </button>
+                </nav>
+              )}
 
               {!erro && !lancamentos.length && !fluxos.length && (
                 <section className="he-finance-start">
@@ -573,6 +664,27 @@ export default function FinanceiroPage() {
                     <option value="ABERTO">Abertos / Pendentes</option>
                     <option value="PREVISTO">Previstos</option>
                   </select>
+
+                  {empresasNosLancamentos.length > 1 && (
+                    <select
+                      aria-label="Filtro de Empresa"
+                      value={filtroEmpresa}
+                      onChange={(e) => setFiltroEmpresa(e.target.value)}
+                      className="rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      <option value="TODAS">Todas as empresas</option>
+                      {empresasNosLancamentos.map((id) => <option key={id} value={id}>{nomeDe(id)}</option>)}
+                    </select>
+                  )}
+
+                  <select
+                    aria-label="Ordenar lançamentos"
+                    value={ordemLancamentos}
+                    onChange={(e) => setOrdemLancamentos(e.target.value as OrdemLancamentos)}
+                    className="rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {ORDENS_LANCAMENTOS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -600,15 +712,28 @@ export default function FinanceiroPage() {
                 </div>
               </div>
 
+              {lancamentos.length > 0 && (
+                <p className="text-xs text-muted-foreground" aria-live="polite">
+                  {filtrandoLancamentos ? `${lancamentosFiltrados.length} de ${lancamentos.length} lançamentos` : `${lancamentosFiltrados.length} ${lancamentosFiltrados.length === 1 ? "lançamento" : "lançamentos"}`}
+                  {lancamentosFiltrados.length > 0 && (totaisFiltrados.incompleto
+                    ? " · Totais em BRL indisponíveis: há valores sem conversão confirmada."
+                    : ` · Entradas ${moeda(totaisFiltrados.entradas)} · Saídas ${moeda(totaisFiltrados.saidas)}`)}
+                </p>
+              )}
+
               {lancamentosFiltrados.length === 0 ? (
                 <ExecutiveEmptyState
                   icon={Wallet}
                   title="Nenhum lançamento encontrado"
                   description={
-                    buscaTexto || filtroFluxo !== "TODOS" || filtroStatus !== "TODOS"
+                    filtrandoLancamentos
                       ? "Nenhum lançamento corresponde aos filtros selecionados."
-                      : "Ainda não existem lançamentos financeiros registrados para o recorte atual."
+                      : isFounder
+                        ? "Ainda não existem lançamentos financeiros registrados para o recorte atual. Use Novo Lançamento para registrar o primeiro."
+                        : "Ainda não existem lançamentos financeiros registrados para o recorte atual."
                   }
+                  actionLabel={filtrandoLancamentos ? "Limpar filtros" : undefined}
+                  onAction={filtrandoLancamentos ? limparFiltrosLancamentos : undefined}
                 />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">
@@ -722,7 +847,7 @@ export default function FinanceiroPage() {
                 <ExecutiveEmptyState
                   icon={Wallet}
                   title="Nenhum registro de fluxo de caixa"
-                  description="Ainda não há consolidação de fluxo de caixa para a empresa selecionada."
+                  description="Ainda não há consolidação na tabela fluxo_caixa para o recorte selecionado. A Visão Geral e a aba Lançamentos continuam calculadas a partir dos lançamentos."
                 />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">
@@ -813,6 +938,8 @@ export default function FinanceiroPage() {
                   icon={Target}
                   title="Nenhum orçamento cadastrado"
                   description="Defina metas e limites para os centros de custo da empresa para acompanhar desvios orçamentários."
+                  actionLabel={isFounder ? "Novo orçamento" : undefined}
+                  onAction={isFounder ? () => setModalOrcamentoAberto(true) : undefined}
                 />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">
@@ -882,7 +1009,7 @@ export default function FinanceiroPage() {
                 <ExecutiveEmptyState
                   icon={CalendarClock}
                   title="Nenhuma recorrência ativa"
-                  description="Não há assinaturas, contratos ou despesas recorrentes registradas."
+                  description="Não há assinaturas, contratos ou despesas recorrentes registradas na tabela recorrencias para o recorte selecionado."
                 />
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/70 bg-card shadow-sm">

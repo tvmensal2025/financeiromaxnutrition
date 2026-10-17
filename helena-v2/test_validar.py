@@ -488,8 +488,41 @@ def test_MAT_23_servico_em_estagio_com_pacote_nao_confirmado():
 
 def test_MAT_12_revisor_titular_que_liga_depois_do_dono():
     D = com('servicos')
-    servico(D, 'SRV-PLANO-DE-PROJETO')['revisor'] = 'BRUNO'                 # Bruno é o passo 17; a Marina, o 5
+    servico(D, 'SRV-PLANO-DE-PROJETO')['revisor'] = 'BRUNO'                 # Bruno é o passo 16 (junto com o Theo); a Marina, o 5
     recusa(D, 'MAT-12', 'liga depois do dono MARINA')
+
+
+def test_MAT_12_theo_e_bruno_ligam_juntos_por_serem_titulares_um_do_outro():
+    """O Theo revisa o plano de testes do Bruno e o Bruno revisa a mudança de código do Theo: só o mesmo passo satisfaz a MAT-12."""
+    passos = v.passo_de_ativacao(BASE)
+    assert passos['THEO'] == passos['BRUNO']
+    D = com('servicos')
+    for p in D['servicos']['ordem_de_ativacao']['passos']:
+        if p['agente'] == 'BRUNO':
+            p['passo'] = passos['THEO'] + 1                                   # o Bruno volta a ligar depois do Theo
+    recusa(D, 'MAT-12', 'SRV-ENGENHARIA: o revisor titular BRUNO')
+
+
+def test_engenharia_do_theo_e_rascunho_e_nao_age_fora_do_texto():
+    """Decisão do fundador de 17/10/2026 (Constrói, você aprova): nada ativo, nenhuma ferramenta, nenhuma ação externa."""
+    s = servico(BASE, 'SRV-ENGENHARIA')
+    assert (s['dono'], s['revisor'], s['reserva'], s['tipo_de_entrega']) == ('THEO', 'BRUNO', 'NINA', 'mudanca_de_codigo')
+    assert s['estado'] == 'RASCUNHO' and s['fase_de_ativacao'] == 'fase 4'
+    assert s['ferramentas'] == [] and s['usa_internet'] is False
+    assert s['acao_externa_permitida'] == ['NENHUMA'] and s['acoes_do_fundador'] == []   # MAT-22 impede a ação sem o parecer
+    assert s['julgado_pelo_parecer'] == 'NUNCA'
+    theo = agente_do_organograma(BASE, 'THEO')
+    assert theo['estado'] == 'PAUSADO'
+    assert BASE['fichas']['THEO']['estado'] == 'PAUSADO'
+
+
+def test_engenharia_com_acao_do_fundador_exige_o_parecer_MAT_22():
+    """Por que a AF-ENGENHARIA-APROVAR-MERGE não está no catálogo: ação do fundador obriga 'sempre julgado' (MAT-22)."""
+    D = com('servicos')
+    s = servico(D, 'SRV-ENGENHARIA')
+    s['acao_externa_permitida'] = ['NENHUMA', 'SO_FUNDADOR']
+    s['acoes_do_fundador'] = [{'id': 'AF-ENGENHARIA-APROVAR-MERGE', 'categorias': ['PUBLICACAO'], 'descricao': 'Aprovar o merge e a publicação.'}]
+    recusa(D, 'MAT-22', 'SRV-ENGENHARIA: tem ação do fundador, então julgado_pelo_parecer deve ser SEMPRE')
 
 
 def test_MAT_12_servico_em_estagio_sem_titular_apto():
