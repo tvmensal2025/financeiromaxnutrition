@@ -156,7 +156,7 @@ HELENA_V2_HERMES_HOME=$HERMES_HOME_V2
 HELENA_V2_EXECUCOES_DIR=$EXECUCOES
 PYTHONPATH=$PYTHONPATH_MOTOR
 PYTHONDONTWRITEBYTECODE=1
-SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+SSL_CERT_FILE=$CA_BUNDLE
 # HELENA_V2_EXECUTOR vazio = hermes (unico aprovado). HELENA_V2_ALARME_WEBHOOK_URL: opcional, canal de alarme do vigia.
 # SUPABASE_ACCESS_TOKEN: so para preparar-tarefa-real (captura pela API de gestao); o despachante nao precisa. NAO CONFIRMADO.
 EOF
@@ -166,12 +166,30 @@ EOF
   testar_banco
 }
 
+# O pooler do Supabase usa a CA propria do Supabase (Supabase Root 2021 CA), que nao esta no pacote do sistema.
+# Monta CA do sistema + essa CA em um arquivo so e aponta SSL_CERT_FILE para ele no motor.env (o motor exige TLS verificado
+# contra a CA "do sistema" e nao aceita desligar a verificacao). A CA baixada so vale se a impressao digital bater.
+CA_SUPABASE_URL="https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt"
+CA_SUPABASE_SHA256="80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA"
+CA_BUNDLE="${CA_BUNDLE:-$HELENA_ETC/ca-bundle.crt}"
+preparar_ca() {
+  [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
+  [ -r /etc/ssl/certs/ca-certificates.crt ] || { apt-get install -y ca-certificates >/dev/null 2>&1; update-ca-certificates >/dev/null 2>&1; }
+  command -v openssl >/dev/null || apt-get install -y openssl >/dev/null 2>&1
+  tmp_ca="$(mktemp)"
+  curl -fsSL -m 30 "$CA_SUPABASE_URL" -o "$tmp_ca" || { rm -f "$tmp_ca"; fail "nao consegui baixar a CA do Supabase."; }
+  fp="$(openssl x509 -in "$tmp_ca" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)"
+  [ "$fp" = "$CA_SUPABASE_SHA256" ] || { rm -f "$tmp_ca"; fail "a CA baixada nao tem a impressao digital esperada ($fp)."; }
+  cat /etc/ssl/certs/ca-certificates.crt "$tmp_ca" > "$CA_BUNDLE"; rm -f "$tmp_ca"
+  chown root:"$HELENA_USUARIO" "$CA_BUNDLE"; chmod 0640 "$CA_BUNDLE"
+  sed -i '/^SSL_CERT_FILE=/d' "$ENV_ARQ"; echo "SSL_CERT_FILE=$CA_BUNDLE" >> "$ENV_ARQ"
+  ok "CA do Supabase conferida e adicionada em $CA_BUNDLE"
+}
+
 # Conecta como as duas contas com o PROPRIO codigo do motor: formato da URL, TLS verificado e preflight do papel.
 testar_banco() {
   [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
-  # O Python gerenciado pelo uv nao conhece a CA do sistema: sem isto a validacao recusa o TLS ("arquivo de CA indisponivel").
-  [ -r /etc/ssl/certs/ca-certificates.crt ] || { apt-get install -y ca-certificates >/dev/null 2>&1; update-ca-certificates >/dev/null 2>&1; }
-  grep -q '^SSL_CERT_FILE=' "$ENV_ARQ" || echo 'SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt' >> "$ENV_ARQ"
+  preparar_ca
   como_helena env -i PATH="$PATH" HOME="$HELENA_VAR" bash -c "set -a; . '$ENV_ARQ'; set +a; exec '$VENV_MOTOR/bin/python' - <<'PY'
 import os, psycopg
 from psycopg.rows import dict_row
