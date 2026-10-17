@@ -4,7 +4,7 @@ export type GrupoNavegacao = { titulo: string; itens: Destino[] };
 const paginas: GrupoNavegacao[] = [
   { titulo: 'Central', itens: [
     { to: '/', label: 'Visão geral' }, { to: '/conversa', label: 'Conversa com Helena' },
-    { to: '/comando', label: 'Sala de comando' }, { to: '/supervisao', label: 'Supervisão' },
+    { to: '/comando', label: 'Sala de comando' }, { to: '/comando?aba=supervisao', label: 'Supervisão' },
   ] },
   { titulo: 'Negócios', itens: [
     { to: '/portfolio', label: 'Portfólio' }, { to: '/empresas', label: 'Operação por empresa' },
@@ -12,9 +12,9 @@ const paginas: GrupoNavegacao[] = [
     { to: '/financeiro', label: 'Financeiro' }, { to: '/identidade', label: 'Identidade da empresa' },
   ] },
   { titulo: 'Operação da Helena', itens: [
-    { to: '/cards', label: 'Cards' }, { to: '/execucao', label: 'Central de execução' },
-    { to: '/entregas', label: 'Entregas' }, { to: '/calendario', label: 'Calendário' },
-    { to: '/consumo', label: 'Consumo' }, { to: '/cobertura', label: 'Cobertura dos serviços' },
+    { to: '/cards', label: 'Cards' }, { to: '/comando?aba=execucao', label: 'Execução' },
+    { to: '/comando?aba=entregas', label: 'Entregas' }, { to: '/calendario', label: 'Calendário' },
+    { to: '/comando?aba=consumo', label: 'Consumo' }, { to: '/comando?aba=cobertura', label: 'Cobertura dos serviços' },
     { to: '/equipe', label: 'Equipe Digital' },
   ] },
   { titulo: 'Configuração e conexões', itens: [

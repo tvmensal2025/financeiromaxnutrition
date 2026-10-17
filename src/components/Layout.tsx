@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react';
 import { PageBoundary } from '@/components/executive/PageBoundary';
 import { ExecutiveLogo } from '@/components/executive/ExecutiveLogo';
@@ -7,9 +7,20 @@ import { ExecutiveBusinessSwitcher } from '@/components/executive/ExecutiveBusin
 import { gruposNavegacao } from '@/lib/navegacao';
 import { useAuth } from '@/auth';
 
+const CLASSE_LINK = 'he-nav-link flex min-h-11 min-w-0 w-full';
+const ABA_PADRAO_COMANDO = 'visao-geral';
+/** Destinos como `/comando?aba=execucao` dividem o caminho; só a aba decide qual deles está ativo. */
+function destinoAtivo(to: string, pathname: string, search: string): boolean {
+  const [caminho, consulta] = to.split('?');
+  if (caminho !== pathname) return false;
+  if (caminho !== '/comando') return true;
+  const aba = new URLSearchParams(search).get('aba') || ABA_PADRAO_COMANDO;
+  return aba === (new URLSearchParams(consulta ?? '').get('aba') || ABA_PADRAO_COMANDO);
+}
+
 export function Layout() {
   const { isFounder, user, sair } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const [mobile, setMobile] = useState(false);
   const [busca, setBusca] = useState('');
   const [abertos, setAbertos] = useState<Record<string, boolean>>({ Central: true, Negócios: true, 'Operação da Helena': true, 'Configuração e conexões': true });
@@ -43,11 +54,15 @@ export function Layout() {
       <label className="mx-4 mb-4 flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-3"><Search aria-hidden="true" className="h-4 w-4 shrink-0" /><input aria-label="Buscar página ou módulo" placeholder="Buscar página ou módulo" value={busca} onChange={e => setBusca(e.target.value)} className="w-full min-w-0 bg-transparent py-3 text-xs outline-none" /></label>
       <nav aria-label="Seções do Sistema Helena" className="min-w-0 flex-1 space-y-2 overflow-y-auto px-3 pb-6">
         {grupos.map(grupo => {
-          const ativa = grupo.itens.some(item => item.to === pathname);
+          const ativa = grupo.itens.some(item => destinoAtivo(item.to, pathname, search));
           const aberto = Boolean(termo) || (abertos[grupo.titulo] ?? ativa);
           return <section key={grupo.titulo}>
             <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 px-2 text-left text-xs font-semibold text-muted-foreground" aria-expanded={aberto} onClick={() => setAbertos(estado => ({ ...estado, [grupo.titulo]: !aberto }))}>{grupo.titulo}<ChevronDown aria-hidden="true" className={`h-4 w-4 ${aberto ? 'rotate-180' : ''}`} /></button>
-            {aberto && <div className="space-y-1">{grupo.itens.map(item => <NavLink key={item.to} to={item.to} end onClick={() => setMobile(false)} className={({ isActive }) => `he-nav-link flex min-h-11 min-w-0 w-full ${isActive ? 'is-active' : ''}`}>{item.label}</NavLink>)}</div>}
+            {aberto && <div className="space-y-1">{grupo.itens.map(item => {
+              if (!item.to.startsWith('/comando')) return <NavLink key={item.to} to={item.to} end onClick={() => setMobile(false)} className={({ isActive }) => `${CLASSE_LINK} ${isActive ? 'is-active' : ''}`}>{item.label}</NavLink>;
+              const atual = destinoAtivo(item.to, pathname, search);
+              return <Link key={item.to} to={item.to} onClick={() => setMobile(false)} aria-current={atual ? 'page' : undefined} className={`${CLASSE_LINK} ${atual ? 'is-active' : ''}`}>{item.label}</Link>;
+            })}</div>}
           </section>;
         })}
         {!grupos.length && <p role="status" className="p-3 text-sm text-muted-foreground">Nenhuma página encontrada.</p>}
