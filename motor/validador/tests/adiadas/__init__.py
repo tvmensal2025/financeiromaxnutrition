@@ -2,6 +2,6 @@
 
 Como mudar: ao implementar uma CHK, apague o id dela do arquivo do tipo. Este arquivo só junta as listas.
 """
-from . import tipo_copy, tipo_treino, tipo_calculo, tipo_parecer, tipo_relatorio, tipo_dossie, outros_cards
+from . import tipo_copy, tipo_treino, tipo_calculo, tipo_parecer, tipo_relatorio, tipo_dossie, tipo_engenharia, outros_cards
 
-ADIADAS = frozenset().union(tipo_copy.IDS, tipo_treino.IDS, tipo_calculo.IDS, tipo_parecer.IDS, tipo_relatorio.IDS, tipo_dossie.IDS, outros_cards.IDS)
+ADIADAS = frozenset().union(tipo_copy.IDS, tipo_treino.IDS, tipo_calculo.IDS, tipo_parecer.IDS, tipo_relatorio.IDS, tipo_dossie.IDS, tipo_engenharia.IDS, outros_cards.IDS)

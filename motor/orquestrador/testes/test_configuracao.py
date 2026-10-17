@@ -14,7 +14,7 @@ def bundle_base():
 
 
 def test_bundle_operacional_exclui_casos_e_obedece_allowlist_sql(bundle_base):
-    assert len(bundle_base) == 31
+    assert len(bundle_base) == 33  # 31 + helena-v2/agents/theo.yaml e deliverables/mudanca_de_codigo.yaml (SRV-ENGENHARIA, 17/10/2026)
     assert not any("/casos/" in caminho for caminho in bundle_base)
     sql = RAIZ_REPO / "supabase/migrations-v2/0006_configuracoes.sql"
     if sql.exists():

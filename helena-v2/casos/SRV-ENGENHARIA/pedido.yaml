@@ -1,0 +1,198 @@
+# Pedido de teste do SRV-ENGENHARIA (Theo, AGT-09). Caso SINTÉTICO: o pedido, os arquivos, o trecho do
+# manual e o pacote foram escritos para o teste; nada aqui é dado real, e o código dos arquivos NÃO é
+# o do repositório (é só parecido, para o teste). O serviço está em RASCUNHO: estes casos são a bateria
+# que, no futuro, vale para ele passar a ESTAGIO (10 casos 3 de 3, o teste 3 e o teste 9 do Bruno).
+#
+# De onde vem: o texto do pedido é o segundo exemplo de pedido do serviço em servicos.yaml
+# (SRV-ENGENHARIA, exemplos_de_pedido), com o exemplo numérico e as restrições acrescentados. As regras do serviço NÃO são
+# copiadas aqui: estão em servicos.yaml (SRV-ENGENHARIA e portao1_comum) e em
+# deliverables/mudanca_de_codigo.yaml (seções, CHK-ENGENHARIA-*, RUB-ENGENHARIA-*).
+# Como mudar: para outra mudança, troque o texto de pedido_original (ou crie uma variante), ajuste a
+# fonte do arquivo e confira de novo as boas e os defeitos desta pasta: todo trecho da tabela "base"
+# tem de ser trecho literal da fonte do arquivo. Rode o validar.py e os testes de
+# motor/validador depois.
+#
+# O diff dos casos foi gerado com 'diff -u' sobre as duas versões dos arquivos e conferido com
+# 'git apply --check'; o teste do caso 01 e o do caso 02 foram rodados no vitest do repositório
+# (falham antes, passam depois) e o do caso 03 no pytest, em pasta de rascunho, fora do repositório.
+#
+# O que tem aqui:
+#   1. pacote_da_empresa: o que o Theo recebe junto com o card (grafia, voz, termos proibidos).
+#   2. fontes_importadas: o que o código guarda ANTES de qualquer IA. O pedido original é
+#      FON-PEDIDO-ENGENHARIA-01; os arquivos do repositório que o código copiou para o card são
+#      FON-ARQ-ENGENHARIA-01-1 (formatar-prazo.ts) e -2 (trecho do package.json); o trecho do manual é
+#      FON-MANUAL-PROGRAMADOR (o manual real está em docs/manual/programador/ e é montado pelo código).
+#   3. ordem_de_servico, leitura_de_volta e plano: como o card fica depois do seu CONFIRMO
+#      (card.schema.json). Serviço não julgado: uma etapa só (SERVICO_NAO_JULGADO).
+#   4. variantes: os pedidos usados pelas boas 02 e 03 (troca de texto de botão e teste novo sem mexer em
+#      nenhum arquivo existente), cada um com a sua fonte importada.
+#
+# Sem fitas: o Theo não tem ferramenta (ferramentas: []), então não há página lida.
+# Horários de Brasília (-03:00). Nenhum valor de chave ou senha aparece aqui.
+
+id: PEDIDO-ENGENHARIA-01
+servico: SRV-ENGENHARIA
+agente: AGT-09
+card_id: CARD-TESTE-ENGENHARIA-01
+empresa: BIZ-003
+criado_em: "2026-10-17T10:00:00-03:00"
+
+pacote_da_empresa:
+  empresa: BIZ-003
+  nome: "Humano Digital"
+  estado: CONFIRMADO
+  fonte_importada_id: FON-PACOTE-BIZ-003
+  grafia: "Humano Digital"
+  voz: "A das decisões DEC-024 e DEC-025, lidas na hora pelo motor (o texto não é copiado aqui)."
+  decisoes: [DEC-024, DEC-025]
+  proibicoes: "As do pacote da BIZ-003 em organograma.yaml; nenhum texto de tela com termo de ganho."
+  # LISTA DE TESTE: até você registrar a lista oficial do pacote (FORA-PACOTE-DE-VOZ), o caso usa as
+  # mesmas frases dos outros casos da Humano Digital.
+  termos_proibidos_em_todo_texto: ["renda garantida", "ganho garantido", "dinheiro fácil", "renda extra garantida", "emprego", "contratação", "vaga de trabalho", "carteira assinada"]
+
+fontes_importadas:
+  - {id: FON-PEDIDO-ENGENHARIA-01, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+  - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+  - id: FON-ARQ-ENGENHARIA-01-1
+    o_que: "Arquivo src/integrations/cards-v2/formatar-prazo.ts como está hoje, copiado pelo código do repositório antes da IA."
+    texto: |
+      // Formata o prazo de um card para a lista (dia/mês/ano).
+      export function formatarPrazo(iso: string): string {
+        const data = new Date(iso);
+        const dia = data.toISOString().slice(0, 10);
+        const [ano, mes, d] = dia.split("-");
+        return `${d}/${mes}/${ano}`;
+      }
+  - id: FON-ARQ-ENGENHARIA-01-2
+    o_que: "Trecho do package.json (linhas 46 a 54), copiado pelo código do repositório antes da IA."
+    texto: |6
+              "@tanstack/react-query": "^5.83.0",
+              "class-variance-authority": "^0.7.1",
+              "clsx": "^2.1.1",
+              "cmdk": "^1.1.1",
+              "date-fns": "^3.6.0",
+              "embla-carousel-react": "^8.6.0",
+              "input-otp": "^1.4.2",
+              "lucide-react": "^0.462.0",
+              "next-themes": "^0.3.0",
+  - id: FON-MANUAL-PROGRAMADOR
+    o_que: "Trecho sintético do Manual do Programador (docs/manual/programador/01-site.md); o manual real é montado pelo código na versão do repositório."
+    texto: |
+      O site é a v2 em src/. Cada módulo de dados fica em src/integrations/<nome>-v2/ e tem seus testes ao lado, com o sufixo .test.ts.
+      Os testes do site rodam com npx vitest run --pool=threads seguido do caminho do arquivo de teste.
+      Datas e horas aparecem sempre no horário de Brasília. O site nunca grava em tabela: toda gravação passa por funções do banco.
+      Não se acrescenta biblioteca sem pedido escrito do fundador.
+
+# Ordem de serviço como fica depois do seu CONFIRMO (formato: card.schema.json, $defs/ordem_de_servico).
+ordem_de_servico:
+  empresa: BIZ-003
+  prazo: "2026-10-20T18:00:00-03:00"
+  prioridade: 2
+  pedido_original: >-
+    Corrige a lista de cards: o prazo aparece um dia depois do certo quando o prazo é à noite. Por
+    exemplo, o card com prazo no dia 14 de outubro às 22h aparece como dia 15. Escreve o teste que
+    falha antes e passa depois. Não mexe no banco e não acrescenta biblioteca nova. O arquivo que
+    formata o prazo é o formatar-prazo.ts e já está no card.
+  o_que_quer: "Corrigir o prazo da lista de cards, que aparece um dia depois do certo à noite, com um teste que falha antes e passa depois."
+  como_e_o_pronto:
+    - {id: CARD-1, texto: "A mudança vem pronta como texto: arquivos, diff completo, testes, riscos, reversão e texto do PR.", quem_confere: IA, risco: BAIXO}
+    - {id: CARD-2, texto: "Nenhum arquivo em services/, scripts/ ou supabase/migrations/.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-ZONA, risco: ALTO}
+    - {id: CARD-3, texto: "Um teste que falha antes e passa depois, com o comando para rodar.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-TESTE, risco: ALTO}
+    - {id: CARD-4, texto: "Nenhuma frase dizendo que algo foi rodado, aplicado ou publicado.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-SEM-EXECUCAO, risco: ALTO}
+    - {id: CARD-5, texto: "Só o que o pedido diz: sem mexer no banco e sem biblioteca nova.", quem_confere: IA, risco: ALTO}
+  nao_pode:
+    - "Mexer no banco ou acrescentar biblioteca nova"
+    - "Aplicar, commitar ou publicar a mudança"
+
+# Leitura de volta da Helena (papel HELENA), antes do seu CONFIRMO (acao.schema.json, LER_DE_VOLTA).
+leitura_de_volta:
+  acao: LER_DE_VOLTA
+  escolha: {tipo: SERVICO, id: SRV-ENGENHARIA}
+  entendi_assim:
+    o_que_quer: "Corrigir o prazo da lista de cards, que aparece um dia depois do certo à noite, com um teste que falha antes e passa depois."
+    como_e_o_pronto:
+      - {texto: "A mudança vem pronta como texto: arquivos, diff completo, testes, riscos, reversão e texto do PR.", quem_confere: IA, risco: BAIXO}
+      - {texto: "Nenhum arquivo em services/, scripts/ ou supabase/migrations/.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-ZONA, risco: ALTO}
+      - {texto: "Um teste que falha antes e passa depois, com o comando para rodar.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-TESTE, risco: ALTO}
+      - {texto: "Nenhuma frase dizendo que algo foi rodado, aplicado ou publicado.", quem_confere: CODIGO, checagem: CHK-ENGENHARIA-SEM-EXECUCAO, risco: ALTO}
+      - {texto: "Só o que o pedido diz: sem mexer no banco e sem biblioteca nova.", quem_confere: IA, risco: ALTO}
+    nao_pode:
+      - "Mexer no banco ou acrescentar biblioteca nova"
+      - "Aplicar, commitar ou publicar a mudança"
+
+# Plano montado pelo código (SERVICO_NAO_JULGADO: o serviço não tem ação do fundador nem parecer).
+# Revisores EFETIVOS (MAT-21): o caso SUPÕE o Bruno já APTO em mudanca_de_codigo (teste 9 feito e o seu
+# toque dado), como será no passo 16; hoje o par está SEM_PROVA e o validador do plano recusaria a
+# etapa por ficar só com você. E1 = [BRUNO, FUNDADOR], porque a reserva Nina está SEM_PROVA e sai.
+plano:
+  origem: SERVICO_NAO_JULGADO
+  versao_do_catalogo: "3.1.0"
+  montado_em: "2026-10-17T10:05:00-03:00"
+  etapas:
+    - {id: E1, servico: SRV-ENGENHARIA, autor: THEO, revisores: [BRUNO, FUNDADOR], depende_de: []}
+
+# Pedidos derivados (empresa, prazo e plano iguais, mudam o pedido e as fontes) para as boas 02 e 03.
+variantes:
+  TEXTO-DO-BOTAO:
+    usada_por: boas/boa-02-texto-do-botao.yaml
+    pedido_original: >-
+      Troca o texto do botão Enviar por Mandar pedido na tela de novo pedido e ajusta o teste que o
+      confere. Só o texto muda: não mexe em nenhuma outra tela. Os arquivos textos-novo-pedido.ts e
+      textos-novo-pedido.test.ts já estão no card.
+    fontes_importadas:
+      - {id: FON-PEDIDO-ENGENHARIA-02, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+      - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+      - id: FON-ARQ-ENGENHARIA-02-1
+        o_que: "Arquivo src/pages/textos-novo-pedido.ts como está hoje, copiado pelo código do repositório antes da IA."
+        texto: |
+          // Textos fixos da tela de novo pedido.
+          export const TEXTOS_NOVO_PEDIDO = {
+            titulo: "Novo pedido",
+            botaoEnviar: "Enviar",
+            vazio: "Escreva o pedido antes de continuar.",
+          };
+      - id: FON-ARQ-ENGENHARIA-02-2
+        o_que: "Arquivo src/pages/textos-novo-pedido.test.ts como está hoje, copiado pelo código do repositório antes da IA."
+        texto: |
+          import { expect, it } from "vitest";
+          import { TEXTOS_NOVO_PEDIDO } from "./textos-novo-pedido";
+
+          it("o botão da tela de novo pedido diz Enviar", () => {
+            expect(TEXTOS_NOVO_PEDIDO.botaoEnviar).toBe("Enviar");
+          });
+      - id: FON-MANUAL-PROGRAMADOR
+        o_que: "Trecho sintético do Manual do Programador (docs/manual/programador/01-site.md)."
+        texto: |
+          O site é a v2 em src/. Cada módulo de dados fica em src/integrations/<nome>-v2/ e tem seus testes ao lado, com o sufixo .test.ts.
+          Os testes do site rodam com npx vitest run --pool=threads seguido do caminho do arquivo de teste.
+          Os textos fixos de cada tela ficam num arquivo textos-<tela>.ts ao lado da tela, com um teste que os confere.
+    ordem_de_servico:
+      o_que_quer: "Trocar o texto do botão Enviar por Mandar pedido na tela de novo pedido e ajustar o teste que o confere."
+    o_que_muda: "Mudança só de texto: dois arquivos existentes (código e teste), sem arquivo novo; o teste ajustado falha antes e passa depois."
+  TESTE-DE-IDS:
+    usada_por: boas/boa-03-teste-de-ids.yaml
+    pedido_original: >-
+      Escreve o teste que garante que dois serviços do catálogo nunca tenham o mesmo id. Só o teste:
+      não muda nenhum arquivo existente. O catálogo é o servicos.yaml, na pasta helena-v2, e os testes
+      dessa pasta rodam com o pytest.
+    fontes_importadas:
+      - {id: FON-PEDIDO-ENGENHARIA-03, o_que: "Pedido original do card (ordem_de_servico.pedido_original), gravado pelo código antes da IA."}
+      - {id: FON-PACOTE-BIZ-003, o_que: "Texto do pacote da empresa acima, na versão confirmada, com as decisões vigentes."}
+      - id: FON-ARQ-ENGENHARIA-03-1
+        o_que: "Trecho do helena-v2/servicos.yaml (começo da lista de serviços), copiado pelo código do repositório antes da IA."
+        texto: |
+          servicos:
+
+            # ===== Coordenação =====
+            - id: SRV-RELATORIO-FINAL
+              nome: "Relatório final do card"
+              dono: HELENA
+      - id: FON-MANUAL-PROGRAMADOR
+        o_que: "Trecho sintético do Manual do Programador (docs/manual/programador/03-motor-e-agentes.md)."
+        texto: |
+          O catálogo de serviços é o helena-v2/servicos.yaml, validado por helena-v2/validar.py.
+          Os testes da pasta helena-v2 rodam com python -m pytest seguido do caminho do arquivo, dentro da pasta helena-v2.
+          Nenhum teste da pasta altera os arquivos de especificação: eles só leem.
+    ordem_de_servico:
+      o_que_quer: "Escrever o teste que garante que dois serviços do catálogo nunca tenham o mesmo id, sem mudar nenhum arquivo existente."
+    o_que_muda: "Só arquivo novo (um teste); nenhum arquivo existente muda, então a tabela base não existe e o teste já passa antes da mudança."

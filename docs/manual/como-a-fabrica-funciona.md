@@ -36,7 +36,7 @@ Estados de serviço descritos na fotografia de 17/10: **ESTÁGIO** recebe card r
 | Clara | Jurídico, risco e conformidade | Parecer (ESTÁGIO) | Helena / Fundador |
 | Bianca | Pessoas e cultura | Perfil de função (RASCUNHO) | Olívia / Augusto |
 | Daniel | Dados e indicadores | Análise de dados (RASCUNHO) | Ravi / Caio |
-| Theo | Tecnologia | Proposta técnica (RASCUNHO) | Nina / Bruno |
+| Theo | Tecnologia e engenharia | Proposta técnica e Mudança de código (as duas RASCUNHO; ele está PAUSADO) | Nina / Bruno (proposta); Bruno / Nina (mudança de código) |
 | Nina | Produto | Requisitos de produto (RASCUNHO) | Ravi / Maya |
 | Ravi | Pesquisa (lê páginas da internet) | Dossiê (RASCUNHO, fase 3) | Isabela / Augusto |
 | Maya | Design de experiência | Especificação de interface (RASCUNHO) | Nina / Bruno |
@@ -50,7 +50,7 @@ Estados de serviço descritos na fotografia de 17/10: **ESTÁGIO** recebe card r
 | Joana | Atendimento (rascunhos de resposta) | Rascunho de resposta (RASCUNHO) | Renata / Isabela |
 | Felipe | Administração e vencimentos | Controle administrativo (RASCUNHO) | Olívia / Marina |
 
-Fatos sobre os agentes: só 8 dos 21 têm ficha completa (Helena, Laura, Augusto, Marina, Caio, Clara, Ravi, Isabela); os outros 13 aparecem como pendência conhecida. Sirlene, Doutor Vital, Alex e Rafael **não são agentes**: são personagens da marca eLiving™. Empresas: iGreen e Ecossistema de Saúde têm pacote de voz NÃO CONFIRMADO; Humano Digital e eLiving™ têm pacote CONFIRMADO. Card de empresa sem pacote confirmado é recusado.
+Fatos sobre os agentes: só 9 dos 21 têm ficha completa (Helena, Laura, Augusto, Marina, Caio, Clara, Theo, Ravi, Isabela); os outros 12 aparecem como pendência conhecida. A ficha do Theo (17/10/2026) é rascunho: ele escreve a mudança de código pronta como texto e você aprova (modelo "Constrói, você aprova"); ver [`programador/00-theo-engenheiro.md`](programador/00-theo-engenheiro.md). Sirlene, Doutor Vital, Alex e Rafael **não são agentes**: são personagens da marca eLiving™. Empresas: iGreen e Ecossistema de Saúde têm pacote de voz NÃO CONFIRMADO; Humano Digital e eLiving™ têm pacote CONFIRMADO. Card de empresa sem pacote confirmado é recusado.
 
 Modelo: todos usam `gpt-6-sol`, menos a coordenação da Helena (`gpt-6.1-sol`). Não há modelo reserva. Existe um "modelo menor por ordem sua", mas nenhum serviço está apto a usá-lo hoje.
 

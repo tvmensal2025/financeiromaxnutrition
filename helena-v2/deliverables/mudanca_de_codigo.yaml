@@ -1,0 +1,336 @@
+# Tipo de entrega: mudanca_de_codigo (v3.1). Formato: schemas/entrega.schema.json.
+# Dono: THEO (AGT-09). Serviço: SRV-ENGENHARIA (servicos.yaml), estado RASCUNHO. Revisor titular:
+# BRUNO; reserva: NINA; você é sempre a última reserva (MAT-03). Decisão do fundador de 17/10/2026,
+# modelo "Constrói, você aprova".
+#
+# O que é: a MUDANÇA DE CÓDIGO PRONTA, escrita como texto. O Theo não toca no repositório: ele escreve
+# o que mudaria (arquivos, diff completo, testes e como rodá-los, riscos, como reverter e o texto do
+# PR) e para aí. Você aprova a entrega; quem aplica o patch em branch/PR é um humano ou uma IA de
+# código FORA da esteira, e o merge e a publicação são seus. Hoje NÃO existe escrita em GitHub por
+# agente e ela só pode ser criada com decisão sua. Princípio da v2: o agente só escreve conteúdo; quem
+# executa é o código/motor.
+#
+# De onde vem o material: do pedido original do card (suas palavras, FON-PEDIDO-<card>) e dos TRECHOS
+# DO REPOSITÓRIO que o card trouxe como fonte importada (FON-ARQ-<card>-<n>: o código da pessoa ou da
+# IA que abriu o card copia o arquivo, ou o pedaço dele, ANTES de qualquer IA). O Theo não tem
+# ferramenta (ferramentas: []): não lê o repositório, não roda comando e não executa nada. Por isso
+# toda linha removida ou de contexto do diff tem de existir, igual, numa fonte do card; sem a fonte, o
+# Theo registra FALTAM_DADOS e diz qual arquivo falta, e nunca adivinha o conteúdo.
+#
+# Regras de ouro (checagens e rubrica abaixo):
+#   1. services/, scripts/ e supabase/migrations/ só com a SUA frase exata (DEC-028), copiada do pedido;
+#   2. migration NUNCA é aplicada por agente (e nunca é escrita sem a frase acima);
+#   3. segredo só por NOME (variável, arquivo, local), nunca o valor; nenhum arquivo de segredo;
+#   4. testes primeiro: todo comportamento novo tem um teste que falha antes e passa depois;
+#   5. mudança mínima: só o que o pedido diz, em poucos arquivos, sem refatoração de carona;
+#   6. nada commitado, aplicado, publicado ou "testado" pelo Theo: ele diz o que NÃO verificou.
+#
+# Limitações conhecidas do portão 1 comum para este tipo (a resolver ANTES de ativar; ver
+# docs/manual/programador/00-theo-engenheiro.md, "O que falta para ativar"):
+#   - CHK-COMUM-04 recusa marcação de página (HTML/JSX) em qualquer texto; um diff de tela em TSX com
+#     <div> ou <button> seria recusado. Falta um tipo de campo 'codigo' com tratamento próprio, ou a
+#     decisão de só aceitar mudança sem marcação (lógica, testes, textos, estilos, documentos);
+#   - CHK-COMUM-05 e CHK-COMUM-03 leem o diff como texto livre, linha a linha: uma mensagem de tela
+#     como "enviado com sucesso" dentro do diff seria lida como "agi fora". Mesmo remédio.
+#
+# As checagens comuns (servicos.yaml, portao1_comum, CHK-COMUM-01 a 10) valem sempre e não se
+# repetem aqui: seções e formato (01), tamanho (02), português (03), sem HTML (04), "agi fora" (05),
+# citação (06), link (07), autoavaliação (08), grafia da marca (09) e ação externa (10).
+# Nenhum critério da rubrica depende de lei (MAT-22): este tipo não é julgado pelo parecer
+# (julgado_pelo_parecer: NUNCA), não tem ação do fundador no catálogo (ver o comentário do
+# SRV-ENGENHARIA em servicos.yaml) e a faixa do card mostra "sem conferência jurídica".
+#
+# Neutro quanto ao motor (DBOS ou motor próprio): tudo aqui é dado nosso.
+
+tipo: mudanca_de_codigo
+versao: "3.1.0"
+descricao: "Mudança de código pronta, só como texto: objetivo, arquivos, diff completo, testes e como rodá-los, riscos, reversão e texto do PR. O Theo não commita, não aplica e não publica; você aprova."
+dono: THEO
+servico: SRV-ENGENHARIA
+
+secoes:
+  - id: objetivo
+    titulo: "O que a mudança faz"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 300
+    descricao: "Uma frase com o resultado, como está no seu pedido. Não aumenta nem muda o que você pediu."
+  - id: base
+    titulo: "Como os arquivos estão hoje"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 1
+    itens_max: 10
+    descricao: "Obrigatória quando algum arquivo é alterado ou removido (a CHK-ENGENHARIA-BASE confere); mudança só com arquivo novo não tem esta tabela. Um arquivo existente por linha, com um trecho dele copiado da fonte do repositório que o card trouxe."
+    colunas:
+      - {id: caminho, tipo_de_campo: texto, descricao: "Caminho do arquivo a partir da raiz do repositório, como na tabela arquivos."}
+      - {id: trecho, tipo_de_campo: citacao, descricao: "Trecho contínuo do arquivo (frase inteira ou 12 palavras seguidas) copiado de uma fonte FON-ARQ-<card>-<n> do card."}
+  - id: arquivos
+    titulo: "Arquivos tocados"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 10
+    descricao: "Um arquivo por linha, os mesmos do diff. Mudança mínima: no máximo 10 arquivos."
+    colunas:
+      - {id: caminho, tipo_de_campo: texto, descricao: "Caminho relativo à raiz do repositório, sem '..' nem caminho absoluto."}
+      - {id: acao, tipo_de_campo: texto, descricao: "'criar', 'alterar' ou 'remover'."}
+      - {id: motivo, tipo_de_campo: texto, descricao: "Por que este arquivo muda, numa frase ligada ao pedido."}
+      - {id: zona, tipo_de_campo: texto, descricao: "'livre' ou 'protegida' (services/, scripts/ ou supabase/migrations/; DEC-028)."}
+  - id: frase_do_fundador
+    titulo: "Sua frase para a zona protegida"
+    tipo_de_campo: tabela
+    obrigatoria: false
+    itens_min: 1
+    itens_max: 5
+    descricao: "Só quando alguma linha de arquivos tem zona 'protegida': a sua frase exata, copiada do pedido, que autoriza mexer naquele caminho. Sem a frase, o Theo não escreve a mudança: devolve o pedido."
+    colunas:
+      - {id: caminho, tipo_de_campo: texto, descricao: "O caminho protegido que a frase autoriza."}
+      - {id: frase, tipo_de_campo: citacao, descricao: "Sua frase, copiada do pedido (FON-PEDIDO-<card>), com a ação e o caminho ditos por você."}
+  - id: diff
+    titulo: "Diff completo"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 8000
+    descricao: "Diff unificado de todos os arquivos (cabeçalhos '--- a/...' e '+++ b/...', trechos '@@ -a,b +c,d @@'), pronto para aplicar com 'git apply'. Arquivo novo usa /dev/null. Sem segredo."
+  - id: testes
+    titulo: "Testes novos ou alterados"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 8
+    descricao: "Um teste por linha, todos no diff. Testes primeiro: o comportamento novo tem um teste que falha antes da mudança e passa depois."
+    colunas:
+      - {id: caminho, tipo_de_campo: texto, descricao: "Arquivo de teste, o mesmo do diff."}
+      - {id: o_que_prova, tipo_de_campo: texto, descricao: "O comportamento que o teste prova, numa frase."}
+      - {id: como_rodar, tipo_de_campo: texto, descricao: "O comando exato para rodar só este teste, a partir da raiz do repositório."}
+      - {id: antes_da_mudanca, tipo_de_campo: texto, descricao: "'falha' (o teste prova o defeito ou a regra nova) ou 'ja_passava' (trava um comportamento que já existe)."}
+  - id: riscos
+    titulo: "O que pode dar errado"
+    tipo_de_campo: tabela
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 5
+    descricao: "Riscos além do arquivo tocado: quem chama o código, dados existentes, permissões, telas vizinhas, migration não aplicada."
+    colunas:
+      - {id: risco, tipo_de_campo: texto, descricao: "O que pode quebrar."}
+      - {id: onde_aparece, tipo_de_campo: texto, descricao: "Onde você veria o problema (tela, teste, log)."}
+      - {id: o_que_fazer, tipo_de_campo: texto, descricao: "O que conferir antes de aprovar ou como segurar o risco."}
+  - id: reversao
+    titulo: "Como reverter"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 600
+    descricao: "Como desfazer tudo depois do merge, sem perder dado: normalmente reverter o PR. Se houver migration, diz que ela não é desfeita pelo revert e o que fazer."
+  - id: nao_verificado
+    titulo: "O que o Theo não verificou"
+    tipo_de_campo: lista
+    obrigatoria: true
+    itens_min: 1
+    itens_max: 4
+    descricao: "Sempre começa dizendo que os testes não foram rodados e o patch não foi aplicado (o Theo não executa nada), e lista o que falta olhar fora do que o card trouxe."
+  - id: pr_titulo
+    titulo: "Título do PR"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 100
+    descricao: "Uma linha, em português, sem ponto final, de até 72 caracteres."
+  - id: pr_corpo
+    titulo: "Texto do PR"
+    tipo_de_campo: texto
+    obrigatoria: true
+    limite_caracteres: 1800
+    descricao: "Quatro blocos, com estes títulos: 'O que muda', 'Como testar', 'Riscos' e 'Como reverter'. Diz a verdade: nada foi rodado, aplicado nem publicado pelo Theo."
+
+limite: 12000
+
+checagens_codigo:
+  - id: CHK-ENGENHARIA-DIFF
+    descricao: "Diff aplicável: unificado, com '--- a/' e '+++ b/' (ou /dev/null) para cada arquivo, trechos '@@' cujas contagens batem com as linhas, e os arquivos do diff são exatamente os da tabela arquivos, com a mesma ação."
+    fecha_furos: [K-13, A-17]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      formato: "diff unificado de git (git apply --check)"
+      acoes: ["criar", "alterar", "remover"]
+  - id: CHK-ENGENHARIA-BASE
+    descricao: "O diff parte do arquivo real: todo arquivo 'alterar' ou 'remover' tem linha na base; o trecho da base é cópia literal de uma fonte FON-ARQ-<card> do card; toda linha removida ou de contexto do diff existe, igual, nessa fonte. Sem a fonte: FALTAM_DADOS."
+    fecha_furos: [C-8, M-15, CONF-18]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      origens_aceitas: ["fonte importada do repositório (FON-ARQ-<card>-<n>)"]
+      minimo_palavras: 12
+      aceita_frase_inteira: true
+  - id: CHK-ENGENHARIA-ZONA
+    descricao: "Zona protegida: nenhum caminho em services/, scripts/ ou supabase/migrations/ sem a sua frase exata (DEC-028) na tabela frase_do_fundador, copiada do pedido e citando o caminho; e nenhum caminho absoluto, com '..' ou fora do repositório."
+    fecha_furos: [B-17, DEC-028]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      zonas_protegidas: ["services/", "scripts/", "supabase/migrations/"]
+      outras_pastas_de_migration: ["supabase/migrations-v2/"]
+      frase: "citação literal do pedido (FON-PEDIDO-<card>), com o caminho e a ação"
+  - id: CHK-ENGENHARIA-MIGRATION
+    descricao: "Migration nunca é aplicada por agente: se algum arquivo está em supabase/migrations*/, a seção riscos e o texto do PR dizem 'migration não aplicada' e que quem aplica é você; nenhum texto manda rodar o SQL por conta própria."
+    fecha_furos: [CONF-20, B-17]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      pastas: ["supabase/migrations/", "supabase/migrations-v2/"]
+      termos_exigidos: ["migration não aplicada"]
+  - id: CHK-ENGENHARIA-SEGREDO
+    descricao: "Segredo só por nome: nenhum valor de chave, token, senha ou código de recuperação em lugar nenhum da entrega (mesmos padrões do validar.py, SEM-CHAVE); nenhum arquivo de segredo na tabela (.env*, *.pem, *.key, credentials, auth.json); só o nome da variável ou o local."
+    fecha_furos: [B-17, M-13]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      padroes: "os de PADROES_DE_CHAVE em helena-v2/validar.py"
+      caminhos_proibidos: ["^\\.env", "\\.pem$", "\\.key$", "credentials", "auth\\.json$", "secrets?\\."]
+  - id: CHK-ENGENHARIA-TESTE
+    descricao: "Testes primeiro: cada linha de testes é um arquivo do diff, tem comando para rodar e 'falha' ou 'ja_passava'; ao menos um teste 'falha', exceto em mudança só de teste, texto ou documento (nenhum arquivo de código de produção na tabela)."
+    fecha_furos: [K-13, C-9]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      valores_de_antes: ["falha", "ja_passava"]
+      excecao: "só arquivos de teste, *.md ou docs/"
+  - id: CHK-ENGENHARIA-MINIMA
+    descricao: "Mudança mínima: no máximo 10 arquivos e 400 linhas alteradas (+ e -, sem contar contexto) no diff. Maior que isso: DEVOLVER_A_QUEM_PEDIU, pedindo para dividir em mudanças menores."
+    fecha_furos: [K-13]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      maximo_de_arquivos: 10
+      maximo_de_linhas_alteradas: 400
+  - id: CHK-ENGENHARIA-SEM-EXECUCAO
+    descricao: "O Theo não executa nada e não diz que executou: nenhuma frase fora do diff e dos trechos citados dizendo que rodou, testou, passou, commitou, aplicou, mesclou, subiu, publicou, implantou ou migrou, nem que já está em produção (a frase negada, como 'não rodei', passa)."
+    fecha_furos: [CONF-20, B-17]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      termos: ["rodei", "executei", "testei", "os testes passaram", "passou nos testes", "commitei", "fiz o commit", "fiz o merge", "mesclei", "apliquei", "subi para", "implantei", "fiz o deploy", "migrei", "já está em produção", "já foi publicado", "já foi aplicado"]
+      onde: "todo texto da entrega, menos o diff e o trecho_original das citações"
+  - id: CHK-ENGENHARIA-PR
+    descricao: "Texto do PR no formato: título de até 72 caracteres, sem ponto final; o corpo tem os quatro blocos 'O que muda', 'Como testar', 'Riscos' e 'Como reverter', e o 'Como testar' repete os comandos da tabela testes."
+    fecha_furos: [K-13, A-17]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      maximo_do_titulo: 72
+      blocos: ["O que muda", "Como testar", "Riscos", "Como reverter"]
+  - id: CHK-ENGENHARIA-PACOTE
+    descricao: "Texto de tela que o diff põe na frente de gente (linhas '+') não tem termo proibido do pacote da empresa do card (termos_proibidos_em_todo_texto), sem diferenciar maiúscula e acento, e a grafia da marca é eLiving™."
+    fecha_furos: [DEC-023]
+    gravidade: RECUSA
+    fase: "fase 3"
+    parametros:
+      fonte: "pacote da empresa do card: termos_proibidos_em_todo_texto"
+      onde: "linhas adicionadas do diff"
+
+rubrica:
+  - id: RUB-ENGENHARIA-01
+    pergunta: "A mudança faz exatamente o que o seu pedido diz, sem funcionalidade, refatoração ou arquivo de carona que ninguém pediu?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código conta arquivos e linhas, mas não sabe se uma linha a mais foge do pedido."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-02
+    pergunta: "Os testes provam o comportamento pedido e falhariam sem a mudança, em vez de só repetir o que o código novo faz?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código vê que o teste existe e está no diff, não se ele prova alguma coisa."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-03
+    pergunta: "Os riscos dizem o que pode quebrar além do arquivo tocado (quem chama, dados já gravados, permissões, telas vizinhas) e a reversão desfaz tudo sem perder dado?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "Quem chama o código tocado só aparece entendendo o sistema."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-04
+    pergunta: "Nenhuma linha do diff faz o site ou o agente gravar direto em tabela, pular uma permissão ou decidir estado que pertence ao banco ou à máquina de estados?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista de pastas protegidas não pega um atalho dito com outras palavras dentro de uma pasta livre."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-05
+    pergunta: "O texto do PR e a seção do que não foi verificado dizem a verdade sobre o que foi feito, sem afirmar que algo foi rodado, aplicado ou testado?"
+    evidencia_exigida: TRECHO
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "A lista fechada de termos não pega a mesma afirmação dita com outras palavras."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-06
+    pergunta: "Cada restrição do seu pedido (como 'sem mexer no banco' ou 'sem biblioteca nova') foi respeitada pelo diff inteiro?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código não lê as restrições do pedido, só as pastas protegidas."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-07
+    pergunta: "O diff deixa a segurança como estava: nenhuma permissão ampliada, nenhuma checagem de acesso removida e nenhuma entrada de pessoa usada sem conferência?"
+    evidencia_exigida: AUSENCIA
+    risco: ALTO
+    por_que_o_codigo_nao_confere: "O código procura valor de segredo, não uma checagem de acesso que sumiu."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+  - id: RUB-ENGENHARIA-08
+    pergunta: "Quem vai aprovar consegue ler a mudança: nomes e comentários em português simples, no estilo dos arquivos vizinhos, sem esperteza desnecessária?"
+    evidencia_exigida: TEXTO_INTEIRO
+    risco: BAIXO
+    por_que_o_codigo_nao_confere: "Clareza e estilo dos vizinhos só aparecem na leitura."
+    vereditos: [PASSOU, FALHOU, NAO_CONSIGO_CONFERIR]
+
+# Pronto em 3 camadas. Camada 1 (código): as comuns valem sempre, mais as deste tipo. Camada 2
+# (rubrica): toda a rubrica, mais os itens CARD-n de IA do card. Camada 3 (você): NUNCA no catálogo,
+# porque o serviço não tem ação do fundador (MAT-22 liga ação a parecer). Mesmo assim, nada é aplicado
+# sem você: a entrega pronta é um texto; aplicar o patch é de quem você mandar e o merge é seu. Para o
+# seu "aprovo" ficar no card, mantenha o serviço em ESTAGIO (você é revisor a mais em todo card) e não o
+# promova a ATIVO. Você também é a última reserva da revisão, e nenhum padrão automático aprova.
+criterio_de_pronto:
+  codigo: [CHK-ENGENHARIA-DIFF, CHK-ENGENHARIA-BASE, CHK-ENGENHARIA-ZONA, CHK-ENGENHARIA-MIGRATION,
+           CHK-ENGENHARIA-SEGREDO, CHK-ENGENHARIA-TESTE, CHK-ENGENHARIA-MINIMA,
+           CHK-ENGENHARIA-SEM-EXECUCAO, CHK-ENGENHARIA-PR, CHK-ENGENHARIA-PACOTE]
+  rubrica: [RUB-ENGENHARIA-01, RUB-ENGENHARIA-02, RUB-ENGENHARIA-03, RUB-ENGENHARIA-04,
+            RUB-ENGENHARIA-05, RUB-ENGENHARIA-06, RUB-ENGENHARIA-07, RUB-ENGENHARIA-08]
+  fundador:
+    quando: NUNCA
+
+revisor_confere:
+  - "Se a mudança faz só o que o pedido diz, sem nada de carona (RUB-ENGENHARIA-01)."
+  - "Se os testes provam o comportamento e falhariam sem a mudança (RUB-ENGENHARIA-02)."
+  - "Se os riscos e a reversão cobrem o que pode quebrar além do arquivo tocado (RUB-ENGENHARIA-03)."
+  - "Se nenhuma linha faz o site ou o agente gravar tabela ou pular permissão ou estado (RUB-ENGENHARIA-04)."
+  - "Se o texto do PR e o que não foi verificado dizem a verdade (RUB-ENGENHARIA-05)."
+  - "Se cada restrição do pedido foi respeitada (RUB-ENGENHARIA-06)."
+  - "Se a segurança ficou como estava (RUB-ENGENHARIA-07)."
+  - "Se dá para ler e aprovar sem esforço (RUB-ENGENHARIA-08)."
+
+revisor_nao_reavalia:
+  - "Formato do diff, contagem de linhas, zona protegida, segredo, migration, existência do teste e formato do PR: o código já refez (CHK-ENGENHARIA-DIFF a CHK-ENGENHARIA-PR)."
+  - "Se o trecho do arquivo existe na fonte do card: o código já conferiu (CHK-ENGENHARIA-BASE)."
+  - "Se vale a pena fazer a mudança, ou se há jeito melhor: é decisão sua, com SRV-PROPOSTA-TECNICA e SRV-REQUISITOS-DE-PRODUTO."
+  - "Se os testes realmente passam: ninguém na esteira os roda; quem aplica o patch roda e traz o resultado."
+
+entrada_minima:
+  - id: ENT-ENGENHARIA-PEDIDO
+    o_que: "O que mudar, com o resultado esperado e as restrições (ex.: sem mexer no banco)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-ENGENHARIA-MANUAL
+    o_que: "O Manual do Programador na versão do repositório (docs/manual/programador/01-site.md, 02-banco.md e 03-motor-e-agentes.md), montado pelo código antes da IA (FON-MANUAL-PROGRAMADOR)."
+    de_onde: FONTE_IMPORTADA
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-ENGENHARIA-ARQUIVOS
+    o_que: "O conteúdo dos arquivos a alterar ou remover (ou do pedaço deles), copiado do repositório pelo código antes da IA (FON-ARQ-<card>-<n>)."
+    de_onde: FONTE_IMPORTADA
+    se_faltar: REGISTRAR_FALHA
+  - id: ENT-ENGENHARIA-ONDE-TESTAR
+    o_que: "Como o repositório roda testes (comandos do package.json ou do pytest) e onde ficam os testes vizinhos."
+    de_onde: FONTE_IMPORTADA
+    se_faltar: PERGUNTAR
+  - id: ENT-ENGENHARIA-FRASE
+    o_que: "Só para zona protegida: a sua frase exata autorizando aquele caminho (DEC-028)."
+    de_onde: PEDIDO_DO_CARD
+    se_faltar: DEVOLVER_A_QUEM_PEDIU
+  - id: ENT-ENGENHARIA-PACOTE
+    o_que: "Pacote da empresa do card: grafia, voz, proibições e termos proibidos em todo texto."
+    de_onde: PACOTE_DA_EMPRESA
+    se_faltar: REGISTRAR_FALHA

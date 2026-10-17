@@ -1,0 +1,105 @@
+# Caso BOM do SRV-ENGENHARIA (Theo, AGT-09) para o pedido ../pedido.yaml, variante TEXTO-DO-BOTAO. SINTÉTICO.
+# De onde vem: escrito à mão a partir do pedido; a 'resposta' é a saída do Theo no formato de
+# schemas/acao.schema.json ($defs/saida_do_autor). O diff foi gerado com difflib e conferido com
+# 'git apply --check'. Passa nas checagens comuns e nas CHK-ENGENHARIA-* e na rubrica (RUB-ENGENHARIA-01 a 08).
+# Como mudar: se mudar o diff, mantenha os caminhos da tabela arquivos, o trecho da base igual a um
+# trecho da fonte do pedido e os comandos da tabela testes iguais aos do texto do PR; rode o validar.py.
+id: ENGENHARIA-BOA-02
+servico: SRV-ENGENHARIA
+pedido: ../pedido.yaml
+variante: TEXTO-DO-BOTAO
+nota: 'Mudança só de texto: dois arquivos existentes (código e teste) alterados; o teste ajustado falha antes e passa depois.'
+deve_passar_em:
+- CHK-COMUM-01
+- CHK-COMUM-02
+- CHK-COMUM-03
+- CHK-COMUM-04
+- CHK-COMUM-05
+- CHK-COMUM-06
+- CHK-COMUM-07
+- CHK-COMUM-08
+- CHK-COMUM-09
+- CHK-COMUM-10
+- CHK-ENGENHARIA-DIFF
+- CHK-ENGENHARIA-BASE
+- CHK-ENGENHARIA-ZONA
+- CHK-ENGENHARIA-MIGRATION
+- CHK-ENGENHARIA-SEGREDO
+- CHK-ENGENHARIA-TESTE
+- CHK-ENGENHARIA-MINIMA
+- CHK-ENGENHARIA-SEM-EXECUCAO
+- CHK-ENGENHARIA-PR
+- CHK-ENGENHARIA-PACOTE
+- RUB-ENGENHARIA-01
+- RUB-ENGENHARIA-02
+- RUB-ENGENHARIA-03
+- RUB-ENGENHARIA-04
+- RUB-ENGENHARIA-05
+- RUB-ENGENHARIA-06
+- RUB-ENGENHARIA-07
+- RUB-ENGENHARIA-08
+- CARD-1
+- CARD-2
+- CARD-3
+- CARD-4
+- CARD-5
+veredito_esperado_do_revisor: APROVAR
+resposta:
+  acao: ENTREGAR
+  parecer: OK
+  acao_externa:
+    tipo: NENHUMA
+  entrega:
+    objetivo: Trocar o texto do botão Enviar por Mandar pedido na tela de novo pedido e ajustar o teste que o confere.
+    base:
+    - caminho: src/pages/textos-novo-pedido.ts
+      trecho:
+        trecho_original: 'export const TEXTOS_NOVO_PEDIDO = { titulo: "Novo pedido", botaoEnviar: "Enviar", vazio: "Escreva
+          o pedido antes de continuar.", };'
+        fonte_importada_id: FON-ARQ-ENGENHARIA-02-1
+    - caminho: src/pages/textos-novo-pedido.test.ts
+      trecho:
+        trecho_original: import { expect, it } from "vitest"; import { TEXTOS_NOVO_PEDIDO } from "./textos-novo-pedido";
+          it("o botão da tela de novo pedido diz Enviar", () => {
+        fonte_importada_id: FON-ARQ-ENGENHARIA-02-2
+    arquivos:
+    - caminho: src/pages/textos-novo-pedido.ts
+      acao: alterar
+      motivo: Trocar o texto do botão de envio.
+      zona: livre
+    - caminho: src/pages/textos-novo-pedido.test.ts
+      acao: alterar
+      motivo: Ajustar o teste que confere o texto do botão.
+      zona: livre
+    diff: "--- a/src/pages/textos-novo-pedido.ts\n+++ b/src/pages/textos-novo-pedido.ts\n@@ -2,5 +2,5 @@\n export const\
+      \ TEXTOS_NOVO_PEDIDO = {\n   titulo: \"Novo pedido\",\n-  botaoEnviar: \"Enviar\",\n+  botaoEnviar: \"Mandar pedido\"\
+      ,\n   vazio: \"Escreva o pedido antes de continuar.\",\n };\n--- a/src/pages/textos-novo-pedido.test.ts\n+++ b/src/pages/textos-novo-pedido.test.ts\n\
+      @@ -2,5 +2,5 @@\n import { TEXTOS_NOVO_PEDIDO } from \"./textos-novo-pedido\";\n \n-it(\"o botão da tela de novo pedido\
+      \ diz Enviar\", () => {\n-  expect(TEXTOS_NOVO_PEDIDO.botaoEnviar).toBe(\"Enviar\");\n+it(\"o botão da tela de novo\
+      \ pedido diz Mandar pedido\", () => {\n+  expect(TEXTOS_NOVO_PEDIDO.botaoEnviar).toBe(\"Mandar pedido\");\n });\n"
+    testes:
+    - caminho: src/pages/textos-novo-pedido.test.ts
+      o_que_prova: O botão da tela de novo pedido diz Mandar pedido.
+      como_rodar: npx vitest run --pool=threads src/pages/textos-novo-pedido.test.ts
+      antes_da_mudanca: falha
+    riscos:
+    - risco: Outro teste ou captura de tela pode esperar o texto antigo, Enviar.
+      onde_aparece: Testes da tela de novo pedido.
+      o_que_fazer: Procurar o texto antigo nos testes da tela antes de aprovar; só o arquivo de textos mudou.
+    reversao: Reverter o PR depois do merge; os dois arquivos voltam ao texto Enviar. Nenhum dado muda.
+    nao_verificado:
+    - 'Os testes não foram rodados e o patch não foi aplicado: quem escreveu esta mudança não executa nada. Quem aplicar
+      roda o comando da seção testes e traz o resultado.'
+    pr_titulo: Troca o texto do botão de envio para Mandar pedido
+    pr_corpo: |-
+      O que muda
+      O botão da tela de novo pedido passa a dizer Mandar pedido, e o teste que confere o texto foi ajustado.
+
+      Como testar
+      npx vitest run --pool=threads src/pages/textos-novo-pedido.test.ts
+
+      Riscos
+      Só o texto muda; nenhuma outra tela é tocada. Os testes não foram rodados por quem escreveu esta mudança.
+
+      Como reverter
+      Reverter este PR; nenhum dado muda.

@@ -10,5 +10,18 @@
 pendencias:
   - regra: FICHA-AUSENTE
     alvo: agents
-    maximo: 13
-    motivo: faltam as fichas v3.1 de 13 agentes, fora do primeiro card (fila no HANDOFF-CLAUDE-CODE.md); se faltar mais de 13, é erro
+    maximo: 12
+    motivo: faltam as fichas v3.1 de 12 agentes, fora do primeiro card (fila no HANDOFF-CLAUDE-CODE.md); se faltar mais de 12, é erro
+  # Theo (AGT-09) ganhou ficha em 17/10/2026 por causa do SRV-ENGENHARIA. A ficha lista também o serviço que ele já tinha,
+  # SRV-PROPOSTA-TECNICA, e o validador exige para ele o que todo serviço de agente com ficha tem: o tipo de entrega em
+  # deliverables/ e os casos de prova. Isso ainda não foi escrito (o pedido do fundador era só o SRV-ENGENHARIA). Os três
+  # itens abaixo saem da lista juntos quando existirem deliverables/proposta_tecnica.yaml e 3 casos bons e 4 defeitos.
+  - regra: ENTREGA-ARQUIVO
+    alvo: agents/theo.yaml
+    motivo: o tipo proposta_tecnica (SRV-PROPOSTA-TECNICA, também do Theo) ainda não tem deliverables/proposta_tecnica.yaml; fila do Theo
+  - regra: CASOS-BOAS
+    alvo: casos/SRV-PROPOSTA-TECNICA
+    motivo: o SRV-PROPOSTA-TECNICA ainda não tem casos bons (mínimo 3), pelo mesmo motivo; fila do Theo
+  - regra: CASOS-DEFEITOS
+    alvo: casos/SRV-PROPOSTA-TECNICA
+    motivo: o SRV-PROPOSTA-TECNICA ainda não tem defeitos plantados (mínimo 4), pelo mesmo motivo; fila do Theo

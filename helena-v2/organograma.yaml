@@ -110,7 +110,7 @@ agentes:
   - {id: AGT-06, identidade: CLARA,   nome: "Clara",   cargo: "Jurídico, risco e conformidade",             grupo: GRP-JURIDICO-RISCO,      escopo: EMPRESAS, fase_de_ativacao: "v2.0",   estado: ESTAGIO}
   - {id: AGT-07, identidade: BIANCA,  nome: "Bianca",  cargo: "Pessoas e cultura",                          grupo: GRP-PESSOAS,             escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
   - {id: AGT-08, identidade: DANIEL,  nome: "Daniel",  cargo: "Dados e indicadores",                        grupo: GRP-FINANCAS-DADOS-ADM,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
-  - {id: AGT-09, identidade: THEO,    nome: "Theo",    cargo: "Tecnologia",                                 grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
+  - {id: AGT-09, identidade: THEO,    nome: "Theo",    cargo: "Tecnologia e engenharia",                    grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
   - {id: AGT-10, identidade: NINA,    nome: "Nina",    cargo: "Produto",                                    grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
   - {id: AGT-11, identidade: RAVI,    nome: "Ravi",    cargo: "Pesquisa",                                   grupo: GRP-MERCADO,             escopo: EMPRESAS, fase_de_ativacao: "fase 3", estado: PAUSADO}
   - {id: AGT-12, identidade: MAYA,    nome: "Maya",    cargo: "Design de experiência e interface",          grupo: GRP-PRODUTO-TECNOLOGIA,  escopo: EMPRESAS, fase_de_ativacao: "fase 4", estado: PAUSADO}
@@ -146,6 +146,8 @@ sobreposicoes_resolvidas:
     como: "Caio: dinheiro (valores, caixa, custo, margem, cenários). Felipe: agenda de vencimentos e documentos, sem valores de caixa. Daniel: indicadores que não são dinheiro (funil, uso, atendimento)."
   - entre: "Laura e Bianca"
     como: "Laura: só o seu desenvolvimento pessoal (escopo PESSOAL). Bianca: funções, vagas e desempenho das empresas."
+  - entre: "Theo, Nina, Maya e Bruno"
+    como: "Nina: o que construir. Maya: como a tela se comporta. Theo: como construir (proposta técnica) e a própria mudança de código pronta (SRV-ENGENHARIA: diff, testes e texto do PR; ele nunca faz commit, publica nem aplica migration). Bruno: o plano de testes do produto e a revisão da mudança de código do Theo. Quem aprova é você; quem aplica o patch é um humano ou uma IA de código fora da esteira."
   - entre: "Helena e as revisões"
     como: "A Helena revisa só cálculo, parecer e prática pessoal; as outras revisões estão distribuídas (servicos.yaml, MAT-08). O Caio é o revisor titular do convite e do roteiro de treinamento desde a v2.0, porque a regra 4 tira a Helena dessas peças (ela revisa o parecer que as julga)."
 
