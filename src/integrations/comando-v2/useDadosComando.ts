@@ -2,7 +2,7 @@
  * O que é: gancho que entrega `DadosComando` às abas da Sala de comando v2, lendo SÓ o esquema helena_v2: cards, etapas
  * atuais e entregas (sem corpo), pedidos de entrada e o catálogo da configuração ativa. Nunca a fila agent_jobs da v1.
  * Como mudar: cada fonte é independente (uma falha marca só o estado dela como 'erro'; as outras seguem). Recarregar
- * mantém os dados anteriores até chegar o novo, e a última recarga vence. Para testar, use `criarUseDadosComando(deps)`
+ * marca `carregando`, mantém os dados anteriores até chegar o novo, e a última recarga vence. Para testar, use `criarUseDadosComando(deps)`
  * com repositórios falsos; `useDadosComando` (sem argumentos) usa os repositórios reais do app.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -45,16 +45,24 @@ type Chave = keyof DadosComando['estado'];
 
 /** Aplica o resultado de UMA fonte sem tocar nas outras. Em erro mantém os itens anteriores, mas o estado vira 'erro'. */
 function aplicar<K extends Chave>(
-  chave: K, agora: Date, resultado: { itens?: DadosComando[K]; corte?: boolean } | null,
+  chave: K, agora: Date, resultado: { itens?: DadosComando[K]; corte?: boolean } | null, causa?: string,
 ): Atualizacao {
   return anterior => {
-    const dados: DadosComando = { ...anterior.dados, agora, estado: { ...anterior.dados.estado, [chave]: resultado ? 'pronta' : 'erro' } };
+    const erros = { ...anterior.dados.erros };
+    if (resultado) delete erros[chave]; else if (causa) erros[chave] = causa; else delete erros[chave];
+    const dados: DadosComando = { ...anterior.dados, agora, erros, estado: { ...anterior.dados.estado, [chave]: resultado ? 'pronta' : 'erro' } };
     const cortes = { ...anterior.cortes };
     if (resultado?.itens !== undefined) (dados as Record<string, unknown>)[chave] = resultado.itens;
     if (resultado && chave !== 'catalogo') cortes[chave as keyof Cortes] = resultado.corte === true;
     dados.amostra = Object.values(cortes).some(Boolean);
     return { ...anterior, dados, cortes };
   };
+}
+
+/** Mensagem do erro quando ela é um texto curto e legível; senão nada (a tela usa o texto genérico). */
+function causaDoErro(erro: unknown): string | undefined {
+  const texto = erro instanceof Error ? erro.message.trim() : '';
+  return texto ? texto.slice(0, 200) : undefined;
 }
 
 export function criarUseDadosComando(deps: DependenciasComando = dependenciasPadrao): UsarDadosComando {
@@ -66,12 +74,14 @@ export function criarUseDadosComando(deps: DependenciasComando = dependenciasPad
 
     const carregar = useCallback(() => {
       const minha = ++rodada.current;
+      // Toda recarga marca "carregando" (a página desabilita Atualizar e pula o auto-refresh); os dados antigos continuam à vista.
+      if (montado.current) setInterno(anterior => (anterior.carregando ? anterior : { ...anterior, carregando: true }));
       // Resultado de rodada antiga ou depois de desmontar é descartado (a última recarga vence).
       const aceitar = (atualizacao: Atualizacao) => { if (montado.current && minha === rodada.current) setInterno(atualizacao); };
       const fonte = <K extends Chave, T>(chave: K, ler: () => Promise<T>, ok: (valor: T) => { itens?: DadosComando[K]; corte?: boolean }) =>
         ler().then(
           valor => { aceitar(aplicar(chave, relogio(), ok(valor))); return true; },
-          () => { aceitar(aplicar(chave, relogio(), null)); return false; },
+          erro => { aceitar(aplicar(chave, relogio(), null, causaDoErro(erro))); return false; },
         );
       const leituras = [
         fonte('cards', async () => (await deps.comando()).lerCards(), r => ({ itens: r.itens, corte: r.amostra })),

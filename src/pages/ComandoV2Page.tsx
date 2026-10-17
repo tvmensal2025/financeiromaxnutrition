@@ -134,7 +134,7 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
     return () => { parar(); document.removeEventListener('visibilitychange', aoMudarVisibilidade); };
   }, []);
 
-  const atualizarAgora = () => { ultimaRef.current = Date.now(); recarregar(); };
+  const atualizarAgora = () => { if (carregandoRef.current) return; ultimaRef.current = Date.now(); recarregar(); };
 
   const aoTeclarNaAba = (evento: KeyboardEvent<HTMLButtonElement>, indice: number) => {
     const total = ABAS_VISIVEIS.length;
@@ -202,14 +202,24 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
         >
           <div className="flex min-w-0 items-start gap-3">
             <AlertTriangle aria-hidden="true" className={`mt-0.5 h-5 w-5 shrink-0 ${falhaPrincipal ? 'text-destructive' : 'text-warning'}`} />
-            <p className="text-sm text-foreground">
-              Não foi possível ler {falhas.map(chave => NOMES_DAS_LEITURAS[chave]).join(', ')}. Os números dessas partes não são zero: estão indisponíveis.
-            </p>
+            <div className="min-w-0 space-y-1 text-sm text-foreground">
+              <p>
+                Não foi possível ler {falhas.map(chave => NOMES_DAS_LEITURAS[chave]).join(', ')}. Os números dessas partes não são zero: estão indisponíveis.
+              </p>
+              {falhas.some(chave => dados.erros?.[chave]) && (
+                <ul className="list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+                  {falhas.filter(chave => dados.erros?.[chave]).map(chave => (
+                    <li key={chave} className="break-words">{NOMES_DAS_LEITURAS[chave]}: {dados.erros?.[chave]}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={atualizarAgora}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            disabled={carregando}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           >
             <RefreshCw aria-hidden="true" className="h-4 w-4" />
             Tentar de novo

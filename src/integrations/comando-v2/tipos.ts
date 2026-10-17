@@ -74,6 +74,8 @@ export type DadosComando = {
   };
   /** true quando a leitura foi cortada por limite: a tela deve avisar "amostra". */
   amostra: boolean;
+  /** Causa da falha de cada fonte em erro (texto já pronto para o fundador ler, sem segredos). Opcional. */
+  erros?: Partial<Record<keyof DadosComando['estado'], string>>;
 };
 
 export type PropsAba = {

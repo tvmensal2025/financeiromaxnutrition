@@ -201,6 +201,20 @@ describe('avisos', () => {
     expect(r.recarregar).toHaveBeenCalledTimes(1);
   });
 
+  it('mostra a causa de cada fonte em erro e desabilita "Tentar de novo" enquanto relê', () => {
+    const dados = dadosProntos({
+      estado: { cards: 'erro', etapas: 'pronta', entregas: 'pronta', pedidos: 'erro', catalogo: 'pronta' },
+      erros: { cards: 'Não foi possível ler os cards. Tente novamente.', pedidos: 'O banco não devolveu a lista de pedidos.' },
+    });
+    const { unmount } = montar(resultado({ dados }), {});
+    const aviso = screen.getByRole('alert');
+    expect(aviso).toHaveTextContent('os cards: Não foi possível ler os cards. Tente novamente.');
+    expect(aviso).toHaveTextContent('os pedidos: O banco não devolveu a lista de pedidos.');
+    unmount();
+    montar(resultado({ dados, carregando: true }), {});
+    expect(within(screen.getByRole('alert')).getByRole('button', { name: 'Tentar de novo' })).toBeDisabled();
+  });
+
   it('sem erro não mostra o aviso; com amostra avisa que os números podem estar abaixo do total', () => {
     const limpo = montar(resultado(), {});
     expect(screen.queryByRole('alert')).toBeNull();
