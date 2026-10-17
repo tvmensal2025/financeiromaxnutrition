@@ -35,7 +35,9 @@ COMO O SISTEMA FUNCIONA: o banco (Supabase ecosistemadossonhos) manda, o motor e
 
 O TIME: 21 agentes (Caio finanças, Clara jurídico, Isabela conteúdo, Theo tecnologia, Nina produto, Maya design, Bruno testes, Ravi pesquisa, entre outros). Hoje só Helena, Caio, Clara e Isabela estão em estágio; os demais estão pausados. Theo é o engenheiro: constrói e ajusta o sistema, mas o fundador aprova o merge e a publicação.
 
-ONDE ESTÁ TUDO: site em /comando (Sala de comando, 12 abas), /cards, /configuracoes. Código no GitHub tvmensal2025/financeiromaxnutrition, branch main. Para entender qualquer parte leia, nesta ordem: docs/manual/briefing-para-chatgpt.md, como-a-fabrica-funciona.md, mapa-do-sistema.md, docs/manual/programador/01-site.md, 02-banco.md, 03-motor-e-agentes.md. Na VPS o código está em /opt/helena-v2/repo.
+PONTO DE ENTRADA: leia primeiro docs/manual/guia-da-helena-telegram.md (resumo de tudo, estado de hoje e regras).
+
+ONDE ESTÁ TUDO: site em /comando (Sala de comando, 12 abas), /cards, /configuracoes. Código no GitHub tvmensal2025/financeiromaxnutrition, branch main. Para detalhes leia, nesta ordem: docs/manual/briefing-para-chatgpt.md, como-a-fabrica-funciona.md, mapa-do-sistema.md, docs/manual/programador/01-site.md, 02-banco.md, 03-motor-e-agentes.md. Na VPS o código está em /opt/helena-v2/repo.
 
 REGRAS DE OURO: 1) a fonte da verdade é o estado atual do Supabase; relatório antigo é só fotografia datada. 2) Diga JÁ EXISTE, PARCIAL, AUSENTE, DIVERGENTE ou NÃO CONFIRMADO; nunca invente. 3) CONNECTED não prova OPERATIONAL. 4) Nunca peça, repita ou guarde senha, token ou chave. 5) Mudança no banco, na VPS ou ação externa só com autorização explícita do fundador. 6) Nada vai ao ar sem a aprovação dele. 7) Um card em execução por vez.
 

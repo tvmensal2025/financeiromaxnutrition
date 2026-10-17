@@ -35,6 +35,10 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/manual/mapa-de-reaproveitamento.md` | Inventário do trabalho preservado e contratos de integração à v2 | 17/10/2026 |
 | `docs/manual/guia-da-triagem.md` | Contrato do mapa operacional incluído no contexto da coordenação | 17/10/2026 |
 | `docs/manual/retomada-hermes-vps.md` | Inventário somente leitura e roteiro de ligação do Hermes na VPS | 17/10/2026 |
+| `docs/manual/guia-da-helena-telegram.md` | Ponto de entrada para a Helena do Telegram e outros agentes: sistema, time, estado, regras, onde ler | 17/10/2026 |
+| `docs/manual/comando-para-helena-telegram.md` | Texto pronto para colar no Telegram e a Helena entender o sistema | 17/10/2026 |
+| `docs/manual/telegram-virada-para-v2.md` | Auditoria do que falta para o Telegram falar com a v2, roteiro de virada e reversão | 17/10/2026 |
+| `docs/manual/programador/` | Manual do Programador: site (01), banco (02), motor e agentes (03), Theo engenheiro (00) | 17/10/2026 |
 | `docs/manual/vps-atualizar-e-corrigir-login.md` | Roteiro do fundador: atualizar o motor e corrigir a renovação do login do Hermes na VPS | 17/10/2026 |
 | `docs/manual/publicar-no-lovable.md` | Roteiro do fundador: publicar o site a partir da main no Lovable | 17/10/2026 |
 | `docs/manual/entrada-unificada.md` | Contrato do fluxo comum e estado da recepção local | 17/10/2026 |
