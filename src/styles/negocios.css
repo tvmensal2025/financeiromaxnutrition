@@ -1,0 +1,232 @@
+/* Calendário e tarefas: apresentação preservada de b600360^, adaptada à casca v2. */
+.he-app .pe-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pe-border);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pe-text-muted);
+}
+
+.he-app .pe-tab.is-active {
+  border-color: var(--pe-emerald);
+  background: #e8f6ee;
+  color: var(--pe-emerald-strong);
+}
+
+.he-app .pe-cal-dia {
+  position: relative;
+  min-height: 52px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--pe-surface-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.he-app .pe-cal-dia.is-out {
+  opacity: 0.35;
+}
+
+.he-app .pe-cal-dia.is-sel {
+  border-color: var(--pe-emerald);
+  background: #e8f6ee;
+}
+
+.he-app .pe-cal-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--pe-emerald);
+}
+
+html.dark .he-app .pe-hero {
+  background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
+}
+
+.he-app .pe-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 31, 26, 0.45);
+  backdrop-filter: blur(8px);
+}
+
+.he-app .pe-modal-premium {
+  width: min(960px, 100%);
+  max-height: min(90vh, 720px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  border: 1px solid var(--pe-border);
+  background: var(--pe-surface);
+  box-shadow: 0 24px 64px rgba(11, 31, 26, 0.18);
+  overflow: hidden;
+}
+
+.he-app .pe-modal-premium-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 22px;
+  background: linear-gradient(135deg, #e8f6ee 0%, #ffffff 55%);
+  border-bottom: 1px solid var(--pe-border);
+}
+
+.he-app .pe-modal-premium-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.he-app .pe-modal-premium-list {
+  padding: 16px;
+  border-right: 1px solid var(--pe-border);
+  background: var(--pe-surface-muted);
+}
+
+.he-app .pe-modal-premium-detail {
+  padding: 20px 22px;
+  overflow-y: auto;
+}
+
+.he-app .pe-modal-task-item {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.he-app .pe-modal-task-item:hover {
+  border-color: var(--pe-border);
+}
+
+.he-app .pe-modal-task-item.is-active {
+  border-color: var(--pe-emerald);
+  box-shadow: 0 4px 14px rgba(0, 122, 61, 0.12);
+}
+
+.he-app .pe-modal-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--pe-border);
+  background: #fff;
+  color: var(--pe-emerald-strong);
+}
+
+.he-app .pe-barra-acoes-tarefa {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.he-app .pe-acao-tarefa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+}
+
+.he-app .pe-acao-tarefa:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.he-app .pe-acao-tarefa:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(11, 31, 26, 0.1);
+}
+
+.he-app .pe-acao-tarefa--add {
+  background: linear-gradient(135deg, #007a3d 0%, #00a651 100%);
+  color: #fff;
+}
+
+.he-app .pe-acao-tarefa--done {
+  background: #e8f6ee;
+  border-color: #007a3d44;
+  color: #005c2e;
+}
+
+.he-app .pe-acao-tarefa--delegate {
+  background: #fff;
+  border-color: var(--pe-border);
+  color: var(--pe-text);
+}
+
+.he-app .pe-acao-tarefa--ghost {
+  background: transparent;
+  border-color: var(--pe-border);
+  color: var(--pe-text-muted);
+  font-weight: 600;
+}
+
+.he-app .pe-painel-acao {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--pe-border);
+  background: var(--pe-surface-muted);
+}
+
+.he-app .pe-task-card-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--pe-border);
+}
+
+.he-app .pe-task-card-acoes .pe-acao-tarefa {
+  padding: 6px 10px;
+  font-size: 11px;
+  border-radius: 10px;
+}
+
+html.dark .he-app .pe-modal-premium-header {
+  background: linear-gradient(135deg, #143024 0%, #1a1a1a 100%);
+}
+
+html.dark .he-app .pe-modal-task-item,
+html.dark .he-app .pe-modal-meta {
+  background: #222;
+}
+
+@media (max-width: 767px) {
+  .he-app .pe-modal-premium-body {
+    grid-template-columns: 1fr;
+  }
+
+  .he-app .pe-modal-premium-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--pe-border);
+    max-height: 38vh;
+  }
+}
+

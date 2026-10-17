@@ -5,6 +5,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import '@testing-library/jest-dom/vitest';
 import { Layout } from './Layout';
+import { MODULOS } from '@/lib/modulos';
+import { gruposNavegacao } from '@/lib/navegacao';
+vi.mock('@/components/executive/ExecutiveBusinessSwitcher', () => ({ ExecutiveBusinessSwitcher: () => <span>Empresa selecionada</span> }));
 
 const auth = vi.hoisted(() => ({ isFounder: false, sair: vi.fn() }));
 vi.mock('@/auth', () => ({
@@ -49,10 +52,31 @@ describe('menu da v2', () => {
     expect(links('Configuração')[0]).toHaveAttribute('href', '/configuracoes');
   });
 
-  it('nenhum link da v1 sobrou no menu', () => {
+  it('o menu recupera páginas de negócio e todos os módulos do catálogo têm um destino', () => {
     abrir(true);
-    const destinos = Array.from(document.querySelectorAll('a[href]')).map(a => a.getAttribute('href'));
-    expect(destinos.sort()).toEqual(['#conteudo-principal', '/', '/cards', '/configuracoes']);
+    expect(links('Financeiro')[0]).toHaveAttribute('href', '/financeiro');
+    expect(links('CRM')[0]).toHaveAttribute('href', '/crm');
+    const destinos = gruposNavegacao(true).flatMap(grupo => grupo.itens.map(item => item.to));
+    for (const modulo of MODULOS) expect(destinos).toContain(modulo.rota || `/modulo/${modulo.tabela}`);
+  });
+
+  it('busca encontra módulo de grupo fechado e limpar restaura o menu', () => {
+    abrir(true);
+    fireEvent.change(screen.getByLabelText('Buscar página ou módulo'), { target: { value: 'memoria' } });
+    expect(links('Memória Mestre')[0]).toHaveAttribute('href', '/modulo/memoria_mestre');
+    expect(links('Financeiro')).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText('Buscar página ou módulo'), { target: { value: '' } });
+    expect(links('Financeiro')).toHaveLength(1);
+  });
+
+  it('menu móvel abre e fecha com Escape e restaura foco', () => {
+    abrir(true);
+    const abrirMenu = screen.getByRole('button', { name: 'Abrir menu' });
+    fireEvent.click(abrirMenu);
+    expect(abrirMenu).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(abrirMenu).toHaveAttribute('aria-expanded', 'false');
+    expect(abrirMenu).toHaveFocus();
   });
 
   it('o link ativo é marcado conforme a rota', () => {
@@ -69,9 +93,9 @@ describe('menu da v2', () => {
     expect(links('Visão geral')[0]).not.toHaveAttribute('aria-current');
     expect(screen.getByText('conteúdo dos cards')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Seções do Sistema Helena' });
-    expect(nav).toHaveClass('w-full', 'min-w-0');
+    expect(nav).toHaveClass('min-w-0');
     for (const nome of ['Visão geral', 'Cards', 'Configuração']) {
-      expect(links(nome)[0]).toHaveClass('min-w-0', 'flex-1');
+      expect(links(nome)[0]).toHaveClass('min-w-0', 'min-h-11');
     }
   });
 

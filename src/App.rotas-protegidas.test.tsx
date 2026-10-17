@@ -4,7 +4,7 @@
 // rota nem é montada; membro (não fundador) em /configuracoes recebe "Acesso restrito" da
 // própria página (a rota existe e não redireciona), e só o fundador vê o editor. Os endereços
 // antigos (/cards-v2, /configuracoes-v2 e /?card=) continuam funcionando, e
-// qualquer rota da v1 cai na raiz (o painel).
+// áreas recuperadas exigem fundador; os aliases preservam seus destinos.
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -43,6 +43,7 @@ vi.mock('@/integrations/cards-v2/runtime', () => ({ repositorioCardsV2DoApp: run
 vi.mock('@/integrations/pedidos-v2/runtime', () => ({ repositorioPedidosV2DoApp: runtime.pedidos }));
 vi.mock('@/integrations/config-v2/runtime', () => ({ repositorioConfigV2DoApp: runtime.config }));
 
+vi.mock('@/contexts/SessionBusinessBoundary', () => ({ SessionBusinessBoundary: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/Layout', async () => {
   const { Outlet } = await import('react-router-dom');
   return { Layout: () => <div data-testid="layout"><Outlet /></div> };
@@ -336,10 +337,10 @@ describe('endereços antigos e rotas da v1', () => {
   });
 
   it.each(['/comando', '/financeiro', '/crm', '/conversa', '/execucao', '/modulo/tarefas', '/sistema', '/oauth/consent'])(
-    'a rota da v1 %s não existe mais: cai na raiz, que é o painel', async caminho => {
+    'a área recuperada %s restringe o membro sem redirecionar silenciosamente', async caminho => {
       entrar('membro-1', { role: 'member', active: true });
       abrir(caminho);
-      expect(await screen.findByRole('heading', { name: 'Visão geral' })).toBeInTheDocument();
-      expect(window.location.pathname).toBe('/');
+      expect(await screen.findByRole('heading', { name: 'Acesso restrito' })).toBeInTheDocument();
+      expect(window.location.pathname).toBe(caminho);
     });
 });

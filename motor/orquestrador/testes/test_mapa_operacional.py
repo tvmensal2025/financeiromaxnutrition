@@ -52,9 +52,22 @@ def test_mapa_deriva_roles_servicos_e_empresas_sem_autorizar_rascunhos(captura):
 def test_rotas_do_mapa_sao_as_rotas_reais_do_app(captura):
     app = (RAIZ / 'src/App.tsx').read_text(encoding='utf-8')
     rotas_declaradas = set(re.findall(r'<Route\s+path=["\']([^"\']+)["\']', app))
+    dinamicas = re.search(r'\{\[([^]]+)\]\.map\(secao => <Route key=\{secao\} path=\{`/\$\{secao\}`\}', app)
+    if dinamicas:
+        rotas_declaradas.update('/' + nome for nome in re.findall(r"'([^']+)'", dinamicas.group(1)))
     assert set(ROTAS).issubset(rotas_declaradas)
     assert '/overview' not in ROTAS
     assert montar_mapa_operacional(captura)['rotas'] == ROTAS
+
+
+def test_mapa_orienta_paginas_repostas_sem_ativar_fluxo_legado(captura):
+    mapa = montar_mapa_operacional(captura)
+    assert 'configurado não prova runtime' in mapa['rotas']['/equipe']
+    assert 'não usa agent_jobs legado' in mapa['rotas']['/execucao']
+    assert 'sem medição confirmada' in mapa['rotas']['/consumo']
+    assert 'ACL/RLS' in mapa['rotas']['/modulo/:tabela']
+    assert any('não ativam agent_jobs' in regra for regra in mapa['regras'])
+    assert any('sessão, papel, ACL e RLS' in regra for regra in mapa['regras'])
 
 
 @pytest.mark.parametrize('inativo', ['NAO', 'NÃO'])

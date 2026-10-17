@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "business_id": "BIZ-004",
+  "name": "eLiving™",
+  "status": "APPROVED",
+  "logo_url": "/brand/eliving/logo.svg",
+  "logo_approved": true,
+  "reference_image": "/brand/eliving/referencia-eliving.png",
+  "colors": [
+    {
+      "name": "Azul Profundo",
+      "hex": "#0B192C",
+      "use": "RGB(11, 25, 44) - Tecnologia, confiança, ciência e base estrutural premium."
+    },
+    {
+      "name": "Azul Luminoso",
+      "hex": "#0EA5E9",
+      "use": "RGB(14, 165, 233) - Inovação, movimento, inteligência e acentos visuais."
+    },
+    {
+      "name": "Dourado Luz",
+      "hex": "#F59E0B",
+      "use": "RGB(245, 158, 11) - Energia, vida, conquista, transformação e botões de ação."
+    },
+    {
+      "name": "Branco Puro",
+      "hex": "#FFFFFF",
+      "use": "RGB(255, 255, 255) - Clareza, simplicidade, respiro e legibilidade em fundos escuros."
+    }
+  ],
+  "heading_font": "Sora — títulos modernos, premium, tecnológicos e humanos (pesos 600 ou 700)",
+  "body_font": "Inter — textos com leitura fácil, digital, limpa e acessível (pesos 400 ou 500)",
+  "description": "A eLiving™ é uma inteligência pessoal de evolução. Une inteligência artificial, saúde, nutrição, atividade física e desenvolvimento pessoal. Slogan: 'Onde sua evolução ganha direção.' Manifesto: 'Uma vida melhor não acontece em uma grande decisão. Ela acontece em milhares de pequenas escolhas acompanhadas.' Arquétipos centrais: 1) O Guia (ajuda pessoas a encontrarem direção); 2) O Cuidador (demonstra atenção, proteção e acompanhamento); 3) O Inovador (tecnologia para criar uma nova experiência). Toda comunicação equilibra esses três pilares.",
+  "audience": "Estado emocional do usuário: chega cansado, frustrado com tentativas anteriores, buscando mudança real, querendo orientação prática e com medo de continuar igual. A comunicação deve conduzi-lo intencionalmente para: 1) Esperança; 2) Clareza; 3) Confiança; 4) Ação sustentável. Público que valoriza tecnologia sofisticada porém calorosa, próxima e humana, cansado de frieza e julgamentos.",
+  "offer": "Ecossistema de acompanhamento sustentado por 4 pilares: 1) Sirlene (Assistente inteligente nutricional: rotina alimentar leve e prática); 2) Doutor Vital (Inteligência de saúde: organiza e interpreta dados para compreensão, sem diagnosticar); 3) Alex (Treinador inteligente: auxilia planejamento e estímulo ao movimento, sem substituir educador físico); 4) Rafael (Mentor de evolução pessoal: construção de hábitos e disciplina, sem promessas mágicas).",
+  "positioning": "O diferencial único da eLiving: enquanto outras plataformas acompanham apenas uma parte da pessoa, a eLiving conecta a pessoa inteira. A alimentação influencia o movimento. O movimento influencia os hábitos. Os hábitos influenciam a evolução. A evolução constrói uma nova história. Combate: pessoas tentando cuidar da saúde sozinhas, excesso de informação sem orientação, apps isolados sem conexão, falta de continuidade e dificuldade de transformar conhecimento em hábito.",
+  "voice": "Tom de voz equilibrando O Guia, O Cuidador e O Inovador. REGRA SUPREMA DO AGENTE: Antes de criar qualquer conteúdo, pergunte: 'Isso aproxima a pessoa da sua evolução?' Se a resposta for não, reformule imediatamente. Tom humano, acolhedor, empático e claro, sem arrogância e sem frieza robótica. Vocabulário obrigatório: evolução, jornada, direção, progresso, transformação, equilíbrio, hábitos, escolhas.",
+  "imagery": "Direção cinematográfica com referências em Apple Health, documentários humanos e tecnologia premium. Regra visual estrita: NUNCA mostrar 'pessoas perfeitas' ou estética artificial de academia. Mostrar sempre 'pessoas reais evoluindo'. Exemplos: mãe caminhando no parque pela manhã, pessoa preparando refeição fresca com tranquilidade, alguém acompanhando dados no relógio, pessoa sorrindo após pequenas conquistas diárias.",
+  "logo_rules": "Marca oficial: eLiving™ (com 'e' minúsculo e 'L' maiúsculo; expressamente proibido grafar 'E-living' ou 'Iliving'). Símbolo: círculo da jornada contínua, luz do horizonte e caminho saindo para a evolução (simbolizando que a pessoa não está presa onde está hoje, ela caminha para o futuro). Aplicação sobre Azul Profundo (#0B192C) ou Branco Puro (#FFFFFF). Respiro mínimo de 1x o diâmetro do símbolo.",
+  "layout_rules": "Regra visual obrigatória: Toda peça deve parecer 'Uma empresa de tecnologia de saúde de 2026'. Perguntas de validação: Parece Apple? Parece OpenAI? Parece uma empresa global? Se parecer academia genérica ou loja de suplemento, refazer imediatamente. Grid limpo e respirado, margens generosas, alto contraste, Sora para títulos/destaques e Inter para textos e dados.",
+  "cta": "Chamadas focadas em evolução, direção e parceria inteligente: 'Comece sua evolução hoje', 'Onde sua evolução ganha direção', 'Tenha uma inteligência ao seu lado', 'Dê o primeiro passo com clareza'. Convidar com firmeza serena e acolhimento, sem gatilhos apelativos de escassez ou culpa.",
+  "channels": "Utilizar somente canais oficialmente confirmados pela empresa. Nunca inventar URLs, usuários ou contatos. Todos os canais digitais são divulgados estritamente após homologação pelo Fundador.",
+  "restrictions": "Limites de compliance e segurança inegociáveis: Sirlene nunca fala como nutricionista humana nem prescreve dietas restritivas; Doutor Vital nunca fornece diagnósticos médicos nem prescreve remédios; Alex nunca substitui educador físico nem incentiva treinos com dor; Rafael nunca promete mudanças mágicas nem atua como psicólogo clínico. Proibidas promessas de resultados garantidos ou prazos milagrosos.",
+  "sources": "COMANDO MASTER — AGENTE OFICIAL eLiving™ e MANUAL DE COMPORTAMENTO DOS AGENTES eLiving™ homologados pelo Fundador em 04/10/2026. Diretiva soberana DEC-023: oficialização eLiving™, 4 pilares, arquétipos da marca, regra suprema do agente e direção estética 2026.",
+  "review": "Checklist de validação obrigatória: 1) Cumpre a Regra Suprema ('Isso aproxima a pessoa da sua evolução?'); 2) Parece empresa global de tecnologia de saúde de 2026 (Apple/OpenAI)?; 3) Não mostra pessoas perfeitas, mas pessoas evoluindo; 4) Paleta cromática oficial (HEX e RGB); 5) Tipografia Sora/Inter; 6) Respeita limites dos 4 agentes; 7) Slogan e grafia 'eLiving™' impecáveis."
+}

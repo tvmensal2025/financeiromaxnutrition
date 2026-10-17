@@ -1,5 +1,11 @@
 # Onde estamos — Sistema Helena v2
 
+## Recuperação das páginas — 17/10/2026
+
+O fundador pediu recuperar todas as áreas que sumiram da navegação. O checkout passou a incluir menu pesquisável e rotas para Financeiro (8 abas), CRM, calendário/tarefas, portfólio, identidade, indicadores, equipe, governança, integrações e consentimento OAuth. O catálogo original de 56 módulos foi preservado; 55 têm projeções explícitas de leitura. Consulte [restauracao-funcionalidades.md](restauracao-funcionalidades.md) para correspondência por rota, funções, permissões e lacunas. Esta seção substitui afirmações anteriores de que Financeiro/CRM/calendário estão ausentes da interface, sem alterar os retratos históricos do banco.
+
+As áreas de negócio exigem fundador, resolvem as empresas antes das consultas, aplicam filtro antes da paginação e usam a versão lida nas edições. Empresa e conta trocadas descartam o estado anterior. A esteira de pedidos/cards continua v2; os registros de tarefas de negócio permanecem separados. Consumo real, voz, serviços externos, conversa automática e implantação ainda não são comprovados por esta recuperação. Não houve consulta administrativa nem alteração em produção nesta etapa.
+
 ## Reaproveitamento do painel e orientação da IA — 17/10/2026
 
 O fundador pediu preservar a construção existente e ligar suas partes. A visão geral da v2 foi implementada em `/`, ligada aos cards em `/cards` e aos acompanhamentos `/cards?pedido=<requestID>`. Links antigos `/?card=...` e `/?pedido=...` continuam encaminhando ao módulo correto. O painel lê os repositórios v2 com a sessão do usuário: mostra cards consultados, esperas pelo fundador, pedidos recentes e empresas/agentes da revisão ativa. As contagens são amostras de até 200 cards e 50 pedidos; falha de leitura não vira zero e membro não consulta fontes reservadas ao fundador. A v1 original continua preservada; financeiro, CRM, calendário e voz ainda têm contratos a validar antes de integração, conforme o inventário.

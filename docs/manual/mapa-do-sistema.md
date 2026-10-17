@@ -1,5 +1,11 @@
 # Mapa do Sistema Helena — guia de retomada para IA
 
+## Recuperação das páginas — 17/10/2026
+
+O fundador pediu recuperar todas as áreas que sumiram da navegação. O checkout passou a incluir menu pesquisável e rotas para Financeiro (8 abas), CRM, calendário/tarefas, portfólio, identidade, indicadores, equipe, governança, integrações e consentimento OAuth. O catálogo original de 56 módulos foi preservado; 55 têm projeções explícitas de leitura. Consulte [restauracao-funcionalidades.md](restauracao-funcionalidades.md) para correspondência por rota, funções, permissões e lacunas. Esta seção substitui afirmações anteriores de que Financeiro/CRM/calendário estão ausentes da interface, sem alterar os retratos históricos do banco.
+
+As áreas de negócio exigem fundador, resolvem as empresas antes das consultas, aplicam filtro antes da paginação e usam a versão lida nas edições. Empresa e conta trocadas descartam o estado anterior. A esteira de pedidos/cards continua v2; os registros de tarefas de negócio permanecem separados. Consumo real, voz, serviços externos, conversa automática e implantação ainda não são comprovados por esta recuperação. Não houve consulta administrativa nem alteração em produção nesta etapa.
+
 Este guia liga a construção existente, os dados oficiais e a operação pretendida. **Não é um retrato ao vivo da produção.** Antes de recomendar trabalho, uma IA deve localizar a peça existente no [mapa de reaproveitamento](mapa-de-reaproveitamento.md), consultar o estado canônico disponível e dizer o que foi comprovado. Código no Git, linha no banco, teste sintético e serviço em execução são evidências diferentes. Para a orientação curta entregue à triagem, veja o [guia da triagem](guia-da-triagem.md); para preparar a atualização sem afirmar corte da VPS, veja a [retomada Hermes/VPS](retomada-hermes-vps.md).
 
 ## Ordem de leitura e confiança

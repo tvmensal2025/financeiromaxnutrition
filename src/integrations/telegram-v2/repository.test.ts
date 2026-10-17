@@ -28,8 +28,7 @@ describe('RPCs de pareamento Telegram', () => {
     expect(rpc).toHaveBeenLastCalledWith('revogar_pareamento_telegram');
   });
   it.each([null, {}, { ...semVinculo, vinculado: true }, { ...vinculado, chat_id: 123 },
-    { ...semVinculo, codigo_pendente: true }, { ...semVinculo, codigo_expira_em: 'data ruim' }])
-  ('rejeita situação sem confirmação válida: %j', async data => {
+    { ...semVinculo, codigo_pendente: true }, { ...semVinculo, codigo_expira_em: 'data ruim' }])('rejeita situação sem confirmação válida: %j', async data => {
     await expect(criarRepositorioPareamentoTelegramV2(banco(data).cliente).consultar()).rejects.toThrow();
   });
   it.each([null, { codigo: 'curto', expira_em: '2026-10-17T12:10:00Z' },
