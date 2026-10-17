@@ -73,9 +73,11 @@ function positiveSafeInteger(value: unknown): value is number {
 async function drainOne(deps: TelegramDependencies): Promise<boolean> {
   const item = await deps.callRpc("reivindicar_saida_telegram", {});
   if (typeof item.id !== "string") return false;
+  // Match PostgreSQL char_length and Python's slice: astral characters count
+  // once, instead of as two UTF-16 code units in JavaScript string.length.
   if (typeof item.lease_token !== "string" || typeof item.chat_id !== "string" ||
       !/^[1-9][0-9]{0,15}$/.test(item.chat_id) || typeof item.texto !== "string" ||
-      item.texto.length < 1 || item.texto.length > 4096) throw new Error("Invalid outbox item");
+      item.texto.length < 1 || Array.from(item.texto).length > 4096) throw new Error("Invalid outbox item");
   const chatId = Number(item.chat_id);
   if (!positiveSafeInteger(chatId)) throw new Error("Invalid outbox chat");
   try {

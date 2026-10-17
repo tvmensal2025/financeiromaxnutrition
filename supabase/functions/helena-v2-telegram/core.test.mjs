@@ -143,6 +143,31 @@ test("Telegram failure leaves outbox retryable and webhook ACK remains durable",
   assert.equal(h.sent.length, 1);
 });
 
+test("outbox delivers Unicode text within the SQL character limit", async () => {
+  const h = harness();
+  const text = "🙂".repeat(4096);
+  h.outbox.push({ id: "12345678-1234-4123-8123-123456789abc", lease_token: "lease-unicode",
+    chat_id: "103", texto: text, delivered: false, available: true });
+  const result = await handleTelegramRequest(request("/drain", {}, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(result.status, 200);
+  assert.deepEqual(h.sent, [{ chatId: 103, text }]);
+  assert.equal(h.outbox[0].delivered, true);
+});
+
+test("outbox rejects more than 4096 Unicode characters without sending or acknowledging", async () => {
+  const h = harness();
+  h.outbox.push({ id: "12345678-1234-4123-8123-123456789abc", lease_token: "lease-too-long",
+    chat_id: "103", texto: "🙂".repeat(4097), delivered: false, available: true });
+  const result = await handleTelegramRequest(request("/drain", {}, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(result.status, 503);
+  assert.deepEqual(await result.json(), { ok: false });
+  assert.deepEqual(h.sent, []);
+  assert.equal(h.outbox[0].delivered, false);
+  assert.deepEqual(h.calls, [{ name: "reivindicar_saida_telegram", args: {} }]);
+});
+
 test("backend role key stays in Edge and Telegram sender requires message_id", async () => {
   let call;
   const rpc = createRpcClient("https://wxkgrykduqtsgmjkzlou.supabase.co", "synthetic-service-key",

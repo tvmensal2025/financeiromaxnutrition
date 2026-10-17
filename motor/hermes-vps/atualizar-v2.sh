@@ -63,31 +63,52 @@ git -C "$temp_dir/repo" checkout --quiet --detach "$commit"
 [[ $(git -C "$temp_dir/repo" rev-parse HEAD) == "$commit" ]] || falhar 'checkout divergiu do commit esperado.'
 [[ -z $(git -C "$temp_dir/repo" status --porcelain=v1 --untracked-files=normal) ]] || falhar 'release extraído com alterações.'
 
-# Compara só as migrations presentes no checkout anterior. O estado aplicado no
-# banco requer conferência separada; o staging nunca consulta ou executa SQL.
+# Compara todas as migrations presentes no checkout anterior, inclusive as
+# posteriores à 0023. O estado aplicado no banco requer conferência separada;
+# o staging nunca consulta ou executa SQL.
 shopt -s nullglob
-baseline_latest=0
-baseline_gap=0
-for ((number=1; number<=23; number++)); do
-  printf -v prefix '%04d' "$number"
-  previous=("$current_repo"/supabase/migrations-v2/"$prefix"_*.sql)
-  incoming=("$temp_dir/repo"/supabase/migrations-v2/"$prefix"_*.sql)
-  ((${#previous[@]} <= 1 && ${#incoming[@]} == 1)) || falhar "migration $prefix ausente ou duplicada."
-  if ((${#previous[@]} == 0)); then
-    baseline_gap=1
-    continue
-  fi
-  ((baseline_gap == 0)) || falhar "baseline tem lacuna antes de $prefix."
-  baseline_latest=$number
-  [[ ${previous[0]##*/} == ${incoming[0]##*/} ]] || falhar "migration $prefix mudou de nome."
-  cmp -s -- "${previous[0]}" "${incoming[0]}" || falhar "migration $prefix do baseline foi alterada."
+declare -A baseline_migrations=() incoming_migrations=()
+baseline_latest=0 incoming_latest=0
+for source in baseline incoming; do
+  if [[ $source == baseline ]]; then migration_root="$current_repo"; else migration_root="$temp_dir/repo"; fi
+  migrations=("$migration_root"/supabase/migrations-v2/*.sql)
+  for migration in "${migrations[@]}"; do
+    filename=${migration##*/}
+    [[ $filename =~ ^([0-9]{4})_.+\.sql$ ]] || falhar "migration com nome inválido no $source: $filename"
+    [[ -f $migration && ! -L $migration ]] || falhar "migration não é arquivo regular no $source: $filename"
+    number=$((10#${BASH_REMATCH[1]}))
+    ((number > 0)) || falhar "migration 0000 inválida no $source."
+    if [[ $source == baseline ]]; then
+      [[ -z ${baseline_migrations[$number]:-} ]] || falhar "migration duplicada no baseline: $filename"
+      baseline_migrations[$number]=$migration
+      if ((number > baseline_latest)); then baseline_latest=$number; fi
+    else
+      [[ -z ${incoming_migrations[$number]:-} ]] || falhar "migration duplicada no release: $filename"
+      incoming_migrations[$number]=$migration
+      if ((number > incoming_latest)); then incoming_latest=$number; fi
+    fi
+  done
 done
 ((baseline_latest > 0)) || falhar 'baseline não contém a migration 0001.'
+((incoming_latest >= 26)) || falhar 'release precisa conter pelo menos as migrations 0001–0026.'
+for ((number=1; number<=incoming_latest; number++)); do
+  printf -v prefix '%04d' "$number"
+  [[ -n ${incoming_migrations[$number]:-} ]] || falhar "release tem lacuna na migration $prefix."
+done
+for ((number=1; number<=baseline_latest; number++)); do
+  printf -v prefix '%04d' "$number"
+  previous=${baseline_migrations[$number]:-}
+  incoming=${incoming_migrations[$number]:-}
+  [[ -n $previous ]] || falhar "baseline tem lacuna na migration $prefix."
+  [[ -n $incoming ]] || falhar "migration $prefix do baseline ausente no release."
+  [[ ${previous##*/} == ${incoming##*/} ]] || falhar "migration $prefix mudou de nome."
+  cmp -s -- "$previous" "$incoming" || falhar "migration $prefix do baseline foi alterada."
+done
 for required in motor/orquestrador/requirements.txt motor/executor/requirements-hermes-real.txt motor/hermes-vps/patch-hermes-auth.py motor/hermes-vps/testar-patch-hermes-auth.py; do
   [[ -f "$temp_dir/repo/$required" ]] || falhar "arquivo obrigatório ausente: $required"
 done
-printf 'OK: baseline=%s release=%s bundle_sha256=%s; migrations do checkout 0001–%04d iguais, release contém 0001–0023.\n' \
-  "$baseline" "$commit" "$(sha256sum "$bundle" | cut -d' ' -f1)" "$baseline_latest"
+printf 'OK: baseline=%s release=%s bundle_sha256=%s; migrations do checkout 0001–%04d iguais, release contém 0001–%04d.\n' \
+  "$baseline" "$commit" "$(sha256sum "$bundle" | cut -d' ' -f1)" "$baseline_latest" "$incoming_latest"
 if ((!prepare)); then
   echo 'DRY RUN: nenhuma dependência instalada; nenhum serviço, banco ou ambiente alterado.'
   exit 0

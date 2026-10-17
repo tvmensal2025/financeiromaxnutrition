@@ -19,8 +19,15 @@ Regras do projeto: `AGENTS.md`. Retomada e próxima ação: [`docs/manual/onde-e
 | `/` | **Visão geral**: cards consultados, decisões pendentes, pedidos recentes e empresas/agentes da revisão ativa | fundador; membros veem a indicação de acesso reservado |
 | `/cards` | **Cards**: Kanban, detalhe, etapas, entregas, ações, perguntas e publicação; fundador também registra pedidos em texto livre e confirma propostas | membros, com dados sujeitos às permissões do banco |
 | `/configuracoes` | **Configuração e revisões** dos documentos da Helena (fichas, organograma, serviços, modelos, roteiros, entregas), ativação e reversão | só o fundador |
+| `/financeiro`, `/crm`, `/calendario` | Financeiro com oito abas, CRM e agenda/tarefas, adaptados à sessão e ao filtro de empresa da v2 | só o fundador |
+| `/portfolio`, `/empresas`, `/identidade`, `/indicadores` | Empresas, identidade de marca e indicadores de negócio | só o fundador |
+| `/modulo/:tabela` | Catálogo de 56 módulos; 55 têm contrato explícito de leitura, com edição limitada por contrato | só o fundador |
+| `/comando`, `/sistema`, `/equipe` | Governança e catálogo da configuração ativa | só o fundador |
+| `/conversa`, `/integracoes` | Registro de pedidos e pareamento do Telegram; as telas não comprovam execução do Hermes ou conexão operacional do bot | só o fundador |
+| `/execucao`, `/entregas`, `/consumo`, `/cobertura`, `/supervisao` | Visões da operação v2; consumo real ainda não é medido nessa interface | só o fundador |
+| `/oauth/consent` | Consentimento OAuth, sujeito à configuração e validação reais do provedor | só o fundador |
 
-`/painel`, `/cards-v2` e `/configuracoes-v2` redirecionam para as rotas correspondentes. Links antigos `/?card=...` continuam abrindo o card em `/cards`; o banco e a tela conferem acesso ao destino. A inclusão de visão geral não reativa as rotas financeiras/CRM da v1. Não existe flag: a v2 está sempre ligada.
+`/painel`, `/cards-v2` e `/configuracoes-v2` redirecionam para as rotas correspondentes. Links antigos `/?card=...` continuam abrindo o card em `/cards`; o banco e a tela conferem acesso ao destino. As páginas de negócio recuperadas estão ativas no código da v2; o [inventário de recuperação](docs/manual/restauracao-funcionalidades.md) detalha funcionalidades, limites e validações pendentes. Essa adaptação não ativou serviços legados de execução, Gateway ou voz, nem comprova publicação ou funcionamento em produção. Não existe flag: a v2 está sempre ligada.
 
 ## Onde está cada coisa
 

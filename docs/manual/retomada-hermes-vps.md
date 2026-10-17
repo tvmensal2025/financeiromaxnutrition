@@ -4,6 +4,16 @@ Atualizado em 17/10/2026. Este roteiro prepara uma próxima sessão com acesso l
 
 O código da nova esteira está na branch `codex/helena-v2-kanban-triagem-20261017`, commit `2ea5286`, e as migrations 0020–0026 foram aplicadas no Supabase oficial. Os smokes de 0024–0026 passaram com `ROLLBACK`. A última consulta ao projeto mostrou nenhuma Edge Function implantada e nenhum dos novos segredos do transporte configurado. O acesso ao Supabase desta sessão não fornece acesso à VPS nem uma sessão de fundador para ingressar pedidos como `CODEX`.
 
+## Revisão da preparação após recuperar as páginas
+
+Na retomada de 17/10, o Git confirmou a recuperação das páginas no commit `1597066` da mesma branch; `main` ainda estava em `79174de`. O PR #18 é ancestral dessa recuperação e mesclá-lo sozinho não inclui o trabalho posterior. A branch atual precisa de revisão/integração própria. Não foi identificado no checkout um projeto Lovable ou um workflow de publicação web; merge e publicação do site são operações distintas.
+
+A revisão seguinte corrigiu dois problemas antes da implantação: o preparador da VPS passou a comparar **todas** as migrations anteriores e exigir a sequência 0001–0026, e a Edge passou a contar caracteres Unicode como o SQL/Python, evitando rejeitar respostas válidas com emojis. Passaram dez testes de preparação com bundles sintéticos e oito testes do transporte Telegram, incluindo o limite de 4.096 caracteres e a rejeição de 4.097. Esses testes não acessam a VPS nem o Telegram real.
+
+O ambiente cloud atual não tem binding do `SUPABASE_ACCESS_TOKEN`, identidade de VPS ou acesso de controle às abas do navegador do fundador. Os domínios administrativos estão salvos no rascunho de configuração, mas ainda não aplicados ao runtime. A última leitura do banco continua sendo a evidência datada anterior; esta revisão não aplicou SQL nem publicou Edge, site ou serviços. Antes de retomar, conferir novamente a configuração aplicada, confirmar o projeto oficial e começar pelo checkpoint vigente em transação somente leitura.
+
+A CLI instalada pode ser executada neste ambiente com `SUPABASE_HOME=/workspace/.cache/helena-supabase-cli`, sem alterar `HOME`. O comando de ajuda de `functions deploy` foi validado com essa opção e telemetria/notificação de atualização desativadas. Isso resolve apenas o diretório local de estado; não fornece credencial, rede ou permissão de implantação. Nunca usar `--prune` para implantar uma única função.
+
 ## Mensagem para o Hermes no terminal da VPS
 
 > Faça **somente inventário, sem alterar nada**. Não reinicie serviços, não instale pacotes, não faça `git pull`, não consulte `.env`, `auth.json`, logs, `/proc` ou valores de variáveis, e não chame `getUpdates`, `setWebhook` nem envie mensagens. Execute o inventário local abaixo se o arquivo já estiver no checkout da VPS; se não estiver, informe “arquivo ausente” e pare. Compartilhe apenas a saída do inventário e o SHA do checkout que ele imprimir. Não inclua tokens, URLs de banco, códigos de pareamento, identificadores de chat ou dados de usuários.
