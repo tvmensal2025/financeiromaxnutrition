@@ -35,6 +35,7 @@ import { ExecutiveBadge } from "@/components/executive/ExecutiveBadge";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
 import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
+import { SeloOrigemDados } from "@/components/executive/SeloOrigemDados";
 
 export interface Oportunidade {
   row_version?: number | string;
@@ -82,6 +83,18 @@ function moeda(valor: number) {
   return Number.isFinite(valor) ? valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Não informado";
 }
 
+type OrdemCrm = "padrao" | "valor" | "probabilidade" | "fechamento" | "proxima_acao" | "lead";
+const ORDENS_CRM: { id: OrdemCrm; label: string }[] = [
+  { id: "padrao", label: "Ordem: cadastro" },
+  { id: "valor", label: "Ordem: maior valor" },
+  { id: "probabilidade", label: "Ordem: maior probabilidade" },
+  { id: "fechamento", label: "Ordem: fechamento mais próximo" },
+  { id: "proxima_acao", label: "Ordem: próxima ação mais próxima" },
+  { id: "lead", label: "Ordem: lead (A–Z)" },
+];
+const etapaDe = (op: { etapa?: string | null }) => (op.etapa || "PROSPECCAO").toUpperCase();
+const textoSemAcento = (texto: string) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 function valorConfiavel(valor: unknown): number | null {
   const cents = parseDatabaseCents(valor);
   return cents === null ? null : cents / 100;
@@ -98,6 +111,9 @@ export default function CrmPage() {
   const [editando, setEditando] = useState<Oportunidade | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [filtroEtapa, setFiltroEtapa] = useState("TODAS");
+  const [filtroEmpresa, setFiltroEmpresa] = useState("TODAS");
+  const [ordem, setOrdem] = useState<OrdemCrm>("padrao");
 
   // Formulário
   const [form, setForm] = useState<Partial<Oportunidade>>({
@@ -142,17 +158,42 @@ export default function CrmPage() {
     return () => { leituraAtual.current++; };
   }, [user?.id, currentBusinessId, isConsolidated, selecaoKey]);
 
-  // Filtragem local por busca
-  const filtradas = useMemo(() => {
+  // Filtragem local: busca, empresa e etapa; a ordenação vale para Kanban e Tabela.
+  const empresasNoPipeline = useMemo(() => [...new Set(oportunidades.map((op) => op.business_id).filter(Boolean))].sort(), [oportunidades]);
+  const nomeEmpresa = (id: string) => empresas.find((e) => e.id === id)?.nome || id;
+  const semEtapa = useMemo(() => {
+    const termo = textoSemAcento(termoBusca.trim());
     return oportunidades.filter((op) => {
-      const matchBusca =
-        !termoBusca ||
-        op.empresa_lead?.toLowerCase().includes(termoBusca.toLowerCase()) ||
-        op.contato?.toLowerCase().includes(termoBusca.toLowerCase()) ||
-        op.responsavel?.toLowerCase().includes(termoBusca.toLowerCase());
-      return matchBusca;
+      if (filtroEmpresa !== "TODAS" && op.business_id !== filtroEmpresa) return false;
+      if (!termo) return true;
+      return [op.empresa_lead, op.contato, op.responsavel, op.email_telefone, op.proxima_acao].some((campo) => textoSemAcento(campo ?? "").includes(termo));
     });
-  }, [oportunidades, termoBusca]);
+  }, [oportunidades, termoBusca, filtroEmpresa]);
+  const contagemPorEtapa = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const op of semEtapa) mapa[etapaDe(op)] = (mapa[etapaDe(op)] ?? 0) + 1;
+    return mapa;
+  }, [semEtapa]);
+  const filtradas = useMemo(() => {
+    const lista = filtroEtapa === "TODAS" ? [...semEtapa] : semEtapa.filter((op) => etapaDe(op) === filtroEtapa);
+    const nulosPorUltimo = (a: number | string | null, b: number | string | null, desc: boolean) => {
+      if (a === null && b === null) return 0;
+      if (a === null) return 1;
+      if (b === null) return -1;
+      const base = typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b));
+      return desc ? -base : base;
+    };
+    const dataOuNulo = (valor?: string | null) => (valor && /^\d{4}-\d{2}-\d{2}/.test(valor) ? valor.slice(0, 10) : null);
+    if (ordem === "valor") lista.sort((a, b) => nulosPorUltimo(valorConfiavel(a.valor_potencial), valorConfiavel(b.valor_potencial), true));
+    else if (ordem === "probabilidade") lista.sort((a, b) => nulosPorUltimo(a.probabilidade == null ? null : Number(a.probabilidade), b.probabilidade == null ? null : Number(b.probabilidade), true));
+    else if (ordem === "fechamento") lista.sort((a, b) => nulosPorUltimo(dataOuNulo(a.fechamento_previsto), dataOuNulo(b.fechamento_previsto), false));
+    else if (ordem === "proxima_acao") lista.sort((a, b) => nulosPorUltimo(dataOuNulo(a.data_proxima_acao), dataOuNulo(b.data_proxima_acao), false));
+    else if (ordem === "lead") lista.sort((a, b) => (a.empresa_lead || "").localeCompare(b.empresa_lead || "", "pt-BR"));
+    return lista;
+  }, [semEtapa, filtroEtapa, ordem]);
+  const filtrando = Boolean(termoBusca.trim()) || filtroEtapa !== "TODAS" || filtroEmpresa !== "TODAS";
+  const limparFiltros = () => { setTermoBusca(""); setFiltroEtapa("TODAS"); setFiltroEmpresa("TODAS"); };
+  const foraDasEtapas = useMemo(() => filtradas.filter((op) => !ETAPAS_ORDEM.includes(etapaDe(op))).length, [filtradas]);
 
   // Métricas do Topo
   const metricas = useMemo(() => {
@@ -304,6 +345,13 @@ export default function CrmPage() {
         }
       />
 
+      <SeloOrigemDados
+        fontes={["crm"]}
+        escopo={rotulo || (isConsolidated ? "Grupo consolidado" : currentBusiness?.nome || currentBusinessId)}
+        registros={carregando || erro ? null : oportunidades.length}
+        unidade={oportunidades.length === 1 ? "oportunidade" : "oportunidades"}
+      />
+
       {/* Grid de 4 Métricas Essenciais do CRM */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <ExecutiveMetricCard
@@ -333,29 +381,74 @@ export default function CrmPage() {
       </div>
 
       {/* Barra de Busca e Filtros */}
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card p-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar por lead, empresa, contato ou responsável…"
-            value={termoBusca}
-            onChange={(e) => setTermoBusca(e.target.value)}
-            className="w-full rounded-lg border border-border/70 bg-background py-1.5 pl-9 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/calendario"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      <div role="search" aria-label="Filtrar e ordenar oportunidades" className="space-y-3 rounded-xl border border-border/70 bg-card p-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full min-w-0 sm:max-w-md sm:flex-1">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              aria-label="Buscar oportunidade"
+              placeholder="Buscar lead, contato, responsável…"
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              className="w-full rounded-lg border border-border/70 bg-background py-1.5 pl-9 pr-3 text-xs placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+            />
+          </div>
+          {empresasNoPipeline.length > 1 && (
+            <select
+              aria-label="Filtrar por empresa"
+              value={filtroEmpresa}
+              onChange={(e) => setFiltroEmpresa(e.target.value)}
+              className="min-h-9 rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+            >
+              <option value="TODAS">Todas as empresas</option>
+              {empresasNoPipeline.map((id) => <option key={id} value={id}>{nomeEmpresa(id)}</option>)}
+            </select>
+          )}
+          <select
+            aria-label="Ordenar oportunidades"
+            value={ordem}
+            onChange={(e) => setOrdem(e.target.value as OrdemCrm)}
+            className="min-h-9 rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
           >
-            <Calendar className="h-3.5 w-3.5" />
-            <span>Calendário comercial</span>
-          </Link>
-          <span className="text-xs text-muted-foreground hidden sm:inline">
-            {filtradas.length} oportunidade(s)
-          </span>
+            {ORDENS_CRM.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+            <Link
+              to="/calendario"
+              className="inline-flex min-h-9 items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Calendário comercial</span>
+            </Link>
+            <span className="text-xs text-muted-foreground" aria-live="polite">
+              {filtrando ? `${filtradas.length} de ${oportunidades.length}` : filtradas.length} oportunidade(s)
+            </span>
+          </div>
         </div>
+        {oportunidades.length > 0 && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por etapa">
+            <button
+              type="button"
+              aria-pressed={filtroEtapa === "TODAS"}
+              onClick={() => setFiltroEtapa("TODAS")}
+              className={`min-h-8 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${filtroEtapa === "TODAS" ? "border-foreground bg-foreground text-background" : "border-border/70 text-muted-foreground hover:text-foreground"}`}
+            >
+              Todas ({semEtapa.length})
+            </button>
+            {ETAPAS_ORDEM.map((etapaKey) => (
+              <button
+                key={etapaKey}
+                type="button"
+                aria-pressed={filtroEtapa === etapaKey}
+                onClick={() => setFiltroEtapa(filtroEtapa === etapaKey ? "TODAS" : etapaKey)}
+                className={`min-h-8 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${filtroEtapa === etapaKey ? "border-foreground bg-foreground text-background" : "border-border/70 text-muted-foreground hover:text-foreground"}`}
+              >
+                {ETAPAS_CONFIG[etapaKey].label} ({contagemPorEtapa[etapaKey] ?? 0})
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {erro && (
@@ -368,15 +461,36 @@ export default function CrmPage() {
 
       {carregando ? (
         <ExecutiveLoadingState message="Carregando pipeline de vendas..." />
-      ) : erro ? null : modoVisualizacao === "kanban" ? (
+      ) : erro ? null : oportunidades.length === 0 ? (
+        <ExecutiveEmptyState
+          icon={Target}
+          title="Nenhuma oportunidade no pipeline"
+          description={isFounder
+            ? "Ainda não há oportunidades na tabela crm para este recorte. Cadastre a primeira para ver o funil, a previsão ponderada e o ticket médio."
+            : "Ainda não há oportunidades na tabela crm para este recorte. O cadastro de oportunidades é feito pelo fundador."}
+          actionLabel={isFounder ? "Nova oportunidade" : undefined}
+          onAction={isFounder ? () => abrirModalNovo() : undefined}
+        />
+      ) : filtradas.length === 0 ? (
+        <ExecutiveEmptyState
+          icon={Search}
+          title="Nenhuma oportunidade corresponde aos filtros"
+          description="Ajuste a busca, a empresa ou a etapa para ver o funil novamente."
+          actionLabel="Limpar filtros"
+          onAction={limparFiltros}
+        />
+      ) : modoVisualizacao === "kanban" ? (
         <div className="relative">
+          {foraDasEtapas > 0 && (
+            <p role="status" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-foreground">
+              {foraDasEtapas} {foraDasEtapas === 1 ? "oportunidade tem" : "oportunidades têm"} etapa fora do funil padrão e não {foraDasEtapas === 1 ? "aparece" : "aparecem"} nas colunas. Veja na Tabela.
+            </p>
+          )}
           <div className="overflow-x-auto pb-6 scrollbar-thin">
             <div className="flex gap-4 min-w-max px-1">
-              {ETAPAS_ORDEM.map((etapaKey) => {
+              {ETAPAS_ORDEM.filter((etapaKey) => filtroEtapa === "TODAS" || filtroEtapa === etapaKey).map((etapaKey) => {
                 const config = ETAPAS_CONFIG[etapaKey];
-                const itensEtapa = filtradas.filter(
-                  (op) => (op.etapa || "PROSPECCAO").toUpperCase() === etapaKey
-                );
+                const itensEtapa = filtradas.filter((op) => etapaDe(op) === etapaKey);
                 const totalEtapa = itensEtapa.reduce<number | null>((acc, cur) => {
                   const valor = valorConfiavel(cur.valor_potencial);
                   return valor === null ? acc : (acc ?? 0) + valor;
@@ -457,7 +571,7 @@ export default function CrmPage() {
             </thead>
             <tbody className="divide-y divide-border/30">
               {filtradas.map((op) => {
-                const etapaInfo = ETAPAS_CONFIG[op.etapa] || ETAPAS_CONFIG.PROSPECCAO;
+                const etapaInfo = ETAPAS_CONFIG[etapaDe(op)] || ETAPAS_CONFIG.PROSPECCAO;
                 const empRef = empresas.find((empresa) => empresa.id === op.business_id);
                 return (
                   <tr
@@ -488,13 +602,13 @@ export default function CrmPage() {
                           backgroundColor: `${etapaInfo.color}15`,
                         }}
                       >
-                        {etapaInfo.label}
+                        {ETAPAS_CONFIG[etapaDe(op)] ? etapaInfo.label : op.etapa}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 font-bold text-foreground">
                       {valorConfiavel(op.valor_potencial) === null ? "Não informado" : moeda(valorConfiavel(op.valor_potencial)!)}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-muted-foreground">{op.probabilidade || 0}%</td>
+                    <td className="px-5 py-3.5 font-mono text-muted-foreground">{op.probabilidade == null || op.probabilidade === "" ? "—" : `${op.probabilidade}%`}</td>
                     <td className="px-5 py-3.5 text-muted-foreground">{op.responsavel || "-"}</td>
                     <td className="px-5 py-3.5 text-muted-foreground max-w-[200px] truncate">
                       {op.proxima_acao || "-"}

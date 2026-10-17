@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Plus,
   ListTodo,
+  Table2,
+  CalendarSearch,
 } from "lucide-react";
 import { useBusiness } from "@/contexts/BusinessContext";
 import { Link } from 'react-router-dom';
@@ -31,12 +33,16 @@ import { concluirTarefa, concluirTarefaPorId } from "@/lib/tarefa-acoes";
 import { ExecutivePageHeader } from "@/components/executive/ExecutivePageHeader";
 import { ExecutiveLoadingState } from "@/components/executive/ExecutiveLoadingState";
 import { ExecutiveErrorState } from "@/components/executive/ExecutiveErrorState";
+import { ExecutiveEmptyState } from "@/components/executive/ExecutiveEmptyState";
+import { SeloOrigemDados } from "@/components/executive/SeloOrigemDados";
 
 function idTarefaDeEvento(ev: EventoAgenda) {
   if (ev.related_object_type === "tarefas" && ev.related_object_id) return ev.related_object_id;
   if (ev.event_id.startsWith("EVT-TSK-")) return ev.event_id.replace("EVT-TSK-", "");
   return null;
 }
+
+const STATUS_CONCLUIDOS = /CONCLU|FEIT|ENTREGUE|CANCEL|ARQUIV/i;
 
 export default function CalendarioPage() {
   const { currentBusinessId, isConsolidated, selecionadas, todasLigadas, nomeDe, loading: businessLoading, error: businessError } = useBusiness();
@@ -50,6 +56,10 @@ export default function CalendarioPage() {
   const [modalTarefas, setModalTarefas] = useState(false);
   const [taskIdModal, setTaskIdModal] = useState<string | null>(null);
   const [acaoModal, setAcaoModal] = useState<AcaoTarefaModal>(null);
+  const [filtroTipo, setFiltroTipo] = useState<"todos" | "tarefa" | "calendario">("todos");
+  const [filtroEmpresa, setFiltroEmpresa] = useState("TODAS");
+  const [ocultarConcluidos, setOcultarConcluidos] = useState(false);
+  const [periodoAgenda, setPeriodoAgenda] = useState<"todos" | "futuros" | "mes">("todos");
 
   const abrirTarefa = (taskId: string, acao: AcaoTarefaModal = null) => {
     setTaskIdModal(taskId);
@@ -113,6 +123,18 @@ export default function CalendarioPage() {
       .filter((e) => e.quando);
   }, [eventos]);
 
+  const empresasNaAgenda = useMemo(() => [...new Set(eventosComData.map((e) => e.business_id).filter(Boolean))].sort(), [eventosComData]);
+  const filtrando = filtroTipo !== "todos" || filtroEmpresa !== "TODAS" || ocultarConcluidos;
+  const limparFiltros = () => { setFiltroTipo("todos"); setFiltroEmpresa("TODAS"); setOcultarConcluidos(false); };
+
+  // Os filtros valem para o mês e para a agenda; os contadores do mês mostram o que sobrou deles.
+  const visiveis = useMemo(() => eventosComData.filter((e) => {
+    if (filtroTipo !== "todos" && e.origem !== filtroTipo) return false;
+    if (filtroEmpresa !== "TODAS" && e.business_id !== filtroEmpresa) return false;
+    if (ocultarConcluidos && STATUS_CONCLUIDOS.test(e.status ?? "")) return false;
+    return true;
+  }), [eventosComData, filtroTipo, filtroEmpresa, ocultarConcluidos]);
+
   const grade = useMemo(() => {
     const ini = startOfWeek(startOfMonth(mes), { weekStartsOn: 0 });
     const fim = endOfWeek(endOfMonth(mes), { weekStartsOn: 0 });
@@ -121,19 +143,33 @@ export default function CalendarioPage() {
 
   const porDia = useMemo(() => {
     const mapa = new Map<string, EventoAgenda[]>();
-    for (const ev of eventosComData) {
+    for (const ev of visiveis) {
       const chave = format(ev.quando!, "yyyy-MM-dd");
       if (!mapa.has(chave)) mapa.set(chave, []);
       mapa.get(chave)!.push(ev);
     }
     return mapa;
-  }, [eventosComData]);
+  }, [visiveis]);
 
   const doDia = porDia.get(format(diaSel, "yyyy-MM-dd")) || [];
 
   const listaOrdenada = useMemo(() => {
-    return [...eventosComData].sort((a, b) => a.quando!.getTime() - b.quando!.getTime());
-  }, [eventosComData]);
+    const inicioHoje = new Date(); inicioHoje.setHours(0, 0, 0, 0);
+    return visiveis
+      .filter((e) => periodoAgenda === "futuros" ? e.quando!.getTime() >= inicioHoje.getTime() : periodoAgenda === "mes" ? isSameMonth(e.quando!, mes) : true)
+      .sort((a, b) => a.quando!.getTime() - b.quando!.getTime());
+  }, [visiveis, periodoAgenda, mes]);
+
+  const resumo = useMemo(() => {
+    const hoje = new Date();
+    const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+    const emSete = new Date(inicioHoje); emSete.setDate(emSete.getDate() + 8);
+    return {
+      hoje: visiveis.filter((e) => isSameDay(e.quando!, hoje)).length,
+      proximos7: visiveis.filter((e) => e.quando! >= inicioHoje && e.quando! < emSete).length,
+      mes: visiveis.filter((e) => isSameMonth(e.quando!, mes)).length,
+    };
+  }, [visiveis, mes]);
 
   if (businessLoading) return <ExecutiveLoadingState message="Carregando empresas da agenda..." />;
   if (businessError) return <ExecutiveErrorState title="Erro ao carregar as empresas" message={businessError} />;
@@ -148,7 +184,14 @@ export default function CalendarioPage() {
         title="Calendário"
         description="Gestão unificada de compromissos, tarefas com prazo e entregas estratégicas"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to="/modulo/calendario"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/70"
+            >
+              <Table2 className="h-3.5 w-3.5 text-muted-foreground" />
+              <span>Cadastro</span>
+            </Link>
             <button
               type="button"
               onClick={() => abrirListaTarefas("nova")}
@@ -159,6 +202,13 @@ export default function CalendarioPage() {
             </button>
           </div>
         }
+      />
+
+      <SeloOrigemDados
+        fontes={["calendario", "tarefas"]}
+        escopo={isConsolidated ? (todasLigadas ? "Todas as empresas" : `${selecionadas.length} empresas selecionadas`) : nomeDe(currentBusinessId)}
+        registros={erro ? null : eventosComData.length + semData.length}
+        unidade="itens"
       />
 
       {erro && (
@@ -202,6 +252,30 @@ export default function CalendarioPage() {
           <span>Tarefas</span>
         </button>
       </div>
+
+      {!erro && (eventosComData.length > 0 || filtrando) && (
+        <div role="search" aria-label="Filtrar agenda" className="flex flex-col gap-3 rounded-xl border border-border/70 bg-card p-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <select aria-label="Tipo de item" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)} className="min-h-9 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+            <option value="todos">Tarefas e compromissos</option>
+            <option value="tarefa">Só tarefas com prazo</option>
+            <option value="calendario">Só compromissos</option>
+          </select>
+          {empresasNaAgenda.length > 1 && (
+            <select aria-label="Empresa" value={filtroEmpresa} onChange={(e) => setFiltroEmpresa(e.target.value)} className="min-h-9 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+              <option value="TODAS">Todas as empresas</option>
+              {empresasNaAgenda.map((id) => <option key={id} value={id}>{nomeDe(id)}</option>)}
+            </select>
+          )}
+          <label className="inline-flex min-h-9 items-center gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={ocultarConcluidos} onChange={(e) => setOcultarConcluidos(e.target.checked)} />
+            Ocultar concluídos
+          </label>
+          {filtrando && <button type="button" onClick={limparFiltros} className="min-h-9 text-xs font-semibold text-primary hover:underline">Limpar filtros</button>}
+          <p className="text-xs text-muted-foreground sm:ml-auto" aria-live="polite">
+            Hoje: {resumo.hoje} · Próximos 7 dias: {resumo.proximos7} · No mês exibido: {resumo.mes}
+          </p>
+        </div>
+      )}
 
       {semData.length > 0 && (
         <details className="he-undated-tasks pe-card border-amber-200 bg-amber-50/50">
@@ -260,7 +334,9 @@ export default function CalendarioPage() {
                     key={chave}
                     type="button"
                     onClick={() => setDiaSel(dia)}
-                    className={`pe-cal-dia ${fora ? "is-out" : ""} ${sel ? "is-sel" : ""}`}
+                    aria-label={`${format(dia, "d 'de' MMMM", { locale: ptBR })}${qtd ? `, ${qtd} ${qtd === 1 ? "item" : "itens"}` : ""}`}
+                    aria-pressed={sel}
+                    className={`pe-cal-dia ${fora ? "is-out" : ""} ${sel ? "is-sel" : ""} ${isSameDay(dia, new Date()) ? "is-hoje" : ""}`}
                   >
                     <span>{format(dia, "d")}</span>
                     {qtd > 0 && <span className="pe-cal-badge">{qtd}</span>}
@@ -323,10 +399,26 @@ export default function CalendarioPage() {
                 );
               })}
               {doDia.length === 0 && (
-                <li className="text-sm text-[var(--pe-text-muted)]">Nenhum compromisso neste dia.</li>
+                <li className="text-sm text-[var(--pe-text-muted)]">
+                  <p>{filtrando && eventosComData.some((e) => isSameDay(e.quando!, diaSel)) ? "Os filtros ocultam os itens deste dia." : "Nenhum compromisso neste dia."}</p>
+                  <button type="button" onClick={() => abrirListaTarefas("nova")} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                    <Plus className="h-3 w-3" /> Nova tarefa para este dia
+                  </button>
+                </li>
               )}
             </ul>
           </aside>
+        </div>
+      )}
+
+      {modo === "agenda" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select aria-label="Período da agenda" value={periodoAgenda} onChange={(e) => setPeriodoAgenda(e.target.value as typeof periodoAgenda)} className="min-h-9 rounded-lg border border-border/60 bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+            <option value="todos">Todos os itens com data</option>
+            <option value="futuros">A partir de hoje</option>
+            <option value="mes">Só o mês exibido ({format(mes, "MMM yyyy", { locale: ptBR })})</option>
+          </select>
+          <span className="text-xs text-muted-foreground">{listaOrdenada.length} {listaOrdenada.length === 1 ? "item" : "itens"} em ordem cronológica</span>
         </div>
       )}
 
@@ -375,7 +467,13 @@ export default function CalendarioPage() {
             );
           })}
           {listaOrdenada.length === 0 && (
-            <p className="py-6 text-center text-sm text-[var(--pe-text-muted)]">Nenhum evento com data neste recorte.</p>
+            <ExecutiveEmptyState
+              icon={CalendarSearch}
+              title="Nenhum evento com data neste recorte"
+              description={filtrando || periodoAgenda !== "todos" ? "Os filtros ou o período escolhido ocultam os itens. Amplie o recorte para ver a agenda completa." : "Compromissos e tarefas com prazo aparecem aqui. Crie uma tarefa com prazo para começar."}
+              actionLabel={filtrando ? "Limpar filtros" : periodoAgenda !== "todos" ? "Ver todos os itens" : "Nova tarefa"}
+              onAction={filtrando ? limparFiltros : periodoAgenda !== "todos" ? () => setPeriodoAgenda("todos") : () => abrirListaTarefas("nova")}
+            />
           )}
         </div>
       )}
