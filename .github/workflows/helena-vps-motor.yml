@@ -93,8 +93,24 @@ jobs:
               case "$candidato" in b3BlbnNzaC1rZXktdjE*) miolo="$candidato" ;; esac
             fi
             case "$(printf '%s' "$bruto" | tr -d ' \t\n')" in ssh-ed25519*|ssh-rsa*|ecdsa-*) echo "::error::VPS_SSH_KEY recebeu a chave PUBLICA (.pub); cole a PRIVADA (cat /root/.ssh/github-actions)"; exit 1 ;; esac
-            [ -n "$miolo" ] || { echo "::error::VPS_SSH_KEY nao contem uma chave OpenSSH (BEGIN/END ou corpo b3Blbn...)"; exit 1; }
-            { echo '-----BEGIN OPENSSH PRIVATE KEY-----'; printf '%s\n' "$miolo" | fold -w 70; echo '-----END OPENSSH PRIVATE KEY-----'; } > ~/.ssh/vps
+            if [ -z "$miolo" ]; then
+              # Outro formato de chave privada (RSA/EC/PKCS8): usa o bloco BEGIN..END como veio, so limpando CR e espacos nas pontas.
+              if printf '%s\n' "$bruto" | grep -Eq -- '^-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+                printf '%s\n' "$bruto" | sed -n '/^-----BEGIN [A-Z ]*PRIVATE KEY-----/,/^-----END [A-Z ]*PRIVATE KEY-----/p' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' > ~/.ssh/vps
+                outro=1
+              fi
+            fi
+            if [ -z "$miolo" ] && [ -z "${outro:-}" ]; then
+              # Diagnostico sem vazar nada: so tamanho, numero de linhas e a "forma" do inicio.
+              compacto="$(printf '%s' "$bruto" | tr -d ' \t\n')"
+              forma="outra"
+              case "$compacto" in -----BEGIN*) forma="comeca com -----BEGIN (mas sem o fim -----END?)" ;; b3Blbn*) forma="corpo OpenSSH" ;; PuTTY*) forma="PuTTY .ppk (nao serve; use ssh-keygen do Linux)" ;; "") forma="VAZIO" ;; esac
+              echo "diagnostico: ${#bruto} caracteres, $(printf '%s\n' "$bruto" | wc -l) linhas, forma: $forma"
+              echo "::error::VPS_SSH_KEY nao contem uma chave privada (BEGIN/END). Cole de novo a saida de: cat /root/.ssh/github-actions"; exit 1
+            fi
+            if [ -z "${outro:-}" ]; then
+              { echo '-----BEGIN OPENSSH PRIVATE KEY-----'; printf '%s\n' "$miolo" | fold -w 70; echo '-----END OPENSSH PRIVATE KEY-----'; } > ~/.ssh/vps
+            fi
             chmod 600 ~/.ssh/vps
             ssh-keygen -y -f ~/.ssh/vps >/dev/null 2>&1 || { echo "::error::VPS_SSH_KEY invalida mesmo depois de remontar: copie de novo do BEGIN ao END"; exit 1; }
             echo "chave SSH valida: $(ssh-keygen -lf ~/.ssh/vps)"   # impressao digital (nao e segredo): compare com ssh-keygen -lf na VPS
