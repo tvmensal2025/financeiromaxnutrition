@@ -54,14 +54,14 @@ describe("Login Redirect Security", () => {
       entrar: vi.fn(),
     });
 
-    const targetUrl = "/oauth/consent?authorization_id=auth-secret-123";
+    const targetUrl = "/configuracoes?revisao=rev-123";
 
     render(
       <MemoryRouter initialEntries={[`/login?redirect=${encodeURIComponent(targetUrl)}`]}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
-            path="/oauth/consent"
+            path="/configuracoes"
             element={<div data-testid="consent-target">Página de Consentimento</div>}
           />
         </Routes>

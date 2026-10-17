@@ -23,7 +23,7 @@ Para quem mantém (você ou outro agente). Uma página. Regra de ouro: **a regra
 
 ## Personalização por revisões
 
-A tela **Configuração e revisões** (`/configuracoes-v2`, fundador e flag `VITE_HELENA_V2_HABILITADA=true`) edita os documentos reais de agentes, organograma, serviços, modelos, roteiros e entregas. Clone uma revisão, altere o rascunho, salve, solicite validação e só então ative. O worker técnico processa a fila; o navegador não aprova sua própria configuração. Consulte `motor/orquestrador/README.md` para os comandos locais.
+A tela **Configuração e revisões** (`/configuracoes`, só o fundador; desde a DEC-032 não há flag, e `/configuracoes-v2` redireciona) edita os documentos reais de agentes, organograma, serviços, modelos, roteiros e entregas. Clone uma revisão, altere o rascunho, salve, solicite validação e só então ative. O worker técnico processa a fila; o navegador não aprova sua própria configuração. Consulte `motor/orquestrador/README.md` para os comandos locais.
 
 Cada novo card do motor exige uma revisão ativa e conserva seu identificador. Para inativar a revisão ativa, primeiro ative outra; a base técnica é preservada. Revisões inativadas continuam no histórico e cards em andamento conservam sua própria revisão. Retirar um serviço exige ajustar também as dependências, fichas e roteiros afetados: a validação recusa referências quebradas. Duas edições simultâneas não se sobrescrevem; a segunda precisa atualizar a versão.
 

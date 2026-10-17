@@ -10,7 +10,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function main() {
   console.log('--- 1. CARREGANDO BRANDBOOK OFICIAL DE eLiving™ ---');
-  const brandPath = path.resolve('src/data/eliving-brand.json');
+  const brandPath = path.resolve('docs/helena/dados-v1/eliving-brand.json');
   const brandIdentity = JSON.parse(fs.readFileSync(brandPath, 'utf8'));
 
   console.log('\n--- 2. LENDO PORTFOLIO ATUAL (BIZ-004) ---');

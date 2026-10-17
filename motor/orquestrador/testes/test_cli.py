@@ -9,6 +9,7 @@ from orquestrador.__main__ import main
 def test_worker_exige_urls_explicitas(monkeypatch):
     monkeypatch.delenv('HELENA_V2_CONFIG_DATABASE_URL', raising=False)
     monkeypatch.delenv('HELENA_V2_DBOS_SYSTEM_DATABASE_URL', raising=False)
+    monkeypatch.delenv('HELENA_V2_DATABASE_URL', raising=False)
     with pytest.raises(SystemExit) as erro:
         main(['validar-configuracoes'])
     assert erro.value.code == 2

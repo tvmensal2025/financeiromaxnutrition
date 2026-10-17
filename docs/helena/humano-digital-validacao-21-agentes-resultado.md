@@ -7,7 +7,7 @@
 ## Resultado
 
 - Cadastro canônico conferido: **21 agentes**.
-- Funções e nomes conferidos contra `src/lib/agentes.json`: **21/21**.
+- Funções e nomes conferidos contra `docs/helena/dados-v1/agentes.json` (antes `src/lib/agentes.json`): **21/21**.
 - Sequência de handoff: **21 etapas, 21 IDs únicos**.
 - Campos obrigatórios do lote vazios: **0**.
 - Despacho: **Marina (AGT-04)**.

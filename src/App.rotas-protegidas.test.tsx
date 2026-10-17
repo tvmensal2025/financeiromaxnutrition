@@ -1,8 +1,10 @@
-// Prova o acesso por URL direta às rotas v2 (flag ligada), com o AuthProvider real
-// e só o Supabase simulado: visitante vai a /login?redirect=<caminho codificado> sem
-// open redirect; autenticado sem app_access ativo vê a tela de bloqueio e a rota nem
-// é montada; membro (não fundador) em /configuracoes-v2 recebe "Acesso restrito" da
-// própria página (a rota existe e não redireciona), e só o fundador vê o editor.
+// Prova o acesso por URL direta às rotas do app da v2 (DEC-032: só a v2 roda), com o
+// AuthProvider real e só o Supabase simulado: visitante vai a /login?redirect=<caminho
+// codificado> sem open redirect; autenticado sem app_access ativo vê a tela de bloqueio e a
+// rota nem é montada; membro (não fundador) em /configuracoes recebe "Acesso restrito" da
+// própria página (a rota existe e não redireciona), e só o fundador vê o editor. Os endereços
+// antigos (/cards-v2, /configuracoes-v2) continuam funcionando por redirecionamento, e
+// qualquer rota da v1 cai na raiz (os cards).
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -40,14 +42,10 @@ const runtime = vi.hoisted(() => ({ cards: vi.fn(), config: vi.fn() }));
 vi.mock('@/integrations/cards-v2/runtime', () => ({ repositorioCardsV2DoApp: runtime.cards }));
 vi.mock('@/integrations/config-v2/runtime', () => ({ repositorioConfigV2DoApp: runtime.config }));
 
-vi.mock('@/contexts/SessionBusinessBoundary', () => ({
-  SessionBusinessBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
 vi.mock('@/components/Layout', async () => {
   const { Outlet } = await import('react-router-dom');
-  return { Layout: () => <div data-testid="layout"><Outlet /></div>, };
+  return { Layout: () => <div data-testid="layout"><Outlet /></div> };
 });
-vi.mock('@/pages/ComandoPage', () => ({ default: () => <p data-testid="pagina-comando">Sala de comando</p> }));
 
 import App from './App';
 
@@ -77,10 +75,9 @@ const entrar = (id: string, acesso: { role: string; active: boolean; user_id?: s
 };
 const abrir = (caminho: string) => { window.history.replaceState({}, '', caminho); return render(<App />); };
 const conteudoV2 = () => [screen.queryByText('Cards em andamento'), screen.queryByText('Configuração e revisões'),
-  screen.queryByTestId('layout'), screen.queryByTestId('pagina-comando')].filter(Boolean);
+  screen.queryByTestId('layout')].filter(Boolean);
 
 beforeEach(() => {
-  vi.stubEnv('VITE_HELENA_V2_HABILITADA', 'true');
   sb.sessao = null;
   sb.acesso = { data: null, error: null };
   sb.signOut.mockReset().mockResolvedValue({ error: null });
@@ -88,13 +85,14 @@ beforeEach(() => {
   runtime.cards.mockReset().mockImplementation(async () => repoCards());
   runtime.config.mockReset().mockImplementation(async () => repoConfig());
 });
-afterEach(() => { cleanup(); vi.unstubAllEnvs(); });
+afterEach(() => { cleanup(); });
 
 describe('visitante sem sessão abrindo a URL direta', () => {
   it.each([
+    ['/', '%2F'],
+    ['/configuracoes', '%2Fconfiguracoes'],
+    ['/?card=abc&aba=etapas', '%2F%3Fcard%3Dabc%26aba%3Detapas'],
     ['/cards-v2', '%2Fcards-v2'],
-    ['/configuracoes-v2', '%2Fconfiguracoes-v2'],
-    ['/cards-v2?card=abc&aba=etapas', '%2Fcards-v2%3Fcard%3Dabc%26aba%3Detapas'],
   ])('%s vai para /login com o destino codificado e não carrega nada da v2', async (caminho, codificado) => {
     abrir(caminho);
     expect(await screen.findByText('Bem-vindo ao seu espaço.')).toBeInTheDocument();
@@ -108,10 +106,10 @@ describe('visitante sem sessão abrindo a URL direta', () => {
   });
 
   it.each([
-    '/cards-v2?next=https://evil.example/x',
-    '/cards-v2?a=1&redirect=https://evil.example/x',
-    '/cards-v2?u=//evil.example',
-    '/configuracoes-v2?u=%2F%2Fevil.example',
+    '/?next=https://evil.example/x',
+    '/?a=1&redirect=https://evil.example/x',
+    '/configuracoes?u=//evil.example',
+    '/configuracoes?u=%2F%2Fevil.example',
   ])('%s: o redirect gerado é só caminho local, codificado, sem parâmetro extra nem outro domínio', async caminho => {
     const origem = window.location.origin;
     abrir(caminho);
@@ -124,28 +122,26 @@ describe('visitante sem sessão abrindo a URL direta', () => {
     expect(new URL(destino, origem).origin).toBe(origem);
     expect(window.location.origin).toBe(origem);
     expect(window.location.pathname).toBe('/login');
-    // Na URL do login o conteúdo hostil só existe codificado.
     expect(window.location.search).not.toContain('://');
     expect(window.location.search).not.toContain('//');
   });
 });
 
 describe('retorno do login (destino vindo da URL)', () => {
-  it('autorizado em /login?redirect=/cards-v2 volta para a rota v2 pedida (controle positivo)', async () => {
-    entrar('membro-1', { role: 'member', active: true });
-    abrir('/login?redirect=%2Fcards-v2');
-    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/cards-v2');
+  it('autorizado em /login?redirect=/configuracoes volta para a rota pedida (controle positivo)', async () => {
+    entrar('fundador-1', { role: 'founder', active: true });
+    abrir('/login?redirect=%2Fconfiguracoes');
+    expect(await screen.findByText('Configuração e revisões')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/configuracoes');
   });
 
-  it.each(['https://evil.example/x', '//evil.example/x'])('autorizado em /login?redirect=%s não sai do domínio: cai na raiz do app', async externo => {
+  it.each(['https://evil.example/x', '//evil.example/x'])('autorizado em /login?redirect=%s não sai do domínio: cai na raiz, que é a tela dos cards', async externo => {
     const origem = window.location.origin;
     entrar('membro-1', { role: 'member', active: true });
     abrir(`/login?redirect=${encodeURIComponent(externo)}`);
-    expect(await screen.findByTestId('pagina-comando')).toBeInTheDocument();
+    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
     expect(window.location.origin).toBe(origem);
     expect(window.location.pathname).toBe('/');
-    expect(screen.queryByText('Cards em andamento')).toBeNull();
   });
 });
 
@@ -158,7 +154,7 @@ describe('autenticado sem app_access ativo abrindo a URL direta', () => {
   ];
 
   describe.each(casos)('%s', (_rotulo, acesso) => {
-    it.each(['/cards-v2', '/configuracoes-v2'])('%s mostra o bloqueio e não monta a rota nem o layout', async caminho => {
+    it.each(['/', '/configuracoes'])('%s mostra o bloqueio e não monta a rota nem o layout', async caminho => {
       entrar('pessoa-1', acesso);
       abrir(caminho);
       expect(await screen.findByRole('button', { name: 'Sair e Voltar ao Início' })).toBeInTheDocument();
@@ -174,7 +170,7 @@ describe('autenticado sem app_access ativo abrindo a URL direta', () => {
   it('se a consulta de permissão falha, mostra o alerta de sessão não confirmada e também não monta a rota', async () => {
     entrar('pessoa-1', null);
     sb.acesso = { data: null, error: { message: 'offline' } };
-    abrir('/cards-v2');
+    abrir('/');
     expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível confirmar sua sessão');
     expect(screen.queryByRole('button', { name: 'Sair e Voltar ao Início' })).toBeNull();
     expect(conteudoV2()).toHaveLength(0);
@@ -183,60 +179,84 @@ describe('autenticado sem app_access ativo abrindo a URL direta', () => {
 
   it('"Sair e Voltar ao Início" encerra a sessão no serviço e, sem sessão, o app leva ao /login com o destino pedido', async () => {
     entrar('pessoa-1', { role: 'member', active: false });
-    abrir('/cards-v2');
+    abrir('/configuracoes');
     fireEvent.click(await screen.findByRole('button', { name: 'Sair e Voltar ao Início' }));
     await waitFor(() => expect(sb.signOut).toHaveBeenCalledTimes(1));
     expect(await screen.findByText('Bem-vindo ao seu espaço.')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
-    expect(new URLSearchParams(window.location.search).get('redirect')).toBe('/cards-v2');
+    expect(new URLSearchParams(window.location.search).get('redirect')).toBe('/configuracoes');
     expect(screen.queryByRole('button', { name: 'Sair e Voltar ao Início' })).toBeNull();
   });
 });
 
-describe('membro autorizado nas rotas v2', () => {
-  it('membro (não fundador) em /configuracoes-v2 recebe "Acesso restrito" e nenhum editor; a rota não redireciona', async () => {
+describe('membro autorizado nas rotas da v2', () => {
+  it('membro (não fundador) em /configuracoes recebe "Acesso restrito" e nenhum editor; a rota não redireciona', async () => {
     entrar('membro-1', { role: 'member', active: true });
-    abrir('/configuracoes-v2');
+    abrir('/configuracoes');
     expect(await screen.findByText('Acesso restrito')).toBeInTheDocument();
     expect(screen.getByText('Somente o fundador pode gerenciar a configuração da Helena v2.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Voltar ao sistema' })).toHaveAttribute('href', '/sistema');
+    expect(screen.getByRole('link', { name: 'Voltar aos cards' })).toHaveAttribute('href', '/');
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.getByTestId('layout')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/configuracoes-v2');
+    expect(window.location.pathname).toBe('/configuracoes');
     expect(screen.queryByText('Configuração e revisões')).toBeNull();
     expect(screen.queryByText('Atualizar estado')).toBeNull();
     expect(screen.queryByLabelText('Importar configuração existente em JSON')).toBeNull();
-    // O repositório da configuração nem é pedido ao banco.
     expect(runtime.config).not.toHaveBeenCalled();
   });
 
-  it('administrador (role admin, não fundador) também recebe "Acesso restrito" em /configuracoes-v2', async () => {
+  it('administrador (role admin, não fundador) também recebe "Acesso restrito" em /configuracoes', async () => {
     entrar('admin-1', { role: 'admin', active: true });
-    abrir('/configuracoes-v2');
+    abrir('/configuracoes');
     expect(await screen.findByText('Acesso restrito')).toBeInTheDocument();
     expect(screen.queryByText('Configuração e revisões')).toBeNull();
     expect(runtime.config).not.toHaveBeenCalled();
   });
 
-  it('controle positivo: o fundador em /configuracoes-v2 vê o editor e o repositório é aberto', async () => {
+  it('controle positivo: o fundador em /configuracoes vê o editor e o repositório é aberto', async () => {
     entrar('fundador-1', { role: 'founder', active: true });
-    abrir('/configuracoes-v2');
+    abrir('/configuracoes');
     expect(await screen.findByText('Configuração e revisões')).toBeInTheDocument();
     expect(await screen.findByText('Nenhuma configuração cadastrada')).toBeInTheDocument();
     expect(screen.queryByText('Acesso restrito')).toBeNull();
     expect(runtime.config).toHaveBeenCalledTimes(1);
   });
 
-  it('controle positivo: o membro em /cards-v2 vê a página de cards, sem as áreas exclusivas do fundador', async () => {
+  it('controle positivo: a raiz é a tela dos cards; o membro a vê sem as áreas exclusivas do fundador', async () => {
     entrar('membro-1', { role: 'member', active: true });
-    abrir('/cards-v2');
+    abrir('/');
     expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
     expect(await screen.findByText('Nenhum card disponível.')).toBeInTheDocument();
     expect(screen.getByTestId('layout')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/cards-v2');
+    expect(window.location.pathname).toBe('/');
     expect(screen.queryByRole('button', { name: 'Pedir publicação' })).toBeNull();
     expect(screen.queryByLabelText('Arquivo de preparação privada')).toBeNull();
     expect(screen.queryByRole('region', { name: 'Publicação' })).toBeNull();
     expect(runtime.cards).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('endereços antigos e rotas da v1', () => {
+  it('/cards-v2 redireciona para a raiz preservando a busca', async () => {
+    entrar('membro-1', { role: 'member', active: true });
+    abrir('/cards-v2?card=abc&aba=etapas');
+    expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/');
+    expect(window.location.search).toBe('?card=abc&aba=etapas');
+  });
+
+  it('/configuracoes-v2 redireciona para /configuracoes', async () => {
+    entrar('fundador-1', { role: 'founder', active: true });
+    abrir('/configuracoes-v2');
+    expect(await screen.findByText('Configuração e revisões')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/configuracoes');
+  });
+
+  it.each(['/comando', '/financeiro', '/crm', '/conversa', '/execucao', '/modulo/tarefas', '/sistema', '/oauth/consent'])(
+    'a rota da v1 %s não existe mais: cai na raiz, que é a tela dos cards', async caminho => {
+      entrar('membro-1', { role: 'member', active: true });
+      abrir(caminho);
+      expect(await screen.findByText('Cards em andamento')).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/');
+    });
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { validateCreativeBrief, validateBrandForDesign } from '../src/creative-brief.mjs';
 import { validatePublication, validateVisualReview } from '../src/publication-contract.mjs';
-const brand = JSON.parse(readFileSync(new URL('../../../src/data/humano-digital-brand.json',import.meta.url),'utf8'));
+const brand = JSON.parse(readFileSync(new URL('../../../docs/helena/dados-v1/humano-digital-brand.json',import.meta.url),'utf8'));
 brand.status='APPROVED'; brand.logo_approved=true;
 const detail={job:{business_id:'BIZ-003'},company_identity:{business_id:'BIZ-003',row_version:500,brand_identity:brand}};
 const brief={business_id:'BIZ-003',brand:brand.name,brand_version:500,logo_asset:brand.logo_url,palette:brand.colors.map(c=>c.hex).join(', ')};

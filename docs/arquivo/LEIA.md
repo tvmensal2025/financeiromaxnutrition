@@ -3,6 +3,15 @@
 Tudo aqui é **só para consulta**. Nada foi apagado: o que saiu de uso veio para cá com o motivo ao lado.
 Para saber onde está o que vale hoje, veja `docs/INDICE.md`.
 
+## App da v1, arquivado em 14/10/2026 (DEC-032)
+
+| Agora em | Antes em | Por quê |
+|---|---|---|
+| `docs/arquivo/app-v1/src/...` | `src/...` (mesmos caminhos) | a v1 está parada e o app roda só a v2; as telas, componentes, libs, estilos e testes da v1 ficam aqui só para consulta, fora do TypeScript, do vitest e do lint |
+| `docs/helena/dados-v1/*.json` | `src/lib/agentes.json`, `src/data/*.json` | dados que o gateway e dois scripts ainda leem; não são da interface |
+
+Não copie nada daqui de volta para `src/`. Se um pedaço da v1 fizer falta na v2, ele nasce de novo como card ou como ficha, pelo caminho da especificação.
+
 ## Passagem e reversão visual de 13/10/2026
 
 | Agora em | Antes em | Por quê |

@@ -35,6 +35,7 @@ Estas orientações valem para todo o projeto. Responder em português e seguir 
 - Não copiar valores de senhas, tokens, chaves, secrets ou códigos de recuperação. Usar nomes, locais e metadados.
 - Relatórios locais são fotografias datadas, nunca substitutos da consulta atual.
 - Esta pasta é a base local de colaboração. Não reconstruir nem duplicar aplicativos existentes sem verificar o código e o escopo solicitado.
+- A v1 está parada (DEC-032): o app em `src/` é só a v2 (login, cards e configuração). O código da v1 do app fica em `docs/arquivo/app-v1/`, só consulta; não religar, não copiar de volta e não recriar telas da v1. `services/`, `scripts/` e `supabase/migrations/` são da v1 e só mudam com a frase exata do fundador (DEC-028).
 
 ## TypeSafe / Jev
 

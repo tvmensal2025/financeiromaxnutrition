@@ -165,11 +165,11 @@ describe('ConfiguracoesV2Page (fundador): botões, abas e links', () => {
     expect(comAlvo()).toEqual(expect.arrayContaining(['button "Reverter para a revisão anterior"']));
   });
 
-  it('membro vê só o link "Voltar ao sistema", que também declara alvo de toque', async () => {
+  it('membro vê só o link "Voltar aos cards", que também declara alvo de toque', async () => {
     auth.isFounder = false;
     config(repoConfig());
     await screen.findByText('Acesso restrito');
     expect(semAlvo()).toEqual([]);
-    expect(comAlvo()).toEqual(['a "Voltar ao sistema"']);
+    expect(comAlvo()).toEqual(['a "Voltar aos cards"']);
   });
 });

@@ -19,6 +19,8 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 | `docs/decisoes/DEC-028-desligar-a-central-da-v1.md` | DEC-028 — Desligar a central da v1 (URA de clientes e ligações por IA) | 10/10/2026 |
 | `docs/decisoes/DEC-029-codigos-das-empresas.md` | DEC-029 — Códigos oficiais das empresas | 10/10/2026 |
 | `docs/decisoes/DEC-030-revisor-do-relatorio-final-caio.md` | DEC-030 — Revisor do relatório final: o Caio | 11/10/2026 |
+| `docs/decisoes/DEC-031-runtime-hermes-agora-eve-depois.md` | DEC-031 — Runtime dos agentes: Hermes agora, EVE depois | 14/10/2026 |
+| `docs/decisoes/DEC-032-app-so-v2.md` | DEC-032 — A v1 está parada; o app roda só a v2 | 14/10/2026 |
 | `docs/decisoes/README.md` | Decisões | 10/10/2026 |
 
 ## Manual (guias em vigor)
@@ -67,6 +69,9 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 
 | Arquivo | O que é | Data |
 |---|---|---|
+| `docs/helena/dados-v1/agentes.json` | catálogo dos 21 agentes da v1 (lido por testes do gateway); antes em `src/lib/` | 14/10/2026 |
+| `docs/helena/dados-v1/eliving-brand.json` | marca eLiving™ (lida por scripts); antes em `src/data/` | 14/10/2026 |
+| `docs/helena/dados-v1/humano-digital-brand.json` | marca Humano Digital (lida por testes do gateway); antes em `src/data/` | 14/10/2026 |
 | `docs/helena/AUDITORIA-MESTRA-20260929.md` | Auditoria mestra do Ecossistema dos Sonhos | 29/09/2026 |
 | `docs/helena/CHECKPOINT-FINANCEIRO-20261004.md` | CHECKPOINT MESTRE — MÓDULO FINANCEIRO HELENA-HUB | 04/10/2026 |
 | `docs/helena/CHECKPOINT-MESTRE-RETOMADA-20261003.md` | Checkpoint mestre de retomada — Sistema Helena / Humano Digital | 03/10/2026 |
@@ -172,6 +177,7 @@ Este índice é gerado a partir dos próprios arquivos. Ao criar, mover ou arqui
 
 | Arquivo | O que é | Data |
 |---|---|---|
+| `docs/arquivo/app-v1/` | o app da v1 inteiro (171 arquivos de `src/`, mesmos caminhos), parado pela DEC-032; fora do TypeScript, dos testes e do lint | 14/10/2026 |
 | `docs/arquivo/LEIA.md` | Arquivo | 10/10/2026 |
 | `docs/arquivo/handoff-ate-20261013-387d1d4.md` | Handoff integral anterior ao bloco 0 | 13/10/2026 |
 | `docs/arquivo/reversao-visual-v1-seletiva-20261013.patch` | Receita de reversão visual seletiva, preparada e ensaiada em cópia | 13/10/2026 |

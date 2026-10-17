@@ -10,8 +10,9 @@ import { AlertCircle, Lock, Mail, ArrowRight, Loader2, ShieldCheck } from "lucid
 function getSafeRedirect(target: string | null): string {
   if (!target) return "/";
   // Só caminho local: sem "//", sem "://", sem barra invertida (alguns navegadores a tratam como "/") e sem caracteres de controle.
-  if (target.startsWith("/") && !target.startsWith("//") && !target.includes("://") && !target.includes("\\")
-    && !/[\u0000-\u001f\u007f]/.test(target)) {
+  // eslint-disable-next-line no-control-regex -- a faixa de caracteres de controle é intencional
+  const temControle = /[\u0000-\u001f\u007f]/.test(target);
+  if (target.startsWith("/") && !target.startsWith("//") && !target.includes("://") && !target.includes("\\") && !temControle) {
     return target;
   }
   return "/";

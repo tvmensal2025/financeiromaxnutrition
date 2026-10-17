@@ -16,6 +16,8 @@ HELENA_LOG="${HELENA_LOG:-/var/log/helena-v2}"
 HELENA_REPO_URL="${HELENA_REPO_URL:-https://github.com/tvmensal2025/financeiromaxnutrition.git}"
 HELENA_REF="${HELENA_REF:-claude/fervent-pasteur-g821nu}"    # ramo ou commit do código do motor
 PYTHON_VERSAO="${PYTHON_VERSAO:-3.13}"
+# O Python dos venvs precisa ficar onde o usuario helena le (nao em /root/.local): senao os executaveis dao "Permission denied".
+export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-${HELENA_BASE:-/opt/helena-v2}/python}" UV_PYTHON_PREFERENCE=only-managed
 PROJETO_REF="wxkgrykduqtsgmjkzlou"
 POOLER_PADRAO="aws-0-us-east-1.pooler.supabase.com"          # Session pooler (porta 5432) do projeto; confira em Connect no painel
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
@@ -38,7 +40,9 @@ etapa_preparar() {
     rm -f /tmp/uv-install.sh
   fi
   command -v uv >/dev/null || fail "uv nao ficou disponivel no PATH."
+  install -d -m 0755 "$HELENA_BASE"
   uv python install "$PYTHON_VERSAO" >/dev/null 2>&1 || fail "falhou instalar o Python $PYTHON_VERSAO pelo uv."
+  chmod -R a+rX "$UV_PYTHON_INSTALL_DIR" "$HELENA_BASE" 2>/dev/null || true
   id "$HELENA_USUARIO" >/dev/null 2>&1 || useradd --system --home-dir "$HELENA_VAR" --shell /usr/sbin/nologin "$HELENA_USUARIO" \
     || fail "falhou criar o usuario $HELENA_USUARIO."
   install -d -m 0755 "$HELENA_BASE"
@@ -51,22 +55,28 @@ etapa_preparar() {
 # O repositório é PRIVADO: pede um token de leitura do GitHub (fine-grained, só Contents: read), usa-o uma vez pelo
 # GIT_ASKPASS e nao o grava em lugar nenhum (a URL do remoto fica limpa).
 etapa_codigo() {
-  if [ -z "${HELENA_REPO_TOKEN:-}" ]; then
-    [ -r /dev/tty ] || fail "sem terminal para pedir o token do GitHub. Defina HELENA_REPO_TOKEN."
+  # Repositorio publico: clona sem token. Privado: pede o token de leitura (HELENA_REPO_TOKEN ou digitado).
+  askpass=""
+  git config --global --get-all safe.directory 2>/dev/null | grep -qx "$REPO" || git config --global --add safe.directory "$REPO"
+  if [ -z "${HELENA_REPO_TOKEN:-}" ] && ! GIT_TERMINAL_PROMPT=0 git ls-remote -q "$HELENA_REPO_URL" HEAD >/dev/null 2>&1; then
+    [ -r /dev/tty ] || fail "repositorio privado e sem terminal para pedir o token. Defina HELENA_REPO_TOKEN."
     read -rs -p "Token de LEITURA do GitHub para o repositorio (nao aparece na tela): " HELENA_REPO_TOKEN </dev/tty \
       || fail "nao consegui ler o token."; echo
+    [ -n "$HELENA_REPO_TOKEN" ] || fail "token vazio."
   fi
-  [ -n "$HELENA_REPO_TOKEN" ] || fail "token vazio."
-  askpass="$(mktemp)"; chmod 700 "$askpass"
-  printf '#!/bin/sh\ncase "$1" in *sername*) echo x-access-token;; *) echo "$HELENA_REPO_TOKEN";; esac\n' > "$askpass"
-  export GIT_ASKPASS="$askpass" GIT_TERMINAL_PROMPT=0 HELENA_REPO_TOKEN
+  export GIT_TERMINAL_PROMPT=0
+  if [ -n "${HELENA_REPO_TOKEN:-}" ]; then
+    askpass="$(mktemp)"; chmod 700 "$askpass"
+    printf '#!/bin/sh\ncase "$1" in *sername*) echo x-access-token;; *) echo "$HELENA_REPO_TOKEN";; esac\n' > "$askpass"
+    export GIT_ASKPASS="$askpass" HELENA_REPO_TOKEN
+  fi
   if [ -d "$REPO/.git" ]; then
-    git -C "$REPO" fetch --quiet origin "$HELENA_REF" || { rm -f "$askpass"; fail "falhou atualizar o codigo (token, rede ou ramo $HELENA_REF)."; }
+    git -C "$REPO" fetch --quiet origin "$HELENA_REF" || { rm -f "$askpass"; fail "falhou atualizar o codigo (rede ou ramo $HELENA_REF)."; }
   else
     rm -rf "$REPO"
-    git clone --quiet --no-single-branch "$HELENA_REPO_URL" "$REPO" || { rm -f "$askpass"; fail "falhou clonar o repositorio (token ou rede)."; }
+    git clone --quiet --no-single-branch "$HELENA_REPO_URL" "$REPO" || { rm -f "$askpass"; fail "falhou clonar o repositorio (rede ou token)."; }
   fi
-  rm -f "$askpass"; unset GIT_ASKPASS HELENA_REPO_TOKEN
+  [ -n "$askpass" ] && rm -f "$askpass"; unset GIT_ASKPASS HELENA_REPO_TOKEN
   git -C "$REPO" checkout --quiet --detach "origin/$HELENA_REF" 2>/dev/null || git -C "$REPO" checkout --quiet --detach "$HELENA_REF" \
     || fail "ramo ou commit $HELENA_REF nao encontrado."
   grep -q "x-access-token\|@github.com" "$REPO/.git/config" && fail "a URL do remoto ficou com credencial; apague $REPO e repita."
@@ -76,7 +86,7 @@ etapa_codigo() {
 
 etapa_motor_venv() {
   [ -f "$REPO/motor/orquestrador/requirements.txt" ] || fail "codigo ausente: rode a etapa codigo."
-  uv venv --quiet --python "$PYTHON_VERSAO" "$VENV_MOTOR" || fail "falhou criar o venv do motor."
+  uv venv --quiet --clear --python "$PYTHON_VERSAO" "$VENV_MOTOR" || fail "falhou criar o venv do motor."
   uv pip install --quiet --python "$VENV_MOTOR/bin/python" -r "$REPO/motor/orquestrador/requirements.txt" \
     || fail "falhou instalar as dependencias do motor."
   "$VENV_MOTOR/bin/python" -c 'import dbos, psycopg, yaml, jsonschema' || fail "dependencias do motor nao importam."
@@ -86,7 +96,7 @@ etapa_motor_venv() {
 
 etapa_hermes_venv() {
   [ -f "$REPO/motor/executor/requirements-hermes-real.txt" ] || fail "codigo ausente: rode a etapa codigo."
-  uv venv --quiet --python "$PYTHON_VERSAO" "$VENV_HERMES" || fail "falhou criar o venv do Hermes 0.19.0."
+  uv venv --quiet --clear --python "$PYTHON_VERSAO" "$VENV_HERMES" || fail "falhou criar o venv do Hermes 0.19.0."
   uv pip install --quiet --python "$VENV_HERMES/bin/python" -r "$REPO/motor/executor/requirements-hermes-real.txt" \
     || fail "falhou instalar o hermes-agent 0.19.0."
   "$VENV_HERMES/bin/hermes" --version 2>/dev/null | grep -q "v0.19.0" || fail "o Hermes do motor nao e a 0.19.0."
@@ -146,6 +156,7 @@ HELENA_V2_HERMES_HOME=$HERMES_HOME_V2
 HELENA_V2_EXECUCOES_DIR=$EXECUCOES
 PYTHONPATH=$PYTHONPATH_MOTOR
 PYTHONDONTWRITEBYTECODE=1
+SSL_CERT_FILE=$CA_BUNDLE
 # HELENA_V2_EXECUTOR vazio = hermes (unico aprovado). HELENA_V2_ALARME_WEBHOOK_URL: opcional, canal de alarme do vigia.
 # SUPABASE_ACCESS_TOKEN: so para preparar-tarefa-real (captura pela API de gestao); o despachante nao precisa. NAO CONFIRMADO.
 EOF
@@ -155,9 +166,30 @@ EOF
   testar_banco
 }
 
+# O pooler do Supabase usa a CA propria do Supabase (Supabase Root 2021 CA), que nao esta no pacote do sistema.
+# Monta CA do sistema + essa CA em um arquivo so e aponta SSL_CERT_FILE para ele no motor.env (o motor exige TLS verificado
+# contra a CA "do sistema" e nao aceita desligar a verificacao). A CA baixada so vale se a impressao digital bater.
+CA_SUPABASE_URL="https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt"
+CA_SUPABASE_SHA256="80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA"
+CA_BUNDLE="${CA_BUNDLE:-$HELENA_ETC/ca-bundle.crt}"
+preparar_ca() {
+  [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
+  [ -r /etc/ssl/certs/ca-certificates.crt ] || { apt-get install -y ca-certificates >/dev/null 2>&1; update-ca-certificates >/dev/null 2>&1; }
+  command -v openssl >/dev/null || apt-get install -y openssl >/dev/null 2>&1
+  tmp_ca="$(mktemp)"
+  curl -fsSL -m 30 "$CA_SUPABASE_URL" -o "$tmp_ca" || { rm -f "$tmp_ca"; fail "nao consegui baixar a CA do Supabase."; }
+  fp="$(openssl x509 -in "$tmp_ca" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2)"
+  [ "$fp" = "$CA_SUPABASE_SHA256" ] || { rm -f "$tmp_ca"; fail "a CA baixada nao tem a impressao digital esperada ($fp)."; }
+  cat /etc/ssl/certs/ca-certificates.crt "$tmp_ca" > "$CA_BUNDLE"; rm -f "$tmp_ca"
+  chown root:"$HELENA_USUARIO" "$CA_BUNDLE"; chmod 0640 "$CA_BUNDLE"
+  sed -i '/^SSL_CERT_FILE=/d' "$ENV_ARQ"; echo "SSL_CERT_FILE=$CA_BUNDLE" >> "$ENV_ARQ"
+  ok "CA do Supabase conferida e adicionada em $CA_BUNDLE"
+}
+
 # Conecta como as duas contas com o PROPRIO codigo do motor: formato da URL, TLS verificado e preflight do papel.
 testar_banco() {
   [ -r "$ENV_ARQ" ] || fail "sem $ENV_ARQ: rode a etapa banco."
+  preparar_ca
   como_helena env -i PATH="$PATH" HOME="$HELENA_VAR" bash -c "set -a; . '$ENV_ARQ'; set +a; exec '$VENV_MOTOR/bin/python' - <<'PY'
 import os, psycopg
 from psycopg.rows import dict_row
