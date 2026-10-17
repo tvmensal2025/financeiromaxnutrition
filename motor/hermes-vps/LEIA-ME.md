@@ -1,3 +1,22 @@
+# Helena v2 na VPS: dois instaladores
+
+| Arquivo | O que instala | Quem o roda |
+|---|---|---|
+| `instalar.sh` | O Hermes 0.15.1 do profissional (Plano B), com bot do Telegram e login do ChatGPT em `/root/.hermes`. Feito em 17/10/2026. | O fundador, colando no terminal da VPS |
+| `instalar-motor.sh` | O **motor da v2**: Hermes **0.19.0** próprio (`/opt/helena-v2/venv-hermes`), login próprio da v2 (`/var/lib/helena-v2/hermes-home`), usuário `helena` sem privilégio, `motor.env` com as duas conexões (`helena_motor`, `dbos_motor`), serviços `helena-vigia`, `helena-relogio` e `helena-despachante`. | O fluxo do GitHub `Helena VPS (motor)` (a Claude dispara) ou o fundador, no terminal |
+
+São três Hermes, de propósito: o do **EasyPanel** é a v1 (fica como está até a DEC-028); o do **profissional** é o assistente do Telegram (0.15.1, raiz); o do **motor** é o que a v2 chama por tarefa (0.19.0, usuário `helena`), porque o executor usa opções que só existem na 0.19.0. O motor nunca lê `/root/.hermes`.
+
+## Motor: ordem das etapas (`instalar-motor.sh`)
+`preparar → codigo → motor-venv → hermes-venv → login → banco → conferir → servicos`, depois: tela `/configuracoes` (Clonar a técnica, Pedir validação) → `validar-config` → tela (Ativar) → `ligar-motor`. Cada etapa pula o que já está pronto. `estado` mostra os serviços e os últimos alarmes. O despachante só liga com uma revisão ATIVA no banco, e chama o Hermes de verdade (gasta cota).
+
+Testado localmente (17/10/2026): formato das conexões aceito pela validação real do motor (pooler e direto, senha com caracteres especiais), `motor.env` 0640, host fora do projeto recusado, unidades do systemd, checkout a partir de repositório local e de `git bundle`, `conferir-runtime` real, falha fechada sem vazar a URL quando o banco não responde, ordem das etapas. **Na VPS: NÃO EXECUTADO.** Host do pooler (`aws-0-us-east-1.pooler.supabase.com`) e o TLS `verify-full` contra ele: NÃO CONFIRMADOS até a etapa `banco` rodar lá.
+
+## Fluxo do GitHub (`.github/workflows/helena-vps-motor.yml`)
+Segredos do repositório: `VPS_HOST`, `VPS_SSH_KEY` (ou `VPS_PASSWORD`), `HELENA_SENHA_MOTOR`, `HELENA_SENHA_DBOS`. O código vai por `git bundle` (sem token do GitHub na VPS); os segredos vão por arquivo 0600 pela entrada do SSH e são apagados antes de rodar; o registro mascara as senhas das URLs. A etapa `login` mostra o link e o código do ChatGPT no registro da execução.
+
+---
+
 # Hermes na VPS, direto, sem EasyPanel (Plano B do profissional)
 
 Este é o instalador do profissional (`original/instalar-na-vps.sh`), adaptado só para rodar **dentro da VPS** em uma execução. As etapas são as mesmas: preparar o servidor, instalar o Hermes v2026.5.29, configurar o Telegram, entrar com a conta do ChatGPT, ligar o agente e verificar.
