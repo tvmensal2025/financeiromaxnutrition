@@ -14,7 +14,7 @@ HELENA_VAR="${HELENA_VAR:-/var/lib/helena-v2}"               # login do Hermes e
 HELENA_ETC="${HELENA_ETC:-/etc/helena-v2}"                   # motor.env (as duas conexões; só root e helena leem)
 HELENA_LOG="${HELENA_LOG:-/var/log/helena-v2}"
 HELENA_REPO_URL="${HELENA_REPO_URL:-https://github.com/tvmensal2025/financeiromaxnutrition.git}"
-HELENA_REF="${HELENA_REF:-claude/fervent-pasteur-g821nu}"    # ramo ou commit do código do motor
+HELENA_REF="${HELENA_REF:-main}"                             # ramo ou commit do código do motor; para atualizar, passe o SHA completo (40 hex)
 PYTHON_VERSAO="${PYTHON_VERSAO:-3.13}"
 # O Python dos venvs precisa ficar onde o usuario helena le (nao em /root/.local): senao os executaveis dao "Permission denied".
 export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-${HELENA_BASE:-/opt/helena-v2}/python}" UV_PYTHON_PREFERENCE=only-managed
