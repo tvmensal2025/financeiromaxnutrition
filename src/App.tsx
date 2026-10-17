@@ -19,7 +19,7 @@ const IdentidadePage = lazy(() => import("@/pages/IdentidadePage"));
 const IndicadoresPage = lazy(() => import("@/pages/IndicadoresPage"));
 const Modulo = lazy(() => import("@/pages/Modulo"));
 const EquipeV2Page = lazy(() => import("@/pages/EquipeV2Page"));
-const OperacaoV2Page = lazy(() => import("@/pages/OperacaoV2Page"));
+const ComandoV2Page = lazy(() => import("@/pages/ComandoV2Page"));
 const IntegracoesV2Page = lazy(() => import("@/pages/IntegracoesV2Page"));
 const ConversaV2Page = lazy(() => import("@/pages/ConversaV2Page"));
 const GovernancaV2Page = lazy(() => import("@/pages/GovernancaV2Page"));
@@ -113,6 +113,14 @@ function Redirecionar({ para }: { para: string }) {
   return <Navigate to={`${para}${search}`} replace />;
 }
 
+/** Endereços antigos da operação abrem a aba equivalente da Sala de comando, mantendo outros parâmetros da busca. */
+function RedirecionarAba({ aba }: { aba: string }) {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('aba', aba);
+  return <Navigate to={`/comando?${params.toString()}`} replace />;
+}
+
 /** Links antigos `/?card=...` e `/?pedido=...` continuam abrindo o módulo correto. */
 function EntradaRaiz() {
   const { search } = useLocation();
@@ -155,12 +163,12 @@ function Rotas() {
         <Route path="/cards" element={<CardV2Page />} />
         <Route path="/configuracoes" element={<ConfiguracoesV2Page />} />
         <Route element={<SomenteFundador />}>
-          <Route path="/comando" element={<GovernancaV2Page />} />
+          <Route path="/comando" element={<ComandoV2Page />} />
           <Route path="/sistema" element={<GovernancaV2Page />} />
           <Route path="/conversa" element={<ConversaV2Page />} />
           <Route path="/equipe" element={<EquipeV2Page />} />
           <Route path="/integracoes" element={<IntegracoesV2Page />} />
-          {['execucao', 'entregas', 'consumo', 'cobertura', 'supervisao'].map(secao => <Route key={secao} path={`/${secao}`} element={<OperacaoV2Page />} />)}
+          {['supervisao', 'execucao', 'entregas', 'consumo', 'cobertura'].map(aba => <Route key={aba} path={`/${aba}`} element={<RedirecionarAba aba={aba} />} />)}
           <Route path="/oauth/consent" element={<OAuthConsent />} />
           <Route element={<AreaNegocios />}>
             <Route path="/financeiro" element={<FinanceiroPage />} />
@@ -173,7 +181,8 @@ function Rotas() {
             <Route path="/modulo/:tabela" element={<Modulo />} />
           </Route>
         </Route>
-        {Object.entries({ '/chat': '/conversa', '/inbox': '/supervisao', '/caixa-entrada': '/supervisao', '/central-execucao': '/execucao', '/central-integracoes': '/integracoes', '/helena': '/', '/modulo/integracoes': '/integracoes', '/modulo/financeiro': '/financeiro', '/modulo/crm': '/crm', '/modulo/equipe': '/equipe' }).map(([de, para]) => <Route key={de} path={de} element={<Redirecionar para={para} />} />)}
+        {Object.entries({ '/chat': '/conversa', '/central-integracoes': '/integracoes', '/helena': '/', '/modulo/integracoes': '/integracoes', '/modulo/financeiro': '/financeiro', '/modulo/crm': '/crm', '/modulo/equipe': '/equipe' }).map(([de, para]) => <Route key={de} path={de} element={<Redirecionar para={para} />} />)}
+        {Object.entries({ '/inbox': 'supervisao', '/caixa-entrada': 'supervisao', '/central-execucao': 'execucao' }).map(([de, aba]) => <Route key={de} path={de} element={<RedirecionarAba aba={aba} />} />)}
         <Route path="/cards-v2" element={<Redirecionar para="/cards" />} />
         <Route path="/configuracoes-v2" element={<Redirecionar para="/configuracoes" />} />
       </Route>
