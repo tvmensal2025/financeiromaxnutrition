@@ -40,11 +40,14 @@ function GraficoBarras({ titulo, rotuloValor, dados, horizontal = false }: { tit
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <table className="sr-only">
-        <caption>{titulo}</caption>
-        <thead><tr><th scope="col">Item</th><th scope="col">{rotuloValor}</th></tr></thead>
-        <tbody>{dados.map(d => <tr key={d.nome}><th scope="row">{d.nome}</th><td>{d.valor}</td></tr>)}</tbody>
-      </table>
+      {/* O sr-only vai no div: numa <table> o navegador ignora width/overflow e ela alargava a página no celular. */}
+      <div className="sr-only">
+        <table>
+          <caption>{titulo}</caption>
+          <thead><tr><th scope="col">Item</th><th scope="col">{rotuloValor}</th></tr></thead>
+          <tbody>{dados.map(d => <tr key={d.nome}><th scope="row">{d.nome}</th><td>{d.valor}</td></tr>)}</tbody>
+        </table>
+      </div>
     </div>
   );
 }

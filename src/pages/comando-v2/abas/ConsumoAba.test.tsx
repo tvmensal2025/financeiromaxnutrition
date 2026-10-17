@@ -69,3 +69,13 @@ it('diz a verdade quando a leitura funcionou e não há entregas nas 8 semanas',
   expect(screen.getByText('Nenhuma entrega aprovada nas últimas 8 semanas')).toBeTruthy();
   expect(screen.getByText(/Amostra: a leitura foi cortada por limite/)).toBeTruthy();
 });
+
+it('esconde a tabela de leitores de tela num div sr-only, para ela não alargar a página no celular', () => {
+  montar(dadosDeTeste());
+  const tabelas = screen.getAllByRole('table');
+  expect(tabelas.length).toBeGreaterThan(0);
+  for (const t of tabelas) {
+    expect(t.classList.contains('sr-only')).toBe(false); // numa <table> o sr-only não limita a largura
+    expect(t.parentElement?.classList.contains('sr-only')).toBe(true);
+  }
+});
