@@ -1,7 +1,8 @@
 # Telegram v2: inbox Edge e adapter Hermes 0.15.1
 
 Este pacote é preparação local, **desativada**. Nenhum arquivo registra webhook,
-inicia poller, reinicia Hermes ou envia mensagem real. O helper antigo
+inicia poller ou envia mensagem real; só o `virada.sh`, quando o fundador o roda
+na VPS, para e reinicia o serviço do Hermes 0.15.1. O helper antigo
 `helena_v2_broker.py` é histórico e não é instalado pelo patcher atual. Seu
 segredo compartilhado com o webhook permitia forjar `chat_id`/`from.id` quando
 ferramentas do modelo liam o ambiente do gateway; não o configure.
@@ -60,8 +61,23 @@ HERMES_015_SOURCE=/tmp/helena-hermes-015-source PYTHONPATH=/tmp/helena-hermes-01
 ```
 
 O patcher valida commit e hashes da fonte, falha fechado diante de alterações
-inesperadas e só permite `--apply` sob `/tmp` ou `/workspace`. **Não aplique na
-VPS enquanto a cobertura de mídia necessária e o corte não estiverem validados.** No corte
-controlado, parar o poller anterior e guardar estado/offset, configurar um
-único webhook apontado à Edge com `drop_pending_updates=false`, observar o
-backlog, testar retorno e manter rollback. Não executar essa sequência agora.
+inesperadas e só permite `--apply` sob `/tmp` ou `/workspace`, **a menos que a
+flag explícita `--producao` seja dada** (então exige `--apply` e um checkout
+na raiz da árvore; commit e hashes continuam obrigatórios). Na VPS use
+[`virada.sh`](virada.sh), que chama o patcher com `--producao` somente depois de
+backup válido e cobre as etapas `inventario`, `backup`, `ensaiar`, `instalar`,
+`parar-poller`, `iniciar`, `estado` e `reverter`; o roteiro para colar, um comando
+por vez, está em `docs/manual/virada-telegram-passo-a-passo.md`. O `virada.sh`
+nunca chama a API do Telegram e nunca recebe o segredo do worker por argumento.
+`instalar` tira o `TELEGRAM_BOT_TOKEN` do `.env` do Hermes antigo (o valor fica só
+no backup), porque o adapter falha fechado se o token estiver no ambiente.
+
+Testes offline do pacote: `python3 -m unittest discover -s motor/hermes-vps/telegram-v2 -p test_virada.py`
+(instalação simulada em diretórios temporários; a parte contra o checkout real do
+commit fixado precisa de `HERMES_015_SOURCE` apontando para um clone do Hermes no
+commit fixado, e `HELENA_TEST_HERMES_PY` inclui o ensaio com os testes do adapter).
+Eles não substituem o `ensaiar` nem a primeira execução na VPS, ainda NÃO CONFIRMADA.
+**Não execute a virada sem o roteiro e sem a decisão do fundador sobre a cobertura de
+mídia.** O corte controlado é: parar o poller anterior, configurar um único webhook
+apontado à Edge com `drop_pending_updates=false`, observar o backlog, testar retorno
+e manter o rollback (`virada.sh reverter`).
