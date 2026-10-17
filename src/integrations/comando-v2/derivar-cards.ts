@@ -179,10 +179,10 @@ export function ordenarCards(cards: CardComando[], ordem: OrdemCards, agora: Dat
   const comparar = (a: CardComando, b: CardComando): number => {
     if (ordem === 'recentes') return comNuloNoFim(recente(a), recente(b), -1);
     if (ordem === 'prazo') return comNuloNoFim(prazoDe(a), prazoDe(b), 1) || comNuloNoFim(recente(a), recente(b), -1);
-    // prioridade: o que espera você, depois o vencido, depois o número de prioridade (menor = mais urgente), depois o prazo.
+    // prioridade: o que espera você, depois o vencido, depois o número de prioridade (MAIOR = mais urgente, como o motor: ORDER BY prioridade DESC), depois o prazo.
     const peso = (card: CardComando) => (cardEhFinal(card) ? 3 : cardPrecisaDeVoce(card) ? 0 : cardPrazoVencido(card, agora) ? 1 : 2);
     return peso(a) - peso(b)
-      || comNuloNoFim(a.prioridade, b.prioridade, 1)
+      || comNuloNoFim(a.prioridade, b.prioridade, -1)
       || comNuloNoFim(prazoDe(a), prazoDe(b), 1)
       || comNuloNoFim(recente(a), recente(b), -1);
   };

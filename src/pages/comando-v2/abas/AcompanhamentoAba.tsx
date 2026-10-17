@@ -80,7 +80,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
       Number(etapaAtrasada(b, agora)) - Number(etapaAtrasada(a, agora))
       || Number(etapaParada(b, agora)) - Number(etapaParada(a, agora))
       || (lerData(a.prazo_ate)?.getTime() ?? Infinity) - (lerData(b.prazo_ate)?.getTime() ?? Infinity));
-  const cardsEsperando = ordenarCards(cards.filter(cardPrecisaDeVoce), 'prioridade', agora);
+  const cardsEsperando = ordenarCards(cards.filter(cardPrecisaDeVoce), 'prioridade', agora); // maior prioridade = mais urgente (igual ao motor)
   const etapasEsperando = etapas.filter(etapa => etapa.estado === 'ESPERANDO_FUNDADOR');
   const pedidos = pedidosSemCard(pedidosDaEmpresa(dados.pedidos, empresa));
 

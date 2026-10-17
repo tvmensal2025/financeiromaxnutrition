@@ -58,7 +58,10 @@ describe('filtros e ordem de cards', () => {
     expect(normalizarBusca('  Ação ')).toBe('acao');
   });
   it('ordena por prioridade (espera você, vencido, número), prazo e recentes', () => {
-    expect(ordenarCards(cards, 'prioridade', AGORA).map(c => c.id)).toEqual(['d', 'a', 'b', 'e', 'c']);
+    expect(ordenarCards(cards, 'prioridade', AGORA).map(c => c.id)).toEqual(['a', 'd', 'b', 'e', 'c']);
+    // o motor despacha ORDER BY prioridade DESC: maior número = mais urgente; sem prioridade vai ao fim do grupo
+    const iguais = [card('p1', { prioridade: 1 }), card('p3', { prioridade: 3 }), card('pn', { prioridade: null }), card('p2', { prioridade: 2 })];
+    expect(ordenarCards(iguais, 'prioridade', AGORA).map(c => c.id)).toEqual(['p3', 'p2', 'p1', 'pn']);
     expect(ordenarCards(cards, 'prazo', AGORA).map(c => c.id).slice(0, 2)).toEqual(['c', 'b']);
     const recentes = [card('x', { atualizado_em: h(-10) }), card('y', { atualizado_em: h(-1) })];
     expect(ordenarCards(recentes, 'recentes', AGORA).map(c => c.id)).toEqual(['y', 'x']);
