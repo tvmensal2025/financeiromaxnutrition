@@ -48,6 +48,7 @@ export type AgenteComando = {
   cargo: string;
   grupo: string;
   estado: string;        // ESTAGIO | RASCUNHO | PAUSADO | ...
+  fase?: string;         // fase de ativação (fase_de_ativacao do organograma), se houver
 };
 
 export type CatalogoComando = {
