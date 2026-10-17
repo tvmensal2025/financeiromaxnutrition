@@ -1,6 +1,6 @@
 # Contas e esquema do motor da v2 no Supabase real
 
-**Estado: APLICADO no Supabase real em 17/10/2026**, pelo conector, com o fundador autorizando ("pode criar") e o SHA-256 de cada arquivo conferido dentro da própria transação antes de executar. Conferido depois: as duas contas com os atributos exatos, vínculo `set=true inherit=false admin=false`, 13 tabelas e 3 funções de `dbos_motor`, migração 123, nenhum outro papel enxerga `dbos_helena_v2`, v1 e `helena_v2` intactas. **As senhas ainda NÃO foram definidas** (passo do fundador, abaixo). Para rodar de novo em outro projeto, a frase exata é:
+**Estado: APLICADO no Supabase real em 17/10/2026**, pelo conector, com o fundador autorizando ("pode criar") e o SHA-256 de cada arquivo conferido dentro da própria transação antes de executar. Conferido depois: as duas contas com os atributos exatos, vínculo `set=true inherit=false admin=false`, 13 tabelas e 3 funções de `dbos_motor`, migração 123, nenhum outro papel enxerga `dbos_helena_v2`, v1 e `helena_v2` intactas. **As senhas foram definidas pelo fundador no SQL Editor** e as duas contas conectaram da VPS com TLS verificado em 17/10/2026 (o `verify-full` usa a CA raiz do Supabase, que o instalador do motor instala em `/etc/helena-v2/ca-bundle.crt`). O passo das senhas abaixo fica como referência. Para rodar de novo em outro projeto, a frase exata é:
 
 > **AUTORIZO CRIAR AS CONTAS helena_motor E dbos_motor E O ESQUEMA dbos_helena_v2 NO SUPABASE wxkgrykduqtsgmjkzlou**
 

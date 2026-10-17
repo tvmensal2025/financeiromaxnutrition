@@ -2,7 +2,7 @@
 
 A empresa operada por agentes de IA do fundador. Ele faz um pedido, o pedido vira um **card**, especialistas fazem o trabalho, um revisor confere, e o resultado volta ao card. Atende 4 empresas: iGreen (BIZ-001), Ecossistema de Saúde (BIZ-002), Humano Digital (BIZ-003) e eLiving™ (BIZ-004).
 
-- **v2 (a que roda):** o app (esta pasta, só a v2 desde a DEC-032), a especificação em `helena-v2/`, as peças do motor em `motor/` e o esquema `helena_v2` em `supabase/migrations-v2/`. O plano é `docs/plano/PLANO-HELENA-V3.md` (motor DBOS). Ainda **não houve** dia de prova com Hermes real nem implantação do motor: ver `docs/manual/dia-de-prova.md`.
+- **v2 (a que roda):** o app (esta pasta, só a v2 desde a DEC-032), a especificação em `helena-v2/`, as peças do motor em `motor/` e o esquema `helena_v2` em `supabase/migrations-v2/`. O plano é `docs/plano/PLANO-HELENA-V3.md` (motor DBOS). O motor está **instalado na VPS** desde 17/10/2026 (serviços vigia e relógio ligados, despachante desligado) e as duas contas do banco conectam com TLS verificado. Ainda **não houve** dia de prova com Hermes real nem configuração ativa: ver `docs/manual/dia-de-prova.md` e o bloco E-8 do HANDOFF.
 - **v1 (parada):** a interface antiga está em `docs/arquivo/app-v1/`, só para consulta. O gateway e os serviços de voz (`services/`), os scripts (`scripts/`) e as migrations antigas (`supabase/migrations/`) continuam no repositório porque ainda existem no servidor e no banco; desligar a central é a DEC-028 e só acontece com a frase exata do fundador.
 
 Regras do projeto: `AGENTS.md`. Estado atual e próximos passos: `HANDOFF-CLAUDE-CODE.md`. Lista de todos os documentos: `docs/INDICE.md`.
@@ -95,4 +95,5 @@ npm test           # testes unitários; não fala com o Supabase de verdade
 
 - Nunca coloque senha, token ou chave em arquivo do repositório nem no chat. Use `.env.local` e as variáveis do EasyPanel.
 - A chave de serviço não fica no navegador.
+- O repositório está **público temporariamente** (17/10/2026, para publicar o site). Volte para privado depois de publicar e nunca cole chave, senha ou token no chat: o que passou pelo chat precisa ser trocado.
 - Mudança no banco, no servidor ou na publicação só com a frase exata do fundador para aquela ação.

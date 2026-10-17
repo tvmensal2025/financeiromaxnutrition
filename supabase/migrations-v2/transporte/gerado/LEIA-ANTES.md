@@ -1,6 +1,6 @@
 # Instalar a v2 no Supabase — LEIA ANTES (roteiro gerado para revisão)
 
-**Nada aqui foi executado.** Estes arquivos só entram no banco real depois da frase exata do fundador:
+**HISTÓRICO: este roteiro JÁ FOI EXECUTADO em 17/10/2026** (pelo conector, com a frase exata abaixo; ver bloco E-2 do HANDOFF). Não rode de novo. Os itens de "Antes de aplicar" ficam como registro: o item 2 (cópia de segurança) não foi feito, porque o conector não faz `pg_dump`, e o item 4 foi decidido ao contrário (o app exige `helena_v2` exposto na API). Os hashes valem os do `manifesto.json`. A frase exata era:
 
 > **AUTORIZO INSTALAR A V2 (MIGRATIONS 0001 A 0019) NO SUPABASE wxkgrykduqtsgmjkzlou**
 
