@@ -162,6 +162,13 @@ describe('empresa', () => {
     expect(window.localStorage.getItem(CHAVE)).toBe('BIZ-003');
   });
 
+  it('?empresa= na URL fixa a empresa, guarda no navegador e sai da URL (mantendo a aba)', async () => {
+    montar(resultado(), carregadores('CardsAba'), '/comando?aba=cards&empresa=BIZ-003');
+    expect(await screen.findByText('empresa=BIZ-003')).toBeInTheDocument();
+    expect(window.localStorage.getItem(CHAVE)).toBe('BIZ-003');
+    expect(local()).toBe('/comando?aba=cards');
+  });
+
   it('lembra a empresa salva e volta ao grupo se ela não existe mais no catálogo', async () => {
     window.localStorage.setItem(CHAVE, 'BIZ-003');
     const primeiro = montar(resultado());

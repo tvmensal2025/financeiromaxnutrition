@@ -17,7 +17,7 @@ import type { CardComando, EtapaComando, PropsAba } from '@/integrations/comando
 import {
   cardPrecisaDeVoce, cardsDaEmpresa, combinarLeituras, EMPRESA_GRUPO, etapaAtrasada, etapaParada, etapasDaEmpresa, formatarDataHora,
   haQuanto, lerData, mensagemFalha, nomeEmpresa, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoDoCard, prazoRelativo,
-  revisoresDaEtapa, rotuloEstadoCard, rotuloEstadoEtapa, rotuloMotivo, varianteEstado,
+  revisoresDaEtapa, tituloDoPedido, rotuloEstadoCard, rotuloEstadoEtapa, rotuloMotivo, varianteEstado,
 } from '@/integrations/comando-v2/derivar-cards';
 import { amostraDe } from '@/integrations/comando-v2/derivar-cards';
 
@@ -187,7 +187,7 @@ export default function AcompanhamentoAba({ dados, empresa, abrirCard }: PropsAb
               {pedidos.map(pedido => (
                 <Linha
                   key={pedido.pedido_id}
-                  titulo={pedido.titulo_confirmado || pedido.texto_inicial}
+                  titulo={tituloDoPedido(pedido)}
                   cardId={pedido.card_id ?? null}
                   abrirCard={abrirCard}
                   semCard="Ainda não virou card"

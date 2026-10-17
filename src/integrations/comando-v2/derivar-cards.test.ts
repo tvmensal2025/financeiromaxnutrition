@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   amostraDe, cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
-  mensagemFalha, ordenarCards, revisoresDaEtapa, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca,
+  mensagemFalha, ordenarCards, revisoresDaEtapa, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca, tituloDoPedido,
 } from './derivar-cards';
 import { AGORA, card, etapa, montarDados, pedido } from './derivar-cards.fixtures';
 
@@ -114,4 +114,13 @@ it('revisor NENHUM vira "Sem revisor" (e não esconde nem inventa nomes)', () =>
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'MAYA', revisores: ['CLARA'] }))).toBe('MAYA');
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: '', revisores: ['CLARA', 'NENHUM'] }))).toBe('CLARA');
   expect(revisoresDaEtapa(etapa('1', 'a', { revisor: undefined, revisores: [] }))).toBe('Sem revisor');
+});
+
+it('título do pedido: confirmado primeiro, espaços colapsados e no máximo 120 caracteres', () => {
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { titulo_confirmado: 'E-mails de lançamento' }))).toBe('E-mails de lançamento');
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: 'Quero\n  um   post' }))).toBe('Quero um post');
+  const longo = tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: 'x'.repeat(500) }));
+  expect(longo).toHaveLength(120);
+  expect(longo.endsWith('...')).toBe(true);
+  expect(tituloDoPedido(pedido('a', 'RECEBIDO', { texto_inicial: '   ' }))).toBe('Pedido sem texto');
 });

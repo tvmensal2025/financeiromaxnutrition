@@ -5,6 +5,7 @@
  * Lê SÓ o que `useDadosComando` entrega (esquema helena_v2). Não usa o BusinessContext nem dados da v1.
  * Como mudar: para uma nova aba, acrescente-a em ABAS (src/integrations/comando-v2/tipos.ts) e crie o arquivo dela.
  * A empresa escolhida fica no navegador (localStorage `helena_v2_comando_empresa`); sem localStorage a tela funciona igual.
+ * `/comando?aba=<id>&empresa=<código>` abre a aba já filtrada pela empresa (usado por "Ver cards" na aba Empresas).
  */
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, KeyboardEvent, LazyExoticComponent, ReactNode } from 'react';
@@ -105,6 +106,13 @@ export default function ComandoV2Page({ usarDados = useDadosComando, carregadore
   const empresaForaDaLista = empresa !== GRUPO && !empresasDoCatalogo.some(item => item.id === empresa);
 
   const escolherEmpresa = (valor: string) => { setEmpresaEscolhida(valor); salvarEmpresa(valor); };
+  // Link de outra aba (ex.: "Ver cards" de uma empresa): `?empresa=<código>` fixa a empresa e sai da URL para não grudar nela.
+  const empresaDaUrl = params.get('empresa');
+  useEffect(() => {
+    if (!empresaDaUrl) return;
+    if (empresaDaUrl.length <= 60) { setEmpresaEscolhida(empresaDaUrl); salvarEmpresa(empresaDaUrl); }
+    setParams(anterior => { const novo = new URLSearchParams(anterior); novo.delete('empresa'); return novo; }, { replace: true });
+  }, [empresaDaUrl, setParams]);
   const escolherAba = useCallback((id: AbaId) => {
     setParams(anterior => { const novo = new URLSearchParams(anterior); novo.set('aba', id); return novo; });
   }, [setParams]);

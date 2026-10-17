@@ -72,7 +72,7 @@ function CartaoEmpresa({ resumo }: { resumo: ResumoEmpresa }) {
 
       <div className="mt-4">
         <Link
-          to="/comando?aba=cards"
+          to={`/comando?aba=cards&empresa=${encodeURIComponent(resumo.id)}`}
           aria-label={`Ver cards (${resumo.nome}): abre a aba Cards`}
           className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >

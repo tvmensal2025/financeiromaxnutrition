@@ -140,6 +140,14 @@ export function pedidosSemCard(pedidos: PedidoEntrada[]): PedidoEntrada[] {
     .sort((a, b) => (lerData(a.criado_em)?.getTime() ?? 0) - (lerData(b.criado_em)?.getTime() ?? 0));
 }
 
+/** Título curto do pedido para listas e rótulos de acessibilidade: título confirmado ou o início do texto, em até 120 caracteres. */
+export const LIMITE_TITULO_PEDIDO = 120;
+export function tituloDoPedido(pedido: Pick<PedidoEntrada, 'titulo_confirmado' | 'texto_inicial'>): string {
+  const texto = (textoOuNulo(pedido.titulo_confirmado) ?? pedido.texto_inicial ?? '').replace(/\s+/g, ' ').trim();
+  if (!texto) return 'Pedido sem texto';
+  return texto.length > LIMITE_TITULO_PEDIDO ? `${texto.slice(0, LIMITE_TITULO_PEDIDO - 3)}...` : texto;
+}
+
 // ---------- cards ----------
 
 export const prazoDoCard = (card: CardComando): string | null => textoOuNulo(card.prazo_ate) ?? textoOuNulo(card.prazo);
