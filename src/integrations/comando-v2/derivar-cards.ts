@@ -46,6 +46,8 @@ const ROTULOS_MOTIVO: Record<string, string> = {
   RESOLUCAO: 'A etapa está sendo resolvida de outro jeito.',
   INFRA: 'Problema técnico no ambiente; a etapa será retomada.',
   CAPACIDADE: 'Sem capacidade agora (cota, login ou agente pausado).',
+  PRAZO_INVALIDO: 'O prazo informado não era válido.',
+  FALHOU: 'A execução falhou.',
 };
 
 const textoOuNulo = (valor: unknown): string | null => (typeof valor === 'string' && valor.trim() ? valor.trim() : null);
@@ -216,8 +218,18 @@ export function etapaParada(etapa: EtapaComando, agora: Date): boolean {
   const atualizado = lerData(etapa.atualizado_em);
   return !!atualizado && agora.getTime() - atualizado.getTime() > LIMITE_PARADA_MS;
 }
+const semRevisor = (valor: string | null | undefined): boolean => !valor || !valor.trim() || valor.trim().toUpperCase() === 'NENHUM';
+/**
+ * Quem revisa a etapa. `revisor` = 'NENHUM' é o banco dizendo que não há revisor (nada a listar, nem o `revisores` antigo);
+ * sem `revisor` informado, vale a lista `revisores`.
+ */
+export function revisoresReaisDaEtapa(etapa: EtapaComando): string[] {
+  if (!semRevisor(etapa.revisor)) return [etapa.revisor!.trim()];
+  if (etapa.revisor && etapa.revisor.trim()) return [];
+  return (etapa.revisores ?? []).filter(nome => !semRevisor(nome));
+}
 export function revisoresDaEtapa(etapa: EtapaComando): string {
-  const lista = etapa.revisor ? [etapa.revisor] : (etapa.revisores ?? []);
+  const lista = revisoresReaisDaEtapa(etapa);
   return lista.length ? lista.join(', ') : 'Sem revisor';
 }
 export function etapasDoCard(etapas: EtapaComando[], cardId: string): EtapaComando[] {

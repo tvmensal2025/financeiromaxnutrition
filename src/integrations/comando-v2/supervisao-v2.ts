@@ -9,6 +9,7 @@ import {
   ESTADOS_ESPERA_FUNDADOR, ESTADOS_FINAIS,
   type AgenteComando, type CardComando, type DadosComando, type EtapaComando,
 } from './tipos';
+import { revisoresReaisDaEtapa, rotuloMotivo } from './derivar-cards';
 
 export type Severidade = 'ALTA' | 'MEDIA' | 'BAIXA';
 export type RegraSupervisao =
@@ -33,6 +34,8 @@ export const LIMITE_ESPERA_MEDIA_H = 24;
 export const LIMITE_ESPERA_ALTA_H = 72;
 export const LIMITE_EXECUCAO_PARADA_H = 1;
 export const LIMITE_PEDIDO_SEM_CARD_H = 1;
+/** Plano já confirmado por você, mas o card ainda não nasceu: prazo próprio, contado desde a confirmação. */
+export const LIMITE_PLANO_CONFIRMADO_SEM_CARD_H = 1;
 
 export const ROTULO_REGRA: Record<RegraSupervisao, string> = {
   SEM_DONO: 'Sem dono',
@@ -56,30 +59,15 @@ export const EXPLICACAO_REGRA: Record<RegraSupervisao, string> = {
   PRAZO_VENCIDO: 'Card em aberto cujo prazo já passou.',
   ESPERANDO_VOCE: `Card esperando decisão sua há mais de ${LIMITE_ESPERA_MEDIA_H} h (média) ou ${LIMITE_ESPERA_ALTA_H} h (alta).`,
   ENCERRADO_COM_FALHA: 'Card que terminou com falha.',
-  PORTAO_OU_ENTREGA: 'Etapa em revisão, aprovada ou pronta cujo portão 1 não passou ou cuja entrega ficou velha.',
+  PORTAO_OU_ENTREGA: 'Etapa em revisão, aprovada ou pronta cuja entrega ficou velha (média) ou, com a entrega em dia, não passou no portão 1 (alta).',
   EXECUCAO_PARADA: `Etapa executando ou em revisão sem nenhuma atualização há mais de ${LIMITE_EXECUCAO_PARADA_H} h.`,
   SEM_EMPRESA: 'Card sem empresa definida.',
-  PEDIDO_SEM_CARD: `Pedido recebido há mais de ${LIMITE_PEDIDO_SEM_CARD_H} h que ainda não virou card.`,
+  PEDIDO_SEM_CARD: `Pedido recebido há mais de ${LIMITE_PEDIDO_SEM_CARD_H} h, ou plano confirmado há mais de ${LIMITE_PLANO_CONFIRMADO_SEM_CARD_H} h, que ainda não virou card.`,
 };
 
-const MOTIVOS: Record<string, string> = {
-  NENHUM: 'sem motivo registrado',
-  HELENA_FALHOU: 'a Helena não conseguiu montar o plano',
-  VALIDADOR_FALHOU: 'a validação do plano falhou',
-  DEPENDENCIA: 'uma etapa de que outras dependiam falhou',
-  NAO_PODE: 'uma peça quebrou uma regra do "o que não pode"',
-  RESOLUCAO: 'uma etapa travou e o card foi encerrado',
-  INFRA: 'falha técnica ou limite do motor',
-  REVISAO: 'a revisão não chegou a um acordo',
-  PERGUNTA: 'uma pergunta ficou sem resposta',
-  PRAZO_INVALIDO: 'o prazo informado não era válido',
-  FALHOU: 'a execução falhou',
-};
-/** Traduz o código de motivo do banco para uma frase simples. Código novo vira texto legível, nunca some. */
+/** Traduz o código de motivo do banco para uma frase simples (o mesmo dicionário das abas de cards). Nunca devolve vazio. */
 export function traduzirMotivo(motivo: string | null | undefined): string {
-  const codigo = (motivo ?? '').trim();
-  if (!codigo) return 'sem motivo registrado';
-  return MOTIVOS[codigo] ?? codigo.replace(/_/g, ' ').toLowerCase();
+  return rotuloMotivo(motivo) ?? 'Sem motivo registrado.';
 }
 
 const ROTULOS_ESTADO_AGENTE: Record<string, string> = {
@@ -187,7 +175,7 @@ export function analisarCardsV2(dados: DadosComando, agora: Date): Excecao[] {
     if (card.estado === 'ENCERRADO_COM_FALHA') {
       saida.push({ ...base, id: `ENCERRADO_COM_FALHA:${card.id}`, regra: 'ENCERRADO_COM_FALHA', severidade: 'ALTA',
         desde: card.atualizado_em ?? undefined,
-        detalhe: `Este card terminou com falha: ${traduzirMotivo(card.motivo)}.` });
+        detalhe: `Este card terminou com falha. ${traduzirMotivo(card.motivo)}` });
     }
     if (aberto && !temTexto(card.empresa)) {
       saida.push({ ...base, id: `SEM_EMPRESA:${card.id}`, regra: 'SEM_EMPRESA', severidade: 'BAIXA', desde: card.criado_em,
@@ -200,24 +188,28 @@ export function analisarCardsV2(dados: DadosComando, agora: Date): Excecao[] {
     if (card && card.estado === 'CANCELADO') continue;
     const nomeEtapa = `${etapa.codigo} · ${etapa.nome}`;
     const base = { cardId: etapa.card_id, etapaId: etapa.id, empresa: card?.empresa ?? undefined };
-    const contexto = card ? ` (card "${card.titulo}")` : '';
+    // Sem o card na leitura não dá para saber de quem é nem se ainda vale: a exceção continua, mas rebaixada e dizendo isso.
+    const contexto = card ? ` (card "${card.titulo}")` : ' (o card dela não está na leitura)';
+    const rebaixar = (severidade: Severidade): Severidade => (card ? severidade : 'BAIXA');
 
     // Antes da entrega, portao1_ok é falso por natureza: só cobramos de etapa que já deveria ter entrega passada.
     if (['REVISAO', 'APROVADA', 'PRONTA'].includes(etapa.estado)) {
-      const portao = etapa.portao1_ok === false;
+      // Entrega velha é a causa (a informação mudou depois dela) e explica o portão falso; só com a entrega em dia o portão falso é grave.
       const velha = etapa.entrega_fresca === false;
-      if (portao || velha) {
-        const partes = [portao ? 'a entrega não passou no portão 1' : '', velha ? 'a entrega ficou velha (a informação mudou depois dela)' : '']
-          .filter(Boolean).join(' e ');
-        saida.push({ ...base, id: `PORTAO_OU_ENTREGA:${etapa.id}`, regra: 'PORTAO_OU_ENTREGA', severidade: portao ? 'ALTA' : 'MEDIA',
+      const portao = etapa.portao1_ok === false && etapa.entrega_fresca === true;
+      if (velha || portao) {
+        saida.push({ ...base, id: `PORTAO_OU_ENTREGA:${etapa.id}`, regra: 'PORTAO_OU_ENTREGA', severidade: rebaixar(velha ? 'MEDIA' : 'ALTA'),
           titulo: nomeEtapa, desde: etapa.atualizado_em ?? undefined,
-          detalhe: `Na etapa${contexto}, ${partes}.` });
+          detalhe: velha
+            ? `Na etapa${contexto}, a entrega ficou velha (a informação mudou depois dela).`
+            : `Na etapa${contexto}, a entrega não passou no portão 1.` });
       }
     }
-    if (['EXECUTANDO', 'REVISAO'].includes(etapa.estado)) {
+    // Card já terminado (PRONTO, ENCERRADO_COM_FALHA, CANCELADO): etapa solta não está "parada", só ficou para trás.
+    if (['EXECUTANDO', 'REVISAO'].includes(etapa.estado) && !(card && !cardAberto(card))) {
       const t = instante(etapa.atualizado_em);
       if (t !== null && agoraMs - t > LIMITE_EXECUCAO_PARADA_H * HORA) {
-        saida.push({ ...base, id: `EXECUCAO_PARADA:${etapa.id}`, regra: 'EXECUCAO_PARADA', severidade: 'MEDIA',
+        saida.push({ ...base, id: `EXECUCAO_PARADA:${etapa.id}`, regra: 'EXECUCAO_PARADA', severidade: rebaixar('MEDIA'),
           titulo: nomeEtapa, desde: etapa.atualizado_em!,
           detalhe: `A etapa${contexto} está ${etapa.estado === 'EXECUTANDO' ? 'executando' : 'em revisão'} e não muda ${haQuantoTempo(etapa.atualizado_em, agora)}.` });
       }
@@ -225,15 +217,23 @@ export function analisarCardsV2(dados: DadosComando, agora: Date): Excecao[] {
   }
 
   for (const pedido of dados.pedidos) {
-    if (pedido.estado !== 'RECEBIDO' || temTexto(pedido.card_id)) continue;
-    const t = instante(pedido.criado_em);
-    if (t === null || agoraMs - t <= LIMITE_PEDIDO_SEM_CARD_H * HORA) continue;
-    const resumo = pedido.texto_inicial.trim().replace(/\s+/g, ' ');
+    const semCard = !temTexto(pedido.card_id);
+    const recebido = pedido.estado === 'RECEBIDO' && semCard;
+    const planoConfirmado = pedido.estado === 'PLANO_CONFIRMADO' && semCard;
+    if (!recebido && !planoConfirmado) continue;
+    // Recebido conta desde a chegada; plano confirmado conta desde a confirmação (última atualização), com limite próprio.
+    const desde = recebido ? pedido.criado_em : (pedido.atualizado_em ?? pedido.criado_em);
+    const limite = recebido ? LIMITE_PEDIDO_SEM_CARD_H : LIMITE_PLANO_CONFIRMADO_SEM_CARD_H;
+    const t = instante(desde);
+    if (t === null || agoraMs - t <= limite * HORA) continue;
+    const resumo = (pedido.titulo_confirmado?.trim() || pedido.texto_inicial.trim()).replace(/\s+/g, ' ');
     saida.push({
       id: `PEDIDO_SEM_CARD:${pedido.pedido_id}`, regra: 'PEDIDO_SEM_CARD', severidade: 'MEDIA',
       titulo: resumo.length > 80 ? `${resumo.slice(0, 77)}...` : resumo || 'Pedido sem texto',
-      empresa: pedido.empresa_id ?? undefined, desde: pedido.criado_em,
-      detalhe: `Este pedido foi recebido ${haQuantoTempo(pedido.criado_em, agora)} e ainda não virou card.`,
+      empresa: pedido.empresa_id ?? undefined, desde,
+      detalhe: recebido
+        ? `Este pedido foi recebido ${haQuantoTempo(desde, agora)} e ainda não virou card.`
+        : `Você confirmou o plano deste pedido ${haQuantoTempo(desde, agora)} e o card ainda não foi criado.`,
     });
   }
 
@@ -317,13 +317,18 @@ export type CargaAgente = { etapasAbertas: number; revisoesPendentes: number };
 /** Carga atual de cada agente (chave = identidade em maiúsculas). Respeita o filtro de empresa pelo card da etapa. */
 export function cargaPorAgente(dados: DadosComando, empresa: string): Map<string, CargaAgente> {
   const cardPorId = new Map(dados.cards.map(c => [c.id, c]));
-  const etapas = dados.etapas.filter(e => empresa === 'GRUPO' || cardPorId.get(e.card_id)?.empresa === empresa);
+  const etapas = dados.etapas.filter(e => {
+    const card = cardPorId.get(e.card_id);
+    if (card && !cardAberto(card)) return false; // etapa solta de card terminado não é carga
+    return empresa === 'GRUPO' || card?.empresa === empresa;
+  });
   const mapa = new Map<string, CargaAgente>();
   for (const agente of dados.catalogo.agentes) {
     const chave = agente.identidade.trim().toUpperCase();
     mapa.set(chave, {
       etapasAbertas: etapas.filter(e => etapaAberta(e) && mesmaIdentidade(e.autor, agente.identidade)).length,
-      revisoesPendentes: etapas.filter(e => e.estado === 'REVISAO' && (e.revisores ?? []).some(r => mesmaIdentidade(r, agente.identidade))).length,
+      // Revisão pendente: etapa em REVISAO cujo revisor (≠ NENHUM) é este agente, de card ainda aberto.
+      revisoesPendentes: etapas.filter(e => e.estado === 'REVISAO' && revisoresReaisDaEtapa(e).some(r => mesmaIdentidade(r, agente.identidade))).length,
     });
   }
   return mapa;

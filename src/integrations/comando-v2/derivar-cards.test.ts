@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   amostraDe, cardPrazoVencido, combinarLeituras, contarPorFiltro, etapaAtrasada, etapaParada, etapasDaEmpresa, filtrarCards, formatarDataHora,
-  mensagemFalha, ordenarCards, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca,
+  mensagemFalha, ordenarCards, revisoresDaEtapa, pedidosDaEmpresa, pedidosSemCard, prazoRelativo, rotuloMotivo, normalizarBusca,
 } from './derivar-cards';
 import { AGORA, card, etapa, montarDados, pedido } from './derivar-cards.fixtures';
 
@@ -107,4 +107,11 @@ it('amostra: cada aba olha só as fontes que usa; sem corte por fonte vale a amo
   expect(amostraDe(soPedidos, ['cards', 'pedidos'])).toBe(true);
   expect(amostraDe({ ...base, amostra: true }, ['cards'])).toBe(true);
   expect(amostraDe({ ...base, amostra: false }, ['pedidos'])).toBe(false);
+});
+
+it('revisor NENHUM vira "Sem revisor" (e não esconde nem inventa nomes)', () => {
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'NENHUM', revisores: ['CLARA'] }))).toBe('Sem revisor');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: 'MAYA', revisores: ['CLARA'] }))).toBe('MAYA');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: null, revisores: ['CLARA', 'NENHUM'] }))).toBe('CLARA');
+  expect(revisoresDaEtapa(etapa('1', 'a', { revisor: undefined, revisores: [] }))).toBe('Sem revisor');
 });

@@ -9,6 +9,7 @@ import {
   type AgenteComando, type CardComando, type CatalogoComando, type DadosComando, type EntregaResumo,
   type EstadoLeitura, type EtapaComando,
 } from './tipos';
+import { revisoresReaisDaEtapa } from './derivar-cards';
 import { entregasAprovadas as entregasAprovadasDoCard } from './supervisao-v2';
 
 export const FUSO = 'America/Sao_Paulo';
@@ -195,8 +196,7 @@ export function derivarExecucao(dados: DadosComando, empresa: string, agente = '
     const prazo = etapa.prazo_ate ?? (card ? prazoDoCard(card) : null);
     const envolvidos = new Set<string>();
     if (etapa.autor) envolvidos.add(etapa.autor);
-    if (etapa.revisor) envolvidos.add(etapa.revisor);
-    for (const r of etapa.revisores ?? []) envolvidos.add(r);
+    for (const r of revisoresReaisDaEtapa(etapa)) envolvidos.add(r);
     const nome = nomeAgente(catalogo, quemId);
     return {
       chave: `etapa:${etapa.id}`, cardId: etapa.card_id, titulo: card?.titulo ?? 'Card fora da amostra lida',
@@ -217,7 +217,7 @@ export function derivarExecucao(dados: DadosComando, empresa: string, agente = '
     .map(e => doEtapa(e, 'Autor', e.autor, null)).filter((i): i is ItemExecucao => i !== null);
 
   const revisao = dados.etapas.filter(e => e.estado === 'REVISAO')
-    .map(e => doEtapa(e, 'Revisor', e.revisor ?? e.revisores?.[0] ?? null, e.autor ? `Autor: ${nomeAgente(catalogo, e.autor)}` : null))
+    .map(e => doEtapa(e, 'Revisor', revisoresReaisDaEtapa(e)[0] ?? null, e.autor ? `Autor: ${nomeAgente(catalogo, e.autor)}` : null))
     .filter((i): i is ItemExecucao => i !== null);
 
   const falhasDeCard = cardsEmpresa
