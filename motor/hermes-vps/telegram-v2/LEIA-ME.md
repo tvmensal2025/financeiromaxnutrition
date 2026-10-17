@@ -1,9 +1,67 @@
-# Ponte Telegram do Hermes 0.15.1 para Helena v2
+# Telegram v2: inbox Edge e adapter Hermes 0.15.1
 
-Esta pasta contém um **protótipo local desativado** para o commit oficial `e71a2bd11b733f3be7cf99deafde0066c343d462` (`v2026.5.29`). Ele intercepta `/vincular` e `/pedido` de chat privado humano antes do batching e usa o bot já conectado do Hermes para responder. Conversas comuns continuam no Hermes. O patch não é aplicado automaticamente e não liga o webhook Telegram.
+Este pacote é preparação local, **desativada**. Nenhum arquivo registra webhook,
+inicia poller, reinicia Hermes ou envia mensagem real. O helper antigo
+`helena_v2_broker.py` é histórico e não é instalado pelo patcher atual. Seu
+segredo compartilhado com o webhook permitia forjar `chat_id`/`from.id` quando
+ferramentas do modelo liam o ambiente do gateway; não o configure.
 
-O patcher e o instalador local permitem `--apply` e `--check` apenas para reproduzir e revisar o protótipo em uma **cópia isolada** do Hermes. O patcher confere o commit Git e os hashes originais de `telegram.py`, grava dois arquivos atomicamente, é idempotente e recusa fontes divergentes. Ele não reinicia o gateway nem altera credenciais. **Não execute `--apply` no Hermes da VPS e não configure o segredo nesse processo na arquitetura atual.** A Edge Function tem modo `HELENA_V2_TELEGRAM_MODE=hermes-poller` e JWT gateway desativado somente para essa função; não use `setWebhook` junto ao poller.
+O único ingresso confiável é `supabase/functions/helena-v2-telegram`. A Edge
+verifica `X-Telegram-Bot-Api-Secret-Token`, grava o Update na
+`telegram_inbox` e cria pedido/recibo na mesma transação quando há `/pedido` de
+chat privado pareado. O identificador `update_id` deduplica retransmissões;
+um replay divergente falha. Tokens válidos de 48 caracteres hexadecimais após
+`/vincular` são redigidos recursivamente no JSON persistido e antes de
+encaminhar texto de `/pedido` a 0022; o hash SHA-256 do Update original mantém
+a verificação de replay sem guardar o código em claro. Mídia e callback são
+preservados com essa redação pontual, sem
+atribuir leitura do anexo ou autorização ao callback. O token Telegram e a
+service role ficam só na Edge.
 
-O contrato experimental do helper usa `HELENA_V2_TELEGRAM_BROKER_URL=https://wxkgrykduqtsgmjkzlou.supabase.co/functions/v1/helena-v2-telegram` e `HELENA_V2_TELEGRAM_BROKER_SECRET` aleatório de 32 a 256 caracteres alfanuméricos, `_` ou `-`, igual ao `HELENA_V2_TELEGRAM_WEBHOOK_SECRET` da Edge. Não coloque a chave `SUPABASE_SERVICE_ROLE_KEY` na VPS. Nenhum valor é gravado por estes arquivos. Falhas HTTP usam duas tentativas com o mesmo Update; depois o bot informa que não pôde confirmar e nunca passa o comando ao modelo. Se o envio da resposta pelo Bot API falhar, o pedido já recebido permanece no banco/site, mas o aviso no chat pode se perder; este protótipo não oferece entrega exatamente uma vez do aviso.
+O adapter `helena_v2_inbox.py` é escolhido no Hermes apenas com
+`HELENA_V2_TELEGRAM_MODE=inbox-worker`. Ele usa
+`HELENA_V2_TELEGRAM_WORKER_SECRET` distinto do segredo do webhook, no endpoint
+fixo `HELENA_V2_TELEGRAM_BROKER_URL`. Essa capability autoriza só claim, renovação
+e conclusão de trabalho previamente registrado e drenagem de outbox; a Edge
+descarta qualquer `chat_id`, `from.id` ou destinatário fornecido pelo worker.
+O adapter exige `config.token` vazio. O patch em `gateway/config.py` habilita
+Telegram nesse modo mesmo sem `TELEGRAM_BOT_TOKEN`; um token no ambiente ou na
+configuração antiga faz a conexão falhar fechada. O adapter não inicializa PTB
+Bot e não chama `getUpdates` ou `setWebhook`. Conversa de texto usa o builder de evento e o
+dispatcher originais do Hermes, preservando a chave de sessão Telegram.
+`/pedido` segue para a triagem controlada do banco, sem executar ferramentas
+do modelo. Mídia recebe resposta explícita de que o conteúdo ainda não foi
+lido. O loop chama `/drain` continuamente, inclusive sem mensagens novas.
 
-**Bloqueio de ativação:** Hermes 0.15.1 do profissional executa ferramentas locais como o mesmo usuário do gateway. Uma chave no ambiente inicial do Hermes pode ser lida por shell via `/proc/<PID>/environ`, mesmo que seja removida do ambiente dos subprocessos. A chave permite forjar `chat_id` e `from.id` no broker. Apenas rodar o Hermes inteiro com outro UID não resolve se o modelo e o shell mantiverem o UID do gateway. A integração definitiva requer um transporte confiável separado que possua a capacidade, registre Updates reais do Telegram e não aceite IDs forjados pelo modelo; ferramentas/modelo precisam executar sob outro limite de acesso, sem ler o processo ou os arquivos do transporte. O helper atual terá de mudar para falar com esse transporte sem possuir a chave. Testar esse limite adversarial e o corte/redeploy legítimo antes de ativar. Não há ativação nem prova em produção neste pacote.
+O worker guarda sua capability no processo Hermes. Ferramentas que executam
+com o mesmo UID podem lê-la e abusar de jobs reais, embora não possam forjar
+um Update nem escolher outro destinatário. Esse escopo residual foi aceito
+para o transporte inicial; isolamento por UID seria necessário para proteger
+também a integridade do texto de resposta. O relay server-side de `getFile`
+pela Edge permanece pendente para não regredir conversas atuais com anexos;
+o corte de produção depende dessa cobertura se anexos forem usados. Ainda é
+necessário testar a versão e a configuração reais da VPS.
+
+O envio pela Edge é durável e tem lease/retry. Quando Telegram aceita
+`sendMessage` mas a resposta HTTP ou a confirmação no banco se perde, o retry
+pode duplicar a mensagem; o comprovante permanece no banco. Não há garantia
+de entrega exatamente uma vez. Uma revogação entre o claim e o envio externo
+é uma janela residual de corrida. O vínculo exato da inbox impede que um
+repareamento do mesmo chat reative saídas antigas.
+
+Para verificar em cópia local do commit oficial
+`e71a2bd11b733f3be7cf99deafde0066c343d462` (`v2026.5.29`):
+
+```sh
+HERMES_015_TREE=/tmp/copia-isolada-hermes-015 ./instalar-local.sh --apply
+HERMES_015_TREE=/tmp/copia-isolada-hermes-015 ./instalar-local.sh --check
+HERMES_015_SOURCE=/tmp/helena-hermes-015-source PYTHONPATH=/tmp/helena-hermes-015-source \
+  /tmp/helena-telegram-test-venv/bin/python -m unittest discover -s motor/hermes-vps/telegram-v2 -p test_telegram_v2.py
+```
+
+O patcher valida commit e hashes da fonte, falha fechado diante de alterações
+inesperadas e só permite `--apply` sob `/tmp` ou `/workspace`. **Não aplique na
+VPS enquanto a cobertura de mídia necessária e o corte não estiverem validados.** No corte
+controlado, parar o poller anterior e guardar estado/offset, configurar um
+único webhook apontado à Edge com `drop_pending_updates=false`, observar o
+backlog, testar retorno e manter rollback. Não executar essa sequência agora.

@@ -2,7 +2,7 @@
 """Verified, idempotent local patch for Hermes v2026.5.29 (0.15.1).
 
 CLI use requires the pinned Git commit.  No service, credential file or
-Telegram configuration is touched.  --check fails unless both target
+Telegram credentials are not touched. --check fails unless all three target
 files have exactly the reviewed patched hashes.
 """
 
@@ -20,13 +20,15 @@ import tempfile
 
 PINNED_COMMIT = "e71a2bd11b733f3be7cf99deafde0066c343d462"
 ORIGINAL_HASHES = {
-    "gateway/platforms/telegram.py": "c8054b03463e50e1eda06d5cafa355896e1cd981fe4f8d8ebabc4568de07fee7",
+    "gateway/run.py": "9e3a780cfa36ac8931ad42481a56d4c55d9643efc1f7ec9b595fa886967d0a3f",
+    "gateway/config.py": "2e6b35ab61883868da9129774ebc68eb18c8028a6bc57e86b5b4f97fab2f4424",
 }
 PATCHED_HASHES = {
-    "gateway/platforms/telegram.py": "f42015b72a29221fd2ac1f09654874ad2dba4f4cc6bddca7369bc149fca39575",
-    "gateway/platforms/helena_v2_broker.py": "6ad94688793df99cb3b615529fa04b244810b4ed44540b833b42b55c5cc11a42",
+    "gateway/run.py": "1f4180acbc79b4ac362fc204db960b673e1c38231f520d2a07ea86956336bf41",
+    "gateway/config.py": "0e23b2d104e6d0c5b5432234cd68461be25b268b24af15c638306fb7d2850b81",
+    "gateway/platforms/helena_v2_inbox.py": "b4ef2021b4ef63365627b28f06b11a7de5135555165897eac9a5ddd5c7430640",
 }
-BROKER_SOURCE = Path(__file__).with_name("helena_v2_broker.py")
+BROKER_SOURCE = Path(__file__).with_name("helena_v2_inbox.py")
 
 
 def digest(data: bytes) -> str:
@@ -39,39 +41,30 @@ def replace_once(source: str, old: str, new: str) -> str:
     return source.replace(old, new, 1)
 
 
-def patch_telegram(source: str) -> str:
-    method_marker = "    async def _handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:\n"
-    method = '''    async def _route_helena_v2(self, update: Update, msg: Message) -> bool:
-        """Divert only explicit v2 commands before command/text dispatch or batching."""
-        text = getattr(msg, "text", None)
-        if not isinstance(text, str) or not (
-            text.startswith("/pedido") or text.startswith("/vincular")
-        ):
-            return False
-        from gateway.platforms.helena_v2_broker import handle_helena_v2_command
-
-        async def reply(message: str) -> None:
-            kwargs = {"chat_id": int(msg.chat.id), "text": message}
-            thread_id = getattr(msg, "message_thread_id", None)
-            if type(thread_id) is int and thread_id > 0:
-                kwargs["message_thread_id"] = thread_id
-            await self._send_message_with_thread_fallback(**kwargs)
-
-        return await handle_helena_v2_command(update, reply)
-
+def patch_run(source: str) -> str:
+    marker = "        if platform == Platform.TELEGRAM:\n            from gateway.platforms.telegram import TelegramAdapter, check_telegram_requirements\n"
+    replacement = '''        if platform == Platform.TELEGRAM:
+            if os.getenv("HELENA_V2_TELEGRAM_MODE") == "inbox-worker":
+                from gateway.platforms.helena_v2_inbox import HelenaV2InboxAdapter
+                return HelenaV2InboxAdapter(config)
+            from gateway.platforms.telegram import TelegramAdapter, check_telegram_requirements
 '''
-    source = replace_once(source, method_marker, method + method_marker)
-    source = replace_once(source,
-        "        if not msg or not msg.text:\n            return\n        if not self._should_process_message(msg):\n",
-        "        if not msg or not msg.text:\n            return\n        if await self._route_helena_v2(update, msg):\n            return\n        if not self._should_process_message(msg):\n")
-    source = replace_once(source,
-        "        if not msg or not msg.text:\n            return\n        if not self._should_process_message(msg, is_command=True):\n",
-        "        if not msg or not msg.text:\n            return\n        if await self._route_helena_v2(update, msg):\n            return\n        if not self._should_process_message(msg, is_command=True):\n")
-    return source
+    return replace_once(source, marker, replacement)
+
+
+def patch_config(source: str) -> str:
+    marker = "    # Telegram\n    telegram_token = os.getenv(\"TELEGRAM_BOT_TOKEN\")\n"
+    replacement = '''    # Telegram
+    if os.getenv("HELENA_V2_TELEGRAM_MODE") == "inbox-worker":
+        config.platforms.setdefault(Platform.TELEGRAM, PlatformConfig()).enabled = True
+    telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
+'''
+    return replace_once(source, marker, replacement)
 
 
 TRANSFORMS = {
-    "gateway/platforms/telegram.py": patch_telegram,
+    "gateway/run.py": patch_run,
+    "gateway/config.py": patch_config,
 }
 
 
@@ -106,7 +99,7 @@ def patch_tree(tree: Path, *, apply: bool, require_git: bool = True) -> None:
     if require_git:
         _check_git_pin(tree)
     source = BROKER_SOURCE.read_bytes()
-    if digest(source) != PATCHED_HASHES["gateway/platforms/helena_v2_broker.py"]:
+    if digest(source) != PATCHED_HASHES["gateway/platforms/helena_v2_inbox.py"]:
         raise ValueError("broker helper checksum mismatch")
 
     expected: dict[str, bytes] = {}
@@ -128,10 +121,10 @@ def patch_tree(tree: Path, *, apply: bool, require_git: bool = True) -> None:
         else:
             raise ValueError("Hermes source checksum mismatch")
 
-    helper_path = tree / "gateway/platforms/helena_v2_broker.py"
+    helper_path = tree / "gateway/platforms/helena_v2_inbox.py"
     if helper_path.is_symlink() or (helper_path.exists() and not helper_path.is_file()):
         raise ValueError("broker helper target invalid")
-    if helper_path.exists() and digest(helper_path.read_bytes()) != PATCHED_HASHES["gateway/platforms/helena_v2_broker.py"]:
+    if helper_path.exists() and digest(helper_path.read_bytes()) != PATCHED_HASHES["gateway/platforms/helena_v2_inbox.py"]:
         raise ValueError("broker helper target checksum mismatch")
     if not helper_path.exists() and not apply:
         raise ValueError("broker helper is not installed")

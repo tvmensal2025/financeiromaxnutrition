@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifica ou prepara apenas dois arquivos do desvio Telegram v2 no Hermes 0.15.1 fixado.
+# Verifica ou prepara GatewayRunner, config e adapter inbox no Hermes 0.15.1 fixado.
 # Nao toca .env, auth.json, bot token, systemd, webhook nem processo em execucao.
 set -euo pipefail
 

@@ -1,4 +1,4 @@
-import { RpcError } from "./core.ts";
+import { RpcError, type RpcName } from "./core.ts";
 
 type Fetch = typeof fetch;
 const SUPABASE_HOST = "wxkgrykduqtsgmjkzlou.supabase.co";
@@ -11,7 +11,7 @@ export function createRpcClient(supabaseUrl: string, serviceRoleKey: string, doF
     throw new Error("Telegram backend is not configured");
   }
   const rpcBase = `${base.href.replace(/\/+$/, "")}/rest/v1/rpc/`;
-  return async (name: "vincular_telegram" | "receber_pedido_telegram", args: Record<string, unknown>) => {
+  return async (name: RpcName, args: Record<string, unknown>) => {
     const response = await doFetch(`${rpcBase}${name}`, {
       method: "POST",
       redirect: "error",
@@ -49,7 +49,7 @@ export function createTelegramSender(botToken: string, doFetch: Fetch = fetch) {
   if (!/^\d+:[A-Za-z0-9_-]+$/.test(botToken)) {
     throw new Error("Telegram backend is not configured");
   }
-  return async (chatId: number, text: string): Promise<void> => {
+  return async (chatId: number, text: string): Promise<number> => {
     const response = await doFetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       redirect: "error",
@@ -59,8 +59,12 @@ export function createTelegramSender(botToken: string, doFetch: Fetch = fetch) {
     });
     if (!response.ok) throw new Error("Telegram delivery failed");
     const body: unknown = await response.json();
-    if (!body || typeof body !== "object" || !("ok" in body) || body.ok !== true) {
+    if (!body || typeof body !== "object" || !("ok" in body) || body.ok !== true ||
+        !("result" in body) || typeof body.result !== "object" || body.result === null ||
+        !("message_id" in body.result) || typeof body.result.message_id !== "number" ||
+        !Number.isSafeInteger(body.result.message_id) || body.result.message_id <= 0) {
       throw new Error("Telegram delivery failed");
     }
+    return body.result.message_id;
   };
 }

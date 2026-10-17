@@ -1,293 +1,189 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handleTelegramWebhook, RpcError } from "./core.ts";
+import { handleTelegramRequest } from "./core.ts";
 import { createRpcClient, createTelegramSender } from "./transport.ts";
 
-const SECRET = "synthetic_webhook_secret_32_characters_long";
-const UUID = "12345678-1234-4123-8123-123456789abc";
-const LINK_CODE = "a".repeat(48);
+const WEBHOOK_SECRET = "synthetic_webhook_secret_32_characters_long";
+const WORKER_SECRET = "synthetic_worker_secret_32_characters_long";
+const UPDATE = { update_id: 101, message: { message_id: 102,
+  chat: { id: 103, type: "private" }, from: { id: 103, is_bot: false }, text: "/pedido teste" } };
 
-function update(text = "Crie um card para a empresa", overrides = {}) {
-  return {
-    update_id: 101,
-    message: {
-      message_id: 102,
-      chat: { id: 103, type: "private" },
-      from: { id: 103, is_bot: false },
-      text,
-    },
-    ...overrides,
-  };
+function request(path = "", body = UPDATE, secret = WEBHOOK_SECRET, header = "x-telegram-bot-api-secret-token") {
+  return new Request(`https://example.test/helena-v2-telegram${path}`, { method: "POST",
+    headers: { [header]: secret }, body: JSON.stringify(body) });
 }
 
-function request(body, secret = SECRET) {
-  return new Request("https://example.test/telegram", {
-    method: "POST",
-    headers: secret === null ? {} : { "x-telegram-bot-api-secret-token": secret },
-    body: typeof body === "string" || body instanceof Uint8Array ? body : JSON.stringify(body),
-  });
-}
-
-function harness(override = {}) {
-  const rpcCalls = [];
+function harness() {
+  const calls = [];
   const sent = [];
-  const pending = [];
-  return {
-    rpcCalls, sent,
-    pending,
-    deps: {
-      webhookSecret: SECRET,
-      callRpc: async (name, args) => {
-        rpcCalls.push({ name, args });
-        return name === "vincular_telegram" ? { vinculado: true } :
-          { request_id: UUID, estado: "RECEBIDO", novo_evento: true };
-      },
-      sendMessage: async (chatId, text) => { sent.push({ chatId, text }); },
-      reportPending: (updateId, kind) => { pending.push({ updateId, kind }); },
-      ...override,
+  const inbox = new Map();
+  const outbox = [];
+  const jobs = [];
+  let failPersist = false;
+  let failSend = false;
+  const deps = {
+    webhookSecret: WEBHOOK_SECRET, workerSecret: WORKER_SECRET,
+    callRpc: async (name, args) => {
+      calls.push({ name, args });
+      if (name === "registrar_update_telegram") {
+        if (failPersist) throw new Error("database unavailable");
+        const value = args.p_update;
+        const old = inbox.get(value.update_id);
+        if (old && JSON.stringify(old) !== JSON.stringify(value)) throw new Error("divergent replay");
+        if (!old) {
+          inbox.set(value.update_id, value);
+          outbox.push({ id: "12345678-1234-4123-8123-123456789abc", lease_token: "lease-a",
+            chat_id: "103", texto: "Pedido recebido", delivered: false, available: true });
+          jobs.push({ update_id: "101", lease_token: "lease-b", tipo: "PEDIDO", update: value });
+        }
+        return { update_id: String(value.update_id), tipo: "PEDIDO", novo: !old };
+      }
+      if (name === "reivindicar_saida_telegram") {
+        const item = outbox.find((x) => x.available && !x.delivered);
+        if (!item) return {};
+        item.available = false;
+        return { id: item.id, lease_token: item.lease_token, chat_id: item.chat_id, texto: item.texto };
+      }
+      if (name === "concluir_saida_telegram") {
+        const item = outbox.find((x) => x.id === args.p_id);
+        item.delivered = true;
+        return { ok: true };
+      }
+      if (name === "reagendar_saida_telegram") {
+        const item = outbox.find((x) => x.id === args.p_id);
+        item.available = true;
+        return { ok: true };
+      }
+      if (name === "reivindicar_trabalho_telegram") return jobs.shift() ?? {};
+      if (name === "renovar_trabalho_telegram") return { ok: true };
+      if (name === "concluir_trabalho_telegram") {
+        if (!inbox.has(Number(args.p_update_id))) throw new Error("unknown update");
+        outbox.push({ id: "12345678-1234-4123-8123-123456789abd", lease_token: "lease-c",
+          chat_id: "103", texto: args.p_resposta, delivered: false, available: true });
+        return { ok: true };
+      }
+      throw new Error("unexpected RPC");
+    },
+    sendMessage: async (chatId, text) => {
+      if (failSend) throw new Error("ambiguous Telegram failure");
+      sent.push({ chatId, text });
+      return 201;
     },
   };
+  return { deps, calls, sent, inbox, outbox,
+    failPersist: () => { failPersist = true; }, failSend: (value) => { failSend = value; } };
 }
 
-test("webhook rejects missing, wrong and weak secrets before parsing or RPC", async () => {
-  for (const secret of [null, "wrong"]) {
-    const h = harness();
-    const res = await handleTelegramWebhook(request(update(), secret), h.deps);
-    assert.equal(res.status, 401);
-    assert.equal(h.rpcCalls.length, 0);
-    assert.equal(h.sent.length, 0);
+test("webhook authenticates before reading and ACKs only after durable inbox", async () => {
+  const h = harness();
+  assert.equal((await handleTelegramRequest(request("", UPDATE, "wrong"), h.deps)).status, 401);
+  assert.equal(h.calls.length, 0);
+  h.failPersist();
+  assert.equal((await handleTelegramRequest(request(), h.deps)).status, 503);
+  assert.equal(h.inbox.size, 0);
+});
+
+test("raw media/callback and replay are passed unchanged to durable RPC", async () => {
+  const h = harness();
+  for (const update of [
+    { update_id: 102, message: { ...UPDATE.message, text: undefined, photo: [{ file_id: "file" }] } },
+    { update_id: 103, callback_query: { id: "callback", data: "approve" } },
+  ]) {
+    assert.equal((await handleTelegramRequest(request("", update), h.deps)).status, 200);
+    assert.deepEqual(h.inbox.get(update.update_id), JSON.parse(JSON.stringify(update)));
   }
-  const h = harness({ webhookSecret: "short" });
-  assert.equal((await handleTelegramWebhook(request(update(), "short"), h.deps)).status, 503);
-  assert.equal(h.rpcCalls.length, 0);
+  assert.equal((await handleTelegramRequest(request("", UPDATE), h.deps)).status, 200);
+  assert.equal((await handleTelegramRequest(request("", UPDATE), h.deps)).status, 200);
+  assert.equal(h.inbox.size, 3);
+  assert.equal((await handleTelegramRequest(request("", { ...UPDATE, message: { ...UPDATE.message, text: "changed" } }), h.deps)).status, 503);
 });
 
-test("rejects oversized or malformed body without backend access", async () => {
+test("worker capability can only claim and complete an existing job; Edge delivers by inbox chat", async () => {
   const h = harness();
-  const tooBig = request("x".repeat(65_537));
-  assert.equal((await handleTelegramWebhook(tooBig, h.deps)).status, 413);
-  assert.equal((await handleTelegramWebhook(request("{", h.deps.webhookSecret), h.deps)).status, 400);
-  assert.equal((await handleTelegramWebhook(request(new Uint8Array([0xff])), h.deps)).status, 400);
-  assert.equal(h.rpcCalls.length, 0);
+  await handleTelegramRequest(request(), h.deps);
+  const claim = await handleTelegramRequest(request("/worker/claim", {}, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(claim.status, 200);
+  const job = (await claim.json()).job;
+  assert.equal(job.update_id, "101");
+  assert.deepEqual(job.update, UPDATE);
+  const renew = await handleTelegramRequest(request("/worker/renew", {
+    update_id: job.update_id, lease_token: job.lease_token, chat_id: 999,
+  }, WORKER_SECRET, "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(renew.status, 200);
+  assert.deepEqual(h.calls.at(-1), { name: "renovar_trabalho_telegram",
+    args: { p_update_id: "101", p_lease_token: "lease-b" } });
+  const forged = await handleTelegramRequest(request("", UPDATE, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(forged.status, 401);
+  const done = await handleTelegramRequest(request("/worker/complete", {
+    update_id: job.update_id, lease_token: job.lease_token, resposta: "Plano sugerido",
+    proposta: { natureza: "rascunho" }, chat_id: 999, usuario_id: 999,
+  }, WORKER_SECRET, "x-helena-telegram-worker-secret"), h.deps);
+  assert.equal(done.status, 200);
+  assert.equal(h.calls.at(-1).name, "concluir_trabalho_telegram");
+  assert.deepEqual(Object.keys(h.calls.at(-1).args).sort(),
+    ["p_lease_token", "p_proposta", "p_resposta", "p_update_id"].sort());
+  await handleTelegramRequest(request("/drain", {}, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
+  assert.deepEqual(h.sent.at(-1), { chatId: 103, text: "Plano sugerido" });
 });
 
-test("only safe private human text reaches SQL", async () => {
-  const bad = [
-    update("text", { update_id: Number.MAX_SAFE_INTEGER + 1 }),
-    update("text", { update_id: 0 }),
-    update("text", { message: { ...update().message, chat: { id: 103, type: "group" } } }),
-    update("text", { message: { ...update().message, from: { id: 104, is_bot: false } } }),
-    update("text", { message: { ...update().message, from: { id: 103, is_bot: true } } }),
-    update(" "),
-    update("x".repeat(10_001)),
-    update("text", { message: { ...update().message, message_id: 1.5 } }),
-    update("text", { message: { ...update().message, chat: { id: Number.MAX_SAFE_INTEGER + 1, type: "private" } } }),
-    update("has\u0000nul"),
-  ];
+test("Telegram failure leaves outbox retryable and webhook ACK remains durable", async () => {
   const h = harness();
-  for (const item of bad) assert.equal((await handleTelegramWebhook(request(item), h.deps)).status, 200);
-  assert.equal(h.rpcCalls.length, 0);
-  assert.equal(h.sent.length, 0);
-  assert.equal((await handleTelegramWebhook(request({ update_id: 101, edited_message: update().message }), h.deps)).status, 200);
-  assert.equal(h.rpcCalls.length, 0);
-});
-
-test("link command calls only linking RPC, normalizes code and confirms linkage", async () => {
-  const h = harness();
-  const res = await handleTelegramWebhook(request(update(`/vincular ${LINK_CODE.toUpperCase()}`)), h.deps);
-  assert.equal(res.status, 200);
-  assert.deepEqual(h.rpcCalls, [{
-    name: "vincular_telegram",
-    args: { p_codigo: LINK_CODE, p_chat_id: 103, p_usuario_id: 103 },
-  }]);
-  assert.equal(h.sent.length, 1);
-  assert.match(h.sent[0].text, /Vínculo confirmado/);
-  assert.ok(!h.sent[0].text.includes(LINK_CODE));
-  const malformed = harness();
-  await handleTelegramWebhook(request(update("/vincular wrong")), malformed.deps);
-  assert.equal(malformed.rpcCalls.length, 0);
-});
-
-test("order sends receipt only for new SQL event and never claims execution", async () => {
-  const h = harness();
-  assert.equal((await handleTelegramWebhook(request(update()), h.deps)).status, 200);
-  assert.deepEqual(h.rpcCalls[0], {
-    name: "receber_pedido_telegram",
-    args: { p_chat_id: 103, p_usuario_id: 103, p_update_id: 101,
-      p_mensagem_id: 102, p_texto: "Crie um card para a empresa", p_request_id: null },
-  });
-  assert.match(h.sent[0].text, /Estado: RECEBIDO/);
-  assert.match(h.sent[0].text, new RegExp(UUID));
-  assert.doesNotMatch(h.sent[0].text, /executad[oa]/i);
-  const replay = harness({ callRpc: async () => ({ request_id: UUID, estado: "RECEBIDO", novo_evento: false }) });
-  assert.equal((await handleTelegramWebhook(request(update()), replay.deps)).status, 200);
-  assert.equal(replay.sent.length, 0);
-});
-
-test("unlinked or consumed code receives no details; infrastructure failure stays generic", async () => {
-  const denied = harness({ callRpc: async () => { throw new RpcError("42501", "PAREAMENTO_NAO_VALIDO"); } });
-  const result = await handleTelegramWebhook(request(update(`/vincular ${LINK_CODE}`)), denied.deps);
+  h.failSend(true);
+  assert.equal((await handleTelegramRequest(request(), h.deps)).status, 200);
+  assert.equal(h.outbox[0].delivered, false);
+  assert.equal(h.outbox[0].available, true);
+  h.failSend(false);
+  const result = await handleTelegramRequest(request("/drain", {}, WORKER_SECRET,
+    "x-helena-telegram-worker-secret"), h.deps);
   assert.equal(result.status, 200);
-  assert.deepEqual(await result.json(), { ok: true });
-  assert.equal(denied.sent.length, 0);
-  const divergent = harness({ callRpc: async () => { throw new RpcError("23505", "TELEGRAM_UPDATE_DIVERGENTE"); } });
-  const divergentResult = await handleTelegramWebhook(request(update()), divergent.deps);
-  assert.equal(divergentResult.status, 200);
-  assert.equal(divergent.sent.length, 0);
-  const serviceMisconfigured = harness({ callRpc: async () => { throw new RpcError("42501", "SOMENTE_SERVICO"); } });
-  assert.equal((await handleTelegramWebhook(request(update()), serviceMisconfigured.deps)).status, 503);
-  const failed = harness({ callRpc: async () => { throw new Error("secret backend detail"); } });
-  const errorResult = await handleTelegramWebhook(request(update()), failed.deps);
-  assert.equal(errorResult.status, 503);
-  assert.ok(!(await errorResult.text()).includes("secret backend detail"));
+  assert.equal(h.outbox[0].delivered, true);
+  assert.equal(h.sent.length, 1);
 });
 
-test("Telegram delivery failure records pending, leaves durable SQL receipt, and avoids resend on replay", async () => {
-  const h = harness({ sendMessage: async () => { throw new Error("synthetic send failure"); } });
-  const res = await handleTelegramWebhook(request(update()), h.deps);
-  assert.deepEqual(await res.json(), { ok: true, delivery_pending: true });
-  assert.equal(h.rpcCalls.length, 1);
-  assert.deepEqual(h.pending, [{ updateId: 101, kind: "order" }]);
-  const replay = harness({ callRpc: async () => ({ request_id: UUID, estado: "RECEBIDO", novo_evento: false }) });
-  await handleTelegramWebhook(request(update()), replay.deps);
-  assert.equal(replay.sent.length, 0);
-});
-
-test("RPC transport uses service role only in backend headers and v2 schema", async () => {
+test("backend role key stays in Edge and Telegram sender requires message_id", async () => {
   let call;
-  const rpc = createRpcClient("https://wxkgrykduqtsgmjkzlou.supabase.co/", "synthetic-service-key", async (url, options) => {
-    call = { url, options };
-    return new Response(JSON.stringify({ request_id: UUID, estado: "RECEBIDO", novo_evento: true }),
-      { status: 200, headers: { "content-type": "application/json" } });
-  });
-  await rpc("receber_pedido_telegram", { p_request_id: null });
-  assert.equal(call.url, "https://wxkgrykduqtsgmjkzlou.supabase.co/rest/v1/rpc/receber_pedido_telegram");
-  assert.equal(call.options.headers["content-profile"], "helena_v2");
+  const rpc = createRpcClient("https://wxkgrykduqtsgmjkzlou.supabase.co", "synthetic-service-key",
+    async (url, options) => { call = { url, options }; return new Response('{"update_id":"101"}'); });
+  await rpc("registrar_update_telegram", { p_update: UPDATE });
   assert.equal(call.options.headers.authorization, "Bearer synthetic-service-key");
-  assert.equal(call.options.redirect, "error");
-  assert.deepEqual(JSON.parse(call.options.body), { p_request_id: null });
-  assert.throws(() => createRpcClient("http://wxkgrykduqtsgmjkzlou.supabase.co", "synthetic-service-key"));
-  assert.throws(() => createRpcClient("https://other.supabase.co", "synthetic-service-key"));
+  assert.match(call.url, /\/rest\/v1\/rpc\/registrar_update_telegram$/);
+  assert.throws(() => createRpcClient("https://wrong.example", "key"));
+  const sender = createTelegramSender("123:synthetic-token", async () =>
+    new Response('{"ok":true,"result":{"message_id":201}}'));
+  assert.equal(await sender(103, "teste"), 201);
+  const bad = createTelegramSender("123:synthetic-token", async () => new Response('{"ok":true}'));
+  await assert.rejects(() => bad(103, "teste"), /delivery failed/);
 });
 
-test("RPC error code is classified without returning backend message", async () => {
-  const rpc = createRpcClient("https://wxkgrykduqtsgmjkzlou.supabase.co", "synthetic-service-key", async () =>
-    new Response(JSON.stringify({ code: "42501", message: "PAREAMENTO_NAO_VALIDO" }), { status: 403 }));
-  await assert.rejects(() => rpc("vincular_telegram", {}), (error) =>
-    error instanceof RpcError && error.code === "42501" && error.identifier === "PAREAMENTO_NAO_VALIDO" &&
-      !error.message.includes("PAREAMENTO_NAO_VALIDO"));
-});
-
-test("Telegram sender uses sendMessage and checks API acknowledgement", async () => {
-  let call;
-  const sender = createTelegramSender("123:synthetic-token", async (url, options) => {
-    call = { url, options };
-    return new Response(JSON.stringify({ ok: true }), { status: 200 });
-  });
-  await sender(103, "test receipt");
-  assert.equal(call.url, "https://api.telegram.org/bot123:synthetic-token/sendMessage");
-  assert.deepEqual(JSON.parse(call.options.body), { chat_id: 103, text: "test receipt" });
-  assert.equal(call.options.redirect, "error");
-  const failed = createTelegramSender("123:synthetic-token", async () =>
-    new Response(JSON.stringify({ ok: false }), { status: 200 }));
-  await assert.rejects(() => failed(103, "test receipt"), /Telegram delivery failed/);
-});
-
-test("Edge entrypoint accepts Telegram header without Supabase JWT and uses backend-only service key", async () => {
+test("Edge entrypoint requires distinct server secrets and rejects legacy poller mode", async () => {
   const previousDeno = globalThis.Deno;
   const previousFetch = globalThis.fetch;
   let handler;
   const outgoing = [];
-  globalThis.Deno = {
-    env: { get: (name) => ({
-      HELENA_V2_TELEGRAM_WEBHOOK_SECRET: SECRET,
-      HELENA_V2_TELEGRAM_BOT_TOKEN: "123:synthetic-token",
-      SUPABASE_URL: "https://wxkgrykduqtsgmjkzlou.supabase.co",
-      SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-key",
-    })[name] },
-    serve: (callback) => { handler = callback; },
+  const values = {
+    HELENA_V2_TELEGRAM_WEBHOOK_SECRET: WEBHOOK_SECRET,
+    HELENA_V2_TELEGRAM_WORKER_SECRET: WORKER_SECRET,
+    HELENA_V2_TELEGRAM_BOT_TOKEN: "123:synthetic-token",
+    SUPABASE_URL: "https://wxkgrykduqtsgmjkzlou.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-key",
   };
+  globalThis.Deno = { env: { get: (name) => values[name] }, serve: (fn) => { handler = fn; } };
   globalThis.fetch = async (url, options) => {
     outgoing.push({ url, options });
-    return url.includes("/rest/v1/rpc/") ?
-      new Response(JSON.stringify({ request_id: UUID, estado: "RECEBIDO", novo_evento: true }), { status: 200 }) :
-      new Response(JSON.stringify({ ok: true }), { status: 200 });
+    if (url.includes("/registrar_update_telegram")) return new Response('{"update_id":"101"}');
+    return new Response('{}');
   };
   try {
-    await import("./index.ts?synthetic-entrypoint-test");
-    const res = await handler(request(update()));
-    assert.equal(res.status, 200);
-    assert.equal(outgoing.length, 2);
+    await import("./index.ts?edge-entrypoint-secure-test");
+    assert.equal((await handler(request())).status, 200);
+    assert.ok(outgoing[0].url.endsWith("/registrar_update_telegram"));
     assert.equal(outgoing[0].options.headers.authorization, "Bearer synthetic-service-key");
-    assert.ok(!outgoing[1].options.headers.authorization);
-  } finally {
-    globalThis.Deno = previousDeno;
-    globalThis.fetch = previousFetch;
-  }
-});
-
-test("poller broker accepts only explicit commands and returns receipt on SQL replay", async () => {
-  const h = harness({ mode: "hermes-poller", sendMessage: undefined });
-  const plain = await handleTelegramWebhook(request(update("conversa normal")), h.deps);
-  assert.deepEqual(await plain.json(), { ok: true, respostas: [] });
-  assert.equal(h.rpcCalls.length, 0);
-  const order = await handleTelegramWebhook(request(update("/pedido Comprar equipamentos")), h.deps);
-  assert.equal(order.status, 200);
-  assert.equal(h.rpcCalls[0].args.p_texto, "Comprar equipamentos");
-  const orderBody = await order.json();
-  assert.equal(orderBody.respostas.length, 1);
-  assert.match(orderBody.respostas[0], /RECEBIDO/);
-  assert.equal(h.sent.length, 0);
-
-  const replay = harness({
-    mode: "hermes-poller", sendMessage: undefined,
-    callRpc: async () => ({ request_id: UUID, estado: "RECEBIDO", novo_evento: false }),
-  });
-  const replayBody = await (await handleTelegramWebhook(request(update("/pedido Comprar equipamentos")), replay.deps)).json();
-  assert.equal(replayBody.respostas[0], orderBody.respostas[0]);
-  assert.equal(replay.sent.length, 0);
-});
-
-test("poller broker reports malformed command and unauthorized account generically", async () => {
-  const h = harness({ mode: "hermes-poller", sendMessage: undefined });
-  const malformed = await handleTelegramWebhook(request(update("/pedido")), h.deps);
-  assert.match((await malformed.json()).respostas[0], /Use \/pedido/);
-  assert.equal(h.rpcCalls.length, 0);
-  const denied = harness({ mode: "hermes-poller", sendMessage: undefined,
-    callRpc: async () => { throw new RpcError("42501", "TELEGRAM_NAO_VINCULADO"); } });
-  const deniedResult = await handleTelegramWebhook(request(update("/pedido teste")), denied.deps);
-  assert.equal(deniedResult.status, 200);
-  assert.match((await deniedResult.json()).respostas[0], /Confira.*site/);
-  const link = await handleTelegramWebhook(request(update(`/vincular ${LINK_CODE}`)), h.deps);
-  assert.match((await link.json()).respostas[0], /Vínculo confirmado/);
-  assert.equal(h.rpcCalls[0].name, "vincular_telegram");
-});
-
-test("poller broker entrypoint starts without bot token and makes no Telegram API call", async () => {
-  const previousDeno = globalThis.Deno;
-  const previousFetch = globalThis.fetch;
-  let handler;
-  const outgoing = [];
-  globalThis.Deno = {
-    env: { get: (name) => ({
-      HELENA_V2_TELEGRAM_WEBHOOK_SECRET: SECRET,
-      HELENA_V2_TELEGRAM_MODE: "hermes-poller",
-      SUPABASE_URL: "https://wxkgrykduqtsgmjkzlou.supabase.co",
-      SUPABASE_SERVICE_ROLE_KEY: "synthetic-service-key",
-    })[name] },
-    serve: (callback) => { handler = callback; },
-  };
-  globalThis.fetch = async (url, options) => {
-    outgoing.push({ url, options });
-    return new Response(JSON.stringify({ request_id: UUID, estado: "RECEBIDO", novo_evento: true }), { status: 200 });
-  };
-  try {
-    await import("./index.ts?synthetic-broker-entrypoint-test");
-    const result = await handler(request(update("/pedido teste")));
-    assert.equal(result.status, 200);
-    assert.equal((await result.json()).respostas.length, 1);
-    assert.equal(outgoing.length, 1);
-    assert.ok(outgoing[0].url.includes("/rest/v1/rpc/"));
+    values.HELENA_V2_TELEGRAM_MODE = "hermes-poller";
+    await import("./index.ts?edge-entrypoint-poller-disabled-test");
+    assert.equal((await handler(request())).status, 503);
   } finally {
     globalThis.Deno = previousDeno;
     globalThis.fetch = previousFetch;
