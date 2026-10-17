@@ -97,7 +97,7 @@ jobs:
             { echo '-----BEGIN OPENSSH PRIVATE KEY-----'; printf '%s\n' "$miolo" | fold -w 70; echo '-----END OPENSSH PRIVATE KEY-----'; } > ~/.ssh/vps
             chmod 600 ~/.ssh/vps
             ssh-keygen -y -f ~/.ssh/vps >/dev/null 2>&1 || { echo "::error::VPS_SSH_KEY invalida mesmo depois de remontar: copie de novo do BEGIN ao END"; exit 1; }
-            echo "chave SSH valida (tipo: $(ssh-keygen -y -f ~/.ssh/vps | cut -d' ' -f1))"
+            echo "chave SSH valida: $(ssh-keygen -lf ~/.ssh/vps)"   # impressao digital (nao e segredo): compare com ssh-keygen -lf na VPS
             echo "SSH_CMD=ssh -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
             echo "SCP_CMD=scp -i $HOME/.ssh/vps -o BatchMode=yes" >> "$GITHUB_ENV"
           elif [ -n "${VPS_PASSWORD:-}" ]; then
