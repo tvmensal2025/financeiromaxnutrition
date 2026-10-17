@@ -1,4 +1,5 @@
 import type { CardV2 } from '@/integrations/cards-v2/repository';
+import { rotuloEstado, rotuloMotivo } from '@/integrations/cards-v2/rotulos';
 
 const colunas = [
   { id: 'preparacao', titulo: 'Preparação', estados: ['RASCUNHO', 'VALIDANDO_PLANO'] },
@@ -22,8 +23,8 @@ function Cartao({ card, selecionado, onSelecionar, formatarPrazo }: {
     aria-current={selecionado ? 'true' : undefined}
     className={`min-h-11 w-full rounded-lg border bg-card p-3 text-left shadow-sm transition hover:border-primary/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selecionado ? 'border-primary ring-1 ring-primary/40' : 'border-border'}`}>
     <strong className="block break-words text-sm leading-snug">{card.titulo}</strong>
-    <span className="mt-2 block break-all text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{card.estado}</span>
-    {card.motivo && card.motivo !== 'NENHUM' && <span className="mt-1 block break-all text-xs text-amber-800 dark:text-amber-300">Motivo: {card.motivo}</span>}
+    <span data-estado-card={card.estado} title={card.estado} className="mt-2 block break-words text-xs font-semibold text-muted-foreground">{rotuloEstado(card.estado)}</span>
+    {card.motivo && card.motivo !== 'NENHUM' && <span className="mt-1 block break-words text-xs text-amber-800 dark:text-amber-300">Motivo: {rotuloMotivo(card.motivo)}</span>}
     {card.empresa && <span className="mt-2 block break-words text-xs text-muted-foreground">Empresa: {card.empresa}</span>}
     <span className="mt-2 block text-xs text-muted-foreground">Dono: {card.dono || 'Não informado'}</span>
     <span className="mt-1 block text-xs text-muted-foreground">Prazo: {formatarPrazo(card.prazo)}</span>

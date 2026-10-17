@@ -239,10 +239,10 @@ it('agrupa todos os estados do card em colunas e mantém finais distintos de pub
   const quadro = within(await screen.findByRole('region', { name: 'Quadro Kanban dos cards' }));
   const esperar = within(quadro.getByRole('region', { name: 'Aguardando você: 2 cards' }));
   expect(esperar.getByRole('button', { name: /Confirmar/ })).toBeTruthy();
-  expect(esperar.getByRole('button', { name: /Decidir/ }).textContent).toContain('DEPENDENCIA');
+  expect(esperar.getByRole('button', { name: /Decidir/ }).textContent).toContain('Dependência');
   expect(within(quadro.getByRole('region', { name: 'Preparação: 2 cards' })).getByRole('button', { name: /Validar/ })).toBeTruthy();
-  expect(within(quadro.getByRole('region', { name: 'Pronto: 1 card' })).getByRole('button', { name: /Entrega pronta/ }).textContent).toContain('PRONTO');
-  expect(within(quadro.getByRole('region', { name: 'Encerrado: 2 cards' })).getByRole('button', { name: /Falhou/ }).textContent).toContain('ENCERRADO_COM_FALHA');
+  expect(within(quadro.getByRole('region', { name: 'Pronto: 1 card' })).getByRole('button', { name: /Entrega pronta/ }).textContent).toContain('Pronto');
+  expect(within(quadro.getByRole('region', { name: 'Encerrado: 2 cards' })).getByRole('button', { name: /Falhou/ }).textContent).toContain('Encerrado com falha');
   expect(quadro.queryByText(/No ar/)).toBeNull();
 });
 
@@ -286,7 +286,7 @@ it('destaca espera da etapa sem tirar o card da coluna Em trabalho', async () =>
   }) });
   renderPage(<CardV2Page repositorio={repo} />);
   fireEvent.click(await screen.findByRole('button', { name: /Trabalho com pergunta/ }));
-  expect((await screen.findByRole('region', { name: 'Decisões pendentes do fundador' })).textContent).toContain('Etapa E1: ESPERANDO_FUNDADOR · motivo PERGUNTA');
+  expect((await screen.findByRole('region', { name: 'Decisões pendentes do fundador' })).textContent).toContain('Etapa E1: Esperando fundador · motivo Pergunta');
   expect(within(screen.getByRole('region', { name: 'Em trabalho: 1 card' })).getByRole('button', { name: /Trabalho com pergunta/ })).toBeTruthy();
 });
 
@@ -397,4 +397,34 @@ it('membro não vê a área de publicação, nem com pedido no banco', async () 
   await screen.findByText('Nenhum card disponível.');
   expect(screen.queryByRole('region', { name: 'Publicação' })).toBeNull();
   expect(screen.queryByText(/no ar/i)).toBeNull();
+});
+
+// --- Ordem da página e rótulos legíveis -------------------------------------------------------------------------------
+it('fundador vê o Kanban antes das seções de pedido, Telegram e solicitação, que ficam recolhidas', async () => {
+  auth.isFounder = true;
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([card('a', 'Card do quadro')]) })} />);
+  const quadro = await screen.findByRole('region', { name: 'Quadro Kanban dos cards' });
+  const alvos = [screen.getByTestId('entrada-pedidos'), screen.getByTestId('pareamento-telegram'), screen.getByRole('region', { name: 'Solicitar card real' })];
+  for (const alvo of alvos) {
+    expect(quadro.compareDocumentPosition(alvo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(alvo.closest('details')?.hasAttribute('open')).toBe(false);
+  }
+});
+
+it('?pedido= abre a seção de pedidos para o fundador acompanhar o histórico', async () => {
+  auth.isFounder = true;
+  renderPage(<CardV2Page repositorio={repositorio()} />, '/?pedido=11111111-1111-4111-8111-111111111111');
+  const entrada = await screen.findByTestId('entrada-pedidos');
+  expect(entrada.closest('details')?.hasAttribute('open')).toBe(true);
+  expect(screen.getByTestId('pareamento-telegram').closest('details')?.hasAttribute('open')).toBe(false);
+});
+
+it('mostra estado e motivo em português no quadro, mantendo o código cru só como dica', async () => {
+  const esperando = { ...card('a', 'Aguardando decisão'), estado: 'ESPERANDO_CONFIRMACAO', motivo: 'HELENA_FALHOU' };
+  renderPage(<CardV2Page repositorio={repositorio({ listar: vi.fn().mockResolvedValue([esperando]) })} />);
+  const botao = await screen.findByRole('button', { name: /Aguardando decisão/ });
+  expect(botao.textContent).toContain('Esperando confirmação');
+  expect(botao.textContent).toContain('Motivo: Helena falhou');
+  expect(botao.textContent).not.toMatch(/[A-Z]+_[A-Z]+/);
+  expect(botao.querySelector('[data-estado-card="ESPERANDO_CONFIRMACAO"]')).toBeTruthy();
 });

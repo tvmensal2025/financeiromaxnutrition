@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, BriefcaseBusiness, ClipboardList, Layers3, RefreshCw, Settings2, Users } from 'lucide-react';
 import { useAuth } from '@/auth';
 import { repositorioCardsV2DoApp } from '@/integrations/cards-v2/runtime';
+import { ROTULOS_ESTADO_CARD } from '@/integrations/cards-v2/rotulos';
 import { repositorioPedidosV2DoApp } from '@/integrations/pedidos-v2/runtime';
 import { repositorioConfigV2DoApp } from '@/integrations/config-v2/runtime';
 import type { CardV2, RepositorioCardsV2 } from '@/integrations/cards-v2/repository';
@@ -23,9 +24,7 @@ function registro(valor: unknown): Record<string, unknown> | null {
 function texto(valor: unknown): string { return typeof valor === 'string' ? valor.trim() : ''; }
 function rotuloEstado(estado: string): string {
   const rotulos: Record<string, string> = {
-    RASCUNHO: 'Rascunho', VALIDANDO_PLANO: 'Validando plano', ESPERANDO_CONFIRMACAO: 'Esperando confirmação',
-    ESPERANDO_FUNDADOR: 'Esperando fundador', EM_ANDAMENTO: 'Em andamento', PRONTO: 'Pronto',
-    CANCELADO: 'Cancelado', ENCERRADO_COM_FALHA: 'Encerrado com falha',
+    ...ROTULOS_ESTADO_CARD,
     CONFIRMADO: 'confirmado', NAO_CONFIRMADO: 'não confirmado', ESTAGIO: 'estágio', ATIVO: 'ativo', PAUSADO: 'pausado',
   };
   return rotulos[estado] ?? estado.replace(/_/g, ' ').toLowerCase();
