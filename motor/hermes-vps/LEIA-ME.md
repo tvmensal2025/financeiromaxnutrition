@@ -9,6 +9,7 @@ Este é o instalador do profissional (`original/instalar-na-vps.sh`), adaptado s
 | O código do Hermes vem do GitHub oficial (tag `v2026.5.29`), e o script só aceita se o commit for `e71a2bd11b733f3be7cf99deafde0066c343d462`. | Dispensa enviar o pacote de 67 MB por SFTP. O código baixado é idêntico ao pacote: 4158 arquivos comparados, 0 diferenças. |
 | Etapa `tudo`: pergunta o token e o ID do Telegram sem mostrar na tela e roda as etapas na ordem. | Uma execução só. O token não vai para arquivo nem para a linha de comando. |
 | Etapa `bot`: confere o token no Telegram. | Pega token errado antes de instalar. |
+| Etapas `modelo` e `testar-modelo`: definem `model.default` (padrão `gpt-6.1-sol`, troque com `HERMES_MODELO=...`) e fazem uma pergunta mínima ao modelo. | O login do original grava o provedor mas não o modelo. Sem isso o agente responde "The model provider failed after retries" (visto em 17/10/2026). Com a correção, o teste direto respondeu `ok`. |
 | `WORK`, `HERMES_DIR` e `HERMES_HOME` podem ser trocados por variável. O `case` final só roda quando o arquivo é executado. | Permite testar sem tocar no sistema. |
 
 Todo o resto é idêntico ao original, e o original está guardado ao lado para comparar:

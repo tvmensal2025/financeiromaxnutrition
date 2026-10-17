@@ -3,7 +3,8 @@
 # Roda DENTRO da VPS, como root. Diferencas em relacao ao original (as demais etapas sao identicas):
 #   1. etapa_hermes baixa o codigo do GitHub oficial (tag v2026.5.29) e confere o commit, em vez de receber o pacote por SFTP;
 #   2. etapa nova 'tudo': pede o token e o ID do Telegram sem mostrar na tela e roda todas as etapas na ordem;
-#   3. etapa nova 'bot': valida o token no Telegram; 4. WORK, HERMES_DIR e HERMES_HOME podem ser trocados por variavel (testes);
+#   3. etapa nova 'bot': valida o token no Telegram; etapas novas 'modelo' e 'testar-modelo' (o original nao define o modelo);
+#      4. WORK, HERMES_DIR e HERMES_HOME podem ser trocados por variavel (testes);
 #   5. o 'case' final so roda quando o arquivo e executado, nao quando e lido por 'source' (testes).
 # Cada etapa e identica ao que o instalador do site faz, na mesma ordem:
 #   preparar -> hermes -> telegram -> oauth-iniciar -> oauth-aguardar -> gateway -> verificar
@@ -179,6 +180,24 @@ etapa_bot() {
   BOT_USERNAME="$usuario"; echo "BOT_USERNAME=$usuario"; echo "BOT_LINK=https://t.me/$usuario"
 }
 
+# O login do profissional grava o provedor mas NAO o modelo, e o agente responde "The model provider failed after retries".
+# Esta etapa define o modelo padrao (HERMES_MODELO troca; padrao gpt-6.1-sol, o da coordenacao da Helena em helena-v2/models.yaml).
+etapa_modelo() {
+  modelo="${HERMES_MODELO:-gpt-6.1-sol}"
+  [[ "$modelo" =~ ^[A-Za-z0-9._-]{1,60}$ ]] || fail "nome de modelo invalido."
+  HERMES_HOME="$HERMES_HOME" /usr/local/bin/hermes config set model.default "$modelo" >/dev/null \
+    || fail "nao consegui definir o modelo padrao ($modelo)."
+  ok "modelo padrao: $modelo"
+}
+
+# Uma pergunta minima ao modelo, para provar que o provedor, o login e o modelo funcionam juntos (gasta uma requisicao).
+etapa_testar_modelo() {
+  modelo="${HERMES_MODELO:-gpt-6.1-sol}"
+  saida="$(HERMES_HOME="$HERMES_HOME" timeout 120 /usr/local/bin/hermes -z "Responda apenas: ok" --provider openai-codex --model "$modelo" 2>&1)" \
+    || fail "o modelo $modelo nao respondeu. Troque com: HERMES_MODELO=outro-modelo bash $0 modelo. Resposta: $(printf '%s' "$saida" | tail -n 3)"
+  ok "o modelo $modelo respondeu"
+}
+
 # Pede o que falta, sem mostrar na tela e sem gravar em arquivo, e roda tudo na ordem.
 etapa_tudo() {
   if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
@@ -200,8 +219,10 @@ etapa_tudo() {
   etapa_telegram
   etapa_oauth_iniciar
   etapa_oauth_aguardar
+  etapa_modelo
   etapa_gateway
   etapa_verificar
+  etapa_testar_modelo
   echo
   echo "PRONTO. Seu agente: https://t.me/${BOT_USERNAME:-SEU_BOT}"
   echo "Troque a senha root da VPS agora (comando: passwd)."
@@ -212,6 +233,8 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   case "${1:-}" in
     tudo) etapa_tudo ;;
     bot) etapa_bot ;;
+    modelo) etapa_modelo ;;
+    testar-modelo) etapa_testar_modelo ;;
     conectar) etapa_conectar ;;
     preparar) etapa_preparar ;;
     hermes) etapa_hermes ;;
