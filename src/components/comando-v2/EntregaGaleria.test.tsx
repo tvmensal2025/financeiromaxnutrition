@@ -10,8 +10,8 @@ const entregaV2 = (id: number, etapa_id: string, conteudo: unknown): EntregaV2 =
 const detalheDoCard = (): DetalheCardV2 => ({
   etapas: [],
   entregas: [
-    entregaV2(11, 'e1', { titulo_do_post: 'Vitamina D no inverno', legenda: { curta: 'Tome sol' } }),
-    entregaV2(12, 'e2', 'Texto simples da revisão'),
+    entregaV2(1, 'a1', { titulo_do_post: 'Vitamina D no inverno', legenda: { curta: 'Tome sol' } }),
+    entregaV2(2, 'a2', 'Texto simples da revisão'),
   ],
 });
 function montar(dados: DadosComando = dadosDeTeste(), opcoes: { empresa?: string; carregar?: CarregarDetalhe } = {}) {
@@ -71,7 +71,7 @@ it('mostra erro de carregamento sem inventar texto e deixa tentar de novo', asyn
   const carregar = vi.fn<CarregarDetalhe>().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(detalheDoCard());
   montar(dadosDeTeste(), { carregar });
   fireEvent.click(botaoDe(/Post semanal/));
-  expect(await screen.findByText('Não foi possível carregar o texto desta entrega.')).toBeTruthy();
+  expect(await screen.findByText('Não foi possível carregar o texto desta entrega. Motivo: offline')).toBeTruthy();
   expect(screen.queryByText('Vitamina D no inverno')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Copiar texto' })).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
@@ -83,7 +83,32 @@ it('trata detalhe sem a entrega pedida como erro, não como texto vazio', async 
   const carregar = vi.fn<CarregarDetalhe>().mockResolvedValue({ etapas: [], entregas: [] });
   montar(dadosDeTeste(), { carregar });
   fireEvent.click(botaoDe(/Post semanal/));
-  expect(await screen.findByText('Não foi possível carregar o texto desta entrega.')).toBeTruthy();
+  expect(await screen.findByText(/não consta mais como aprovada no card/)).toBeTruthy();
+});
+
+it('casa a entrega pelo id antes de casar por etapa e versão', async () => {
+  const carregar = vi.fn<CarregarDetalhe>().mockResolvedValue({
+    etapas: [], entregas: [entregaV2(99, 'a1', 'Texto de outra entrega'), entregaV2(1, 'a1', 'Texto certo da entrega 1')],
+  });
+  montar(dadosDeTeste(), { carregar });
+  fireEvent.click(botaoDe(/Post semanal/));
+  expect(await screen.findByText('Texto certo da entrega 1')).toBeTruthy();
+  expect(screen.queryByText('Texto de outra entrega')).toBeNull();
+});
+
+it('não lista entrega velha nem de etapa que não está aprovada (o card também não a abriria)', () => {
+  const dados = dadosDeTeste();
+  dados.etapas = dados.etapas.map(e => (e.id === 'a1' ? { ...e, entrega_fresca: false } : e));
+  dados.entregas.push(entrega('8', 'c3', { etapa_id: 'e1' }), entrega('9', 'c3', { etapa_id: 'a2', versao: 2 }));
+  montar(dados);
+  expect(screen.getByText('3 entregas aprovadas')).toBeTruthy();
+});
+
+it('sem a leitura das etapas não afirma nada sobre entregas aprovadas', () => {
+  const dados = dadosDeTeste();
+  dados.estado.etapas = 'erro';
+  render(<EntregaGaleria dados={dados} empresa="GRUPO" abrirCard={vi.fn()} />);
+  expect(screen.getByText('Não foi possível confirmar as entregas aprovadas')).toBeTruthy();
 });
 
 it('copia o texto e avisa o resultado', async () => {
@@ -116,7 +141,7 @@ it('abre o card da entrega', async () => {
 
 it('filtra por empresa pelo card e avisa das entregas sem card na leitura', () => {
   const dados = dadosDeTeste();
-  dados.entregas.push(entrega('9', 'fantasma'));
+  dados.entregas.push(entrega('9', 'fantasma', { etapa_id: 'a1' }));
   montar(dados, { empresa: 'BIZ-001' });
   expect(screen.getByText('1 entrega aprovada')).toBeTruthy();
   expect(screen.getByText(/1 entrega aprovada não pôde ser ligada a uma empresa/)).toBeTruthy();
@@ -124,7 +149,7 @@ it('filtra por empresa pelo card e avisa das entregas sem card na leitura', () =
 
 it('mostra título honesto para entrega cujo card saiu da leitura (visão do grupo)', () => {
   const dados = dadosDeTeste();
-  dados.entregas = [entrega('9', 'fantasma')];
+  dados.entregas = [entrega('9', 'fantasma', { etapa_id: 'a1' })];
   montar(dados);
   expect(screen.getByText('Card fora da amostra lida')).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Empresa não confirmada' })).toBeTruthy();
@@ -166,7 +191,7 @@ it('vazio de verdade e amostra', () => {
 
 it('pagina a lista quando há muitas entregas', () => {
   const dados = dadosDeTeste();
-  dados.entregas = Array.from({ length: 35 }, (_, i) => entrega(`m${i}`, 'c3'));
+  dados.entregas = Array.from({ length: 35 }, (_, i) => entrega(`m${i}`, 'c3', { etapa_id: 'a1' }));
   montar(dados);
   expect(screen.getAllByRole('listitem')).toHaveLength(30);
   fireEvent.click(screen.getByRole('button', { name: 'Mostrar mais (5 restantes)' }));

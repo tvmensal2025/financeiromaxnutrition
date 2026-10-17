@@ -15,8 +15,8 @@ export const etapa = (id: string, card_id: string, autor: string, estado = 'EM_A
   id, codigo: id.toUpperCase(), nome: `Etapa ${id}`, estado, autor, dono: null, prazo_ate: null, revisores: [], versao: 1,
   portao1_ok: false, entrega_fresca: false, card_id, ordem: 1, atualizado_em: null, execucoes: null,
 });
-export const entrega = (id: string, card_id: string, criada_em: string, portao1 = 'PASSOU'): EntregaResumo => ({
-  id, card_id, etapa_id: 'e1', etapa_codigo: 'E1', versao: 1, autor: 'HELENA', portao1, criada_em, parecer: null, usou_internet: null,
+export const entrega = (id: string, card_id: string, criada_em: string, portao1 = 'PASSOU', etapa_id = 'e1'): EntregaResumo => ({
+  id, card_id, etapa_id, etapa_codigo: 'E1', versao: 1, autor: 'HELENA', portao1, criada_em, parecer: null, usou_internet: null,
 });
 export const pedido = (id: string, criado_em: string, extra: Partial<PedidoEntrada> = {}): PedidoEntrada => ({
   pedido_id: id, request_id: id, estado: 'RECEBIDO', texto_inicial: `Pedido ${id}`, total_eventos: 1,
@@ -41,9 +41,12 @@ export function dadosCheios(): DadosComando {
     etapas: [
       etapa('e1', 'c3', 'MAYA'), etapa('e2', 'c3', 'maya'), etapa('e3', 'c1', 'HELENA', 'REVISAO'),
       etapa('e4', 'c3', 'HELENA', 'APROVADA'), etapa('e5', 'c4', 'HELENA'), etapa('e6', 'c8', 'Fulano externo'),
+      // Etapas prontas e frescas que sustentam as entregas d1 e d2 (entrega aprovada = regra estrita do card).
+      { ...etapa('x1', 'c4', 'HELENA', 'PRONTA'), portao1_ok: true, entrega_fresca: true },
+      { ...etapa('x2', 'c3', 'HELENA', 'PRONTA'), portao1_ok: true, entrega_fresca: true },
     ],
     entregas: [
-      entrega('d1', 'c4', '2026-10-16T15:00:00Z'), entrega('d2', 'c3', '2026-10-17T10:00:00Z'),
+      entrega('d1', 'c4', '2026-10-16T15:00:00Z', 'PASSOU', 'x1'), entrega('d2', 'c3', '2026-10-17T10:00:00Z', 'PASSOU', 'x2'),
       entrega('d3', 'c3', '2026-10-17T11:00:00Z', 'FALHOU'), entrega('d4', 'c1', '2026-09-01T10:00:00Z'),
     ],
     pedidos: [

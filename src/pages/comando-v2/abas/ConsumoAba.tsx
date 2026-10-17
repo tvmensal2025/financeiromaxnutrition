@@ -74,7 +74,8 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
   const { estado, catalogo } = dados;
   const semanal = useMemo(() => entregasPorSemana(dados, empresa), [dados, empresa]);
   const etapas = useMemo(() => execucoesPorEtapa(dados, empresa), [dados, empresa]);
-  const fonteEntregas = empresa === 'GRUPO' ? estado.entregas : estadoCombinado(estado.entregas, estado.cards);
+  // Entrega aprovada depende também das etapas (etapa aprovada, entrega fresca, versão atual).
+  const fonteEntregas = empresa === 'GRUPO' ? estadoCombinado(estado.entregas, estado.etapas) : estadoCombinado(estado.entregas, estado.etapas, estado.cards);
   const fonteEtapas = empresa === 'GRUPO' ? estado.etapas : estadoCombinado(estado.etapas, estado.cards);
   const amostra = dados.amostra ? ' (amostra recente)' : '';
 
@@ -103,7 +104,7 @@ export default function ConsumoAba({ dados, empresa }: PropsAba) {
           value={etapas.totalExecucoes} subtext={fonteEtapas === 'pronta' && etapas.totalExecucoes === null ? 'O banco ainda não informou este número' : `Soma das tentativas por etapa${amostra}`} />
       </div>
 
-      <Painel titulo="Entregas aprovadas por semana" descricao="Entregas que passaram no portão 1, por semana (segunda a domingo, horário de Brasília). Últimas 8 semanas.">
+      <Painel titulo="Entregas aprovadas por semana" descricao="Entregas aprovadas (etapa aprovada ou pronta, portão 1 passou, entrega atual), por semana (segunda a domingo, horário de Brasília). Últimas 8 semanas.">
         <Leitura estado={fonteEntregas} titulo="Entregas aprovadas por semana">
           {semanal.total === 0
             ? <ExecutiveEmptyState icon={CheckCircle2} title="Nenhuma entrega aprovada nas últimas 8 semanas"

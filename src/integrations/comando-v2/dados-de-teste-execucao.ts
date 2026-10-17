@@ -39,12 +39,17 @@ export function dadosDeTeste(): DadosComando {
       etapa('e3', 'c5', { estado: 'EXECUTANDO', nome: 'Redigir', autor: 'CRIADOR', execucoes: 3 }),
       etapa('e4', 'c3', { estado: 'VALIDACAO', nome: 'Conferir', portao1_ok: false }),
       etapa('e5', 'c3', { estado: 'PRONTA', nome: 'Pesquisar', portao1_ok: true }),
+      // Etapas aprovadas/prontas e frescas: dão sustentação às entregas 1 a 4 (entrega aprovada = regra estrita do card).
+      etapa('a1', 'c3', { estado: 'PRONTA', nome: 'Redigir', portao1_ok: true, entrega_fresca: true }),
+      etapa('a2', 'c3', { estado: 'PRONTA', nome: 'Revisar', autor: 'CRIADOR', portao1_ok: true, entrega_fresca: true }),
+      etapa('a3', 'c5', { estado: 'PRONTA', nome: 'Redigir', portao1_ok: true, entrega_fresca: true }),
+      etapa('a4', 'c6', { estado: 'PRONTA', nome: 'Redigir', portao1_ok: true, entrega_fresca: true }),
     ],
     entregas: [
-      entrega('1', 'c3', { criada_em: '2026-10-15T15:00:00Z', parecer: 'Texto claro' }),
-      entrega('2', 'c3', { criada_em: '2026-10-13T15:00:00Z', autor: 'CRIADOR', etapa_codigo: 'E2', etapa_id: 'e2' }),
-      entrega('3', 'c5', { criada_em: '2026-10-06T15:00:00Z' }),
-      entrega('4', 'c6', { criada_em: '2026-08-25T15:00:00Z', usou_internet: true }),
+      entrega('1', 'c3', { etapa_id: 'a1', criada_em: '2026-10-15T15:00:00Z', parecer: 'Texto claro' }),
+      entrega('2', 'c3', { criada_em: '2026-10-13T15:00:00Z', autor: 'CRIADOR', etapa_codigo: 'E2', etapa_id: 'a2' }),
+      entrega('3', 'c5', { etapa_id: 'a3', criada_em: '2026-10-06T15:00:00Z' }),
+      entrega('4', 'c6', { etapa_id: 'a4', criada_em: '2026-08-25T15:00:00Z', usou_internet: true }),
       entrega('5', 'c3', { portao1: 'NAO_PASSOU', criada_em: '2026-10-15T16:00:00Z' }),
     ],
     pedidos: [

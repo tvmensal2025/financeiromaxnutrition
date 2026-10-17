@@ -13,7 +13,7 @@ export default function EntregasAba({ dados, empresa, abrirCard }: PropsAba) {
       <header>
         <h2 className="text-lg font-semibold tracking-tight text-foreground">Entregas aprovadas</h2>
         <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
-          Resultados que passaram no portão 1{empresa !== 'GRUPO' ? `, de ${nomeEmpresa(dados.catalogo, empresa)}` : ', de todas as empresas'}.
+          Resultados aprovados (etapa aprovada, portão 1 passou e entrega atual){empresa !== 'GRUPO' ? `, de ${nomeEmpresa(dados.catalogo, empresa)}` : ', de todas as empresas'}.
           Abra uma entrega para ler o texto e copiá-lo. Aprovada no portão 1 não quer dizer publicada.
         </p>
       </header>

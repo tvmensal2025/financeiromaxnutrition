@@ -9,6 +9,7 @@ import {
   type AgenteComando, type CardComando, type CatalogoComando, type DadosComando, type EntregaResumo,
   type EstadoLeitura, type EtapaComando,
 } from './tipos';
+import { entregasAprovadas as entregasAprovadasDoCard } from './supervisao-v2';
 
 export const FUSO = 'America/Sao_Paulo';
 export const LIMITE_ITENS_BLOCO = 5;
@@ -268,18 +269,24 @@ export function derivarExecucao(dados: DadosComando, empresa: string, agente = '
 /* ---------- Entregas e Consumo ---------- */
 
 /**
- * Entregas aprovadas (portão 1 = PASSOU) da empresa escolhida. Entrega não traz empresa: ela vem do card.
- * Se o card não está na leitura, a entrega não pode ser atribuída a uma empresa e é contada em `ocultas`.
+ * Entregas aprovadas da empresa escolhida, pela MESMA regra do detalhe do card e das outras abas (`entregasAprovadas` de
+ * supervisao-v2.ts): etapa APROVADA/PRONTA, portão 1 passou, entrega fresca e versão igual à da etapa. Entrega que só passou
+ * no portão 1 mas ficou velha, ou cuja etapa não veio na leitura, NÃO entra (o card também não a abriria).
+ * Entrega não traz empresa: ela vem do card. Se o card não está na leitura, a entrega é contada em `ocultas`.
+ * `indisponivel` = etapas ou entregas não foram lidas: sem elas não dá para afirmar nada (a lista vem vazia, nunca "zero real").
  */
-export function entregasAprovadas(dados: DadosComando, empresa: string): { itens: EntregaResumo[]; ocultas: number } {
-  const aprovadas = dados.entregas.filter(e => e.portao1 === 'PASSOU');
+export function entregasAprovadas(dados: DadosComando, empresa: string):
+  { itens: EntregaResumo[]; ocultas: number; indisponivel: boolean } {
+  const aprovadas = entregasAprovadasDoCard(dados);
+  if (aprovadas === null) return { itens: [], ocultas: 0, indisponivel: true };
   const ordenadas = [...aprovadas].sort((a, b) => instante(b.criada_em) - instante(a.criada_em));
-  if (empresa === 'GRUPO') return { itens: ordenadas, ocultas: 0 };
+  if (empresa === 'GRUPO') return { itens: ordenadas, ocultas: 0, indisponivel: false };
   const conhecidos = new Set(dados.cards.map(c => c.id));
   const daEmpresa = new Set(dados.cards.filter(c => c.empresa === empresa).map(c => c.id));
   return {
     itens: ordenadas.filter(e => daEmpresa.has(e.card_id)),
     ocultas: aprovadas.filter(e => !conhecidos.has(e.card_id)).length,
+    indisponivel: false,
   };
 }
 
@@ -288,7 +295,7 @@ export type SemanaEntregas = { chave: string; rotulo: string; total: number };
 /** Entregas aprovadas por semana nas últimas `quantidade` semanas (segunda a domingo, horário de Brasília). */
 export function entregasPorSemana(dados: DadosComando, empresa: string, quantidade = 8):
   { semanas: SemanaEntregas[]; total: number; ocultas: number } {
-  const { itens, ocultas } = entregasAprovadas(dados, empresa);
+  const { itens, ocultas } = entregasAprovadas(dados, empresa); // mesma regra estrita da galeria
   const semanas = ultimasSemanas(dados.agora, quantidade).map(chave => ({ chave, rotulo: rotuloSemana(chave), total: 0 }));
   const porChave = new Map(semanas.map(s => [s.chave, s]));
   for (const entrega of itens) {

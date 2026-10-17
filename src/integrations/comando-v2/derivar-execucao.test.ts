@@ -116,7 +116,7 @@ describe('entregas e consumo', () => {
 
   it('separa por empresa pelo card e conta as que não puderam ser ligadas', () => {
     const dados = dadosDeTeste();
-    dados.entregas.push(entrega('9', 'fantasma'));
+    dados.entregas.push(entrega('9', 'fantasma', { etapa_id: 'a1' }));
     const max = entregasAprovadas(dados, 'BIZ-001');
     expect(max.itens.map(e => e.id)).toEqual(['3']);
     expect(max.ocultas).toBe(1);
@@ -143,7 +143,7 @@ describe('entregas e consumo', () => {
     expect(r.abertas).toBe(4);
     expect(r.totalExecucoes).toBe(6);
     expect(r.grupos).toEqual([{ nome: 'Redigir', execucoes: 5, etapas: 2 }, { nome: 'Revisar', execucoes: 1, etapas: 1 }]);
-    expect(r.semLeitura).toBe(2);
+    expect(r.semLeitura).toBe(6); // e4, e5 e as quatro etapas prontas que sustentam as entregas
     expect(execucoesPorEtapa(dadosDeTeste(), 'BIZ-001').totalExecucoes).toBe(3);
   });
 
