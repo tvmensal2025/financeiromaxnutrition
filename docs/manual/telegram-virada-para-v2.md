@@ -3,7 +3,7 @@
 O que é: fotografia datada (leitura do código, sem consultar Supabase, VPS ou Telegram) do que falta para o fundador
 falar com a Helena v2 pelo bot `@hermes_helena_oficial_bot` e o pedido virar card real. Não substitui a consulta atual
 ao banco; tudo que depende de produção está NÃO CONFIRMADO.
-Como mudar: refaça a auditoria quando o pacote de virada existir e atualize os status; nunca escreva valores de segredo aqui.
+Como mudar: refaça a auditoria quando a virada for executada na VPS e atualize os status; nunca escreva valores de segredo aqui. O roteiro executável da virada está em [virada-telegram-passo-a-passo.md](virada-telegram-passo-a-passo.md).
 
 ## Estado por item
 
@@ -14,8 +14,8 @@ Como mudar: refaça a auditoria quando o pacote de virada existir e atualize os 
 | 3 | Edge `helena-v2-telegram` e segredos | PARCIAL (código existe; deploy foi feito, segredos não confirmados) | `supabase/functions/helena-v2-telegram/`, `config.toml` (`verify_jwt=false`) |
 | 4 | Autenticação por cabeçalho secreto | JÁ EXISTE | `core.ts` (SHA-256 em tempo constante; sem segredo = 503; cabeçalho errado = 401) |
 | 5 | Pareamento do chat do fundador | JÁ EXISTE no banco | migration 0022 (código de 10 min, só hash guardado, chat privado, 1 vínculo ativo) |
-| 6 | Parar o poller do Hermes 0.15.1 antes do webhook | só documentação | `motor/hermes-vps/telegram-v2/LEIA-ME.md` |
-| 7 | Adapter inbox-worker no Hermes 0.15.1 | PARCIAL (código e testes; instalação real AUSENTE) | `helena_v2_inbox.py`, `patch-hermes-telegram.py` recusa `--apply` fora de /tmp e /workspace |
+| 6 | Parar o poller do Hermes 0.15.1 antes do webhook | PARCIAL (etapa `parar-poller` do `virada.sh`, testada só contra `systemctl` simulado; na VPS NÃO CONFIRMADO) | `motor/hermes-vps/telegram-v2/virada.sh`, `test_virada.py` |
+| 7 | Adapter inbox-worker no Hermes 0.15.1 | PARCIAL (pacote de virada pronto e testado offline em instalação simulada e contra o checkout fixado do Hermes; instalação real NÃO EXECUTADA) | `helena_v2_inbox.py`, `virada.sh instalar --producao`, `patch-hermes-telegram.py` (recusa `--apply` fora de /tmp e /workspace sem `--producao`) |
 | 8 | Caixa de entrada com idempotência por `update_id` | JÁ EXISTE | migration 0025 |
 | 9 | Avisos de volta | JÁ EXISTE; quem envia é a Edge, não o motor | migration 0026, `core.ts`, `transport.ts` |
 | 10 | Pedido em texto livre | PARCIAL | só `/pedido <texto>` vira pedido; mensagem comum continua conversa do Hermes antigo |
@@ -25,7 +25,7 @@ Como mudar: refaça a auditoria quando o pacote de virada existir e atualize os 
 
 ## Quatro bloqueios para a ponta a ponta
 
-1. Não existe o pacote de virada da instalação real do Hermes 0.15.1 (o adapter só se instala em cópia isolada).
+1. O pacote de virada da instalação real do Hermes 0.15.1 existe desde 17/10/2026 (`virada.sh`, roteiro em [virada-telegram-passo-a-passo.md](virada-telegram-passo-a-passo.md)), mas ainda não foi rodado na VPS: continua sendo o primeiro risco real.
 2. O site com pareamento e confirmação precisa estar publicado.
 3. O motor novo (triagem e consumo do plano) precisa estar na VPS.
 4. Os serviços em ESTÁGIO (Relatório final, Cálculo, Parecer, Copy, Roteiro) limitam o que vira card: Parecer exige fonte de leis e Copy/Roteiro dependem de Parecer. Hoje só um pedido de Cálculo com insumos rastreáveis tem chance de virar card.
@@ -39,7 +39,7 @@ Como mudar: refaça a auditoria quando o pacote de virada existir e atualize os 
 4. Testar a Edge sem tocar no Telegram: sem cabeçalho 401, cabeçalho errado 401, `/worker/claim` com o segredo do worker devolve `job: null`.
 5. Entregar o segredo do worker à VPS por `ssh` com `umask 077`, nunca por argumento ou chat.
 6. Inventário e backup do `/root/.hermes` na VPS, sem parar nada (`motor/hermes-vps/inventario.sh`).
-7. BLOQUEADO: instalar o adapter na instalação real, sem `TELEGRAM_BOT_TOKEN` no ambiente.
+7. PACOTE PRONTO, NÃO EXECUTADO: `virada.sh instalar --producao` instala o adapter na instalação real, sem `TELEGRAM_BOT_TOKEN` no ambiente (detalhes e saídas esperadas no passo a passo).
 8. Parar o poller, conferir que não sobrou processo, subir o Hermes no modo novo e ler o log (sem 409).
 9. `setWebhook` com `secret_token` e `drop_pending_updates=false`; conferir `getWebhookInfo` sem erro.
 10. Parear: gerar o código no site (vale 10 min), enviar `/vincular <código>` no chat privado, apagar a mensagem.

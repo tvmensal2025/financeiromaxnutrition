@@ -2,8 +2,10 @@
 """Verified, idempotent local patch for Hermes v2026.5.29 (0.15.1).
 
 CLI use requires the pinned Git commit.  No service, credential file or
-Telegram credentials are not touched. --check fails unless all three target
-files have exactly the reviewed patched hashes.
+Telegram credentials are touched. --check fails unless all three target
+files have exactly the reviewed patched hashes.  --apply only accepts trees
+under /tmp or /workspace unless --producao is given explicitly (used by
+virada.sh on the real installation, after backup).
 """
 
 from __future__ import annotations
@@ -145,11 +147,22 @@ def main() -> int:
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--apply", action="store_true")
     action.add_argument("--check", action="store_true")
+    parser.add_argument("--producao", action="store_true",
+                        help="permite --apply fora de /tmp e /workspace (instalacao real); "
+                             "exige --apply e um checkout Git na raiz da arvore")
     args = parser.parse_args()
+    if args.producao and not args.apply:
+        parser.error("--producao so vale junto com --apply")
     try:
         tree = args.tree.resolve(strict=True)
-        if args.apply and not (tree.is_relative_to("/tmp") or tree.is_relative_to("/workspace")):
-            raise ValueError("production application disabled")
+        isolated = tree.is_relative_to("/tmp") or tree.is_relative_to("/workspace")
+        if args.apply and not isolated:
+            if not args.producao:
+                print("Aplicacao fora de /tmp e /workspace recusada: exige --producao explicito",
+                      file=sys.stderr)
+                return 1
+            if not (tree / ".git").exists():
+                raise ValueError("production tree is not a Git checkout root")
         patch_tree(tree, apply=args.apply)
     except (OSError, ValueError):
         print("Hermes Telegram patch verification failed", file=sys.stderr)
