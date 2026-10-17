@@ -12,7 +12,8 @@ const pedido: PedidoEntrada = { pedido_id: '00000000-0000-4000-8000-000000000020
 const detalhe = { ...pedido, eventos: [{ origem: 'SITE' as const, evento_id: `site:${requestId}`, texto: pedido.texto_inicial, recebido_em: pedido.criado_em }] };
 function repositorio(parcial: Partial<RepositorioPedidosV2> = {}): RepositorioPedidosV2 {
   return { receber: vi.fn().mockResolvedValue(pedido), ler: vi.fn().mockResolvedValue(null),
-    listar: vi.fn().mockResolvedValue({ limite: 50, itens: [] }), ...parcial };
+    listar: vi.fn().mockResolvedValue({ limite: 50, itens: [] }),
+    lerProposta: vi.fn().mockResolvedValue(null), confirmarProposta: vi.fn().mockResolvedValue(pedido), ...parcial };
 }
 beforeEach(() => { sessionStorage.clear(); vi.spyOn(crypto, 'randomUUID').mockReturnValue(requestId); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });

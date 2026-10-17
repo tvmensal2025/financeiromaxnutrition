@@ -10,6 +10,13 @@ const plano = { ...recibo, estado: 'PLANO_CONFIRMADO' as const, empresa_id: 'BIZ
   config_revision_id: '33333333-3333-4333-8333-333333333333', card_id: null,
   titulo_confirmado: 'Campanha da eLiving™', prazo_confirmado: '2026-10-30T12:00:00Z', plano_hash: 'a'.repeat(64) };
 const cardCriado = { ...plano, estado: 'CARD_CRIADO' as const, card_id: '44444444-4444-4444-8444-444444444444' };
+const propostaId = '55555555-5555-4555-8555-555555555555';
+const proposta = { id: propostaId, tipo: 'PROPOR', perguntas: [], resumo: 'Preparar campanha para BIZ-003',
+  empresa_id: 'BIZ-003', titulo: 'Campanha da eLiving™', prazo: '2026-10-30T12:00:00Z',
+  plano: { empresas: ['BIZ-003'], etapas: [{ id: 'etapa-1', servico: 'SRV-ESTRATEGIA',
+    objetivo: 'Definir mensagem central', entradas: [], depende_de: [] }] },
+  config_revision_id: '33333333-3333-4333-8333-333333333333', eventos_hash: 'a'.repeat(64),
+  criado_em: '2026-10-17T12:05:00Z', atual: true, validacao_metadados: {} };
 function banco(data: unknown, code?: string) {
   const rpc = vi.fn().mockResolvedValue({ data, error: code ? { code, message: 'detalhe interno não deve sair' } : null });
   const schema = vi.fn().mockReturnValue({ rpc });
@@ -81,5 +88,37 @@ describe('entrada autenticada de pedidos', () => {
     const { cliente, rpc } = banco(null);
     rpc.mockRejectedValueOnce(new Error('detalhe interno não deve sair'));
     await expect(criarRepositorioPedidosV2(cliente).receber(envio)).rejects.toThrow('Não foi possível confirmar o pedido no banco.');
+  });
+  it('lê proposta autenticada, inclusive pergunta com revisão de origem, e só confirma o ID escolhido', async () => {
+    const { cliente, rpc } = banco({ ...recibo, proposta_helena: proposta, perguntas: [] });
+    const repo = criarRepositorioPedidosV2(cliente);
+    expect((await repo.lerProposta(requestId))?.proposta_helena).toEqual(proposta);
+    expect(rpc).toHaveBeenLastCalledWith('ler_proposta_pedido', { p_request_id: requestId });
+    const pergunta = { ...proposta, tipo: 'PERGUNTAR', perguntas: ['Qual empresa?'],
+      empresa_id: null, titulo: null, prazo: null, plano: null };
+    rpc.mockResolvedValueOnce({ data: { ...recibo, proposta_helena: pergunta, perguntas: pergunta.perguntas }, error: null });
+    expect((await repo.lerProposta(requestId))?.perguntas).toEqual(['Qual empresa?']);
+    rpc.mockResolvedValueOnce({ data: plano, error: null });
+    expect((await repo.confirmarProposta(requestId, propostaId)).estado).toBe('PLANO_CONFIRMADO');
+    expect(rpc).toHaveBeenLastCalledWith('confirmar_proposta_pedido', {
+      p_request_id: requestId, p_proposta_id: propostaId,
+    });
+  });
+  it('aceita ausência de proposta e recusa estrutura divergente ou confirmação sem mudança de estado', async () => {
+    const { cliente, rpc } = banco(recibo);
+    const repo = criarRepositorioPedidosV2(cliente);
+    expect((await repo.lerProposta(requestId))?.proposta_helena).toBeNull();
+    rpc.mockResolvedValueOnce({ data: { ...recibo, proposta_helena: { ...proposta, plano: null }, perguntas: [] }, error: null });
+    await expect(repo.lerProposta(requestId)).rejects.toThrow('proposta válida');
+    rpc.mockResolvedValueOnce({ data: recibo, error: null });
+    await expect(repo.confirmarProposta(requestId, propostaId)).rejects.toThrow('não confirmou');
+  });
+  it('traduz rejeição de versão obsoleta sem expor mensagem interna', async () => {
+    const { cliente, rpc } = banco(null, '40001');
+    await expect(criarRepositorioPedidosV2(cliente).confirmarProposta(requestId, propostaId))
+      .rejects.toThrow('A proposta mudou');
+    expect(rpc).toHaveBeenCalledWith('confirmar_proposta_pedido', {
+      p_request_id: requestId, p_proposta_id: propostaId,
+    });
   });
 });

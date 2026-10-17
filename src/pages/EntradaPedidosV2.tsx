@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { repositorioPedidosV2DoApp } from '@/integrations/pedidos-v2/runtime';
 import { ErroEntradaPedidos, LIMITE_TEXTO_PEDIDO, uuidValido, type DetalhePedidoEntrada, type EnvioPedido, type ListaPedidos, type PedidoEntrada,
   type RepositorioPedidosV2 } from '@/integrations/pedidos-v2/repository';
 import { apagarPedidoPendente, guardarUltimoPedido, lerPedidoPendente, lerUltimoPedido, salvarPedidoPendente } from '@/integrations/pedidos-v2/pendente';
+import { PropostaPedidoV2 } from './PropostaPedidoV2';
 
 type Props = { identidade: string; repositorio?: RepositorioPedidosV2 };
 export function EntradaPedidosV2(props: Props) { return <Entrada key={props.identidade} {...props} />; }
@@ -34,6 +35,7 @@ function Entrada({ identidade, repositorio }: Props) {
   const [tentativaLista, setTentativaLista] = useState(0);
   const [consultaId, setConsultaId] = useState('');
   const [consultado, setConsultado] = useState<DetalhePedidoEntrada | null>(null);
+  const [pedidoSelecionado, setPedidoSelecionado] = useState<string | null>(null);
   const [consultando, setConsultando] = useState(false);
   const [erroConsulta, setErroConsulta] = useState<string | null>(null);
   const trava = useRef(false);
@@ -76,6 +78,7 @@ function Entrada({ identidade, repositorio }: Props) {
 
   function confirmar(valor: PedidoEntrada) {
     setRecibo(valor);
+    setPedidoSelecionado(valor.request_id);
     setErro(null);
     setConsultaId(valor.request_id);
     try { guardarUltimoPedido(identidade, valor.request_id, sessionStorage); } catch { /* O recibo confirmado continua visível. */ }
@@ -136,6 +139,7 @@ function Entrada({ identidade, repositorio }: Props) {
       const valor = await repo.ler(id);
       if (vivo.current) {
         setConsultado(valor);
+        setPedidoSelecionado(valor?.request_id ?? null);
         if (!valor) setErroConsulta('Pedido não encontrado para esta conta.');
       }
     } catch (falha) {
@@ -144,6 +148,12 @@ function Entrada({ identidade, repositorio }: Props) {
       if (vivo.current) { travaConsulta.current = false; setConsultando(false); }
     }
   }
+
+  const atualizarPedido = useCallback((valor: PedidoEntrada) => {
+    setRecibo(atual => atual?.request_id === valor.request_id ? valor : atual);
+    setLista(atual => atual ? { ...atual, itens: atual.itens.map(item => item.request_id === valor.request_id ? valor : item) } : atual);
+    setConsultado(atual => atual?.request_id === valor.request_id ? { ...atual, ...valor } : atual);
+  }, []);
 
   return <section aria-label="Entrada de pedidos" className="rounded-xl border border-border bg-card p-5 sm:p-6">
     <h2 className="text-xl font-semibold">O que você precisa fazer?</h2>
@@ -157,7 +167,7 @@ function Entrada({ identidade, repositorio }: Props) {
       <p className="mt-2 break-all">Acompanhamento: {recibo.request_id}</p>
       <p className="mt-2 whitespace-pre-wrap break-words">{recibo.texto_inicial}</p>
       {recibo.estado === 'RECEBIDO' && <p className="mt-2 text-muted-foreground">Aguardando preparar o plano. Nenhum trabalho foi executado por este recebimento.</p>}
-      <button type="button" disabled={!!erroLocal} onClick={() => { setRecibo(null); setTexto(''); }} className="min-h-11 mt-2 font-semibold underline disabled:opacity-50">Escrever outro pedido</button>
+      <button type="button" disabled={!!erroLocal} onClick={() => { setRecibo(null); setPedidoSelecionado(null); setTexto(''); }} className="min-h-11 mt-2 font-semibold underline disabled:opacity-50">Escrever outro pedido</button>
     </div> : <form className="mt-4" onSubmit={evento => { evento.preventDefault(); void enviar(); }}>
       <label htmlFor="pedido-livre-helena" className="block text-sm font-medium">Seu pedido</label>
       <textarea id="pedido-livre-helena" rows={4} maxLength={LIMITE_TEXTO_PEDIDO} value={texto}
@@ -172,6 +182,8 @@ function Entrada({ identidade, repositorio }: Props) {
         {enviando ? 'Confirmando recebimento…' : pendente ? 'Recuperar pedido' : 'Registrar pedido'}
       </button>
     </form>}
+    {repo && pedidoSelecionado && <PropostaPedidoV2 key={`${identidade}:${pedidoSelecionado}`} identidade={identidade}
+      requestId={pedidoSelecionado} repositorio={repo} aoAtualizar={atualizarPedido} />}
     <div className="mt-6 border-t border-border pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">Seus pedidos</h3>
@@ -187,6 +199,8 @@ function Entrada({ identidade, repositorio }: Props) {
           <p className="mt-2 whitespace-pre-wrap break-words">{pedido.texto_inicial}</p>
           <p className="mt-3 break-all text-xs text-muted-foreground">Acompanhamento: {pedido.request_id}</p>
           <p className="mt-1 text-xs text-muted-foreground">{pedido.total_eventos} {pedido.total_eventos === 1 ? 'mensagem' : 'mensagens'} · Canal informado: {{ SITE: 'Site', CODEX: 'Codex', TELEGRAM: 'Telegram' }[pedido.origem_inicial]}</p>
+          <button type="button" onClick={() => { setPedidoSelecionado(pedido.request_id); setConsultaId(pedido.request_id); }}
+            className="min-h-11 mt-1 font-semibold underline">Ver proposta e acompanhamento</button>
         </li>)}</ul>
       </>}
     </div>
@@ -196,7 +210,7 @@ function Entrada({ identidade, repositorio }: Props) {
         <p className="mt-1 text-xs text-muted-foreground">Use o número do recibo para encontrar um pedido, inclusive os mais antigos.</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <input id="consulta-pedido-helena" value={consultaId} maxLength={36} disabled={consultando}
-            onChange={evento => { setConsultaId(evento.target.value); setErroConsulta(null); setConsultado(null); }}
+            onChange={evento => { setConsultaId(evento.target.value); setErroConsulta(null); setConsultado(null); setPedidoSelecionado(null); }}
             className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-sm"
             autoCapitalize="none" autoComplete="off" spellCheck={false} />
           <button type="submit" disabled={!repo || consultando} className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold disabled:opacity-50">{consultando ? 'Consultando…' : 'Consultar pedido'}</button>
